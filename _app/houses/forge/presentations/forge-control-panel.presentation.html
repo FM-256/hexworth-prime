@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control Panel | CompTIA A+ Core 2 | The Forge</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%); color: #e2e8f0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #a855f7; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(9, 9, 16, 0.95); border-top: 1px solid rgba(255,255,255,0.07); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.07); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(168,85,247,0.15); color: #a855f7; border-color: #a855f7; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s; }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #a855f7; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #a855f7; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip { background: rgba(168,85,247,0.08); border-left: 3px solid #a855f7; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #d8b4fe; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-purple { background: rgba(168,85,247,0.08); border: 1px solid rgba(168,85,247,0.3); color: #e9d5ff; }
+        .box-red { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); color: #fee2e2; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #a855f7; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #a855f7; }
+        .card:hover { background: rgba(255,255,255,0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-red { border-left-color: #ef4444; }
+        .card.c-gold { border-left-color: #c9a83a; } .card.c-cyan { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a855f7; } .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue { border-left-color: #3b82f6; }
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell { background: rgba(255,255,255,0.04); border: 1px solid rgba(168,85,247,0.25); border-radius: 8px; padding: 12px 14px; text-align: center; opacity: 0; animation: hexAppear 0.4s ease forwards; }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; } .hex-cell:nth-child(2) { animation-delay: 0.2s; } .hex-cell:nth-child(3) { animation-delay: 0.3s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.4s; } .hex-cell:nth-child(5) { animation-delay: 0.5s; } .hex-cell:nth-child(6) { animation-delay: 0.6s; }
+        @keyframes hexAppear { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #a855f7; margin-bottom: 4px; }
+        .hex-cell .hex-desc { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #a855f7; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #c9a83a; background: rgba(201,168,58,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .ic { font-family: 'Courier New', monospace; color: #c9a83a; background: rgba(201,168,58,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes entityPop { from { opacity: 0; transform: scale(0.6) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes labelSlide { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes glowPulse { 0%, 100% { filter: drop-shadow(0 0 4px rgba(168,85,247,0.3)); } 50% { filter: drop-shadow(0 0 14px rgba(168,85,247,0.9)); } }
+        @keyframes arrowMarch { 0% { stroke-dashoffset: 14; } 100% { stroke-dashoffset: 0; } }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Control Panel -- CompTIA A+ Core 2 -- The Forge</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; CompTIA A+ Core 2 &nbsp;|&nbsp; Control Panel</div>
+        <div class="title-hero">
+            <svg width="420" height="120" viewBox="0 0 420 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Control Panel window frame -->
+                <rect x="110" y="10" width="200" height="100" rx="10" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <rect x="110" y="10" width="200" height="18" rx="10" fill="rgba(168,85,247,0.15)"/>
+                <text x="210" y="22" text-anchor="middle" font-size="8" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">Control Panel</text>
+                <!-- Applet grid icons inside -->
+                <rect x="125" y="35" width="32" height="28" rx="4" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.3)" stroke-width="0.8"
+                    style="animation: entityPop 0.3s ease forwards 0.15s; opacity:0;"/>
+                <text x="141" y="53" text-anchor="middle" font-size="5.5" fill="#3b82f6" font-family="Segoe UI,sans-serif">Programs</text>
+                <rect x="165" y="35" width="32" height="28" rx="4" fill="rgba(168,85,247,0.15)" stroke="rgba(168,85,247,0.3)" stroke-width="0.8"
+                    style="animation: entityPop 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="181" y="53" text-anchor="middle" font-size="5.5" fill="#a855f7" font-family="Segoe UI,sans-serif">Devices</text>
+                <rect x="205" y="35" width="32" height="28" rx="4" fill="rgba(58,181,119,0.15)" stroke="rgba(58,181,119,0.3)" stroke-width="0.8"
+                    style="animation: entityPop 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="221" y="53" text-anchor="middle" font-size="5.5" fill="#3ab577" font-family="Segoe UI,sans-serif">Power</text>
+                <rect x="245" y="35" width="32" height="28" rx="4" fill="rgba(201,168,58,0.15)" stroke="rgba(201,168,58,0.3)" stroke-width="0.8"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="261" y="53" text-anchor="middle" font-size="5.5" fill="#c9a83a" font-family="Segoe UI,sans-serif">Network</text>
+                <rect x="285" y="35" width="18" height="28" rx="4" fill="rgba(6,182,212,0.15)" stroke="rgba(6,182,212,0.3)" stroke-width="0.8"
+                    style="animation: entityPop 0.3s ease forwards 0.35s; opacity:0;"/>
+                <rect x="125" y="70" width="32" height="28" rx="4" fill="rgba(249,115,22,0.15)" stroke="rgba(249,115,22,0.3)" stroke-width="0.8"
+                    style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="141" y="88" text-anchor="middle" font-size="5.5" fill="#f97316" font-family="Segoe UI,sans-serif">System</text>
+                <rect x="165" y="70" width="32" height="28" rx="4" fill="rgba(239,68,68,0.15)" stroke="rgba(239,68,68,0.3)" stroke-width="0.8"
+                    style="animation: entityPop 0.3s ease forwards 0.45s; opacity:0;"/>
+                <text x="181" y="88" text-anchor="middle" font-size="5.5" fill="#ef4444" font-family="Segoe UI,sans-serif">Admin</text>
+                <!-- Legacy badge -->
+                <rect x="330" y="55" width="80" height="24" rx="6" fill="rgba(201,168,58,0.1)" stroke="#c9a83a" stroke-width="1"
+                    style="animation: fadeUp 0.3s ease forwards 0.5s; opacity:0;"/>
+                <text x="370" y="71" text-anchor="middle" font-size="7.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">LEGACY</text>
+                <rect x="10" y="55" width="80" height="24" rx="6" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="1"
+                    style="animation: fadeUp 0.3s ease forwards 0.55s; opacity:0;"/>
+                <text x="50" y="71" text-anchor="middle" font-size="7.5" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">control.exe</text>
+            </svg>
+            <div class="big-title"><span class="accent">Control Panel</span></div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Programs &amp; Features &bull; Device Manager &bull; Power Options &bull; Network &amp; Sharing Center &bull; Administrative Tools
+            </div>
+        </div>
+        <div class="scenario-strip">
+            The Control Panel is the legacy configuration interface that has been part of Windows since Windows 3.1. Microsoft is progressively migrating applets to the Settings app, but many advanced configurations still require Control Panel. The A+ exam tests both interfaces and expects you to know which tasks require which tool.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>A+ Core 2 Objectives</span>
+            <span>Operating Systems</span>
+            <span>The Forge</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- ACCESSING CONTROL PANEL ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Accessing the <span class="accent">Control Panel</span></div>
+        <div class="slide-subtitle">Multiple ways to open it. Three view modes change how applets are displayed. Every applet has a direct command-line shortcut.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="100" viewBox="0 0 680 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Three access methods converging -->
+                <rect x="10" y="10" width="150" height="30" rx="7" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="85" y="29" text-anchor="middle" font-size="8" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">Search: "control panel"</text>
+
+                <rect x="10" y="48" width="150" height="30" rx="7" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="85" y="67" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Run: control</text>
+
+                <rect x="10" y="68" width="150" height="28" rx="7" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="85" y="86" text-anchor="middle" font-size="7.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Win+R &gt; control.exe</text>
+
+                <!-- Arrows -->
+                <line x1="160" y1="25" x2="225" y2="45" stroke="rgba(168,85,247,0.3)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <line x1="160" y1="63" x2="225" y2="50" stroke="rgba(59,130,246,0.3)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="1s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+
+                <!-- Control Panel central -->
+                <rect x="228" y="15" width="160" height="70" rx="10" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="308" y="35" text-anchor="middle" font-size="10" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">Control Panel</text>
+                <text x="308" y="50" text-anchor="middle" font-size="7" fill="#d8b4fe" font-family="Segoe UI,sans-serif">control.exe</text>
+
+                <!-- View modes -->
+                <line x1="389" y1="35" x2="425" y2="20" stroke="rgba(201,168,58,0.3)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="1s" repeatCount="indefinite" begin="0.15s"/>
+                </line>
+                <line x1="389" y1="50" x2="425" y2="50" stroke="rgba(6,182,212,0.3)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="1s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <line x1="389" y1="65" x2="425" y2="80" stroke="rgba(249,115,22,0.3)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="1s" repeatCount="indefinite" begin="0.25s"/>
+                </line>
+
+                <rect x="428" y="8" width="130" height="24" rx="6" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="493" y="24" text-anchor="middle" font-size="7.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Category View</text>
+
+                <rect x="428" y="38" width="130" height="24" rx="6" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="493" y="54" text-anchor="middle" font-size="7.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Large Icons</text>
+
+                <rect x="428" y="68" width="130" height="24" rx="6" fill="rgba(249,115,22,0.08)" stroke="#f97316" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="493" y="84" text-anchor="middle" font-size="7.5" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">Small Icons</text>
+
+                <!-- Direct commands on far right -->
+                <rect x="575" y="15" width="100" height="70" rx="8" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.45s; opacity:0;"/>
+                <text x="625" y="30" text-anchor="middle" font-size="7" fill="#c9a83a" font-weight="700" font-family="Courier New,monospace">appwiz.cpl</text>
+                <text x="625" y="42" text-anchor="middle" font-size="7" fill="#c9a83a" font-family="Courier New,monospace">devmgmt.msc</text>
+                <text x="625" y="54" text-anchor="middle" font-size="7" fill="#c9a83a" font-family="Courier New,monospace">powercfg.cpl</text>
+                <text x="625" y="66" text-anchor="middle" font-size="7" fill="#c9a83a" font-family="Courier New,monospace">ncpa.cpl</text>
+                <text x="625" y="78" text-anchor="middle" font-size="7" fill="#c9a83a" font-family="Courier New,monospace">sysdm.cpl</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-purple">
+                <div class="card-label">View Modes</div>
+                <div class="card-desc"><strong>Category</strong> (default): groups applets into 8 categories (System &amp; Security, Network, Hardware, etc.). <strong>Large Icons / Small Icons:</strong> shows all 40+ applets in a flat grid. For the exam, use icon view -- it shows every applet by name, making specific items easier to find.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">CPL Shortcuts</div>
+                <div class="card-desc">Every Control Panel applet has a .cpl file you can run from the Run dialog or command prompt: <span class="ic">appwiz.cpl</span> (Programs), <span class="ic">ncpa.cpl</span> (Network Connections), <span class="ic">powercfg.cpl</span> (Power), <span class="ic">sysdm.cpl</span> (System Properties), <span class="ic">firewall.cpl</span> (Firewall).</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Why It Still Exists</div>
+                <div class="card-desc">Microsoft cannot remove Control Panel until every applet is migrated to Settings. As of Windows 11, many advanced features remain Control Panel-only: advanced sound settings, user account type changes, advanced adapter settings, indexing options, some printer configurations, and legacy hardware wizards.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- PROGRAMS & FEATURES ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Programs &amp; <span class="accent">Features</span></div>
+        <div class="slide-subtitle">Uninstall or change Win32 desktop applications. Also manages Windows features and installed updates. Run: appwiz.cpl</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="100" viewBox="0 0 680 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="10" y="5" width="300" height="90" rx="10" fill="rgba(168,85,247,0.05)" stroke="#a855f7" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="160" y="20" text-anchor="middle" font-size="9" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">Programs and Features (appwiz.cpl)</text>
+                <!-- Program list rows -->
+                <rect x="20" y="28" width="280" height="14" rx="3" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.2)" stroke-width="0.8"
+                    style="animation: labelSlide 0.3s ease forwards 0.15s; opacity:0;"/>
+                <text x="25" y="38" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Microsoft Office Professional 2021 &nbsp;&nbsp;&nbsp; 4.2 GB &nbsp;&nbsp; 03/15/2026</text>
+                <rect x="20" y="44" width="280" height="14" rx="3" fill="rgba(58,181,119,0.08)" stroke="rgba(58,181,119,0.2)" stroke-width="0.8"
+                    style="animation: labelSlide 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="25" y="54" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Google Chrome &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 890 MB &nbsp;&nbsp; 04/20/2026</text>
+                <rect x="20" y="60" width="280" height="14" rx="3" fill="rgba(201,168,58,0.08)" stroke="rgba(201,168,58,0.2)" stroke-width="0.8"
+                    style="animation: labelSlide 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="25" y="70" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Adobe Creative Cloud &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 12.1 GB &nbsp; 04/01/2026</text>
+                <rect x="20" y="76" width="280" height="14" rx="3" fill="rgba(6,182,212,0.08)" stroke="rgba(6,182,212,0.2)" stroke-width="0.8"
+                    style="animation: labelSlide 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="25" y="86" font-size="6.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">7-Zip 23.01 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 5 MB &nbsp;&nbsp;&nbsp;&nbsp; 01/10/2026</text>
+
+                <!-- Sidebar links -->
+                <rect x="340" y="10" width="160" height="28" rx="7" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="420" y="22" text-anchor="middle" font-size="7.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Turn Windows features</text>
+                <text x="420" y="32" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">on or off</text>
+
+                <rect x="340" y="44" width="160" height="22" rx="7" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="420" y="59" text-anchor="middle" font-size="7.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">View installed updates</text>
+
+                <rect x="340" y="72" width="160" height="22" rx="7" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.45s; opacity:0;"/>
+                <text x="420" y="87" text-anchor="middle" font-size="7.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Install from network</text>
+
+                <!-- optionalfeatures.exe callout -->
+                <rect x="520" y="10" width="150" height="40" rx="8" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.3)" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.5s; opacity:0;"/>
+                <text x="595" y="26" text-anchor="middle" font-size="7" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">optionalfeatures.exe</text>
+                <text x="595" y="38" text-anchor="middle" font-size="6.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">Hyper-V, IIS, .NET 3.5, Sandbox</text>
+                <text x="595" y="46" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Telnet Client, TFTP Client</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-purple">
+                <div class="card-label">Uninstall vs Settings</div>
+                <div class="card-desc">Programs &amp; Features only shows traditional Win32 desktop apps. Store/UWP apps only appear in Settings &gt; Apps. To see everything in one place, use Settings. But Programs &amp; Features shows additional detail: installed date, size, publisher, and version number -- useful for inventory and troubleshooting.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Windows Features</div>
+                <div class="card-desc">"Turn Windows features on or off" opens <span class="ic">optionalfeatures.exe</span>. This is where you enable/disable Hyper-V, IIS, .NET Framework 3.5, Windows Sandbox, Telnet Client, TFTP Client, SMB 1.0/CIFS, and Windows Subsystem for Linux. Requires admin rights and usually a reboot.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Installed Updates</div>
+                <div class="card-desc">"View installed updates" shows every KB update installed. You can uninstall specific updates here if they cause problems -- right-click and select Uninstall. This is the manual rollback path when a Windows Update breaks something. More granular than Settings &gt; Update &amp; Security &gt; Update History.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- DEVICE MANAGER ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Device <span class="accent">Manager</span></div>
+        <div class="slide-subtitle">The single tool for managing hardware drivers. View, update, roll back, disable, and uninstall device drivers. Run: devmgmt.msc</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="110" viewBox="0 0 680 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Device Manager tree structure -->
+                <rect x="10" y="5" width="250" height="100" rx="10" fill="rgba(168,85,247,0.05)" stroke="#a855f7" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="135" y="18" text-anchor="middle" font-size="8" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">Device Manager (devmgmt.msc)</text>
+                <!-- Tree nodes -->
+                <text x="25" y="32" font-size="7" fill="#d8b4fe" font-family="Segoe UI,sans-serif"
+                    style="animation: labelSlide 0.3s ease forwards 0.15s; opacity:0;">v Display adapters</text>
+                <text x="40" y="42" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif"
+                    style="animation: labelSlide 0.3s ease forwards 0.2s; opacity:0;">NVIDIA GeForce RTX 4070</text>
+                <text x="25" y="54" font-size="7" fill="#d8b4fe" font-family="Segoe UI,sans-serif"
+                    style="animation: labelSlide 0.3s ease forwards 0.25s; opacity:0;">v Network adapters</text>
+                <text x="40" y="64" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif"
+                    style="animation: labelSlide 0.3s ease forwards 0.3s; opacity:0;">Intel Wi-Fi 6E AX211</text>
+                <text x="40" y="74" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif"
+                    style="animation: labelSlide 0.3s ease forwards 0.35s; opacity:0;">Realtek PCIe GbE Family Controller</text>
+                <text x="25" y="86" font-size="7" fill="#d8b4fe" font-family="Segoe UI,sans-serif"
+                    style="animation: labelSlide 0.3s ease forwards 0.4s; opacity:0;">v Sound, video and game controllers</text>
+                <text x="25" y="98" font-size="7" fill="#d8b4fe" font-family="Segoe UI,sans-serif"
+                    style="animation: labelSlide 0.3s ease forwards 0.45s; opacity:0;">v Universal Serial Bus controllers</text>
+
+                <!-- Status icons key -->
+                <rect x="280" y="5" width="190" height="100" rx="8" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="375" y="20" text-anchor="middle" font-size="8" fill="#f1f5f9" font-weight="700" font-family="Segoe UI,sans-serif">Device Status Icons</text>
+                <circle cx="295" cy="35" r="5" fill="rgba(201,168,58,0.5)" stroke="#c9a83a" stroke-width="1"/>
+                <text x="305" y="38" font-size="7" fill="#c9a83a" font-family="Segoe UI,sans-serif">! = Driver problem / conflict</text>
+                <circle cx="295" cy="52" r="5" fill="rgba(239,68,68,0.5)" stroke="#ef4444" stroke-width="1"/>
+                <text x="305" y="55" font-size="7" fill="#ef4444" font-family="Segoe UI,sans-serif">X = Device disabled</text>
+                <circle cx="295" cy="69" r="5" fill="rgba(59,130,246,0.5)" stroke="#3b82f6" stroke-width="1"/>
+                <text x="305" y="72" font-size="7" fill="#3b82f6" font-family="Segoe UI,sans-serif">? = Unrecognized / no driver</text>
+                <text x="295" y="90" font-size="7" fill="#3ab577" font-family="Segoe UI,sans-serif">Down arrow = manually disabled</text>
+
+                <!-- Right-click actions -->
+                <rect x="490" y="5" width="180" height="100" rx="8" fill="rgba(168,85,247,0.06)" stroke="rgba(168,85,247,0.25)" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="580" y="20" text-anchor="middle" font-size="8" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">Right-Click Actions</text>
+                <text x="500" y="35" font-size="7" fill="#3ab577" font-family="Segoe UI,sans-serif"
+                    style="animation: fadeUp 0.3s ease forwards 0.35s; opacity:0;">Update driver</text>
+                <text x="500" y="47" font-size="7" fill="#3b82f6" font-family="Segoe UI,sans-serif"
+                    style="animation: fadeUp 0.3s ease forwards 0.4s; opacity:0;">Roll back driver</text>
+                <text x="500" y="59" font-size="7" fill="#c9a83a" font-family="Segoe UI,sans-serif"
+                    style="animation: fadeUp 0.3s ease forwards 0.45s; opacity:0;">Disable device</text>
+                <text x="500" y="71" font-size="7" fill="#ef4444" font-family="Segoe UI,sans-serif"
+                    style="animation: fadeUp 0.3s ease forwards 0.5s; opacity:0;">Uninstall device</text>
+                <text x="500" y="83" font-size="7" fill="#a855f7" font-family="Segoe UI,sans-serif"
+                    style="animation: fadeUp 0.3s ease forwards 0.55s; opacity:0;">Scan for hardware changes</text>
+                <text x="500" y="95" font-size="7" fill="#f97316" font-family="Segoe UI,sans-serif"
+                    style="animation: fadeUp 0.3s ease forwards 0.6s; opacity:0;">Properties (driver version, IRQ)</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-purple">
+                <div class="card-label">Driver Updates</div>
+                <div class="card-desc">"Update driver" offers two paths: <strong>Search automatically</strong> (Windows Update + local driver store) or <strong>Browse my computer</strong> (point to a downloaded driver folder). For production machines, use the manufacturer's driver -- not the generic Windows driver. Always test before deploying to all machines.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Roll Back Driver</div>
+                <div class="card-desc">If an updated driver causes problems, right-click the device &gt; Properties &gt; Driver tab &gt; Roll Back Driver. This reverts to the previously installed driver version. Only available if a previous driver exists in the driver store. This is the first action after a driver update breaks something.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Hidden Devices</div>
+                <div class="card-desc">View &gt; Show hidden devices reveals non-present devices (previously installed but not currently connected), software-only drivers, and non-PnP drivers. Useful for removing ghost network adapters that can cause IP conflicts, or cleaning up drivers from removed USB devices.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- POWER OPTIONS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Power <span class="accent">Options</span></div>
+        <div class="slide-subtitle">Power plans control CPU performance, sleep behavior, display timeout, and hard disk spin-down. Run: powercfg.cpl</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="100" viewBox="0 0 680 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Power plans as horizontal blocks -->
+                <rect x="10" y="10" width="200" height="35" rx="8" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: fadeUp 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="110" y="25" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Balanced (Default)</text>
+                <text x="110" y="38" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Adjusts performance to match demand</text>
+
+                <rect x="10" y="52" width="200" height="35" rx="8" fill="rgba(249,115,22,0.1)" stroke="#f97316" stroke-width="1.5"
+                    style="animation: fadeUp 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="110" y="67" text-anchor="middle" font-size="9" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">High Performance</text>
+                <text x="110" y="80" text-anchor="middle" font-size="7" fill="#fdba74" font-family="Segoe UI,sans-serif">Max CPU, never throttles, shorter battery</text>
+
+                <rect x="240" y="10" width="200" height="35" rx="8" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.5"
+                    style="animation: fadeUp 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="340" y="25" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Power Saver</text>
+                <text x="340" y="38" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Reduces CPU speed, dims display, longer battery</text>
+
+                <rect x="240" y="52" width="200" height="35" rx="8" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="1.5"
+                    style="animation: fadeUp 0.35s ease forwards 0.4s; opacity:0;"/>
+                <text x="340" y="67" text-anchor="middle" font-size="9" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">Ultimate Performance</text>
+                <text x="340" y="80" text-anchor="middle" font-size="7" fill="#d8b4fe" font-family="Segoe UI,sans-serif">Zero latency CPU (Pro for Workstations)</text>
+
+                <!-- Sleep states on right -->
+                <rect x="470" y="5" width="200" height="90" rx="8" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="570" y="20" text-anchor="middle" font-size="8" fill="#f1f5f9" font-weight="700" font-family="Segoe UI,sans-serif">Power States</text>
+                <text x="480" y="35" font-size="7" fill="#3ab577" font-family="Segoe UI,sans-serif">S0 = Working (fully on)</text>
+                <text x="480" y="47" font-size="7" fill="#3b82f6" font-family="Segoe UI,sans-serif">S3 = Sleep (RAM powered, fast resume)</text>
+                <text x="480" y="59" font-size="7" fill="#c9a83a" font-family="Segoe UI,sans-serif">S4 = Hibernate (RAM to disk, zero power)</text>
+                <text x="480" y="71" font-size="7" fill="#a855f7" font-family="Segoe UI,sans-serif">S5 = Soft Off (shutdown)</text>
+                <text x="480" y="83" font-size="7" fill="#f97316" font-family="Segoe UI,sans-serif">Hybrid Sleep = S3 + S4 backup</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Plan Settings</div>
+                <div class="card-desc">"Change plan settings" configures display timeout and sleep timer. "Change advanced power settings" opens a detailed dialog: processor power management (min/max CPU%), hard disk spin-down time, USB selective suspend, wireless adapter power save, and PCI Express link state power management.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Sleep vs Hibernate</div>
+                <div class="card-desc"><strong>Sleep (S3):</strong> RAM stays powered, instant resume, small power draw. <strong>Hibernate (S4):</strong> RAM contents saved to hiberfil.sys on disk, zero power, slower resume. <strong>Hybrid Sleep:</strong> goes to sleep (S3) but also writes RAM to disk -- if power fails, it can recover from the disk copy. Default for desktops.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">powercfg Commands</div>
+                <div class="card-desc"><span class="ic">powercfg /batteryreport</span> generates an HTML battery health report. <span class="ic">powercfg /energy</span> runs a 60-second trace and reports power efficiency issues. <span class="ic">powercfg /hibernate on</span> enables hibernation. <span class="ic">powercfg /availablesleepstates</span> shows supported states.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- SYSTEM PROPERTIES ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">System <span class="accent">Properties</span></div>
+        <div class="slide-subtitle">Computer name, domain/workgroup, performance settings, environment variables, System Restore, and Remote Desktop. Run: sysdm.cpl</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="100" viewBox="0 0 680 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Tab strip -->
+                <rect x="10" y="5" width="660" height="90" rx="10" fill="rgba(168,85,247,0.05)" stroke="#a855f7" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <!-- Tabs -->
+                <rect x="15" y="5" width="100" height="18" rx="5" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.3)" stroke-width="0.8"
+                    style="animation: entityPop 0.3s ease forwards 0.1s; opacity:0;"/>
+                <text x="65" y="17" text-anchor="middle" font-size="7.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Computer Name</text>
+
+                <rect x="120" y="5" width="80" height="18" rx="5" fill="rgba(58,181,119,0.15)" stroke="rgba(58,181,119,0.3)" stroke-width="0.8"
+                    style="animation: entityPop 0.3s ease forwards 0.15s; opacity:0;"/>
+                <text x="160" y="17" text-anchor="middle" font-size="7.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Hardware</text>
+
+                <rect x="205" y="5" width="80" height="18" rx="5" fill="rgba(168,85,247,0.15)" stroke="rgba(168,85,247,0.3)" stroke-width="0.8"
+                    style="animation: entityPop 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="245" y="17" text-anchor="middle" font-size="7.5" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">Advanced</text>
+
+                <rect x="290" y="5" width="110" height="18" rx="5" fill="rgba(201,168,58,0.15)" stroke="rgba(201,168,58,0.3)" stroke-width="0.8"
+                    style="animation: entityPop 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="345" y="17" text-anchor="middle" font-size="7.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">System Protection</text>
+
+                <rect x="405" y="5" width="75" height="18" rx="5" fill="rgba(6,182,212,0.15)" stroke="rgba(6,182,212,0.3)" stroke-width="0.8"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="442" y="17" text-anchor="middle" font-size="7.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Remote</text>
+
+                <!-- Tab content descriptions -->
+                <text x="25" y="38" font-size="7" fill="#3b82f6" font-family="Segoe UI,sans-serif"
+                    style="animation: fadeUp 0.3s ease forwards 0.2s; opacity:0;">Computer Name: hostname, domain/workgroup membership, Change button for domain join</text>
+                <text x="25" y="50" font-size="7" fill="#3ab577" font-family="Segoe UI,sans-serif"
+                    style="animation: fadeUp 0.3s ease forwards 0.25s; opacity:0;">Hardware: Device Manager link, device installation settings (auto-download drivers)</text>
+                <text x="25" y="62" font-size="7" fill="#a855f7" font-family="Segoe UI,sans-serif"
+                    style="animation: fadeUp 0.3s ease forwards 0.3s; opacity:0;">Advanced: Performance (visual effects, DEP), User Profiles, Startup/Recovery, Environment Variables</text>
+                <text x="25" y="74" font-size="7" fill="#c9a83a" font-family="Segoe UI,sans-serif"
+                    style="animation: fadeUp 0.3s ease forwards 0.35s; opacity:0;">System Protection: System Restore on/off, create restore points, configure disk space</text>
+                <text x="25" y="86" font-size="7" fill="#06b6d4" font-family="Segoe UI,sans-serif"
+                    style="animation: fadeUp 0.3s ease forwards 0.4s; opacity:0;">Remote: Enable/disable Remote Desktop, select users allowed to connect, NLA setting</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-purple">
+                <div class="card-label">Advanced Tab</div>
+                <div class="card-desc">Performance Settings: visual effects (animations, shadows), Data Execution Prevention (DEP), virtual memory (pagefile). Environment Variables: system-wide and user-specific PATH, TEMP, and custom variables. Startup and Recovery: default OS for multi-boot, blue screen dump settings.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">System Protection</div>
+                <div class="card-desc">Manages System Restore. Turn protection on/off per drive. Configure max disk space for restore points. Create manual restore points before major changes. System Restore reverts system files, registry, and installed programs -- does NOT affect user documents. <span class="ic">rstrui.exe</span> launches restore wizard.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Computer Name Tab</div>
+                <div class="card-desc">Shows the full computer name and domain/workgroup. The "Change" button lets you rename the PC or join/leave a domain (requires Pro+ edition and admin rights). The "Network ID" wizard walks through domain join step by step. Computer description field is optional metadata.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- NETWORK & SHARING CENTER ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Network &amp; <span class="accent">Sharing Center</span></div>
+        <div class="slide-subtitle">View active connections, change adapter settings, set up new connections, and manage sharing/discovery. The legacy networking hub.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="110" viewBox="0 0 680 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central hub -->
+                <rect x="230" y="10" width="220" height="90" rx="12" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="340" y="28" text-anchor="middle" font-size="10" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">Network &amp; Sharing Center</text>
+                <text x="340" y="42" text-anchor="middle" font-size="7" fill="#d8b4fe" font-family="Segoe UI,sans-serif">Active network: Contoso Domain</text>
+                <text x="340" y="54" text-anchor="middle" font-size="7" fill="#d8b4fe" font-family="Segoe UI,sans-serif">Access type: Internet</text>
+                <text x="340" y="66" text-anchor="middle" font-size="7" fill="#d8b4fe" font-family="Segoe UI,sans-serif">Connection: Ethernet</text>
+                <!-- Glow -->
+                <rect x="222" y="2" width="236" height="106" rx="16" fill="none" stroke="rgba(168,85,247,0.08)" stroke-width="1"
+                    style="animation: pulse 3s ease-in-out infinite;"/>
+
+                <!-- Left sidebar links -->
+                <rect x="10" y="10" width="190" height="28" rx="7" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.15s; opacity:0;"/>
+                <text x="105" y="28" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Change adapter settings (ncpa.cpl)</text>
+                <line x1="200" y1="24" x2="229" y2="40" stroke="rgba(59,130,246,0.3)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+
+                <rect x="10" y="44" width="190" height="24" rx="7" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="105" y="60" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Change advanced sharing</text>
+
+                <rect x="10" y="74" width="190" height="24" rx="7" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="105" y="90" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Set up a new connection</text>
+
+                <!-- Right sidebar -->
+                <rect x="480" y="10" width="190" height="45" rx="7" fill="rgba(6,182,212,0.06)" stroke="#06b6d4" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="575" y="26" text-anchor="middle" font-size="8" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Network Profiles</text>
+                <text x="575" y="38" text-anchor="middle" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif">Private: discovery ON, sharing ON</text>
+                <text x="575" y="48" text-anchor="middle" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif">Public: discovery OFF, sharing OFF</text>
+
+                <rect x="480" y="62" width="190" height="40" rx="7" fill="rgba(249,115,22,0.06)" stroke="#f97316" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="575" y="78" text-anchor="middle" font-size="8" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">Advanced Sharing</text>
+                <text x="575" y="90" text-anchor="middle" font-size="7" fill="#fdba74" font-family="Segoe UI,sans-serif">Network discovery, file/printer sharing</text>
+                <text x="575" y="98" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Password-protected sharing toggle</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Change Adapter Settings</div>
+                <div class="card-desc">Opens <span class="ic">ncpa.cpl</span> -- the Network Connections folder. Right-click an adapter &gt; Properties to configure: IPv4/IPv6 address, subnet mask, default gateway, DNS servers. This is where you manually set a static IP or switch back to DHCP. Also access advanced TCP/IP settings (multiple IPs, WINS, DNS suffix).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Network Profiles</div>
+                <div class="card-desc"><strong>Private:</strong> network discovery and file sharing enabled -- for trusted home/work networks. <strong>Public:</strong> everything locked down -- for coffee shops, airports, hotels. <strong>Domain:</strong> automatically applied when connected to a domain network. Profile determines firewall rules and sharing behavior.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Advanced Sharing Settings</div>
+                <div class="card-desc">Per-profile configuration: network discovery (allow other PCs to see you), file and printer sharing (share resources), Public folder sharing, media streaming, 128-bit encryption, and password-protected sharing. Separate settings for Private, Guest, and All Networks profiles.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- USER ACCOUNTS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">User <span class="accent">Accounts</span></div>
+        <div class="slide-subtitle">Account type management, UAC settings, credential manager, and managing other accounts. Some actions still require Control Panel.</div>
+
+        <div class="diagram-center">
+            <svg width="600" height="100" viewBox="0 0 600 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- User with shield -->
+                <circle cx="300" cy="35" r="22" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.05s; opacity:0;"/>
+                <circle cx="300" cy="28" r="8" fill="rgba(168,85,247,0.25)" stroke="#a855f7" stroke-width="1"/>
+                <path d="M283,48 Q300,60 317,48" fill="none" stroke="#a855f7" stroke-width="1.5"/>
+                <!-- UAC shield -->
+                <path d="M300,62 L318,68 L318,82 Q318,92 300,96 Q282,92 282,82 L282,68 Z" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.15s; opacity:0;"/>
+                <text x="300" y="80" text-anchor="middle" font-size="7" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">UAC</text>
+                <!-- Account types -->
+                <rect x="40" y="20" width="140" height="30" rx="7" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="110" y="33" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Administrator</text>
+                <text x="110" y="44" text-anchor="middle" font-size="6.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">Full system access + UAC prompt</text>
+                <line x1="180" y1="35" x2="278" y2="35" stroke="rgba(239,68,68,0.3)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+
+                <rect x="40" y="60" width="140" height="30" rx="7" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="110" y="73" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Standard User</text>
+                <text x="110" y="84" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Limited rights, needs admin creds to elevate</text>
+                <line x1="180" y1="75" x2="278" y2="45" stroke="rgba(58,181,119,0.3)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="1s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+
+                <!-- Credential Manager -->
+                <rect x="400" y="25" width="180" height="50" rx="8" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="490" y="40" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Credential Manager</text>
+                <text x="490" y="52" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Web Credentials (browser passwords)</text>
+                <text x="490" y="62" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Windows Credentials (network, RDP)</text>
+                <text x="490" y="71" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">control /name Microsoft.CredentialManager</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-purple">
+                <div class="card-label">User Account Control (UAC)</div>
+                <div class="card-desc">UAC prompts when software tries to make system changes. Four notification levels from "Always notify" to "Never notify." Default level: notify only when apps try to make changes (do not dim desktop). Admins see a consent prompt; standard users must enter admin credentials. Never disable UAC entirely.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Account Types</div>
+                <div class="card-desc"><strong>Administrator:</strong> can install software, change settings, modify other accounts. Runs with standard token until elevation is needed (UAC). <strong>Standard User:</strong> can run apps, change personal settings, cannot modify system settings or other users. Best practice: daily use with Standard, elevate only when needed.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Credential Manager</div>
+                <div class="card-desc">Stores saved credentials for websites, network shares, and remote connections. Two vaults: Web Credentials (synced with Microsoft account) and Windows Credentials (local). Useful for troubleshooting: if a user cannot access a network share, check for stale cached credentials here. Remove outdated entries to force re-authentication.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- WINDOWS FIREWALL ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Windows Defender <span class="accent">Firewall</span></div>
+        <div class="slide-subtitle">Host-based firewall with profile-based rules. Domain, Private, and Public profiles each have independent configurations. Run: firewall.cpl</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="100" viewBox="0 0 680 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Firewall wall -->
+                <rect x="300" y="5" width="12" height="90" rx="2" fill="rgba(239,68,68,0.2)" stroke="#ef4444" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <rect x="296" y="15" width="20" height="6" rx="1" fill="rgba(239,68,68,0.15)"/>
+                <rect x="296" y="30" width="20" height="6" rx="1" fill="rgba(239,68,68,0.15)"/>
+                <rect x="296" y="45" width="20" height="6" rx="1" fill="rgba(239,68,68,0.15)"/>
+                <rect x="296" y="60" width="20" height="6" rx="1" fill="rgba(239,68,68,0.15)"/>
+                <rect x="296" y="75" width="20" height="6" rx="1" fill="rgba(239,68,68,0.15)"/>
+                <text x="306" y="-2" text-anchor="middle" font-size="9" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">FIREWALL</text>
+
+                <!-- Inbound traffic -->
+                <rect x="10" y="15" width="120" height="30" rx="7" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.15s; opacity:0;"/>
+                <text x="70" y="34" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Allowed (port 443)</text>
+                <line x1="130" y1="30" x2="295" y2="30" stroke="rgba(58,181,119,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="295,27 300,30 295,33" fill="#3ab577"/>
+
+                <rect x="10" y="55" width="120" height="30" rx="7" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="70" y="74" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Blocked (port 23)</text>
+                <line x1="130" y1="70" x2="270" y2="70" stroke="rgba(239,68,68,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.15s"/>
+                </line>
+                <text x="284" y="74" font-size="12" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">X</text>
+
+                <!-- Protected PC -->
+                <rect x="340" y="25" width="130" height="50" rx="8" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.3)" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="405" y="42" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Protected PC</text>
+                <text x="405" y="55" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Inbound blocked by default</text>
+                <text x="405" y="65" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Outbound allowed by default</text>
+
+                <!-- Profile boxes -->
+                <rect x="500" y="8" width="85" height="26" rx="5" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="542" y="25" text-anchor="middle" font-size="7.5" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">Domain</text>
+                <rect x="592" y="8" width="78" height="26" rx="5" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="631" y="25" text-anchor="middle" font-size="7.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Private</text>
+                <rect x="500" y="40" width="170" height="26" rx="5" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="585" y="57" text-anchor="middle" font-size="7.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Public (most restrictive)</text>
+                <!-- Advanced link -->
+                <rect x="500" y="72" width="170" height="22" rx="5" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.25)" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.45s; opacity:0;"/>
+                <text x="585" y="87" text-anchor="middle" font-size="7" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">wf.msc = Advanced Firewall (full rules)</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Default Behavior</div>
+                <div class="card-desc"><strong>Inbound:</strong> blocked by default (unless a rule allows it). <strong>Outbound:</strong> allowed by default (unless a rule blocks it). This means you need explicit inbound rules for any service you want to host (RDP, web server, file sharing). "Allow an app through Windows Firewall" creates simple inbound rules.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Advanced Firewall (wf.msc)</div>
+                <div class="card-desc">The full Windows Firewall with Advanced Security MMC snap-in. Create custom inbound/outbound rules by program, port, protocol, or predefined service. Specify scope (local/remote IP), action (allow/block), and which profiles (Domain/Private/Public). Connection security rules configure IPsec.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Troubleshooting</div>
+                <div class="card-desc">If a service is not accessible, check: Is the firewall enabled? Is there an inbound rule allowing the port? Is the rule active for the correct profile? Use <span class="ic">netsh advfirewall show allprofiles</span> to check status. Temporarily disable with <span class="ic">netsh advfirewall set allprofiles state off</span> (test only -- never leave disabled).</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- ADMINISTRATIVE TOOLS LINK ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Administrative <span class="accent">Tools</span></div>
+        <div class="slide-subtitle">A collection of MMC snap-ins and system utilities accessible from Control Panel. Windows 11 renamed this folder to "Windows Tools."</div>
+
+        <div class="hex-grid">
+            <div class="hex-cell">
+                <div class="hex-title">Computer Management</div>
+                <div class="hex-desc">compmgmt.msc -- all-in-one: Task Scheduler, Event Viewer, Shared Folders, Disk Management, Device Manager, Services</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Event Viewer</div>
+                <div class="hex-desc">eventvwr.msc -- Application, Security, System logs. Custom views, filter by event ID, source, or level</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Services</div>
+                <div class="hex-desc">services.msc -- Start/stop/restart services. Set startup type: Automatic, Manual, Disabled, Delayed Start</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Task Scheduler</div>
+                <div class="hex-desc">taskschd.msc -- Schedule scripts, programs, maintenance. Triggers: time, event, logon, startup, idle</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Disk Management</div>
+                <div class="hex-desc">diskmgmt.msc -- Create/resize partitions, assign drive letters, convert MBR/GPT, extend/shrink volumes</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Local Security Policy</div>
+                <div class="hex-desc">secpol.msc -- Password policy, account lockout, audit policy, user rights, security options (Pro+ only)</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            In Windows 10, these live under Control Panel &gt; Administrative Tools. In Windows 11, Microsoft consolidated them into a single "Windows Tools" folder accessible from Start. The underlying MMC snap-ins and executable names remain identical. The exam tests the .msc command for each tool.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- SETTINGS vs CONTROL PANEL ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Settings vs <span class="accent">Control Panel</span></div>
+        <div class="slide-subtitle">The exam tests when to use each. Some tasks exist in both places; some exist in only one.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="120" viewBox="0 0 680 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Settings circle -->
+                <circle cx="220" cy="60" r="55" fill="rgba(168,85,247,0.06)" stroke="#a855f7" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="190" y="25" text-anchor="middle" font-size="9" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">Settings Only</text>
+                <text x="190" y="40" font-size="6.5" fill="#d8b4fe" font-family="Segoe UI,sans-serif">Windows Update</text>
+                <text x="190" y="50" font-size="6.5" fill="#d8b4fe" font-family="Segoe UI,sans-serif">Privacy toggles</text>
+                <text x="190" y="60" font-size="6.5" fill="#d8b4fe" font-family="Segoe UI,sans-serif">Gaming / Xbox</text>
+                <text x="190" y="70" font-size="6.5" fill="#d8b4fe" font-family="Segoe UI,sans-serif">Store app mgmt</text>
+                <text x="190" y="80" font-size="6.5" fill="#d8b4fe" font-family="Segoe UI,sans-serif">Reset this PC</text>
+
+                <!-- Control Panel circle -->
+                <circle cx="460" cy="60" r="55" fill="rgba(201,168,58,0.06)" stroke="#c9a83a" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.1s; opacity:0;"/>
+                <text x="490" y="25" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Control Panel Only</text>
+                <text x="440" y="40" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Advanced sound</text>
+                <text x="440" y="50" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Indexing Options</text>
+                <text x="440" y="60" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Credential Manager</text>
+                <text x="440" y="70" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Advanced adapter IP</text>
+                <text x="440" y="80" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Advanced firewall rules</text>
+
+                <!-- Overlap / Both -->
+                <ellipse cx="340" cy="60" rx="40" ry="40" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="1.2" stroke-dasharray="4,3"
+                    style="animation: boxGrow 0.4s ease forwards 0.15s; opacity:0;"/>
+                <text x="340" y="38" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Both</text>
+                <text x="340" y="50" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Display</text>
+                <text x="340" y="60" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Uninstall apps</text>
+                <text x="340" y="70" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Network status</text>
+                <text x="340" y="80" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Power plans</text>
+
+                <!-- Arrows indicating migration direction -->
+                <line x1="460" y1="116" x2="320" y2="116" stroke="rgba(168,85,247,0.4)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.2s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="320,112 312,116 320,120" fill="#a855f7"/>
+                <text x="390" y="113" text-anchor="middle" font-size="7" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">Migration direction</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-purple">
+                <div class="card-label">Use Settings When</div>
+                <div class="card-desc">Managing Windows Update, configuring privacy/security toggles, managing Store apps, accessing Recovery (Reset this PC), configuring Accounts and sign-in options, setting up VPN connections, and adjusting Accessibility features. Settings is the future -- Microsoft adds new capabilities here first.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Use Control Panel When</div>
+                <div class="card-desc">Accessing Device Manager, configuring advanced network adapter properties (static IP, DNS), managing advanced firewall rules (wf.msc), viewing installed updates for uninstall, accessing System Properties (sysdm.cpl), running Indexing Options, managing Credential Manager, or configuring advanced sound/recording properties.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- SUMMARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Control Panel <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Key takeaways for the CompTIA A+ Core 2 exam.</div>
+
+        <div class="diagram-center">
+            <svg width="500" height="70" viewBox="0 0 500 70" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="10" y="10" width="80" height="50" rx="8" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.05s; opacity:0;"/>
+                <text x="50" y="30" text-anchor="middle" font-size="7" fill="#a855f7" font-weight="700" font-family="Courier New,monospace">control</text>
+                <text x="50" y="50" text-anchor="middle" font-size="6" fill="#d8b4fe" font-family="Segoe UI,sans-serif">Main Panel</text>
+                <line x1="90" y1="35" x2="115" y2="35" stroke="rgba(168,85,247,0.3)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.8s" repeatCount="indefinite"/>
+                </line>
+                <rect x="118" y="10" width="75" height="50" rx="8" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.1s; opacity:0;"/>
+                <text x="155" y="30" text-anchor="middle" font-size="6.5" fill="#3b82f6" font-weight="700" font-family="Courier New,monospace">appwiz.cpl</text>
+                <text x="155" y="50" text-anchor="middle" font-size="6" fill="#93c5fd" font-family="Segoe UI,sans-serif">Programs</text>
+                <line x1="193" y1="35" x2="208" y2="35" stroke="rgba(59,130,246,0.3)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.8s" repeatCount="indefinite" begin="0.05s"/>
+                </line>
+                <rect x="211" y="10" width="75" height="50" rx="8" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.15s; opacity:0;"/>
+                <text x="248" y="27" text-anchor="middle" font-size="6" fill="#3ab577" font-weight="700" font-family="Courier New,monospace">devmgmt</text>
+                <text x="248" y="37" text-anchor="middle" font-size="6" fill="#3ab577" font-weight="700" font-family="Courier New,monospace">.msc</text>
+                <text x="248" y="50" text-anchor="middle" font-size="6" fill="#86efac" font-family="Segoe UI,sans-serif">Devices</text>
+                <line x1="286" y1="35" x2="301" y2="35" stroke="rgba(58,181,119,0.3)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.8s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <rect x="304" y="10" width="75" height="50" rx="8" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="341" y="27" text-anchor="middle" font-size="6" fill="#c9a83a" font-weight="700" font-family="Courier New,monospace">powercfg</text>
+                <text x="341" y="37" text-anchor="middle" font-size="6" fill="#c9a83a" font-weight="700" font-family="Courier New,monospace">.cpl</text>
+                <text x="341" y="50" text-anchor="middle" font-size="6" fill="#fef3c7" font-family="Segoe UI,sans-serif">Power</text>
+                <line x1="379" y1="35" x2="394" y2="35" stroke="rgba(201,168,58,0.3)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.8s" repeatCount="indefinite" begin="0.15s"/>
+                </line>
+                <rect x="397" y="10" width="90" height="50" rx="8" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="442" y="30" text-anchor="middle" font-size="6.5" fill="#06b6d4" font-weight="700" font-family="Courier New,monospace">ncpa.cpl</text>
+                <text x="442" y="50" text-anchor="middle" font-size="6" fill="#67e8f9" font-family="Segoe UI,sans-serif">Network</text>
+            </svg>
+        </div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Control Panel is legacy but NOT gone.</strong> Many advanced settings still require it: Device Manager, advanced network adapter config, firewall rules (wf.msc), System Properties (sysdm.cpl).</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Know the CPL/MSC shortcuts.</strong> <code>appwiz.cpl</code>, <code>devmgmt.msc</code>, <code>powercfg.cpl</code>, <code>ncpa.cpl</code>, <code>sysdm.cpl</code>, <code>firewall.cpl</code>, <code>services.msc</code>.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Programs &amp; Features</strong> shows Win32 apps; Settings shows Store apps. Use optionalfeatures.exe for Windows features (Hyper-V, IIS, .NET 3.5).</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Device Manager</strong> is your driver troubleshooting tool. Yellow ! = problem, red X = disabled, ? = no driver. Update, roll back, or uninstall drivers here.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>System Properties (sysdm.cpl)</strong> has 5 tabs: Computer Name (domain join), Hardware, Advanced (performance, env vars), System Protection (restore), Remote (RDP).</span></div>
+        </div>
+
+        <div class="box box-purple" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Administrative / MMC Tools</strong> &nbsp;|&nbsp; Computer Management &bull; Event Viewer &bull; Services &bull; Task Scheduler &bull; Registry Editor
+        </div>
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; The Forge</button></a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1; const TOTAL_SLIDES = 12;
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide); if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide); if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+    goToSlide(1);
+</script>
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('forge', 'forge-control-panel-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Windows 10/11 Editions | CompTIA A+ Core 2 | The Forge</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #a855f7; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(168, 85, 247, 0.15); color: #a855f7; border-color: #a855f7;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #a855f7; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #a855f7; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(168, 85, 247, 0.08); border-left: 3px solid #a855f7;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #d8b4fe; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-purple { background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.3); color: #e9d5ff; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #a855f7; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #a855f7;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a855f7; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #a855f7; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .diagram-row { display: flex; gap: 16px; align-items: center; justify-content: center; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(168, 85, 247, 0.25);
+            border-radius: 8px; padding: 12px 14px; text-align: center;
+            opacity: 0; animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #a855f7; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes flow {
+            0%   { stroke-dashoffset: 20; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes boxGrow {
+            from { opacity: 0; transform: scale(0.7); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes labelSlide {
+            from { opacity: 0; transform: translateX(-8px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes entityPop {
+            from { opacity: 0; transform: scale(0.6) translateY(6px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes spokePulse {
+            0%   { stroke-dashoffset: 40; opacity: 0.3; }
+            50%  { opacity: 1; }
+            100% { stroke-dashoffset: 0; opacity: 0.6; }
+        }
+        @keyframes barGrow { from { width: 0; } }
+        @keyframes bubblePop {
+            from { opacity: 0; transform: scale(0.8) translateY(8px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes orbitSpin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+        @keyframes glowPulse {
+            0%, 100% { filter: drop-shadow(0 0 4px rgba(168,85,247,0.3)); }
+            50%       { filter: drop-shadow(0 0 14px rgba(168,85,247,0.9)); }
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+        @keyframes arrowMarch {
+            0%   { stroke-dashoffset: 14; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes shieldPulse {
+            0%, 100% { transform: scale(1); opacity: 0.7; }
+            50%      { transform: scale(1.08); opacity: 1; }
+        }
+        @keyframes lockBounce {
+            0%, 100% { transform: translateY(0); }
+            50%      { transform: translateY(-3px); }
+        }
+
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(168,85,247,0.12); border: 1px solid rgba(168,85,247,0.4);
+            color: #a855f7; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        .code-block {
+            background: rgba(0,0,0,0.35); border: 1px solid rgba(201,168,58,0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #c9a83a; line-height: 1.6; white-space: pre;
+        }
+        .code-block .cm { color: #64748b; }
+        .code-block .kw { color: #93c5fd; }
+        .code-block .st { color: #86efac; }
+        .code-block .nu { color: #fdba74; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .card-grid-4 { grid-template-columns: 1fr 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Windows 10/11 Editions -- CompTIA A+ Core 2 -- The Forge</h1>
+
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; CompTIA A+ Core 2 &nbsp;|&nbsp; Windows Editions</div>
+        <div class="title-hero">
+            <svg width="420" height="120" viewBox="0 0 420 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central Windows logo -->
+                <rect x="170" y="20" width="80" height="80" rx="14" fill="rgba(168,85,247,0.12)" stroke="#a855f7" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <!-- Windows 4-pane grid -->
+                <rect x="186" y="36" width="20" height="20" rx="2" fill="rgba(168,85,247,0.35)"
+                    style="animation: entityPop 0.3s ease forwards 0.2s; opacity:0;"/>
+                <rect x="214" y="36" width="20" height="20" rx="2" fill="rgba(168,85,247,0.5)"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <rect x="186" y="64" width="20" height="20" rx="2" fill="rgba(168,85,247,0.25)"
+                    style="animation: entityPop 0.3s ease forwards 0.35s; opacity:0;"/>
+                <rect x="214" y="64" width="20" height="20" rx="2" fill="rgba(168,85,247,0.4)"
+                    style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <!-- Glow ring -->
+                <ellipse cx="210" cy="60" rx="58" ry="50" fill="none" stroke="rgba(168,85,247,0.1)" stroke-width="1.2"
+                    style="animation: pulse 2.8s ease-in-out infinite;"/>
+                <!-- Edition labels orbiting -->
+                <rect x="10" y="15" width="100" height="28" rx="8" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="60" y="28" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Home</text>
+                <text x="60" y="38" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Consumer baseline</text>
+                <rect x="10" y="55" width="100" height="28" rx="8" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="60" y="68" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Pro</text>
+                <text x="60" y="78" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Small business / power user</text>
+                <rect x="310" y="15" width="100" height="28" rx="8" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="360" y="28" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Enterprise</text>
+                <text x="360" y="38" text-anchor="middle" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Volume licensing orgs</text>
+                <rect x="310" y="55" width="100" height="28" rx="8" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="360" y="68" text-anchor="middle" font-size="8" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Education</text>
+                <text x="360" y="78" text-anchor="middle" font-size="6.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">Schools &amp; universities</text>
+                <!-- Connecting arrows -->
+                <line x1="110" y1="29" x2="169" y2="48" stroke="rgba(58,181,119,0.4)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <line x1="110" y1="69" x2="169" y2="65" stroke="rgba(59,130,246,0.4)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.15s"/>
+                </line>
+                <line x1="310" y1="29" x2="251" y2="48" stroke="rgba(201,168,58,0.4)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <line x1="310" y1="69" x2="251" y2="65" stroke="rgba(6,182,212,0.4)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.25s"/>
+                </line>
+                <text x="210" y="112" text-anchor="middle" font-size="7.5" fill="#64748b" font-family="Segoe UI,sans-serif">Windows 10 / 11</text>
+            </svg>
+            <div class="big-title">
+                Windows 10/11 <span class="accent">Editions</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Home &nbsp;&bull;&nbsp; Pro &nbsp;&bull;&nbsp; Enterprise &nbsp;&bull;&nbsp; Education &nbsp;&bull;&nbsp; Pro for Workstations
+            </div>
+        </div>
+        <div class="scenario-strip">
+            The CompTIA A+ exam expects you to know which features are available in which Windows edition and when to recommend each. This deck covers the four main editions, their key differentiators -- BitLocker, domain join, Group Policy, Remote Desktop hosting, and Hyper-V -- and the decision logic for choosing the right edition.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>A+ Core 2 Objectives</span>
+            <span>Operating Systems</span>
+            <span>The Forge</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- EDITION OVERVIEW ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">The Four Main <span class="accent">Editions</span></div>
+        <div class="slide-subtitle">Microsoft ships Windows 10 and 11 in four primary editions. Each builds on the one below it, adding management and security features.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="120" viewBox="0 0 680 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Stacked tier boxes from bottom (Home) to top (Enterprise) -->
+                <rect x="120" y="88" width="440" height="28" rx="6" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.4"
+                    style="animation: fadeUp 0.4s ease forwards 0.1s; opacity:0;"/>
+                <text x="340" y="106" text-anchor="middle" font-size="10" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">HOME -- Consumer baseline. No domain join, no BitLocker, no Group Policy, no RDP host.</text>
+
+                <rect x="120" y="58" width="440" height="28" rx="6" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.4"
+                    style="animation: fadeUp 0.4s ease forwards 0.25s; opacity:0;"/>
+                <text x="340" y="76" text-anchor="middle" font-size="10" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">PRO -- Adds BitLocker, domain join, Group Policy, RDP host, Hyper-V.</text>
+
+                <rect x="120" y="28" width="220" height="28" rx="6" fill="rgba(201,168,58,0.1)" stroke="#c9a83a" stroke-width="1.4"
+                    style="animation: fadeUp 0.4s ease forwards 0.4s; opacity:0;"/>
+                <text x="230" y="46" text-anchor="middle" font-size="10" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">ENTERPRISE -- Volume lic, AppLocker, BranchCache</text>
+
+                <rect x="344" y="28" width="216" height="28" rx="6" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1.4"
+                    style="animation: fadeUp 0.4s ease forwards 0.45s; opacity:0;"/>
+                <text x="452" y="46" text-anchor="middle" font-size="10" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">EDUCATION -- Same tier, academic licensing</text>
+
+                <!-- Upward arrow on left -->
+                <line x1="100" y1="108" x2="100" y2="18" stroke="rgba(168,85,247,0.4)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="96,18 100,8 104,18" fill="#a855f7"/>
+                <text x="95" y="65" text-anchor="end" font-size="7.5" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif" transform="rotate(-90,95,65)">MORE FEATURES</text>
+
+                <!-- Price arrow on right -->
+                <line x1="580" y1="108" x2="580" y2="18" stroke="rgba(239,68,68,0.3)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="1.2s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="576,18 580,8 584,18" fill="rgba(239,68,68,0.5)"/>
+                <text x="590" y="65" font-size="7" fill="#ef4444" font-family="Segoe UI,sans-serif" transform="rotate(90,590,65)">COST</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-4">
+            <div class="card c-green">
+                <div class="card-label">Home</div>
+                <div class="card-desc">Pre-installed on consumer PCs. Supports Windows Hello, Cortana, Device Encryption (if hardware supports it). Cannot join Active Directory domains. No Group Policy editor.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Pro</div>
+                <div class="card-desc">The business workhorse. Adds BitLocker, domain join, Group Policy, Remote Desktop hosting, Hyper-V, Windows Sandbox, and Assigned Access (kiosk mode).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Enterprise</div>
+                <div class="card-desc">Available only through Volume Licensing or Microsoft 365 E3/E5. Adds AppLocker, Credential Guard, BranchCache, DirectAccess, and Windows Defender Application Guard.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Education</div>
+                <div class="card-desc">Feature-equivalent to Enterprise but licensed for academic institutions. Available through academic Volume Licensing. Pre-configured with education-friendly defaults.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- HOME EDITION DEEP DIVE ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Windows <span class="accent">Home</span> Edition</div>
+        <div class="slide-subtitle">The consumer baseline. Good enough for personal use, but missing every enterprise management feature the A+ exam tests on.</div>
+
+        <div class="diagram-center">
+            <svg width="580" height="110" viewBox="0 0 580 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- House icon for Home -->
+                <polygon points="100,45 60,75 140,75" fill="none" stroke="#3ab577" stroke-width="2"
+                    style="animation: entityPop 0.4s ease forwards 0.1s; opacity:0;"/>
+                <rect x="75" y="75" width="50" height="30" rx="3" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: fadeUp 0.3s ease forwards 0.2s; opacity:0;"/>
+                <rect x="90" y="82" width="20" height="23" rx="2" fill="rgba(58,181,119,0.25)"
+                    style="animation: fadeUp 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="100" y="38" text-anchor="middle" font-size="10" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">HOME</text>
+
+                <!-- What's INCLUDED -->
+                <rect x="190" y="5" width="170" height="100" rx="8" fill="rgba(58,181,119,0.06)" stroke="rgba(58,181,119,0.3)" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="275" y="20" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">INCLUDED</text>
+                <text x="200" y="35" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">+ Windows Hello (biometrics)</text>
+                <text x="200" y="47" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">+ Device Encryption (if TPM)</text>
+                <text x="200" y="59" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">+ Windows Defender Antivirus</text>
+                <text x="200" y="71" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">+ Windows Firewall</text>
+                <text x="200" y="83" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">+ Microsoft Store</text>
+                <text x="200" y="95" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">+ Remote Desktop (client only)</text>
+
+                <!-- What's MISSING -->
+                <rect x="380" y="5" width="190" height="100" rx="8" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.3)" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="475" y="20" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">NOT INCLUDED</text>
+                <text x="390" y="35" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">x BitLocker drive encryption</text>
+                <text x="390" y="47" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">x Active Directory domain join</text>
+                <text x="390" y="59" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">x Group Policy (gpedit.msc)</text>
+                <text x="390" y="71" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">x Remote Desktop host</text>
+                <text x="390" y="83" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">x Hyper-V virtualization</text>
+                <text x="390" y="95" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">x Windows Sandbox</text>
+            </svg>
+        </div>
+
+        <div class="scenario-strip">
+            Key exam distinction: Home supports Device Encryption (automatic, if TPM + UEFI + Secure Boot + Modern Standby), but NOT full BitLocker with granular control. Home can connect TO a Remote Desktop session but cannot HOST one. Home users cannot run gpedit.msc -- Group Policy is Pro and above only.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">When to Recommend Home</div>
+                <div class="card-desc">Personal use, home users, family PCs. No need for domain management, no IT department, no corporate compliance requirements. Cost-conscious buyers who only need web, email, and basic productivity.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">When Home Falls Short</div>
+                <div class="card-desc">Any business environment. Cannot join domains. No centralized management via Group Policy. No BitLocker for removable drives. Cannot host Remote Desktop sessions for helpdesk support.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Upgrade Path</div>
+                <div class="card-desc">Home to Pro upgrade is available in-place via Settings &gt; Update &amp; Security &gt; Activation. Enter a Pro product key or purchase from the Microsoft Store. No reinstall required. All files and apps are preserved.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- PRO EDITION ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Windows <span class="accent">Pro</span> Edition</div>
+        <div class="slide-subtitle">The business standard. Every management feature the A+ exam tests on is available starting at Pro. This is the edition most IT departments deploy.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="110" viewBox="0 0 680 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central Pro badge -->
+                <rect x="260" y="10" width="160" height="90" rx="12" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="340" y="30" text-anchor="middle" font-size="12" fill="#3b82f6" font-weight="800" font-family="Segoe UI,sans-serif">WINDOWS PRO</text>
+                <text x="340" y="44" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Everything in Home, plus:</text>
+                <!-- Feature icons radiating out -->
+                <!-- BitLocker -->
+                <rect x="8" y="5" width="105" height="36" rx="7" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.15s; opacity:0;"/>
+                <text x="60" y="19" text-anchor="middle" font-size="8" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">BitLocker</text>
+                <text x="60" y="30" text-anchor="middle" font-size="6.5" fill="#d8b4fe" font-family="Segoe UI,sans-serif">Full disk encryption + TPM</text>
+                <!-- Domain Join -->
+                <rect x="8" y="48" width="105" height="36" rx="7" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="60" y="62" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Domain Join</text>
+                <text x="60" y="73" text-anchor="middle" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Active Directory membership</text>
+                <!-- Group Policy -->
+                <rect x="120" y="68" width="105" height="36" rx="7" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="172" y="82" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Group Policy</text>
+                <text x="172" y="93" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">gpedit.msc + domain GPOs</text>
+                <!-- RDP Host -->
+                <rect x="567" y="5" width="105" height="36" rx="7" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="619" y="19" text-anchor="middle" font-size="8" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">RDP Host</text>
+                <text x="619" y="30" text-anchor="middle" font-size="6.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">Accept incoming connections</text>
+                <!-- Hyper-V -->
+                <rect x="567" y="48" width="105" height="36" rx="7" fill="rgba(249,115,22,0.08)" stroke="#f97316" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="619" y="62" text-anchor="middle" font-size="8" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">Hyper-V</text>
+                <text x="619" y="73" text-anchor="middle" font-size="6.5" fill="#fdba74" font-family="Segoe UI,sans-serif">Type-1 hypervisor built in</text>
+                <!-- Sandbox -->
+                <rect x="457" y="68" width="105" height="36" rx="7" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="509" y="82" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Sandbox</text>
+                <text x="509" y="93" text-anchor="middle" font-size="6.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">Disposable isolated desktop</text>
+                <!-- Connecting lines -->
+                <line x1="113" y1="23" x2="259" y2="40" stroke="rgba(168,85,247,0.3)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <line x1="113" y1="66" x2="259" y2="55" stroke="rgba(201,168,58,0.3)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="1s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <line x1="567" y1="23" x2="421" y2="40" stroke="rgba(6,182,212,0.3)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="1s" repeatCount="indefinite" begin="0.15s"/>
+                </line>
+                <line x1="567" y1="66" x2="421" y2="55" stroke="rgba(249,115,22,0.3)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="1s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-purple">
+                <div class="card-label">BitLocker</div>
+                <div class="card-desc">Full-volume encryption using AES-128 or AES-256. Requires TPM 1.2+ (TPM 2.0 recommended). Protects OS drive, fixed data drives, and removable drives (BitLocker To Go). Recovery key stored in AD or Azure AD.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Domain Join + Group Policy</div>
+                <div class="card-desc">Pro machines can join an on-premises Active Directory domain. This enables centralized Group Policy management: enforce password policies, deploy software, configure firewall rules, map drives, restrict Control Panel access -- all from a domain controller.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Remote Desktop Host</div>
+                <div class="card-desc">Pro can accept incoming RDP connections (port 3389). Home can only initiate outgoing connections. This is a critical distinction for helpdesk scenarios: to remotely manage a user's PC, that PC must run Pro or higher.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- ENTERPRISE + EDUCATION ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Enterprise &amp; <span class="accent">Education</span></div>
+        <div class="slide-subtitle">Enterprise and Education sit at the same feature tier. Enterprise requires Volume Licensing; Education uses academic licensing. Both add advanced security features beyond Pro.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="110" viewBox="0 0 680 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Pro base layer -->
+                <rect x="40" y="78" width="600" height="28" rx="6" fill="rgba(59,130,246,0.07)" stroke="rgba(59,130,246,0.3)" stroke-width="1"
+                    style="animation: fadeUp 0.3s ease forwards 0.05s; opacity:0;"/>
+                <text x="340" y="96" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">PRO FEATURES (all included in Enterprise/Education)</text>
+                <!-- Enterprise column -->
+                <rect x="40" y="4" width="290" height="70" rx="10" fill="rgba(201,168,58,0.06)" stroke="#c9a83a" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.15s; opacity:0;"/>
+                <text x="185" y="20" text-anchor="middle" font-size="10" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">ENTERPRISE</text>
+                <!-- Feature badges inside -->
+                <rect x="52" y="28" width="80" height="18" rx="4" fill="rgba(201,168,58,0.12)" stroke="rgba(201,168,58,0.3)" stroke-width="0.8"
+                    style="animation: entityPop 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="92" y="40" text-anchor="middle" font-size="7" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">AppLocker</text>
+                <rect x="140" y="28" width="85" height="18" rx="4" fill="rgba(201,168,58,0.12)" stroke="rgba(201,168,58,0.3)" stroke-width="0.8"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="182" y="40" text-anchor="middle" font-size="7" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">BranchCache</text>
+                <rect x="233" y="28" width="90" height="18" rx="4" fill="rgba(201,168,58,0.12)" stroke="rgba(201,168,58,0.3)" stroke-width="0.8"
+                    style="animation: entityPop 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="278" y="40" text-anchor="middle" font-size="7" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Credential Guard</text>
+                <rect x="52" y="50" width="100" height="18" rx="4" fill="rgba(201,168,58,0.12)" stroke="rgba(201,168,58,0.3)" stroke-width="0.8"
+                    style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="102" y="62" text-anchor="middle" font-size="7" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">DirectAccess</text>
+                <rect x="160" y="50" width="125" height="18" rx="4" fill="rgba(201,168,58,0.12)" stroke="rgba(201,168,58,0.3)" stroke-width="0.8"
+                    style="animation: entityPop 0.3s ease forwards 0.45s; opacity:0;"/>
+                <text x="222" y="62" text-anchor="middle" font-size="6.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Defender App Guard</text>
+                <!-- Education column -->
+                <rect x="350" y="4" width="290" height="70" rx="10" fill="rgba(6,182,212,0.06)" stroke="#06b6d4" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.2s; opacity:0;"/>
+                <text x="495" y="20" text-anchor="middle" font-size="10" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">EDUCATION</text>
+                <text x="495" y="35" text-anchor="middle" font-size="7.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">Same features as Enterprise</text>
+                <text x="495" y="48" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Academic Volume Licensing</text>
+                <text x="495" y="60" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Education-friendly defaults</text>
+                <text x="495" y="70" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Cortana/tips disabled by default</text>
+                <!-- Equals sign between -->
+                <text x="340" y="42" text-anchor="middle" font-size="18" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">=</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">AppLocker</div>
+                <div class="card-desc">Application whitelisting that goes beyond Software Restriction Policies. Create rules based on publisher, path, or file hash. Control which executables, scripts, Windows installers, and DLLs users can run. Enterprise/Education only -- not available in Pro.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">BranchCache</div>
+                <div class="card-desc">Caches content from remote servers at the branch office. Two modes: Distributed (peer-to-peer between branch PCs) and Hosted (dedicated cache server at the branch). Reduces WAN traffic for file servers, web servers, and WSUS updates.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Credential Guard</div>
+                <div class="card-desc">Uses virtualization-based security (VBS) to isolate NTLM hashes and Kerberos tickets in a secure container that even the OS kernel cannot access. Defeats pass-the-hash and pass-the-ticket attacks. Requires UEFI, Secure Boot, and a 64-bit CPU with VT-x/AMD-V.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- BITLOCKER DEEP DIVE ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">BitLocker <span class="accent">Drive Encryption</span></div>
+        <div class="slide-subtitle">Full-volume encryption. Protects data at rest if a laptop is stolen or a drive is removed. Pro, Enterprise, and Education only. The exam loves BitLocker.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="115" viewBox="0 0 680 115" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- TPM chip -->
+                <rect x="20" y="20" width="100" height="75" rx="10" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="70" y="38" text-anchor="middle" font-size="9" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">TPM</text>
+                <text x="70" y="50" text-anchor="middle" font-size="7" fill="#d8b4fe" font-family="Segoe UI,sans-serif">Trusted Platform</text>
+                <text x="70" y="60" text-anchor="middle" font-size="7" fill="#d8b4fe" font-family="Segoe UI,sans-serif">Module 2.0</text>
+                <!-- Lock icon inside TPM -->
+                <rect x="60" y="67" width="20" height="15" rx="3" fill="rgba(168,85,247,0.3)" stroke="#a855f7" stroke-width="1"
+                    style="animation: lockBounce 2s ease-in-out infinite;"/>
+                <circle cx="70" cy="65" r="7" fill="none" stroke="#a855f7" stroke-width="1.5"
+                    style="animation: lockBounce 2s ease-in-out infinite;"/>
+
+                <!-- Arrow TPM to BitLocker -->
+                <line x1="121" y1="57" x2="170" y2="57" stroke="rgba(168,85,247,0.4)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="170,53 178,57 170,61" fill="#a855f7"/>
+
+                <!-- BitLocker engine -->
+                <rect x="180" y="12" width="180" height="90" rx="12" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.15s; opacity:0;"/>
+                <text x="270" y="30" text-anchor="middle" font-size="10" fill="#a855f7" font-weight="800" font-family="Segoe UI,sans-serif">BitLocker</text>
+                <text x="270" y="44" text-anchor="middle" font-size="7" fill="#d8b4fe" font-family="Segoe UI,sans-serif">AES-128 or AES-256</text>
+                <text x="270" y="56" text-anchor="middle" font-size="7" fill="#d8b4fe" font-family="Segoe UI,sans-serif">Full Volume Encryption Key (FVEK)</text>
+                <text x="270" y="68" text-anchor="middle" font-size="7" fill="#d8b4fe" font-family="Segoe UI,sans-serif">sealed by TPM + optional PIN</text>
+                <text x="270" y="82" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Recovery: 48-digit key or AD backup</text>
+                <text x="270" y="94" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">manage-bde -status</text>
+                <!-- Glow -->
+                <rect x="172" y="4" width="196" height="106" rx="16" fill="none" stroke="rgba(168,85,247,0.1)" stroke-width="1.2"
+                    style="animation: pulse 2.5s ease-in-out infinite;"/>
+
+                <!-- Encrypted drives -->
+                <line x1="361" y1="45" x2="400" y2="30" stroke="rgba(59,130,246,0.4)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.9s" repeatCount="indefinite"/>
+                </line>
+                <line x1="361" y1="57" x2="400" y2="57" stroke="rgba(58,181,119,0.4)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.9s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <line x1="361" y1="70" x2="400" y2="84" stroke="rgba(249,115,22,0.4)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.9s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+
+                <rect x="402" y="10" width="130" height="30" rx="6" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.35)" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="467" y="23" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">OS Drive (C:)</text>
+                <text x="467" y="34" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Encrypted at boot</text>
+
+                <rect x="402" y="44" width="130" height="26" rx="6" fill="rgba(58,181,119,0.08)" stroke="rgba(58,181,119,0.35)" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="467" y="55" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Fixed Data Drives</text>
+                <text x="467" y="65" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">D:, E: internal volumes</text>
+
+                <rect x="402" y="74" width="130" height="30" rx="6" fill="rgba(249,115,22,0.08)" stroke="rgba(249,115,22,0.35)" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.5s; opacity:0;"/>
+                <text x="467" y="87" text-anchor="middle" font-size="8" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">BitLocker To Go</text>
+                <text x="467" y="98" text-anchor="middle" font-size="6.5" fill="#fdba74" font-family="Segoe UI,sans-serif">USB flash drives, portables</text>
+
+                <!-- Recovery key -->
+                <rect x="550" y="30" width="122" height="54" rx="8" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.3)" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.55s; opacity:0;"/>
+                <text x="611" y="46" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Recovery Key</text>
+                <text x="611" y="58" text-anchor="middle" font-size="6.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">48-digit numeric key</text>
+                <text x="611" y="68" text-anchor="middle" font-size="6.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">Store in AD/Azure AD/file/print</text>
+                <text x="611" y="78" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Required when TPM detects tampering</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-purple">
+                <div class="card-label">TPM Requirements</div>
+                <div class="card-desc">BitLocker works best with TPM 2.0 (TPM 1.2 minimum). The TPM seals the encryption key to the hardware. If the boot configuration changes (new BIOS, different boot order), TPM refuses to unseal -- triggering recovery mode. Without a TPM, BitLocker can use a USB startup key instead (requires Group Policy change).</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Encryption Modes</div>
+                <div class="card-desc"><strong>Used Disk Space Only:</strong> faster, encrypts only written data. Best for new drives. <strong>Full Encryption:</strong> encrypts entire volume including free space. Best for drives that previously contained data. <strong>XTS-AES:</strong> newer mode for fixed drives. <strong>CBC-AES:</strong> compatible mode for removable drives.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Management Commands</div>
+                <div class="card-desc"><span class="ic">manage-bde -status</span> shows encryption status. <span class="ic">manage-bde -on C:</span> enables BitLocker. <span class="ic">manage-bde -protectors -get C:</span> shows recovery key. In PowerShell: <span class="ic">Enable-BitLocker</span>, <span class="ic">Get-BitLockerVolume</span>. Control Panel &gt; BitLocker Drive Encryption provides the GUI.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- DOMAIN JOIN + GROUP POLICY ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Domain Join &amp; <span class="accent">Group Policy</span></div>
+        <div class="slide-subtitle">Pro and above can join Active Directory domains. Group Policy is the centralized management engine: one policy object can configure thousands of machines.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="115" viewBox="0 0 680 115" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Domain Controller -->
+                <rect x="250" y="5" width="180" height="50" rx="10" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="1.8"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="340" y="22" text-anchor="middle" font-size="10" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">Domain Controller</text>
+                <text x="340" y="35" text-anchor="middle" font-size="7" fill="#d8b4fe" font-family="Segoe UI,sans-serif">Active Directory + Group Policy Objects</text>
+                <text x="340" y="47" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">contoso.local</text>
+                <!-- Glow -->
+                <rect x="242" y="-3" width="196" height="66" rx="14" fill="none" stroke="rgba(168,85,247,0.1)" stroke-width="1"
+                    style="animation: pulse 3s ease-in-out infinite;"/>
+
+                <!-- Domain-joined PCs fanning out below -->
+                <rect x="40" y="75" width="110" height="35" rx="7" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.3)" stroke-width="1"
+                    style="animation: entityPop 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="95" y="89" text-anchor="middle" font-size="7.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">PC-SALES-01</text>
+                <text x="95" y="101" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Windows Pro</text>
+
+                <rect x="170" y="75" width="110" height="35" rx="7" fill="rgba(58,181,119,0.08)" stroke="rgba(58,181,119,0.3)" stroke-width="1"
+                    style="animation: entityPop 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="225" y="89" text-anchor="middle" font-size="7.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">PC-HR-01</text>
+                <text x="225" y="101" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Windows Pro</text>
+
+                <rect x="300" y="75" width="110" height="35" rx="7" fill="rgba(201,168,58,0.08)" stroke="rgba(201,168,58,0.3)" stroke-width="1"
+                    style="animation: entityPop 0.35s ease forwards 0.35s; opacity:0;"/>
+                <text x="355" y="89" text-anchor="middle" font-size="7.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">PC-IT-01</text>
+                <text x="355" y="101" text-anchor="middle" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Windows Enterprise</text>
+
+                <rect x="430" y="75" width="110" height="35" rx="7" fill="rgba(6,182,212,0.08)" stroke="rgba(6,182,212,0.3)" stroke-width="1"
+                    style="animation: entityPop 0.35s ease forwards 0.4s; opacity:0;"/>
+                <text x="485" y="89" text-anchor="middle" font-size="7.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">PC-DEV-01</text>
+                <text x="485" y="101" text-anchor="middle" font-size="6.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">Windows Pro</text>
+
+                <!-- Home PC with X -->
+                <rect x="560" y="75" width="110" height="35" rx="7" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.3)" stroke-width="1" stroke-dasharray="4,3"
+                    style="animation: entityPop 0.35s ease forwards 0.45s; opacity:0;"/>
+                <text x="615" y="89" text-anchor="middle" font-size="7.5" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">PC-HOME-01</text>
+                <text x="615" y="101" text-anchor="middle" font-size="6.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">Windows Home (NO JOIN)</text>
+
+                <!-- GPO arrows from DC to domain PCs -->
+                <line x1="300" y1="56" x2="95" y2="74" stroke="rgba(59,130,246,0.35)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <line x1="320" y1="56" x2="225" y2="74" stroke="rgba(58,181,119,0.35)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="1s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <line x1="355" y1="56" x2="355" y2="74" stroke="rgba(201,168,58,0.35)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="1s" repeatCount="indefinite" begin="0.15s"/>
+                </line>
+                <line x1="380" y1="56" x2="485" y2="74" stroke="rgba(6,182,212,0.35)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="1s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-purple">
+                <div class="card-label">Joining a Domain</div>
+                <div class="card-desc">Settings &gt; Accounts &gt; Access work or school &gt; Connect &gt; Join this device to a local Active Directory domain. Requires: Pro or higher edition, network connectivity to a DC, DNS pointing to the DC, and an account with permission to add computer objects to AD. Azure AD join is a separate option for cloud-only orgs.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Group Policy Processing</div>
+                <div class="card-desc">GPOs apply in LSDOU order: <strong>Local</strong>, <strong>Site</strong>, <strong>Domain</strong>, <strong>OU</strong>. Later policies override earlier ones. Computer policies apply at startup; user policies apply at login. Use <span class="ic">gpupdate /force</span> to refresh manually. <span class="ic">gpresult /r</span> shows effective policy for current user/computer.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Local Group Policy</div>
+                <div class="card-desc">Even without a domain, Pro machines have a local Group Policy editor (<span class="ic">gpedit.msc</span>). Useful for standalone workstation hardening: password complexity, account lockout, audit policies, restricting removable storage, configuring Windows Firewall. Home edition does NOT have gpedit.msc.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- RDP + HYPER-V ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Remote Desktop &amp; <span class="accent">Hyper-V</span></div>
+        <div class="slide-subtitle">Two Pro-and-above features the exam tests heavily. RDP enables remote management; Hyper-V enables local virtualization. Know the edition requirements for each.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="110" viewBox="0 0 680 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- RDP section -->
+                <rect x="10" y="5" width="310" height="100" rx="10" fill="rgba(6,182,212,0.05)" stroke="rgba(6,182,212,0.25)" stroke-width="1"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="165" y="20" text-anchor="middle" font-size="10" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Remote Desktop Protocol (RDP)</text>
+                <!-- Client side -->
+                <rect x="22" y="30" width="120" height="40" rx="7" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.15s; opacity:0;"/>
+                <text x="82" y="44" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">RDP Client</text>
+                <text x="82" y="55" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">mstsc.exe</text>
+                <text x="82" y="65" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">ALL editions</text>
+                <!-- Arrow -->
+                <line x1="143" y1="50" x2="185" y2="50" stroke="rgba(6,182,212,0.5)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="185,46 193,50 185,54" fill="#06b6d4"/>
+                <text x="164" y="42" text-anchor="middle" font-size="6.5" fill="#06b6d4" font-family="Segoe UI,sans-serif">:3389</text>
+                <!-- Host side -->
+                <rect x="195" y="30" width="115" height="40" rx="7" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="252" y="44" text-anchor="middle" font-size="8" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">RDP Host</text>
+                <text x="252" y="55" text-anchor="middle" font-size="7" fill="#d8b4fe" font-family="Segoe UI,sans-serif">Accept connections</text>
+                <text x="252" y="65" text-anchor="middle" font-size="6.5" fill="#d8b4fe" font-family="Segoe UI,sans-serif">Pro / Ent / Edu ONLY</text>
+                <!-- Note -->
+                <text x="165" y="87" text-anchor="middle" font-size="7" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Home can connect TO but cannot HOST</text>
+                <text x="165" y="99" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Enable: Settings &gt; System &gt; Remote Desktop</text>
+
+                <!-- Hyper-V section -->
+                <rect x="340" y="5" width="330" height="100" rx="10" fill="rgba(249,115,22,0.05)" stroke="rgba(249,115,22,0.25)" stroke-width="1"
+                    style="animation: boxGrow 0.4s ease forwards 0.1s; opacity:0;"/>
+                <text x="505" y="20" text-anchor="middle" font-size="10" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">Hyper-V (Type-1 Hypervisor)</text>
+                <!-- Host machine -->
+                <rect x="355" y="30" width="130" height="55" rx="7" fill="rgba(249,115,22,0.08)" stroke="#f97316" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="420" y="44" text-anchor="middle" font-size="8" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">Hyper-V Host</text>
+                <text x="420" y="56" text-anchor="middle" font-size="7" fill="#fdba74" font-family="Segoe UI,sans-serif">Windows Pro / Ent / Edu</text>
+                <text x="420" y="67" text-anchor="middle" font-size="7" fill="#fdba74" font-family="Segoe UI,sans-serif">64-bit + VT-x/AMD-V</text>
+                <text x="420" y="78" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">4GB+ RAM, SLAT required</text>
+                <!-- VM boxes -->
+                <rect x="505" y="30" width="70" height="25" rx="5" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.3)" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="540" y="41" text-anchor="middle" font-size="7" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">VM 1</text>
+                <text x="540" y="51" text-anchor="middle" font-size="6" fill="#93c5fd" font-family="Segoe UI,sans-serif">Win Server</text>
+
+                <rect x="585" y="30" width="70" height="25" rx="5" fill="rgba(58,181,119,0.08)" stroke="rgba(58,181,119,0.3)" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="620" y="41" text-anchor="middle" font-size="7" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">VM 2</text>
+                <text x="620" y="51" text-anchor="middle" font-size="6" fill="#86efac" font-family="Segoe UI,sans-serif">Ubuntu</text>
+
+                <rect x="505" y="60" width="70" height="25" rx="5" fill="rgba(201,168,58,0.08)" stroke="rgba(201,168,58,0.3)" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.45s; opacity:0;"/>
+                <text x="540" y="71" text-anchor="middle" font-size="7" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">VM 3</text>
+                <text x="540" y="81" text-anchor="middle" font-size="6" fill="#fef3c7" font-family="Segoe UI,sans-serif">Kali Linux</text>
+
+                <!-- Enable note -->
+                <text x="505" y="100" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Enable: optionalfeatures.exe or DISM /Enable-Feature /FeatureName:Microsoft-Hyper-V-All</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">RDP Exam Points</div>
+                <div class="card-desc">Default port: 3389/TCP. Home edition can use the RDP client (mstsc.exe) to connect to other machines but cannot accept incoming connections. NLA (Network Level Authentication) is the recommended security setting. Multiple monitors and drive redirection are supported. Only one interactive session at a time on workstation OS.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Hyper-V Requirements</div>
+                <div class="card-desc">64-bit processor with SLAT (Second Level Address Translation). Intel VT-x or AMD-V must be enabled in BIOS/UEFI. Minimum 4 GB RAM (more recommended). Pro, Enterprise, or Education edition. Windows Home does NOT support Hyper-V. Enable via Turn Windows features on or off.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Windows Sandbox</div>
+                <div class="card-desc">Lightweight, disposable desktop environment. Uses Hyper-V technology under the hood. Opens an isolated Windows instance for testing suspicious files or software. Everything is deleted when you close it. Pro and above only. Must be enabled as an optional Windows feature.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- PRO FOR WORKSTATIONS ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Pro for <span class="accent">Workstations</span></div>
+        <div class="slide-subtitle">A specialized edition built for high-performance hardware: server-grade processors, massive RAM, and resilient file systems. Know this exists for the exam.</div>
+
+        <div class="diagram-center">
+            <svg width="580" height="110" viewBox="0 0 580 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Workstation tower icon -->
+                <rect x="40" y="10" width="80" height="90" rx="8" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="80" y="30" text-anchor="middle" font-size="9" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">PRO for</text>
+                <text x="80" y="42" text-anchor="middle" font-size="9" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">Workstations</text>
+                <!-- Internal "server" dots representing hardware -->
+                <circle cx="60" cy="58" r="4" fill="rgba(168,85,247,0.4)"
+                    style="animation: pulse 2s ease-in-out infinite;"/>
+                <circle cx="80" cy="58" r="4" fill="rgba(168,85,247,0.5)"
+                    style="animation: pulse 2s ease-in-out infinite 0.3s;"/>
+                <circle cx="100" cy="58" r="4" fill="rgba(168,85,247,0.6)"
+                    style="animation: pulse 2s ease-in-out infinite 0.6s;"/>
+                <circle cx="60" cy="72" r="4" fill="rgba(168,85,247,0.35)"
+                    style="animation: pulse 2s ease-in-out infinite 0.9s;"/>
+                <circle cx="80" cy="72" r="4" fill="rgba(168,85,247,0.45)"
+                    style="animation: pulse 2s ease-in-out infinite 1.2s;"/>
+                <circle cx="100" cy="72" r="4" fill="rgba(168,85,247,0.55)"
+                    style="animation: pulse 2s ease-in-out infinite 1.5s;"/>
+                <text x="80" y="92" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Server-class hardware</text>
+
+                <!-- Feature boxes -->
+                <rect x="155" y="8" width="195" height="40" rx="7" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.3)" stroke-width="1"
+                    style="animation: fadeUp 0.3s ease forwards 0.15s; opacity:0;"/>
+                <text x="252" y="23" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">ReFS (Resilient File System)</text>
+                <text x="252" y="36" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Auto-integrity streams, self-healing data corruption</text>
+                <text x="252" y="44" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">NOT a boot volume -- data volumes only</text>
+
+                <rect x="155" y="54" width="195" height="26" rx="7" fill="rgba(58,181,119,0.08)" stroke="rgba(58,181,119,0.3)" stroke-width="1"
+                    style="animation: fadeUp 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="252" y="65" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">4 CPUs / 6 TB RAM</text>
+                <text x="252" y="76" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Supports multi-socket Xeon/EPYC</text>
+
+                <rect x="155" y="86" width="195" height="20" rx="7" fill="rgba(201,168,58,0.08)" stroke="rgba(201,168,58,0.3)" stroke-width="1"
+                    style="animation: fadeUp 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="252" y="99" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Persistent Memory (NVDIMM-N)</text>
+
+                <!-- Comparison vs Standard Pro -->
+                <rect x="375" y="8" width="195" height="96" rx="8" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="472" y="24" text-anchor="middle" font-size="8.5" fill="#f1f5f9" font-weight="700" font-family="Segoe UI,sans-serif">Standard Pro Limits</text>
+                <text x="385" y="40" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Max CPUs: 2 sockets</text>
+                <text x="385" y="52" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Max RAM: 2 TB</text>
+                <text x="385" y="64" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">No ReFS support</text>
+                <text x="385" y="76" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">No NVDIMM-N support</text>
+                <text x="385" y="92" font-size="7" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Workstations lifts ALL these limits</text>
+            </svg>
+        </div>
+
+        <div class="scenario-strip">
+            Pro for Workstations targets engineers, data scientists, and creative professionals running CAD, 3D rendering, scientific simulations, or large datasets. The exam expects you to know it exists and its key differentiators: ReFS data volume support, 4 CPU sockets, 6 TB RAM limit, and persistent memory (NVDIMM-N) support.
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-purple">
+                <div class="card-label">Who Needs This</div>
+                <div class="card-desc">Engineering firms with multi-socket Xeon workstations running SolidWorks or CATIA. Video production houses rendering 8K footage. Research labs running massive datasets. Anyone pushing standard Pro's 2-socket / 2TB RAM limits.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">ReFS Key Points</div>
+                <div class="card-desc">Resilient File System detects and auto-corrects silent data corruption. Cannot be used as a boot volume (OS must be on NTFS). Supports large volumes and file sizes. Uses checksums for metadata integrity. Ideal for Hyper-V workloads and Storage Spaces Direct.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- FEATURE COMPARISON TABLE ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Feature <span class="accent">Comparison Matrix</span></div>
+        <div class="slide-subtitle">The exam-ready cheat sheet. Memorize which features belong to which edition.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="190" viewBox="0 0 680 190" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Table header -->
+                <rect x="5" y="5" width="180" height="20" rx="4" fill="rgba(168,85,247,0.15)"/>
+                <text x="95" y="18" text-anchor="middle" font-size="8" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">FEATURE</text>
+                <rect x="190" y="5" width="110" height="20" rx="4" fill="rgba(58,181,119,0.15)"/>
+                <text x="245" y="18" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">HOME</text>
+                <rect x="305" y="5" width="110" height="20" rx="4" fill="rgba(59,130,246,0.15)"/>
+                <text x="360" y="18" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">PRO</text>
+                <rect x="420" y="5" width="120" height="20" rx="4" fill="rgba(201,168,58,0.15)"/>
+                <text x="480" y="18" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">ENTERPRISE</text>
+                <rect x="545" y="5" width="130" height="20" rx="4" fill="rgba(6,182,212,0.15)"/>
+                <text x="610" y="18" text-anchor="middle" font-size="8" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">EDUCATION</text>
+
+                <!-- Row helper: Y starts at 30, each row 16px -->
+                <!-- Row 1: BitLocker -->
+                <text x="10" y="42" font-size="7.5" fill="#cbd5e1" font-family="Segoe UI,sans-serif">BitLocker</text>
+                <text x="245" y="42" text-anchor="middle" font-size="9" fill="#ef4444" font-family="Segoe UI,sans-serif">--</text>
+                <text x="360" y="42" text-anchor="middle" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif"
+                    style="animation: entityPop 0.3s ease forwards 0.1s; opacity:0;">Yes</text>
+                <text x="480" y="42" text-anchor="middle" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif"
+                    style="animation: entityPop 0.3s ease forwards 0.12s; opacity:0;">Yes</text>
+                <text x="610" y="42" text-anchor="middle" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif"
+                    style="animation: entityPop 0.3s ease forwards 0.14s; opacity:0;">Yes</text>
+
+                <!-- Row 2: Domain Join -->
+                <rect x="5" y="48" width="670" height="16" rx="2" fill="rgba(255,255,255,0.02)"/>
+                <text x="10" y="60" font-size="7.5" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Domain Join (AD)</text>
+                <text x="245" y="60" text-anchor="middle" font-size="9" fill="#ef4444" font-family="Segoe UI,sans-serif">--</text>
+                <text x="360" y="60" text-anchor="middle" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif"
+                    style="animation: entityPop 0.3s ease forwards 0.16s; opacity:0;">Yes</text>
+                <text x="480" y="60" text-anchor="middle" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif"
+                    style="animation: entityPop 0.3s ease forwards 0.18s; opacity:0;">Yes</text>
+                <text x="610" y="60" text-anchor="middle" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif"
+                    style="animation: entityPop 0.3s ease forwards 0.20s; opacity:0;">Yes</text>
+
+                <!-- Row 3: Group Policy -->
+                <text x="10" y="78" font-size="7.5" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Group Policy (gpedit.msc)</text>
+                <text x="245" y="78" text-anchor="middle" font-size="9" fill="#ef4444" font-family="Segoe UI,sans-serif">--</text>
+                <text x="360" y="78" text-anchor="middle" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif"
+                    style="animation: entityPop 0.3s ease forwards 0.22s; opacity:0;">Yes</text>
+                <text x="480" y="78" text-anchor="middle" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif"
+                    style="animation: entityPop 0.3s ease forwards 0.24s; opacity:0;">Yes</text>
+                <text x="610" y="78" text-anchor="middle" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif"
+                    style="animation: entityPop 0.3s ease forwards 0.26s; opacity:0;">Yes</text>
+
+                <!-- Row 4: RDP Host -->
+                <rect x="5" y="82" width="670" height="16" rx="2" fill="rgba(255,255,255,0.02)"/>
+                <text x="10" y="94" font-size="7.5" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Remote Desktop Host</text>
+                <text x="245" y="94" text-anchor="middle" font-size="9" fill="#ef4444" font-family="Segoe UI,sans-serif">--</text>
+                <text x="360" y="94" text-anchor="middle" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif"
+                    style="animation: entityPop 0.3s ease forwards 0.28s; opacity:0;">Yes</text>
+                <text x="480" y="94" text-anchor="middle" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif"
+                    style="animation: entityPop 0.3s ease forwards 0.30s; opacity:0;">Yes</text>
+                <text x="610" y="94" text-anchor="middle" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif"
+                    style="animation: entityPop 0.3s ease forwards 0.32s; opacity:0;">Yes</text>
+
+                <!-- Row 5: Hyper-V -->
+                <text x="10" y="112" font-size="7.5" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Hyper-V</text>
+                <text x="245" y="112" text-anchor="middle" font-size="9" fill="#ef4444" font-family="Segoe UI,sans-serif">--</text>
+                <text x="360" y="112" text-anchor="middle" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif"
+                    style="animation: entityPop 0.3s ease forwards 0.34s; opacity:0;">Yes</text>
+                <text x="480" y="112" text-anchor="middle" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif"
+                    style="animation: entityPop 0.3s ease forwards 0.36s; opacity:0;">Yes</text>
+                <text x="610" y="112" text-anchor="middle" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif"
+                    style="animation: entityPop 0.3s ease forwards 0.38s; opacity:0;">Yes</text>
+
+                <!-- Row 6: AppLocker -->
+                <rect x="5" y="116" width="670" height="16" rx="2" fill="rgba(255,255,255,0.02)"/>
+                <text x="10" y="128" font-size="7.5" fill="#cbd5e1" font-family="Segoe UI,sans-serif">AppLocker</text>
+                <text x="245" y="128" text-anchor="middle" font-size="9" fill="#ef4444" font-family="Segoe UI,sans-serif">--</text>
+                <text x="360" y="128" text-anchor="middle" font-size="9" fill="#ef4444" font-family="Segoe UI,sans-serif">--</text>
+                <text x="480" y="128" text-anchor="middle" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif"
+                    style="animation: entityPop 0.3s ease forwards 0.40s; opacity:0;">Yes</text>
+                <text x="610" y="128" text-anchor="middle" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif"
+                    style="animation: entityPop 0.3s ease forwards 0.42s; opacity:0;">Yes</text>
+
+                <!-- Row 7: Credential Guard -->
+                <text x="10" y="146" font-size="7.5" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Credential Guard</text>
+                <text x="245" y="146" text-anchor="middle" font-size="9" fill="#ef4444" font-family="Segoe UI,sans-serif">--</text>
+                <text x="360" y="146" text-anchor="middle" font-size="9" fill="#ef4444" font-family="Segoe UI,sans-serif">--</text>
+                <text x="480" y="146" text-anchor="middle" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif"
+                    style="animation: entityPop 0.3s ease forwards 0.44s; opacity:0;">Yes</text>
+                <text x="610" y="146" text-anchor="middle" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif"
+                    style="animation: entityPop 0.3s ease forwards 0.46s; opacity:0;">Yes</text>
+
+                <!-- Row 8: BranchCache -->
+                <rect x="5" y="150" width="670" height="16" rx="2" fill="rgba(255,255,255,0.02)"/>
+                <text x="10" y="162" font-size="7.5" fill="#cbd5e1" font-family="Segoe UI,sans-serif">BranchCache</text>
+                <text x="245" y="162" text-anchor="middle" font-size="9" fill="#ef4444" font-family="Segoe UI,sans-serif">--</text>
+                <text x="360" y="162" text-anchor="middle" font-size="9" fill="#ef4444" font-family="Segoe UI,sans-serif">--</text>
+                <text x="480" y="162" text-anchor="middle" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif"
+                    style="animation: entityPop 0.3s ease forwards 0.48s; opacity:0;">Yes</text>
+                <text x="610" y="162" text-anchor="middle" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif"
+                    style="animation: entityPop 0.3s ease forwards 0.50s; opacity:0;">Yes</text>
+
+                <!-- Row 9: Device Encryption -->
+                <text x="10" y="180" font-size="7.5" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Device Encryption (basic)</text>
+                <text x="245" y="180" text-anchor="middle" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif"
+                    style="animation: entityPop 0.3s ease forwards 0.52s; opacity:0;">Yes*</text>
+                <text x="360" y="180" text-anchor="middle" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif"
+                    style="animation: entityPop 0.3s ease forwards 0.54s; opacity:0;">Yes</text>
+                <text x="480" y="180" text-anchor="middle" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif"
+                    style="animation: entityPop 0.3s ease forwards 0.56s; opacity:0;">Yes</text>
+                <text x="610" y="180" text-anchor="middle" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif"
+                    style="animation: entityPop 0.3s ease forwards 0.58s; opacity:0;">Yes</text>
+                <text x="340" y="188" text-anchor="middle" font-size="5.5" fill="#64748b" font-family="Segoe UI,sans-serif">*Home: automatic Device Encryption only if hardware meets Modern Standby + TPM requirements</text>
+            </svg>
+        </div>
+
+        <div class="box box-purple">
+            <div class="box-label">Exam Tip</div>
+            The key breakpoints to memorize: Home has NONE of the management features. Pro adds BitLocker, domain join, Group Policy, RDP host, and Hyper-V. Enterprise/Education add AppLocker, Credential Guard, and BranchCache on top of Pro. Education equals Enterprise with academic licensing.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- CHOOSING THE RIGHT EDITION ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Choosing the <span class="accent">Right Edition</span></div>
+        <div class="slide-subtitle">The exam gives you a scenario and expects you to recommend the correct edition. Use this decision flowchart.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="130" viewBox="0 0 680 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Start -->
+                <rect x="260" y="2" width="160" height="24" rx="12" fill="rgba(168,85,247,0.15)" stroke="#a855f7" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.05s; opacity:0;"/>
+                <text x="340" y="18" text-anchor="middle" font-size="8" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">Need domain join / GPO / BitLocker?</text>
+
+                <!-- No branch -> Home -->
+                <line x1="260" y1="14" x2="140" y2="45" stroke="rgba(239,68,68,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <text x="190" y="26" font-size="7" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">NO</text>
+                <rect x="60" y="34" width="160" height="26" rx="8" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: entityPop 0.3s ease forwards 0.15s; opacity:0;"/>
+                <text x="140" y="51" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Recommend: HOME</text>
+
+                <!-- Yes branch -->
+                <line x1="340" y1="26" x2="340" y2="42" stroke="rgba(58,181,119,0.4)" stroke-width="1.2" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.8s" repeatCount="indefinite"/>
+                </line>
+                <text x="350" y="36" font-size="7" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">YES</text>
+
+                <!-- Second decision -->
+                <rect x="246" y="42" width="188" height="24" rx="12" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="1.3"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="340" y="58" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Need AppLocker / Credential Guard?</text>
+
+                <!-- No -> Pro -->
+                <line x1="246" y1="54" x2="140" y2="80" stroke="rgba(239,68,68,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <text x="183" y="66" font-size="7" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">NO</text>
+                <rect x="60" y="70" width="160" height="26" rx="8" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.5"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="140" y="87" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Recommend: PRO</text>
+
+                <!-- Yes -->
+                <line x1="340" y1="66" x2="340" y2="82" stroke="rgba(58,181,119,0.4)" stroke-width="1.2" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.8s" repeatCount="indefinite" begin="0.15s"/>
+                </line>
+                <text x="350" y="76" font-size="7" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">YES</text>
+
+                <!-- Third decision -->
+                <rect x="270" y="82" width="140" height="24" rx="12" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1.3"
+                    style="animation: boxGrow 0.35s ease forwards 0.35s; opacity:0;"/>
+                <text x="340" y="98" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Academic institution?</text>
+
+                <!-- No -> Enterprise -->
+                <line x1="411" y1="94" x2="480" y2="94" stroke="rgba(239,68,68,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.8s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <text x="450" y="88" font-size="7" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">NO</text>
+                <rect x="482" y="80" width="180" height="26" rx="8" fill="rgba(201,168,58,0.1)" stroke="#c9a83a" stroke-width="1.5"
+                    style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="572" y="97" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Recommend: ENTERPRISE</text>
+
+                <!-- Yes -> Education -->
+                <line x1="340" y1="106" x2="340" y2="118" stroke="rgba(58,181,119,0.4)" stroke-width="1.2" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.8s" repeatCount="indefinite" begin="0.25s"/>
+                </line>
+                <text x="350" y="114" font-size="7" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">YES</text>
+                <rect x="270" y="118" width="140" height="12" rx="6" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1.3"
+                    style="animation: entityPop 0.3s ease forwards 0.45s; opacity:0;"/>
+                <text x="340" y="128" text-anchor="middle" font-size="8" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Recommend: EDUCATION</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Scenario: Small Law Firm</div>
+                <div class="card-desc">10 employees, needs BitLocker for client confidentiality, domain join for centralized user accounts, Group Policy for security baselines. Does NOT need AppLocker or BranchCache. <strong>Answer: Windows Pro.</strong> Enterprise features are overkill; Home lacks required management.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Scenario: University Computer Lab</div>
+                <div class="card-desc">200 shared workstations. Needs application whitelisting (AppLocker) to prevent students from installing unauthorized software. Credential Guard for kiosk security. Academic licensing available. <strong>Answer: Windows Education.</strong> Same features as Enterprise at academic pricing.</div>
+            </div>
+        </div>
+        <div class="card-grid-2">
+            <div class="card c-purple">
+                <div class="card-label">Scenario: Home User</div>
+                <div class="card-desc">Retired teacher, uses PC for email, web browsing, and video calls with grandchildren. No corporate network, no compliance requirements. <strong>Answer: Windows Home.</strong> No reason to pay for Pro features that will never be used.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Scenario: Fortune 500 Enterprise</div>
+                <div class="card-desc">50,000 endpoints. Requires advanced threat protection with Credential Guard, application control with AppLocker, BranchCache for 200 branch offices, and DirectAccess for remote workers. <strong>Answer: Windows Enterprise.</strong> Only volume-licensed Enterprise provides the full security stack.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- SUMMARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Windows Editions <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Key takeaways for the CompTIA A+ Core 2 exam.</div>
+
+        <div class="diagram-center">
+            <svg width="500" height="90" viewBox="0 0 500 90" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Summary icons -->
+                <rect x="10" y="10" width="100" height="70" rx="10" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.3"
+                    style="animation: boxGrow 0.35s ease forwards 0.05s; opacity:0;"/>
+                <text x="60" y="30" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Home</text>
+                <text x="60" y="44" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Consumer</text>
+                <text x="60" y="56" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">No domain/GPO</text>
+                <text x="60" y="68" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">No BitLocker</text>
+
+                <line x1="112" y1="45" x2="130" y2="45" stroke="rgba(168,85,247,0.4)" stroke-width="1.5" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.8s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="130,41 138,45 130,49" fill="#a855f7"/>
+
+                <rect x="140" y="10" width="100" height="70" rx="10" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.3"
+                    style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="190" y="30" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Pro</text>
+                <text x="190" y="44" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">+BitLocker</text>
+                <text x="190" y="56" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">+Domain/GPO</text>
+                <text x="190" y="68" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">+RDP Host/Hyper-V</text>
+
+                <line x1="242" y1="45" x2="260" y2="45" stroke="rgba(168,85,247,0.4)" stroke-width="1.5" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.8s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <polygon points="260,41 268,45 260,49" fill="#a855f7"/>
+
+                <rect x="270" y="10" width="100" height="70" rx="10" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.3"
+                    style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="320" y="30" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Enterprise</text>
+                <text x="320" y="44" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">+AppLocker</text>
+                <text x="320" y="56" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">+Credential Guard</text>
+                <text x="320" y="68" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">+BranchCache</text>
+
+                <text x="387" y="49" text-anchor="middle" font-size="16" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">=</text>
+
+                <rect x="400" y="10" width="90" height="70" rx="10" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.3"
+                    style="animation: boxGrow 0.35s ease forwards 0.35s; opacity:0;"/>
+                <text x="445" y="30" text-anchor="middle" font-size="9" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Education</text>
+                <text x="445" y="44" text-anchor="middle" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif">Same as Enterprise</text>
+                <text x="445" y="56" text-anchor="middle" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif">Academic license</text>
+                <text x="445" y="68" text-anchor="middle" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif">Edu-friendly defaults</text>
+            </svg>
+        </div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Home is consumer-only.</strong> No BitLocker, no domain join, no Group Policy, no RDP host, no Hyper-V. Has Device Encryption if hardware qualifies.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Pro is the business standard.</strong> Adds every management feature the exam tests: BitLocker, domain join, Group Policy (gpedit.msc), RDP host, Hyper-V, Windows Sandbox.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Enterprise adds advanced security.</strong> AppLocker, Credential Guard, BranchCache, DirectAccess. Available only through Volume Licensing or Microsoft 365 E3/E5.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Education = Enterprise</strong> with academic licensing. Same feature set, different licensing model. Pre-configured with education-friendly defaults.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Pro for Workstations</strong> supports ReFS data volumes, 4 CPU sockets, 6 TB RAM, and persistent memory. Targets high-performance hardware.</span></div>
+        </div>
+
+        <div class="box box-purple" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Windows Settings App</strong> &nbsp;|&nbsp; System &bull; Devices &bull; Network &bull; Apps &bull; Accounts &bull; Update &amp; Security
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; The Forge</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('forge', 'forge-windows-editions-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

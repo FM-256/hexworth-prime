@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administrative / MMC Tools | CompTIA A+ Core 2 | The Forge</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%); color: #e2e8f0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #a855f7; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(9,9,16,0.95); border-top: 1px solid rgba(255,255,255,0.07); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.07); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(168,85,247,0.15); color: #a855f7; border-color: #a855f7; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s; }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #a855f7; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #a855f7; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip { background: rgba(168,85,247,0.08); border-left: 3px solid #a855f7; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #d8b4fe; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-purple { background: rgba(168,85,247,0.08); border: 1px solid rgba(168,85,247,0.3); color: #e9d5ff; }
+        .box-red { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); color: #fee2e2; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #a855f7; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #a855f7; }
+        .card:hover { background: rgba(255,255,255,0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-red { border-left-color: #ef4444; }
+        .card.c-gold { border-left-color: #c9a83a; } .card.c-cyan { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a855f7; } .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue { border-left-color: #3b82f6; }
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell { background: rgba(255,255,255,0.04); border: 1px solid rgba(168,85,247,0.25); border-radius: 8px; padding: 12px 14px; text-align: center; opacity: 0; animation: hexAppear 0.4s ease forwards; }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; } .hex-cell:nth-child(2) { animation-delay: 0.2s; } .hex-cell:nth-child(3) { animation-delay: 0.3s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.4s; } .hex-cell:nth-child(5) { animation-delay: 0.5s; } .hex-cell:nth-child(6) { animation-delay: 0.6s; }
+        @keyframes hexAppear { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #a855f7; margin-bottom: 4px; }
+        .hex-cell .hex-desc { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #a855f7; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #c9a83a; background: rgba(201,168,58,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .ic { font-family: 'Courier New', monospace; color: #c9a83a; background: rgba(201,168,58,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes entityPop { from { opacity: 0; transform: scale(0.6) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes labelSlide { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes glowPulse { 0%, 100% { filter: drop-shadow(0 0 4px rgba(168,85,247,0.3)); } 50% { filter: drop-shadow(0 0 14px rgba(168,85,247,0.9)); } }
+        @keyframes arrowMarch { 0% { stroke-dashoffset: 14; } 100% { stroke-dashoffset: 0; } }
+        @keyframes treePulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Administrative / MMC Tools -- CompTIA A+ Core 2 -- The Forge</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; CompTIA A+ Core 2 &nbsp;|&nbsp; Administrative Tools</div>
+        <div class="title-hero">
+            <svg width="420" height="120" viewBox="0 0 420 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- MMC Console frame -->
+                <rect x="110" y="10" width="200" height="100" rx="10" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <rect x="110" y="10" width="200" height="18" rx="10" fill="rgba(168,85,247,0.15)"/>
+                <text x="210" y="22" text-anchor="middle" font-size="8" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">Microsoft Management Console</text>
+                <!-- Tree panel (left) -->
+                <rect x="115" y="30" width="80" height="75" rx="4" fill="rgba(255,255,255,0.03)"/>
+                <text x="120" y="42" font-size="6" fill="#d8b4fe" font-family="Segoe UI,sans-serif"
+                    style="animation: labelSlide 0.3s ease forwards 0.15s; opacity:0;">v Console Root</text>
+                <text x="128" y="52" font-size="5.5" fill="#94a3b8" font-family="Segoe UI,sans-serif"
+                    style="animation: labelSlide 0.3s ease forwards 0.2s; opacity:0;">v Snap-in 1</text>
+                <text x="128" y="62" font-size="5.5" fill="#94a3b8" font-family="Segoe UI,sans-serif"
+                    style="animation: labelSlide 0.3s ease forwards 0.25s; opacity:0;">v Snap-in 2</text>
+                <!-- Detail panel (right) -->
+                <rect x="200" y="30" width="105" height="75" rx="4" fill="rgba(255,255,255,0.02)"/>
+                <text x="252" y="50" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif"
+                    style="animation: fadeUp 0.3s ease forwards 0.3s; opacity:0;">Details Panel</text>
+                <!-- Snap-in badges around -->
+                <rect x="10" y="15" width="80" height="22" rx="6" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="50" y="30" text-anchor="middle" font-size="6.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Event Viewer</text>
+                <rect x="10" y="45" width="80" height="22" rx="6" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="50" y="60" text-anchor="middle" font-size="6.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Services</text>
+                <rect x="10" y="75" width="80" height="22" rx="6" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="50" y="90" text-anchor="middle" font-size="6.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Disk Mgmt</text>
+                <rect x="330" y="15" width="80" height="22" rx="6" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="370" y="30" text-anchor="middle" font-size="6.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Registry</text>
+                <rect x="330" y="45" width="80" height="22" rx="6" fill="rgba(249,115,22,0.08)" stroke="#f97316" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="370" y="60" text-anchor="middle" font-size="6.5" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">Cert Manager</text>
+                <rect x="330" y="75" width="80" height="22" rx="6" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.45s; opacity:0;"/>
+                <text x="370" y="90" text-anchor="middle" font-size="6.5" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Local Sec Pol</text>
+            </svg>
+            <div class="big-title">Administrative &amp; <span class="accent">MMC Tools</span></div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Computer Management &bull; Event Viewer &bull; Services &bull; Disk Management &bull; Task Scheduler &bull; Registry Editor
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Administrative tools are MMC snap-ins and standalone utilities that IT professionals use daily. The A+ exam expects you to know what each tool does, how to launch it, and when to use it. Most are accessed via their .msc shortcut from the Run dialog.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>A+ Core 2 Objectives</span>
+            <span>Operating Systems</span>
+            <span>The Forge</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- COMPUTER MANAGEMENT ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Computer <span class="accent">Management</span></div>
+        <div class="slide-subtitle">The all-in-one admin console. compmgmt.msc combines Task Scheduler, Event Viewer, Shared Folders, Local Users, Disk Management, Device Manager, and Services into a single MMC window.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="110" viewBox="0 0 680 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central hub -->
+                <rect x="240" y="10" width="200" height="90" rx="12" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="340" y="30" text-anchor="middle" font-size="11" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">Computer Management</text>
+                <text x="340" y="44" text-anchor="middle" font-size="7" fill="#d8b4fe" font-family="Segoe UI,sans-serif">compmgmt.msc</text>
+                <text x="340" y="56" text-anchor="middle" font-size="7" fill="#d8b4fe" font-family="Segoe UI,sans-serif">Right-click Start &gt; Computer Management</text>
+                <text x="340" y="68" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">Can connect to remote computers</text>
+                <!-- Glow ring -->
+                <rect x="232" y="2" width="216" height="106" rx="16" fill="none" stroke="rgba(168,85,247,0.08)" stroke-width="1"
+                    style="animation: pulse 3s ease-in-out infinite;"/>
+                <!-- Three sections branching -->
+                <rect x="10" y="10" width="200" height="30" rx="7" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.15s; opacity:0;"/>
+                <text x="110" y="22" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">System Tools</text>
+                <text x="110" y="34" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Task Scheduler, Event Viewer, Shared Folders</text>
+                <line x1="210" y1="25" x2="239" y2="40" stroke="rgba(59,130,246,0.3)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+
+                <rect x="10" y="48" width="200" height="24" rx="7" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="110" y="64" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Storage: Disk Management</text>
+
+                <rect x="10" y="78" width="200" height="24" rx="7" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="110" y="94" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Services and Applications</text>
+
+                <!-- Remote connection note -->
+                <rect x="470" y="30" width="200" height="50" rx="8" fill="rgba(6,182,212,0.06)" stroke="#06b6d4" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="570" y="48" text-anchor="middle" font-size="8" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Remote Management</text>
+                <text x="570" y="60" text-anchor="middle" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif">Action &gt; Connect to another computer</text>
+                <text x="570" y="72" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Requires admin rights on remote PC</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">System Tools Section</div>
+                <div class="card-desc">Contains Task Scheduler, Event Viewer, Shared Folders (view open sessions and files), Local Users and Groups (create/manage local accounts -- Pro only, not available in Home), Performance Monitor, and Device Manager. This is your first stop for most administrative tasks.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Storage Section</div>
+                <div class="card-desc">Disk Management (<span class="ic">diskmgmt.msc</span>): create, delete, resize, and format partitions. Change drive letters. Convert between Basic and Dynamic disks. Initialize new disks (MBR or GPT). Extend and shrink volumes. This is the graphical disk partition tool.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Services and Applications</div>
+                <div class="card-desc">Services snap-in (also standalone: <span class="ic">services.msc</span>). WMI Control for WMI configuration. If IIS is installed, it appears here too. This section provides direct access to service management without opening a separate console.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- DISK MANAGEMENT ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Disk <span class="accent">Management</span></div>
+        <div class="slide-subtitle">The graphical tool for partitioning, formatting, and managing volumes. Run: diskmgmt.msc. Part of Computer Management or standalone.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="110" viewBox="0 0 680 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Disk 0 -->
+                <rect x="10" y="10" width="660" height="40" rx="6" fill="rgba(168,85,247,0.05)" stroke="rgba(168,85,247,0.3)" stroke-width="1"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="20" y="24" font-size="7.5" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">Disk 0 (GPT) - 512 GB SSD</text>
+                <!-- Partitions -->
+                <rect x="15" y="30" width="60" height="16" rx="3" fill="rgba(239,68,68,0.15)" stroke="rgba(239,68,68,0.3)" stroke-width="0.8"
+                    style="animation: entityPop 0.3s ease forwards 0.1s; opacity:0;"/>
+                <text x="45" y="41" text-anchor="middle" font-size="5.5" fill="#ef4444" font-family="Segoe UI,sans-serif">EFI (100MB)</text>
+                <rect x="80" y="30" width="400" height="16" rx="3" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.3)" stroke-width="0.8"
+                    style="animation: entityPop 0.3s ease forwards 0.15s; opacity:0;"/>
+                <text x="280" y="41" text-anchor="middle" font-size="5.5" fill="#3b82f6" font-family="Segoe UI,sans-serif">Windows (C:) NTFS 450 GB - Healthy (Boot, Page File, Primary)</text>
+                <rect x="485" y="30" width="80" height="16" rx="3" fill="rgba(58,181,119,0.15)" stroke="rgba(58,181,119,0.3)" stroke-width="0.8"
+                    style="animation: entityPop 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="525" y="41" text-anchor="middle" font-size="5.5" fill="#3ab577" font-family="Segoe UI,sans-serif">Recovery (500MB)</text>
+                <rect x="570" y="30" width="95" height="16" rx="3" fill="rgba(201,168,58,0.1)" stroke="rgba(201,168,58,0.3)" stroke-width="0.8" stroke-dasharray="3,2"
+                    style="animation: entityPop 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="617" y="41" text-anchor="middle" font-size="5.5" fill="#c9a83a" font-family="Segoe UI,sans-serif">Unallocated 61 GB</text>
+
+                <!-- Disk 1 -->
+                <rect x="10" y="56" width="660" height="40" rx="6" fill="rgba(168,85,247,0.03)" stroke="rgba(168,85,247,0.2)" stroke-width="1"
+                    style="animation: boxGrow 0.4s ease forwards 0.15s; opacity:0;"/>
+                <text x="20" y="70" font-size="7.5" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">Disk 1 (MBR) - 2 TB HDD</text>
+                <rect x="15" y="76" width="320" height="16" rx="3" fill="rgba(6,182,212,0.15)" stroke="rgba(6,182,212,0.3)" stroke-width="0.8"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="175" y="87" text-anchor="middle" font-size="5.5" fill="#06b6d4" font-family="Segoe UI,sans-serif">Data (D:) NTFS 1.5 TB - Healthy</text>
+                <rect x="340" y="76" width="325" height="16" rx="3" fill="rgba(249,115,22,0.1)" stroke="rgba(249,115,22,0.3)" stroke-width="0.8" stroke-dasharray="3,2"
+                    style="animation: entityPop 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="502" y="87" text-anchor="middle" font-size="5.5" fill="#f97316" font-family="Segoe UI,sans-serif">Unallocated 500 GB</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-purple">
+                <div class="card-label">MBR vs GPT</div>
+                <div class="card-desc"><strong>MBR:</strong> legacy, max 4 primary partitions (or 3 primary + 1 extended), max 2 TB volume. <strong>GPT:</strong> modern, up to 128 partitions, supports volumes over 2 TB, requires UEFI boot. Windows 11 requires GPT for the OS drive. Convert via Disk Management (data loss) or <span class="ic">mbr2gpt.exe</span> (in-place, no data loss).</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Common Operations</div>
+                <div class="card-desc"><strong>New Simple Volume:</strong> right-click unallocated space. <strong>Shrink Volume:</strong> free up space from the end of a partition. <strong>Extend Volume:</strong> grow a partition into adjacent unallocated space. <strong>Change Drive Letter:</strong> right-click volume. <strong>Format:</strong> choose NTFS, exFAT, or FAT32; quick or full format.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Basic vs Dynamic</div>
+                <div class="card-desc"><strong>Basic disks:</strong> standard partition table, supported everywhere. <strong>Dynamic disks:</strong> support spanned volumes (multiple disks), striped volumes (RAID-0), and mirrored volumes (RAID-1). Convert Basic to Dynamic is non-destructive; Dynamic back to Basic requires deleting all volumes.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- EVENT VIEWER ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Event <span class="accent">Viewer</span></div>
+        <div class="slide-subtitle">The centralized log viewer for Windows. Application, Security, and System logs. Every crash, login, service failure, and policy change is recorded here. Run: eventvwr.msc</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="100" viewBox="0 0 680 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Three main logs -->
+                <rect x="10" y="10" width="200" height="80" rx="10" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.1s; opacity:0;"/>
+                <text x="110" y="28" text-anchor="middle" font-size="10" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Application</text>
+                <text x="110" y="42" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Software events: crashes,</text>
+                <text x="110" y="52" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">install/uninstall, app errors</text>
+                <text x="110" y="66" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Source: .NET Runtime, MsiInstaller</text>
+                <text x="110" y="78" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">ESENT, Application Error</text>
+
+                <rect x="240" y="10" width="200" height="80" rx="10" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.2s; opacity:0;"/>
+                <text x="340" y="28" text-anchor="middle" font-size="10" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Security</text>
+                <text x="340" y="42" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Logon/logoff, file access,</text>
+                <text x="340" y="52" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">privilege use, policy changes</text>
+                <text x="340" y="66" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Event 4624 = Successful logon</text>
+                <text x="340" y="78" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Event 4625 = Failed logon</text>
+
+                <rect x="470" y="10" width="200" height="80" rx="10" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.3s; opacity:0;"/>
+                <text x="570" y="28" text-anchor="middle" font-size="10" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">System</text>
+                <text x="570" y="42" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">OS-level: driver failures,</text>
+                <text x="570" y="52" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">service start/stop, hardware</text>
+                <text x="570" y="66" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Event 7036 = Service state change</text>
+                <text x="570" y="78" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Event 41 = Unexpected shutdown</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-purple">
+                <div class="card-label">Event Levels</div>
+                <div class="card-desc"><strong>Information:</strong> normal operation (service started). <strong>Warning:</strong> potential issue (disk space low). <strong>Error:</strong> significant problem (service failed to start). <strong>Critical:</strong> severe failure (system crash, hardware error). <strong>Audit Success/Failure:</strong> Security log only (login succeeded/failed).</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Security Log Forensics</div>
+                <div class="card-desc">Security log requires audit policies to be enabled (via secpol.msc or Group Policy). Event ID 4624 = successful logon, 4625 = failed logon, 4648 = logon with explicit credentials, 4720 = user account created, 4732 = user added to security group. Only administrators can view the Security log.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Filtering &amp; Custom Views</div>
+                <div class="card-desc">Right-click a log &gt; Filter Current Log: filter by event level, event ID, source, date range, or keywords. Create Custom Views to save filters (e.g., "All errors in the last 24 hours"). Export logs as .evtx for archival or analysis on another machine. Attach task to event for automated response.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- SERVICES ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title"><span class="accent">Services</span></div>
+        <div class="slide-subtitle">Background processes that run without user interaction. Start, stop, restart, and configure startup type. Run: services.msc</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="100" viewBox="0 0 680 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Service lifecycle -->
+                <rect x="10" y="30" width="100" height="40" rx="8" fill="rgba(58,181,119,0.12)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="60" y="55" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Running</text>
+
+                <line x1="110" y1="50" x2="155" y2="50" stroke="rgba(168,85,247,0.4)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="155,46 163,50 155,54" fill="#a855f7"/>
+
+                <rect x="165" y="30" width="100" height="40" rx="8" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="215" y="55" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Stopped</text>
+
+                <line x1="265" y1="50" x2="310" y2="50" stroke="rgba(168,85,247,0.4)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <polygon points="310,46 318,50 310,54" fill="#a855f7"/>
+
+                <rect x="320" y="30" width="100" height="40" rx="8" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="370" y="55" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Disabled</text>
+
+                <!-- Startup types -->
+                <rect x="460" y="5" width="210" height="90" rx="8" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="565" y="20" text-anchor="middle" font-size="8.5" fill="#f1f5f9" font-weight="700" font-family="Segoe UI,sans-serif">Startup Types</text>
+                <text x="470" y="35" font-size="7" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Automatic</text>
+                <text x="535" y="35" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">Starts at boot</text>
+                <text x="470" y="48" font-size="7" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Automatic (Delayed)</text>
+                <text x="605" y="48" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">After boot</text>
+                <text x="470" y="61" font-size="7" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Manual</text>
+                <text x="525" y="61" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">Only when triggered/requested</text>
+                <text x="470" y="74" font-size="7" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Disabled</text>
+                <text x="530" y="74" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">Cannot start at all</text>
+                <text x="470" y="88" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Recovery tab: restart service, run program, reboot</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Key Services to Know</div>
+                <div class="card-desc"><strong>Windows Update:</strong> wuauserv. <strong>Print Spooler:</strong> Spooler -- restart to fix stuck print jobs. <strong>DHCP Client:</strong> Dhcp. <strong>DNS Client:</strong> Dnscache -- restart to flush DNS cache. <strong>Windows Firewall:</strong> mpssvc. <strong>Remote Desktop Services:</strong> TermService. Know the service name and display name for each.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Service Account Types</div>
+                <div class="card-desc">Services run under a specific account: <strong>Local System:</strong> highest privilege, full access to the machine. <strong>Local Service:</strong> limited privilege, appears as anonymous on the network. <strong>Network Service:</strong> limited privilege, authenticates as the computer account on the network. Changing service accounts incorrectly can break the service.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Command-Line Management</div>
+                <div class="card-desc"><span class="ic">net start [service]</span> / <span class="ic">net stop [service]</span> for quick control. <span class="ic">sc query [service]</span> for status. <span class="ic">sc config [service] start= disabled</span> to change startup type. PowerShell: <span class="ic">Get-Service</span>, <span class="ic">Start-Service</span>, <span class="ic">Stop-Service</span>, <span class="ic">Set-Service</span>.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- TASK SCHEDULER ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Task <span class="accent">Scheduler</span></div>
+        <div class="slide-subtitle">Automate scripts, programs, and maintenance tasks. Trigger on time, event, logon, startup, or idle. Run: taskschd.msc</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="100" viewBox="0 0 680 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Trigger -> Condition -> Action flow -->
+                <rect x="10" y="20" width="160" height="60" rx="10" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="90" y="38" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Trigger</text>
+                <text x="90" y="50" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">On a schedule (daily/weekly)</text>
+                <text x="90" y="60" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">At log on / At startup</text>
+                <text x="90" y="70" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">On an event / On idle</text>
+
+                <line x1="170" y1="50" x2="220" y2="50" stroke="rgba(168,85,247,0.4)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="220,46 228,50 220,54" fill="#a855f7"/>
+
+                <rect x="230" y="20" width="160" height="60" rx="10" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="310" y="38" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Conditions</text>
+                <text x="310" y="50" text-anchor="middle" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Only if AC power</text>
+                <text x="310" y="60" text-anchor="middle" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Only if network available</text>
+                <text x="310" y="70" text-anchor="middle" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Only if idle for X minutes</text>
+
+                <line x1="390" y1="50" x2="440" y2="50" stroke="rgba(168,85,247,0.4)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <polygon points="440,46 448,50 440,54" fill="#a855f7"/>
+
+                <rect x="450" y="20" width="160" height="60" rx="10" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="530" y="38" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Actions</text>
+                <text x="530" y="50" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Start a program / script</text>
+                <text x="530" y="60" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Send an email (deprecated)</text>
+                <text x="530" y="70" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Display a message (deprecated)</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Built-in Scheduled Tasks</div>
+                <div class="card-desc">Windows creates hundreds of built-in tasks: disk cleanup, defragmentation, Windows Update scans, diagnostic data collection, certificate refresh, and security scanning. These live under Task Scheduler Library &gt; Microsoft &gt; Windows. Do not disable or delete these unless you fully understand the consequences.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Creating Custom Tasks</div>
+                <div class="card-desc">"Create Basic Task" wizard walks you through: name, trigger, action. "Create Task" gives full control: multiple triggers, conditions (AC power, network, idle), settings (run whether user is logged on or not, run with highest privileges). Store credentials for the task to run unattended.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Security Implications</div>
+                <div class="card-desc">Scheduled tasks run under a specified account. Tasks that "Run with highest privileges" execute elevated. Attackers use scheduled tasks for persistence -- check for unfamiliar tasks during incident response. Use <span class="ic">schtasks /query</span> from the command line to audit all tasks.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- LOCAL SECURITY POLICY ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Local Security <span class="accent">Policy</span></div>
+        <div class="slide-subtitle">Configure password policies, account lockout, audit policies, user rights, and security options on the local machine. Run: secpol.msc (Pro and above only).</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="100" viewBox="0 0 680 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Shield with policy sections -->
+                <path d="M340,5 L400,20 L400,60 Q400,85 340,95 Q280,85 280,60 L280,20 Z" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="1.8"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="340" y="30" text-anchor="middle" font-size="9" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">secpol.msc</text>
+                <text x="340" y="44" text-anchor="middle" font-size="7" fill="#d8b4fe" font-family="Segoe UI,sans-serif">Local Security</text>
+                <text x="340" y="55" text-anchor="middle" font-size="7" fill="#d8b4fe" font-family="Segoe UI,sans-serif">Policy</text>
+                <!-- Glow -->
+                <path d="M340,-2 L408,15 L408,65 Q408,92 340,103 Q272,92 272,65 L272,15 Z" fill="none" stroke="rgba(168,85,247,0.08)" stroke-width="1"
+                    style="animation: pulse 3s ease-in-out infinite;"/>
+                <!-- Policy areas -->
+                <rect x="20" y="10" width="180" height="30" rx="7" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.15s; opacity:0;"/>
+                <text x="110" y="22" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Account Policies</text>
+                <text x="110" y="34" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Password Policy + Account Lockout</text>
+                <line x1="200" y1="25" x2="279" y2="30" stroke="rgba(59,130,246,0.3)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+
+                <rect x="20" y="48" width="180" height="24" rx="7" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="110" y="64" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Local Policies: Audit, User Rights</text>
+
+                <rect x="20" y="78" width="180" height="18" rx="7" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="110" y="91" text-anchor="middle" font-size="7.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Security Options</text>
+
+                <rect x="480" y="10" width="190" height="85" rx="8" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="575" y="26" text-anchor="middle" font-size="8" fill="#f1f5f9" font-weight="700" font-family="Segoe UI,sans-serif">Common Password Policies</text>
+                <text x="490" y="40" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">Min length: 8+ characters</text>
+                <text x="490" y="52" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">Complexity: uppercase, lower, digit, symbol</text>
+                <text x="490" y="64" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">Max age: 90 days (force rotation)</text>
+                <text x="490" y="76" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">History: remember 24 passwords</text>
+                <text x="490" y="88" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">Lockout: 5 attempts, 30 min duration</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Password Policy</div>
+                <div class="card-desc">Minimum password length, complexity requirements (3 of 4: uppercase, lowercase, digits, symbols), maximum password age (days until expiration), minimum password age (prevents rapid cycling), password history (number of unique passwords before reuse). These are the foundations of security hardening.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Account Lockout Policy</div>
+                <div class="card-desc">Account lockout threshold (failed attempts before lockout -- default is 0, meaning no lockout). Account lockout duration (minutes locked -- 0 means admin must unlock). Reset account lockout counter after (minutes before failed count resets). Set threshold to 5, duration to 30 minutes for a reasonable balance.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Audit Policy</div>
+                <div class="card-desc">Controls what gets logged in the Security event log. Audit logon events (success/failure), audit object access (file/folder access), audit policy change, audit privilege use, audit account management. Without audit policies enabled, the Security log is empty. Enable failure audits at minimum for security monitoring.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- CERTIFICATE MANAGER ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Certificate <span class="accent">Manager</span></div>
+        <div class="slide-subtitle">View and manage digital certificates stored on the local machine. User certificates: certmgr.msc. Computer certificates: certlm.msc.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="100" viewBox="0 0 680 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Certificate icon -->
+                <rect x="260" y="10" width="160" height="80" rx="10" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <rect x="285" y="20" width="20" height="28" rx="4" fill="rgba(201,168,58,0.2)" stroke="#c9a83a" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.15s; opacity:0;"/>
+                <circle cx="295" cy="28" r="5" fill="none" stroke="#c9a83a" stroke-width="1"/>
+                <line x1="295" y1="34" x2="295" y2="44" stroke="#c9a83a" stroke-width="1"/>
+                <text x="340" y="28" font-size="9" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">Certificate</text>
+                <text x="340" y="40" font-size="9" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">Manager</text>
+                <text x="340" y="56" text-anchor="middle" font-size="7" fill="#d8b4fe" font-family="Segoe UI,sans-serif">certmgr.msc (user certs)</text>
+                <text x="340" y="68" text-anchor="middle" font-size="7" fill="#d8b4fe" font-family="Segoe UI,sans-serif">certlm.msc (machine certs)</text>
+                <text x="340" y="82" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Run as Admin for certlm.msc</text>
+
+                <!-- Certificate stores -->
+                <rect x="10" y="15" width="210" height="70" rx="8" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="115" y="30" text-anchor="middle" font-size="8" fill="#f1f5f9" font-weight="700" font-family="Segoe UI,sans-serif">Certificate Stores</text>
+                <text x="20" y="44" font-size="7" fill="#3ab577" font-family="Segoe UI,sans-serif">Personal: your certs (user/machine identity)</text>
+                <text x="20" y="56" font-size="7" fill="#3b82f6" font-family="Segoe UI,sans-serif">Trusted Root CA: authorities you trust</text>
+                <text x="20" y="68" font-size="7" fill="#c9a83a" font-family="Segoe UI,sans-serif">Intermediate CA: chain of trust links</text>
+                <text x="20" y="80" font-size="7" fill="#ef4444" font-family="Segoe UI,sans-serif">Untrusted Certificates: explicitly blocked</text>
+
+                <!-- Use cases -->
+                <rect x="460" y="15" width="210" height="70" rx="8" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="565" y="30" text-anchor="middle" font-size="8" fill="#f1f5f9" font-weight="700" font-family="Segoe UI,sans-serif">When You Need This</text>
+                <text x="470" y="44" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">SSL/TLS errors in browser (untrusted CA)</text>
+                <text x="470" y="56" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">VPN certificate authentication</text>
+                <text x="470" y="68" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Code signing / email encryption (S/MIME)</text>
+                <text x="470" y="80" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">EFS (Encrypting File System) recovery</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Trusted Root CAs</div>
+                <div class="card-desc">Windows ships with a pre-installed list of trusted Certificate Authorities (DigiCert, Let's Encrypt, GlobalSign, etc.). When you visit an HTTPS site, Windows checks the certificate chain against this store. Adding a CA here means trusting ALL certificates it issues -- never add an untrusted CA to root store.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Internal PKI</div>
+                <div class="card-desc">Organizations running Active Directory Certificate Services (AD CS) push their internal CA certificate to all domain machines via Group Policy. This makes internal HTTPS sites and VPN certificates automatically trusted. certlm.msc shows machine certificates; certmgr.msc shows user certificates.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Exam Context</div>
+                <div class="card-desc">Know the difference between certmgr.msc (Current User store) and certlm.msc (Local Machine store). If a website shows an untrusted certificate warning, the fix may involve importing the CA certificate into the Trusted Root Certification Authorities store. Never ignore certificate warnings in production.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- REGISTRY EDITOR ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Registry <span class="accent">Editor</span></div>
+        <div class="slide-subtitle">The central database for Windows configuration. Every setting, driver path, file association, and user preference is stored here. Run: regedit.exe</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="110" viewBox="0 0 680 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Five root hives -->
+                <rect x="10" y="5" width="180" height="100" rx="8" fill="rgba(168,85,247,0.05)" stroke="#a855f7" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="100" y="20" text-anchor="middle" font-size="8" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">Five Root Hives</text>
+                <text x="20" y="35" font-size="7" fill="#3b82f6" font-weight="700" font-family="Courier New,monospace"
+                    style="animation: labelSlide 0.3s ease forwards 0.1s; opacity:0;">HKEY_LOCAL_MACHINE</text>
+                <text x="20" y="50" font-size="7" fill="#3ab577" font-weight="700" font-family="Courier New,monospace"
+                    style="animation: labelSlide 0.3s ease forwards 0.15s; opacity:0;">HKEY_CURRENT_USER</text>
+                <text x="20" y="65" font-size="7" fill="#c9a83a" font-weight="700" font-family="Courier New,monospace"
+                    style="animation: labelSlide 0.3s ease forwards 0.2s; opacity:0;">HKEY_CLASSES_ROOT</text>
+                <text x="20" y="80" font-size="7" fill="#06b6d4" font-weight="700" font-family="Courier New,monospace"
+                    style="animation: labelSlide 0.3s ease forwards 0.25s; opacity:0;">HKEY_USERS</text>
+                <text x="20" y="95" font-size="7" fill="#f97316" font-weight="700" font-family="Courier New,monospace"
+                    style="animation: labelSlide 0.3s ease forwards 0.3s; opacity:0;">HKEY_CURRENT_CONFIG</text>
+
+                <!-- Descriptions -->
+                <rect x="210" y="5" width="240" height="100" rx="8" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="220" y="22" font-size="7" fill="#3b82f6" font-family="Segoe UI,sans-serif">HKLM: Hardware, OS, software for ALL users</text>
+                <text x="220" y="37" font-size="7" fill="#3ab577" font-family="Segoe UI,sans-serif">HKCU: Current user preferences, env vars</text>
+                <text x="220" y="52" font-size="7" fill="#c9a83a" font-family="Segoe UI,sans-serif">HKCR: File type associations, COM objects</text>
+                <text x="220" y="67" font-size="7" fill="#06b6d4" font-family="Segoe UI,sans-serif">HKU: All user profiles on the machine</text>
+                <text x="220" y="82" font-size="7" fill="#f97316" font-family="Segoe UI,sans-serif">HKCC: Current hardware profile (rarely used)</text>
+                <text x="220" y="97" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">HKLM and HKCU are the most exam-relevant</text>
+
+                <!-- Value types -->
+                <rect x="470" y="5" width="200" height="100" rx="8" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="570" y="20" text-anchor="middle" font-size="8" fill="#f1f5f9" font-weight="700" font-family="Segoe UI,sans-serif">Value Types</text>
+                <text x="480" y="35" font-size="7" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">REG_SZ</text>
+                <text x="540" y="35" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">String</text>
+                <text x="480" y="48" font-size="7" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">REG_DWORD</text>
+                <text x="560" y="48" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">32-bit integer</text>
+                <text x="480" y="61" font-size="7" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">REG_QWORD</text>
+                <text x="560" y="61" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">64-bit integer</text>
+                <text x="480" y="74" font-size="7" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">REG_BINARY</text>
+                <text x="560" y="74" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">Raw binary data</text>
+                <text x="480" y="87" font-size="7" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">REG_MULTI_SZ</text>
+                <text x="570" y="87" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">String array</text>
+                <text x="480" y="100" font-size="7" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">REG_EXPAND_SZ</text>
+                <text x="580" y="100" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">Expandable string (%var%)</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Danger Zone</div>
+                <div class="card-desc">Incorrect registry edits can render Windows unbootable. ALWAYS export the key or create a System Restore point before making changes. There is no undo. File &gt; Export saves a .reg backup file. File &gt; Import restores it. Registry changes often require a restart or service restart to take effect.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Common Registry Paths</div>
+                <div class="card-desc"><span class="ic">HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run</span> -- programs that start at login (all users). <span class="ic">HKCU\...\Run</span> -- current user startup programs. <span class="ic">HKLM\SYSTEM\CurrentControlSet\Services</span> -- all Windows services. Check Run keys during malware investigation.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Command-Line Access</div>
+                <div class="card-desc"><span class="ic">reg query HKLM\SOFTWARE\...</span> reads a key. <span class="ic">reg add</span> creates/modifies values. <span class="ic">reg export</span> saves a key tree to .reg file. <span class="ic">reg import</span> restores from .reg file. PowerShell: <span class="ic">Get-ItemProperty</span>, <span class="ic">Set-ItemProperty</span> on registry paths (HKLM:\, HKCU:\).</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- LOCAL USERS & GROUPS ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Local Users &amp; <span class="accent">Groups</span></div>
+        <div class="slide-subtitle">Create and manage local user accounts and security groups. Run: lusrmgr.msc (Pro and above only -- not available in Home edition).</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="100" viewBox="0 0 680 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Users section -->
+                <rect x="10" y="10" width="300" height="80" rx="10" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="160" y="26" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Users</text>
+                <text x="20" y="42" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif"
+                    style="animation: labelSlide 0.3s ease forwards 0.15s; opacity:0;">Administrator (disabled by default)</text>
+                <text x="20" y="54" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif"
+                    style="animation: labelSlide 0.3s ease forwards 0.2s; opacity:0;">Guest (disabled by default)</text>
+                <text x="20" y="66" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif"
+                    style="animation: labelSlide 0.3s ease forwards 0.25s; opacity:0;">DefaultAccount (system managed)</text>
+                <text x="20" y="78" font-size="7" fill="#3ab577" font-family="Segoe UI,sans-serif"
+                    style="animation: labelSlide 0.3s ease forwards 0.3s; opacity:0;">YourUsername (the account you created at setup)</text>
+                <text x="20" y="88" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Right-click &gt; Properties: password options, group membership, profile path</text>
+
+                <!-- Groups section -->
+                <rect x="340" y="10" width="330" height="80" rx="10" fill="rgba(168,85,247,0.06)" stroke="#a855f7" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.1s; opacity:0;"/>
+                <text x="505" y="26" text-anchor="middle" font-size="9" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">Groups (Built-in)</text>
+                <text x="350" y="42" font-size="7" fill="#d8b4fe" font-family="Segoe UI,sans-serif"
+                    style="animation: labelSlide 0.3s ease forwards 0.2s; opacity:0;">Administrators -- full system access</text>
+                <text x="350" y="54" font-size="7" fill="#d8b4fe" font-family="Segoe UI,sans-serif"
+                    style="animation: labelSlide 0.3s ease forwards 0.25s; opacity:0;">Users -- standard access, run apps</text>
+                <text x="350" y="66" font-size="7" fill="#d8b4fe" font-family="Segoe UI,sans-serif"
+                    style="animation: labelSlide 0.3s ease forwards 0.3s; opacity:0;">Remote Desktop Users -- allowed RDP access</text>
+                <text x="350" y="78" font-size="7" fill="#d8b4fe" font-family="Segoe UI,sans-serif"
+                    style="animation: labelSlide 0.3s ease forwards 0.35s; opacity:0;">Backup Operators, Power Users, Guests, Hyper-V Admins</text>
+                <text x="350" y="88" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Add users to groups for permission management</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">User Properties</div>
+                <div class="card-desc">Password options: User must change password at next logon, User cannot change password, Password never expires, Account is disabled. Profile tab: home folder path, logon script. "Member Of" tab shows group memberships. Dial-in tab controls VPN/RAS access permissions.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Command-Line Alternatives</div>
+                <div class="card-desc"><span class="ic">net user</span> lists users. <span class="ic">net user username /add</span> creates a user. <span class="ic">net localgroup Administrators username /add</span> adds to admin group. <span class="ic">net user username /active:no</span> disables an account. These commands work on all editions, including Home (which lacks lusrmgr.msc).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Built-in Administrator</div>
+                <div class="card-desc">The built-in Administrator account is disabled by default. It has no UAC prompt when enabled -- everything runs elevated. Used only for emergency recovery. Enable via: <span class="ic">net user Administrator /active:yes</span>. Set a strong password immediately. Disable when done. Never use as a daily account.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- PERFORMANCE MONITOR ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Performance <span class="accent">Monitor</span></div>
+        <div class="slide-subtitle">Real-time and historical system performance analysis. Track CPU, memory, disk, and network counters over time. Run: perfmon.msc</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="100" viewBox="0 0 680 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Performance graph -->
+                <rect x="10" y="10" width="400" height="80" rx="8" fill="rgba(168,85,247,0.05)" stroke="#a855f7" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="210" y="22" text-anchor="middle" font-size="8" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">Performance Monitor (perfmon.msc)</text>
+                <!-- Graph lines -->
+                <polyline points="20,70 60,55 100,60 140,40 180,45 220,35 260,50 300,38 340,42 380,30"
+                    fill="none" stroke="#3b82f6" stroke-width="1.5"
+                    style="animation: fadeUp 0.5s ease forwards 0.2s; opacity:0;"/>
+                <polyline points="20,75 60,70 100,68 140,72 180,65 220,60 260,62 300,58 340,55 380,52"
+                    fill="none" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: fadeUp 0.5s ease forwards 0.3s; opacity:0;"/>
+                <polyline points="20,80 60,78 100,75 140,77 180,80 220,76 260,74 300,72 340,68 380,65"
+                    fill="none" stroke="#c9a83a" stroke-width="1.2"
+                    style="animation: fadeUp 0.5s ease forwards 0.4s; opacity:0;"/>
+                <!-- Legend -->
+                <line x1="20" y1="86" x2="35" y2="86" stroke="#3b82f6" stroke-width="2"/>
+                <text x="40" y="89" font-size="6" fill="#3b82f6" font-family="Segoe UI,sans-serif">CPU %</text>
+                <line x1="80" y1="86" x2="95" y2="86" stroke="#3ab577" stroke-width="2"/>
+                <text x="100" y="89" font-size="6" fill="#3ab577" font-family="Segoe UI,sans-serif">Memory %</text>
+                <line x1="155" y1="86" x2="170" y2="86" stroke="#c9a83a" stroke-width="2"/>
+                <text x="175" y="89" font-size="6" fill="#c9a83a" font-family="Segoe UI,sans-serif">Disk I/O</text>
+
+                <!-- Data Collector Sets -->
+                <rect x="440" y="10" width="230" height="80" rx="8" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="555" y="26" text-anchor="middle" font-size="8" fill="#f1f5f9" font-weight="700" font-family="Segoe UI,sans-serif">Key Counters for A+</text>
+                <text x="450" y="40" font-size="7" fill="#3b82f6" font-family="Segoe UI,sans-serif">Processor: % Processor Time</text>
+                <text x="450" y="52" font-size="7" fill="#3ab577" font-family="Segoe UI,sans-serif">Memory: Available MBytes, Pages/sec</text>
+                <text x="450" y="64" font-size="7" fill="#c9a83a" font-family="Segoe UI,sans-serif">PhysicalDisk: Avg. Queue Length</text>
+                <text x="450" y="76" font-size="7" fill="#06b6d4" font-family="Segoe UI,sans-serif">Network: Bytes Total/sec</text>
+                <text x="450" y="86" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Data Collector Sets: record over time</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-purple">
+                <div class="card-label">Performance Monitor vs Resource Monitor</div>
+                <div class="card-desc">Performance Monitor (perfmon) tracks counters over time with historical data, Data Collector Sets, and reports. Resource Monitor (resmon) provides real-time, per-process breakdown of CPU, memory, disk, and network. Use Resource Monitor for "what is happening right now" and Performance Monitor for "what happened over the last hour/day."</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Data Collector Sets</div>
+                <div class="card-desc">Record performance counters, events, and system configuration over a scheduled period. Create custom sets for baseline measurement. "System Diagnostics" and "System Performance" are built-in collectors. Results are saved as reports you can review later. Essential for proving a server needs more RAM or identifying a disk bottleneck.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Baseline Strategy</div>
+                <div class="card-desc">Collect a baseline during normal operation. Compare against current readings to identify anomalies. If CPU is normally at 30% but is now at 95%, you have a problem. Without a baseline, you cannot distinguish normal behavior from abnormal. Take baselines after hardware upgrades or major software deployments.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- SUMMARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Admin Tools <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Key takeaways for the CompTIA A+ Core 2 exam.</div>
+
+        <div class="diagram-center">
+            <svg width="500" height="70" viewBox="0 0 500 70" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Tool command badges -->
+                <rect x="5" y="10" width="90" height="50" rx="8" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.05s; opacity:0;"/>
+                <text x="50" y="30" text-anchor="middle" font-size="6.5" fill="#3b82f6" font-weight="700" font-family="Courier New,monospace">compmgmt</text>
+                <text x="50" y="50" text-anchor="middle" font-size="6" fill="#93c5fd" font-family="Segoe UI,sans-serif">All-in-one</text>
+
+                <rect x="105" y="10" width="80" height="50" rx="8" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.1s; opacity:0;"/>
+                <text x="145" y="30" text-anchor="middle" font-size="6.5" fill="#a855f7" font-weight="700" font-family="Courier New,monospace">eventvwr</text>
+                <text x="145" y="50" text-anchor="middle" font-size="6" fill="#d8b4fe" font-family="Segoe UI,sans-serif">Logs</text>
+
+                <rect x="195" y="10" width="80" height="50" rx="8" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.15s; opacity:0;"/>
+                <text x="235" y="30" text-anchor="middle" font-size="6.5" fill="#3ab577" font-weight="700" font-family="Courier New,monospace">services</text>
+                <text x="235" y="50" text-anchor="middle" font-size="6" fill="#86efac" font-family="Segoe UI,sans-serif">Background</text>
+
+                <rect x="285" y="10" width="80" height="50" rx="8" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="325" y="30" text-anchor="middle" font-size="6.5" fill="#c9a83a" font-weight="700" font-family="Courier New,monospace">regedit</text>
+                <text x="325" y="50" text-anchor="middle" font-size="6" fill="#fef3c7" font-family="Segoe UI,sans-serif">Registry</text>
+
+                <rect x="375" y="10" width="55" height="50" rx="8" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="402" y="30" text-anchor="middle" font-size="6.5" fill="#ef4444" font-weight="700" font-family="Courier New,monospace">secpol</text>
+                <text x="402" y="50" text-anchor="middle" font-size="6" fill="#fca5a5" font-family="Segoe UI,sans-serif">Policy</text>
+
+                <rect x="440" y="10" width="55" height="50" rx="8" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="467" y="30" text-anchor="middle" font-size="6.5" fill="#06b6d4" font-weight="700" font-family="Courier New,monospace">perfmon</text>
+                <text x="467" y="50" text-anchor="middle" font-size="6" fill="#67e8f9" font-family="Segoe UI,sans-serif">Perf</text>
+            </svg>
+        </div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Computer Management (compmgmt.msc)</strong> is the all-in-one console: Task Scheduler, Event Viewer, Disk Management, Device Manager, Services, Local Users &amp; Groups.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Event Viewer (eventvwr.msc)</strong> has three main logs: Application, Security, System. Know event levels and key event IDs (4624=logon, 4625=failed logon).</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Services (services.msc):</strong> four startup types -- Automatic, Automatic (Delayed Start), Manual, Disabled. Recovery tab configures restart behavior on failure.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Registry Editor (regedit):</strong> five root hives. HKLM = machine config, HKCU = current user. ALWAYS back up before editing. Check <code>...\Run</code> keys for startup programs.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Local Security Policy (secpol.msc):</strong> password policy, account lockout, audit policy. Pro and above only. On domains, Group Policy overrides local policy.</span></div>
+        </div>
+
+        <div class="box box-purple" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: System Utilities</strong> &nbsp;|&nbsp; Task Manager &bull; Resource Monitor &bull; msconfig &bull; msinfo32 &bull; dxdiag
+        </div>
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; The Forge</button></a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1; const TOTAL_SLIDES = 12;
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide); if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide); if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+    goToSlide(1);
+</script>
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('forge', 'forge-admin-tools-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
