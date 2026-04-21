@@ -391,7 +391,105 @@ window.SignalGuides = {
                      '<p><strong>Legal note:</strong> Passive WiFi scanning (receive-only) is legal. You are only reading publicly broadcast beacon frames that every WiFi access point transmits 10 times per second. This is the same data your phone sees when you look at available networks.</p>' +
                      '<p><strong>Safety:</strong> This tool shows network names, signal strength, and encryption types. It does not capture traffic, passwords, or data. It is equivalent to running <code>iwlist scan</code> on Linux or viewing available networks on your phone.</p>',
 
-        wiringSvg: '',
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg105-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '<style>' +
+            '@keyframes sg105-sweep{0%{opacity:0.1;transform:scaleX(0.2)}50%{opacity:0.6;transform:scaleX(1)}100%{opacity:0.1;transform:scaleX(0.2)}}' +
+            '@keyframes sg105-pulse{0%,100%{opacity:0.15}50%{opacity:0.6}}' +
+            '</style>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg105-grid)" rx="4"/>' +
+            '<text x="360" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-105 WIFI RECON SCANNER</text>' +
+
+            '<!-- T-Display-S3 Board -->' +
+            '<rect x="40" y="60" width="260" height="200" rx="12" fill="#1e2736" stroke="#a855f7" stroke-width="2"/>' +
+            '<rect x="40" y="60" width="260" height="28" rx="12" fill="rgba(168,85,247,0.12)"/>' +
+            '<text x="170" y="79" text-anchor="middle" fill="#c084fc" font-size="11" font-weight="700">LILYGO T-Display-S3</text>' +
+            '<!-- TFT Screen showing scan results -->' +
+            '<rect x="60" y="100" width="100" height="140" rx="6" fill="#0a1628" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<text x="110" y="118" text-anchor="middle" fill="#60a5fa" font-size="7" font-weight="600">WiFi Scanner</text>' +
+            '<text x="70" y="134" fill="#22c55e" font-size="6">HomeNet_5G  -42dBm</text>' +
+            '<text x="70" y="146" fill="#eab308" font-size="6">CafeWiFi    -67dBm</text>' +
+            '<text x="70" y="158" fill="#ef4444" font-size="6">IoT_Device  -81dBm</text>' +
+            '<text x="70" y="170" fill="#ef4444" font-size="6">[hidden]    -85dBm</text>' +
+            '<text x="110" y="190" text-anchor="middle" fill="#8b949e" font-size="6">Ch 1-13 | 4 found</text>' +
+            '<rect x="70" y="196" width="80" height="30" rx="3" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+            '<text x="78" y="208" fill="#8b949e" font-size="5">CH:</text>' +
+            '<rect x="92" y="218" width="6" height="6" fill="#22c55e" opacity="0.8"/>' +
+            '<rect x="100" y="214" width="6" height="10" fill="#22c55e" opacity="0.6"/>' +
+            '<rect x="108" y="210" width="6" height="14" fill="#eab308" opacity="0.7"/>' +
+            '<rect x="116" y="216" width="6" height="8" fill="#22c55e" opacity="0.5"/>' +
+            '<rect x="124" y="220" width="6" height="4" fill="#8b949e" opacity="0.3"/>' +
+            '<rect x="132" y="212" width="6" height="12" fill="#eab308" opacity="0.6"/>' +
+            '<!-- ESP32-S3 chip -->' +
+            '<rect x="190" y="110" width="90" height="50" rx="6" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="1"/>' +
+            '<text x="235" y="132" text-anchor="middle" fill="#c084fc" font-size="8" font-weight="700">ESP32-S3</text>' +
+            '<text x="235" y="146" text-anchor="middle" fill="#8b949e" font-size="6">WiFi 802.11 b/g/n</text>' +
+            '<!-- Onboard antenna -->' +
+            '<rect x="220" y="170" width="50" height="24" rx="4" fill="rgba(249,115,22,0.08)" stroke="#f97316" stroke-width="1"/>' +
+            '<text x="245" y="186" text-anchor="middle" fill="#fb923c" font-size="7">PCB ANT</text>' +
+            '<!-- USB-C -->' +
+            '<rect x="145" y="248" width="50" height="14" rx="4" fill="#333" stroke="#8b949e" stroke-width="1"/>' +
+            '<text x="170" y="276" text-anchor="middle" fill="#8b949e" font-size="7">USB-C (power only)</text>' +
+            '<!-- Buttons -->' +
+            '<circle cx="60" cy="252" r="7" fill="#1a1f2b" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<text x="60" y="270" text-anchor="middle" fill="#22c55e" font-size="6">BOOT</text>' +
+            '<circle cx="280" cy="252" r="7" fill="#1a1f2b" stroke="#eab308" stroke-width="1.5"/>' +
+            '<text x="280" y="270" text-anchor="middle" fill="#eab308" font-size="6">VIEW</text>' +
+
+            '<!-- WiFi Signal Waves (animated sweep) -->' +
+            '<g transform="translate(340,140)">' +
+            '<path d="M0,0 Q30,-40 60,0" fill="none" stroke="#22c55e" stroke-width="1.5" opacity="0.6" style="animation:sg105-pulse 2s ease-in-out infinite"/>' +
+            '<path d="M-10,0 Q40,-60 90,0" fill="none" stroke="#22c55e" stroke-width="1.2" opacity="0.4" style="animation:sg105-pulse 2s ease-in-out 0.3s infinite"/>' +
+            '<path d="M-20,0 Q50,-80 120,0" fill="none" stroke="#22c55e" stroke-width="1" opacity="0.25" style="animation:sg105-pulse 2s ease-in-out 0.6s infinite"/>' +
+            '</g>' +
+
+            '<!-- Discovered Access Points -->' +
+            '<g>' +
+            '<rect x="440" y="60" width="240" height="220" rx="8" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<rect x="440" y="60" width="240" height="24" rx="8" fill="rgba(34,197,94,0.12)"/>' +
+            '<rect x="440" y="76" width="240" height="8" fill="rgba(34,197,94,0.12)"/>' +
+            '<text x="560" y="76" text-anchor="middle" fill="#4ade80" font-size="10" font-weight="600">DISCOVERED APs</text>' +
+            '<!-- AP entries -->' +
+            '<rect x="455" y="95" width="210" height="36" rx="4" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.15)" stroke-width="0.5"/>' +
+            '<text x="465" y="110" fill="#22c55e" font-size="8" font-weight="600">HomeNet_5G</text>' +
+            '<text x="650" y="110" text-anchor="end" fill="#22c55e" font-size="7">-42 dBm</text>' +
+            '<text x="465" y="124" fill="#8b949e" font-size="6">Ch 6 | WPA2 | 5C:A6:E6:xx:xx:xx</text>' +
+            '<rect x="455" y="137" width="210" height="36" rx="4" fill="rgba(234,179,8,0.06)" stroke="rgba(234,179,8,0.15)" stroke-width="0.5"/>' +
+            '<text x="465" y="152" fill="#eab308" font-size="8" font-weight="600">CafeWiFi</text>' +
+            '<text x="650" y="152" text-anchor="end" fill="#eab308" font-size="7">-67 dBm</text>' +
+            '<text x="465" y="166" fill="#8b949e" font-size="6">Ch 11 | WPA2 | A4:CF:12:xx:xx:xx</text>' +
+            '<rect x="455" y="179" width="210" height="36" rx="4" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.15)" stroke-width="0.5"/>' +
+            '<text x="465" y="194" fill="#ef4444" font-size="8" font-weight="600">IoT_Device</text>' +
+            '<text x="650" y="194" text-anchor="end" fill="#ef4444" font-size="7">-81 dBm</text>' +
+            '<text x="465" y="208" fill="#8b949e" font-size="6">Ch 1 | OPEN | 00:1A:2B:xx:xx:xx</text>' +
+            '<rect x="455" y="221" width="210" height="36" rx="4" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.1)" stroke-width="0.5"/>' +
+            '<text x="465" y="236" fill="#8b949e" font-size="8" font-style="italic">[hidden SSID]</text>' +
+            '<text x="650" y="236" text-anchor="end" fill="#ef4444" font-size="7">-85 dBm</text>' +
+            '<text x="465" y="250" fill="#8b949e" font-size="6">Ch 3 | WPA2 | hidden BSSID</text>' +
+            '</g>' +
+
+            '<!-- Signal strength legend -->' +
+            '<rect x="440" y="295" width="240" height="64" rx="6" fill="rgba(59,130,246,0.04)" stroke="rgba(59,130,246,0.15)" stroke-width="0.5"/>' +
+            '<text x="450" y="312" fill="#60a5fa" font-size="8" font-weight="600">SIGNAL STRENGTH</text>' +
+            '<rect x="450" y="320" width="8" height="8" rx="1" fill="#22c55e"/>' +
+            '<text x="464" y="328" fill="#8b949e" font-size="7">Strong (> -50 dBm)</text>' +
+            '<rect x="450" y="334" width="8" height="8" rx="1" fill="#eab308"/>' +
+            '<text x="464" y="342" fill="#8b949e" font-size="7">Medium (-50 to -70 dBm)</text>' +
+            '<rect x="450" y="348" width="8" height="8" rx="1" fill="#ef4444"/>' +
+            '<text x="464" y="356" fill="#8b949e" font-size="7">Weak (< -70 dBm)</text>' +
+
+            '<!-- Passive scan note -->' +
+            '<rect x="40" y="300" width="260" height="60" rx="6" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+            '<text x="50" y="318" fill="#4ade80" font-size="8" font-weight="600">PASSIVE SCAN ONLY</text>' +
+            '<text x="50" y="334" fill="#8b949e" font-size="7">Receive-only &#8212; reads beacon frames</text>' +
+            '<text x="50" y="348" fill="#8b949e" font-size="7">No connections, no transmissions</text>' +
+
+            '</svg>' +
+            '</div>',
 
         steps: [
             {
@@ -497,7 +595,103 @@ window.SignalGuides = {
         wiringNotes: '<p><strong>No external wiring.</strong> BLE uses the same onboard antenna as WiFi on the ESP32-S3.</p>' +
                      '<p><strong>Safety:</strong> BLE scanning is passive and legal. Beacon generation should only be done in controlled lab environments. Generating excessive BLE advertisements in public spaces can interfere with legitimate devices and may violate local regulations.</p>',
 
-        wiringSvg: '',
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg106-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '<style>' +
+            '@keyframes sg106-blepulse{0%,100%{r:4;opacity:0.8}50%{r:12;opacity:0.15}}' +
+            '@keyframes sg106-beacon{0%{opacity:0}15%{opacity:0.7}100%{opacity:0;transform:translateY(-8px)}}' +
+            '</style>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg106-grid)" rx="4"/>' +
+            '<text x="360" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-106 BLE SWISS ARMY</text>' +
+
+            '<!-- T-Display-S3 Board -->' +
+            '<rect x="40" y="60" width="240" height="200" rx="12" fill="#1e2736" stroke="#a855f7" stroke-width="2"/>' +
+            '<rect x="40" y="60" width="240" height="28" rx="12" fill="rgba(168,85,247,0.12)"/>' +
+            '<text x="160" y="79" text-anchor="middle" fill="#c084fc" font-size="11" font-weight="700">LILYGO T-Display-S3</text>' +
+            '<!-- TFT showing BLE dashboard -->' +
+            '<rect x="55" y="100" width="100" height="140" rx="6" fill="#0a1628" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<text x="105" y="116" text-anchor="middle" fill="#60a5fa" font-size="7" font-weight="600">BLE Dashboard</text>' +
+            '<text x="65" y="132" fill="#c084fc" font-size="6">iPhone-12  Apple</text>' +
+            '<text x="65" y="144" fill="#ef4444" font-size="6">AirTag     Tracker</text>' +
+            '<text x="65" y="156" fill="#22c55e" font-size="6">Mi Band 7  Wearable</text>' +
+            '<text x="65" y="168" fill="#eab308" font-size="6">Lock-BLE   SmartLock</text>' +
+            '<text x="105" y="186" text-anchor="middle" fill="#8b949e" font-size="6">12 devices | BLE 5.0</text>' +
+            '<rect x="65" y="194" width="80" height="30" rx="3" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+            '<text x="75" y="206" fill="#c084fc" font-size="6">MODE:</text>' +
+            '<text x="75" y="218" fill="#8b949e" font-size="5">SCAN | DETECT | BEACON</text>' +
+            '<!-- ESP32-S3 chip -->' +
+            '<rect x="175" y="110" width="90" height="50" rx="6" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="1"/>' +
+            '<text x="220" y="132" text-anchor="middle" fill="#c084fc" font-size="8" font-weight="700">ESP32-S3</text>' +
+            '<text x="220" y="146" text-anchor="middle" fill="#8b949e" font-size="6">BLE 5.0 Radio</text>' +
+            '<!-- BLE Antenna -->' +
+            '<rect x="195" y="170" width="50" height="24" rx="4" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1"/>' +
+            '<text x="220" y="186" text-anchor="middle" fill="#60a5fa" font-size="7">2.4GHz</text>' +
+            '<!-- USB-C -->' +
+            '<rect x="135" y="248" width="50" height="14" rx="4" fill="#333" stroke="#8b949e" stroke-width="1"/>' +
+            '<text x="160" y="276" text-anchor="middle" fill="#8b949e" font-size="7">USB-C</text>' +
+
+            '<!-- BLE pulse rings from antenna (animated) -->' +
+            '<circle cx="320" cy="150" r="4" fill="none" stroke="#3b82f6" stroke-width="1" style="animation:sg106-blepulse 2s ease-out infinite"/>' +
+            '<circle cx="320" cy="150" r="4" fill="none" stroke="#3b82f6" stroke-width="1" style="animation:sg106-blepulse 2s ease-out 0.7s infinite"/>' +
+            '<circle cx="320" cy="150" r="4" fill="none" stroke="#3b82f6" stroke-width="1" style="animation:sg106-blepulse 2s ease-out 1.4s infinite"/>' +
+
+            '<!-- Discovered BLE Devices -->' +
+            '<g>' +
+            '<rect x="370" y="60" width="310" height="130" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="370" y="60" width="310" height="24" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<rect x="370" y="76" width="310" height="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<text x="525" y="76" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">DISCOVERED BLE DEVICES</text>' +
+            '<!-- Device entries -->' +
+            '<text x="380" y="102" fill="#c084fc" font-size="7">iPhone-12</text>' +
+            '<text x="470" y="102" fill="#8b949e" font-size="6">Company: 0x004C (Apple)</text>' +
+            '<text x="660" y="102" text-anchor="end" fill="#22c55e" font-size="7">-38dBm</text>' +
+            '<text x="380" y="118" fill="#ef4444" font-size="7">AirTag</text>' +
+            '<text x="470" y="118" fill="#8b949e" font-size="6">FindMy Tracker (0x12)</text>' +
+            '<text x="660" y="118" text-anchor="end" fill="#eab308" font-size="7">-52dBm</text>' +
+            '<text x="380" y="134" fill="#22c55e" font-size="7">Mi Band 7</text>' +
+            '<text x="470" y="134" fill="#8b949e" font-size="6">Wearable (name match)</text>' +
+            '<text x="660" y="134" text-anchor="end" fill="#eab308" font-size="7">-61dBm</text>' +
+            '<text x="380" y="150" fill="#eab308" font-size="7">Lock-BLE</text>' +
+            '<text x="470" y="150" fill="#8b949e" font-size="6">Smart Lock (name match)</text>' +
+            '<text x="660" y="150" text-anchor="end" fill="#ef4444" font-size="7">-74dBm</text>' +
+            '<text x="380" y="166" fill="#8b949e" font-size="7">[unnamed]</text>' +
+            '<text x="470" y="166" fill="#8b949e" font-size="6">Company: 0x0075 (Samsung)</text>' +
+            '<text x="660" y="166" text-anchor="end" fill="#ef4444" font-size="7">-79dBm</text>' +
+            '</g>' +
+
+            '<!-- Three modes box -->' +
+            '<rect x="370" y="205" width="310" height="80" rx="8" fill="#1e2736" stroke="#f97316" stroke-width="1.5"/>' +
+            '<rect x="370" y="205" width="310" height="24" rx="8" fill="rgba(249,115,22,0.12)"/>' +
+            '<rect x="370" y="221" width="310" height="8" fill="rgba(249,115,22,0.12)"/>' +
+            '<text x="525" y="221" text-anchor="middle" fill="#fb923c" font-size="10" font-weight="600">THREE MODES</text>' +
+            '<rect x="380" y="240" width="88" height="34" rx="4" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+            '<text x="424" y="254" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="600">SCANNER</text>' +
+            '<text x="424" y="266" text-anchor="middle" fill="#8b949e" font-size="6">Classify all</text>' +
+            '<rect x="478" y="240" width="92" height="34" rx="4" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+            '<text x="524" y="254" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">DETECTOR</text>' +
+            '<text x="524" y="266" text-anchor="middle" fill="#8b949e" font-size="6">FindMy/AirTag</text>' +
+            '<rect x="580" y="240" width="88" height="34" rx="4" fill="rgba(234,179,8,0.06)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
+            '<text x="624" y="254" text-anchor="middle" fill="#eab308" font-size="7" font-weight="600">BEACON</text>' +
+            '<text x="624" y="266" text-anchor="middle" fill="#8b949e" font-size="6">Lab only</text>' +
+
+            '<!-- MAC rotation callout -->' +
+            '<rect x="370" y="300" width="310" height="60" rx="6" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+            '<text x="380" y="318" fill="#ef4444" font-size="8" font-weight="600">MAC ADDRESS ROTATION</text>' +
+            '<text x="380" y="334" fill="#8b949e" font-size="7">Modern devices rotate BLE MAC every ~15 min</text>' +
+            '<text x="380" y="348" fill="#8b949e" font-size="7">Use manufacturer data + service UUIDs to identify</text>' +
+
+            '<!-- Passive note -->' +
+            '<rect x="40" y="300" width="240" height="60" rx="6" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+            '<text x="50" y="318" fill="#4ade80" font-size="8" font-weight="600">NO EXTERNAL WIRING</text>' +
+            '<text x="50" y="334" fill="#8b949e" font-size="7">BLE uses onboard 2.4GHz antenna</text>' +
+            '<text x="50" y="348" fill="#8b949e" font-size="7">Scanning is passive and legal</text>' +
+
+            '</svg>' +
+            '</div>',
 
         steps: [
             {
@@ -584,7 +778,114 @@ window.SignalGuides = {
                      '<p><strong>Safety:</strong> Disconnect USB before wiring the SD breakout. The SD module runs on 3.3V &mdash; do not connect to 5V.</p>' +
                      '<p><strong>Authorization:</strong> A device that presents as a USB flash drive can auto-deliver files to a target. Only deploy in authorized testing scenarios. Auto-run is disabled on modern operating systems but social engineering ("open the file") remains effective.</p>',
 
-        wiringSvg: '',
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg107-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '<style>' +
+            '@keyframes sg107-dataflow{0%{stroke-dashoffset:20}100%{stroke-dashoffset:0}}' +
+            '</style>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg107-grid)" rx="4"/>' +
+            '<text x="360" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-107 USB MASS STORAGE EMULATION</text>' +
+
+            '<!-- T-Display-S3 Board -->' +
+            '<rect x="40" y="55" width="240" height="190" rx="12" fill="#1e2736" stroke="#a855f7" stroke-width="2"/>' +
+            '<rect x="40" y="55" width="240" height="28" rx="12" fill="rgba(168,85,247,0.12)"/>' +
+            '<text x="160" y="74" text-anchor="middle" fill="#c084fc" font-size="11" font-weight="700">LILYGO T-Display-S3</text>' +
+            '<!-- TFT -->' +
+            '<rect x="55" y="95" width="90" height="120" rx="6" fill="#0a1628" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<text x="100" y="112" text-anchor="middle" fill="#60a5fa" font-size="7" font-weight="600">USB STORAGE</text>' +
+            '<text x="65" y="128" fill="#8b949e" font-size="6">HEXWRTH S3-ARSENAL</text>' +
+            '<text x="65" y="142" fill="#8b949e" font-size="6">Size: 2MB drive</text>' +
+            '<text x="65" y="156" fill="#22c55e" font-size="6">Status: MOUNTED</text>' +
+            '<text x="65" y="170" fill="#eab308" font-size="6">Mode: Read-Only</text>' +
+            '<text x="65" y="190" fill="#8b949e" font-size="5">Files served from SPIFFS</text>' +
+            '<!-- ESP32-S3 -->' +
+            '<rect x="170" y="100" width="90" height="40" rx="6" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="1"/>' +
+            '<text x="215" y="118" text-anchor="middle" fill="#c084fc" font-size="7" font-weight="700">ESP32-S3</text>' +
+            '<text x="215" y="132" text-anchor="middle" fill="#8b949e" font-size="6">TinyUSB MSC</text>' +
+            '<!-- SPIFFS flash -->' +
+            '<rect x="170" y="150" width="90" height="32" rx="4" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1"/>' +
+            '<text x="215" y="166" text-anchor="middle" fill="#eab308" font-size="7" font-weight="600">SPIFFS</text>' +
+            '<text x="215" y="178" text-anchor="middle" fill="#8b949e" font-size="6">16MB Flash</text>' +
+            '<!-- Pins for SD card -->' +
+            '<text x="270" y="120" text-anchor="start" fill="#8b949e" font-size="7">GPIO 13</text>' +
+            '<circle cx="268" cy="117" r="2.5" fill="#1a1f2b" stroke="#22c55e" stroke-width="1"/>' +
+            '<text x="270" y="135" text-anchor="start" fill="#8b949e" font-size="7">GPIO 11</text>' +
+            '<circle cx="268" cy="132" r="2.5" fill="#1a1f2b" stroke="#f97316" stroke-width="1"/>' +
+            '<text x="270" y="150" text-anchor="start" fill="#8b949e" font-size="7">GPIO 12</text>' +
+            '<circle cx="268" cy="147" r="2.5" fill="#1a1f2b" stroke="#eab308" stroke-width="1"/>' +
+            '<text x="270" y="165" text-anchor="start" fill="#8b949e" font-size="7">GPIO 10</text>' +
+            '<circle cx="268" cy="162" r="2.5" fill="#1a1f2b" stroke="#3b82f6" stroke-width="1"/>' +
+            '<text x="270" y="180" text-anchor="start" fill="#8b949e" font-size="7">3V3</text>' +
+            '<circle cx="268" cy="177" r="2.5" fill="#1a1f2b" stroke="#ef4444" stroke-width="1"/>' +
+            '<text x="270" y="195" text-anchor="start" fill="#8b949e" font-size="7">GND</text>' +
+            '<circle cx="268" cy="192" r="2.5" fill="#1a1f2b" stroke="#8b949e" stroke-width="1"/>' +
+            '<!-- USB-C -->' +
+            '<rect x="135" y="233" width="50" height="14" rx="4" fill="#333" stroke="#8b949e" stroke-width="1"/>' +
+            '<text x="160" y="260" text-anchor="middle" fill="#8b949e" font-size="7">USB-C</text>' +
+
+            '<!-- MicroSD Breakout Module (optional) -->' +
+            '<rect x="430" y="55" width="150" height="190" rx="8" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<rect x="430" y="55" width="150" height="24" rx="8" fill="rgba(34,197,94,0.12)"/>' +
+            '<rect x="430" y="71" width="150" height="8" fill="rgba(34,197,94,0.12)"/>' +
+            '<text x="505" y="71" text-anchor="middle" fill="#4ade80" font-size="9" font-weight="600">MICROSD MODULE</text>' +
+            '<text x="505" y="91" text-anchor="middle" fill="#8b949e" font-size="7">(optional)</text>' +
+            '<!-- SD card slot -->' +
+            '<rect x="455" y="105" width="100" height="50" rx="4" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+            '<text x="505" y="128" text-anchor="middle" fill="#22c55e" font-size="8">SD Card Slot</text>' +
+            '<text x="505" y="142" text-anchor="middle" fill="#8b949e" font-size="6">FAT32 formatted</text>' +
+            '<!-- SD module pins -->' +
+            '<rect x="445" y="168" width="36" height="14" rx="2" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.3)" stroke-width="0.5"/>' +
+            '<text x="463" y="178" text-anchor="middle" fill="#ef4444" font-size="6">VCC</text>' +
+            '<rect x="445" y="186" width="36" height="14" rx="2" fill="rgba(139,148,158,0.1)" stroke="rgba(139,148,158,0.3)" stroke-width="0.5"/>' +
+            '<text x="463" y="196" text-anchor="middle" fill="#8b949e" font-size="6">GND</text>' +
+            '<rect x="445" y="204" width="36" height="14" rx="2" fill="rgba(34,197,94,0.1)" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/>' +
+            '<text x="463" y="214" text-anchor="middle" fill="#22c55e" font-size="6">MISO</text>' +
+            '<rect x="515" y="168" width="36" height="14" rx="2" fill="rgba(249,115,22,0.1)" stroke="rgba(249,115,22,0.3)" stroke-width="0.5"/>' +
+            '<text x="533" y="178" text-anchor="middle" fill="#fb923c" font-size="6">MOSI</text>' +
+            '<rect x="515" y="186" width="36" height="14" rx="2" fill="rgba(234,179,8,0.1)" stroke="rgba(234,179,8,0.3)" stroke-width="0.5"/>' +
+            '<text x="533" y="196" text-anchor="middle" fill="#eab308" font-size="6">SCK</text>' +
+            '<rect x="515" y="204" width="36" height="14" rx="2" fill="rgba(59,130,246,0.1)" stroke="rgba(59,130,246,0.3)" stroke-width="0.5"/>' +
+            '<text x="533" y="214" text-anchor="middle" fill="#60a5fa" font-size="6">CS</text>' +
+
+            '<!-- SPI Wires from board to SD module -->' +
+            '<line x1="271" y1="117" x2="445" y2="210" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="6,3" style="animation:sg107-dataflow 1s linear infinite"/>' +
+            '<line x1="271" y1="132" x2="515" y2="175" stroke="#f97316" stroke-width="1.5" stroke-dasharray="6,3" style="animation:sg107-dataflow 1s linear infinite"/>' +
+            '<line x1="271" y1="147" x2="515" y2="193" stroke="#eab308" stroke-width="1.5" stroke-dasharray="6,3" style="animation:sg107-dataflow 1s linear infinite"/>' +
+            '<line x1="271" y1="162" x2="515" y2="211" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="6,3" style="animation:sg107-dataflow 1s linear infinite"/>' +
+            '<line x1="271" y1="177" x2="445" y2="175" stroke="#ef4444" stroke-width="1.5"/>' +
+            '<line x1="271" y1="192" x2="445" y2="193" stroke="#8b949e" stroke-width="1.5" stroke-dasharray="4,3"/>' +
+
+            '<!-- Target PC -->' +
+            '<rect x="40" y="290" width="260" height="70" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="40" y="290" width="260" height="20" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<text x="170" y="305" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">TARGET PC</text>' +
+            '<text x="50" y="326" fill="#8b949e" font-size="7">Sees: Removable Drive (E:)</text>' +
+            '<text x="50" y="342" fill="#8b949e" font-size="7">Vendor: HEXWRTH | Product: S3-ARSENAL</text>' +
+            '<text x="50" y="354" fill="#ef4444" font-size="7">No driver install needed &#8212; OS trusts USB MSC</text>' +
+            '<!-- USB cable to PC -->' +
+            '<path d="M160,260 C160,275 160,280 160,290" stroke="#3b82f6" stroke-width="2"/>' +
+            '<text x="170" y="280" fill="#60a5fa" font-size="6">USB-C</text>' +
+
+            '<!-- Wire legend -->' +
+            '<rect x="430" y="260" width="250" height="104" rx="6" fill="rgba(59,130,246,0.04)" stroke="rgba(59,130,246,0.15)" stroke-width="0.5"/>' +
+            '<text x="440" y="278" fill="#60a5fa" font-size="8" font-weight="600">SPI WIRING (optional SD)</text>' +
+            '<line x1="440" y1="292" x2="460" y2="292" stroke="#22c55e" stroke-width="2"/>' +
+            '<text x="466" y="295" fill="#8b949e" font-size="7">MISO &#8594; GPIO 13</text>' +
+            '<line x1="440" y1="307" x2="460" y2="307" stroke="#f97316" stroke-width="2"/>' +
+            '<text x="466" y="310" fill="#8b949e" font-size="7">MOSI &#8594; GPIO 11</text>' +
+            '<line x1="440" y1="322" x2="460" y2="322" stroke="#eab308" stroke-width="2"/>' +
+            '<text x="466" y="325" fill="#8b949e" font-size="7">SCK &#8594; GPIO 12</text>' +
+            '<line x1="440" y1="337" x2="460" y2="337" stroke="#3b82f6" stroke-width="2"/>' +
+            '<text x="466" y="340" fill="#8b949e" font-size="7">CS &#8594; GPIO 10</text>' +
+            '<line x1="440" y1="352" x2="460" y2="352" stroke="#ef4444" stroke-width="2"/>' +
+            '<text x="466" y="355" fill="#8b949e" font-size="7">VCC &#8594; 3V3 (NOT 5V!)</text>' +
+
+            '</svg>' +
+            '</div>',
 
         steps: [
             {
@@ -661,7 +962,96 @@ window.SignalGuides = {
                      '<p><strong>Authorization:</strong> USB network impersonation intercepts traffic. Only use on systems you own or have explicit written authorization to test. This technique can capture credentials, session tokens, and sensitive data in transit.</p>' +
                      '<p><strong>Safety:</strong> This device modifies the target machine network routing. Always test on an isolated system first. Incorrect DHCP configuration can disrupt the target network connectivity.</p>',
 
-        wiringSvg: '',
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg108-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '<style>' +
+            '@keyframes sg108-flow{0%{stroke-dashoffset:16}100%{stroke-dashoffset:0}}' +
+            '@keyframes sg108-intercept{0%,100%{opacity:0.3}50%{opacity:1}}' +
+            '</style>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg108-grid)" rx="4"/>' +
+            '<text x="360" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-108 NETWORK ADAPTER IMPERSONATION</text>' +
+
+            '<!-- T-Display-S3 (Network Implant) -->' +
+            '<rect x="250" y="50" width="220" height="160" rx="12" fill="#1e2736" stroke="#ef4444" stroke-width="2"/>' +
+            '<rect x="250" y="50" width="220" height="28" rx="12" fill="rgba(239,68,68,0.12)"/>' +
+            '<text x="360" y="69" text-anchor="middle" fill="#ef4444" font-size="11" font-weight="700">T-Display-S3</text>' +
+            '<text x="360" y="84" text-anchor="middle" fill="#fb923c" font-size="7">USB RNDIS / CDC-ECM</text>' +
+            '<!-- TFT -->' +
+            '<rect x="265" y="95" width="80" height="95" rx="5" fill="#0a1628" stroke="#3b82f6" stroke-width="1"/>' +
+            '<text x="305" y="110" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">NET IMPLANT</text>' +
+            '<text x="275" y="126" fill="#60a5fa" font-size="5">Dev: 172.16.0.1</text>' +
+            '<text x="275" y="138" fill="#60a5fa" font-size="5">Host: 172.16.0.2</text>' +
+            '<text x="275" y="150" fill="#eab308" font-size="5">DNS: This device</text>' +
+            '<text x="275" y="164" fill="#22c55e" font-size="5">Status: ACTIVE</text>' +
+            '<!-- ESP32-S3 chip -->' +
+            '<rect x="365" y="100" width="88" height="40" rx="5" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="1"/>' +
+            '<text x="409" y="118" text-anchor="middle" fill="#c084fc" font-size="7" font-weight="700">ESP32-S3</text>' +
+            '<text x="409" y="132" text-anchor="middle" fill="#8b949e" font-size="6">TinyUSB Net</text>' +
+            '<!-- Services -->' +
+            '<rect x="365" y="148" width="88" height="44" rx="4" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.15)" stroke-width="0.5"/>' +
+            '<text x="409" y="162" text-anchor="middle" fill="#ef4444" font-size="6" font-weight="600">SERVICES</text>' +
+            '<text x="375" y="174" fill="#8b949e" font-size="5">DHCP Server</text>' +
+            '<text x="375" y="184" fill="#8b949e" font-size="5">DNS Interceptor</text>' +
+            '<!-- USB-C port -->' +
+            '<rect x="335" y="198" width="50" height="14" rx="4" fill="#333" stroke="#8b949e" stroke-width="1"/>' +
+
+            '<!-- USB Cable (animated data flow) -->' +
+            '<path d="M360,212 L360,260" stroke="#ef4444" stroke-width="3" stroke-dasharray="4,4" style="animation:sg108-flow 0.8s linear infinite"/>' +
+            '<text x="375" y="240" fill="#ef4444" font-size="6" style="animation:sg108-intercept 1.5s ease-in-out infinite">USB-C</text>' +
+
+            '<!-- Target PC -->' +
+            '<rect x="250" y="265" width="220" height="100" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="250" y="265" width="220" height="24" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<rect x="250" y="281" width="220" height="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<text x="360" y="281" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">TARGET PC</text>' +
+            '<text x="260" y="304" fill="#8b949e" font-size="7">Sees: New Ethernet adapter</text>' +
+            '<text x="260" y="318" fill="#8b949e" font-size="7">IP: 172.16.0.2 (via DHCP)</text>' +
+            '<text x="260" y="332" fill="#8b949e" font-size="7">Gateway: 172.16.0.1 (ESP32-S3)</text>' +
+            '<text x="260" y="346" fill="#ef4444" font-size="7">DNS: 172.16.0.1 (intercepted!)</text>' +
+            '<text x="260" y="360" fill="#8b949e" font-size="6">No driver install &#8212; OS trusts RNDIS/ECM</text>' +
+
+            '<!-- Left: Attack flow -->' +
+            '<rect x="30" y="50" width="190" height="160" rx="8" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.15)" stroke-width="0.5"/>' +
+            '<text x="125" y="70" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">ATTACK FLOW</text>' +
+            '<text x="40" y="90" fill="#8b949e" font-size="7">1. Plug in USB-C</text>' +
+            '<text x="40" y="108" fill="#8b949e" font-size="7">2. Host auto-detects adapter</text>' +
+            '<text x="40" y="126" fill="#8b949e" font-size="7">3. ESP32 serves DHCP</text>' +
+            '<text x="40" y="144" fill="#8b949e" font-size="7">4. Host gets IP + gateway</text>' +
+            '<text x="40" y="162" fill="#ef4444" font-size="7">5. DNS routes through ESP32</text>' +
+            '<text x="40" y="180" fill="#ef4444" font-size="7">6. Redirect, intercept, log</text>' +
+            '<text x="40" y="198" fill="#8b949e" font-size="6" font-style="italic">Total time: ~3 seconds</text>' +
+
+            '<!-- Right: Defense -->' +
+            '<rect x="500" y="50" width="190" height="160" rx="8" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.15)" stroke-width="0.5"/>' +
+            '<text x="595" y="70" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">DEFENSE</text>' +
+            '<text x="510" y="90" fill="#8b949e" font-size="7">USB device allow-listing</text>' +
+            '<text x="510" y="108" fill="#8b949e" font-size="7">Disable USB auto-DHCP</text>' +
+            '<text x="510" y="126" fill="#8b949e" font-size="7">Interface metric priority</text>' +
+            '<text x="510" y="144" fill="#8b949e" font-size="7">DoH bypasses port 53 DNS</text>' +
+            '<text x="510" y="162" fill="#8b949e" font-size="7">Endpoint detection (EDR)</text>' +
+            '<text x="510" y="180" fill="#22c55e" font-size="7">Monitor new interfaces</text>' +
+
+            '<!-- DoH bypass callout -->' +
+            '<rect x="500" y="265" width="190" height="100" rx="6" fill="rgba(234,179,8,0.06)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
+            '<text x="510" y="285" fill="#eab308" font-size="8" font-weight="600">DoH LIMITATION</text>' +
+            '<text x="510" y="302" fill="#8b949e" font-size="7">Modern browsers use DNS-</text>' +
+            '<text x="510" y="316" fill="#8b949e" font-size="7">over-HTTPS (port 443)</text>' +
+            '<text x="510" y="330" fill="#8b949e" font-size="7">Port 53 interception only</text>' +
+            '<text x="510" y="344" fill="#8b949e" font-size="7">catches legacy/system DNS</text>' +
+            '<text x="510" y="358" fill="#eab308" font-size="6" font-style="italic">Chrome, Firefox, Edge = DoH</text>' +
+
+            '<!-- No wiring note -->' +
+            '<rect x="30" y="265" width="190" height="60" rx="6" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+            '<text x="40" y="285" fill="#4ade80" font-size="8" font-weight="600">NO EXTERNAL WIRING</text>' +
+            '<text x="40" y="302" fill="#8b949e" font-size="7">USB-C carries power + data</text>' +
+            '<text x="40" y="316" fill="#8b949e" font-size="7">Conceptual &#8212; uses ESP-IDF</text>' +
+
+            '</svg>' +
+            '</div>',
 
         steps: [
             {
@@ -738,7 +1128,108 @@ window.SignalGuides = {
                      '<p><strong>Legal notice:</strong> Sending deauthentication frames is prohibited by FCC regulations in the United States (47 CFR Part 15) and equivalent regulations in most countries. The analysis mode in this project is for educational understanding in a controlled lab environment only. The detection mode is legal and encouraged for defensive monitoring.</p>' +
                      '<p><strong>Safety:</strong> Detection mode is passive and legal &mdash; it only receives and analyzes frames. Analysis mode involves frame transmission and must only be used in an isolated RF environment (Faraday cage or shielded lab) with no other devices affected.</p>',
 
-        wiringSvg: '',
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg109-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '<style>' +
+            '@keyframes sg109-deauth{0%{opacity:0;transform:translateX(0)}30%{opacity:1}100%{opacity:0;transform:translateX(100px)}}' +
+            '@keyframes sg109-alert{0%,100%{fill:rgba(239,68,68,0.1)}50%{fill:rgba(239,68,68,0.35)}}' +
+            '</style>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg109-grid)" rx="4"/>' +
+            '<text x="360" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-109 WIFI DEAUTHENTICATION ANALYSIS</text>' +
+
+            '<!-- Access Point -->' +
+            '<rect x="30" y="60" width="150" height="110" rx="8" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<rect x="30" y="60" width="150" height="22" rx="8" fill="rgba(34,197,94,0.12)"/>' +
+            '<text x="105" y="76" text-anchor="middle" fill="#4ade80" font-size="9" font-weight="600">ACCESS POINT</text>' +
+            '<text x="105" y="96" text-anchor="middle" fill="#8b949e" font-size="7">SSID: LabNetwork</text>' +
+            '<text x="105" y="112" text-anchor="middle" fill="#8b949e" font-size="7">BSSID: AA:BB:CC:...</text>' +
+            '<text x="105" y="128" text-anchor="middle" fill="#8b949e" font-size="7">Ch 6 | WPA2</text>' +
+            '<!-- Antenna -->' +
+            '<line x1="105" y1="56" x2="105" y2="42" stroke="#22c55e" stroke-width="2"/>' +
+            '<line x1="95" y1="48" x2="105" y2="42" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<line x1="115" y1="48" x2="105" y2="42" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<text x="105" y="158" text-anchor="middle" fill="#22c55e" font-size="6">Legitimate AP</text>' +
+
+            '<!-- Client Device -->' +
+            '<rect x="30" y="250" width="150" height="80" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="30" y="250" width="150" height="22" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<text x="105" y="266" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">CLIENT</text>' +
+            '<text x="105" y="288" text-anchor="middle" fill="#8b949e" font-size="7">Connected to AP</text>' +
+            '<text x="105" y="304" text-anchor="middle" fill="#8b949e" font-size="7">MAC: DD:EE:FF:...</text>' +
+            '<text x="105" y="320" text-anchor="middle" fill="#ef4444" font-size="7">Gets disconnected!</text>' +
+            '<!-- Connection line -->' +
+            '<line x1="105" y1="170" x2="105" y2="250" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,3"/>' +
+
+            '<!-- Deauth Frame (animated) -->' +
+            '<g>' +
+            '<rect x="220" y="120" width="180" height="90" rx="6" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.5" style="animation:sg109-alert 1.5s ease-in-out infinite"/>' +
+            '<text x="310" y="140" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">DEAUTH FRAME</text>' +
+            '<text x="310" y="156" text-anchor="middle" fill="#8b949e" font-size="6">Type 0, Subtype 12</text>' +
+            '<text x="230" y="172" fill="#8b949e" font-size="6">Src: AA:BB:CC (spoofed AP)</text>' +
+            '<text x="230" y="184" fill="#8b949e" font-size="6">Dst: DD:EE:FF (client)</text>' +
+            '<text x="230" y="196" fill="#8b949e" font-size="6">Reason: 7 (Class 3)</text>' +
+            '<text x="310" y="222" text-anchor="middle" fill="#ef4444" font-size="6">26 bytes | No auth | No encryption</text>' +
+            '</g>' +
+            '<!-- Attack arrow -->' +
+            '<line x1="180" y1="155" x2="218" y2="155" stroke="#ef4444" stroke-width="2"/>' +
+            '<polygon points="216,151 224,155 216,159" fill="#ef4444"/>' +
+            '<!-- Arrow to client -->' +
+            '<path d="M310,210 C310,240 180,260 130,250" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,3"/>' +
+            '<polygon points="133,247 127,253 136,252" fill="#ef4444"/>' +
+
+            '<!-- T-Display-S3 Detector -->' +
+            '<rect x="440" y="55" width="240" height="180" rx="12" fill="#1e2736" stroke="#a855f7" stroke-width="2"/>' +
+            '<rect x="440" y="55" width="240" height="28" rx="12" fill="rgba(168,85,247,0.12)"/>' +
+            '<text x="560" y="74" text-anchor="middle" fill="#c084fc" font-size="11" font-weight="700">T-Display-S3</text>' +
+            '<text x="560" y="89" text-anchor="middle" fill="#fb923c" font-size="7">DEAUTH DETECTOR (IDS)</text>' +
+            '<!-- TFT showing detections -->' +
+            '<rect x="455" y="100" width="90" height="115" rx="5" fill="#0a1628" stroke="#3b82f6" stroke-width="1"/>' +
+            '<text x="500" y="116" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">!! ALERT !!</text>' +
+            '<text x="465" y="132" fill="#ef4444" font-size="5">Deauth flood on Ch6</text>' +
+            '<text x="465" y="144" fill="#8b949e" font-size="5">12 frames / 10s</text>' +
+            '<text x="465" y="158" fill="#8b949e" font-size="5">Target: LabNetwork</text>' +
+            '<text x="465" y="172" fill="#eab308" font-size="5">Source: Espressif OUI</text>' +
+            '<text x="465" y="190" fill="#22c55e" font-size="5">Ch hopping: 1-13</text>' +
+            '<text x="465" y="204" fill="#8b949e" font-size="5">Uptime: 04:23</text>' +
+            '<!-- ESP32-S3 -->' +
+            '<rect x="565" y="105" width="100" height="40" rx="5" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="1"/>' +
+            '<text x="615" y="122" text-anchor="middle" fill="#c084fc" font-size="7" font-weight="700">ESP32-S3</text>' +
+            '<text x="615" y="134" text-anchor="middle" fill="#8b949e" font-size="6">Promiscuous RX</text>' +
+            '<!-- Detection engine -->' +
+            '<rect x="565" y="155" width="100" height="56" rx="4" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.15)" stroke-width="0.5"/>' +
+            '<text x="615" y="170" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="600">DETECTION</text>' +
+            '<text x="575" y="184" fill="#8b949e" font-size="5">Frame type filter</text>' +
+            '<text x="575" y="196" fill="#8b949e" font-size="5">Threshold counter</text>' +
+            '<text x="575" y="208" fill="#8b949e" font-size="5">Channel hopping</text>' +
+            '<!-- USB-C -->' +
+            '<rect x="535" y="223" width="50" height="14" rx="4" fill="#333" stroke="#8b949e" stroke-width="1"/>' +
+
+            '<!-- Promiscuous capture waves -->' +
+            '<path d="M400,155 Q420,145 440,155" fill="none" stroke="#a855f7" stroke-width="1" opacity="0.4" style="animation:sg109-alert 2s ease-in-out infinite"/>' +
+            '<path d="M400,165 Q420,155 440,165" fill="none" stroke="#a855f7" stroke-width="1" opacity="0.3" style="animation:sg109-alert 2s ease-in-out 0.5s infinite"/>' +
+
+            '<!-- 802.11w PMF Defense -->' +
+            '<rect x="440" y="260" width="240" height="100" rx="8" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+            '<text x="450" y="280" fill="#22c55e" font-size="9" font-weight="600">DEFENSE: 802.11w PMF</text>' +
+            '<text x="450" y="298" fill="#8b949e" font-size="7">WPA3 requires Protected</text>' +
+            '<text x="450" y="312" fill="#8b949e" font-size="7">Management Frames (PMF)</text>' +
+            '<text x="450" y="328" fill="#8b949e" font-size="7">Authenticates mgmt frames</text>' +
+            '<text x="450" y="344" fill="#22c55e" font-size="7">Prevents deauth spoofing</text>' +
+
+            '<!-- Legal callout -->' +
+            '<rect x="220" y="260" width="200" height="100" rx="6" fill="rgba(234,179,8,0.06)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
+            '<text x="230" y="280" fill="#eab308" font-size="8" font-weight="600">LEGAL NOTICE</text>' +
+            '<text x="230" y="298" fill="#8b949e" font-size="7">Detection = PASSIVE = Legal</text>' +
+            '<text x="230" y="314" fill="#8b949e" font-size="7">Transmission = ACTIVE =</text>' +
+            '<text x="230" y="330" fill="#ef4444" font-size="7">Lab/Faraday cage ONLY</text>' +
+            '<text x="230" y="348" fill="#8b949e" font-size="6">FCC 47 CFR Part 15 applies</text>' +
+
+            '</svg>' +
+            '</div>',
 
         steps: [
             {
@@ -808,7 +1299,96 @@ window.SignalGuides = {
                      '<p><strong>Legal:</strong> Marauder includes tools that transmit RF signals (beacon generation, probe requests). Only use transmit features in controlled lab environments with authorization. Passive features (scanning, packet capture) are legal for monitoring your own networks.</p>' +
                      '<p><strong>Safety:</strong> Some Marauder features can disrupt WiFi networks. Always use on your own network or in an isolated lab. Never run active features on networks you do not own.</p>',
 
-        wiringSvg: '',
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg110-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '<style>' +
+            '@keyframes sg110-flash{0%{opacity:0.2}20%{opacity:1}40%{opacity:0.2}60%{opacity:0.9}80%{opacity:0.2}100%{opacity:0.6}}' +
+            '</style>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg110-grid)" rx="4"/>' +
+            '<text x="360" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-110 MARAUDER FIRMWARE SUITE</text>' +
+
+            '<!-- T-Display-S3 with Marauder -->' +
+            '<rect x="230" y="50" width="260" height="190" rx="12" fill="#1e2736" stroke="#a855f7" stroke-width="2"/>' +
+            '<rect x="230" y="50" width="260" height="28" rx="12" fill="rgba(168,85,247,0.12)"/>' +
+            '<text x="360" y="69" text-anchor="middle" fill="#c084fc" font-size="11" font-weight="700">LILYGO T-Display-S3</text>' +
+            '<text x="360" y="84" text-anchor="middle" fill="#fb923c" font-size="7">Flashed with ESP32 Marauder</text>' +
+            '<!-- TFT showing Marauder menu -->' +
+            '<rect x="248" y="95" width="110" height="125" rx="6" fill="#0a1628" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<text x="303" y="112" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">MARAUDER</text>' +
+            '<text x="258" y="128" fill="#60a5fa" font-size="6">&gt; WiFi Scan</text>' +
+            '<text x="258" y="140" fill="#8b949e" font-size="6">  Bluetooth Scan</text>' +
+            '<text x="258" y="152" fill="#8b949e" font-size="6">  Sniff Probes</text>' +
+            '<text x="258" y="164" fill="#8b949e" font-size="6">  Beacon Spam</text>' +
+            '<text x="258" y="176" fill="#8b949e" font-size="6">  Evil Portal</text>' +
+            '<text x="258" y="188" fill="#8b949e" font-size="6">  Packet Monitor</text>' +
+            '<text x="258" y="200" fill="#8b949e" font-size="6">  Settings</text>' +
+            '<text x="258" y="212" fill="#555" font-size="5">v0.13.x tdisplay-s3</text>' +
+            '<!-- ESP32-S3 -->' +
+            '<rect x="380" y="100" width="95" height="42" rx="5" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="1"/>' +
+            '<text x="428" y="118" text-anchor="middle" fill="#c084fc" font-size="7" font-weight="700">ESP32-S3</text>' +
+            '<text x="428" y="132" text-anchor="middle" fill="#8b949e" font-size="6">WiFi + BLE</text>' +
+            '<!-- Flash icon -->' +
+            '<rect x="380" y="150" width="95" height="30" rx="4" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1" style="animation:sg110-flash 3s ease-in-out infinite"/>' +
+            '<text x="428" y="168" text-anchor="middle" fill="#eab308" font-size="7">16MB FLASH</text>' +
+            '<!-- Buttons -->' +
+            '<circle cx="248" cy="230" r="7" fill="#1a1f2b" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<text x="248" y="248" text-anchor="middle" fill="#22c55e" font-size="6">BOOT</text>' +
+            '<circle cx="472" cy="230" r="7" fill="#1a1f2b" stroke="#eab308" stroke-width="1.5"/>' +
+            '<text x="472" y="248" text-anchor="middle" fill="#eab308" font-size="6">NAV</text>' +
+            '<!-- USB-C -->' +
+            '<rect x="335" y="228" width="50" height="14" rx="4" fill="#333" stroke="#8b949e" stroke-width="1"/>' +
+
+            '<!-- Flash process (left) -->' +
+            '<rect x="30" y="50" width="175" height="145" rx="8" fill="rgba(59,130,246,0.04)" stroke="rgba(59,130,246,0.15)" stroke-width="0.5"/>' +
+            '<text x="118" y="70" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">FLASH METHODS</text>' +
+            '<text x="40" y="92" fill="#22c55e" font-size="7">1. Web Flasher (easiest)</text>' +
+            '<text x="48" y="106" fill="#8b949e" font-size="6">esp.huhn.me &#8212; Chrome/Edge</text>' +
+            '<text x="40" y="124" fill="#eab308" font-size="7">2. esptool CLI</text>' +
+            '<text x="48" y="138" fill="#8b949e" font-size="6">pip install esptool</text>' +
+            '<text x="48" y="152" fill="#8b949e" font-size="6">--chip esp32s3 write_flash</text>' +
+            '<text x="40" y="170" fill="#8b949e" font-size="7">3. PlatformIO (rebuild)</text>' +
+            '<text x="48" y="184" fill="#8b949e" font-size="6">For custom builds</text>' +
+
+            '<!-- Marauder Capabilities (right) -->' +
+            '<rect x="515" y="50" width="175" height="145" rx="8" fill="rgba(249,115,22,0.04)" stroke="rgba(249,115,22,0.15)" stroke-width="0.5"/>' +
+            '<text x="603" y="70" text-anchor="middle" fill="#fb923c" font-size="9" font-weight="600">CAPABILITIES</text>' +
+            '<rect x="525" y="82" width="10" height="10" rx="1" fill="rgba(34,197,94,0.3)"/>' +
+            '<text x="540" y="91" fill="#22c55e" font-size="7">Passive (safe)</text>' +
+            '<text x="530" y="106" fill="#8b949e" font-size="6">WiFi/BLE scan, probe sniff</text>' +
+            '<text x="530" y="118" fill="#8b949e" font-size="6">Packet capture, PCAP log</text>' +
+            '<rect x="525" y="130" width="10" height="10" rx="1" fill="rgba(239,68,68,0.3)"/>' +
+            '<text x="540" y="139" fill="#ef4444" font-size="7">Active (lab only!)</text>' +
+            '<text x="530" y="154" fill="#8b949e" font-size="6">Beacon spam, evil portal</text>' +
+            '<text x="530" y="166" fill="#8b949e" font-size="6">Deauth (illegal outside lab)</text>' +
+            '<text x="530" y="182" fill="#eab308" font-size="6">All active features detectable</text>' +
+
+            '<!-- Detection signatures -->' +
+            '<rect x="30" y="215" width="175" height="145" rx="8" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.15)" stroke-width="0.5"/>' +
+            '<text x="118" y="235" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">DETECTION SIGS</text>' +
+            '<text x="40" y="256" fill="#8b949e" font-size="7">Espressif OUI in src MAC</text>' +
+            '<text x="40" y="272" fill="#8b949e" font-size="7">Rapid SSID broadcast burst</text>' +
+            '<text x="40" y="288" fill="#8b949e" font-size="7">Captive portal w/ ESP AP</text>' +
+            '<text x="40" y="304" fill="#8b949e" font-size="7">Probe req flood pattern</text>' +
+            '<text x="40" y="322" fill="#ef4444" font-size="7">WIDS flags in seconds</text>' +
+            '<text x="40" y="338" fill="#8b949e" font-size="6" font-style="italic">Not stealth &#8212; every feature</text>' +
+            '<text x="40" y="350" fill="#8b949e" font-size="6" font-style="italic">has a detectable signature</text>' +
+
+            '<!-- Return to custom firmware -->' +
+            '<rect x="515" y="215" width="175" height="145" rx="8" fill="rgba(168,85,247,0.04)" stroke="rgba(168,85,247,0.15)" stroke-width="0.5"/>' +
+            '<text x="603" y="235" text-anchor="middle" fill="#c084fc" font-size="9" font-weight="600">REVERSIBLE</text>' +
+            '<text x="525" y="256" fill="#8b949e" font-size="7">Flash Marauder to explore</text>' +
+            '<text x="525" y="272" fill="#8b949e" font-size="7">Return to custom firmware</text>' +
+            '<text x="525" y="288" fill="#8b949e" font-size="7">anytime by re-flashing</text>' +
+            '<text x="525" y="310" fill="#c084fc" font-size="7">Hold BOOT + plug USB</text>' +
+            '<text x="525" y="326" fill="#8b949e" font-size="7">to enter bootloader mode</text>' +
+            '<text x="525" y="348" fill="#eab308" font-size="6" font-style="italic">The board is never bricked</text>' +
+
+            '</svg>' +
+            '</div>',
 
         steps: [
             {
@@ -891,7 +1471,105 @@ window.SignalGuides = {
         wiringNotes: '<p><strong>No external wiring for base configuration.</strong> Add SD breakout from SG-107 for payload storage and PCAP logging.</p>' +
                      '<p><strong>Authorization:</strong> This device combines multiple assessment capabilities. Only deploy on systems and networks you own or have explicit written authorization to test.</p>',
 
-        wiringSvg: '',
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg111-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '<style>' +
+            '@keyframes sg111-modswitch{0%,40%{opacity:1}50%{opacity:0.2}60%,100%{opacity:1}}' +
+            '@keyframes sg111-spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}' +
+            '</style>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg111-grid)" rx="4"/>' +
+            '<text x="360" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-111 CUSTOM ARMY KNIFE ARCHITECTURE</text>' +
+
+            '<!-- T-Display-S3 Board -->' +
+            '<rect x="40" y="50" width="240" height="200" rx="12" fill="#1e2736" stroke="#a855f7" stroke-width="2"/>' +
+            '<rect x="40" y="50" width="240" height="28" rx="12" fill="rgba(168,85,247,0.12)"/>' +
+            '<text x="160" y="69" text-anchor="middle" fill="#c084fc" font-size="11" font-weight="700">LILYGO T-Display-S3</text>' +
+            '<!-- TFT showing army knife menu -->' +
+            '<rect x="55" y="88" width="100" height="140" rx="6" fill="#0a1628" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<text x="105" y="105" text-anchor="middle" fill="#c084fc" font-size="7" font-weight="700">ARMY KNIFE</text>' +
+            '<text x="65" y="120" fill="#60a5fa" font-size="6">&gt; WiFi Scanner</text>' +
+            '<text x="65" y="132" fill="#8b949e" font-size="6">  BLE Scanner</text>' +
+            '<text x="65" y="144" fill="#8b949e" font-size="6">  USB HID</text>' +
+            '<text x="65" y="156" fill="#8b949e" font-size="6">  USB Storage</text>' +
+            '<text x="65" y="168" fill="#8b949e" font-size="6">  Deauth Detect</text>' +
+            '<text x="65" y="180" fill="#8b949e" font-size="6">  Settings</text>' +
+            '<rect x="62" y="195" width="86" height="20" rx="3" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+            '<text x="105" y="209" text-anchor="middle" fill="#22c55e" font-size="6">YOUR CODE</text>' +
+            '<!-- ESP32-S3 -->' +
+            '<rect x="175" y="95" width="90" height="42" rx="5" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="1"/>' +
+            '<text x="220" y="114" text-anchor="middle" fill="#c084fc" font-size="7" font-weight="700">ESP32-S3</text>' +
+            '<text x="220" y="128" text-anchor="middle" fill="#8b949e" font-size="6">All radios</text>' +
+            '<!-- Resource indicators -->' +
+            '<rect x="175" y="145" width="90" height="76" rx="4" fill="rgba(249,115,22,0.06)" stroke="rgba(249,115,22,0.15)" stroke-width="0.5"/>' +
+            '<text x="220" y="160" text-anchor="middle" fill="#fb923c" font-size="6" font-weight="600">RESOURCES</text>' +
+            '<text x="185" y="174" fill="#8b949e" font-size="5">WiFi Radio</text>' +
+            '<text x="185" y="186" fill="#8b949e" font-size="5">BLE Radio</text>' +
+            '<text x="185" y="198" fill="#8b949e" font-size="5">USB Stack</text>' +
+            '<text x="185" y="210" fill="#ef4444" font-size="5">One at a time!</text>' +
+            '<!-- USB-C -->' +
+            '<rect x="135" y="238" width="50" height="14" rx="4" fill="#333" stroke="#8b949e" stroke-width="1"/>' +
+
+            '<!-- Module architecture (center) -->' +
+            '<rect x="310" y="50" width="190" height="200" rx="8" fill="#1e2736" stroke="#f97316" stroke-width="1.5"/>' +
+            '<rect x="310" y="50" width="190" height="24" rx="8" fill="rgba(249,115,22,0.12)"/>' +
+            '<rect x="310" y="66" width="190" height="8" fill="rgba(249,115,22,0.12)"/>' +
+            '<text x="405" y="66" text-anchor="middle" fill="#fb923c" font-size="10" font-weight="600">MODULE INTERFACE</text>' +
+            '<!-- Interface methods -->' +
+            '<rect x="320" y="84" width="170" height="24" rx="3" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5" style="animation:sg111-modswitch 3s ease-in-out infinite"/>' +
+            '<text x="405" y="100" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">init() &#8594; run() &#8594; draw()</text>' +
+            '<rect x="320" y="114" width="170" height="18" rx="3" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.15)" stroke-width="0.5"/>' +
+            '<text x="405" y="127" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">cleanup() &#8212; CRITICAL</text>' +
+            '<!-- Module list -->' +
+            '<text x="330" y="150" fill="#22c55e" font-size="7">WiFiScanModule</text>' +
+            '<text x="458" y="150" fill="#8b949e" font-size="6">SG-105</text>' +
+            '<text x="330" y="164" fill="#3b82f6" font-size="7">BLEScanModule</text>' +
+            '<text x="458" y="164" fill="#8b949e" font-size="6">SG-106</text>' +
+            '<text x="330" y="178" fill="#ef4444" font-size="7">USBHIDModule</text>' +
+            '<text x="458" y="178" fill="#8b949e" font-size="6">SG-104</text>' +
+            '<text x="330" y="192" fill="#eab308" font-size="7">USBStorageModule</text>' +
+            '<text x="458" y="192" fill="#8b949e" font-size="6">SG-107</text>' +
+            '<text x="330" y="206" fill="#a855f7" font-size="7">DeauthDetectModule</text>' +
+            '<text x="458" y="206" fill="#8b949e" font-size="6">SG-109</text>' +
+            '<text x="330" y="220" fill="#8b949e" font-size="7">SettingsModule</text>' +
+            '<text x="458" y="220" fill="#8b949e" font-size="6">Config</text>' +
+            '<text x="405" y="242" text-anchor="middle" fill="#555" font-size="6">switchModule() handles transitions</text>' +
+
+            '<!-- Resource conflict diagram (right) -->' +
+            '<rect x="530" y="50" width="160" height="200" rx="8" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.15)" stroke-width="0.5"/>' +
+            '<text x="610" y="70" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">RESOURCE RULES</text>' +
+            '<text x="540" y="92" fill="#8b949e" font-size="7">WiFi and BLE share</text>' +
+            '<text x="540" y="106" fill="#8b949e" font-size="7">the same 2.4GHz radio</text>' +
+            '<rect x="540" y="116" width="140" height="20" rx="3" fill="rgba(239,68,68,0.08)"/>' +
+            '<text x="610" y="130" text-anchor="middle" fill="#ef4444" font-size="7">Cannot run together!</text>' +
+            '<text x="540" y="152" fill="#8b949e" font-size="7">USB HID and MSC need</text>' +
+            '<text x="540" y="166" fill="#8b949e" font-size="7">separate USB.begin()</text>' +
+            '<rect x="540" y="176" width="140" height="20" rx="3" fill="rgba(234,179,8,0.08)"/>' +
+            '<text x="610" y="190" text-anchor="middle" fill="#eab308" font-size="7">Deinit before switch</text>' +
+            '<text x="540" y="212" fill="#22c55e" font-size="7">Static memory only</text>' +
+            '<text x="540" y="226" fill="#8b949e" font-size="6">No malloc in run loops</text>' +
+            '<text x="540" y="240" fill="#8b949e" font-size="6">Heap frag = crash</text>' +
+
+            '<!-- Optional SD card note -->' +
+            '<rect x="40" y="270" width="240" height="90" rx="6" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+            '<text x="50" y="290" fill="#4ade80" font-size="8" font-weight="600">WIRING</text>' +
+            '<text x="50" y="308" fill="#8b949e" font-size="7">No wiring for base config</text>' +
+            '<text x="50" y="324" fill="#8b949e" font-size="7">Optional: MicroSD from SG-107</text>' +
+            '<text x="50" y="340" fill="#8b949e" font-size="7">for payload storage + PCAP logs</text>' +
+            '<text x="50" y="352" fill="#8b949e" font-size="6" font-style="italic">Same SPI wiring as SG-107</text>' +
+
+            '<!-- Capstone callout -->' +
+            '<rect x="310" y="270" width="380" height="90" rx="6" fill="rgba(168,85,247,0.06)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+            '<text x="500" y="290" text-anchor="middle" fill="#c084fc" font-size="9" font-weight="600">CAPSTONE PROJECT</text>' +
+            '<text x="320" y="310" fill="#8b949e" font-size="7">Combines every technique from SG-103 through SG-109 into one firmware</text>' +
+            '<text x="320" y="328" fill="#8b949e" font-size="7">Unlike Marauder &#8212; this is YOUR code, every line written by you</text>' +
+            '<text x="320" y="346" fill="#22c55e" font-size="7">Portfolio piece: custom ESP32-S3 security multi-tool</text>' +
+
+            '</svg>' +
+            '</div>',
 
         steps: [
             {
@@ -966,7 +1644,104 @@ window.SignalGuides = {
         wiringNotes: '<p><strong>Two devices required.</strong> The T-Display-S3 runs the red team tools (SG-111). A second ESP32 runs the blue team detection firmware (this project). They operate simultaneously to demonstrate attack and detection in real time.</p>' +
                      '<p><strong>Safety:</strong> Run both devices in an isolated environment. The red team device will generate WiFi and BLE traffic that could affect nearby networks. The blue team device is purely passive (receive-only).</p>',
 
-        wiringSvg: '',
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg112-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '<style>' +
+            '@keyframes sg112-attack{0%{opacity:0;transform:translateX(-10px)}50%{opacity:1}100%{opacity:0;transform:translateX(10px)}}' +
+            '@keyframes sg112-shield{0%,100%{stroke-width:1.5;stroke:rgba(34,197,94,0.5)}50%{stroke-width:3;stroke:rgba(34,197,94,1)}}' +
+            '</style>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg112-grid)" rx="4"/>' +
+            '<text x="360" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-112 DEFENSE LAB &#8212; RED vs BLUE</text>' +
+
+            '<!-- RED TEAM: T-Display-S3 (left) -->' +
+            '<rect x="30" y="50" width="220" height="200" rx="12" fill="#1e2736" stroke="#ef4444" stroke-width="2"/>' +
+            '<rect x="30" y="50" width="220" height="28" rx="12" fill="rgba(239,68,68,0.15)"/>' +
+            '<text x="140" y="69" text-anchor="middle" fill="#ef4444" font-size="11" font-weight="700">RED TEAM</text>' +
+            '<text x="140" y="84" text-anchor="middle" fill="#fb923c" font-size="7">T-Display-S3 (SG-111 Army Knife)</text>' +
+            '<!-- TFT -->' +
+            '<rect x="42" y="95" width="82" height="110" rx="5" fill="#0a1628" stroke="#ef4444" stroke-width="1"/>' +
+            '<text x="83" y="110" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">ARMY KNIFE</text>' +
+            '<text x="50" y="124" fill="#8b949e" font-size="5">WiFi Scanner</text>' +
+            '<text x="50" y="136" fill="#8b949e" font-size="5">BLE Beacon</text>' +
+            '<text x="50" y="148" fill="#8b949e" font-size="5">USB HID</text>' +
+            '<text x="50" y="160" fill="#8b949e" font-size="5">Deauth (lab)</text>' +
+            '<text x="50" y="174" fill="#ef4444" font-size="5">ATTACKING...</text>' +
+            '<text x="50" y="196" fill="#555" font-size="5">SG-111 firmware</text>' +
+            '<!-- Attack capabilities -->' +
+            '<rect x="138" y="95" width="100" height="110" rx="4" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.15)" stroke-width="0.5"/>' +
+            '<text x="188" y="110" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">GENERATES</text>' +
+            '<text x="148" y="126" fill="#8b949e" font-size="6">Deauth frames</text>' +
+            '<text x="148" y="140" fill="#8b949e" font-size="6">Beacon spam</text>' +
+            '<text x="148" y="154" fill="#8b949e" font-size="6">BLE flood</text>' +
+            '<text x="148" y="168" fill="#8b949e" font-size="6">USB injection</text>' +
+            '<text x="148" y="182" fill="#8b949e" font-size="6">Probe requests</text>' +
+            '<text x="148" y="196" fill="#8b949e" font-size="6">Evil portal</text>' +
+            '<!-- USB-C -->' +
+            '<rect x="115" y="238" width="50" height="14" rx="4" fill="#333" stroke="#ef4444" stroke-width="1"/>' +
+            '<text x="140" y="266" text-anchor="middle" fill="#8b949e" font-size="6">USB-C (power)</text>' +
+
+            '<!-- RF waves between devices (animated) -->' +
+            '<g transform="translate(290,145)">' +
+            '<path d="M0,0 L130,0" stroke="#ef4444" stroke-width="1" stroke-dasharray="4,4" opacity="0.5"/>' +
+            '<circle cx="30" cy="0" r="3" fill="#ef4444" style="animation:sg112-attack 1.5s ease-in-out infinite"/>' +
+            '<circle cx="65" cy="0" r="3" fill="#ef4444" style="animation:sg112-attack 1.5s ease-in-out 0.5s infinite"/>' +
+            '<circle cx="100" cy="0" r="3" fill="#ef4444" style="animation:sg112-attack 1.5s ease-in-out 1s infinite"/>' +
+            '</g>' +
+            '<text x="360" y="130" text-anchor="middle" fill="#ef4444" font-size="7">2.4GHz RF &#8594;</text>' +
+            '<text x="360" y="172" text-anchor="middle" fill="#8b949e" font-size="6">Same airspace</text>' +
+
+            '<!-- BLUE TEAM: ESP32 DevKit (right) -->' +
+            '<rect x="470" y="50" width="220" height="200" rx="12" fill="#1e2736" stroke="#22c55e" stroke-width="2" style="animation:sg112-shield 3s ease-in-out infinite"/>' +
+            '<rect x="470" y="50" width="220" height="28" rx="12" fill="rgba(34,197,94,0.15)"/>' +
+            '<text x="580" y="69" text-anchor="middle" fill="#22c55e" font-size="11" font-weight="700">BLUE TEAM</text>' +
+            '<text x="580" y="84" text-anchor="middle" fill="#4ade80" font-size="7">ESP32 DevKit or CYD (Detector)</text>' +
+            '<!-- Detection domains -->' +
+            '<rect x="482" y="95" width="196" height="30" rx="4" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+            '<text x="580" y="114" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">THREAT DETECTION ENGINE</text>' +
+            '<!-- Four detection domains -->' +
+            '<rect x="482" y="132" width="92" height="28" rx="3" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+            '<text x="528" y="150" text-anchor="middle" fill="#60a5fa" font-size="7">WiFi Monitor</text>' +
+            '<rect x="582" y="132" width="96" height="28" rx="3" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+            '<text x="630" y="150" text-anchor="middle" fill="#c084fc" font-size="7">BLE Monitor</text>' +
+            '<rect x="482" y="166" width="92" height="28" rx="3" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+            '<text x="528" y="184" text-anchor="middle" fill="#ef4444" font-size="7">USB Monitor</text>' +
+            '<rect x="582" y="166" width="96" height="28" rx="3" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
+            '<text x="630" y="184" text-anchor="middle" fill="#eab308" font-size="7">NET Monitor</text>' +
+            '<!-- Event log -->' +
+            '<rect x="482" y="200" width="196" height="34" rx="3" fill="rgba(239,68,68,0.06)"/>' +
+            '<text x="490" y="214" fill="#ef4444" font-size="6">!! DEAUTH: 12 frames/10s on Ch6</text>' +
+            '<text x="490" y="226" fill="#eab308" font-size="6">!! BEACON SPAM: 35 new SSIDs</text>' +
+            '<!-- USB-C -->' +
+            '<rect x="555" y="238" width="50" height="14" rx="4" fill="#333" stroke="#22c55e" stroke-width="1"/>' +
+            '<text x="580" y="266" text-anchor="middle" fill="#8b949e" font-size="6">USB-C (power)</text>' +
+
+            '<!-- Lesson box (bottom center) -->' +
+            '<rect x="180" y="280" width="360" height="80" rx="8" fill="rgba(168,85,247,0.06)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+            '<text x="360" y="300" text-anchor="middle" fill="#c084fc" font-size="10" font-weight="700">EVERY ATTACK HAS A SIGNATURE</text>' +
+            '<text x="360" y="318" text-anchor="middle" fill="#8b949e" font-size="7">Red team generates attacks &#8212; Blue team detects them in real time</text>' +
+            '<text x="360" y="334" text-anchor="middle" fill="#8b949e" font-size="7">Detection without response is just awareness &#8212; add containment</text>' +
+            '<text x="360" y="350" text-anchor="middle" fill="#22c55e" font-size="7">The best security professionals can do both</text>' +
+
+            '<!-- Two-device requirement -->' +
+            '<rect x="30" y="280" width="130" height="80" rx="6" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+            '<text x="95" y="300" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="600">2 DEVICES</text>' +
+            '<text x="40" y="318" fill="#8b949e" font-size="6">T-Display-S3</text>' +
+            '<text x="40" y="332" fill="#8b949e" font-size="6">+ ESP32 DevKit</text>' +
+            '<text x="40" y="346" fill="#8b949e" font-size="6">or CYD board</text>' +
+
+            '<!-- Isolation warning -->' +
+            '<rect x="560" y="280" width="130" height="80" rx="6" fill="rgba(234,179,8,0.06)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
+            '<text x="625" y="300" text-anchor="middle" fill="#eab308" font-size="8" font-weight="600">ISOLATED</text>' +
+            '<text x="570" y="318" fill="#8b949e" font-size="6">Run both devices</text>' +
+            '<text x="570" y="332" fill="#8b949e" font-size="6">in shielded lab</text>' +
+            '<text x="570" y="346" fill="#8b949e" font-size="6">or Faraday cage</text>' +
+
+            '</svg>' +
+            '</div>',
 
         steps: [
             {

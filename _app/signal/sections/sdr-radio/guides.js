@@ -538,7 +538,105 @@ window.SignalGuides = {
                      '<p><strong>Satellite passes:</strong> NOAA-15, NOAA-18, and NOAA-19 are the active APT satellites. Each passes overhead 2&ndash;4 times per day (depending on your latitude). Higher elevation passes (more overhead) produce better images. Use <a href="https://www.n2yo.com/" target="_blank" rel="noopener">n2yo.com</a> or <code>gpredict</code> to predict passes for your location.</p>' +
                      '<p><strong>APT frequencies:</strong> NOAA-15: 137.620 MHz, NOAA-18: 137.9125 MHz, NOAA-19: 137.100 MHz. These are fixed and do not change.</p>',
 
-        wiringSvg: '',
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg55-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg55-grid)" rx="4"/>' +
+            '<text x="360" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-55 NOAA WEATHER SATELLITE RECEIVER</text>' +
+
+            '<!-- NOAA Satellite -->' +
+            '<g>' +
+            '<rect x="40" y="50" width="140" height="80" rx="8" fill="#1e2736" stroke="#eab308" stroke-width="1.5"/>' +
+            '<rect x="40" y="50" width="140" height="20" rx="8" fill="rgba(234,179,8,0.12)"/>' +
+            '<text x="110" y="65" text-anchor="middle" fill="#fbbf24" font-size="8" font-weight="600">NOAA SATELLITE</text>' +
+            '<!-- Solar panels -->' +
+            '<rect x="10" y="70" width="28" height="40" rx="2" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="0.8"/>' +
+            '<rect x="172" y="70" width="28" height="40" rx="2" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="0.8"/>' +
+            '<text x="24" y="94" text-anchor="middle" fill="#60a5fa" font-size="5">Solar</text>' +
+            '<text x="186" y="94" text-anchor="middle" fill="#60a5fa" font-size="5">Solar</text>' +
+            '<!-- Orbit info -->' +
+            '<text x="110" y="86" text-anchor="middle" fill="#8b949e" font-size="6">850 km polar orbit</text>' +
+            '<text x="110" y="98" text-anchor="middle" fill="#8b949e" font-size="6">APT @ 137 MHz</text>' +
+            '<text x="110" y="110" text-anchor="middle" fill="#555" font-size="5">2 lines/sec &bull; analog FM</text>' +
+            '<text x="110" y="122" text-anchor="middle" fill="#555" font-size="5">27,000 km/h orbital velocity</text>' +
+            '</g>' +
+
+            '<!-- Signal path from satellite -->' +
+            '<line x1="110" y1="132" x2="110" y2="155" stroke="#eab308" stroke-width="1.5" stroke-dasharray="4,3"><animate attributeName="stroke-opacity" values="0.3;1;0.3" dur="2s" repeatCount="indefinite"/></line>' +
+            '<line x1="110" y1="155" x2="180" y2="195" stroke="#eab308" stroke-width="1" stroke-dasharray="4,3"><animate attributeName="stroke-opacity" values="0.3;1;0.3" dur="2s" repeatCount="indefinite"/></line>' +
+            '<text x="155" y="170" fill="#eab308" font-size="5" transform="rotate(-30,155,170)">137 MHz APT</text>' +
+
+            '<!-- V-Dipole Antenna -->' +
+            '<g>' +
+            '<rect x="150" y="195" width="120" height="85" rx="8" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<rect x="150" y="195" width="120" height="20" rx="8" fill="rgba(34,197,94,0.12)"/>' +
+            '<text x="210" y="210" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="600">V-DIPOLE ANT</text>' +
+            '<!-- V shape -->' +
+            '<line x1="210" y1="250" x2="175" y2="225" stroke="#22c55e" stroke-width="2"/>' +
+            '<line x1="210" y1="250" x2="245" y2="225" stroke="#22c55e" stroke-width="2"/>' +
+            '<text x="210" y="265" text-anchor="middle" fill="#8b949e" font-size="5">54.7 cm elements</text>' +
+            '<text x="210" y="275" text-anchor="middle" fill="#555" font-size="5">120&#176; V-angle &bull; horizontal</text>' +
+            '</g>' +
+
+            '<!-- Coax to RTL-SDR -->' +
+            '<line x1="270" y1="240" x2="320" y2="240" stroke="#eab308" stroke-width="1.5"/>' +
+            '<text x="295" y="234" text-anchor="middle" fill="#eab308" font-size="5">coax</text>' +
+
+            '<!-- RTL-SDR Dongle -->' +
+            '<g>' +
+            '<rect x="320" y="200" width="120" height="80" rx="8" fill="#1e2736" stroke="#eab308" stroke-width="2"/>' +
+            '<rect x="320" y="200" width="120" height="20" rx="8" fill="rgba(234,179,8,0.15)"/>' +
+            '<text x="380" y="215" text-anchor="middle" fill="#fbbf24" font-size="8" font-weight="700">RTL-SDR V4</text>' +
+            '<rect x="340" y="230" width="60" height="20" rx="3" fill="#2a2a3a" stroke="#eab308" stroke-width="0.8"/>' +
+            '<text x="370" y="243" text-anchor="middle" fill="#eab308" font-size="6">RTL2832U</text>' +
+            '<text x="380" y="268" text-anchor="middle" fill="#555" font-size="5">Gain: 40 dB &bull; 48 kHz sample</text>' +
+            '</g>' +
+
+            '<!-- USB to Pi -->' +
+            '<line x1="440" y1="240" x2="490" y2="240" stroke="#555" stroke-width="1.5" stroke-dasharray="6,3"/>' +
+            '<text x="465" y="234" text-anchor="middle" fill="#555" font-size="5">USB</text>' +
+
+            '<!-- Raspberry Pi -->' +
+            '<g>' +
+            '<rect x="490" y="195" width="140" height="90" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="490" y="195" width="140" height="20" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<text x="560" y="210" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">RASPBERRY PI</text>' +
+            '<text x="560" y="232" text-anchor="middle" fill="#8b949e" font-size="6">rtl_fm -f 137.1M</text>' +
+            '<text x="560" y="245" text-anchor="middle" fill="#8b949e" font-size="6">sox &#8594; WAV</text>' +
+            '<text x="560" y="258" text-anchor="middle" fill="#8b949e" font-size="6">noaa-apt decoder</text>' +
+            '<text x="560" y="275" text-anchor="middle" fill="#555" font-size="5">predict &bull; gpredict</text>' +
+            '</g>' +
+
+            '<!-- Arrow to Decoded Image -->' +
+            '<line x1="560" y1="288" x2="560" y2="310" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<polygon points="555,310 565,310 560,318" fill="#22c55e"/>' +
+
+            '<!-- Decoded Image -->' +
+            '<g>' +
+            '<rect x="490" y="320" width="140" height="55" rx="8" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+            '<text x="560" y="338" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="600">DECODED IMAGE</text>' +
+            '<text x="560" y="353" text-anchor="middle" fill="#8b949e" font-size="6">Visible + Infrared channels</text>' +
+            '<text x="560" y="365" text-anchor="middle" fill="#555" font-size="5">2080px wide &bull; cloud maps from space</text>' +
+            '</g>' +
+
+            '<!-- Frequency Reference -->' +
+            '<rect x="30" y="300" width="200" height="75" rx="6" fill="rgba(234,179,8,0.04)" stroke="rgba(234,179,8,0.15)" stroke-width="0.5"/>' +
+            '<text x="40" y="316" fill="#eab308" font-size="7" font-weight="600">APT FREQUENCIES</text>' +
+            '<text x="40" y="330" fill="#22c55e" font-size="6">NOAA-15: 137.620 MHz</text>' +
+            '<text x="40" y="343" fill="#60a5fa" font-size="6">NOAA-18: 137.9125 MHz</text>' +
+            '<text x="40" y="356" fill="#f97316" font-size="6">NOAA-19: 137.100 MHz</text>' +
+            '<text x="40" y="369" fill="#555" font-size="5">Passes: 2-4x/day &bull; ~12 min each</text>' +
+
+            '<!-- Signal wave animation -->' +
+            '<g opacity="0.6">' +
+            '<path d="M 95,150 Q 100,145 105,150 Q 110,155 115,150 Q 120,145 125,150" fill="none" stroke="#eab308" stroke-width="0.8"><animate attributeName="d" values="M 95,150 Q 100,145 105,150 Q 110,155 115,150 Q 120,145 125,150;M 95,150 Q 100,155 105,150 Q 110,145 115,150 Q 120,155 125,150;M 95,150 Q 100,145 105,150 Q 110,155 115,150 Q 120,145 125,150" dur="1.5s" repeatCount="indefinite"/></path>' +
+            '</g>' +
+
+            '</svg>' +
+            '</div>',
 
         steps: [
             {
@@ -652,7 +750,120 @@ window.SignalGuides = {
                      '<p><strong>Antenna:</strong> Set dipole elements to approximately <strong>48 cm each</strong> for the 152&ndash;163 MHz range. Vertical orientation works best for pager signals.</p>' +
                      '<p><strong>Legal:</strong> Receiving pager signals is legal in most jurisdictions (including the US under the Communications Act). However, <em>disclosing</em> the content of intercepted communications to third parties may violate wiretapping laws. Receive for educational purposes, do not share or publish intercepted messages, especially those containing personal or medical information.</p>',
 
-        wiringSvg: '',
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg56-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg56-grid)" rx="4"/>' +
+            '<text x="360" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-56 PAGER &amp; POCSAG DECODER</text>' +
+
+            '<!-- Hospital / Dispatch -->' +
+            '<g>' +
+            '<rect x="30" y="55" width="150" height="110" rx="8" fill="#1e2736" stroke="#ef4444" stroke-width="1.5"/>' +
+            '<rect x="30" y="55" width="150" height="20" rx="8" fill="rgba(239,68,68,0.12)"/>' +
+            '<text x="105" y="70" text-anchor="middle" fill="#fca5a5" font-size="8" font-weight="600">HOSPITAL DISPATCH</text>' +
+            '<text x="105" y="92" text-anchor="middle" fill="#8b949e" font-size="6">&#8220;Code Blue Room 412&#8221;</text>' +
+            '<text x="105" y="106" text-anchor="middle" fill="#8b949e" font-size="6">&#8220;MVA I-95 MP 42&#8221;</text>' +
+            '<text x="105" y="120" text-anchor="middle" fill="#8b949e" font-size="6">&#8220;Trauma alert Bay 3&#8221;</text>' +
+            '<text x="105" y="140" text-anchor="middle" fill="#555" font-size="5">POCSAG 512/1200/2400 baud</text>' +
+            '<text x="105" y="152" text-anchor="middle" fill="#ef4444" font-size="5">NO ENCRYPTION</text>' +
+            '</g>' +
+
+            '<!-- Landline connection -->' +
+            '<line x1="180" y1="110" x2="240" y2="110" stroke="#8b949e" stroke-width="1.5"/>' +
+            '<text x="210" y="104" text-anchor="middle" fill="#555" font-size="5">landline</text>' +
+
+            '<!-- VHF Pager Tower -->' +
+            '<g>' +
+            '<rect x="240" y="45" width="130" height="130" rx="8" fill="#1e2736" stroke="#f97316" stroke-width="1.5"/>' +
+            '<rect x="240" y="45" width="130" height="20" rx="8" fill="rgba(249,115,22,0.12)"/>' +
+            '<text x="305" y="60" text-anchor="middle" fill="#fb923c" font-size="8" font-weight="600">VHF TOWER</text>' +
+            '<!-- Tower graphic -->' +
+            '<line x1="305" y1="75" x2="305" y2="120" stroke="#f97316" stroke-width="2"/>' +
+            '<line x1="290" y1="120" x2="320" y2="120" stroke="#f97316" stroke-width="1.5"/>' +
+            '<line x1="295" y1="110" x2="315" y2="110" stroke="#f97316" stroke-width="1"/>' +
+            '<circle cx="305" cy="72" r="4" fill="rgba(249,115,22,0.3)" stroke="#f97316" stroke-width="1"/>' +
+            '<text x="305" y="138" text-anchor="middle" fill="#8b949e" font-size="6">150-170 MHz</text>' +
+            '<text x="305" y="150" text-anchor="middle" fill="#555" font-size="5">High power (100-500W)</text>' +
+            '<text x="305" y="162" text-anchor="middle" fill="#555" font-size="5">One-way broadcast</text>' +
+            '</g>' +
+
+            '<!-- RF waves from tower to SDR -->' +
+            '<g>' +
+            '<path d="M 372,90 Q 390,80 410,90" fill="none" stroke="rgba(249,115,22,0.5)" stroke-width="1"><animate attributeName="stroke-opacity" values="0.2;0.8;0.2" dur="1.5s" repeatCount="indefinite"/></path>' +
+            '<path d="M 375,85 Q 395,72 418,85" fill="none" stroke="rgba(249,115,22,0.4)" stroke-width="0.8"><animate attributeName="stroke-opacity" values="0.1;0.6;0.1" dur="1.5s" begin="0.3s" repeatCount="indefinite"/></path>' +
+            '<path d="M 378,80 Q 400,65 425,80" fill="none" stroke="rgba(249,115,22,0.3)" stroke-width="0.6"><animate attributeName="stroke-opacity" values="0.1;0.5;0.1" dur="1.5s" begin="0.6s" repeatCount="indefinite"/></path>' +
+            '<text x="400" y="100" text-anchor="middle" fill="#f97316" font-size="5">RF waves</text>' +
+            '</g>' +
+
+            '<!-- RTL-SDR + Antenna -->' +
+            '<g>' +
+            '<rect x="430" y="50" width="130" height="100" rx="8" fill="#1e2736" stroke="#eab308" stroke-width="2"/>' +
+            '<rect x="430" y="50" width="130" height="20" rx="8" fill="rgba(234,179,8,0.15)"/>' +
+            '<text x="495" y="65" text-anchor="middle" fill="#fbbf24" font-size="8" font-weight="700">RTL-SDR V4</text>' +
+            '<!-- Antenna -->' +
+            '<line x1="440" y1="80" x2="440" y2="55" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<line x1="440" y1="55" x2="430" y2="45" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<line x1="440" y1="55" x2="450" y2="45" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<text x="440" y="42" text-anchor="middle" fill="#22c55e" font-size="5">48cm</text>' +
+            '<text x="495" y="88" text-anchor="middle" fill="#8b949e" font-size="6">Tuned to 152-163 MHz</text>' +
+            '<text x="495" y="102" text-anchor="middle" fill="#8b949e" font-size="6">-M fm -s 22050</text>' +
+            '<text x="495" y="116" text-anchor="middle" fill="#555" font-size="5">NFM demod &bull; gain 40 dB</text>' +
+            '<text x="495" y="130" text-anchor="middle" fill="#555" font-size="5">squelch off (-l 0)</text>' +
+            '</g>' +
+
+            '<!-- USB to Pi -->' +
+            '<line x1="495" y1="152" x2="495" y2="180" stroke="#555" stroke-width="1.5" stroke-dasharray="6,3"/>' +
+            '<text x="508" y="170" fill="#555" font-size="5">USB</text>' +
+
+            '<!-- Raspberry Pi + multimon-ng -->' +
+            '<g>' +
+            '<rect x="430" y="180" width="160" height="100" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="430" y="180" width="160" height="20" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<text x="510" y="195" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">RASPBERRY PI</text>' +
+            '<text x="510" y="216" text-anchor="middle" fill="#a78bfa" font-size="7" font-weight="600">multimon-ng</text>' +
+            '<text x="510" y="232" text-anchor="middle" fill="#8b949e" font-size="6">POCSAG 512/1200/2400</text>' +
+            '<text x="510" y="246" text-anchor="middle" fill="#8b949e" font-size="6">FLEX protocol</text>' +
+            '<text x="510" y="260" text-anchor="middle" fill="#555" font-size="5">rtl_fm | multimon-ng -a POCSAG*</text>' +
+            '<text x="510" y="272" text-anchor="middle" fill="#555" font-size="5">Decoded text &#8594; log file</text>' +
+            '</g>' +
+
+            '<!-- Decoded Messages Output -->' +
+            '<line x1="510" y1="282" x2="510" y2="305" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<polygon points="505,305 515,305 510,313" fill="#22c55e"/>' +
+            '<g>' +
+            '<rect x="430" y="315" width="260" height="65" rx="8" fill="rgba(34,197,94,0.05)" stroke="rgba(34,197,94,0.25)" stroke-width="1"/>' +
+            '<text x="440" y="332" fill="#4ade80" font-size="7" font-weight="600">DECODED MESSAGES</text>' +
+            '<text x="440" y="347" fill="#8b949e" font-size="5.5">POCSAG1200: Addr: 1234567 Alpha: Code Blue Room 412</text>' +
+            '<text x="440" y="360" fill="#8b949e" font-size="5.5">POCSAG1200: Addr: 2345678 Alpha: MVA I-95 MP 42</text>' +
+            '<text x="440" y="373" fill="#ef4444" font-size="5.5">Cleartext &bull; No encryption &bull; HIPAA exposure</text>' +
+            '</g>' +
+
+            '<!-- Pagers (one-way) -->' +
+            '<g>' +
+            '<rect x="30" y="200" width="140" height="80" rx="8" fill="rgba(167,139,250,0.06)" stroke="rgba(167,139,250,0.3)" stroke-width="1"/>' +
+            '<text x="100" y="220" text-anchor="middle" fill="#a78bfa" font-size="7" font-weight="600">PAGERS (receive-only)</text>' +
+            '<rect x="50" y="232" width="40" height="25" rx="4" fill="#1e2736" stroke="#a78bfa" stroke-width="0.8"/>' +
+            '<text x="70" y="248" text-anchor="middle" fill="#a78bfa" font-size="5">Pager 1</text>' +
+            '<rect x="110" y="232" width="40" height="25" rx="4" fill="#1e2736" stroke="#a78bfa" stroke-width="0.8"/>' +
+            '<text x="130" y="248" text-anchor="middle" fill="#a78bfa" font-size="5">Pager 2</text>' +
+            '<text x="100" y="272" text-anchor="middle" fill="#555" font-size="5">One-way &bull; No ack &bull; No encryption</text>' +
+            '</g>' +
+
+            '<!-- Signal from tower to pagers -->' +
+            '<line x1="290" y1="175" x2="120" y2="200" stroke="rgba(249,115,22,0.3)" stroke-width="1" stroke-dasharray="3,3"/>' +
+
+            '<!-- Security Warning -->' +
+            '<rect x="30" y="310" width="170" height="65" rx="6" fill="rgba(239,68,68,0.05)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+            '<text x="40" y="328" fill="#ef4444" font-size="7" font-weight="600">SECURITY LESSON</text>' +
+            '<text x="40" y="343" fill="#8b949e" font-size="5.5">Protocol designed in 1982</text>' +
+            '<text x="40" y="356" fill="#8b949e" font-size="5.5">Zero encryption, zero auth</text>' +
+            '<text x="40" y="369" fill="#8b949e" font-size="5.5">Same vuln class as SCADA/ICS</text>' +
+
+            '</svg>' +
+            '</div>',
 
         steps: [
             {
@@ -755,7 +966,127 @@ window.SignalGuides = {
         wiringNotes: '<p><strong>Scan time:</strong> A full 24&ndash;1700 MHz scan at 25 kHz resolution takes about 2&ndash;3 minutes per sweep. For continuous monitoring, set <code>rtl_power</code> to repeat indefinitely and analyze the accumulated data.</p>' +
                      '<p><strong>Antenna:</strong> Use the wideband dipole at a compromise length (~25 cm elements) or a discone antenna for true wideband reception. No single dipole length is optimal for the full range &mdash; sensitivity will vary by frequency.</p>',
 
-        wiringSvg: '',
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg57-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg57-grid)" rx="4"/>' +
+            '<text x="360" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-57 RF SPECTRUM ANALYZER</text>' +
+
+            '<!-- Spectrum Display -->' +
+            '<g>' +
+            '<rect x="30" y="45" width="660" height="180" rx="8" fill="#0a0e14" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+            '<text x="50" y="62" fill="#4ade80" font-size="7" font-weight="600">SPECTRUM VIEW: 24 MHz &#8212; 1.7 GHz</text>' +
+
+            '<!-- Axes -->' +
+            '<line x1="60" y1="80" x2="60" y2="200" stroke="#333" stroke-width="0.5"/>' +
+            '<line x1="60" y1="200" x2="670" y2="200" stroke="#333" stroke-width="0.5"/>' +
+            '<text x="55" y="85" text-anchor="end" fill="#555" font-size="4">0 dB</text>' +
+            '<text x="55" y="120" text-anchor="end" fill="#555" font-size="4">-20</text>' +
+            '<text x="55" y="160" text-anchor="end" fill="#555" font-size="4">-40</text>' +
+            '<text x="55" y="200" text-anchor="end" fill="#555" font-size="4">-60</text>' +
+
+            '<!-- Noise floor -->' +
+            '<line x1="60" y1="185" x2="670" y2="185" stroke="rgba(255,255,255,0.06)" stroke-width="12"/>' +
+
+            '<!-- FM Broadcast peaks -->' +
+            '<polyline points="110,185 115,170 120,140 125,110 130,95 135,100 140,115 145,130 150,145 155,135 160,120 165,105 170,100 175,110 180,135 185,160 190,185" fill="none" stroke="#22c55e" stroke-width="1.5"><animate attributeName="opacity" values="0.7;1;0.7" dur="4s" repeatCount="indefinite"/></polyline>' +
+            '<text x="150" y="88" text-anchor="middle" fill="#22c55e" font-size="6" font-weight="600">FM Radio</text>' +
+            '<text x="150" y="212" text-anchor="middle" fill="#22c55e" font-size="5">88-108 MHz</text>' +
+
+            '<!-- VHF Public Safety -->' +
+            '<polyline points="215,185 218,175 220,165 222,170 225,178 228,168 230,160 232,170 235,185" fill="none" stroke="#a78bfa" stroke-width="1.2"><animate attributeName="opacity" values="0.4;0.9;0.4" dur="3s" repeatCount="indefinite"/></polyline>' +
+            '<text x="225" y="153" text-anchor="middle" fill="#a78bfa" font-size="5">VHF</text>' +
+            '<text x="225" y="212" text-anchor="middle" fill="#a78bfa" font-size="5">150-174</text>' +
+
+            '<!-- ISM 433 key fobs -->' +
+            '<polyline points="330,185 333,178 335,172 337,168 339,165 341,168 343,175 345,180 347,185" fill="none" stroke="#f97316" stroke-width="1"><animate attributeName="opacity" values="0.3;1;0.3" dur="0.8s" repeatCount="indefinite"/></polyline>' +
+            '<text x="339" y="158" text-anchor="middle" fill="#f97316" font-size="5">ISM 433</text>' +
+
+            '<!-- UHF -->' +
+            '<polyline points="375,185 378,175 380,168 382,172 385,185" fill="none" stroke="#38bdf8" stroke-width="1"><animate attributeName="opacity" values="0.5;0.8;0.5" dur="5s" repeatCount="indefinite"/></polyline>' +
+            '<text x="380" y="162" text-anchor="middle" fill="#38bdf8" font-size="5">UHF</text>' +
+
+            '<!-- Cellular bands -->' +
+            '<polyline points="440,185 450,160 460,140 470,125 480,118 490,115 500,120 510,130 520,145 530,160 540,175 545,185" fill="none" stroke="#ef4444" stroke-width="1.5"><animate attributeName="opacity" values="0.5;0.9;0.5" dur="6s" repeatCount="indefinite"/></polyline>' +
+            '<text x="490" y="108" text-anchor="middle" fill="#ef4444" font-size="6" font-weight="600">Cellular</text>' +
+            '<text x="490" y="212" text-anchor="middle" fill="#ef4444" font-size="5">700-960 MHz</text>' +
+
+            '<!-- ADS-B 1090 -->' +
+            '<polyline points="578,185 580,172 582,158 583,150 584,148 585,150 587,160 589,175 591,185" fill="none" stroke="#38bdf8" stroke-width="1.5"><animate attributeName="opacity" values="0.6;1;0.6" dur="1.2s" repeatCount="indefinite"/></polyline>' +
+            '<text x="584" y="140" text-anchor="middle" fill="#38bdf8" font-size="5" font-weight="600">ADS-B</text>' +
+            '<text x="584" y="212" text-anchor="middle" fill="#38bdf8" font-size="5">1090</text>' +
+
+            '<!-- Scan line animation -->' +
+            '<line x1="60" y1="80" x2="60" y2="200" stroke="#22c55e" stroke-width="1" opacity="0.4"><animate attributeName="x1" values="60;670;60" dur="8s" repeatCount="indefinite"/><animate attributeName="x2" values="60;670;60" dur="8s" repeatCount="indefinite"/></line>' +
+            '</g>' +
+
+            '<!-- RTL-SDR Dongle -->' +
+            '<g>' +
+            '<rect x="30" y="245" width="140" height="80" rx="8" fill="#1e2736" stroke="#eab308" stroke-width="2"/>' +
+            '<rect x="30" y="245" width="140" height="20" rx="8" fill="rgba(234,179,8,0.15)"/>' +
+            '<text x="100" y="260" text-anchor="middle" fill="#fbbf24" font-size="8" font-weight="700">RTL-SDR V4</text>' +
+            '<!-- Wideband antenna -->' +
+            '<line x1="50" y1="275" x2="50" y2="250" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<line x1="50" y1="250" x2="35" y2="240" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<line x1="50" y1="250" x2="65" y2="240" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<text x="50" y="236" text-anchor="middle" fill="#22c55e" font-size="5">wideband</text>' +
+            '<text x="100" y="283" text-anchor="middle" fill="#8b949e" font-size="6">24 MHz &#8212; 1.766 GHz</text>' +
+            '<text x="100" y="296" text-anchor="middle" fill="#555" font-size="5">~25cm elements (compromise)</text>' +
+            '<text x="100" y="310" text-anchor="middle" fill="#555" font-size="5">or discone antenna</text>' +
+            '</g>' +
+
+            '<!-- USB to Pi -->' +
+            '<line x1="170" y1="285" x2="220" y2="285" stroke="#555" stroke-width="1.5" stroke-dasharray="6,3"/>' +
+            '<text x="195" y="279" text-anchor="middle" fill="#555" font-size="5">USB</text>' +
+
+            '<!-- Raspberry Pi + rtl_power -->' +
+            '<g>' +
+            '<rect x="220" y="250" width="170" height="75" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="220" y="250" width="170" height="20" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<text x="305" y="265" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">RASPBERRY PI</text>' +
+            '<text x="305" y="285" text-anchor="middle" fill="#eab308" font-size="7" font-weight="600">rtl_power</text>' +
+            '<text x="305" y="300" text-anchor="middle" fill="#8b949e" font-size="6">Sweep scan &#8594; CSV data</text>' +
+            '<text x="305" y="313" text-anchor="middle" fill="#555" font-size="5">freq, time, power per bin</text>' +
+            '</g>' +
+
+            '<!-- Arrow to visualization -->' +
+            '<line x1="390" y1="285" x2="430" y2="285" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<polygon points="430,280 430,290 440,285" fill="#22c55e"/>' +
+
+            '<!-- Heatmap Visualization -->' +
+            '<g>' +
+            '<rect x="445" y="245" width="240" height="85" rx="8" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<rect x="445" y="245" width="240" height="20" rx="8" fill="rgba(34,197,94,0.12)"/>' +
+            '<text x="565" y="260" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="600">HEATMAP OUTPUT</text>' +
+            '<!-- Mini heatmap -->' +
+            '<rect x="460" y="272" width="15" height="50" rx="1" fill="rgba(239,68,68,0.6)"/>' +
+            '<rect x="478" y="282" width="15" height="40" rx="1" fill="rgba(234,179,8,0.5)"/>' +
+            '<rect x="496" y="290" width="15" height="32" rx="1" fill="rgba(34,197,94,0.4)"/>' +
+            '<rect x="514" y="298" width="15" height="24" rx="1" fill="rgba(59,130,246,0.3)"/>' +
+            '<rect x="532" y="295" width="15" height="27" rx="1" fill="rgba(167,139,250,0.4)"/>' +
+            '<rect x="550" y="285" width="15" height="37" rx="1" fill="rgba(234,179,8,0.5)"/>' +
+            '<rect x="568" y="278" width="15" height="44" rx="1" fill="rgba(239,68,68,0.5)"/>' +
+            '<rect x="586" y="295" width="15" height="27" rx="1" fill="rgba(59,130,246,0.3)"/>' +
+            '<rect x="604" y="300" width="15" height="22" rx="1" fill="rgba(34,197,94,0.3)"/>' +
+            '<text x="565" y="318" text-anchor="middle" fill="#8b949e" font-size="6">matplotlib &bull; heatmap.py</text>' +
+            '</g>' +
+
+            '<!-- Signal ID Reference -->' +
+            '<rect x="30" y="345" width="660" height="40" rx="6" fill="rgba(234,179,8,0.04)" stroke="rgba(234,179,8,0.15)" stroke-width="0.5"/>' +
+            '<text x="40" y="362" fill="#eab308" font-size="7" font-weight="600">SIGINT:</text>' +
+            '<text x="100" y="362" fill="#22c55e" font-size="5.5">FM=wide+constant</text>' +
+            '<text x="200" y="362" fill="#a78bfa" font-size="5.5">Pager=narrow+burst</text>' +
+            '<text x="310" y="362" fill="#f97316" font-size="5.5">Key Fob=blip</text>' +
+            '<text x="400" y="362" fill="#ef4444" font-size="5.5">Cell=wide+strong</text>' +
+            '<text x="500" y="362" fill="#38bdf8" font-size="5.5">ADS-B=narrow+constant</text>' +
+            '<text x="630" y="362" fill="#eab308" font-size="5.5">LoRa=chirp</text>' +
+            '<text x="40" y="378" fill="#555" font-size="5">Reference: sigidwiki.com &bull; Identify signals by bandwidth, pattern, and persistence</text>' +
+
+            '</svg>' +
+            '</div>',
 
         steps: [
             {
@@ -839,7 +1170,133 @@ window.SignalGuides = {
                '<p>This project teaches digital signal processing concepts, propagation physics (how radio waves bounce off the ionosphere), and the decoding of signals that are literally invisible on a waterfall display.</p>',
         wiring: '    RTL-SDR + HF upconverter (optional) -> WSJT-X -> decoded contacts',
         wiringNotes: '<p><strong>HF reception:</strong> FT8 operates on HF bands (20m at 14.074 MHz, 40m at 7.074 MHz). The RTL-SDR natively receives 24+ MHz. To receive HF, you need an upconverter (~$50) that shifts HF signals to a higher frequency the dongle can receive. Alternatively, use the 10m band (28.074 MHz) or 6m band (50.313 MHz) which are within native RTL-SDR range.</p>',
-        wiringSvg: '',
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg58-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg58-grid)" rx="4"/>' +
+            '<text x="360" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-58 HAM DIGITAL MODES (FT8)</text>' +
+
+            '<!-- Ionosphere illustration -->' +
+            '<g>' +
+            '<rect x="30" y="45" width="660" height="70" rx="8" fill="rgba(167,139,250,0.04)" stroke="rgba(167,139,250,0.15)" stroke-width="0.5"/>' +
+            '<text x="360" y="62" text-anchor="middle" fill="#a78bfa" font-size="7" font-weight="600">IONOSPHERE (F-layer ~300 km)</text>' +
+            '<!-- Ionospheric skip path -->' +
+            '<path d="M 100,105 Q 250,55 400,105" fill="none" stroke="#a78bfa" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-opacity" values="0.3;0.8;0.3" dur="3s" repeatCount="indefinite"/></path>' +
+            '<path d="M 400,105 Q 550,55 680,105" fill="none" stroke="#a78bfa" stroke-width="1" stroke-dasharray="4,3" opacity="0.5"><animate attributeName="stroke-opacity" values="0.2;0.6;0.2" dur="3s" begin="0.5s" repeatCount="indefinite"/></path>' +
+            '<text x="250" y="78" text-anchor="middle" fill="#a78bfa" font-size="5">HF skip propagation</text>' +
+            '<text x="540" y="78" text-anchor="middle" fill="#a78bfa" font-size="5">multi-hop = DX</text>' +
+            '</g>' +
+
+            '<!-- Remote TX Station -->' +
+            '<g>' +
+            '<rect x="30" y="120" width="100" height="70" rx="8" fill="#1e2736" stroke="#22c55e" stroke-width="1"/>' +
+            '<rect x="30" y="120" width="100" height="18" rx="8" fill="rgba(34,197,94,0.1)"/>' +
+            '<text x="80" y="133" text-anchor="middle" fill="#4ade80" font-size="6" font-weight="600">TX STATION</text>' +
+            '<text x="80" y="150" text-anchor="middle" fill="#8b949e" font-size="5">K1ABC FN42</text>' +
+            '<text x="80" y="162" text-anchor="middle" fill="#8b949e" font-size="5">FT8 @ 28.074 MHz</text>' +
+            '<text x="80" y="174" text-anchor="middle" fill="#555" font-size="4">15-sec TX cycle</text>' +
+            '<!-- Antenna -->' +
+            '<line x1="55" y1="120" x2="55" y2="107" stroke="#22c55e" stroke-width="1"/>' +
+            '<line x1="45" y1="107" x2="65" y2="107" stroke="#22c55e" stroke-width="1"/>' +
+            '</g>' +
+
+            '<!-- HF Upconverter (optional) -->' +
+            '<g>' +
+            '<rect x="200" y="130" width="130" height="70" rx="8" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+            '<rect x="200" y="130" width="130" height="18" rx="8" fill="rgba(168,85,247,0.12)"/>' +
+            '<text x="265" y="143" text-anchor="middle" fill="#c084fc" font-size="7" font-weight="600">HF UPCONVERTER</text>' +
+            '<text x="265" y="160" text-anchor="middle" fill="#8b949e" font-size="5">Shifts HF &#8594; 100+ MHz</text>' +
+            '<text x="265" y="173" text-anchor="middle" fill="#8b949e" font-size="5">125 MHz local oscillator</text>' +
+            '<text x="265" y="186" text-anchor="middle" fill="#555" font-size="5">Required for 20m/40m bands</text>' +
+            '<text x="265" y="196" text-anchor="middle" fill="#a855f7" font-size="5">~$50 &bull; Optional for 10m/6m</text>' +
+            '</g>' +
+
+            '<!-- RF in to upconverter -->' +
+            '<line x1="130" y1="155" x2="200" y2="165" stroke="#22c55e" stroke-width="1.2" stroke-dasharray="4,3"/>' +
+            '<text x="165" y="152" text-anchor="middle" fill="#22c55e" font-size="5">HF signal</text>' +
+
+            '<!-- RTL-SDR -->' +
+            '<g>' +
+            '<rect x="380" y="130" width="130" height="70" rx="8" fill="#1e2736" stroke="#eab308" stroke-width="2"/>' +
+            '<rect x="380" y="130" width="130" height="18" rx="8" fill="rgba(234,179,8,0.15)"/>' +
+            '<text x="445" y="143" text-anchor="middle" fill="#fbbf24" font-size="8" font-weight="700">RTL-SDR V4</text>' +
+            '<text x="445" y="162" text-anchor="middle" fill="#8b949e" font-size="6">28.074 MHz (10m)</text>' +
+            '<text x="445" y="175" text-anchor="middle" fill="#8b949e" font-size="6">USB demod, 48 kHz</text>' +
+            '<text x="445" y="188" text-anchor="middle" fill="#555" font-size="5">or upconverted HF freq</text>' +
+            '</g>' +
+
+            '<!-- Upconverter to RTL-SDR -->' +
+            '<line x1="330" y1="165" x2="380" y2="165" stroke="#eab308" stroke-width="1.5"/>' +
+            '<text x="355" y="158" text-anchor="middle" fill="#eab308" font-size="5">SMA</text>' +
+
+            '<!-- USB to Computer -->' +
+            '<line x1="445" y1="200" x2="445" y2="228" stroke="#555" stroke-width="1.5" stroke-dasharray="6,3"/>' +
+            '<text x="460" y="218" fill="#555" font-size="5">USB</text>' +
+
+            '<!-- Computer + WSJT-X -->' +
+            '<g>' +
+            '<rect x="360" y="230" width="170" height="90" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="360" y="230" width="170" height="20" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<text x="445" y="245" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">WSJT-X DECODER</text>' +
+            '<text x="445" y="264" text-anchor="middle" fill="#eab308" font-size="7" font-weight="600">FT8 Mode</text>' +
+            '<text x="445" y="280" text-anchor="middle" fill="#8b949e" font-size="6">15-sec decode cycles</text>' +
+            '<text x="445" y="293" text-anchor="middle" fill="#8b949e" font-size="6">SNR down to -24 dB</text>' +
+            '<text x="445" y="306" text-anchor="middle" fill="#555" font-size="5">Callsign &bull; Grid &bull; Signal report</text>' +
+            '</g>' +
+
+            '<!-- PulseAudio virtual sink note -->' +
+            '<rect x="360" y="328" width="170" height="28" rx="4" fill="rgba(167,139,250,0.06)" stroke="rgba(167,139,250,0.15)" stroke-width="0.5"/>' +
+            '<text x="445" y="340" text-anchor="middle" fill="#a78bfa" font-size="5">PulseAudio virtual sink</text>' +
+            '<text x="445" y="350" text-anchor="middle" fill="#555" font-size="4">rtl_fm &#8594; paplay &#8594; WSJT-X</text>' +
+
+            '<!-- Decoded Output -->' +
+            '<line x1="530" y1="275" x2="570" y2="275" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<polygon points="570,270 570,280 578,275" fill="#22c55e"/>' +
+            '<g>' +
+            '<rect x="580" y="230" width="120" height="90" rx="8" fill="rgba(34,197,94,0.05)" stroke="rgba(34,197,94,0.25)" stroke-width="1"/>' +
+            '<text x="640" y="248" text-anchor="middle" fill="#4ade80" font-size="7" font-weight="600">DECODED</text>' +
+            '<text x="590" y="264" fill="#8b949e" font-size="5">CQ K1ABC FN42</text>' +
+            '<text x="590" y="277" fill="#8b949e" font-size="5">K1ABC W2XYZ -07</text>' +
+            '<text x="590" y="290" fill="#8b949e" font-size="5">W2XYZ K1ABC R-12</text>' +
+            '<text x="590" y="303" fill="#555" font-size="4">SNR: -14 dB (below noise!)</text>' +
+            '<text x="640" y="316" text-anchor="middle" fill="#22c55e" font-size="5">pskreporter.info map</text>' +
+            '</g>' +
+
+            '<!-- FT8 Timing Visual -->' +
+            '<g>' +
+            '<rect x="30" y="225" width="280" height="50" rx="6" fill="rgba(234,179,8,0.04)" stroke="rgba(234,179,8,0.15)" stroke-width="0.5"/>' +
+            '<text x="40" y="242" fill="#eab308" font-size="7" font-weight="600">FT8 TIMING</text>' +
+            '<!-- 15-second blocks -->' +
+            '<rect x="40" y="248" width="55" height="14" rx="2" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="0.5"/>' +
+            '<text x="68" y="258" text-anchor="middle" fill="#22c55e" font-size="5">TX 15s</text>' +
+            '<rect x="100" y="248" width="55" height="14" rx="2" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="0.5"/>' +
+            '<text x="128" y="258" text-anchor="middle" fill="#60a5fa" font-size="5">RX 15s</text>' +
+            '<rect x="160" y="248" width="55" height="14" rx="2" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="0.5"/>' +
+            '<text x="188" y="258" text-anchor="middle" fill="#22c55e" font-size="5">TX 15s</text>' +
+            '<rect x="220" y="248" width="55" height="14" rx="2" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="0.5"/>' +
+            '<text x="248" y="258" text-anchor="middle" fill="#60a5fa" font-size="5">RX 15s</text>' +
+            '<text x="170" y="272" text-anchor="middle" fill="#555" font-size="4">NTP time sync required (&#177;1 sec)</text>' +
+            '</g>' +
+
+            '<!-- Band Info -->' +
+            '<rect x="30" y="295" width="280" height="75" rx="6" fill="rgba(167,139,250,0.04)" stroke="rgba(167,139,250,0.15)" stroke-width="0.5"/>' +
+            '<text x="40" y="312" fill="#a78bfa" font-size="7" font-weight="600">FT8 BANDS</text>' +
+            '<text x="40" y="327" fill="#22c55e" font-size="5.5">10m: 28.074 MHz &#8212; native RTL-SDR range</text>' +
+            '<text x="40" y="340" fill="#60a5fa" font-size="5.5">6m: 50.313 MHz &#8212; native RTL-SDR range</text>' +
+            '<text x="40" y="353" fill="#eab308" font-size="5.5">20m: 14.074 MHz &#8212; needs upconverter</text>' +
+            '<text x="40" y="366" fill="#f97316" font-size="5.5">40m: 7.074 MHz &#8212; needs upconverter</text>' +
+
+            '<!-- Nobel Prize callout -->' +
+            '<rect x="580" y="340" width="120" height="40" rx="4" fill="rgba(234,179,8,0.06)" stroke="rgba(234,179,8,0.15)" stroke-width="0.5"/>' +
+            '<text x="640" y="355" text-anchor="middle" fill="#eab308" font-size="5" font-weight="600">Designed by Joe Taylor</text>' +
+            '<text x="640" y="367" text-anchor="middle" fill="#555" font-size="4">K1JT &bull; Nobel Prize Physics</text>' +
+            '<text x="640" y="377" text-anchor="middle" fill="#555" font-size="4">Solar Cycle 25 peak: 2024-2026</text>' +
+
+            '</svg>' +
+            '</div>',
         steps: [
             { title: 'Install WSJT-X Decoder', content: '<p>WSJT-X is the standard decoder for FT8, FT4, JT65, and other weak-signal modes. Install it from the official source.</p>', code: '# Install WSJT-X\nsudo apt install wsjtx -y\n\n# Or download from: https://wsjt.sourceforge.io/wsjtx.html\n# The package includes the decoder and a built-in waterfall display\n\n# Install virtual audio cable to pipe rtl_fm audio to WSJT-X\nsudo apt install pulseaudio pavucontrol -y', language: 'Bash', tip: '<strong>No transmitter needed:</strong> You are receive-only. WSJT-X will decode transmissions from other operators. You cannot transmit without a ham radio license and proper equipment &mdash; but you can listen to the entire world.' },
             { title: 'Configure Audio Pipeline', content: '<p>Create an audio pipeline from rtl_fm to WSJT-X using PulseAudio virtual sinks.</p>', code: '# Create a virtual audio sink\npactl load-module module-null-sink sink_name=sdr_audio sink_properties=device.description="SDR_Audio"\n\n# Start receiving 20m FT8 (14.074 MHz — needs upconverter)\n# Or use 10m FT8 (28.074 MHz — native RTL-SDR range)\nrtl_fm -f 28.074M -M usb -s 48000 -g 40 | \\\n  paplay --device=sdr_audio --rate=48000 --channels=1 --format=s16le &\n\n# In WSJT-X: Settings > Audio > Input = Monitor of SDR_Audio\n# Set frequency to 28.074 MHz, Mode: FT8', language: 'Bash', tip: null },
@@ -887,7 +1344,117 @@ window.SignalGuides = {
         intro: '<p>The International Space Station (ISS) carries an amateur radio digipeater and occasionally transmits SSTV (Slow Scan Television) images. You can receive APRS packets and decode SSTV images from the ISS using your RTL-SDR as it passes overhead at 145.800 MHz (voice/SSTV) and 145.825 MHz (APRS packet digipeater).</p>',
         wiring: '    RTL-SDR + 2m antenna (51.7cm elements) -> ISS at 145.8 MHz',
         wiringNotes: '<p><strong>ISS passes:</strong> The ISS orbits at ~420 km altitude and is visible for 5&ndash;10 minutes per pass. Use n2yo.com or the ISS Detector app to predict passes. The APRS digipeater is active most of the time; SSTV events are scheduled and announced on ariss.org.</p>',
-        wiringSvg: '',
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg59-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg59-grid)" rx="4"/>' +
+            '<text x="360" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-59 ISS RECEPTION (APRS &amp; SSTV)</text>' +
+
+            '<!-- ISS Orbit Path -->' +
+            '<g>' +
+            '<!-- Orbital arc -->' +
+            '<path d="M 80,90 Q 360,30 640,90" fill="none" stroke="rgba(234,179,8,0.2)" stroke-width="1" stroke-dasharray="6,4"/>' +
+            '<!-- ISS icon -->' +
+            '<g>' +
+            '<rect x="325" y="48" width="70" height="35" rx="4" fill="#1e2736" stroke="#eab308" stroke-width="1.5"/>' +
+            '<text x="360" y="62" text-anchor="middle" fill="#fbbf24" font-size="6" font-weight="700">ISS</text>' +
+            '<text x="360" y="74" text-anchor="middle" fill="#8b949e" font-size="4">420 km &bull; 27,600 km/h</text>' +
+            '<!-- Solar panels -->' +
+            '<rect x="300" y="55" width="24" height="18" rx="2" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="0.5"/>' +
+            '<rect x="396" y="55" width="24" height="18" rx="2" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="0.5"/>' +
+            '<!-- ISS movement animation -->' +
+            '<animateTransform attributeName="transform" type="translate" values="-20,0;20,0;-20,0" dur="12s" repeatCount="indefinite"/>' +
+            '</g>' +
+            '</g>' +
+
+            '<!-- Signal paths from ISS -->' +
+            '<g>' +
+            '<!-- APRS path -->' +
+            '<line x1="340" y1="85" x2="200" y2="170" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,3"><animate attributeName="stroke-opacity" values="0.2;0.8;0.2" dur="2s" repeatCount="indefinite"/></line>' +
+            '<text x="260" y="125" fill="#22c55e" font-size="5" transform="rotate(-30,260,125)">145.825 MHz APRS</text>' +
+            '<!-- SSTV path -->' +
+            '<line x1="380" y1="85" x2="520" y2="170" stroke="#f97316" stroke-width="1" stroke-dasharray="4,3"><animate attributeName="stroke-opacity" values="0.2;0.7;0.2" dur="2.5s" repeatCount="indefinite"/></line>' +
+            '<text x="460" y="125" fill="#f97316" font-size="5" transform="rotate(30,460,125)">145.800 MHz SSTV</text>' +
+            '</g>' +
+
+            '<!-- Ground Station -->' +
+            '<g>' +
+            '<!-- RTL-SDR + Antenna -->' +
+            '<rect x="120" y="170" width="160" height="90" rx="8" fill="#1e2736" stroke="#eab308" stroke-width="2"/>' +
+            '<rect x="120" y="170" width="160" height="20" rx="8" fill="rgba(234,179,8,0.15)"/>' +
+            '<text x="200" y="185" text-anchor="middle" fill="#fbbf24" font-size="8" font-weight="700">RTL-SDR V4</text>' +
+            '<!-- 2m Antenna -->' +
+            '<line x1="140" y1="170" x2="140" y2="148" stroke="#22c55e" stroke-width="2"/>' +
+            '<line x1="128" y1="148" x2="152" y2="148" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<text x="140" y="143" text-anchor="middle" fill="#22c55e" font-size="5">2m dipole</text>' +
+            '<text x="200" y="205" text-anchor="middle" fill="#8b949e" font-size="6">51.7 cm elements</text>' +
+            '<text x="200" y="220" text-anchor="middle" fill="#8b949e" font-size="6">Gain: 48 dB (max)</text>' +
+            '<text x="200" y="235" text-anchor="middle" fill="#555" font-size="5">Doppler: &#177;3.5 kHz</text>' +
+            '<text x="200" y="248" text-anchor="middle" fill="#555" font-size="5">5-10 min pass window</text>' +
+            '</g>' +
+
+            '<!-- USB connection -->' +
+            '<line x1="200" y1="262" x2="200" y2="285" stroke="#555" stroke-width="1.5" stroke-dasharray="6,3"/>' +
+
+            '<!-- Raspberry Pi -->' +
+            '<g>' +
+            '<rect x="120" y="288" width="160" height="80" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="120" y="288" width="160" height="20" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<text x="200" y="303" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">RASPBERRY PI</text>' +
+            '<text x="200" y="322" text-anchor="middle" fill="#22c55e" font-size="6">APRS: multimon-ng -a AFSK1200</text>' +
+            '<text x="200" y="338" text-anchor="middle" fill="#f97316" font-size="6">SSTV: qsstv / sstv decoder</text>' +
+            '<text x="200" y="354" text-anchor="middle" fill="#a78bfa" font-size="6">Tracking: gpredict</text>' +
+            '</g>' +
+
+            '<!-- APRS Decoded Output -->' +
+            '<g>' +
+            '<rect x="340" y="170" width="180" height="80" rx="8" fill="rgba(34,197,94,0.05)" stroke="rgba(34,197,94,0.25)" stroke-width="1"/>' +
+            '<text x="430" y="188" text-anchor="middle" fill="#4ade80" font-size="7" font-weight="600">APRS PACKETS</text>' +
+            '<text x="350" y="205" fill="#8b949e" font-size="5">fm K1ABC to APRS via RS0ISS:</text>' +
+            '<text x="350" y="218" fill="#8b949e" font-size="5">@092345z4220.00N/07105.00W</text>' +
+            '<text x="350" y="231" fill="#555" font-size="5">Callsign &bull; Position &bull; Status</text>' +
+            '<text x="350" y="244" fill="#555" font-size="5">Digipeated via ISS &#8594; ground</text>' +
+            '</g>' +
+
+            '<!-- SSTV Image Output -->' +
+            '<g>' +
+            '<rect x="540" y="170" width="150" height="80" rx="8" fill="rgba(249,115,22,0.05)" stroke="rgba(249,115,22,0.25)" stroke-width="1"/>' +
+            '<text x="615" y="188" text-anchor="middle" fill="#fb923c" font-size="7" font-weight="600">SSTV IMAGES</text>' +
+            '<!-- Image placeholder -->' +
+            '<rect x="555" y="198" width="50" height="38" rx="3" fill="rgba(249,115,22,0.1)" stroke="rgba(249,115,22,0.3)" stroke-width="0.5"/>' +
+            '<text x="580" y="220" text-anchor="middle" fill="#f97316" font-size="6">IMG</text>' +
+            '<text x="640" y="210" fill="#8b949e" font-size="5">PD120 mode</text>' +
+            '<text x="640" y="222" fill="#8b949e" font-size="5">2-3 min/image</text>' +
+            '<text x="615" y="243" text-anchor="middle" fill="#555" font-size="5">Scheduled events only (ariss.org)</text>' +
+            '</g>' +
+
+            '<!-- Frequency Reference -->' +
+            '<rect x="340" y="265" width="180" height="55" rx="6" fill="rgba(234,179,8,0.04)" stroke="rgba(234,179,8,0.15)" stroke-width="0.5"/>' +
+            '<text x="350" y="282" fill="#eab308" font-size="7" font-weight="600">ISS FREQUENCIES</text>' +
+            '<text x="350" y="296" fill="#22c55e" font-size="6">145.825 MHz &#8212; APRS digipeater</text>' +
+            '<text x="350" y="309" fill="#f97316" font-size="6">145.800 MHz &#8212; Voice &amp; SSTV</text>' +
+
+            '<!-- Doppler diagram -->' +
+            '<g>' +
+            '<rect x="540" y="265" width="150" height="55" rx="6" fill="rgba(167,139,250,0.04)" stroke="rgba(167,139,250,0.15)" stroke-width="0.5"/>' +
+            '<text x="615" y="282" text-anchor="middle" fill="#a78bfa" font-size="7" font-weight="600">DOPPLER SHIFT</text>' +
+            '<!-- Doppler curve -->' +
+            '<path d="M 555,305 Q 575,290 615,300 Q 655,310 675,305" fill="none" stroke="#a78bfa" stroke-width="1"/>' +
+            '<text x="565" y="300" fill="#22c55e" font-size="4">+3.5kHz</text>' +
+            '<text x="660" y="300" fill="#ef4444" font-size="4">-3.5kHz</text>' +
+            '</g>' +
+
+            '<!-- Pass prediction -->' +
+            '<rect x="340" y="330" width="350" height="48" rx="6" fill="rgba(59,130,246,0.04)" stroke="rgba(59,130,246,0.15)" stroke-width="0.5"/>' +
+            '<text x="350" y="347" fill="#60a5fa" font-size="7" font-weight="600">PASS TRACKING</text>' +
+            '<text x="350" y="362" fill="#8b949e" font-size="5.5">n2yo.com (ISS #25544) &bull; gpredict &bull; ISS Detector app</text>' +
+            '<text x="350" y="375" fill="#555" font-size="5">Best passes: elevation &gt;30&#176; &bull; Update TLEs from celestrak.org before each session</text>' +
+
+            '</svg>' +
+            '</div>',
         steps: [
             { title: 'Track ISS Passes', content: '<p>Predict when the ISS will be overhead at your location.</p>', code: '# Install gpredict for ISS tracking\nsudo apt install gpredict -y\n\n# Or check online:\n# https://www.n2yo.com/?s=25544\n# https://spotthestation.nasa.gov/\n\n# ISS frequencies:\n# 145.800 MHz — Voice and SSTV downlink\n# 145.825 MHz — APRS digipeater (packet radio)\n# Set dipole elements to 51.7 cm for 2m band', language: 'Bash', tip: null },
             { title: 'Receive APRS Packets', content: '<p>APRS (Automatic Packet Reporting System) packets are short digital bursts containing callsign, position, and status. The ISS digipeater retransmits packets from ground stations.</p>', code: '# Decode APRS from the ISS digipeater\nrtl_fm -f 145.825M -M fm -s 22050 -g 48 - | \\\n  multimon-ng -a AFSK1200 -t raw -\n\n# Output shows decoded APRS packets:\n# AFSK1200: fm K1ABC to APRS via RS0ISS:\n#   @092345z4220.00N/07105.00W-PHG2360\n\n# Run this during a predicted ISS pass\n# You will see ground stations being digipeated through the ISS', language: 'Bash', tip: '<strong>Doppler shift:</strong> The ISS moves at 27,600 km/h. This causes a Doppler shift of about +/- 3.5 kHz as it approaches and recedes. rtl_fm handles this within its filter bandwidth, but if you lose the signal mid-pass, try tuning +/- 5 kHz.' },
@@ -948,7 +1515,112 @@ window.SignalGuides = {
                 '    +----------------+          +----------------+',
         wiringNotes: '<p><strong>Frequency:</strong> Use 915 MHz in the Americas (FCC ISM band) or 868 MHz in Europe (ETSI). These are license-free ISM frequencies for low-power devices.</p>' +
                      '<p><strong>Range:</strong> LoRa range depends on spreading factor, bandwidth, antenna height, and terrain. In urban areas expect 1&ndash;3 km. In open rural terrain with elevated antennas, 10&ndash;20+ km is achievable.</p>',
-        wiringSvg: '',
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg60-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg60-grid)" rx="4"/>' +
+            '<text x="360" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-60 LORA MESH NETWORK (MESHTASTIC)</text>' +
+
+            '<!-- Node Alpha (TTGO T-Beam) -->' +
+            '<g>' +
+            '<rect x="30" y="80" width="170" height="130" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="30" y="80" width="170" height="22" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<text x="115" y="96" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">NODE ALPHA</text>' +
+            '<!-- Board -->' +
+            '<rect x="55" y="110" width="120" height="50" rx="4" fill="#2a2a3a" stroke="#3b82f6" stroke-width="0.8"/>' +
+            '<text x="115" y="128" text-anchor="middle" fill="#60a5fa" font-size="6" font-weight="600">TTGO T-Beam</text>' +
+            '<text x="115" y="140" text-anchor="middle" fill="#8b949e" font-size="5">ESP32 + SX1276 LoRa</text>' +
+            '<text x="115" y="152" text-anchor="middle" fill="#8b949e" font-size="5">GPS module &bull; 18650 battery</text>' +
+            '<!-- Antenna -->' +
+            '<line x1="50" y1="110" x2="50" y2="85" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<line x1="42" y1="85" x2="58" y2="85" stroke="#22c55e" stroke-width="1"/>' +
+            '<text x="50" y="80" text-anchor="middle" fill="#22c55e" font-size="4">915 MHz</text>' +
+            '<!-- Meshtastic -->' +
+            '<text x="115" y="175" text-anchor="middle" fill="#eab308" font-size="6" font-weight="600">Meshtastic FW</text>' +
+            '<text x="115" y="188" text-anchor="middle" fill="#555" font-size="5">Bluetooth &#8594; phone app</text>' +
+            '<text x="115" y="200" text-anchor="middle" fill="#555" font-size="5">GPS position sharing</text>' +
+            '</g>' +
+
+            '<!-- LoRa link Alpha to Beta -->' +
+            '<g>' +
+            '<line x1="200" y1="145" x2="300" y2="145" stroke="#f97316" stroke-width="2" stroke-dasharray="8,4"><animate attributeName="stroke-dashoffset" values="0;-24" dur="2s" repeatCount="indefinite"/></line>' +
+            '<!-- LoRa wave symbols -->' +
+            '<path d="M 225,130 Q 230,125 235,130 Q 240,135 245,130" fill="none" stroke="#f97316" stroke-width="0.8" opacity="0.6"><animate attributeName="opacity" values="0.3;0.8;0.3" dur="1.5s" repeatCount="indefinite"/></path>' +
+            '<path d="M 255,130 Q 260,125 265,130 Q 270,135 275,130" fill="none" stroke="#f97316" stroke-width="0.8" opacity="0.4"><animate attributeName="opacity" values="0.2;0.7;0.2" dur="1.5s" begin="0.3s" repeatCount="indefinite"/></path>' +
+            '<text x="250" y="125" text-anchor="middle" fill="#f97316" font-size="6" font-weight="600">LoRa 915 MHz</text>' +
+            '<text x="250" y="160" text-anchor="middle" fill="#555" font-size="5">1-10+ km range</text>' +
+            '</g>' +
+
+            '<!-- Node Beta (Heltec LoRa32) -->' +
+            '<g>' +
+            '<rect x="300" y="80" width="170" height="130" rx="8" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<rect x="300" y="80" width="170" height="22" rx="8" fill="rgba(34,197,94,0.12)"/>' +
+            '<text x="385" y="96" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="600">NODE BETA</text>' +
+            '<rect x="325" y="110" width="120" height="50" rx="4" fill="#2a2a3a" stroke="#22c55e" stroke-width="0.8"/>' +
+            '<text x="385" y="128" text-anchor="middle" fill="#4ade80" font-size="6" font-weight="600">Heltec LoRa32</text>' +
+            '<text x="385" y="140" text-anchor="middle" fill="#8b949e" font-size="5">ESP32 + SX1276 LoRa</text>' +
+            '<text x="385" y="152" text-anchor="middle" fill="#8b949e" font-size="5">OLED display &bull; USB-C</text>' +
+            '<!-- Antenna -->' +
+            '<line x1="320" y1="110" x2="320" y2="85" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<line x1="312" y1="85" x2="328" y2="85" stroke="#22c55e" stroke-width="1"/>' +
+            '<text x="320" y="80" text-anchor="middle" fill="#22c55e" font-size="4">915 MHz</text>' +
+            '<text x="385" y="175" text-anchor="middle" fill="#eab308" font-size="6" font-weight="600">Meshtastic FW</text>' +
+            '<text x="385" y="188" text-anchor="middle" fill="#555" font-size="5">Relay/repeater node</text>' +
+            '<text x="385" y="200" text-anchor="middle" fill="#555" font-size="5">Store &amp; forward msgs</text>' +
+            '</g>' +
+
+            '<!-- LoRa link Beta to Charlie -->' +
+            '<g>' +
+            '<line x1="470" y1="145" x2="540" y2="145" stroke="#f97316" stroke-width="2" stroke-dasharray="8,4"><animate attributeName="stroke-dashoffset" values="0;-24" dur="2s" begin="0.5s" repeatCount="indefinite"/></line>' +
+            '<text x="505" y="138" text-anchor="middle" fill="#f97316" font-size="5">mesh hop</text>' +
+            '</g>' +
+
+            '<!-- Node Charlie -->' +
+            '<g>' +
+            '<rect x="540" y="80" width="150" height="130" rx="8" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+            '<rect x="540" y="80" width="150" height="22" rx="8" fill="rgba(168,85,247,0.12)"/>' +
+            '<text x="615" y="96" text-anchor="middle" fill="#c084fc" font-size="8" font-weight="600">NODE CHARLIE</text>' +
+            '<rect x="560" y="110" width="110" height="50" rx="4" fill="#2a2a3a" stroke="#a855f7" stroke-width="0.8"/>' +
+            '<text x="615" y="128" text-anchor="middle" fill="#c084fc" font-size="6" font-weight="600">RAK WisBlock</text>' +
+            '<text x="615" y="140" text-anchor="middle" fill="#8b949e" font-size="5">nRF52 + SX1262</text>' +
+            '<text x="615" y="152" text-anchor="middle" fill="#8b949e" font-size="5">Solar powered</text>' +
+            '<line x1="555" y1="110" x2="555" y2="85" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<line x1="547" y1="85" x2="563" y2="85" stroke="#22c55e" stroke-width="1"/>' +
+            '<text x="615" y="175" text-anchor="middle" fill="#eab308" font-size="6" font-weight="600">Meshtastic FW</text>' +
+            '<text x="615" y="188" text-anchor="middle" fill="#555" font-size="5">Extended coverage</text>' +
+            '<text x="615" y="200" text-anchor="middle" fill="#555" font-size="5">hilltop / rooftop</text>' +
+            '</g>' +
+
+            '<!-- Mesh routing diagram -->' +
+            '<rect x="30" y="230" width="300" height="55" rx="8" fill="rgba(249,115,22,0.04)" stroke="rgba(249,115,22,0.15)" stroke-width="0.5"/>' +
+            '<text x="40" y="248" fill="#f97316" font-size="7" font-weight="600">MESH ROUTING</text>' +
+            '<text x="40" y="264" fill="#8b949e" font-size="5.5">Alpha &#8596; Beta &#8596; Charlie (auto-routing)</text>' +
+            '<text x="40" y="277" fill="#555" font-size="5">Messages hop between nodes to extend range beyond single link</text>' +
+
+            '<!-- LoRa Specs -->' +
+            '<rect x="30" y="300" width="300" height="75" rx="8" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.15)" stroke-width="0.5"/>' +
+            '<text x="40" y="318" fill="#4ade80" font-size="7" font-weight="600">LORA PARAMETERS</text>' +
+            '<text x="40" y="334" fill="#8b949e" font-size="5.5">Frequency: 915 MHz (US) / 868 MHz (EU)</text>' +
+            '<text x="40" y="348" fill="#8b949e" font-size="5.5">Spreading Factor: SF7-SF12 (higher = longer range)</text>' +
+            '<text x="40" y="362" fill="#8b949e" font-size="5.5">Bandwidth: 125/250/500 kHz &bull; TX: ~100 mW</text>' +
+            '<text x="40" y="375" fill="#555" font-size="5">Community record: 200+ km with directional antennas</text>' +
+
+            '<!-- Use Cases -->' +
+            '<rect x="370" y="240" width="320" height="135" rx="8" fill="rgba(234,179,8,0.04)" stroke="rgba(234,179,8,0.15)" stroke-width="0.5"/>' +
+            '<text x="380" y="258" fill="#eab308" font-size="7" font-weight="600">OFF-GRID COMMS</text>' +
+            '<text x="380" y="275" fill="#22c55e" font-size="5.5">No WiFi, no cellular, no internet required</text>' +
+            '<text x="380" y="290" fill="#8b949e" font-size="5.5">&bull; Disaster response / hurricane comms</text>' +
+            '<text x="380" y="305" fill="#8b949e" font-size="5.5">&bull; Backcountry hiking / SAR operations</text>' +
+            '<text x="380" y="320" fill="#8b949e" font-size="5.5">&bull; Smart agriculture / remote sensors</text>' +
+            '<text x="380" y="335" fill="#8b949e" font-size="5.5">&bull; Campus/neighborhood mesh coverage</text>' +
+            '<text x="380" y="355" fill="#ef4444" font-size="6" font-weight="600">CRITICAL: connect antenna before power!</text>' +
+            '<text x="380" y="368" fill="#555" font-size="5">TX without antenna damages LoRa chip permanently</text>' +
+
+            '</svg>' +
+            '</div>',
         steps: [
             { title: 'Flash Meshtastic Firmware', content: '<p>The easiest way to start with LoRa is Meshtastic &mdash; open-source mesh networking firmware for ESP32+LoRa boards.</p>', code: '# Install Meshtastic flasher\npip3 install meshtastic\n\n# Flash your first board (plug in via USB)\nmeshtastic --firmware-update\n# Follow the prompts to select your board type\n\n# Flash the second board the same way\n\n# Verify both boards are running:\nmeshtastic --info\n# Shows: firmware version, hardware model, region setting', language: 'Bash', tip: '<strong>Board compatibility:</strong> Meshtastic supports TTGO T-Beam (best — has GPS), Heltec LoRa32, TTGO LoRa32, and RAK WisBlock. The T-Beam is recommended because it includes a GPS module for location sharing.' },
             { title: 'Configure and Test', content: '<p>Set the region, channel, and device name. Then test communication between the two boards.</p>', code: '# Configure region (must match your country)\n# Board 1:\nmeshtastic --set lora.region US\nmeshtastic --set-owner "Node-Alpha"\n\n# Board 2 (plug in second board):\nmeshtastic --set lora.region US\nmeshtastic --set-owner "Node-Beta"\n\n# Send a message from Board 1:\nmeshtastic --sendtext "Hello from Alpha"\n\n# On Board 2, check received messages:\nmeshtastic --info\n# Or use the Meshtastic phone app (Android/iOS) via Bluetooth\n\n# Check signal quality:\nmeshtastic --nodes\n# Shows: node name, SNR (signal-to-noise ratio), last heard time', language: 'Bash', tip: null },
@@ -1004,7 +1676,118 @@ window.SignalGuides = {
                '<p>This project is purely receive-and-analyze. You will capture your own key fob signal, examine its modulation, and understand why modern rolling codes cannot be replayed. This is essential knowledge for automotive security research.</p>',
         wiring: '    Your own car key fob -> 315/433 MHz -> RTL-SDR (17cm dipole elements)',
         wiringNotes: '<p><strong>Only your own key fob.</strong> Capturing other people\'s key fob signals without consent may violate wiretapping laws. Use your own vehicle and your own key fob for this exercise.</p>',
-        wiringSvg: '',
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg61-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg61-grid)" rx="4"/>' +
+            '<text x="360" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-61 KEY FOB &amp; ISM BAND ANALYSIS</text>' +
+
+            '<!-- Key Fob -->' +
+            '<g>' +
+            '<rect x="40" y="70" width="130" height="130" rx="8" fill="#1e2736" stroke="#f97316" stroke-width="1.5"/>' +
+            '<rect x="40" y="70" width="130" height="22" rx="8" fill="rgba(249,115,22,0.12)"/>' +
+            '<text x="105" y="86" text-anchor="middle" fill="#fb923c" font-size="8" font-weight="600">CAR KEY FOB</text>' +
+            '<!-- Fob body -->' +
+            '<rect x="65" y="100" width="80" height="50" rx="8" fill="#2a2a3a" stroke="#f97316" stroke-width="1"/>' +
+            '<!-- Buttons -->' +
+            '<circle cx="90" cy="120" r="6" fill="rgba(249,115,22,0.2)" stroke="#f97316" stroke-width="0.8"/>' +
+            '<text x="90" y="123" text-anchor="middle" fill="#f97316" font-size="4">LOCK</text>' +
+            '<circle cx="120" cy="120" r="6" fill="rgba(34,197,94,0.2)" stroke="#22c55e" stroke-width="0.8"/>' +
+            '<text x="120" y="123" text-anchor="middle" fill="#22c55e" font-size="4">UNLK</text>' +
+            '<text x="105" y="162" text-anchor="middle" fill="#8b949e" font-size="6">OOK / FSK modulation</text>' +
+            '<text x="105" y="175" text-anchor="middle" fill="#8b949e" font-size="6">&lt;1 mW TX power</text>' +
+            '<text x="105" y="188" text-anchor="middle" fill="#555" font-size="5">Fixed or Rolling code</text>' +
+            '</g>' +
+
+            '<!-- RF transmission -->' +
+            '<g>' +
+            '<path d="M 172,120 Q 190,115 200,120" fill="none" stroke="rgba(249,115,22,0.6)" stroke-width="1"><animate attributeName="stroke-opacity" values="0;0.8;0" dur="1s" repeatCount="indefinite"/></path>' +
+            '<path d="M 175,115 Q 195,108 208,115" fill="none" stroke="rgba(249,115,22,0.4)" stroke-width="0.8"><animate attributeName="stroke-opacity" values="0;0.6;0" dur="1s" begin="0.2s" repeatCount="indefinite"/></path>' +
+            '<path d="M 178,110 Q 200,100 215,110" fill="none" stroke="rgba(249,115,22,0.3)" stroke-width="0.6"><animate attributeName="stroke-opacity" values="0;0.5;0" dur="1s" begin="0.4s" repeatCount="indefinite"/></path>' +
+            '</g>' +
+
+            '<!-- Frequency labels -->' +
+            '<g>' +
+            '<rect x="195" y="70" width="110" height="48" rx="6" fill="rgba(249,115,22,0.04)" stroke="rgba(249,115,22,0.15)" stroke-width="0.5"/>' +
+            '<text x="250" y="86" text-anchor="middle" fill="#f97316" font-size="7" font-weight="600">ISM BANDS</text>' +
+            '<text x="250" y="100" text-anchor="middle" fill="#eab308" font-size="6">US: 315 MHz</text>' +
+            '<text x="250" y="113" text-anchor="middle" fill="#22c55e" font-size="6">EU/Asia: 433.92 MHz</text>' +
+            '</g>' +
+
+            '<!-- RTL-SDR -->' +
+            '<g>' +
+            '<rect x="230" y="135" width="140" height="80" rx="8" fill="#1e2736" stroke="#eab308" stroke-width="2"/>' +
+            '<rect x="230" y="135" width="140" height="20" rx="8" fill="rgba(234,179,8,0.15)"/>' +
+            '<text x="300" y="150" text-anchor="middle" fill="#fbbf24" font-size="8" font-weight="700">RTL-SDR V4</text>' +
+            '<!-- Antenna -->' +
+            '<line x1="245" y1="135" x2="245" y2="115" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<line x1="237" y1="115" x2="253" y2="115" stroke="#22c55e" stroke-width="1"/>' +
+            '<text x="245" y="130" fill="#22c55e" font-size="4">17cm</text>' +
+            '<text x="300" y="170" text-anchor="middle" fill="#8b949e" font-size="6">rtl_433 decoder</text>' +
+            '<text x="300" y="185" text-anchor="middle" fill="#8b949e" font-size="6">Multi-protocol ISM</text>' +
+            '<text x="300" y="198" text-anchor="middle" fill="#555" font-size="5">OOK &bull; FSK &bull; ASK detection</text>' +
+            '</g>' +
+
+            '<!-- Arrow to analysis -->' +
+            '<line x1="370" y1="175" x2="410" y2="175" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<polygon points="410,170 410,180 418,175" fill="#22c55e"/>' +
+
+            '<!-- Analysis Output -->' +
+            '<g>' +
+            '<rect x="420" y="70" width="270" height="145" rx="8" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<rect x="420" y="70" width="270" height="22" rx="8" fill="rgba(34,197,94,0.12)"/>' +
+            '<text x="555" y="86" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="600">SIGNAL ANALYSIS</text>' +
+            '<!-- Decoded data -->' +
+            '<text x="432" y="108" fill="#8b949e" font-size="5.5">model: Generic Remote</text>' +
+            '<text x="432" y="122" fill="#8b949e" font-size="5.5">modulation: OOK (On-Off Keying)</text>' +
+            '<text x="432" y="136" fill="#8b949e" font-size="5.5">pulse_width: 400us / gap: 800us</text>' +
+            '<text x="432" y="150" fill="#8b949e" font-size="5.5">bits: 24</text>' +
+            '<!-- Fixed vs Rolling comparison -->' +
+            '<rect x="432" y="158" width="120" height="18" rx="3" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.3)" stroke-width="0.5"/>' +
+            '<text x="492" y="170" text-anchor="middle" fill="#ef4444" font-size="5.5">Press 1: 0xA1B2C3</text>' +
+            '<rect x="560" y="158" width="120" height="18" rx="3" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.3)" stroke-width="0.5"/>' +
+            '<text x="620" y="170" text-anchor="middle" fill="#ef4444" font-size="5.5">Press 2: 0xA1B2C3</text>' +
+            '<text x="555" y="190" text-anchor="middle" fill="#ef4444" font-size="5.5">Same code = FIXED (vulnerable to replay)</text>' +
+            '<rect x="432" y="195" width="248" height="14" rx="3" fill="rgba(34,197,94,0.08)"/>' +
+            '<text x="555" y="205" text-anchor="middle" fill="#22c55e" font-size="5.5">Different code each press = ROLLING (secure)</text>' +
+            '</g>' +
+
+            '<!-- Security Analysis -->' +
+            '<g>' +
+            '<rect x="30" y="230" width="310" height="145" rx="8" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.2)" stroke-width="1"/>' +
+            '<text x="40" y="248" fill="#ef4444" font-size="7" font-weight="600">AUTOMOTIVE SECURITY ANALYSIS</text>' +
+            '<!-- Fixed code -->' +
+            '<rect x="42" y="258" width="135" height="60" rx="4" fill="rgba(239,68,68,0.06)"/>' +
+            '<text x="110" y="273" text-anchor="middle" fill="#ef4444" font-size="6" font-weight="600">FIXED CODE</text>' +
+            '<text x="110" y="287" text-anchor="middle" fill="#8b949e" font-size="5">Same data every press</text>' +
+            '<text x="110" y="300" text-anchor="middle" fill="#8b949e" font-size="5">Replay attack: trivial</text>' +
+            '<text x="110" y="313" text-anchor="middle" fill="#555" font-size="4">Old garages, cheap remotes</text>' +
+            '<!-- Rolling code -->' +
+            '<rect x="185" y="258" width="148" height="60" rx="4" fill="rgba(34,197,94,0.06)"/>' +
+            '<text x="259" y="273" text-anchor="middle" fill="#22c55e" font-size="6" font-weight="600">ROLLING CODE</text>' +
+            '<text x="259" y="287" text-anchor="middle" fill="#8b949e" font-size="5">KeeLoq / AUT64 cipher</text>' +
+            '<text x="259" y="300" text-anchor="middle" fill="#8b949e" font-size="5">Counter + shared secret</text>' +
+            '<text x="259" y="313" text-anchor="middle" fill="#555" font-size="4">Modern cars (2000+)</text>' +
+            '<text x="185" y="345" fill="#eab308" font-size="5.5">Known attacks: RollJam (jam+capture), relay</text>' +
+            '<text x="185" y="360" fill="#555" font-size="5">Defense: Faraday pouch for keys when idle</text>' +
+            '</g>' +
+
+            '<!-- Other ISM devices -->' +
+            '<rect x="370" y="240" width="320" height="135" rx="8" fill="rgba(234,179,8,0.04)" stroke="rgba(234,179,8,0.15)" stroke-width="0.5"/>' +
+            '<text x="380" y="258" fill="#eab308" font-size="7" font-weight="600">ALSO ON ISM BANDS (rtl_433)</text>' +
+            '<text x="380" y="276" fill="#22c55e" font-size="5.5">&bull; TPMS tire pressure (315/433 MHz)</text>' +
+            '<text x="380" y="291" fill="#60a5fa" font-size="5.5">&bull; Weather stations (433 MHz)</text>' +
+            '<text x="380" y="306" fill="#f97316" font-size="5.5">&bull; Garage door openers (300-400 MHz)</text>' +
+            '<text x="380" y="321" fill="#a78bfa" font-size="5.5">&bull; Wireless doorbells (433 MHz)</text>' +
+            '<text x="380" y="336" fill="#38bdf8" font-size="5.5">&bull; Wireless thermometers, soil sensors</text>' +
+            '<text x="380" y="356" fill="#ef4444" font-size="6" font-weight="600">RECEIVE ONLY &#8212; do not transmit/replay</text>' +
+            '<text x="380" y="370" fill="#555" font-size="5">FCC Part 15 &bull; CFAA compliance &bull; Your own devices only</text>' +
+
+            '</svg>' +
+            '</div>',
         steps: [
             { title: 'Capture Key Fob Signal', content: '<p>Use rtl_433 to decode OOK/FSK signals on the ISM bands.</p>', code: '# Install rtl_433 (multi-protocol ISM band decoder)\nsudo apt install rtl-433 -y\n# Or build from source: https://github.com/merbanan/rtl_433\n\n# Start listening on 433 MHz (or 315 MHz for US)\nrtl_433 -f 433920000 -R 0\n# -f 433920000  = 433.92 MHz (common ISM frequency)\n# -R 0          = try all protocols\n\n# Press your key fob button — you should see output like:\n# time: 2026-03-24 05:30:00\n# model: Generic Remote\n# type: Button press\n# data: a1b2c3d4\n\n# Record raw IQ data for deeper analysis:\nrtl_sdr -f 433920000 -s 250000 -g 40 keyfob-capture.bin &\n# Press the key fob button\n# Press Ctrl+C to stop recording', language: 'Bash', tip: null },
             { title: 'Analyze Signal Structure', content: '<p>Examine the captured signal to understand the modulation and coding scheme.</p>', code: '# Decode and display signal details\nrtl_433 -f 433920000 -A\n# -A = analyze mode: shows pulse width, gap, modulation type\n\n# You will see:\n# Pulse width: 400us (OOK short pulse)\n# Gap: 800us (OOK long gap)\n# Modulation: OOK (On-Off Keying)\n# Bit count: 24 or 32 bits\n\n# Fixed code keys: same data every press (VULNERABLE)\n# Rolling code keys: different data every press (SECURE)\n# Press your fob multiple times and compare the data field:\n# If data changes each time -> rolling code (KeeLoq, AUT64)\n# If data is identical -> fixed code (vulnerable to replay)', language: 'Bash', tip: '<strong>Rolling codes:</strong> Modern cars use rolling code systems (KeeLoq by Microchip, AUT64 by VW). Each button press sends a different encrypted code derived from a synchronized counter. Replaying a captured code does not work because the car expects the NEXT code in the sequence, not a previous one.' },
@@ -1052,7 +1835,138 @@ window.SignalGuides = {
                '<p>Scanner listening is legal in most US states (some restrict use in vehicles). It provides real-time awareness of emergency activity in your area and teaches trunked radio system architecture &mdash; a technology used by every major public safety agency.</p>',
         wiring: '    RTL-SDR + wideband antenna -> VHF/UHF public safety bands',
         wiringNotes: '<p><strong>Frequencies:</strong> Public safety frequencies vary by region. Check RadioReference.com for your county/city. Common ranges: VHF low (30&ndash;50 MHz), VHF high (150&ndash;174 MHz), UHF (450&ndash;470 MHz), 700/800 MHz (trunked systems).</p>',
-        wiringSvg: '',
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg62-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg62-grid)" rx="4"/>' +
+            '<text x="360" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-62 EMERGENCY RADIO SCANNER</text>' +
+
+            '<!-- Public Safety Agencies -->' +
+            '<g>' +
+            '<!-- Police -->' +
+            '<rect x="30" y="50" width="100" height="65" rx="6" fill="#1e2736" stroke="#3b82f6" stroke-width="1.2"/>' +
+            '<rect x="30" y="50" width="100" height="16" rx="6" fill="rgba(59,130,246,0.12)"/>' +
+            '<text x="80" y="62" text-anchor="middle" fill="#60a5fa" font-size="6" font-weight="600">POLICE</text>' +
+            '<text x="80" y="78" text-anchor="middle" fill="#8b949e" font-size="5">Dispatch</text>' +
+            '<text x="80" y="90" text-anchor="middle" fill="#8b949e" font-size="5">Tactical</text>' +
+            '<text x="80" y="102" text-anchor="middle" fill="#555" font-size="4">VHF/UHF/800</text>' +
+            '<!-- Fire -->' +
+            '<rect x="140" y="50" width="100" height="65" rx="6" fill="#1e2736" stroke="#ef4444" stroke-width="1.2"/>' +
+            '<rect x="140" y="50" width="100" height="16" rx="6" fill="rgba(239,68,68,0.12)"/>' +
+            '<text x="190" y="62" text-anchor="middle" fill="#fca5a5" font-size="6" font-weight="600">FIRE</text>' +
+            '<text x="190" y="78" text-anchor="middle" fill="#8b949e" font-size="5">Dispatch</text>' +
+            '<text x="190" y="90" text-anchor="middle" fill="#8b949e" font-size="5">Fireground</text>' +
+            '<text x="190" y="102" text-anchor="middle" fill="#555" font-size="4">VHF/UHF/800</text>' +
+            '<!-- EMS -->' +
+            '<rect x="250" y="50" width="100" height="65" rx="6" fill="#1e2736" stroke="#22c55e" stroke-width="1.2"/>' +
+            '<rect x="250" y="50" width="100" height="16" rx="6" fill="rgba(34,197,94,0.12)"/>' +
+            '<text x="300" y="62" text-anchor="middle" fill="#4ade80" font-size="6" font-weight="600">EMS</text>' +
+            '<text x="300" y="78" text-anchor="middle" fill="#8b949e" font-size="5">Medical dispatch</text>' +
+            '<text x="300" y="90" text-anchor="middle" fill="#8b949e" font-size="5">Hospital notify</text>' +
+            '<text x="300" y="102" text-anchor="middle" fill="#555" font-size="4">VHF/UHF/800</text>' +
+            '</g>' +
+
+            '<!-- Trunked Radio Tower -->' +
+            '<g>' +
+            '<rect x="390" y="45" width="140" height="80" rx="8" fill="#1e2736" stroke="#f97316" stroke-width="1.5"/>' +
+            '<rect x="390" y="45" width="140" height="20" rx="8" fill="rgba(249,115,22,0.12)"/>' +
+            '<text x="460" y="60" text-anchor="middle" fill="#fb923c" font-size="7" font-weight="600">P25 TRUNKED</text>' +
+            '<!-- Tower -->' +
+            '<line x1="460" y1="72" x2="460" y2="95" stroke="#f97316" stroke-width="2"/>' +
+            '<line x1="445" y1="95" x2="475" y2="95" stroke="#f97316" stroke-width="1.5"/>' +
+            '<line x1="450" y1="88" x2="470" y2="88" stroke="#f97316" stroke-width="1"/>' +
+            '<circle cx="460" cy="70" r="4" fill="rgba(249,115,22,0.3)" stroke="#f97316" stroke-width="1"><animate attributeName="fill-opacity" values="0.2;0.5;0.2" dur="2s" repeatCount="indefinite"/></circle>' +
+            '<text x="460" y="110" text-anchor="middle" fill="#8b949e" font-size="5">Control channel + voice pool</text>' +
+            '<text x="460" y="122" text-anchor="middle" fill="#555" font-size="5">IMBE/AMBE voice codecs</text>' +
+            '</g>' +
+
+            '<!-- Connections from agencies to tower -->' +
+            '<line x1="130" y1="82" x2="390" y2="82" stroke="#555" stroke-width="1" stroke-dasharray="4,3"/>' +
+            '<line x1="240" y1="82" x2="390" y2="82" stroke="#555" stroke-width="1" stroke-dasharray="4,3"/>' +
+            '<line x1="350" y1="82" x2="390" y2="82" stroke="#555" stroke-width="1" stroke-dasharray="4,3"/>' +
+
+            '<!-- RF waves from tower to SDR -->' +
+            '<g>' +
+            '<path d="M 532,75 Q 555,65 575,75" fill="none" stroke="rgba(249,115,22,0.5)" stroke-width="1"><animate attributeName="stroke-opacity" values="0.2;0.8;0.2" dur="1.5s" repeatCount="indefinite"/></path>' +
+            '<path d="M 535,68 Q 560,55 580,68" fill="none" stroke="rgba(249,115,22,0.3)" stroke-width="0.8"><animate attributeName="stroke-opacity" values="0.1;0.6;0.1" dur="1.5s" begin="0.4s" repeatCount="indefinite"/></path>' +
+            '</g>' +
+
+            '<!-- RTL-SDR Dongle -->' +
+            '<g>' +
+            '<rect x="570" y="50" width="120" height="80" rx="8" fill="#1e2736" stroke="#eab308" stroke-width="2"/>' +
+            '<rect x="570" y="50" width="120" height="20" rx="8" fill="rgba(234,179,8,0.15)"/>' +
+            '<text x="630" y="65" text-anchor="middle" fill="#fbbf24" font-size="8" font-weight="700">RTL-SDR V4</text>' +
+            '<!-- Wideband antenna -->' +
+            '<line x1="585" y1="50" x2="585" y2="35" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<line x1="577" y1="35" x2="593" y2="35" stroke="#22c55e" stroke-width="1"/>' +
+            '<text x="585" y="32" text-anchor="middle" fill="#22c55e" font-size="4">wideband</text>' +
+            '<text x="630" y="85" text-anchor="middle" fill="#8b949e" font-size="6">VHF + UHF + 800 MHz</text>' +
+            '<text x="630" y="98" text-anchor="middle" fill="#8b949e" font-size="6">TCXO for P25 decode</text>' +
+            '<text x="630" y="115" text-anchor="middle" fill="#555" font-size="5">Frequency accuracy critical</text>' +
+            '</g>' +
+
+            '<!-- USB to Computer -->' +
+            '<line x1="630" y1="132" x2="630" y2="155" stroke="#555" stroke-width="1.5" stroke-dasharray="6,3"/>' +
+
+            '<!-- SDRTrunk -->' +
+            '<g>' +
+            '<rect x="540" y="155" width="150" height="95" rx="8" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+            '<rect x="540" y="155" width="150" height="20" rx="8" fill="rgba(168,85,247,0.12)"/>' +
+            '<text x="615" y="170" text-anchor="middle" fill="#c084fc" font-size="8" font-weight="600">SDRTrunk</text>' +
+            '<text x="615" y="190" text-anchor="middle" fill="#8b949e" font-size="6">P25 Phase 1 &amp; 2 decoder</text>' +
+            '<text x="615" y="205" text-anchor="middle" fill="#8b949e" font-size="6">Trunking control channel</text>' +
+            '<text x="615" y="220" text-anchor="middle" fill="#8b949e" font-size="6">Auto-follow conversations</text>' +
+            '<text x="615" y="235" text-anchor="middle" fill="#555" font-size="5">Java-based &bull; GUI &bull; aliases</text>' +
+            '</g>' +
+
+            '<!-- Talkgroup Output -->' +
+            '<line x1="615" y1="252" x2="615" y2="275" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<polygon points="610,275 620,275 615,283" fill="#22c55e"/>' +
+            '<g>' +
+            '<rect x="510" y="285" width="190" height="85" rx="8" fill="rgba(34,197,94,0.05)" stroke="rgba(34,197,94,0.25)" stroke-width="1"/>' +
+            '<text x="605" y="303" text-anchor="middle" fill="#4ade80" font-size="7" font-weight="600">TALKGROUPS</text>' +
+            '<rect x="522" y="310" width="80" height="14" rx="2" fill="rgba(59,130,246,0.1)"/>' +
+            '<text x="562" y="320" text-anchor="middle" fill="#60a5fa" font-size="5">PD Dispatch</text>' +
+            '<rect x="610" y="310" width="80" height="14" rx="2" fill="rgba(239,68,68,0.1)"/>' +
+            '<text x="650" y="320" text-anchor="middle" fill="#fca5a5" font-size="5">Fire Dispatch</text>' +
+            '<rect x="522" y="330" width="80" height="14" rx="2" fill="rgba(34,197,94,0.1)"/>' +
+            '<text x="562" y="340" text-anchor="middle" fill="#4ade80" font-size="5">EMS</text>' +
+            '<rect x="610" y="330" width="80" height="14" rx="2" fill="rgba(234,179,8,0.1)"/>' +
+            '<text x="650" y="340" text-anchor="middle" fill="#eab308" font-size="5">Tactical</text>' +
+            '<rect x="522" y="350" width="168" height="14" rx="2" fill="rgba(239,68,68,0.06)"/>' +
+            '<text x="606" y="360" text-anchor="middle" fill="#ef4444" font-size="5">AES-256 encrypted TGs = garbled audio</text>' +
+            '</g>' +
+
+            '<!-- Frequency Bands Reference -->' +
+            '<g>' +
+            '<rect x="30" y="140" width="240" height="100" rx="8" fill="rgba(234,179,8,0.04)" stroke="rgba(234,179,8,0.15)" stroke-width="0.5"/>' +
+            '<text x="40" y="158" fill="#eab308" font-size="7" font-weight="600">PUBLIC SAFETY BANDS</text>' +
+            '<text x="40" y="175" fill="#60a5fa" font-size="5.5">VHF Low: 30-50 MHz</text>' +
+            '<text x="40" y="189" fill="#3b82f6" font-size="5.5">VHF High: 150-174 MHz (most common)</text>' +
+            '<text x="40" y="203" fill="#22c55e" font-size="5.5">UHF: 450-470 MHz</text>' +
+            '<text x="40" y="217" fill="#f97316" font-size="5.5">700/800 MHz: P25 trunked systems</text>' +
+            '<text x="40" y="231" fill="#555" font-size="5">Check RadioReference.com for your area</text>' +
+            '</g>' +
+
+            '<!-- Analog vs Digital -->' +
+            '<g>' +
+            '<rect x="30" y="255" width="240" height="65" rx="8" fill="rgba(167,139,250,0.04)" stroke="rgba(167,139,250,0.15)" stroke-width="0.5"/>' +
+            '<text x="40" y="273" fill="#a78bfa" font-size="7" font-weight="600">SYSTEM TYPES</text>' +
+            '<text x="40" y="290" fill="#22c55e" font-size="5.5">Analog FM: rtl_fm direct (simple)</text>' +
+            '<text x="40" y="304" fill="#f97316" font-size="5.5">P25 Digital: SDRTrunk / OP25 (decoder)</text>' +
+            '<text x="40" y="318" fill="#ef4444" font-size="5.5">Encrypted: visible but no audio decode</text>' +
+            '</g>' +
+
+            '<!-- Legal / Broadcastify -->' +
+            '<rect x="30" y="335" width="460" height="45" rx="6" fill="rgba(59,130,246,0.04)" stroke="rgba(59,130,246,0.15)" stroke-width="0.5"/>' +
+            '<text x="40" y="353" fill="#60a5fa" font-size="7" font-weight="600">LEGAL: Receiving legal in most US states</text>' +
+            '<text x="40" y="368" fill="#555" font-size="5">Some states restrict mobile use &bull; Do not interfere with ops &bull; Broadcastify.com for public feed sharing</text>' +
+
+            '</svg>' +
+            '</div>',
         steps: [
             { title: 'Find Local Frequencies', content: '<p>RadioReference.com is the definitive database of public safety radio systems in the US and Canada.</p>', code: '# Go to https://www.radioreference.com/\n# Search your county or city\n# Note:\n#   - Frequency (MHz)\n#   - Mode (FM, P25, DMR)\n#   - PL/DPL tone (if analog)\n#   - Talkgroup IDs (if trunked)\n\n# Example — scan common public safety frequencies:\n# Fire dispatch: varies (check RadioReference)\n# EMS: varies\n# Police: varies\n\n# Quick listen to a known frequency:\nrtl_fm -f 155.475M -M fm -s 12000 -g 40 -l 10 | \\\n  play -r 12000 -t raw -e s -b 16 -c 1 -V1 -', language: 'Bash', tip: '<strong>RadioReference.com</strong> has the frequencies for virtually every public safety agency in North America. Create a free account, search your location, and note the frequencies, modes, and talkgroup IDs. This is your frequency programming guide.' },
             { title: 'Install SDRTrunk for Trunked Systems', content: '<p>Most modern public safety radio systems are trunked &mdash; multiple agencies share a pool of frequencies managed by a control channel. SDRTrunk is an open-source Java application that follows trunked conversations.</p>', code: '# Install Java runtime\nsudo apt install default-jre -y\n\n# Download SDRTrunk\n# https://github.com/DSheirer/sdrtrunk/releases\nwget https://github.com/DSheirer/sdrtrunk/releases/latest/download/sdr-trunk-linux-aarch64.zip\nunzip sdr-trunk-*.zip -d ~/sdrtrunk\n\n# Run SDRTrunk\ncd ~/sdrtrunk && ./bin/sdr-trunk\n\n# Configure:\n# 1. Add your RTL-SDR as a tuner\n# 2. Create a new system (P25 Phase 1 or Phase 2)\n# 3. Enter the control channel frequency from RadioReference\n# 4. Add talkgroup aliases (Fire Dispatch, EMS, etc.)\n# 5. Click Play — SDRTrunk follows conversations automatically', language: 'Bash', tip: '<strong>P25 decoding:</strong> SDRTrunk decodes P25 Phase 1 (IMBE voice codec) and Phase 2 (AMBE voice codec) in real time. Some systems are encrypted (AES-256) &mdash; encrypted talkgroups will show as active but audio will be garbled. Unencrypted talkgroups play clear audio.' },

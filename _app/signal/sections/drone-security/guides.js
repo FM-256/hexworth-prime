@@ -39,7 +39,126 @@ window.SignalGuides = {
                      '<p><strong>ELRS (ExpressLRS):</strong> Open-source radio link operating on 2.4 GHz or 915 MHz. The binding phrase is a shared secret &mdash; knowing it allows any ELRS transmitter to bind to the receiver. Default binding phrases are a common misconfiguration.</p>' +
                      '<p><strong>Safety:</strong> Remove propellers during all bench testing. A 5-inch prop at full throttle can sever fingers. Never power motors with props attached until you are in an open field ready to fly.</p>',
 
-        wiringSvg: '',
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg83-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '<style>' +
+            '@keyframes sg83-pulse{0%,100%{opacity:0.3}50%{opacity:1}}' +
+            '@keyframes sg83-spin{0%{transform-origin:center;transform:rotate(0deg)}100%{transform-origin:center;transform:rotate(360deg)}}' +
+            '.sg83-motor-pulse{animation:sg83-pulse 1.5s ease-in-out infinite}' +
+            '.sg83-dshot{animation:sg83-pulse 0.8s ease-in-out infinite}' +
+            '</style>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg83-grid)" rx="4"/>' +
+            '<text x="360" y="30" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-83 FPV DRONE BUILD</text>' +
+
+            '<!-- Flight Controller -->' +
+            '<g>' +
+            '<rect x="260" y="140" width="200" height="100" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="260" y="140" width="200" height="22" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<rect x="260" y="155" width="200" height="7" fill="rgba(59,130,246,0.12)"/>' +
+            '<text x="360" y="156" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">FLIGHT CONTROLLER</text>' +
+            '<text x="360" y="175" text-anchor="middle" fill="#8b949e" font-size="7">STM32 F405 / Betaflight 4.x</text>' +
+            '<!-- Pin labels -->' +
+            '<text x="270" y="200" fill="#8b949e" font-size="6">M1</text>' +
+            '<text x="290" y="200" fill="#8b949e" font-size="6">M2</text>' +
+            '<text x="310" y="200" fill="#8b949e" font-size="6">M3</text>' +
+            '<text x="330" y="200" fill="#8b949e" font-size="6">M4</text>' +
+            '<text x="365" y="200" fill="#8b949e" font-size="6">RX</text>' +
+            '<text x="395" y="200" fill="#8b949e" font-size="6">VTX</text>' +
+            '<text x="425" y="200" fill="#8b949e" font-size="6">GPS</text>' +
+            '<!-- USB port -->' +
+            '<rect x="455" y="178" width="24" height="16" rx="3" fill="#1a1f2b" stroke="#3b82f6" stroke-width="1"/>' +
+            '<text x="467" y="189" text-anchor="middle" fill="#3b82f6" font-size="5">USB</text>' +
+            '</g>' +
+
+            '<!-- 4-in-1 ESC -->' +
+            '<g>' +
+            '<rect x="260" y="260" width="200" height="50" rx="6" fill="#1e2736" stroke="#f97316" stroke-width="1.5"/>' +
+            '<rect x="260" y="260" width="200" height="18" rx="6" fill="rgba(249,115,22,0.1)"/>' +
+            '<rect x="260" y="273" width="200" height="5" fill="rgba(249,115,22,0.1)"/>' +
+            '<text x="360" y="274" text-anchor="middle" fill="#fb923c" font-size="9" font-weight="600">4-IN-1 ESC (BLHeli_32)</text>' +
+            '<text x="360" y="296" text-anchor="middle" fill="#8b949e" font-size="7">DShot600 Bidirectional</text>' +
+            '</g>' +
+
+            '<!-- FC to ESC wires (DShot) -->' +
+            '<line x1="275" y1="210" x2="275" y2="260" stroke="#f97316" stroke-width="1.5" class="sg83-dshot"/>' +
+            '<line x1="295" y1="210" x2="295" y2="260" stroke="#f97316" stroke-width="1.5" class="sg83-dshot" style="animation-delay:0.2s"/>' +
+            '<line x1="315" y1="210" x2="315" y2="260" stroke="#f97316" stroke-width="1.5" class="sg83-dshot" style="animation-delay:0.4s"/>' +
+            '<line x1="335" y1="210" x2="335" y2="260" stroke="#f97316" stroke-width="1.5" class="sg83-dshot" style="animation-delay:0.6s"/>' +
+            '<text x="305" y="242" text-anchor="middle" fill="#f97316" font-size="6">DShot600</text>' +
+
+            '<!-- Motor 1 (rear right CW) -->' +
+            '<circle cx="130" cy="340" r="22" fill="none" stroke="#ef4444" stroke-width="1" class="sg83-motor-pulse"/>' +
+            '<circle cx="130" cy="340" r="10" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="0.5"/>' +
+            '<text x="130" y="343" text-anchor="middle" fill="#ef4444" font-size="7">M1</text>' +
+            '<text x="130" y="370" text-anchor="middle" fill="#8b949e" font-size="6">CW</text>' +
+            '<line x1="260" y1="290" x2="152" y2="340" stroke="#ef4444" stroke-width="1" stroke-dasharray="4,2"/>' +
+
+            '<!-- Motor 2 (front right CCW) -->' +
+            '<circle cx="130" cy="80" r="22" fill="none" stroke="#22c55e" stroke-width="1" class="sg83-motor-pulse" style="animation-delay:0.3s"/>' +
+            '<circle cx="130" cy="80" r="10" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="0.5"/>' +
+            '<text x="130" y="83" text-anchor="middle" fill="#22c55e" font-size="7">M2</text>' +
+            '<text x="130" y="60" text-anchor="middle" fill="#8b949e" font-size="6">CCW</text>' +
+            '<line x1="260" y1="270" x2="152" y2="80" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,2"/>' +
+
+            '<!-- Motor 3 (rear left CCW) -->' +
+            '<circle cx="590" cy="340" r="22" fill="none" stroke="#3b82f6" stroke-width="1" class="sg83-motor-pulse" style="animation-delay:0.6s"/>' +
+            '<circle cx="590" cy="340" r="10" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="0.5"/>' +
+            '<text x="590" y="343" text-anchor="middle" fill="#3b82f6" font-size="7">M3</text>' +
+            '<text x="590" y="370" text-anchor="middle" fill="#8b949e" font-size="6">CCW</text>' +
+            '<line x1="460" y1="290" x2="568" y2="340" stroke="#3b82f6" stroke-width="1" stroke-dasharray="4,2"/>' +
+
+            '<!-- Motor 4 (front left CW) -->' +
+            '<circle cx="590" cy="80" r="22" fill="none" stroke="#eab308" stroke-width="1" class="sg83-motor-pulse" style="animation-delay:0.9s"/>' +
+            '<circle cx="590" cy="80" r="10" fill="rgba(234,179,8,0.15)" stroke="#eab308" stroke-width="0.5"/>' +
+            '<text x="590" y="83" text-anchor="middle" fill="#eab308" font-size="7">M4</text>' +
+            '<text x="590" y="60" text-anchor="middle" fill="#8b949e" font-size="6">CW</text>' +
+            '<line x1="460" y1="270" x2="568" y2="80" stroke="#eab308" stroke-width="1" stroke-dasharray="4,2"/>' +
+
+            '<!-- ELRS Receiver -->' +
+            '<rect x="50" y="170" width="100" height="60" rx="6" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+            '<rect x="50" y="170" width="100" height="16" rx="6" fill="rgba(168,85,247,0.1)"/>' +
+            '<text x="100" y="182" text-anchor="middle" fill="#c084fc" font-size="8" font-weight="600">ELRS RX</text>' +
+            '<text x="100" y="200" text-anchor="middle" fill="#8b949e" font-size="6">2.4 GHz CRSF</text>' +
+            '<text x="100" y="215" text-anchor="middle" fill="#8b949e" font-size="6">Binding Phrase</text>' +
+            '<line x1="150" y1="190" x2="260" y2="190" stroke="#a855f7" stroke-width="1.5"/>' +
+            '<text x="205" y="186" text-anchor="middle" fill="#a855f7" font-size="6">UART/CRSF</text>' +
+
+            '<!-- VTX -->' +
+            '<rect x="50" y="250" width="100" height="55" rx="6" fill="#1e2736" stroke="#f97316" stroke-width="1.5"/>' +
+            '<rect x="50" y="250" width="100" height="16" rx="6" fill="rgba(249,115,22,0.1)"/>' +
+            '<text x="100" y="262" text-anchor="middle" fill="#fb923c" font-size="8" font-weight="600">VTX 5.8G</text>' +
+            '<text x="100" y="280" text-anchor="middle" fill="#8b949e" font-size="6">25-600mW</text>' +
+            '<text x="100" y="295" text-anchor="middle" fill="#8b949e" font-size="6">SmartAudio</text>' +
+            '<line x1="150" y1="277" x2="260" y2="200" stroke="#f97316" stroke-width="1.5" stroke-dasharray="3,2"/>' +
+
+            '<!-- GPS -->' +
+            '<rect x="570" y="170" width="100" height="60" rx="6" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<rect x="570" y="170" width="100" height="16" rx="6" fill="rgba(34,197,94,0.1)"/>' +
+            '<text x="620" y="182" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="600">GPS M10</text>' +
+            '<text x="620" y="200" text-anchor="middle" fill="#8b949e" font-size="6">u-blox GNSS</text>' +
+            '<text x="620" y="215" text-anchor="middle" fill="#8b949e" font-size="6">1.575 GHz L1</text>' +
+            '<line x1="570" y1="190" x2="460" y2="190" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<text x="515" y="186" text-anchor="middle" fill="#22c55e" font-size="6">UART</text>' +
+
+            '<!-- USB to Computer -->' +
+            '<rect x="560" y="260" width="110" height="40" rx="6" fill="#1e2736" stroke="#3b82f6" stroke-width="1"/>' +
+            '<text x="615" y="278" text-anchor="middle" fill="#60a5fa" font-size="8">COMPUTER</text>' +
+            '<text x="615" y="292" text-anchor="middle" fill="#8b949e" font-size="6">Betaflight CLI</text>' +
+            '<line x1="479" y1="186" x2="560" y2="275" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="5,3"/>' +
+
+            '<!-- Legend -->' +
+            '<rect x="40" y="46" width="180" height="14" rx="3" fill="rgba(239,68,68,0.06)" stroke="none"/>' +
+            '<text x="50" y="55" fill="#ef4444" font-size="6">M1 CW</text>' +
+            '<text x="85" y="55" fill="#22c55e" font-size="6">M2 CCW</text>' +
+            '<text x="125" y="55" fill="#3b82f6" font-size="6">M3 CCW</text>' +
+            '<text x="168" y="55" fill="#eab308" font-size="6">M4 CW</text>' +
+
+            '</svg>' +
+            '</div>',
 
         steps: [
             {
@@ -149,7 +268,106 @@ window.SignalGuides = {
         wiringNotes: '<p><strong>RTL-SDR limitation:</strong> The RTL-SDR maxes out at ~1.766 GHz. It cannot directly receive 2.4 GHz or 5.8 GHz drone signals. For 2.4 GHz analysis, use a HackRF One ($300) or a WiFi adapter in monitor mode. For spectrum scanning below 1.7 GHz, the RTL-SDR works perfectly for 915 MHz telemetry and GPS bands.</p>' +
                      '<p><strong>Legal:</strong> Passive reception and analysis of RF signals is legal in most jurisdictions. You are observing publicly radiated energy. Do not attempt to jam, interfere with, or replay captured signals.</p>',
 
-        wiringSvg: '',
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg84-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '<style>' +
+            '@keyframes sg84-wave{0%{opacity:0.1;r:8}50%{opacity:0.6;r:30}100%{opacity:0;r:50}}' +
+            '@keyframes sg84-scan{0%{stroke-dashoffset:20}100%{stroke-dashoffset:0}}' +
+            '.sg84-rf-wave{animation:sg84-wave 2s ease-out infinite}' +
+            '.sg84-data-flow{animation:sg84-scan 1s linear infinite}' +
+            '</style>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg84-grid)" rx="4"/>' +
+            '<text x="360" y="30" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-84 RF ANALYSIS &#8212; DRONE PROTOCOLS</text>' +
+
+            '<!-- Target Drone -->' +
+            '<g>' +
+            '<rect x="40" y="70" width="160" height="160" rx="8" fill="#1e2736" stroke="#ef4444" stroke-width="1.5"/>' +
+            '<rect x="40" y="70" width="160" height="22" rx="8" fill="rgba(239,68,68,0.12)"/>' +
+            '<rect x="40" y="85" width="160" height="7" fill="rgba(239,68,68,0.12)"/>' +
+            '<text x="120" y="86" text-anchor="middle" fill="#f87171" font-size="9" font-weight="600">TARGET DRONE</text>' +
+            '<text x="120" y="110" text-anchor="middle" fill="#f97316" font-size="7">2.4 GHz Control</text>' +
+            '<text x="120" y="125" text-anchor="middle" fill="#eab308" font-size="7">5.8 GHz Video</text>' +
+            '<text x="120" y="140" text-anchor="middle" fill="#a855f7" font-size="7">915 MHz Telemetry</text>' +
+            '<text x="120" y="155" text-anchor="middle" fill="#22c55e" font-size="7">1.575 GHz GPS RX</text>' +
+            '<!-- RF emission rings -->' +
+            '<circle cx="200" cy="150" r="8" fill="none" stroke="#f97316" stroke-width="0.8" class="sg84-rf-wave"/>' +
+            '<circle cx="200" cy="150" r="8" fill="none" stroke="#f97316" stroke-width="0.8" class="sg84-rf-wave" style="animation-delay:0.7s"/>' +
+            '<circle cx="200" cy="150" r="8" fill="none" stroke="#f97316" stroke-width="0.8" class="sg84-rf-wave" style="animation-delay:1.4s"/>' +
+            '</g>' +
+
+            '<!-- RTL-SDR -->' +
+            '<g>' +
+            '<rect x="340" y="55" width="150" height="70" rx="6" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<rect x="340" y="55" width="150" height="18" rx="6" fill="rgba(34,197,94,0.1)"/>' +
+            '<text x="415" y="68" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="600">RTL-SDR v3</text>' +
+            '<text x="415" y="88" text-anchor="middle" fill="#8b949e" font-size="7">24 &#8211; 1766 MHz</text>' +
+            '<text x="415" y="102" text-anchor="middle" fill="#a855f7" font-size="7">915 MHz telemetry</text>' +
+            '<!-- Antenna -->' +
+            '<line x1="340" y1="78" x2="310" y2="50" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<line x1="310" y1="50" x2="300" y2="42" stroke="#22c55e" stroke-width="2"/>' +
+            '<line x1="310" y1="50" x2="320" y2="42" stroke="#22c55e" stroke-width="2"/>' +
+            '</g>' +
+
+            '<!-- HackRF One -->' +
+            '<g>' +
+            '<rect x="340" y="145" width="150" height="70" rx="6" fill="#1e2736" stroke="#f97316" stroke-width="1.5"/>' +
+            '<rect x="340" y="145" width="150" height="18" rx="6" fill="rgba(249,115,22,0.1)"/>' +
+            '<text x="415" y="158" text-anchor="middle" fill="#fb923c" font-size="8" font-weight="600">HACKRF ONE</text>' +
+            '<text x="415" y="178" text-anchor="middle" fill="#8b949e" font-size="7">1 &#8211; 6000 MHz</text>' +
+            '<text x="415" y="192" text-anchor="middle" fill="#f97316" font-size="7">2.4 GHz + 5.8 GHz</text>' +
+            '</g>' +
+
+            '<!-- WiFi Adapter -->' +
+            '<g>' +
+            '<rect x="340" y="235" width="150" height="70" rx="6" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+            '<rect x="340" y="235" width="150" height="18" rx="6" fill="rgba(168,85,247,0.1)"/>' +
+            '<text x="415" y="248" text-anchor="middle" fill="#c084fc" font-size="8" font-weight="600">WIFI ADAPTER</text>' +
+            '<text x="415" y="268" text-anchor="middle" fill="#8b949e" font-size="7">Monitor Mode</text>' +
+            '<text x="415" y="282" text-anchor="middle" fill="#a855f7" font-size="7">802.11 Frame Capture</text>' +
+            '</g>' +
+
+            '<!-- RF signal paths -->' +
+            '<line x1="230" y1="120" x2="340" y2="90" stroke="#22c55e" stroke-width="1" stroke-dasharray="5,3" class="sg84-data-flow"/>' +
+            '<line x1="230" y1="145" x2="340" y2="180" stroke="#f97316" stroke-width="1" stroke-dasharray="5,3" class="sg84-data-flow" style="animation-delay:0.3s"/>' +
+            '<line x1="230" y1="160" x2="340" y2="270" stroke="#a855f7" stroke-width="1" stroke-dasharray="5,3" class="sg84-data-flow" style="animation-delay:0.6s"/>' +
+
+            '<!-- GNU Radio / Analysis PC -->' +
+            '<g>' +
+            '<rect x="560" y="100" width="130" height="160" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="560" y="100" width="130" height="22" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<rect x="560" y="115" width="130" height="7" fill="rgba(59,130,246,0.12)"/>' +
+            '<text x="625" y="116" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">GNU RADIO</text>' +
+            '<text x="625" y="140" text-anchor="middle" fill="#8b949e" font-size="7">Spectrum Analysis</text>' +
+            '<text x="625" y="155" text-anchor="middle" fill="#8b949e" font-size="7">Protocol Decode</text>' +
+            '<text x="625" y="170" text-anchor="middle" fill="#8b949e" font-size="7">FHSS Detection</text>' +
+            '<text x="625" y="185" text-anchor="middle" fill="#8b949e" font-size="7">Signature Match</text>' +
+            '<!-- Spectrum display -->' +
+            '<rect x="575" y="200" width="100" height="40" rx="3" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+            '<polyline points="580,230 590,225 600,228 610,215 620,220 630,210 640,218 650,222 660,230" fill="none" stroke="#3b82f6" stroke-width="1" opacity="0.7"/>' +
+            '<polyline points="580,230 590,228 600,230 610,222 618,226 620,205 622,226 630,228 640,230 650,229 660,230" fill="none" stroke="#22c55e" stroke-width="1" opacity="0.5"/>' +
+            '</g>' +
+
+            '<!-- USB connections to GNU Radio -->' +
+            '<line x1="490" y1="90" x2="560" y2="140" stroke="#22c55e" stroke-width="1.5" class="sg84-data-flow"/>' +
+            '<line x1="490" y1="180" x2="560" y2="170" stroke="#f97316" stroke-width="1.5" class="sg84-data-flow" style="animation-delay:0.2s"/>' +
+            '<line x1="490" y1="270" x2="560" y2="200" stroke="#a855f7" stroke-width="1.5" class="sg84-data-flow" style="animation-delay:0.4s"/>' +
+            '<text x="530" y="118" text-anchor="middle" fill="#8b949e" font-size="6">USB</text>' +
+            '<text x="530" y="170" text-anchor="middle" fill="#8b949e" font-size="6">USB</text>' +
+            '<text x="530" y="238" text-anchor="middle" fill="#8b949e" font-size="6">USB</text>' +
+
+            '<!-- Frequency band labels -->' +
+            '<rect x="40" y="320" width="280" height="55" rx="6" fill="rgba(249,115,22,0.06)" stroke="rgba(249,115,22,0.2)" stroke-width="0.5"/>' +
+            '<text x="50" y="336" fill="#fb923c" font-size="8" font-weight="600">DRONE FREQUENCY BANDS</text>' +
+            '<text x="50" y="350" fill="#a855f7" font-size="7">915 MHz &#8212; ELRS/Crossfire telemetry</text>' +
+            '<text x="50" y="362" fill="#f97316" font-size="7">2.4 GHz &#8212; Control link (ELRS/DJI/FrSky)</text>' +
+            '<text x="50" y="374" fill="#eab308" font-size="7">5.8 GHz &#8212; FPV video (analog/digital)</text>' +
+
+            '</svg>' +
+            '</div>',
 
         steps: [
             {
@@ -254,7 +472,113 @@ window.SignalGuides = {
         wiringNotes: '<p><strong>Multi-receiver approach:</strong> Spoofing a single receiver is easy. Spoofing three receivers at different physical locations simultaneously is much harder. If all receivers suddenly report the same position (within spoofing radius), that is normal. If one receiver jumps while others remain stable, that receiver is being targeted.</p>' +
                      '<p><strong>GPS-SDR-SIM:</strong> This tool generates fake GPS RF signals for testing. Use it ONLY in a shielded RF enclosure or via wired connection to a single receiver. <em>Broadcasting fake GPS over the air is a federal crime in the US</em> (18 USC 32) and violates regulations in most countries.</p>',
 
-        wiringSvg: '',
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg85-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '<style>' +
+            '@keyframes sg85-sat{0%,100%{opacity:0.3}50%{opacity:0.9}}' +
+            '@keyframes sg85-spoof{0%{stroke:#22c55e;opacity:0.6}50%{stroke:#ef4444;opacity:1}100%{stroke:#22c55e;opacity:0.6}}' +
+            '.sg85-sat-pulse{animation:sg85-sat 3s ease-in-out infinite}' +
+            '.sg85-spoof-line{animation:sg85-spoof 2s ease-in-out infinite}' +
+            '</style>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg85-grid)" rx="4"/>' +
+            '<text x="360" y="30" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-85 GPS SPOOFING DETECTION</text>' +
+
+            '<!-- GPS Satellites -->' +
+            '<g class="sg85-sat-pulse">' +
+            '<rect x="180" y="45" width="50" height="30" rx="4" fill="#1e2736" stroke="#22c55e" stroke-width="1"/>' +
+            '<text x="205" y="64" text-anchor="middle" fill="#22c55e" font-size="7">SAT 1</text>' +
+            '<line x1="195" y1="43" x2="185" y2="35" stroke="#22c55e" stroke-width="1"/><line x1="205" y1="43" x2="205" y2="33" stroke="#22c55e" stroke-width="1"/><line x1="215" y1="43" x2="225" y2="35" stroke="#22c55e" stroke-width="1"/>' +
+            '</g>' +
+            '<g class="sg85-sat-pulse" style="animation-delay:1s">' +
+            '<rect x="320" y="45" width="50" height="30" rx="4" fill="#1e2736" stroke="#22c55e" stroke-width="1"/>' +
+            '<text x="345" y="64" text-anchor="middle" fill="#22c55e" font-size="7">SAT 2</text>' +
+            '</g>' +
+            '<g class="sg85-sat-pulse" style="animation-delay:2s">' +
+            '<rect x="460" y="45" width="50" height="30" rx="4" fill="#1e2736" stroke="#22c55e" stroke-width="1"/>' +
+            '<text x="485" y="64" text-anchor="middle" fill="#22c55e" font-size="7">SAT 3</text>' +
+            '</g>' +
+            '<text x="345" y="42" text-anchor="middle" fill="#555" font-size="7">L1: 1575.42 MHz &#8212; ~-130 dBm</text>' +
+
+            '<!-- Real GPS signals -->' +
+            '<line x1="205" y1="75" x2="170" y2="150" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,3" opacity="0.5"/>' +
+            '<line x1="205" y1="75" x2="360" y2="150" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,3" opacity="0.5"/>' +
+            '<line x1="205" y1="75" x2="550" y2="150" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,3" opacity="0.4"/>' +
+            '<line x1="345" y1="75" x2="170" y2="150" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,3" opacity="0.4"/>' +
+            '<line x1="345" y1="75" x2="360" y2="150" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,3" opacity="0.5"/>' +
+            '<line x1="345" y1="75" x2="550" y2="150" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,3" opacity="0.5"/>' +
+            '<line x1="485" y1="75" x2="170" y2="150" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,3" opacity="0.4"/>' +
+            '<line x1="485" y1="75" x2="360" y2="150" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,3" opacity="0.4"/>' +
+            '<line x1="485" y1="75" x2="550" y2="150" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,3" opacity="0.5"/>' +
+
+            '<!-- GPS Receiver 1 -->' +
+            '<g>' +
+            '<rect x="110" y="150" width="120" height="70" rx="6" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="110" y="150" width="120" height="18" rx="6" fill="rgba(59,130,246,0.1)"/>' +
+            '<text x="170" y="163" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">GPS RX #1</text>' +
+            '<text x="170" y="183" text-anchor="middle" fill="#8b949e" font-size="7">u-blox M8</text>' +
+            '<text x="170" y="198" text-anchor="middle" fill="#8b949e" font-size="6">UART 9600</text>' +
+            '</g>' +
+
+            '<!-- GPS Receiver 2 -->' +
+            '<g>' +
+            '<rect x="300" y="150" width="120" height="70" rx="6" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="300" y="150" width="120" height="18" rx="6" fill="rgba(59,130,246,0.1)"/>' +
+            '<text x="360" y="163" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">GPS RX #2</text>' +
+            '<text x="360" y="183" text-anchor="middle" fill="#8b949e" font-size="7">u-blox M10</text>' +
+            '<text x="360" y="198" text-anchor="middle" fill="#8b949e" font-size="6">USB</text>' +
+            '</g>' +
+
+            '<!-- GPS Receiver 3 -->' +
+            '<g>' +
+            '<rect x="490" y="150" width="120" height="70" rx="6" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="490" y="150" width="120" height="18" rx="6" fill="rgba(59,130,246,0.1)"/>' +
+            '<text x="550" y="163" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">GPS RX #3</text>' +
+            '<text x="550" y="183" text-anchor="middle" fill="#8b949e" font-size="7">BN-880</text>' +
+            '<text x="550" y="198" text-anchor="middle" fill="#8b949e" font-size="6">UART 115200</text>' +
+            '</g>' +
+
+            '<!-- UART/USB lines to Raspberry Pi -->' +
+            '<line x1="170" y1="220" x2="170" y2="265" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<text x="155" y="245" fill="#8b949e" font-size="6">UART</text>' +
+            '<line x1="360" y1="220" x2="360" y2="265" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<text x="345" y="245" fill="#8b949e" font-size="6">USB</text>' +
+            '<line x1="550" y1="220" x2="550" y2="265" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<text x="535" y="245" fill="#8b949e" font-size="6">UART</text>' +
+
+            '<!-- Raspberry Pi / Analysis -->' +
+            '<g>' +
+            '<rect x="120" y="265" width="480" height="65" rx="8" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+            '<rect x="120" y="265" width="480" height="22" rx="8" fill="rgba(168,85,247,0.1)"/>' +
+            '<rect x="120" y="280" width="480" height="7" fill="rgba(168,85,247,0.1)"/>' +
+            '<text x="360" y="281" text-anchor="middle" fill="#c084fc" font-size="9" font-weight="600">RASPBERRY PI &#8212; ANOMALY DETECTION</text>' +
+            '<text x="200" y="305" text-anchor="middle" fill="#8b949e" font-size="7">NMEA Parser</text>' +
+            '<text x="310" y="305" text-anchor="middle" fill="#8b949e" font-size="7">Position Compare</text>' +
+            '<text x="430" y="305" text-anchor="middle" fill="#8b949e" font-size="7">Velocity Check</text>' +
+            '<text x="535" y="305" text-anchor="middle" fill="#8b949e" font-size="7">Timing Verify</text>' +
+            '</g>' +
+
+            '<!-- GPS Spoofer (attacker) -->' +
+            '<g>' +
+            '<rect x="560" y="55" width="120" height="70" rx="6" fill="#1e2736" stroke="#ef4444" stroke-width="1.5"/>' +
+            '<rect x="560" y="55" width="120" height="18" rx="6" fill="rgba(239,68,68,0.12)"/>' +
+            '<text x="620" y="68" text-anchor="middle" fill="#f87171" font-size="8" font-weight="600">GPS SPOOFER</text>' +
+            '<text x="620" y="88" text-anchor="middle" fill="#ef4444" font-size="7">~-120 dBm</text>' +
+            '<text x="620" y="103" text-anchor="middle" fill="#ef4444" font-size="7">GPS-SDR-SIM</text>' +
+            '</g>' +
+            '<!-- Spoof signals -->' +
+            '<line x1="560" y1="100" x2="550" y2="150" stroke="#ef4444" stroke-width="1.5" class="sg85-spoof-line"/>' +
+
+            '<!-- Alert callout -->' +
+            '<rect x="120" y="345" width="480" height="35" rx="6" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+            '<text x="130" y="361" fill="#ef4444" font-size="8" font-weight="600">DETECTION:</text>' +
+            '<text x="210" y="361" fill="#8b949e" font-size="7">Position jump &gt;10m/s &#8594; ALERT | Timing mismatch &#8594; ALERT | Single-RX deviation &#8594; ALERT</text>' +
+
+            '</svg>' +
+            '</div>',
 
         steps: [
             {
@@ -362,7 +686,121 @@ window.SignalGuides = {
         wiringNotes: '<p><strong>Multi-band monitoring:</strong> Drones operate across multiple frequency bands simultaneously. The control link may be on 2.4 GHz while video runs on 5.8 GHz and telemetry on 900 MHz. Monitoring all bands increases detection probability and enables protocol identification.</p>' +
                      '<p><strong>Direction finding:</strong> With two or more directional antennas, you can triangulate the drone position and &mdash; critically &mdash; the pilot position (by tracking the uplink signal from the controller).</p>',
 
-        wiringSvg: '',
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg86-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '<style>' +
+            '@keyframes sg86-sweep{0%{transform:rotate(-45deg);opacity:0.8}100%{transform:rotate(45deg);opacity:0.2}}' +
+            '@keyframes sg86-alert{0%,100%{fill:rgba(239,68,68,0.1);stroke:rgba(239,68,68,0.3)}50%{fill:rgba(239,68,68,0.3);stroke:#ef4444}}' +
+            '.sg86-alert-box{animation:sg86-alert 1.2s ease-in-out infinite}' +
+            '</style>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg86-grid)" rx="4"/>' +
+            '<text x="360" y="30" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-86 COUNTER-DRONE SYSTEMS</text>' +
+
+            '<!-- 900 MHz Antenna + SDR -->' +
+            '<g>' +
+            '<rect x="40" y="70" width="130" height="90" rx="6" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<rect x="40" y="70" width="130" height="18" rx="6" fill="rgba(34,197,94,0.1)"/>' +
+            '<text x="105" y="83" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="600">RTL-SDR</text>' +
+            '<text x="105" y="103" text-anchor="middle" fill="#8b949e" font-size="7">900 MHz Band</text>' +
+            '<text x="105" y="118" text-anchor="middle" fill="#22c55e" font-size="7">ELRS / Crossfire</text>' +
+            '<text x="105" y="133" text-anchor="middle" fill="#8b949e" font-size="6">915 MHz FHSS</text>' +
+            '<!-- Antenna -->' +
+            '<line x1="60" y1="70" x2="60" y2="48" stroke="#22c55e" stroke-width="2"/>' +
+            '<line x1="52" y1="52" x2="60" y2="48" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<line x1="68" y1="52" x2="60" y2="48" stroke="#22c55e" stroke-width="1.5"/>' +
+            '</g>' +
+
+            '<!-- 2.4 GHz Antenna + HackRF -->' +
+            '<g>' +
+            '<rect x="200" y="70" width="130" height="90" rx="6" fill="#1e2736" stroke="#f97316" stroke-width="1.5"/>' +
+            '<rect x="200" y="70" width="130" height="18" rx="6" fill="rgba(249,115,22,0.1)"/>' +
+            '<text x="265" y="83" text-anchor="middle" fill="#fb923c" font-size="8" font-weight="600">HACKRF ONE</text>' +
+            '<text x="265" y="103" text-anchor="middle" fill="#8b949e" font-size="7">2.4 GHz Band</text>' +
+            '<text x="265" y="118" text-anchor="middle" fill="#f97316" font-size="7">DJI / ELRS / FrSky</text>' +
+            '<text x="265" y="133" text-anchor="middle" fill="#8b949e" font-size="6">OcuSync + FHSS</text>' +
+            '<line x1="220" y1="70" x2="220" y2="48" stroke="#f97316" stroke-width="2"/>' +
+            '<line x1="212" y1="52" x2="220" y2="48" stroke="#f97316" stroke-width="1.5"/>' +
+            '<line x1="228" y1="52" x2="220" y2="48" stroke="#f97316" stroke-width="1.5"/>' +
+            '</g>' +
+
+            '<!-- 5.8 GHz WiFi Adapter -->' +
+            '<g>' +
+            '<rect x="360" y="70" width="130" height="90" rx="6" fill="#1e2736" stroke="#eab308" stroke-width="1.5"/>' +
+            '<rect x="360" y="70" width="130" height="18" rx="6" fill="rgba(234,179,8,0.1)"/>' +
+            '<text x="425" y="83" text-anchor="middle" fill="#eab308" font-size="8" font-weight="600">WIFI ADAPTER</text>' +
+            '<text x="425" y="103" text-anchor="middle" fill="#8b949e" font-size="7">5.8 GHz Band</text>' +
+            '<text x="425" y="118" text-anchor="middle" fill="#eab308" font-size="7">FPV Video</text>' +
+            '<text x="425" y="133" text-anchor="middle" fill="#8b949e" font-size="6">40 Channels</text>' +
+            '<line x1="380" y1="70" x2="380" y2="48" stroke="#eab308" stroke-width="2"/>' +
+            '<line x1="372" y1="52" x2="380" y2="48" stroke="#eab308" stroke-width="1.5"/>' +
+            '<line x1="388" y1="52" x2="380" y2="48" stroke="#eab308" stroke-width="1.5"/>' +
+            '</g>' +
+
+            '<!-- USB connections -->' +
+            '<line x1="105" y1="160" x2="105" y2="210" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<line x1="265" y1="160" x2="265" y2="210" stroke="#f97316" stroke-width="1.5"/>' +
+            '<line x1="425" y1="160" x2="425" y2="210" stroke="#eab308" stroke-width="1.5"/>' +
+            '<text x="105" y="190" text-anchor="middle" fill="#8b949e" font-size="6">USB</text>' +
+            '<text x="265" y="190" text-anchor="middle" fill="#8b949e" font-size="6">USB</text>' +
+            '<text x="425" y="190" text-anchor="middle" fill="#8b949e" font-size="6">USB</text>' +
+
+            '<!-- Detection Server -->' +
+            '<g>' +
+            '<rect x="40" y="210" width="460" height="80" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="40" y="210" width="460" height="22" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<rect x="40" y="225" width="460" height="7" fill="rgba(59,130,246,0.12)"/>' +
+            '<text x="270" y="226" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">DETECTION SERVER</text>' +
+            '<text x="110" y="250" text-anchor="middle" fill="#8b949e" font-size="7">Signature DB</text>' +
+            '<text x="210" y="250" text-anchor="middle" fill="#8b949e" font-size="7">Power Calc</text>' +
+            '<text x="310" y="250" text-anchor="middle" fill="#8b949e" font-size="7">Protocol ID</text>' +
+            '<text x="410" y="250" text-anchor="middle" fill="#8b949e" font-size="7">Alert Engine</text>' +
+            '<!-- Mini spectrum bars -->' +
+            '<rect x="60" y="262" width="6" height="12" rx="1" fill="rgba(34,197,94,0.4)"/>' +
+            '<rect x="70" y="258" width="6" height="16" rx="1" fill="rgba(34,197,94,0.5)"/>' +
+            '<rect x="80" y="265" width="6" height="9" rx="1" fill="rgba(34,197,94,0.3)"/>' +
+            '<rect x="170" y="260" width="6" height="14" rx="1" fill="rgba(249,115,22,0.4)"/>' +
+            '<rect x="180" y="255" width="6" height="19" rx="1" fill="rgba(249,115,22,0.6)"/>' +
+            '<rect x="190" y="262" width="6" height="12" rx="1" fill="rgba(249,115,22,0.3)"/>' +
+            '<rect x="280" y="258" width="6" height="16" rx="1" fill="rgba(234,179,8,0.4)"/>' +
+            '<rect x="290" y="264" width="6" height="10" rx="1" fill="rgba(234,179,8,0.3)"/>' +
+            '<rect x="300" y="260" width="6" height="14" rx="1" fill="rgba(234,179,8,0.5)"/>' +
+            '</g>' +
+
+            '<!-- Web Dashboard -->' +
+            '<g>' +
+            '<rect x="540" y="70" width="140" height="220" rx="8" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+            '<rect x="540" y="70" width="140" height="22" rx="8" fill="rgba(168,85,247,0.1)"/>' +
+            '<rect x="540" y="85" width="140" height="7" fill="rgba(168,85,247,0.1)"/>' +
+            '<text x="610" y="86" text-anchor="middle" fill="#c084fc" font-size="9" font-weight="600">WEB DASHBOARD</text>' +
+            '<!-- Status items -->' +
+            '<text x="560" y="115" fill="#22c55e" font-size="7">900 MHz: SCANNING</text>' +
+            '<text x="560" y="132" fill="#f97316" font-size="7">2.4 GHz: SCANNING</text>' +
+            '<text x="560" y="149" fill="#eab308" font-size="7">5.8 GHz: SCANNING</text>' +
+            '<!-- Alert box -->' +
+            '<rect x="555" y="165" width="110" height="35" rx="4" class="sg86-alert-box"/>' +
+            '<text x="610" y="180" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">DRONE DETECTED</text>' +
+            '<text x="610" y="192" text-anchor="middle" fill="#ef4444" font-size="6">DJI Mavic 3 &#8212; 340m</text>' +
+            '<!-- Map area -->' +
+            '<rect x="555" y="210" width="110" height="60" rx="3" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+            '<text x="610" y="230" text-anchor="middle" fill="#8b949e" font-size="6">TRACKING MAP</text>' +
+            '<circle cx="590" cy="250" r="3" fill="#ef4444" opacity="0.8"/>' +
+            '<circle cx="590" cy="250" r="8" fill="none" stroke="rgba(239,68,68,0.3)" stroke-width="0.5"/>' +
+            '<circle cx="620" cy="242" r="2" fill="#22c55e" opacity="0.6"/>' +
+            '<text x="610" y="275" text-anchor="middle" fill="#8b949e" font-size="5">drone &#8226; pilot</text>' +
+            '</g>' +
+            '<line x1="500" y1="250" x2="540" y2="200" stroke="#a855f7" stroke-width="1.5" stroke-dasharray="4,2"/>' +
+
+            '<!-- Bottom label -->' +
+            '<rect x="40" y="310" width="460" height="30" rx="6" fill="rgba(168,85,247,0.06)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+            '<text x="50" y="328" fill="#c084fc" font-size="7" font-weight="600">DETECTION PIPELINE:</text>' +
+            '<text x="180" y="328" fill="#8b949e" font-size="7">RF Capture &#8594; Signature Match &#8594; Protocol ID &#8594; Range Estimate &#8594; Alert</text>' +
+
+            '</svg>' +
+            '</div>',
 
         steps: [
             {
@@ -465,7 +903,119 @@ window.SignalGuides = {
         wiringNotes: '<p><strong>MAVLink v2:</strong> Adds message signing (optional) which provides authentication but not encryption. Most deployments do not enable signing. Even with signing, telemetry is readable &mdash; only command injection is prevented.</p>' +
                      '<p><strong>SITL (Software In The Loop):</strong> ArduPilot SITL simulates a full drone in software. No hardware needed. You can practice MAVLink analysis, command injection, and protocol fuzzing safely against a virtual drone.</p>',
 
-        wiringSvg: '',
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg87-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '<style>' +
+            '@keyframes sg87-flow{0%{stroke-dashoffset:16}100%{stroke-dashoffset:0}}' +
+            '@keyframes sg87-intercept{0%,100%{opacity:0.3}50%{opacity:1}}' +
+            '.sg87-mav-flow{stroke-dasharray:8,8;animation:sg87-flow 1.2s linear infinite}' +
+            '.sg87-intercept{animation:sg87-intercept 1s ease-in-out infinite}' +
+            '</style>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg87-grid)" rx="4"/>' +
+            '<text x="360" y="30" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-87 MAVLINK PROTOCOL ANALYZER</text>' +
+
+            '<!-- Drone / Flight Controller -->' +
+            '<g>' +
+            '<rect x="40" y="80" width="160" height="110" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="40" y="80" width="160" height="22" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<rect x="40" y="95" width="160" height="7" fill="rgba(59,130,246,0.12)"/>' +
+            '<text x="120" y="96" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">FLIGHT CONTROLLER</text>' +
+            '<text x="120" y="118" text-anchor="middle" fill="#8b949e" font-size="7">Pixhawk / CUAV</text>' +
+            '<text x="120" y="133" text-anchor="middle" fill="#8b949e" font-size="7">ArduPilot 4.x</text>' +
+            '<text x="120" y="148" text-anchor="middle" fill="#f97316" font-size="7">MAVLink v2</text>' +
+            '<!-- UART pin -->' +
+            '<rect x="185" y="155" width="30" height="14" rx="2" fill="rgba(249,115,22,0.1)" stroke="rgba(249,115,22,0.3)" stroke-width="0.5"/>' +
+            '<text x="200" y="165" text-anchor="middle" fill="#fb923c" font-size="6">UART</text>' +
+            '</g>' +
+
+            '<!-- SiK Radio (Telemetry Link) -->' +
+            '<g>' +
+            '<rect x="280" y="80" width="130" height="70" rx="6" fill="#1e2736" stroke="#f97316" stroke-width="1.5"/>' +
+            '<rect x="280" y="80" width="130" height="18" rx="6" fill="rgba(249,115,22,0.1)"/>' +
+            '<text x="345" y="93" text-anchor="middle" fill="#fb923c" font-size="8" font-weight="600">SiK RADIO</text>' +
+            '<text x="345" y="113" text-anchor="middle" fill="#8b949e" font-size="7">915 MHz Half-Duplex</text>' +
+            '<text x="345" y="128" text-anchor="middle" fill="#f97316" font-size="7">No Encryption</text>' +
+            '</g>' +
+
+            '<!-- GCS / Mission Planner -->' +
+            '<g>' +
+            '<rect x="500" y="80" width="170" height="110" rx="8" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<rect x="500" y="80" width="170" height="22" rx="8" fill="rgba(34,197,94,0.1)"/>' +
+            '<rect x="500" y="95" width="170" height="7" fill="rgba(34,197,94,0.1)"/>' +
+            '<text x="585" y="96" text-anchor="middle" fill="#4ade80" font-size="9" font-weight="600">MISSION PLANNER</text>' +
+            '<text x="585" y="118" text-anchor="middle" fill="#8b949e" font-size="7">Ground Control Station</text>' +
+            '<text x="585" y="133" text-anchor="middle" fill="#8b949e" font-size="7">Telemetry Display</text>' +
+            '<text x="585" y="148" text-anchor="middle" fill="#8b949e" font-size="7">Command Interface</text>' +
+            '<rect x="500" y="155" width="30" height="14" rx="2" fill="rgba(249,115,22,0.1)" stroke="rgba(249,115,22,0.3)" stroke-width="0.5"/>' +
+            '<text x="515" y="165" text-anchor="middle" fill="#fb923c" font-size="6">USB</text>' +
+            '</g>' +
+
+            '<!-- MAVLink flow lines -->' +
+            '<line x1="215" y1="120" x2="280" y2="110" stroke="#f97316" stroke-width="2" class="sg87-mav-flow"/>' +
+            '<line x1="410" y1="110" x2="500" y2="120" stroke="#f97316" stroke-width="2" class="sg87-mav-flow"/>' +
+            '<text x="248" y="108" fill="#f97316" font-size="6">MAVLink</text>' +
+            '<text x="455" y="108" fill="#f97316" font-size="6">MAVLink</text>' +
+
+            '<!-- MAVProxy MITM -->' +
+            '<g>' +
+            '<rect x="220" y="220" width="300" height="90" rx="8" fill="#1e2736" stroke="#ef4444" stroke-width="1.5"/>' +
+            '<rect x="220" y="220" width="300" height="22" rx="8" fill="rgba(239,68,68,0.12)"/>' +
+            '<rect x="220" y="235" width="300" height="7" fill="rgba(239,68,68,0.12)"/>' +
+            '<text x="370" y="236" text-anchor="middle" fill="#f87171" font-size="9" font-weight="600">MAVPROXY &#8212; MAN IN THE MIDDLE</text>' +
+            '<text x="280" y="262" text-anchor="middle" fill="#8b949e" font-size="7">Intercept</text>' +
+            '<text x="345" y="262" text-anchor="middle" fill="#8b949e" font-size="7">Log</text>' +
+            '<text x="400" y="262" text-anchor="middle" fill="#8b949e" font-size="7">Inject</text>' +
+            '<text x="465" y="262" text-anchor="middle" fill="#8b949e" font-size="7">Modify</text>' +
+            '<!-- Message decode -->' +
+            '<text x="240" y="285" fill="#ef4444" font-size="6" class="sg87-intercept">HEARTBEAT</text>' +
+            '<text x="310" y="285" fill="#f97316" font-size="6" class="sg87-intercept" style="animation-delay:0.2s">GPS_RAW</text>' +
+            '<text x="380" y="285" fill="#eab308" font-size="6" class="sg87-intercept" style="animation-delay:0.4s">ATTITUDE</text>' +
+            '<text x="445" y="285" fill="#22c55e" font-size="6" class="sg87-intercept" style="animation-delay:0.6s">RC_CHANNELS</text>' +
+            '</g>' +
+
+            '<!-- Intercept arrows -->' +
+            '<line x1="345" y1="150" x2="345" y2="220" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,3"/>' +
+            '<text x="355" y="195" fill="#ef4444" font-size="6">tap</text>' +
+
+            '<!-- SITL (alternative) -->' +
+            '<g>' +
+            '<rect x="40" y="240" width="150" height="60" rx="6" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+            '<rect x="40" y="240" width="150" height="18" rx="6" fill="rgba(168,85,247,0.1)"/>' +
+            '<text x="115" y="253" text-anchor="middle" fill="#c084fc" font-size="8" font-weight="600">SITL SIMULATOR</text>' +
+            '<text x="115" y="273" text-anchor="middle" fill="#8b949e" font-size="7">Virtual ArduCopter</text>' +
+            '<text x="115" y="288" text-anchor="middle" fill="#8b949e" font-size="7">localhost:14550</text>' +
+            '</g>' +
+            '<line x1="190" y1="265" x2="220" y2="265" stroke="#a855f7" stroke-width="1.5" stroke-dasharray="3,2"/>' +
+
+            '<!-- Message structure callout -->' +
+            '<rect x="40" y="330" width="640" height="50" rx="6" fill="rgba(249,115,22,0.06)" stroke="rgba(249,115,22,0.2)" stroke-width="0.5"/>' +
+            '<text x="50" y="348" fill="#fb923c" font-size="8" font-weight="600">MAVLINK v2 FRAME:</text>' +
+            '<rect x="185" y="338" width="30" height="16" rx="2" fill="rgba(239,68,68,0.15)" stroke="rgba(239,68,68,0.3)" stroke-width="0.5"/>' +
+            '<text x="200" y="349" text-anchor="middle" fill="#ef4444" font-size="6">STX</text>' +
+            '<rect x="220" y="338" width="30" height="16" rx="2" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.3)" stroke-width="0.5"/>' +
+            '<text x="235" y="349" text-anchor="middle" fill="#60a5fa" font-size="6">LEN</text>' +
+            '<rect x="255" y="338" width="35" height="16" rx="2" fill="rgba(168,85,247,0.15)" stroke="rgba(168,85,247,0.3)" stroke-width="0.5"/>' +
+            '<text x="272" y="349" text-anchor="middle" fill="#c084fc" font-size="6">SEQ</text>' +
+            '<rect x="295" y="338" width="35" height="16" rx="2" fill="rgba(34,197,94,0.15)" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/>' +
+            '<text x="312" y="349" text-anchor="middle" fill="#22c55e" font-size="6">SYS</text>' +
+            '<rect x="335" y="338" width="35" height="16" rx="2" fill="rgba(34,197,94,0.15)" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/>' +
+            '<text x="352" y="349" text-anchor="middle" fill="#22c55e" font-size="6">COMP</text>' +
+            '<rect x="375" y="338" width="40" height="16" rx="2" fill="rgba(249,115,22,0.15)" stroke="rgba(249,115,22,0.3)" stroke-width="0.5"/>' +
+            '<text x="395" y="349" text-anchor="middle" fill="#fb923c" font-size="6">MSG ID</text>' +
+            '<rect x="420" y="338" width="120" height="16" rx="2" fill="rgba(234,179,8,0.15)" stroke="rgba(234,179,8,0.3)" stroke-width="0.5"/>' +
+            '<text x="480" y="349" text-anchor="middle" fill="#eab308" font-size="6">PAYLOAD (0-255 bytes)</text>' +
+            '<rect x="545" y="338" width="45" height="16" rx="2" fill="rgba(239,68,68,0.15)" stroke="rgba(239,68,68,0.3)" stroke-width="0.5"/>' +
+            '<text x="567" y="349" text-anchor="middle" fill="#ef4444" font-size="6">CRC16</text>' +
+            '<rect x="595" y="338" width="70" height="16" rx="2" fill="rgba(168,85,247,0.1)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+            '<text x="630" y="349" text-anchor="middle" fill="#8b949e" font-size="6">SIG (optional)</text>' +
+            '<text x="50" y="370" fill="#8b949e" font-size="7">300+ message types &#8212; no built-in encryption &#8212; signing optional and rarely enabled</text>' +
+
+            '</svg>' +
+            '</div>',
 
         steps: [
             {
@@ -571,7 +1121,86 @@ window.SignalGuides = {
         wiringNotes: '<p><strong>ArduPilot vs DJI:</strong> ArduPilot geofencing is software-enforced and fully configurable by the operator. DJI geofencing is firmware-enforced with an online unlock portal. Neither is tamper-proof: ArduPilot fences are parameters, DJI fences can be bypassed with modified firmware or GPS spoofing.</p>' +
                      '<p><strong>Regulatory context:</strong> Geofencing is required by regulation in some jurisdictions (EU drone regulation 2019/947). Understanding bypass methods is essential for security assessors evaluating drone fleet compliance.</p>',
 
-        wiringSvg: '',
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg88-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '<style>' +
+            '@keyframes sg88-drone-move{0%{transform:translate(0,0)}50%{transform:translate(60px,-20px)}100%{transform:translate(0,0)}}' +
+            '@keyframes sg88-fence-warn{0%,100%{stroke:rgba(239,68,68,0.3);stroke-width:1.5}50%{stroke:#ef4444;stroke-width:2.5}}' +
+            '.sg88-drone{animation:sg88-drone-move 6s ease-in-out infinite}' +
+            '.sg88-fence{animation:sg88-fence-warn 2s ease-in-out infinite}' +
+            '</style>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg88-grid)" rx="4"/>' +
+            '<text x="360" y="30" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-88 GEOFENCING SECURITY</text>' +
+
+            '<!-- Geofence polygon -->' +
+            '<polygon points="100,90 450,70 480,280 130,300" fill="rgba(34,197,94,0.04)" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="8,4" class="sg88-fence"/>' +
+            '<text x="110" y="85" fill="#22c55e" font-size="7">FENCE POLYGON</text>' +
+
+            '<!-- Circular fence -->' +
+            '<circle cx="280" cy="185" r="120" fill="none" stroke="rgba(59,130,246,0.2)" stroke-width="1" stroke-dasharray="6,3"/>' +
+            '<text x="280" y="80" text-anchor="middle" fill="#3b82f6" font-size="6">RADIUS: 500m</text>' +
+
+            '<!-- Altitude ceiling -->' +
+            '<line x1="85" y1="65" x2="495" y2="65" stroke="rgba(239,68,68,0.3)" stroke-width="1" stroke-dasharray="4,4"/>' +
+            '<text x="490" y="62" text-anchor="end" fill="#ef4444" font-size="6">MAX ALT: 120m</text>' +
+
+            '<!-- Home point -->' +
+            '<g>' +
+            '<rect x="240" y="170" width="80" height="35" rx="4" fill="#1e2736" stroke="#22c55e" stroke-width="1"/>' +
+            '<text x="280" y="185" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="600">HOME</text>' +
+            '<text x="280" y="198" text-anchor="middle" fill="#8b949e" font-size="6">33.75, -84.39</text>' +
+            '</g>' +
+
+            '<!-- Drone (animated) -->' +
+            '<g class="sg88-drone">' +
+            '<circle cx="340" cy="155" r="6" fill="rgba(249,115,22,0.4)" stroke="#f97316" stroke-width="1.5"/>' +
+            '<text x="340" y="145" text-anchor="middle" fill="#f97316" font-size="7">DRONE</text>' +
+            '<line x1="340" y1="155" x2="380" y2="170" stroke="#f97316" stroke-width="1" stroke-dasharray="2,2" opacity="0.5"/>' +
+            '</g>' +
+
+            '<!-- Margin zone -->' +
+            '<polygon points="112,100 440,82 468,272 140,290" fill="none" stroke="rgba(234,179,8,0.2)" stroke-width="1" stroke-dasharray="4,4"/>' +
+            '<text x="440" y="98" fill="#eab308" font-size="6">MARGIN: 10m</text>' +
+
+            '<!-- Failsafe actions panel -->' +
+            '<g>' +
+            '<rect x="530" y="60" width="160" height="120" rx="8" fill="#1e2736" stroke="#ef4444" stroke-width="1.5"/>' +
+            '<rect x="530" y="60" width="160" height="22" rx="8" fill="rgba(239,68,68,0.12)"/>' +
+            '<rect x="530" y="75" width="160" height="7" fill="rgba(239,68,68,0.12)"/>' +
+            '<text x="610" y="76" text-anchor="middle" fill="#f87171" font-size="9" font-weight="600">FENCE BREACH</text>' +
+            '<text x="545" y="100" fill="#8b949e" font-size="7">0: Report Only</text>' +
+            '<text x="545" y="115" fill="#eab308" font-size="7">1: RTL (Return Home)</text>' +
+            '<text x="545" y="130" fill="#f97316" font-size="7">2: Land Immediately</text>' +
+            '<text x="545" y="145" fill="#ef4444" font-size="7">3: Brake (SmartRTL)</text>' +
+            '<text x="545" y="162" fill="#a855f7" font-size="7">4: Terminate Flight</text>' +
+            '</g>' +
+
+            '<!-- ArduPilot params -->' +
+            '<g>' +
+            '<rect x="530" y="200" width="160" height="100" rx="6" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="530" y="200" width="160" height="18" rx="6" fill="rgba(59,130,246,0.1)"/>' +
+            '<text x="610" y="213" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">FENCE PARAMS</text>' +
+            '<text x="545" y="235" fill="#8b949e" font-size="6">FENCE_ENABLE = 1</text>' +
+            '<text x="545" y="248" fill="#8b949e" font-size="6">FENCE_TYPE   = 7</text>' +
+            '<text x="545" y="261" fill="#8b949e" font-size="6">FENCE_ACTION = 1</text>' +
+            '<text x="545" y="274" fill="#8b949e" font-size="6">FENCE_RADIUS = 500</text>' +
+            '<text x="545" y="287" fill="#8b949e" font-size="6">FENCE_ALT_MAX= 120</text>' +
+            '</g>' +
+
+            '<!-- Attack vectors -->' +
+            '<g>' +
+            '<rect x="100" y="320" width="420" height="55" rx="6" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+            '<text x="110" y="338" fill="#ef4444" font-size="8" font-weight="600">BYPASS METHODS</text>' +
+            '<text x="110" y="354" fill="#8b949e" font-size="7">1. MAVLink param injection (FENCE_ENABLE=0)</text>' +
+            '<text x="110" y="368" fill="#8b949e" font-size="7">2. GPS spoof (fake position inside fence)  3. Firmware mod (skip fence check)</text>' +
+            '</g>' +
+
+            '</svg>' +
+            '</div>',
 
         steps: [
             {
@@ -668,7 +1297,118 @@ window.SignalGuides = {
         wiringNotes: '<p><strong>5.8 GHz bands:</strong> FPV video uses the 5.8 GHz ISM band, divided into bands: A, B, E, F (FatShark), R (Raceband). Raceband (R1-R8) is most common for racing. Each band has 8 channels, 40 total. Scanning all 40 channels takes seconds with a module that supports frequency input.</p>' +
                      '<p><strong>Analog vs Digital:</strong> Analog (NTSC/PAL) is completely open. DJI FPV uses a proprietary digital link that is harder to intercept but has been partially reverse-engineered. HDZero is open-source digital video. Walksnail/Avatar is another proprietary system.</p>',
 
-        wiringSvg: '',
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg89-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '<style>' +
+            '@keyframes sg89-broadcast{0%{opacity:0.15;r:12}60%{opacity:0.5;r:60}100%{opacity:0;r:90}}' +
+            '@keyframes sg89-scanline{0%{transform:translateY(0)}100%{transform:translateY(50px)}}' +
+            '.sg89-rf-ring{animation:sg89-broadcast 2.5s ease-out infinite}' +
+            '</style>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg89-grid)" rx="4"/>' +
+            '<text x="360" y="30" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-89 FPV VIDEO SECURITY</text>' +
+
+            '<!-- Drone with Camera + VTX -->' +
+            '<g>' +
+            '<rect x="40" y="80" width="160" height="140" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="40" y="80" width="160" height="22" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<rect x="40" y="95" width="160" height="7" fill="rgba(59,130,246,0.12)"/>' +
+            '<text x="120" y="96" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">DRONE</text>' +
+            '<!-- Camera -->' +
+            '<rect x="55" y="115" width="55" height="35" rx="4" fill="#1a1f2b" stroke="#8b949e" stroke-width="1"/>' +
+            '<circle cx="82" cy="132" r="10" fill="none" stroke="#8b949e" stroke-width="1"/>' +
+            '<circle cx="82" cy="132" r="4" fill="rgba(59,130,246,0.2)"/>' +
+            '<text x="82" y="160" text-anchor="middle" fill="#8b949e" font-size="6">CAMERA</text>' +
+            '<!-- VTX -->' +
+            '<rect x="125" y="115" width="60" height="35" rx="4" fill="#1a1f2b" stroke="#f97316" stroke-width="1"/>' +
+            '<text x="155" y="136" text-anchor="middle" fill="#fb923c" font-size="7" font-weight="600">VTX</text>' +
+            '<text x="155" y="160" text-anchor="middle" fill="#f97316" font-size="6">5.8 GHz</text>' +
+            '<!-- Power levels -->' +
+            '<text x="60" y="185" fill="#8b949e" font-size="6">25mW &#8594; 600mW</text>' +
+            '<text x="60" y="198" fill="#8b949e" font-size="6">Analog NTSC/PAL</text>' +
+            '<text x="60" y="211" fill="#ef4444" font-size="6">UNENCRYPTED</text>' +
+            '<!-- Arrow camera to VTX -->' +
+            '<line x1="110" y1="132" x2="125" y2="132" stroke="#8b949e" stroke-width="1"/>' +
+            '</g>' +
+
+            '<!-- 5.8G broadcast rings -->' +
+            '<circle cx="200" cy="150" r="12" fill="none" stroke="#f97316" stroke-width="0.8" class="sg89-rf-ring"/>' +
+            '<circle cx="200" cy="150" r="12" fill="none" stroke="#f97316" stroke-width="0.8" class="sg89-rf-ring" style="animation-delay:0.8s"/>' +
+            '<circle cx="200" cy="150" r="12" fill="none" stroke="#f97316" stroke-width="0.8" class="sg89-rf-ring" style="animation-delay:1.6s"/>' +
+
+            '<!-- Pilot (legitimate) -->' +
+            '<g>' +
+            '<rect x="40" y="270" width="160" height="65" rx="6" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<rect x="40" y="270" width="160" height="18" rx="6" fill="rgba(34,197,94,0.1)"/>' +
+            '<text x="120" y="283" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="600">PILOT (LEGIT)</text>' +
+            '<text x="120" y="303" text-anchor="middle" fill="#8b949e" font-size="7">FPV Goggles</text>' +
+            '<text x="120" y="318" text-anchor="middle" fill="#22c55e" font-size="7">Same video feed</text>' +
+            '</g>' +
+            '<line x1="120" y1="220" x2="120" y2="270" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4,3"/>' +
+            '<text x="135" y="250" fill="#22c55e" font-size="6">5.8G RX</text>' +
+
+            '<!-- Attacker -->' +
+            '<g>' +
+            '<rect x="320" y="80" width="170" height="140" rx="8" fill="#1e2736" stroke="#ef4444" stroke-width="1.5"/>' +
+            '<rect x="320" y="80" width="170" height="22" rx="8" fill="rgba(239,68,68,0.12)"/>' +
+            '<rect x="320" y="95" width="170" height="7" fill="rgba(239,68,68,0.12)"/>' +
+            '<text x="405" y="96" text-anchor="middle" fill="#f87171" font-size="9" font-weight="600">ATTACKER</text>' +
+            '<!-- 5.8G RX Module -->' +
+            '<rect x="335" y="115" width="65" height="35" rx="4" fill="#1a1f2b" stroke="#ef4444" stroke-width="1"/>' +
+            '<text x="367" y="136" text-anchor="middle" fill="#ef4444" font-size="7">5.8G RX</text>' +
+            '<text x="367" y="160" text-anchor="middle" fill="#8b949e" font-size="6">Any channel</text>' +
+            '<!-- USB Capture -->' +
+            '<rect x="410" y="115" width="65" height="35" rx="4" fill="#1a1f2b" stroke="#a855f7" stroke-width="1"/>' +
+            '<text x="442" y="132" text-anchor="middle" fill="#c084fc" font-size="6">USB</text>' +
+            '<text x="442" y="142" text-anchor="middle" fill="#c084fc" font-size="6">CAPTURE</text>' +
+            '<line x1="400" y1="132" x2="410" y2="132" stroke="#8b949e" stroke-width="1"/>' +
+            '<!-- Recording PC -->' +
+            '<text x="405" y="180" text-anchor="middle" fill="#8b949e" font-size="7">Recording PC</text>' +
+            '<text x="405" y="195" text-anchor="middle" fill="#ef4444" font-size="7">ffmpeg capture</text>' +
+            '<text x="405" y="210" text-anchor="middle" fill="#8b949e" font-size="6">Evidence + OSD data</text>' +
+            '</g>' +
+
+            '<!-- RF path to attacker -->' +
+            '<path d="M200,150 C260,130 290,110 335,132" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="5,3" fill="none"/>' +
+            '<text x="270" y="120" text-anchor="middle" fill="#ef4444" font-size="6">INTERCEPTED</text>' +
+
+            '<!-- Channel table -->' +
+            '<g>' +
+            '<rect x="320" y="250" width="170" height="85" rx="6" fill="#1e2736" stroke="#eab308" stroke-width="1"/>' +
+            '<rect x="320" y="250" width="170" height="18" rx="6" fill="rgba(234,179,8,0.1)"/>' +
+            '<text x="405" y="263" text-anchor="middle" fill="#eab308" font-size="8" font-weight="600">5.8G CHANNELS</text>' +
+            '<text x="335" y="282" fill="#8b949e" font-size="6">R1: 5658  R2: 5695</text>' +
+            '<text x="335" y="294" fill="#8b949e" font-size="6">R3: 5732  R4: 5769</text>' +
+            '<text x="335" y="306" fill="#8b949e" font-size="6">R5: 5806  R6: 5843</text>' +
+            '<text x="335" y="318" fill="#8b949e" font-size="6">R7: 5880  R8: 5917</text>' +
+            '<text x="335" y="330" fill="#eab308" font-size="6">40 total channels</text>' +
+            '</g>' +
+
+            '<!-- Digital vs Analog comparison -->' +
+            '<g>' +
+            '<rect x="530" y="80" width="160" height="140" rx="6" fill="#1e2736" stroke="#a855f7" stroke-width="1"/>' +
+            '<rect x="530" y="80" width="160" height="18" rx="6" fill="rgba(168,85,247,0.1)"/>' +
+            '<text x="610" y="93" text-anchor="middle" fill="#c084fc" font-size="8" font-weight="600">VIDEO SYSTEMS</text>' +
+            '<text x="545" y="115" fill="#ef4444" font-size="7">Analog (NTSC/PAL)</text>' +
+            '<text x="545" y="128" fill="#8b949e" font-size="6">&#8594; Fully open, no encryption</text>' +
+            '<text x="545" y="148" fill="#f97316" font-size="7">DJI FPV Digital</text>' +
+            '<text x="545" y="161" fill="#8b949e" font-size="6">&#8594; Proprietary, partial RE</text>' +
+            '<text x="545" y="181" fill="#22c55e" font-size="7">HDZero</text>' +
+            '<text x="545" y="194" fill="#8b949e" font-size="6">&#8594; Open-source digital</text>' +
+            '<text x="545" y="214" fill="#eab308" font-size="7">Walksnail / Avatar</text>' +
+            '<text x="545" y="227" fill="#8b949e" font-size="6">&#8594; Proprietary codec</text>' +
+            '</g>' +
+
+            '<!-- Warning -->' +
+            '<rect x="530" y="250" width="160" height="45" rx="6" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+            '<text x="540" y="268" fill="#ef4444" font-size="7" font-weight="600">PASSIVE + UNDETECTABLE</text>' +
+            '<text x="540" y="282" fill="#8b949e" font-size="6">Broadcast = anyone can receive</text>' +
+
+            '</svg>' +
+            '</div>',
 
         steps: [
             {
@@ -773,7 +1513,94 @@ window.SignalGuides = {
         wiringNotes: '<p><strong>Mission protocol:</strong> MAVLink mission protocol uses MISSION_COUNT, MISSION_REQUEST, MISSION_ITEM sequence. The GCS sends count, FC requests each item by index, GCS sends items. No authentication at any step.</p>' +
                      '<p><strong>QGroundControl:</strong> Open-source GCS that works with ArduPilot and PX4. Saves missions as <code>.plan</code> files (JSON format). These files can be modified with any text editor &mdash; changing coordinates, altitudes, or actions.</p>',
 
-        wiringSvg: '',
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg90-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '<style>' +
+            '@keyframes sg90-wp-pulse{0%,100%{r:4;opacity:0.5}50%{r:7;opacity:1}}' +
+            '@keyframes sg90-inject{0%,100%{opacity:0.2}50%{opacity:0.9}}' +
+            '.sg90-wp{animation:sg90-wp-pulse 2s ease-in-out infinite}' +
+            '.sg90-inject-line{animation:sg90-inject 1.5s ease-in-out infinite}' +
+            '</style>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg90-grid)" rx="4"/>' +
+            '<text x="360" y="30" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-90 AUTONOMOUS MISSION PLANNING</text>' +
+
+            '<!-- Mission Planner / QGC -->' +
+            '<g>' +
+            '<rect x="40" y="55" width="180" height="100" rx="8" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<rect x="40" y="55" width="180" height="22" rx="8" fill="rgba(34,197,94,0.1)"/>' +
+            '<rect x="40" y="70" width="180" height="7" fill="rgba(34,197,94,0.1)"/>' +
+            '<text x="130" y="71" text-anchor="middle" fill="#4ade80" font-size="9" font-weight="600">MISSION PLANNER</text>' +
+            '<text x="130" y="93" text-anchor="middle" fill="#8b949e" font-size="7">QGroundControl / GCS</text>' +
+            '<text x="130" y="108" text-anchor="middle" fill="#8b949e" font-size="7">Create waypoints</text>' +
+            '<text x="130" y="123" text-anchor="middle" fill="#22c55e" font-size="7">Upload .plan file</text>' +
+            '<text x="130" y="138" text-anchor="middle" fill="#8b949e" font-size="7">Monitor progress</text>' +
+            '</g>' +
+
+            '<!-- Flight Controller -->' +
+            '<g>' +
+            '<rect x="500" y="55" width="180" height="100" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="500" y="55" width="180" height="22" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<rect x="500" y="70" width="180" height="7" fill="rgba(59,130,246,0.12)"/>' +
+            '<text x="590" y="71" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">FLIGHT CONTROLLER</text>' +
+            '<text x="590" y="93" text-anchor="middle" fill="#8b949e" font-size="7">ArduPilot AUTO Mode</text>' +
+            '<text x="590" y="108" text-anchor="middle" fill="#8b949e" font-size="7">Execute waypoints</text>' +
+            '<text x="590" y="123" text-anchor="middle" fill="#3b82f6" font-size="7">Navigate WP1&#8594;WP2&#8594;...</text>' +
+            '<text x="590" y="138" text-anchor="middle" fill="#8b949e" font-size="7">Report status</text>' +
+            '</g>' +
+
+            '<!-- MAVLink bidirectional -->' +
+            '<line x1="220" y1="90" x2="500" y2="90" stroke="#f97316" stroke-width="2" stroke-dasharray="6,4"/>' +
+            '<text x="360" y="85" text-anchor="middle" fill="#f97316" font-size="7">MAVLink (unencrypted)</text>' +
+            '<polygon points="495,86 495,94 505,90" fill="#f97316"/>' +
+            '<polygon points="225,86 225,94 215,90" fill="#f97316"/>' +
+
+            '<!-- Waypoint map -->' +
+            '<g>' +
+            '<rect x="260" y="175" width="260" height="160" rx="8" fill="rgba(59,130,246,0.04)" stroke="rgba(59,130,246,0.15)" stroke-width="1"/>' +
+            '<text x="390" y="190" text-anchor="middle" fill="#3b82f6" font-size="8" font-weight="600">MISSION WAYPOINTS</text>' +
+            '<!-- Waypoints -->' +
+            '<circle cx="290" cy="220" r="4" fill="#22c55e" class="sg90-wp"/>' +
+            '<text x="290" y="212" text-anchor="middle" fill="#22c55e" font-size="7">HOME</text>' +
+            '<circle cx="350" cy="240" r="4" fill="#3b82f6" class="sg90-wp" style="animation-delay:0.5s"/>' +
+            '<text x="350" y="232" text-anchor="middle" fill="#3b82f6" font-size="7">WP1</text>' +
+            '<circle cx="420" cy="210" r="4" fill="#3b82f6" class="sg90-wp" style="animation-delay:1s"/>' +
+            '<text x="420" y="202" text-anchor="middle" fill="#3b82f6" font-size="7">WP2</text>' +
+            '<circle cx="470" cy="260" r="4" fill="#3b82f6" class="sg90-wp" style="animation-delay:1.5s"/>' +
+            '<text x="470" y="252" text-anchor="middle" fill="#3b82f6" font-size="7">WP3</text>' +
+            '<circle cx="380" cy="300" r="4" fill="#3b82f6" class="sg90-wp" style="animation-delay:2s"/>' +
+            '<text x="380" y="292" text-anchor="middle" fill="#3b82f6" font-size="7">WP4</text>' +
+            '<!-- Flight path -->' +
+            '<polyline points="290,220 350,240 420,210 470,260 380,300 290,220" fill="none" stroke="#3b82f6" stroke-width="1" stroke-dasharray="4,3" opacity="0.6"/>' +
+            '<!-- Injected waypoint (red) -->' +
+            '<circle cx="490" cy="310" r="5" fill="rgba(239,68,68,0.4)" stroke="#ef4444" stroke-width="1.5"/>' +
+            '<text x="490" y="328" text-anchor="middle" fill="#ef4444" font-size="7">INJECTED</text>' +
+            '<line x1="470" y1="260" x2="490" y2="310" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="3,2" class="sg90-inject-line"/>' +
+            '</g>' +
+
+            '<!-- Attacker -->' +
+            '<g>' +
+            '<rect x="40" y="210" width="180" height="90" rx="8" fill="#1e2736" stroke="#ef4444" stroke-width="1.5"/>' +
+            '<rect x="40" y="210" width="180" height="22" rx="8" fill="rgba(239,68,68,0.12)"/>' +
+            '<rect x="40" y="225" width="180" height="7" fill="rgba(239,68,68,0.12)"/>' +
+            '<text x="130" y="226" text-anchor="middle" fill="#f87171" font-size="9" font-weight="600">ATTACKER</text>' +
+            '<text x="130" y="250" text-anchor="middle" fill="#ef4444" font-size="7">Inject waypoints</text>' +
+            '<text x="130" y="265" text-anchor="middle" fill="#ef4444" font-size="7">Modify mission items</text>' +
+            '<text x="130" y="280" text-anchor="middle" fill="#ef4444" font-size="7">Replace coordinates</text>' +
+            '</g>' +
+            '<line x1="220" y1="260" x2="260" y2="260" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="3,2" class="sg90-inject-line"/>' +
+
+            '<!-- Mission protocol -->' +
+            '<rect x="40" y="340" width="640" height="40" rx="6" fill="rgba(249,115,22,0.06)" stroke="rgba(249,115,22,0.2)" stroke-width="0.5"/>' +
+            '<text x="50" y="356" fill="#fb923c" font-size="8" font-weight="600">MISSION PROTOCOL:</text>' +
+            '<text x="195" y="356" fill="#8b949e" font-size="7">MISSION_COUNT &#8594; MISSION_REQUEST &#8594; MISSION_ITEM &#8594; MISSION_ACK</text>' +
+            '<text x="50" y="370" fill="#ef4444" font-size="7">No authentication at any step &#8212; any device on the channel can inject items</text>' +
+
+            '</svg>' +
+            '</div>',
 
         steps: [
             {
@@ -881,7 +1708,110 @@ window.SignalGuides = {
         wiringNotes: '<p><strong>Evidence handling:</strong> Treat the drone as digital evidence. Photograph before disassembly. Remove SD cards with anti-static precautions. Create forensic images (dd) before analysis. Document chain of custody. Work on copies, never originals.</p>' +
                      '<p><strong>Log formats:</strong> ArduPilot DataFlash (.bin), Betaflight Blackbox (.bbl/.bfl), DJI (.txt encrypted), PX4 ULog (.ulg). Each requires specific parsing tools. pymavlink handles ArduPilot, Blackbox Explorer handles Betaflight.</p>',
 
-        wiringSvg: '',
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg91-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '<style>' +
+            '@keyframes sg91-extract{0%{stroke-dashoffset:12}100%{stroke-dashoffset:0}}' +
+            '@keyframes sg91-blink{0%,100%{opacity:0.3}50%{opacity:1}}' +
+            '.sg91-extract{stroke-dasharray:6,6;animation:sg91-extract 1.5s linear infinite}' +
+            '.sg91-evidence{animation:sg91-blink 2s ease-in-out infinite}' +
+            '</style>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg91-grid)" rx="4"/>' +
+            '<text x="360" y="30" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-91 DRONE FORENSICS</text>' +
+
+            '<!-- Recovered Drone -->' +
+            '<g>' +
+            '<rect x="40" y="55" width="200" height="200" rx="8" fill="#1e2736" stroke="#f97316" stroke-width="1.5"/>' +
+            '<rect x="40" y="55" width="200" height="22" rx="8" fill="rgba(249,115,22,0.12)"/>' +
+            '<rect x="40" y="70" width="200" height="7" fill="rgba(249,115,22,0.12)"/>' +
+            '<text x="140" y="71" text-anchor="middle" fill="#fb923c" font-size="9" font-weight="600">RECOVERED DRONE</text>' +
+            '<!-- Components -->' +
+            '<rect x="55" y="90" width="80" height="28" rx="4" fill="#1a1f2b" stroke="#3b82f6" stroke-width="1"/>' +
+            '<text x="95" y="108" text-anchor="middle" fill="#60a5fa" font-size="7">Flight Ctrl</text>' +
+            '<rect x="145" y="90" width="80" height="28" rx="4" fill="#1a1f2b" stroke="#22c55e" stroke-width="1"/>' +
+            '<text x="185" y="108" text-anchor="middle" fill="#4ade80" font-size="7">SD Card</text>' +
+            '<rect x="55" y="128" width="80" height="28" rx="4" fill="#1a1f2b" stroke="#eab308" stroke-width="1"/>' +
+            '<text x="95" y="146" text-anchor="middle" fill="#eab308" font-size="7">Camera/SD</text>' +
+            '<rect x="145" y="128" width="80" height="28" rx="4" fill="#1a1f2b" stroke="#a855f7" stroke-width="1"/>' +
+            '<text x="185" y="146" text-anchor="middle" fill="#c084fc" font-size="7">ESC Telem</text>' +
+            '<rect x="55" y="166" width="80" height="28" rx="4" fill="#1a1f2b" stroke="#22c55e" stroke-width="1"/>' +
+            '<text x="95" y="184" text-anchor="middle" fill="#4ade80" font-size="7">GPS Module</text>' +
+            '<rect x="145" y="166" width="80" height="28" rx="4" fill="#1a1f2b" stroke="#ef4444" stroke-width="1"/>' +
+            '<text x="185" y="184" text-anchor="middle" fill="#f87171" font-size="7">Receiver</text>' +
+            '<!-- Data types -->' +
+            '<text x="55" y="215" fill="#8b949e" font-size="6">DataFlash (.bin)</text>' +
+            '<text x="55" y="228" fill="#8b949e" font-size="6">Blackbox (.bbl)</text>' +
+            '<text x="55" y="241" fill="#8b949e" font-size="6">Video/photos</text>' +
+            '</g>' +
+
+            '<!-- Extraction arrows -->' +
+            '<line x1="240" y1="105" x2="320" y2="105" stroke="#3b82f6" stroke-width="1.5" class="sg91-extract"/>' +
+            '<line x1="240" y1="140" x2="320" y2="140" stroke="#22c55e" stroke-width="1.5" class="sg91-extract" style="animation-delay:0.3s"/>' +
+            '<line x1="240" y1="180" x2="320" y2="175" stroke="#eab308" stroke-width="1.5" class="sg91-extract" style="animation-delay:0.6s"/>' +
+            '<text x="280" y="98" text-anchor="middle" fill="#8b949e" font-size="6">extract</text>' +
+
+            '<!-- Forensic Workstation -->' +
+            '<g>' +
+            '<rect x="320" y="55" width="200" height="200" rx="8" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+            '<rect x="320" y="55" width="200" height="22" rx="8" fill="rgba(168,85,247,0.1)"/>' +
+            '<rect x="320" y="70" width="200" height="7" fill="rgba(168,85,247,0.1)"/>' +
+            '<text x="420" y="71" text-anchor="middle" fill="#c084fc" font-size="9" font-weight="600">FORENSIC STATION</text>' +
+            '<!-- Analysis tools -->' +
+            '<rect x="335" y="90" width="170" height="22" rx="3" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+            '<text x="420" y="105" text-anchor="middle" fill="#60a5fa" font-size="7">DataFlash Log Parser</text>' +
+            '<rect x="335" y="118" width="170" height="22" rx="3" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+            '<text x="420" y="133" text-anchor="middle" fill="#4ade80" font-size="7">GPS Track Reconstructor</text>' +
+            '<rect x="335" y="146" width="170" height="22" rx="3" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
+            '<text x="420" y="161" text-anchor="middle" fill="#eab308" font-size="7">Video/Photo Recovery</text>' +
+            '<rect x="335" y="174" width="170" height="22" rx="3" fill="rgba(249,115,22,0.08)" stroke="rgba(249,115,22,0.2)" stroke-width="0.5"/>' +
+            '<text x="420" y="189" text-anchor="middle" fill="#fb923c" font-size="7">Timeline Builder</text>' +
+            '<rect x="335" y="202" width="170" height="22" rx="3" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+            '<text x="420" y="217" text-anchor="middle" fill="#f87171" font-size="7">Binding Info &#8594; Pilot ID</text>' +
+            '</g>' +
+
+            '<!-- Output arrows -->' +
+            '<line x1="520" y1="130" x2="580" y2="95" stroke="#a855f7" stroke-width="1.5" class="sg91-extract" style="animation-delay:0.9s"/>' +
+            '<line x1="520" y1="160" x2="580" y2="165" stroke="#a855f7" stroke-width="1.5" class="sg91-extract" style="animation-delay:1.2s"/>' +
+            '<line x1="520" y1="195" x2="580" y2="230" stroke="#a855f7" stroke-width="1.5" class="sg91-extract" style="animation-delay:1.5s"/>' +
+
+            '<!-- Forensic outputs -->' +
+            '<g>' +
+            '<rect x="580" y="70" width="110" height="40" rx="4" fill="#1a1f2b" stroke="#22c55e" stroke-width="1" class="sg91-evidence"/>' +
+            '<text x="635" y="88" text-anchor="middle" fill="#4ade80" font-size="7" font-weight="600">GPS TRACK</text>' +
+            '<text x="635" y="101" text-anchor="middle" fill="#8b949e" font-size="6">Full flight path</text>' +
+
+            '<rect x="580" y="120" width="110" height="40" rx="4" fill="#1a1f2b" stroke="#eab308" stroke-width="1" class="sg91-evidence" style="animation-delay:0.5s"/>' +
+            '<text x="635" y="138" text-anchor="middle" fill="#eab308" font-size="7" font-weight="600">TIMELINE</text>' +
+            '<text x="635" y="151" text-anchor="middle" fill="#8b949e" font-size="6">Every event logged</text>' +
+
+            '<rect x="580" y="170" width="110" height="40" rx="4" fill="#1a1f2b" stroke="#ef4444" stroke-width="1" class="sg91-evidence" style="animation-delay:1s"/>' +
+            '<text x="635" y="188" text-anchor="middle" fill="#f87171" font-size="7" font-weight="600">PILOT ID</text>' +
+            '<text x="635" y="201" text-anchor="middle" fill="#8b949e" font-size="6">RX binding + home</text>' +
+
+            '<rect x="580" y="220" width="110" height="40" rx="4" fill="#1a1f2b" stroke="#3b82f6" stroke-width="1" class="sg91-evidence" style="animation-delay:1.5s"/>' +
+            '<text x="635" y="238" text-anchor="middle" fill="#60a5fa" font-size="7" font-weight="600">MEDIA</text>' +
+            '<text x="635" y="251" text-anchor="middle" fill="#8b949e" font-size="6">Video + photos</text>' +
+            '</g>' +
+
+            '<!-- Evidence chain -->' +
+            '<rect x="40" y="280" width="640" height="35" rx="6" fill="rgba(168,85,247,0.06)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+            '<text x="50" y="298" fill="#c084fc" font-size="8" font-weight="600">CHAIN OF CUSTODY:</text>' +
+            '<text x="195" y="298" fill="#8b949e" font-size="7">Photograph &#8594; Remove SD (ESD safe) &#8594; dd forensic image &#8594; Work on copies &#8594; Document everything</text>' +
+
+            '<!-- Log format reference -->' +
+            '<rect x="40" y="330" width="640" height="50" rx="6" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+            '<text x="50" y="348" fill="#60a5fa" font-size="8" font-weight="600">LOG FORMATS:</text>' +
+            '<text x="50" y="364" fill="#3b82f6" font-size="7">ArduPilot (.bin)</text>' +
+            '<text x="180" y="364" fill="#22c55e" font-size="7">Betaflight (.bbl)</text>' +
+            '<text x="320" y="364" fill="#ef4444" font-size="7">DJI (.txt encrypted)</text>' +
+            '<text x="475" y="364" fill="#a855f7" font-size="7">PX4 ULog (.ulg)</text>' +
+
+            '</svg>' +
+            '</div>',
 
         steps: [
             {
@@ -986,7 +1916,132 @@ window.SignalGuides = {
         wiringNotes: '<p><strong>Mesh networking:</strong> Each drone acts as a router, forwarding messages for drones it cannot directly reach. If Drone A can reach Drone B, and Drone B can reach Drone C, then A can communicate with C through B. The mesh self-heals when nodes leave or join.</p>' +
                      '<p><strong>Simulation:</strong> We simulate the swarm entirely in software using threads as virtual drones. Each "drone" gets a UDP socket on localhost with a unique port. This is architecturally identical to a real WiFi mesh swarm but runs on a single machine.</p>',
 
-        wiringSvg: '',
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg92-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '<style>' +
+            '@keyframes sg92-mesh{0%{stroke-dashoffset:10}100%{stroke-dashoffset:0}}' +
+            '@keyframes sg92-heartbeat{0%,100%{r:4;opacity:0.4}50%{r:6;opacity:1}}' +
+            '@keyframes sg92-rogue{0%,100%{stroke:#ef4444;opacity:0.3}50%{stroke:#ef4444;opacity:1}}' +
+            '.sg92-mesh-link{stroke-dasharray:5,5;animation:sg92-mesh 2s linear infinite}' +
+            '.sg92-node{animation:sg92-heartbeat 1.5s ease-in-out infinite}' +
+            '.sg92-rogue{animation:sg92-rogue 0.8s ease-in-out infinite}' +
+            '</style>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg92-grid)" rx="4"/>' +
+            '<text x="360" y="30" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-92 SWARM COMMUNICATION</text>' +
+
+            '<!-- Mesh links (draw first so nodes overlay) -->' +
+            '<!-- Row 1 links -->' +
+            '<line x1="160" y1="110" x2="310" y2="110" stroke="#3b82f6" stroke-width="1" class="sg92-mesh-link"/>' +
+            '<line x1="310" y1="110" x2="460" y2="110" stroke="#3b82f6" stroke-width="1" class="sg92-mesh-link" style="animation-delay:0.3s"/>' +
+            '<!-- Row 2 links -->' +
+            '<line x1="160" y1="220" x2="310" y2="220" stroke="#3b82f6" stroke-width="1" class="sg92-mesh-link" style="animation-delay:0.6s"/>' +
+            '<line x1="310" y1="220" x2="460" y2="220" stroke="#3b82f6" stroke-width="1" class="sg92-mesh-link" style="animation-delay:0.9s"/>' +
+            '<!-- Vertical links -->' +
+            '<line x1="160" y1="110" x2="160" y2="220" stroke="#3b82f6" stroke-width="1" class="sg92-mesh-link" style="animation-delay:0.2s"/>' +
+            '<line x1="310" y1="110" x2="310" y2="220" stroke="#3b82f6" stroke-width="1" class="sg92-mesh-link" style="animation-delay:0.5s"/>' +
+            '<line x1="460" y1="110" x2="460" y2="220" stroke="#3b82f6" stroke-width="1" class="sg92-mesh-link" style="animation-delay:0.8s"/>' +
+            '<!-- Cross links -->' +
+            '<line x1="160" y1="110" x2="310" y2="220" stroke="rgba(59,130,246,0.3)" stroke-width="0.5" stroke-dasharray="3,4"/>' +
+            '<line x1="310" y1="110" x2="460" y2="220" stroke="rgba(59,130,246,0.3)" stroke-width="0.5" stroke-dasharray="3,4"/>' +
+
+            '<!-- Drone A -->' +
+            '<g>' +
+            '<circle cx="160" cy="110" r="4" fill="#22c55e" class="sg92-node"/>' +
+            '<rect x="120" y="75" width="80" height="24" rx="4" fill="#1e2736" stroke="#22c55e" stroke-width="1"/>' +
+            '<text x="160" y="91" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="600">DRONE A</text>' +
+            '</g>' +
+
+            '<!-- Drone B -->' +
+            '<g>' +
+            '<circle cx="310" cy="110" r="4" fill="#22c55e" class="sg92-node" style="animation-delay:0.3s"/>' +
+            '<rect x="270" y="75" width="80" height="24" rx="4" fill="#1e2736" stroke="#22c55e" stroke-width="1"/>' +
+            '<text x="310" y="91" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="600">DRONE B</text>' +
+            '</g>' +
+
+            '<!-- Drone C -->' +
+            '<g>' +
+            '<circle cx="460" cy="110" r="4" fill="#22c55e" class="sg92-node" style="animation-delay:0.6s"/>' +
+            '<rect x="420" y="75" width="80" height="24" rx="4" fill="#1e2736" stroke="#22c55e" stroke-width="1"/>' +
+            '<text x="460" y="91" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="600">DRONE C</text>' +
+            '</g>' +
+
+            '<!-- Drone D -->' +
+            '<g>' +
+            '<circle cx="160" cy="220" r="4" fill="#22c55e" class="sg92-node" style="animation-delay:0.9s"/>' +
+            '<rect x="120" y="232" width="80" height="24" rx="4" fill="#1e2736" stroke="#22c55e" stroke-width="1"/>' +
+            '<text x="160" y="248" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="600">DRONE D</text>' +
+            '</g>' +
+
+            '<!-- Drone E -->' +
+            '<g>' +
+            '<circle cx="310" cy="220" r="4" fill="#22c55e" class="sg92-node" style="animation-delay:1.2s"/>' +
+            '<rect x="270" y="232" width="80" height="24" rx="4" fill="#1e2736" stroke="#22c55e" stroke-width="1"/>' +
+            '<text x="310" y="248" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="600">DRONE E</text>' +
+            '</g>' +
+
+            '<!-- Drone F -->' +
+            '<g>' +
+            '<circle cx="460" cy="220" r="4" fill="#22c55e" class="sg92-node" style="animation-delay:1.5s"/>' +
+            '<rect x="420" y="232" width="80" height="24" rx="4" fill="#1e2736" stroke="#22c55e" stroke-width="1"/>' +
+            '<text x="460" y="248" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="600">DRONE F</text>' +
+            '</g>' +
+
+            '<!-- Rogue drone (attacker) -->' +
+            '<g>' +
+            '<circle cx="310" cy="165" r="6" fill="rgba(239,68,68,0.3)" stroke="#ef4444" stroke-width="1.5" class="sg92-rogue"/>' +
+            '<rect x="325" y="155" width="75" height="20" rx="3" fill="#1e2736" stroke="#ef4444" stroke-width="1"/>' +
+            '<text x="362" y="168" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">ROGUE</text>' +
+            '<line x1="310" y1="159" x2="310" y2="130" stroke="#ef4444" stroke-width="1" stroke-dasharray="3,2" opacity="0.6"/>' +
+            '<line x1="310" y1="171" x2="310" y2="200" stroke="#ef4444" stroke-width="1" stroke-dasharray="3,2" opacity="0.6"/>' +
+            '<line x1="304" y1="165" x2="190" y2="165" stroke="#ef4444" stroke-width="1" stroke-dasharray="3,2" opacity="0.4"/>' +
+            '<line x1="316" y1="165" x2="430" y2="165" stroke="#ef4444" stroke-width="1" stroke-dasharray="3,2" opacity="0.4"/>' +
+            '</g>' +
+
+            '<!-- Ground Control Station -->' +
+            '<g>' +
+            '<rect x="100" y="290" width="420" height="50" rx="8" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+            '<rect x="100" y="290" width="420" height="20" rx="8" fill="rgba(168,85,247,0.1)"/>' +
+            '<text x="310" y="305" text-anchor="middle" fill="#c084fc" font-size="9" font-weight="600">GROUND CONTROL STATION</text>' +
+            '<text x="310" y="325" text-anchor="middle" fill="#8b949e" font-size="7">Monitors all nodes via mesh gateway &#8212; WiFi mesh + MAVLink relay</text>' +
+            '</g>' +
+            '<line x1="310" y1="256" x2="310" y2="290" stroke="#a855f7" stroke-width="1.5" stroke-dasharray="4,3"/>' +
+
+            '<!-- Protocol details -->' +
+            '<g>' +
+            '<rect x="560" y="70" width="130" height="120" rx="6" fill="#1e2736" stroke="#3b82f6" stroke-width="1"/>' +
+            '<rect x="560" y="70" width="130" height="18" rx="6" fill="rgba(59,130,246,0.1)"/>' +
+            '<text x="625" y="83" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">MESH PROTOCOL</text>' +
+            '<text x="575" y="103" fill="#8b949e" font-size="6">Transport: UDP broadcast</text>' +
+            '<text x="575" y="116" fill="#8b949e" font-size="6">Heartbeat: 1 Hz</text>' +
+            '<text x="575" y="129" fill="#8b949e" font-size="6">Topology: Dynamic</text>' +
+            '<text x="575" y="142" fill="#8b949e" font-size="6">Self-healing: Yes</text>' +
+            '<text x="575" y="155" fill="#ef4444" font-size="6">Auth: NONE</text>' +
+            '<text x="575" y="168" fill="#ef4444" font-size="6">Encryption: NONE</text>' +
+            '</g>' +
+
+            '<!-- Attack vectors -->' +
+            '<g>' +
+            '<rect x="560" y="205" width="130" height="95" rx="6" fill="#1e2736" stroke="#ef4444" stroke-width="1"/>' +
+            '<rect x="560" y="205" width="130" height="18" rx="6" fill="rgba(239,68,68,0.1)"/>' +
+            '<text x="625" y="218" text-anchor="middle" fill="#f87171" font-size="8" font-weight="600">ATTACK SURFACE</text>' +
+            '<text x="575" y="238" fill="#ef4444" font-size="6">Rogue node injection</text>' +
+            '<text x="575" y="251" fill="#ef4444" font-size="6">False position data</text>' +
+            '<text x="575" y="264" fill="#ef4444" font-size="6">Heartbeat spoofing</text>' +
+            '<text x="575" y="277" fill="#ef4444" font-size="6">Mesh flooding DoS</text>' +
+            '<text x="575" y="290" fill="#ef4444" font-size="6">Formation disruption</text>' +
+            '</g>' +
+
+            '<!-- Bottom label -->' +
+            '<rect x="100" y="355" width="520" height="28" rx="6" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+            '<text x="110" y="373" fill="#4ade80" font-size="7" font-weight="600">SIMULATION:</text>' +
+            '<text x="195" y="373" fill="#8b949e" font-size="7">Each virtual drone = Python thread + UDP socket on localhost &#8212; architecturally identical to real WiFi mesh</text>' +
+
+            '</svg>' +
+            '</div>',
 
         steps: [
             {

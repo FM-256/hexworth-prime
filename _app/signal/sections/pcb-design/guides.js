@@ -988,7 +988,119 @@ window.SignalGuides = {
                 '                       +---[100uF]---+----+\n' +
                 '                       +---[100nF]---+',
 
-        wiringSvg: '',
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg78-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '<style>' +
+            '@keyframes sg78-trace{0%{stroke-dashoffset:120}100%{stroke-dashoffset:0}}' +
+            '.sg78-anim{animation:sg78-trace 2s ease-in-out infinite}' +
+            '</style>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg78-grid)" rx="4"/>' +
+            '<text x="360" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-78 USB-C BREAKOUT BOARD</text>' +
+
+            '<!-- PCB board outline -->' +
+            '<rect x="120" y="55" width="250" height="200" rx="6" fill="rgba(59,130,246,0.03)" stroke="#3b82f6" stroke-width="2"/>' +
+            '<text x="245" y="48" text-anchor="middle" fill="#3b82f6" font-size="7">PCB &mdash; 25mm x 20mm</text>' +
+
+            '<!-- USB-C connector -->' +
+            '<rect x="100" y="110" width="36" height="56" rx="8" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+            '<rect x="108" y="118" width="20" height="8" rx="2" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="0.5"/>' +
+            '<text x="118" y="125" text-anchor="middle" fill="#c084fc" font-size="5">USB-C</text>' +
+            '<text x="118" y="144" text-anchor="middle" fill="#ef4444" font-size="5">VBUS</text>' +
+            '<circle cx="136" cy="141" r="2" fill="#ef4444"/>' +
+            '<text x="118" y="154" text-anchor="middle" fill="#8b949e" font-size="5">GND</text>' +
+            '<circle cx="136" cy="151" r="2" fill="#3b82f6"/>' +
+            '<text x="118" y="164" text-anchor="middle" fill="#f97316" font-size="5">D+</text>' +
+            '<circle cx="136" cy="161" r="2" fill="#f97316"/>' +
+            '<text x="118" y="174" text-anchor="middle" fill="#f97316" font-size="5">D&minus;</text>' +
+            '<circle cx="136" cy="171" r="2" fill="#f97316"/>' +
+            '<text x="118" y="184" text-anchor="middle" fill="#22c55e" font-size="5">CC1</text>' +
+            '<circle cx="136" cy="181" r="2" fill="#22c55e"/>' +
+            '<text x="118" y="194" text-anchor="middle" fill="#22c55e" font-size="5">CC2</text>' +
+            '<circle cx="136" cy="191" r="2" fill="#22c55e"/>' +
+
+            '<!-- CC pull-down resistors -->' +
+            '<rect x="160" y="210" width="36" height="12" rx="2" fill="#1e2736" stroke="#22c55e" stroke-width="1"/>' +
+            '<text x="178" y="219" text-anchor="middle" fill="#22c55e" font-size="5">5.1k R1</text>' +
+            '<rect x="160" y="228" width="36" height="12" rx="2" fill="#1e2736" stroke="#22c55e" stroke-width="1"/>' +
+            '<text x="178" y="237" text-anchor="middle" fill="#22c55e" font-size="5">5.1k R2</text>' +
+            '<line x1="136" y1="181" x2="160" y2="216" stroke="#22c55e" stroke-width="1"/>' +
+            '<line x1="136" y1="191" x2="160" y2="234" stroke="#22c55e" stroke-width="1"/>' +
+            '<line x1="196" y1="216" x2="220" y2="245" stroke="#8b949e" stroke-width="1" stroke-dasharray="3,2"/>' +
+            '<line x1="196" y1="234" x2="220" y2="245" stroke="#8b949e" stroke-width="1" stroke-dasharray="3,2"/>' +
+            '<text x="225" y="248" fill="#8b949e" font-size="5">GND</text>' +
+
+            '<!-- AMS1117-3.3 regulator -->' +
+            '<rect x="210" y="105" width="70" height="40" rx="4" fill="#1e2736" stroke="#ef4444" stroke-width="1.5"/>' +
+            '<text x="245" y="120" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">AMS1117</text>' +
+            '<text x="245" y="132" text-anchor="middle" fill="#8b949e" font-size="6">3.3V LDO</text>' +
+            '<text x="212" y="140" fill="#8b949e" font-size="5">VIN</text>' +
+            '<text x="260" y="140" fill="#8b949e" font-size="5">VOUT</text>' +
+            '<text x="238" y="152" fill="#8b949e" font-size="5">GND</text>' +
+
+            '<!-- VBUS trace to VIN (animated) -->' +
+            '<path d="M136,141 L210,125" stroke="#ef4444" stroke-width="2" stroke-dasharray="40,80" class="sg78-anim"/>' +
+
+            '<!-- Capacitors -->' +
+            '<rect x="190" y="160" width="24" height="10" rx="2" fill="rgba(168,85,247,0.15)" stroke="#a855f7" stroke-width="0.5"/>' +
+            '<text x="202" y="168" text-anchor="middle" fill="#c084fc" font-size="4">100uF</text>' +
+            '<rect x="220" y="160" width="18" height="10" rx="2" fill="rgba(168,85,247,0.15)" stroke="#a855f7" stroke-width="0.5"/>' +
+            '<text x="229" y="168" text-anchor="middle" fill="#c084fc" font-size="4">100nF</text>' +
+            '<rect x="270" y="160" width="24" height="10" rx="2" fill="rgba(168,85,247,0.15)" stroke="#a855f7" stroke-width="0.5"/>' +
+            '<text x="282" y="168" text-anchor="middle" fill="#c084fc" font-size="4">100uF</text>' +
+            '<rect x="300" y="160" width="18" height="10" rx="2" fill="rgba(168,85,247,0.15)" stroke="#a855f7" stroke-width="0.5"/>' +
+            '<text x="309" y="168" text-anchor="middle" fill="#c084fc" font-size="4">100nF</text>' +
+            '<text x="229" y="182" text-anchor="middle" fill="#8b949e" font-size="5">Input caps</text>' +
+            '<text x="294" y="182" text-anchor="middle" fill="#8b949e" font-size="5">Output caps</text>' +
+
+            '<!-- Output header -->' +
+            '<rect x="340" y="100" width="24" height="100" rx="3" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<text x="352" y="96" text-anchor="middle" fill="#4ade80" font-size="7" font-weight="600">J2</text>' +
+            '<circle cx="352" cy="115" r="3" fill="rgba(34,197,94,0.3)" stroke="#22c55e" stroke-width="0.8"/>' +
+            '<text x="373" y="118" fill="#22c55e" font-size="5">3.3V</text>' +
+            '<circle cx="352" cy="132" r="3" fill="rgba(239,68,68,0.3)" stroke="#ef4444" stroke-width="0.8"/>' +
+            '<text x="373" y="135" fill="#ef4444" font-size="5">5V (VBUS)</text>' +
+            '<circle cx="352" cy="149" r="3" fill="rgba(249,115,22,0.3)" stroke="#f97316" stroke-width="0.8"/>' +
+            '<text x="373" y="152" fill="#f97316" font-size="5">D+</text>' +
+            '<circle cx="352" cy="166" r="3" fill="rgba(249,115,22,0.3)" stroke="#f97316" stroke-width="0.8"/>' +
+            '<text x="373" y="169" fill="#f97316" font-size="5">D&minus;</text>' +
+            '<circle cx="352" cy="183" r="3" fill="rgba(59,130,246,0.3)" stroke="#3b82f6" stroke-width="0.8"/>' +
+            '<text x="373" y="186" fill="#3b82f6" font-size="5">GND</text>' +
+
+            '<!-- VOUT to 3.3V header trace -->' +
+            '<line x1="280" y1="125" x2="340" y2="115" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<!-- D+ passthrough -->' +
+            '<line x1="136" y1="161" x2="340" y2="149" stroke="#f97316" stroke-width="1" stroke-dasharray="4,2"/>' +
+            '<!-- D- passthrough -->' +
+            '<line x1="136" y1="171" x2="340" y2="166" stroke="#f97316" stroke-width="1" stroke-dasharray="4,2"/>' +
+
+            '<!-- Power path annotation -->' +
+            '<rect x="430" y="55" width="260" height="100" rx="8" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.15)" stroke-width="0.5"/>' +
+            '<text x="560" y="73" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="600">POWER PATH</text>' +
+            '<text x="440" y="90" fill="#8b949e" font-size="6">USB-C VBUS (5V) &rarr; AMS1117 VIN</text>' +
+            '<text x="440" y="104" fill="#8b949e" font-size="6">AMS1117 VOUT &rarr; 3.3V header pin</text>' +
+            '<text x="440" y="118" fill="#8b949e" font-size="6">VBUS also passed through to 5V header</text>' +
+            '<text x="440" y="132" fill="#22c55e" font-size="6">CC1/CC2: 5.1k&#x2126; pull-downs to GND</text>' +
+            '<text x="440" y="146" fill="#8b949e" font-size="6">(required for USB-C power negotiation)</text>' +
+
+            '<!-- Component legend -->' +
+            '<rect x="430" y="170" width="260" height="80" rx="8" fill="rgba(168,85,247,0.04)" stroke="rgba(168,85,247,0.15)" stroke-width="0.5"/>' +
+            '<text x="560" y="188" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="600">CAPACITOR PLACEMENT</text>' +
+            '<text x="440" y="205" fill="#8b949e" font-size="6">Input: 100&mu;F electrolytic + 100nF ceramic</text>' +
+            '<text x="440" y="219" fill="#8b949e" font-size="6">Output: 100&mu;F electrolytic + 100nF ceramic</text>' +
+            '<text x="440" y="233" fill="#8b949e" font-size="6">Bypass caps &lt;3mm from regulator pins</text>' +
+
+            '<!-- Board specs -->' +
+            '<rect x="430" y="265" width="260" height="55" rx="8" fill="rgba(59,130,246,0.04)" stroke="rgba(59,130,246,0.15)" stroke-width="0.5"/>' +
+            '<text x="560" y="283" text-anchor="middle" fill="#3b82f6" font-size="8" font-weight="600">BOARD SPECS</text>' +
+            '<text x="440" y="298" fill="#8b949e" font-size="6">Size: 25mm x 20mm &bull; 2-layer FR4</text>' +
+            '<text x="440" y="312" fill="#8b949e" font-size="6">Power: 0.5mm traces &bull; Signal: 0.25mm</text>' +
+
+            '</svg>' +
+            '</div>',
 
         wiringNotes: '<p><strong>CC resistors are mandatory.</strong> USB-C requires 5.1k&#x2126; pull-down resistors on CC1 and CC2 to negotiate power delivery. Without them, most USB-C hosts will not provide any power at all. These are not optional &mdash; no CC resistors means no VBUS voltage.</p>' +
                      '<p><strong>Regulator choice:</strong> The AMS1117-3.3 is a linear dropout regulator (LDO) that converts 5V to 3.3V. It needs input and output capacitors for stability: 100&mu;F electrolytic on the input, 100&mu;F on the output, plus 100nF ceramic bypass caps on both sides. Place the bypass caps as close to the regulator pins as possible.</p>' +
@@ -1087,7 +1199,143 @@ window.SignalGuides = {
                 '    - SOT-23, SOT-223               - Rework / removal       - Production runs\n' +
                 '    - Pin headers, connectors       - Thermal pads            - Consistent quality',
 
-        wiringSvg: '',
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg79-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '<style>' +
+            '@keyframes sg79-solder{0%{opacity:0.3;r:2}50%{opacity:1;r:4}100%{opacity:0.3;r:2}}' +
+            '.sg79-blob{animation:sg79-solder 1.8s ease-in-out infinite}' +
+            '</style>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg79-grid)" rx="4"/>' +
+            '<text x="360" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-79 SMD SOLDERING SKILLS</text>' +
+
+            '<!-- Method 1: Hand Soldering -->' +
+            '<rect x="30" y="50" width="200" height="165" rx="8" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.2)" stroke-width="1"/>' +
+            '<text x="130" y="70" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">HAND SOLDERING</text>' +
+
+            '<!-- Iron tip -->' +
+            '<line x1="60" y1="100" x2="120" y2="130" stroke="#8b949e" stroke-width="3" stroke-linecap="round"/>' +
+            '<line x1="120" y1="130" x2="135" y2="137" stroke="#eab308" stroke-width="1.5" stroke-linecap="round"/>' +
+            '<circle cx="135" cy="137" r="3" fill="#eab308" class="sg79-blob"/>' +
+
+            '<!-- 0805 component pads -->' +
+            '<rect x="100" y="140" width="16" height="10" rx="1" fill="rgba(34,197,94,0.3)" stroke="#22c55e" stroke-width="0.8"/>' +
+            '<rect x="122" y="140" width="16" height="10" rx="1" fill="rgba(34,197,94,0.3)" stroke="#22c55e" stroke-width="0.8"/>' +
+            '<rect x="110" y="141" width="18" height="8" rx="1" fill="#1e2736" stroke="#8b949e" stroke-width="0.5"/>' +
+            '<text x="119" y="148" text-anchor="middle" fill="#8b949e" font-size="4">0805</text>' +
+
+            '<text x="130" y="170" text-anchor="middle" fill="#8b949e" font-size="6">Tack one pad &rarr; place &rarr; solder other</text>' +
+            '<text x="130" y="184" text-anchor="middle" fill="#ef4444" font-size="6">Iron: 350&deg;C, 1&ndash;2s contact</text>' +
+            '<text x="130" y="198" text-anchor="middle" fill="#8b949e" font-size="6">Best: 0805, 1206, SOT-223</text>' +
+
+            '<!-- Method 2: Hot Air -->' +
+            '<rect x="250" y="50" width="200" height="165" rx="8" fill="rgba(249,115,22,0.04)" stroke="rgba(249,115,22,0.2)" stroke-width="1"/>' +
+            '<text x="350" y="70" text-anchor="middle" fill="#f97316" font-size="9" font-weight="600">HOT AIR REWORK</text>' +
+
+            '<!-- Hot air nozzle -->' +
+            '<rect x="330" y="88" width="20" height="30" rx="3" fill="#1e2736" stroke="#f97316" stroke-width="1.5"/>' +
+            '<circle cx="340" cy="84" r="4" fill="none" stroke="#f97316" stroke-width="1"/>' +
+            '<!-- Heat waves -->' +
+            '<path d="M332,120 Q336,128 332,136" fill="none" stroke="rgba(249,115,22,0.4)" stroke-width="1"/>' +
+            '<path d="M340,120 Q344,128 340,136" fill="none" stroke="rgba(249,115,22,0.3)" stroke-width="1"/>' +
+            '<path d="M348,120 Q352,128 348,136" fill="none" stroke="rgba(249,115,22,0.2)" stroke-width="1"/>' +
+
+            '<!-- QFP package -->' +
+            '<rect x="315" y="140" width="30" height="30" rx="2" fill="#1e2736" stroke="#f97316" stroke-width="1"/>' +
+            '<text x="330" y="158" text-anchor="middle" fill="#f97316" font-size="5">QFP</text>' +
+            '<!-- QFP pins -->' +
+            '<line x1="312" y1="148" x2="315" y2="148" stroke="#8b949e" stroke-width="0.8"/>' +
+            '<line x1="312" y1="152" x2="315" y2="152" stroke="#8b949e" stroke-width="0.8"/>' +
+            '<line x1="312" y1="156" x2="315" y2="156" stroke="#8b949e" stroke-width="0.8"/>' +
+            '<line x1="312" y1="160" x2="315" y2="160" stroke="#8b949e" stroke-width="0.8"/>' +
+            '<line x1="345" y1="148" x2="348" y2="148" stroke="#8b949e" stroke-width="0.8"/>' +
+            '<line x1="345" y1="152" x2="348" y2="152" stroke="#8b949e" stroke-width="0.8"/>' +
+            '<line x1="345" y1="156" x2="348" y2="156" stroke="#8b949e" stroke-width="0.8"/>' +
+            '<line x1="345" y1="160" x2="348" y2="160" stroke="#8b949e" stroke-width="0.8"/>' +
+
+            '<text x="350" y="188" text-anchor="middle" fill="#8b949e" font-size="6">Flux paste &rarr; heat &rarr; reflow</text>' +
+            '<text x="350" y="200" text-anchor="middle" fill="#f97316" font-size="6">Air: 350&ndash;400&deg;C, 40&ndash;60%</text>' +
+
+            '<!-- Method 3: Reflow -->' +
+            '<rect x="470" y="50" width="220" height="165" rx="8" fill="rgba(168,85,247,0.04)" stroke="rgba(168,85,247,0.2)" stroke-width="1"/>' +
+            '<text x="580" y="70" text-anchor="middle" fill="#a855f7" font-size="9" font-weight="600">SOLDER PASTE REFLOW</text>' +
+
+            '<!-- Stencil -->' +
+            '<rect x="510" y="90" width="80" height="8" rx="1" fill="rgba(168,85,247,0.15)" stroke="#a855f7" stroke-width="0.8"/>' +
+            '<rect x="528" y="91" width="8" height="6" rx="0.5" fill="none" stroke="#a855f7" stroke-width="0.5"/>' +
+            '<rect x="544" y="91" width="8" height="6" rx="0.5" fill="none" stroke="#a855f7" stroke-width="0.5"/>' +
+            '<rect x="560" y="91" width="8" height="6" rx="0.5" fill="none" stroke="#a855f7" stroke-width="0.5"/>' +
+            '<text x="600" y="97" fill="#a855f7" font-size="5">Stencil</text>' +
+
+            '<!-- PCB with paste -->' +
+            '<rect x="510" y="104" width="80" height="8" rx="1" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="0.5"/>' +
+            '<rect x="528" y="105" width="8" height="6" rx="0.5" fill="rgba(168,85,247,0.5)"/>' +
+            '<rect x="544" y="105" width="8" height="6" rx="0.5" fill="rgba(168,85,247,0.5)"/>' +
+            '<rect x="560" y="105" width="8" height="6" rx="0.5" fill="rgba(168,85,247,0.5)"/>' +
+            '<text x="600" y="111" fill="#8b949e" font-size="5">Paste applied</text>' +
+
+            '<!-- Reflow profile -->' +
+            '<text x="580" y="130" text-anchor="middle" fill="#c084fc" font-size="6">Reflow Temperature Profile</text>' +
+            '<polyline points="510,175 530,175 545,160 570,160 582,140 595,160 620,175 650,175" fill="none" stroke="#a855f7" stroke-width="1.5"/>' +
+            '<text x="520" y="185" fill="#8b949e" font-size="4">Preheat</text>' +
+            '<text x="555" y="155" fill="#8b949e" font-size="4">Soak</text>' +
+            '<text x="582" y="135" fill="#ef4444" font-size="4">Reflow</text>' +
+            '<text x="620" y="185" fill="#8b949e" font-size="4">Cool</text>' +
+
+            '<text x="580" y="200" text-anchor="middle" fill="#8b949e" font-size="6">Full board assembly &bull; Production</text>' +
+
+            '<!-- Component size comparison -->' +
+            '<rect x="30" y="230" width="660" height="150" rx="8" fill="rgba(34,197,94,0.03)" stroke="rgba(34,197,94,0.1)" stroke-width="0.5"/>' +
+            '<text x="360" y="250" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">SMD PACKAGE SIZE COMPARISON (to scale)</text>' +
+
+            '<!-- 1206 -->' +
+            '<rect x="80" y="275" width="48" height="24" rx="2" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="1"/>' +
+            '<text x="104" y="291" text-anchor="middle" fill="#3b82f6" font-size="7">1206</text>' +
+            '<text x="104" y="315" text-anchor="middle" fill="#8b949e" font-size="5">3.2 x 1.6mm</text>' +
+            '<text x="104" y="326" text-anchor="middle" fill="#22c55e" font-size="5">Easy hand</text>' +
+
+            '<!-- 0805 -->' +
+            '<rect x="190" y="279" width="30" height="16" rx="2" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1"/>' +
+            '<text x="205" y="291" text-anchor="middle" fill="#22c55e" font-size="7">0805</text>' +
+            '<text x="205" y="315" text-anchor="middle" fill="#8b949e" font-size="5">2.0 x 1.25mm</text>' +
+            '<text x="205" y="326" text-anchor="middle" fill="#22c55e" font-size="5">Beginner SMD</text>' +
+
+            '<!-- 0603 -->' +
+            '<rect x="295" y="281" width="24" height="12" rx="1" fill="rgba(249,115,22,0.15)" stroke="#f97316" stroke-width="1"/>' +
+            '<text x="307" y="291" text-anchor="middle" fill="#f97316" font-size="6">0603</text>' +
+            '<text x="307" y="315" text-anchor="middle" fill="#8b949e" font-size="5">1.6 x 0.8mm</text>' +
+            '<text x="307" y="326" text-anchor="middle" fill="#f97316" font-size="5">Tweezers req</text>' +
+
+            '<!-- 0402 -->' +
+            '<rect x="395" y="283" width="16" height="8" rx="1" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="1"/>' +
+            '<text x="403" y="291" text-anchor="middle" fill="#ef4444" font-size="6">0402</text>' +
+            '<text x="403" y="315" text-anchor="middle" fill="#8b949e" font-size="5">1.0 x 0.5mm</text>' +
+            '<text x="403" y="326" text-anchor="middle" fill="#ef4444" font-size="5">Reflow only</text>' +
+
+            '<!-- SOT-23 -->' +
+            '<rect x="475" y="278" width="30" height="18" rx="2" fill="rgba(234,179,8,0.15)" stroke="#eab308" stroke-width="1"/>' +
+            '<line x1="480" y1="296" x2="480" y2="302" stroke="#8b949e" stroke-width="0.6"/>' +
+            '<line x1="490" y1="296" x2="490" y2="302" stroke="#8b949e" stroke-width="0.6"/>' +
+            '<line x1="500" y1="296" x2="500" y2="302" stroke="#8b949e" stroke-width="0.6"/>' +
+            '<text x="490" y="291" text-anchor="middle" fill="#eab308" font-size="6">SOT-23</text>' +
+            '<text x="490" y="315" text-anchor="middle" fill="#8b949e" font-size="5">2.9 x 1.3mm</text>' +
+            '<text x="490" y="326" text-anchor="middle" fill="#eab308" font-size="5">3-pin transistor</text>' +
+
+            '<!-- QFP -->' +
+            '<rect x="570" y="272" width="30" height="30" rx="2" fill="rgba(168,85,247,0.15)" stroke="#a855f7" stroke-width="1"/>' +
+            '<text x="585" y="291" text-anchor="middle" fill="#a855f7" font-size="6">QFP</text>' +
+            '<text x="585" y="315" text-anchor="middle" fill="#8b949e" font-size="5">0.5mm pitch</text>' +
+            '<text x="585" y="326" text-anchor="middle" fill="#a855f7" font-size="5">Hot air / drag</text>' +
+
+            '<!-- Solder joint callout -->' +
+            '<text x="360" y="360" text-anchor="middle" fill="#eab308" font-size="7" font-weight="600">GOOD JOINT: smooth, concave fillet, shiny surface</text>' +
+            '<text x="360" y="374" text-anchor="middle" fill="#ef4444" font-size="7">BAD JOINT: dull, grainy, balled up, or bridged &mdash; reflow with flux</text>' +
+
+            '</svg>' +
+            '</div>',
 
         wiringNotes: '<p><strong>Flux is not optional.</strong> Every SMD soldering technique requires flux. For hand soldering, use a flux pen or liquid flux. For hot air, use tacky flux paste. For reflow, the solder paste already contains flux. Without flux, solder will not flow properly, joints will be cold or bridged, and you will waste hours on rework.</p>' +
                      '<p><strong>Temperature matters.</strong> Lead-free solder (SAC305) melts at 217&deg;C; leaded solder (63/37 Sn/Pb) melts at 183&deg;C. Set your iron tip to 350&deg;C for hand soldering (brief contact) or 300&deg;C for extended work. Hot air should be 350&ndash;400&deg;C with medium airflow. Reflow ovens follow a specific temperature profile: preheat, soak, reflow, cool.</p>' +
@@ -1197,7 +1445,131 @@ window.SignalGuides = {
                 '    R1 = 240 ohm (fixed)\n' +
                 '    R2 = 0-5k pot --> Vout = 1.25V to ~27V (limited by VIN)',
 
-        wiringSvg: '',
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg80-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '<pattern id="sg80-copper" width="6" height="6" patternUnits="userSpaceOnUse"><rect width="6" height="6" fill="rgba(34,197,94,0.06)"/><line x1="0" y1="6" x2="6" y2="0" stroke="rgba(34,197,94,0.08)" stroke-width="0.5"/></pattern>' +
+            '<style>' +
+            '@keyframes sg80-flow{0%{stroke-dashoffset:24}100%{stroke-dashoffset:0}}' +
+            '.sg80-current{animation:sg80-flow 1.2s linear infinite}' +
+            '</style>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg80-grid)" rx="4"/>' +
+            '<text x="360" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-80 BENCH POWER SUPPLY</text>' +
+
+            '<!-- PCB board outline -->' +
+            '<rect x="40" y="55" width="380" height="230" rx="6" fill="rgba(59,130,246,0.02)" stroke="#3b82f6" stroke-width="2"/>' +
+            '<text x="230" y="48" text-anchor="middle" fill="#3b82f6" font-size="7">PCB &mdash; 60mm x 40mm</text>' +
+
+            '<!-- Ground plane fill -->' +
+            '<rect x="44" y="59" width="372" height="222" rx="4" fill="url(#sg80-copper)"/>' +
+
+            '<!-- DC jack J1 -->' +
+            '<rect x="52" y="110" width="40" height="50" rx="4" fill="#1e2736" stroke="#ef4444" stroke-width="1.5"/>' +
+            '<circle cx="72" cy="135" r="8" fill="none" stroke="#ef4444" stroke-width="1"/>' +
+            '<circle cx="72" cy="135" r="3" fill="#ef4444" opacity="0.4"/>' +
+            '<text x="72" y="100" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">J1</text>' +
+            '<text x="72" y="170" text-anchor="middle" fill="#8b949e" font-size="5">DC 12V IN</text>' +
+
+            '<!-- Protection diode D2 -->' +
+            '<polygon points="108,125 108,145 120,135" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="1"/>' +
+            '<line x1="120" y1="125" x2="120" y2="145" stroke="#ef4444" stroke-width="1"/>' +
+            '<text x="114" y="118" text-anchor="middle" fill="#8b949e" font-size="5">D2</text>' +
+
+            '<!-- Input capacitors -->' +
+            '<rect x="130" y="165" width="28" height="14" rx="2" fill="rgba(168,85,247,0.15)" stroke="#a855f7" stroke-width="0.8"/>' +
+            '<text x="144" y="175" text-anchor="middle" fill="#c084fc" font-size="5">C1 470uF</text>' +
+            '<rect x="164" y="165" width="20" height="14" rx="2" fill="rgba(168,85,247,0.15)" stroke="#a855f7" stroke-width="0.8"/>' +
+            '<text x="174" y="175" text-anchor="middle" fill="#c084fc" font-size="4">C2 100nF</text>' +
+
+            '<!-- LM317 regulator -->' +
+            '<rect x="165" y="105" width="80" height="50" rx="4" fill="#1e2736" stroke="#ef4444" stroke-width="1.5"/>' +
+            '<text x="205" y="122" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="600">LM317T</text>' +
+            '<text x="205" y="135" text-anchor="middle" fill="#8b949e" font-size="6">TO-220</text>' +
+            '<text x="170" y="150" fill="#8b949e" font-size="5">VIN</text>' +
+            '<text x="224" y="150" fill="#8b949e" font-size="5">VOUT</text>' +
+            '<text x="196" y="163" fill="#8b949e" font-size="5">ADJ</text>' +
+
+            '<!-- Heatsink behind LM317 -->' +
+            '<rect x="175" y="80" width="60" height="20" rx="2" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+            '<line x1="180" y1="82" x2="180" y2="98" stroke="rgba(239,68,68,0.15)" stroke-width="0.5"/>' +
+            '<line x1="190" y1="82" x2="190" y2="98" stroke="rgba(239,68,68,0.15)" stroke-width="0.5"/>' +
+            '<line x1="200" y1="82" x2="200" y2="98" stroke="rgba(239,68,68,0.15)" stroke-width="0.5"/>' +
+            '<line x1="210" y1="82" x2="210" y2="98" stroke="rgba(239,68,68,0.15)" stroke-width="0.5"/>' +
+            '<line x1="220" y1="82" x2="220" y2="98" stroke="rgba(239,68,68,0.15)" stroke-width="0.5"/>' +
+            '<line x1="230" y1="82" x2="230" y2="98" stroke="rgba(239,68,68,0.15)" stroke-width="0.5"/>' +
+            '<text x="205" y="74" text-anchor="middle" fill="rgba(239,68,68,0.4)" font-size="5">HEATSINK</text>' +
+
+            '<!-- R1 fixed resistor -->' +
+            '<rect x="260" y="140" width="36" height="12" rx="2" fill="#1e2736" stroke="#eab308" stroke-width="1"/>' +
+            '<text x="278" y="149" text-anchor="middle" fill="#eab308" font-size="5">R1 240&#x2126;</text>' +
+
+            '<!-- R2 potentiometer -->' +
+            '<circle cx="278" cy="200" r="14" fill="#1e2736" stroke="#eab308" stroke-width="1.5"/>' +
+            '<line x1="278" y1="190" x2="268" y2="200" stroke="#eab308" stroke-width="1.5"/>' +
+            '<text x="278" y="204" text-anchor="middle" fill="#eab308" font-size="5">R2 5k</text>' +
+            '<text x="278" y="224" text-anchor="middle" fill="#8b949e" font-size="5">POT (adjust)</text>' +
+
+            '<!-- Output capacitors -->' +
+            '<rect x="310" y="165" width="28" height="14" rx="2" fill="rgba(168,85,247,0.15)" stroke="#a855f7" stroke-width="0.8"/>' +
+            '<text x="324" y="175" text-anchor="middle" fill="#c084fc" font-size="5">C3 100uF</text>' +
+            '<rect x="344" y="165" width="20" height="14" rx="2" fill="rgba(168,85,247,0.15)" stroke="#a855f7" stroke-width="0.8"/>' +
+            '<text x="354" y="175" text-anchor="middle" fill="#c084fc" font-size="4">C4 100nF</text>' +
+
+            '<!-- Output screw terminal -->' +
+            '<rect x="370" y="110" width="36" height="50" rx="4" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<text x="388" y="100" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="600">J2</text>' +
+            '<circle cx="380" cy="125" r="4" fill="rgba(34,197,94,0.2)" stroke="#22c55e" stroke-width="0.8"/>' +
+            '<text x="380" y="128" text-anchor="middle" fill="#22c55e" font-size="4">V+</text>' +
+            '<circle cx="380" cy="145" r="4" fill="rgba(59,130,246,0.2)" stroke="#3b82f6" stroke-width="0.8"/>' +
+            '<text x="380" y="148" text-anchor="middle" fill="#3b82f6" font-size="4">V&minus;</text>' +
+            '<text x="388" y="170" text-anchor="middle" fill="#8b949e" font-size="5">OUTPUT</text>' +
+
+            '<!-- Power trace — animated current flow -->' +
+            '<path d="M92,135 L108,135" stroke="#ef4444" stroke-width="3" stroke-dasharray="4,4" class="sg80-current"/>' +
+            '<path d="M120,135 L165,125" stroke="#ef4444" stroke-width="3" stroke-dasharray="4,4" class="sg80-current"/>' +
+            '<path d="M245,125 L260,146" stroke="#eab308" stroke-width="1.5"/>' +
+            '<path d="M296,146 L370,125" stroke="#22c55e" stroke-width="2" stroke-dasharray="4,4" class="sg80-current"/>' +
+
+            '<!-- ADJ to pot wiring -->' +
+            '<line x1="205" y1="155" x2="260" y2="146" stroke="#eab308" stroke-width="1"/>' +
+            '<line x1="278" y1="152" x2="278" y2="186" stroke="#eab308" stroke-width="1"/>' +
+
+            '<!-- LED indicator -->' +
+            '<polygon points="348,130 356,145 340,145" fill="rgba(34,197,94,0.2)" stroke="#22c55e" stroke-width="0.8"/>' +
+            '<text x="348" y="124" text-anchor="middle" fill="#22c55e" font-size="4">LED</text>' +
+
+            '<!-- Formula box -->' +
+            '<rect x="450" y="55" width="240" height="75" rx="8" fill="rgba(234,179,8,0.05)" stroke="rgba(234,179,8,0.2)" stroke-width="1"/>' +
+            '<text x="570" y="75" text-anchor="middle" fill="#eab308" font-size="9" font-weight="600">LM317 FORMULA</text>' +
+            '<text x="570" y="95" text-anchor="middle" fill="#eab308" font-size="10">Vout = 1.25 &times; (1 + R2/R1)</text>' +
+            '<text x="570" y="112" text-anchor="middle" fill="#8b949e" font-size="7">R1=240&#x2126;, R2=0&ndash;5k&#x2126; &rarr; Vout=1.25&ndash;27V</text>' +
+            '<text x="570" y="124" text-anchor="middle" fill="#ef4444" font-size="6">VIN=12V, dropout=2V &rarr; max Vout &asymp; 10V</text>' +
+
+            '<!-- Heat dissipation box -->' +
+            '<rect x="450" y="145" width="240" height="65" rx="8" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.15)" stroke-width="0.5"/>' +
+            '<text x="570" y="163" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="600">THERMAL DESIGN</text>' +
+            '<text x="460" y="180" fill="#8b949e" font-size="6">P = (VIN &minus; VOUT) &times; I<tspan font-size="4">load</tspan></text>' +
+            '<text x="460" y="194" fill="#8b949e" font-size="6">Worst case: (12&minus;1.25) &times; 1A = 10.75W</text>' +
+            '<text x="460" y="206" fill="#ef4444" font-size="6">TO-220 heatsink REQUIRED above 1W</text>' +
+
+            '<!-- Trace width guide -->' +
+            '<rect x="450" y="225" width="240" height="65" rx="8" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.15)" stroke-width="0.5"/>' +
+            '<text x="570" y="243" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">TRACE WIDTHS</text>' +
+            '<text x="460" y="258" fill="#ef4444" font-size="6">&#9632; Power (VIN, VOUT, GND): 1.0&ndash;1.5mm</text>' +
+            '<text x="460" y="272" fill="#eab308" font-size="6">&#9632; Adjustment (R1, R2): 0.25mm</text>' +
+            '<text x="460" y="286" fill="#22c55e" font-size="6">&#9632; LED indicator: 0.25mm</text>' +
+
+            '<!-- Board specs -->' +
+            '<rect x="450" y="305" width="240" height="50" rx="8" fill="rgba(59,130,246,0.04)" stroke="rgba(59,130,246,0.15)" stroke-width="0.5"/>' +
+            '<text x="570" y="323" text-anchor="middle" fill="#3b82f6" font-size="8" font-weight="600">BOARD SPECS</text>' +
+            '<text x="460" y="338" fill="#8b949e" font-size="6">60mm x 40mm &bull; 2-layer FR4 &bull; 1oz copper</text>' +
+            '<text x="460" y="350" fill="#8b949e" font-size="6">B.Cu ground plane &bull; M3 heatsink mounts</text>' +
+
+            '</svg>' +
+            '</div>',
 
         wiringNotes: '<p><strong>The LM317 formula:</strong> V<sub>out</sub> = 1.25 &times; (1 + R2/R1). With R1 = 240&#x2126; and a 5k&#x2126; potentiometer for R2, the output ranges from 1.25V (pot at 0) to approximately 27V (pot at max). Since VIN is 12V and the LM317 needs ~2V headroom (dropout voltage), the practical maximum output is about 10V.</p>' +
                      '<p><strong>Heat dissipation is critical.</strong> The LM317 is a linear regulator &mdash; it dissipates excess voltage as heat. Power dissipation = (VIN &minus; VOUT) &times; I<sub>load</sub>. At worst case (12V in, 1.25V out, 1A load), the regulator dissipates 10.75 watts. That requires a substantial heatsink. Design your PCB with a heatsink mounting area and thermal relief pads.</p>' +
@@ -1298,7 +1670,138 @@ window.SignalGuides = {
                 '                           +--------+--------+--------+\n' +
                 '                          [100nF]  [100nF]  [100nF]',
 
-        wiringSvg: '',
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg81-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '<style>' +
+            '@keyframes sg81-data{0%{stroke-dashoffset:20}100%{stroke-dashoffset:0}}' +
+            '.sg81-bus{animation:sg81-data 1s linear infinite}' +
+            '</style>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg81-grid)" rx="4"/>' +
+            '<text x="360" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-81 I2C MULTI-SENSOR BOARD</text>' +
+
+            '<!-- PCB board outline -->' +
+            '<rect x="30" y="50" width="430" height="230" rx="6" fill="rgba(59,130,246,0.02)" stroke="#3b82f6" stroke-width="2"/>' +
+            '<text x="245" y="44" text-anchor="middle" fill="#3b82f6" font-size="7">PCB &mdash; 30mm x 25mm</text>' +
+
+            '<!-- MCU header J1 -->' +
+            '<rect x="42" y="90" width="28" height="120" rx="3" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<text x="56" y="84" text-anchor="middle" fill="#4ade80" font-size="7" font-weight="600">J1</text>' +
+            '<circle cx="56" cy="105" r="3" fill="rgba(239,68,68,0.3)" stroke="#ef4444" stroke-width="0.8"/>' +
+            '<text x="38" y="108" text-anchor="end" fill="#ef4444" font-size="5">VCC</text>' +
+            '<circle cx="56" cy="125" r="3" fill="rgba(59,130,246,0.3)" stroke="#3b82f6" stroke-width="0.8"/>' +
+            '<text x="38" y="128" text-anchor="end" fill="#3b82f6" font-size="5">GND</text>' +
+            '<circle cx="56" cy="145" r="3" fill="rgba(249,115,22,0.3)" stroke="#f97316" stroke-width="0.8"/>' +
+            '<text x="38" y="148" text-anchor="end" fill="#f97316" font-size="5">SDA</text>' +
+            '<circle cx="56" cy="165" r="3" fill="rgba(234,179,8,0.3)" stroke="#eab308" stroke-width="0.8"/>' +
+            '<text x="38" y="168" text-anchor="end" fill="#eab308" font-size="5">SCL</text>' +
+            '<circle cx="56" cy="185" r="3" fill="rgba(168,85,247,0.3)" stroke="#a855f7" stroke-width="0.8"/>' +
+            '<text x="38" y="188" text-anchor="end" fill="#a855f7" font-size="5">INT</text>' +
+
+            '<!-- Pull-up resistors -->' +
+            '<rect x="90" y="100" width="30" height="10" rx="2" fill="#1e2736" stroke="#f97316" stroke-width="1"/>' +
+            '<text x="105" y="108" text-anchor="middle" fill="#f97316" font-size="4">R1 4.7k</text>' +
+            '<rect x="90" y="115" width="30" height="10" rx="2" fill="#1e2736" stroke="#eab308" stroke-width="1"/>' +
+            '<text x="105" y="123" text-anchor="middle" fill="#eab308" font-size="4">R2 4.7k</text>' +
+            '<text x="105" y="93" text-anchor="middle" fill="#8b949e" font-size="5">Pull-ups</text>' +
+            '<!-- Pull-up to VCC -->' +
+            '<line x1="105" y1="100" x2="105" y2="95" stroke="#ef4444" stroke-width="0.8" stroke-dasharray="2,1"/>' +
+            '<line x1="120" y1="105" x2="130" y2="105" stroke="#f97316" stroke-width="0.8"/>' +
+            '<line x1="120" y1="120" x2="130" y2="120" stroke="#eab308" stroke-width="0.8"/>' +
+
+            '<!-- I2C bus backbone (SDA) -->' +
+            '<line x1="70" y1="145" x2="130" y2="145" stroke="#f97316" stroke-width="1.5"/>' +
+            '<path d="M130,145 L420,145" stroke="#f97316" stroke-width="2" stroke-dasharray="6,4" class="sg81-bus"/>' +
+
+            '<!-- I2C bus backbone (SCL) -->' +
+            '<line x1="70" y1="165" x2="130" y2="165" stroke="#eab308" stroke-width="1.5"/>' +
+            '<path d="M130,165 L420,165" stroke="#eab308" stroke-width="2" stroke-dasharray="6,4" class="sg81-bus"/>' +
+
+            '<!-- VCC rail -->' +
+            '<line x1="70" y1="105" x2="420" y2="105" stroke="#ef4444" stroke-width="1" stroke-dasharray="4,2" opacity="0.5"/>' +
+            '<!-- GND rail -->' +
+            '<line x1="70" y1="125" x2="420" y2="220" stroke="none"/>' +
+
+            '<!-- BME280 sensor -->' +
+            '<rect x="155" y="180" width="60" height="50" rx="4" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<text x="185" y="200" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="600">BME280</text>' +
+            '<text x="185" y="213" text-anchor="middle" fill="#8b949e" font-size="5">Temp/Hum/Press</text>' +
+            '<text x="185" y="225" text-anchor="middle" fill="#22c55e" font-size="5">0x76</text>' +
+            '<!-- SDA/SCL taps -->' +
+            '<line x1="185" y1="180" x2="185" y2="145" stroke="#f97316" stroke-width="1"/>' +
+            '<circle cx="185" cy="145" r="2" fill="#f97316"/>' +
+            '<line x1="175" y1="180" x2="175" y2="165" stroke="#eab308" stroke-width="1"/>' +
+            '<circle cx="175" cy="165" r="2" fill="#eab308"/>' +
+            '<!-- Bypass cap -->' +
+            '<rect x="165" y="240" width="20" height="8" rx="1" fill="rgba(168,85,247,0.15)" stroke="#a855f7" stroke-width="0.5"/>' +
+            '<text x="175" y="246" text-anchor="middle" fill="#c084fc" font-size="4">100nF</text>' +
+
+            '<!-- BH1750 sensor -->' +
+            '<rect x="255" y="180" width="60" height="50" rx="4" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<text x="285" y="200" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="600">BH1750</text>' +
+            '<text x="285" y="213" text-anchor="middle" fill="#8b949e" font-size="5">Ambient Light</text>' +
+            '<text x="285" y="225" text-anchor="middle" fill="#22c55e" font-size="5">0x23</text>' +
+            '<!-- SDA/SCL taps -->' +
+            '<line x1="285" y1="180" x2="285" y2="145" stroke="#f97316" stroke-width="1"/>' +
+            '<circle cx="285" cy="145" r="2" fill="#f97316"/>' +
+            '<line x1="275" y1="180" x2="275" y2="165" stroke="#eab308" stroke-width="1"/>' +
+            '<circle cx="275" cy="165" r="2" fill="#eab308"/>' +
+            '<!-- Bypass cap -->' +
+            '<rect x="265" y="240" width="20" height="8" rx="1" fill="rgba(168,85,247,0.15)" stroke="#a855f7" stroke-width="0.5"/>' +
+            '<text x="275" y="246" text-anchor="middle" fill="#c084fc" font-size="4">100nF</text>' +
+
+            '<!-- APDS-9960 sensor -->' +
+            '<rect x="355" y="180" width="60" height="50" rx="4" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<text x="385" y="200" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="600">APDS-9960</text>' +
+            '<text x="385" y="213" text-anchor="middle" fill="#8b949e" font-size="5">Gesture/Prox</text>' +
+            '<text x="385" y="225" text-anchor="middle" fill="#22c55e" font-size="5">0x39</text>' +
+            '<!-- SDA/SCL taps -->' +
+            '<line x1="385" y1="180" x2="385" y2="145" stroke="#f97316" stroke-width="1"/>' +
+            '<circle cx="385" cy="145" r="2" fill="#f97316"/>' +
+            '<line x1="375" y1="180" x2="375" y2="165" stroke="#eab308" stroke-width="1"/>' +
+            '<circle cx="375" cy="165" r="2" fill="#eab308"/>' +
+            '<!-- Bypass cap -->' +
+            '<rect x="365" y="240" width="20" height="8" rx="1" fill="rgba(168,85,247,0.15)" stroke="#a855f7" stroke-width="0.5"/>' +
+            '<text x="375" y="246" text-anchor="middle" fill="#c084fc" font-size="4">100nF</text>' +
+
+            '<!-- INT line from APDS-9960 -->' +
+            '<line x1="395" y1="230" x2="395" y2="260" stroke="#a855f7" stroke-width="1"/>' +
+            '<line x1="395" y1="260" x2="56" y2="260" stroke="#a855f7" stroke-width="1" stroke-dasharray="4,2"/>' +
+            '<line x1="56" y1="260" x2="56" y2="188" stroke="#a855f7" stroke-width="1"/>' +
+            '<text x="225" y="256" text-anchor="middle" fill="#a855f7" font-size="5">INT (active LOW)</text>' +
+
+            '<!-- Bus architecture box -->' +
+            '<rect x="480" y="50" width="210" height="105" rx="8" fill="rgba(249,115,22,0.04)" stroke="rgba(249,115,22,0.15)" stroke-width="0.5"/>' +
+            '<text x="585" y="68" text-anchor="middle" fill="#f97316" font-size="8" font-weight="600">I2C BUS ARCHITECTURE</text>' +
+            '<text x="490" y="85" fill="#f97316" font-size="6">&#9632; SDA (data) &mdash; shared, open-drain</text>' +
+            '<text x="490" y="99" fill="#eab308" font-size="6">&#9632; SCL (clock) &mdash; shared, open-drain</text>' +
+            '<text x="490" y="113" fill="#ef4444" font-size="6">&#9632; VCC 3.3V &mdash; common power rail</text>' +
+            '<text x="490" y="127" fill="#8b949e" font-size="6">1 set pull-ups on bus (not per device)</text>' +
+            '<text x="490" y="141" fill="#8b949e" font-size="6">4.7k&#x2126; @ 100kHz / 2.2k&#x2126; @ 400kHz</text>' +
+
+            '<!-- Address map -->' +
+            '<rect x="480" y="170" width="210" height="80" rx="8" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.15)" stroke-width="0.5"/>' +
+            '<text x="585" y="188" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">I2C ADDRESS MAP</text>' +
+            '<text x="490" y="205" fill="#22c55e" font-size="6">BME280 &mdash; 0x76 (SDO&rarr;GND)</text>' +
+            '<text x="490" y="219" fill="#22c55e" font-size="6">BH1750 &mdash; 0x23 (ADDR&rarr;GND)</text>' +
+            '<text x="490" y="233" fill="#22c55e" font-size="6">APDS-9960 &mdash; 0x39 (fixed)</text>' +
+            '<text x="490" y="247" fill="#8b949e" font-size="5">No conflicts &mdash; all unique addresses</text>' +
+
+            '<!-- Decoupling note -->' +
+            '<rect x="480" y="265" width="210" height="45" rx="8" fill="rgba(168,85,247,0.04)" stroke="rgba(168,85,247,0.15)" stroke-width="0.5"/>' +
+            '<text x="585" y="283" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="600">DECOUPLING</text>' +
+            '<text x="490" y="298" fill="#8b949e" font-size="6">100nF ceramic per sensor IC</text>' +
+            '<text x="490" y="310" fill="#8b949e" font-size="6">Placed &lt;2mm from VCC pin</text>' +
+
+            '<!-- Bus labels on diagram -->' +
+            '<text x="250" y="140" text-anchor="middle" fill="#f97316" font-size="5">SDA</text>' +
+            '<text x="250" y="175" text-anchor="middle" fill="#eab308" font-size="5">SCL</text>' +
+
+            '</svg>' +
+            '</div>',
 
         wiringNotes: '<p><strong>Pull-up resistors:</strong> I2C is an open-drain bus &mdash; the lines are actively pulled LOW by devices but rely on pull-up resistors to return HIGH. You need one set of pull-ups on the bus (not per device). For 3.3V I2C at standard speed (100kHz), 4.7k&#x2126; pull-ups on SDA and SCL are standard. For fast mode (400kHz), use 2.2k&#x2126;. Too high = slow rise times and communication errors. Too low = excessive current draw.</p>' +
                      '<p><strong>Address conflicts:</strong> Each I2C device has a 7-bit address. If two devices share the same address, the bus will malfunction. The BME280 uses 0x76 (or 0x77 via SDO pin), BH1750 uses 0x23 (or 0x5C via ADDR pin), and APDS-9960 is fixed at 0x39. Verify no conflicts before designing the board. If you need two sensors with the same address, use an I2C multiplexer (TCA9548A).</p>' +
@@ -1404,7 +1907,132 @@ window.SignalGuides = {
                 '    Z0 = 50 ohm (industry standard RF impedance)\n' +
                 '    Trace width depends on: substrate Er, thickness, copper weight',
 
-        wiringSvg: '',
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg82-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '<pattern id="sg82-gnd" width="6" height="6" patternUnits="userSpaceOnUse"><rect width="6" height="6" fill="rgba(59,130,246,0.06)"/><line x1="0" y1="6" x2="6" y2="0" stroke="rgba(59,130,246,0.08)" stroke-width="0.5"/></pattern>' +
+            '<style>' +
+            '@keyframes sg82-rf{0%{stroke-dashoffset:30}100%{stroke-dashoffset:0}}' +
+            '@keyframes sg82-wave{0%{opacity:0.2;transform:scale(1)}50%{opacity:0.6;transform:scale(1.1)}100%{opacity:0.2;transform:scale(1)}}' +
+            '.sg82-signal{animation:sg82-rf 0.8s linear infinite}' +
+            '.sg82-radiate{animation:sg82-wave 1.5s ease-in-out infinite}' +
+            '</style>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg82-grid)" rx="4"/>' +
+            '<text x="360" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-82 RF PCB DESIGN &mdash; 2.4 GHz</text>' +
+
+            '<!-- PCB board outline -->' +
+            '<rect x="30" y="55" width="400" height="200" rx="6" fill="rgba(59,130,246,0.02)" stroke="#3b82f6" stroke-width="2"/>' +
+
+            '<!-- Ground plane (B.Cu) -->' +
+            '<rect x="34" y="59" width="340" height="192" rx="4" fill="url(#sg82-gnd)"/>' +
+            '<text x="200" y="245" text-anchor="middle" fill="rgba(59,130,246,0.3)" font-size="6">B.Cu Continuous Ground Plane</text>' +
+
+            '<!-- Antenna keepout zone (no ground) -->' +
+            '<rect x="374" y="59" width="52" height="192" rx="4" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1" stroke-dasharray="4,2"/>' +
+            '<text x="400" y="248" text-anchor="middle" fill="#ef4444" font-size="5">GND KEEPOUT</text>' +
+
+            '<!-- RF IC (CC2500) -->' +
+            '<rect x="60" y="110" width="70" height="50" rx="4" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<text x="95" y="130" text-anchor="middle" fill="#3b82f6" font-size="8" font-weight="600">CC2500</text>' +
+            '<text x="95" y="143" text-anchor="middle" fill="#8b949e" font-size="5">2.4 GHz RF IC</text>' +
+            '<text x="95" y="155" text-anchor="middle" fill="#8b949e" font-size="5">TX/RX</text>' +
+            '<!-- Bypass caps cluster -->' +
+            '<rect x="60" y="170" width="14" height="6" rx="1" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="0.5"/>' +
+            '<rect x="78" y="170" width="14" height="6" rx="1" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="0.5"/>' +
+            '<rect x="96" y="170" width="14" height="6" rx="1" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="0.5"/>' +
+            '<text x="85" y="186" text-anchor="middle" fill="#c084fc" font-size="4">100pF 1nF 100nF</text>' +
+
+            '<!-- 50-ohm microstrip trace -->' +
+            '<rect x="130" y="128" width="120" height="8" rx="1" fill="rgba(239,68,68,0.2)" stroke="#ef4444" stroke-width="1.5"/>' +
+            '<path d="M135,132 L245,132" stroke="#ef4444" stroke-width="2" stroke-dasharray="6,4" class="sg82-signal"/>' +
+            '<text x="190" y="124" text-anchor="middle" fill="#ef4444" font-size="6" font-weight="600">50&#x2126; MICROSTRIP</text>' +
+            '<text x="190" y="146" text-anchor="middle" fill="#8b949e" font-size="5">w = 2.85mm (FR4 1.6mm, Er=4.5)</text>' +
+
+            '<!-- Via stitching along RF trace -->' +
+            '<circle cx="140" cy="120" r="2" fill="#3b82f6" opacity="0.5"/>' +
+            '<circle cx="155" cy="120" r="2" fill="#3b82f6" opacity="0.5"/>' +
+            '<circle cx="170" cy="120" r="2" fill="#3b82f6" opacity="0.5"/>' +
+            '<circle cx="185" cy="120" r="2" fill="#3b82f6" opacity="0.5"/>' +
+            '<circle cx="200" cy="120" r="2" fill="#3b82f6" opacity="0.5"/>' +
+            '<circle cx="215" cy="120" r="2" fill="#3b82f6" opacity="0.5"/>' +
+            '<circle cx="230" cy="120" r="2" fill="#3b82f6" opacity="0.5"/>' +
+            '<circle cx="245" cy="120" r="2" fill="#3b82f6" opacity="0.5"/>' +
+            '<circle cx="140" cy="144" r="2" fill="#3b82f6" opacity="0.5"/>' +
+            '<circle cx="155" cy="144" r="2" fill="#3b82f6" opacity="0.5"/>' +
+            '<circle cx="170" cy="144" r="2" fill="#3b82f6" opacity="0.5"/>' +
+            '<circle cx="185" cy="144" r="2" fill="#3b82f6" opacity="0.5"/>' +
+            '<circle cx="200" cy="144" r="2" fill="#3b82f6" opacity="0.5"/>' +
+            '<circle cx="215" cy="144" r="2" fill="#3b82f6" opacity="0.5"/>' +
+            '<circle cx="230" cy="144" r="2" fill="#3b82f6" opacity="0.5"/>' +
+            '<circle cx="245" cy="144" r="2" fill="#3b82f6" opacity="0.5"/>' +
+            '<text x="190" y="114" text-anchor="middle" fill="#3b82f6" font-size="4">via-stitch ground fence (&le;6mm spacing)</text>' +
+
+            '<!-- Matching network -->' +
+            '<rect x="255" y="105" width="70" height="55" rx="4" fill="rgba(168,85,247,0.06)" stroke="#a855f7" stroke-width="1"/>' +
+            '<text x="290" y="120" text-anchor="middle" fill="#a855f7" font-size="7" font-weight="600">L-MATCH</text>' +
+            '<!-- L1 inductor -->' +
+            '<rect x="265" y="128" width="20" height="8" rx="2" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="0.8"/>' +
+            '<text x="275" y="134" text-anchor="middle" fill="#c084fc" font-size="4">L1</text>' +
+            '<text x="275" y="144" text-anchor="middle" fill="#8b949e" font-size="4">1.2nH</text>' +
+            '<!-- C1 capacitor -->' +
+            '<rect x="295" y="128" width="20" height="8" rx="2" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="0.8"/>' +
+            '<text x="305" y="134" text-anchor="middle" fill="#c084fc" font-size="4">C1</text>' +
+            '<text x="305" y="144" text-anchor="middle" fill="#8b949e" font-size="4">1.0pF</text>' +
+            '<text x="290" y="156" text-anchor="middle" fill="#a855f7" font-size="4">0402 C0G/NP0</text>' +
+
+            '<!-- Antenna -->' +
+            '<rect x="380" y="115" width="40" height="30" rx="3" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<text x="400" y="134" text-anchor="middle" fill="#22c55e" font-size="6" font-weight="600">ANT</text>' +
+            '<text x="400" y="104" text-anchor="middle" fill="#22c55e" font-size="5">2.4 GHz Chip</text>' +
+
+            '<!-- RF signal from match to antenna -->' +
+            '<line x1="325" y1="132" x2="380" y2="132" stroke="#ef4444" stroke-width="2"/>' +
+
+            '<!-- Radiation waves -->' +
+            '<path d="M420,115 Q435,130 420,145" fill="none" stroke="#22c55e" stroke-width="1" class="sg82-radiate"/>' +
+            '<path d="M428,108 Q448,130 428,152" fill="none" stroke="#22c55e" stroke-width="0.8" class="sg82-radiate" style="animation-delay:0.3s"/>' +
+            '<path d="M436,100 Q462,130 436,160" fill="none" stroke="#22c55e" stroke-width="0.6" class="sg82-radiate" style="animation-delay:0.6s"/>' +
+
+            '<!-- Crystal -->' +
+            '<rect x="60" y="80" width="24" height="10" rx="2" fill="#1e2736" stroke="#eab308" stroke-width="0.8"/>' +
+            '<text x="72" y="88" text-anchor="middle" fill="#eab308" font-size="4">26MHz</text>' +
+
+            '<!-- Impedance annotation -->' +
+            '<rect x="480" y="55" width="210" height="95" rx="8" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.15)" stroke-width="0.5"/>' +
+            '<text x="585" y="73" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="600">IMPEDANCE CONTROL</text>' +
+            '<text x="490" y="90" fill="#8b949e" font-size="6">Z<tspan font-size="4" dy="2">0</tspan><tspan dy="-2"> = 50&#x2126; (industry standard)</tspan></text>' +
+            '<text x="490" y="104" fill="#8b949e" font-size="6">Trace width: 2.85mm on FR4</text>' +
+            '<text x="490" y="118" fill="#8b949e" font-size="6">Er = 4.5, h = 1.6mm, t = 0.035mm</text>' +
+            '<text x="490" y="132" fill="#ef4444" font-size="6">No 90&deg; bends &bull; No vias in RF path</text>' +
+            '<text x="490" y="146" fill="#8b949e" font-size="6">Use Saturn PCB Toolkit to verify</text>' +
+
+            '<!-- Ground plane rules -->' +
+            '<rect x="480" y="165" width="210" height="70" rx="8" fill="rgba(59,130,246,0.04)" stroke="rgba(59,130,246,0.15)" stroke-width="0.5"/>' +
+            '<text x="585" y="183" text-anchor="middle" fill="#3b82f6" font-size="8" font-weight="600">GROUND PLANE RULES</text>' +
+            '<text x="490" y="198" fill="#8b949e" font-size="6">B.Cu: continuous pour under RF path</text>' +
+            '<text x="490" y="212" fill="#8b949e" font-size="6">NO gaps, slots, or traces underneath</text>' +
+            '<text x="490" y="226" fill="#3b82f6" font-size="6">Via-stitch: &le;6mm spacing (&#955;/20)</text>' +
+
+            '<!-- Antenna placement -->' +
+            '<rect x="480" y="250" width="210" height="55" rx="8" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.15)" stroke-width="0.5"/>' +
+            '<text x="585" y="268" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">ANTENNA PLACEMENT</text>' +
+            '<text x="490" y="283" fill="#8b949e" font-size="6">Board edge &bull; No GND under antenna</text>' +
+            '<text x="490" y="297" fill="#8b949e" font-size="6">5&ndash;10mm keepout per datasheet</text>' +
+
+            '<!-- Matching components -->' +
+            '<rect x="480" y="320" width="210" height="45" rx="8" fill="rgba(168,85,247,0.04)" stroke="rgba(168,85,247,0.15)" stroke-width="0.5"/>' +
+            '<text x="585" y="338" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="600">MATCHING NETWORK</text>' +
+            '<text x="490" y="353" fill="#8b949e" font-size="6">0402 C0G/NP0 caps (NOT X7R)</text>' +
+            '<text x="490" y="363" fill="#8b949e" font-size="6">L1, C1, C2 within 3mm of RF pin</text>' +
+
+            '<!-- Signal path label -->' +
+            '<text x="245" y="74" text-anchor="middle" fill="#555" font-size="6">RF SIGNAL PATH: IC &rarr; 50&#x2126; trace &rarr; matching network &rarr; antenna</text>' +
+
+            '</svg>' +
+            '</div>',
 
         wiringNotes: '<p><strong>50&#x2126; impedance is not a suggestion.</strong> The entire RF signal path &mdash; from the IC output pin through the PCB trace to the antenna &mdash; must maintain 50&#x2126; characteristic impedance. Any deviation creates a reflection that reduces transmitted power and increases noise. A 75&#x2126; mismatch on a 50&#x2126; line reflects 4% of the power. A 200&#x2126; mismatch reflects 44%.</p>' +
                      '<p><strong>Microstrip trace width:</strong> For standard 2-layer FR4 (Er = 4.5, 1.6mm thickness, 1oz copper), a 50&#x2126; microstrip trace is approximately 2.85mm wide. This is much wider than a typical signal trace. Use a microstrip impedance calculator (Saturn PCB Toolkit, KiCad Calculator) to compute the exact width for your specific stack-up. Even 0.1mm variation matters at 2.4 GHz.</p>' +
