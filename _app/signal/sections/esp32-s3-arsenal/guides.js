@@ -1,14 +1,14 @@
 // ============================================================================
-// Signal ESP32-S3 Arsenal — Build Guides (sg-93 through sg-102)
+// Signal ESP32-S3 Arsenal — Build Guides (sg-103 through sg-112)
 // Native USB security tools on the LILYGO T-Display-S3
 // ============================================================================
 
 window.SignalGuides = {
 
     // ========================================================================
-    // SG-93: T-Display-S3 Setup & Your First USB Device
+    // SG-103: T-Display-S3 Setup & Your First USB Device
     // ========================================================================
-    'sg-93': {
+    'sg-103': {
         intro: '<p>The ESP32-S3 changes everything. Unlike the standard ESP32, the S3 has <strong>native USB OTG</strong> &mdash; it can present itself as a keyboard, mouse, flash drive, or network adapter to any computer it plugs into. Combined with WiFi and Bluetooth 5, it is a complete security research platform in a device smaller than your thumb.</p>' +
                '<p>In this project you will set up the LILYGO T-Display-S3, configure the development environment, display text on the built-in 1.9" TFT screen, and make the board appear as a USB keyboard that types a message. This is the foundation for every project that follows.</p>' +
                '<p>The T-Display-S3 has a 170x320 ST7789 TFT, two programmable buttons, USB-C with native USB OTG, WiFi, Bluetooth 5 (BLE), and 16MB flash. All for about $18.</p>',
@@ -29,10 +29,10 @@ window.SignalGuides = {
 
         wiringSvg: '<div class="svg-build-wrap">' +
             '<svg viewBox="0 0 680 300" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
-            '<defs><pattern id="sg93-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+            '<defs><pattern id="sg103-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
             '<rect width="680" height="300" fill="#0d1117" rx="8"/>' +
-            '<rect x="10" y="10" width="660" height="280" fill="url(#sg93-grid)" rx="4"/>' +
-            '<text x="340" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-93 T-DISPLAY-S3 OVERVIEW</text>' +
+            '<rect x="10" y="10" width="660" height="280" fill="url(#sg103-grid)" rx="4"/>' +
+            '<text x="340" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-103 T-DISPLAY-S3 OVERVIEW</text>' +
             '<!-- Board outline -->' +
             '<rect x="180" y="50" width="320" height="200" rx="12" fill="#1e2736" stroke="#a855f7" stroke-width="2"/>' +
             '<rect x="180" y="50" width="320" height="28" rx="12" fill="rgba(168,85,247,0.12)"/>' +
@@ -88,7 +88,7 @@ window.SignalGuides = {
             {
                 title: 'Hello World on the Display',
                 content: '<p>Verify the display works with a simple test. This sketch fills the screen with the Hexworth color scheme and displays text.</p>',
-                code: '#include <TFT_eSPI.h>\n\nTFT_eSPI tft = TFT_eSPI();\n\nvoid setup() {\n    Serial.begin(115200);\n    \n    // Initialize display\n    tft.init();\n    tft.setRotation(1);  // Landscape\n    tft.fillScreen(TFT_BLACK);\n    \n    // Turn on backlight\n    pinMode(TFT_BL, OUTPUT);\n    digitalWrite(TFT_BL, HIGH);\n    \n    // Display boot message\n    tft.setTextColor(0xA55F, TFT_BLACK);  // Purple\n    tft.setTextSize(2);\n    tft.setCursor(20, 40);\n    tft.println("HEXWORTH PRIME");\n    \n    tft.setTextColor(TFT_CYAN, TFT_BLACK);\n    tft.setTextSize(1);\n    tft.setCursor(20, 80);\n    tft.println("ESP32-S3 Arsenal");\n    tft.println("SG-93: Setup Complete");\n    \n    tft.setTextColor(0x07E0, TFT_BLACK);  // Green\n    tft.setCursor(20, 120);\n    tft.println("Display: OK");\n    tft.println("USB OTG: Ready");\n    tft.println("WiFi: Standby");\n    tft.println("BLE: Standby");\n    \n    Serial.println("SG-93: T-Display-S3 initialized");\n}\n\nvoid loop() {\n    // Nothing yet\n    delay(1000);\n}',
+                code: '#include <TFT_eSPI.h>\n\nTFT_eSPI tft = TFT_eSPI();\n\nvoid setup() {\n    Serial.begin(115200);\n    \n    // Initialize display\n    tft.init();\n    tft.setRotation(1);  // Landscape\n    tft.fillScreen(TFT_BLACK);\n    \n    // Turn on backlight\n    pinMode(TFT_BL, OUTPUT);\n    digitalWrite(TFT_BL, HIGH);\n    \n    // Display boot message\n    tft.setTextColor(0xA55F, TFT_BLACK);  // Purple\n    tft.setTextSize(2);\n    tft.setCursor(20, 40);\n    tft.println("HEXWORTH PRIME");\n    \n    tft.setTextColor(TFT_CYAN, TFT_BLACK);\n    tft.setTextSize(1);\n    tft.setCursor(20, 80);\n    tft.println("ESP32-S3 Arsenal");\n    tft.println("SG-103: Setup Complete");\n    \n    tft.setTextColor(0x07E0, TFT_BLACK);  // Green\n    tft.setCursor(20, 120);\n    tft.println("Display: OK");\n    tft.println("USB OTG: Ready");\n    tft.println("WiFi: Standby");\n    tft.println("BLE: Standby");\n    \n    Serial.println("SG-103: T-Display-S3 initialized");\n}\n\nvoid loop() {\n    // Nothing yet\n    delay(1000);\n}',
                 language: 'C++',
                 tip: null
             },
@@ -175,7 +175,7 @@ window.SignalGuides = {
         componentCallouts: {
             svg: '<svg viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
                  '<rect width="560" height="180" fill="#0d1117" rx="6"/>' +
-                 '<text x="280" y="18" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.14em">SG-93 COMPONENTS</text>' +
+                 '<text x="280" y="18" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.14em">SG-103 COMPONENTS</text>' +
                  '<rect x="20" y="30" width="240" height="60" rx="6" fill="#0f1a2e" stroke="#a855f7" stroke-width="1.5"/>' +
                  '<text x="140" y="52" text-anchor="middle" fill="#c084fc" font-size="8" font-weight="700">LILYGO T-Display-S3</text>' +
                  '<text x="140" y="68" text-anchor="middle" fill="#8b949e" font-size="6.5">ESP32-S3 + 1.9" TFT + USB OTG</text>' +
@@ -224,25 +224,25 @@ window.SignalGuides = {
     },
 
     // ========================================================================
-    // SG-94: USB Keystroke Injection — Advanced Payloads
+    // SG-104: USB Keystroke Injection — Advanced Payloads
     // ========================================================================
-    'sg-94': {
-        intro: '<p>In SG-93 you made the ESP32-S3 type a simple message. Now you will build a full keystroke injection framework &mdash; a DuckyScript-compatible payload engine that reads scripts from the flash filesystem, displays a selection menu on the TFT, and executes multi-step command sequences on the target machine.</p>' +
+    'sg-104': {
+        intro: '<p>In SG-103 you made the ESP32-S3 type a simple message. Now you will build a full keystroke injection framework &mdash; a DuckyScript-compatible payload engine that reads scripts from the flash filesystem, displays a selection menu on the TFT, and executes multi-step command sequences on the target machine.</p>' +
                '<p>This is how professional USB security assessment tools work. Understanding the technique is essential for building detection systems that protect against it.</p>' +
                '<p>You will create three safe demonstration payloads: a system information collector, a text file creator, and a WiFi password extractor (displays saved WiFi passwords on Windows). All payloads are educational and reversible.</p>',
 
-        wiring: '    No external wiring required.\n    Same T-Display-S3 board from SG-93.\n    USB-C connection to target machine.',
+        wiring: '    No external wiring required.\n    Same T-Display-S3 board from SG-103.\n    USB-C connection to target machine.',
 
-        wiringNotes: '<p><strong>No external wiring.</strong> Same board as SG-93.</p>' +
+        wiringNotes: '<p><strong>No external wiring.</strong> Same board as SG-103.</p>' +
                      '<p><strong>Authorization:</strong> USB keystroke injection is a penetration testing technique. Only use on systems you own or have explicit written permission to test. Unauthorized use may violate computer fraud laws.</p>' +
                      '<p><strong>Safety:</strong> Always review your payload before execution. A typo in a command sequence could delete files, change settings, or lock accounts. Test on a virtual machine first.</p>',
 
         wiringSvg: '<div class="svg-build-wrap">' +
             '<svg viewBox="0 0 680 200" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
-            '<defs><pattern id="sg94-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+            '<defs><pattern id="sg104-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
             '<rect width="680" height="200" fill="#0d1117" rx="8"/>' +
-            '<rect x="10" y="10" width="660" height="180" fill="url(#sg94-grid)" rx="4"/>' +
-            '<text x="340" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-94 USB KEYSTROKE INJECTION FLOW</text>' +
+            '<rect x="10" y="10" width="660" height="180" fill="url(#sg104-grid)" rx="4"/>' +
+            '<text x="340" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-104 USB KEYSTROKE INJECTION FLOW</text>' +
             '<!-- S3 Board -->' +
             '<rect x="40" y="60" width="160" height="100" rx="8" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
             '<text x="120" y="85" text-anchor="middle" fill="#c084fc" font-size="9" font-weight="700">T-Display-S3</text>' +
@@ -347,8 +347,8 @@ window.SignalGuides = {
             components: [
                 {
                     id: 't-display-s3',
-                    name: 'LILYGO T-Display-S3 (from SG-93)',
-                    purpose: 'Same board as SG-93. The native USB OTG presents as a USB HID keyboard to the target computer. The TFT display shows payload selection and execution status. SPIFFS flash stores payload scripts.',
+                    name: 'LILYGO T-Display-S3 (from SG-103)',
+                    purpose: 'Same board as SG-103. The native USB OTG presents as a USB HID keyboard to the target computer. The TFT display shows payload selection and execution status. SPIFFS flash stores payload scripts.',
                     specs: ['USB HID Class 0x03', 'SPIFFS: ~4MB usable', 'DuckyScript compatible', 'Button-triggered execution']
                 }
             ]
@@ -378,9 +378,9 @@ window.SignalGuides = {
 ,
 
     // ========================================================================
-    // SG-95: WiFi Recon Scanner with Display UI
+    // SG-105: WiFi Recon Scanner with Display UI
     // ========================================================================
-    'sg-95': {
+    'sg-105': {
         intro: '<p>Turn the T-Display-S3 into a portable WiFi reconnaissance tool. The built-in WiFi radio scans all 2.4GHz channels, and the TFT display shows a real-time list of discovered networks with signal strength, channel, and encryption type &mdash; color-coded for quick assessment.</p>' +
                '<p>Unlike SG-06 (which used the ESP32 CYD), this version runs on the S3 with its smaller 170x320 display, requiring a tighter UI layout. You will build a scrollable list view, a detail view for individual networks, and a channel utilization histogram.</p>' +
                '<p>This is a passive reconnaissance tool &mdash; it only listens, it does not transmit or connect. Passive scanning is legal in all jurisdictions.</p>',
@@ -454,7 +454,7 @@ window.SignalGuides = {
             components: [
                 {
                     id: 't-display-s3',
-                    name: 'LILYGO T-Display-S3 (from SG-93)',
+                    name: 'LILYGO T-Display-S3 (from SG-103)',
                     purpose: 'The ESP32-S3 WiFi radio scans 2.4GHz channels for beacon frames. The TFT display shows network list and channel histogram. No external antenna needed for indoor scanning.',
                     specs: ['WiFi 802.11 b/g/n', '2.4GHz only (no 5GHz)', 'PCB antenna', 'Passive scanning only']
                 }
@@ -485,9 +485,9 @@ window.SignalGuides = {
 ,
 
     // ========================================================================
-    // SG-96: BLE Swiss Army — Scanner, Beacon, Detector
+    // SG-106: BLE Swiss Army — Scanner, Beacon, Detector
     // ========================================================================
-    'sg-96': {
+    'sg-106': {
         intro: '<p>Bluetooth Low Energy (BLE) is everywhere &mdash; fitness trackers, smart locks, AirTags, medical devices, building sensors, and car key fobs. The ESP32-S3 has a full BLE 5.0 radio that can scan for devices, parse their advertisements, and generate custom beacons.</p>' +
                '<p>In this project you build a BLE multi-tool: a device scanner that classifies what it finds, a beacon detector that identifies Apple FindMy/AirTag trackers, and a beacon generator for testing BLE security policies. The display shows a real-time device dashboard.</p>' +
                '<p>BLE advertisements are broadcast openly &mdash; any BLE radio within range can receive them. Passive BLE scanning is legal and non-intrusive.</p>',
@@ -561,7 +561,7 @@ window.SignalGuides = {
                     '<p><strong>Challenge 3: Advertisement Frequency Analysis</strong> &mdash; Measure how often each device broadcasts advertisements. Normal devices advertise every 100-1000ms. Unusually high rates could indicate a beacon spam attack or malfunctioning device. Graph the advertisement rate on the display.</p>',
 
         stepVisuals: {},
-        componentCallouts: { svg: '', components: [{ id: 't-display-s3', name: 'LILYGO T-Display-S3', purpose: 'ESP32-S3 BLE 5.0 radio for scanning and beacon generation. TFT display for device dashboard. Same board from SG-93.', specs: ['Bluetooth 5.0 (BLE)', 'Onboard PCB antenna', 'Simultaneous scan + advertise', 'Company ID parsing'] }] },
+        componentCallouts: { svg: '', components: [{ id: 't-display-s3', name: 'LILYGO T-Display-S3', purpose: 'ESP32-S3 BLE 5.0 radio for scanning and beacon generation. TFT display for device dashboard. Same board from SG-103.', specs: ['Bluetooth 5.0 (BLE)', 'Onboard PCB antenna', 'Simultaneous scan + advertise', 'Company ID parsing'] }] },
         commonMistakes: [
             { title: 'Running WiFi and BLE Simultaneously', correct: 'Deinitialize WiFi before starting BLE scanning (<code>WiFi.mode(WIFI_OFF)</code>), and vice versa. Or use them sequentially in alternating scan cycles.', incorrect: 'Starting a BLE scan while WiFi is actively scanning or connected. They share the same 2.4GHz radio.', consequence: 'One or both radios fail silently. Scan results are incomplete or the device crashes with a radio conflict error.' },
             { title: 'Generating Beacons in Public Spaces', correct: 'Only generate BLE beacons in your own lab or classroom environment with instructor authorization. Turn off the beacon when testing is complete.', incorrect: 'Running a beacon generator in a public area like a library, coffee shop, or office building.', consequence: 'Excessive BLE advertisements can interfere with legitimate devices (hearing aids, medical monitors, access control systems). May also trigger security alerts in managed environments.' },
@@ -571,10 +571,10 @@ window.SignalGuides = {
 ,
 
     // ========================================================================
-    // SG-97: USB Mass Storage Emulation
+    // SG-107: USB Mass Storage Emulation
     // ========================================================================
-    'sg-97': {
-        intro: '<p>The ESP32-S3 can present itself as a USB flash drive. When plugged into a computer, the host sees a removable storage device and can read files from it. Combined with the HID keyboard from SG-94, this creates a powerful combination: the device types commands that reference files on its own "USB drive."</p>' +
+    'sg-107': {
+        intro: '<p>The ESP32-S3 can present itself as a USB flash drive. When plugged into a computer, the host sees a removable storage device and can read files from it. Combined with the HID keyboard from SG-104, this creates a powerful combination: the device types commands that reference files on its own "USB drive."</p>' +
                '<p>This project uses TinyUSB Mass Storage Class (MSC) to serve files from the ESP32-S3 SPIFFS flash or an external microSD card. You will build a file server, a payload delivery system, and understand how BadUSB attacks combine HID and mass storage for maximum impact.</p>' +
                '<p>The defense perspective: understanding how a single USB device can simultaneously be a keyboard AND a flash drive is essential for building USB security policies that actually work.</p>',
 
@@ -648,9 +648,9 @@ window.SignalGuides = {
 ,
 
     // ========================================================================
-    // SG-98: Network Adapter Impersonation (USB RNDIS/ECM)
+    // SG-108: Network Adapter Impersonation (USB RNDIS/ECM)
     // ========================================================================
-    'sg-98': {
+    'sg-108': {
         intro: '<p>The ESP32-S3 can present as a USB network adapter to any computer it plugs into. The host operating system sees a new Ethernet interface, assigns it an IP via DHCP (served by the ESP32-S3), and begins routing traffic through it. This gives the device the ability to intercept, modify, or redirect network traffic.</p>' +
                '<p>This is how devices like the LAN Turtle and PoisonTap work. The host trusts USB network adapters implicitly &mdash; no driver installation is needed on modern operating systems.</p>' +
                '<p>This project is a conceptual reference using ESP-IDF APIs. The Arduino framework does not natively support USB RNDIS. For a working implementation, use ESP-IDF with the TinyUSB net driver example. In this guide you will understand how a device appears as a network adapter, serve DHCP, intercept DNS queries, and understand how to detect and defend against USB network impersonation.</p>',
@@ -725,9 +725,9 @@ window.SignalGuides = {
 ,
 
     // ========================================================================
-    // SG-99: WiFi Deauthentication Analysis & Detection
+    // SG-109: WiFi Deauthentication Analysis & Detection
     // ========================================================================
-    'sg-99': {
+    'sg-109': {
         intro: '<p>802.11 deauthentication frames are management frames that disconnect clients from an access point. Because legacy WiFi standards (pre-802.11w) do not authenticate management frames, any device can forge deauth frames and disconnect anyone from any network. Understanding this technique is essential for building wireless intrusion detection systems.</p>' +
                '<p>This project has two modes: an analysis mode that demonstrates how deauthentication works at the frame level, and a detection mode that monitors for deauth attacks in real time. The display shows a visual dashboard of wireless security status.</p>' +
                '<p>The emphasis is on detection and defense. Building effective wireless IDS requires understanding the technique you are detecting.</p>',
@@ -795,9 +795,9 @@ window.SignalGuides = {
 ,
 
     // ========================================================================
-    // SG-100: Marauder Firmware — WiFi Assessment Suite
+    // SG-110: Marauder Firmware — WiFi Assessment Suite
     // ========================================================================
-    'sg-100': {
+    'sg-110': {
         intro: '<p>ESP32 Marauder is an open-source WiFi and Bluetooth assessment firmware developed by justcallmekoko. It provides a menu-driven interface for WiFi scanning, Bluetooth scanning, packet capture, and network analysis &mdash; all running on an ESP32 with a display.</p>' +
                '<p>In this project you will flash the Marauder firmware onto your T-Display-S3, configure it for the ST7789 display, and learn what each tool does and how it is detected. This is a pre-built toolset &mdash; the learning is in understanding the capabilities and building detection for each one.</p>' +
                '<p>Marauder is a widely-used educational tool in cybersecurity training programs. Flashing it takes 10 minutes. Understanding it takes the rest of the course.</p>',
@@ -822,8 +822,8 @@ window.SignalGuides = {
                 title: 'Navigate Marauder Features',
                 content: '<p>Marauder provides a menu-driven interface on the TFT display. Here is what each major feature does and how it works at the protocol level:</p>' +
                          '<ul>' +
-                         '<li><strong>Scan WiFi (Passive):</strong> Lists all visible access points with SSID, RSSI, channel, and encryption. Same as SG-95 but with a polished UI. Detection: none needed &mdash; passive scanning is invisible.</li>' +
-                         '<li><strong>Scan Bluetooth:</strong> Lists BLE devices with manufacturer data parsing. Same as SG-96. Detection: none &mdash; passive BLE scanning cannot be detected.</li>' +
+                         '<li><strong>Scan WiFi (Passive):</strong> Lists all visible access points with SSID, RSSI, channel, and encryption. Same as SG-105 but with a polished UI. Detection: none needed &mdash; passive scanning is invisible.</li>' +
+                         '<li><strong>Scan Bluetooth:</strong> Lists BLE devices with manufacturer data parsing. Same as SG-106. Detection: none &mdash; passive BLE scanning cannot be detected.</li>' +
                          '<li><strong>Beacon Spam:</strong> Generates hundreds of fake WiFi access points. The target device WiFi list fills with garbage SSIDs. Detection: multiple SSIDs from the same BSSID or MAC OUI, rapid appearance of new networks.</li>' +
                          '<li><strong>Probe Request Sniff:</strong> Captures probe requests from nearby devices. Reveals which networks they have connected to in the past (their preferred network list). Detection: this is passive &mdash; cannot be detected.</li>' +
                          '<li><strong>PCAP Capture:</strong> Captures raw 802.11 frames and saves them in PCAP format to SD card for analysis in Wireshark. Detection: passive capture is invisible.</li>' +
@@ -843,7 +843,7 @@ window.SignalGuides = {
             {
                 title: 'Return to Custom Firmware',
                 content: '<p>After exploring Marauder, you can flash your own firmware back using PlatformIO. Hold BOOT while plugging in USB to enter download mode, then upload your code normally.</p>' +
-                         '<p>The value of Marauder is understanding what a pre-built tool can do. The value of SG-93 through SG-99 is understanding HOW it does it. In SG-101, you will build your own version that combines everything into a custom multi-tool.</p>',
+                         '<p>The value of Marauder is understanding what a pre-built tool can do. The value of SG-103 through SG-109 is understanding HOW it does it. In SG-111, you will build your own version that combines everything into a custom multi-tool.</p>',
                 code: '# Restore your custom firmware:\n# 1. Hold BOOT button on T-Display-S3\n# 2. Plug in USB-C while holding BOOT\n# 3. Release BOOT after 2 seconds\n# 4. In PlatformIO: Upload (Ctrl+Alt+U)\n# 5. Your code replaces Marauder\n\n# To flash Marauder again later:\n# Repeat the esptool command from Step 1',
                 language: 'Bash',
                 tip: null
@@ -867,7 +867,7 @@ window.SignalGuides = {
 
         challenges: '<p><strong>Challenge 1: Feature Audit</strong> &mdash; For each Marauder feature, document: (1) what protocol it uses, (2) what vulnerability it exploits, (3) how to detect it, (4) how to prevent it. Create a defense playbook.</p>' +
                     '<p><strong>Challenge 2: WIDS Rule Writing</strong> &mdash; Using the detection signatures from Step 3, write Snort or Suricata rules that would detect each Marauder feature. Test them against a Marauder-generated PCAP file.</p>' +
-                    '<p><strong>Challenge 3: Compare Marauder to Your Custom Tools</strong> &mdash; Compare Marauder WiFi scan output with your SG-95 scanner. Compare Marauder BLE scan with your SG-96 scanner. Document what Marauder does better and what your custom code does better. Identify features you want to add to your own tools.</p>',
+                    '<p><strong>Challenge 3: Compare Marauder to Your Custom Tools</strong> &mdash; Compare Marauder WiFi scan output with your SG-105 scanner. Compare Marauder BLE scan with your SG-106 scanner. Document what Marauder does better and what your custom code does better. Identify features you want to add to your own tools.</p>',
 
         stepVisuals: {},
         componentCallouts: { svg: '', components: [{ id: 't-display-s3', name: 'LILYGO T-Display-S3', purpose: 'Runs the ESP32 Marauder firmware. Same board, different software. Marauder provides a polished menu-driven interface for WiFi and BLE security assessment.', specs: ['Marauder firmware', 'Web flasher or esptool', 'Menu-driven TFT interface', 'WiFi + BLE tools'] }] },
@@ -879,16 +879,16 @@ window.SignalGuides = {
     },
 
     // ========================================================================
-    // SG-101: Custom Army Knife — Your Own Multi-Tool
+    // SG-111: Custom Army Knife — Your Own Multi-Tool
     // ========================================================================
-    'sg-101': {
-        intro: '<p>This is the capstone. You will build your own multi-tool firmware from scratch, combining every technique from SG-93 through SG-99 into a single, menu-driven application. WiFi scanning, BLE scanning, USB HID injection, USB mass storage, network impersonation, and attack detection &mdash; all accessible from the TFT display.</p>' +
+    'sg-111': {
+        intro: '<p>This is the capstone. You will build your own multi-tool firmware from scratch, combining every technique from SG-103 through SG-109 into a single, menu-driven application. WiFi scanning, BLE scanning, USB HID injection, USB mass storage, network impersonation, and attack detection &mdash; all accessible from the TFT display.</p>' +
                '<p>Unlike Marauder (which is pre-built), this is YOUR code. You understand every line because you wrote it in the previous projects. You can customize it, extend it, and use it as a portfolio piece.</p>' +
                '<p>The menu system uses a modular architecture: each tool is a "module" that can be loaded and unloaded independently, managing its own resources (WiFi radio, BLE radio, USB stack).</p>',
 
-        wiring: '    No external wiring required.\n    T-Display-S3 with USB-C.\n    Optional: MicroSD breakout from SG-97.',
+        wiring: '    No external wiring required.\n    T-Display-S3 with USB-C.\n    Optional: MicroSD breakout from SG-107.',
 
-        wiringNotes: '<p><strong>No external wiring for base configuration.</strong> Add SD breakout from SG-97 for payload storage and PCAP logging.</p>' +
+        wiringNotes: '<p><strong>No external wiring for base configuration.</strong> Add SD breakout from SG-107 for payload storage and PCAP logging.</p>' +
                      '<p><strong>Authorization:</strong> This device combines multiple assessment capabilities. Only deploy on systems and networks you own or have explicit written authorization to test.</p>',
 
         wiringSvg: '',
@@ -897,7 +897,7 @@ window.SignalGuides = {
             {
                 title: 'Module Architecture Design',
                 content: '<p>Each tool is a module with a standard interface: <code>init()</code>, <code>run()</code>, <code>draw()</code>, and <code>cleanup()</code>. The main menu loads one module at a time, cleaning up the previous module before starting the next. This prevents resource conflicts (WiFi vs BLE, CDC vs HID).</p>',
-                code: '// Module interface\nclass ToolModule {\npublic:\n    virtual const char* name() = 0;\n    virtual const char* description() = 0;\n    virtual void init() = 0;\n    virtual void run() = 0;       // Called in loop()\n    virtual void draw() = 0;      // Render to TFT\n    virtual void cleanup() = 0;   // Release resources\n    virtual void onButton(int btn) = 0;  // Handle button press\n};\n\n// Module registry\nToolModule* modules[] = {\n    new WiFiScanModule(),      // SG-95\n    new BLEScanModule(),       // SG-96\n    new USBHIDModule(),        // SG-94\n    new USBStorageModule(),    // SG-97\n    new DeauthDetectModule(),  // SG-99\n    new SettingsModule()       // Device settings\n};\nconst int NUM_MODULES = 6;\nint currentModule = -1;  // -1 = main menu\n\nvoid switchModule(int idx) {\n    if (currentModule >= 0) {\n        modules[currentModule]->cleanup();\n    }\n    currentModule = idx;\n    if (idx >= 0) {\n        modules[idx]->init();\n        modules[idx]->draw();\n    } else {\n        drawMainMenu();\n    }\n}',
+                code: '// Module interface\nclass ToolModule {\npublic:\n    virtual const char* name() = 0;\n    virtual const char* description() = 0;\n    virtual void init() = 0;\n    virtual void run() = 0;       // Called in loop()\n    virtual void draw() = 0;      // Render to TFT\n    virtual void cleanup() = 0;   // Release resources\n    virtual void onButton(int btn) = 0;  // Handle button press\n};\n\n// Module registry\nToolModule* modules[] = {\n    new WiFiScanModule(),      // SG-105\n    new BLEScanModule(),       // SG-106\n    new USBHIDModule(),        // SG-104\n    new USBStorageModule(),    // SG-107\n    new DeauthDetectModule(),  // SG-109\n    new SettingsModule()       // Device settings\n};\nconst int NUM_MODULES = 6;\nint currentModule = -1;  // -1 = main menu\n\nvoid switchModule(int idx) {\n    if (currentModule >= 0) {\n        modules[currentModule]->cleanup();\n    }\n    currentModule = idx;\n    if (idx >= 0) {\n        modules[idx]->init();\n        modules[idx]->draw();\n    } else {\n        drawMainMenu();\n    }\n}',
                 language: 'C++',
                 tip: '<strong>The cleanup() method is critical.</strong> WiFi and BLE share the same radio. If the WiFi module does not call <code>WiFi.mode(WIFI_OFF)</code> in cleanup(), the BLE module cannot initialize. USB HID and MSC must be deinitialized before switching USB modes. Resource management is the hard part of building a multi-tool.'
             },
@@ -909,16 +909,16 @@ window.SignalGuides = {
                 tip: null
             },
             {
-                title: 'WiFi Scanner Module (from SG-95)',
-                content: '<p>Wrap your SG-95 WiFi scanner in the module interface. The key difference: init() sets up WiFi, cleanup() turns it off. The module owns the WiFi radio while active.</p>',
-                code: 'class WiFiScanModule : public ToolModule {\npublic:\n    const char* name() override { return "WiFi Recon"; }\n    const char* description() override { return "Scan 2.4GHz"; }\n    \n    void init() override {\n        WiFi.mode(WIFI_STA);\n        WiFi.disconnect();\n        scanNetworks();  // From SG-95\n    }\n    \n    void run() override {\n        // Auto-scan every 10 seconds\n        if (millis() - lastScan > 10000) {\n            scanNetworks();\n            draw();\n            lastScan = millis();\n        }\n    }\n    \n    void draw() override {\n        drawNetworkList();  // From SG-95\n    }\n    \n    void cleanup() override {\n        WiFi.mode(WIFI_OFF);\n        wifiActive = false;\n    }\n    \n    void onButton(int btn) override {\n        if (btn == 0) { /* toggle view */ }\n        if (btn == 14) { /* scroll */ }\n    }\n};',
+                title: 'WiFi Scanner Module (from SG-105)',
+                content: '<p>Wrap your SG-105 WiFi scanner in the module interface. The key difference: init() sets up WiFi, cleanup() turns it off. The module owns the WiFi radio while active.</p>',
+                code: 'class WiFiScanModule : public ToolModule {\npublic:\n    const char* name() override { return "WiFi Recon"; }\n    const char* description() override { return "Scan 2.4GHz"; }\n    \n    void init() override {\n        WiFi.mode(WIFI_STA);\n        WiFi.disconnect();\n        scanNetworks();  // From SG-105\n    }\n    \n    void run() override {\n        // Auto-scan every 10 seconds\n        if (millis() - lastScan > 10000) {\n            scanNetworks();\n            draw();\n            lastScan = millis();\n        }\n    }\n    \n    void draw() override {\n        drawNetworkList();  // From SG-105\n    }\n    \n    void cleanup() override {\n        WiFi.mode(WIFI_OFF);\n        wifiActive = false;\n    }\n    \n    void onButton(int btn) override {\n        if (btn == 0) { /* toggle view */ }\n        if (btn == 14) { /* scroll */ }\n    }\n};',
                 language: 'C++',
                 tip: '<strong>Each module is self-contained.</strong> If you want to add a new tool (e.g., an RF spectrum analyzer, a packet logger), you create a new class that implements ToolModule and add it to the modules[] array. The main menu automatically shows it.'
             },
             {
                 title: 'Settings Module',
                 content: '<p>A settings page for device configuration: display brightness, scan intervals, USB mode selection, WiFi region, and a system info page showing firmware version and memory usage.</p>',
-                code: 'class SettingsModule : public ToolModule {\npublic:\n    const char* name() override { return "Settings"; }\n    const char* description() override { return "Configure"; }\n    \n    struct Setting {\n        const char* label;\n        int value;\n        int minVal;\n        int maxVal;\n        int step;\n    };\n    \n    Setting settings[4] = {\n        {"Brightness", 128, 10, 255, 10},\n        {"Scan Interval", 10, 3, 60, 1},\n        {"USB Mode", 0, 0, 2, 1},  // 0=CDC, 1=HID, 2=MSC\n        {"WiFi Channel", 0, 0, 13, 1}  // 0=auto\n    };\n    int selectedSetting = 0;\n    \n    void init() override {}\n    \n    void run() override {}\n    \n    void draw() override {\n        tft.fillScreen(TFT_BLACK);\n        tft.setTextColor(TFT_CYAN, TFT_BLACK);\n        tft.setTextSize(2);\n        tft.setCursor(10, 5);\n        tft.println("SETTINGS");\n        tft.setTextSize(1);\n        \n        for (int i = 0; i < 4; i++) {\n            int y = 35 + i * 20;\n            tft.setCursor(10, y);\n            if (i == selectedSetting) {\n                tft.setTextColor(TFT_BLACK, TFT_CYAN);\n            } else {\n                tft.setTextColor(TFT_WHITE, TFT_BLACK);\n            }\n            tft.printf(" %-16s %d ", settings[i].label, settings[i].value);\n        }\n        \n        // System info\n        tft.setTextColor(0x8410, TFT_BLACK);\n        tft.setCursor(10, 120);\n        tft.printf("Free heap: %d bytes\\n", ESP.getFreeHeap());\n        tft.printf("PSRAM: %d bytes\\n", ESP.getFreePsram());\n        tft.printf("Firmware: SG-101 Arsenal v1.0\\n");\n        tft.printf("Chip: %s Rev %d\\n", ESP.getChipModel(), ESP.getChipRevision());\n    }\n    \n    void cleanup() override {}\n    \n    void onButton(int btn) override {\n        if (btn == 0) {\n            selectedSetting = (selectedSetting + 1) % 4;\n            draw();\n        }\n        if (btn == 14) {\n            settings[selectedSetting].value += settings[selectedSetting].step;\n            if (settings[selectedSetting].value > settings[selectedSetting].maxVal)\n                settings[selectedSetting].value = settings[selectedSetting].minVal;\n            \n            // Apply brightness immediately\n            if (selectedSetting == 0) {\n                ledcWrite(0, settings[0].value);  // LEDC channel 0\n            }\n            draw();\n        }\n    }\n};',
+                code: 'class SettingsModule : public ToolModule {\npublic:\n    const char* name() override { return "Settings"; }\n    const char* description() override { return "Configure"; }\n    \n    struct Setting {\n        const char* label;\n        int value;\n        int minVal;\n        int maxVal;\n        int step;\n    };\n    \n    Setting settings[4] = {\n        {"Brightness", 128, 10, 255, 10},\n        {"Scan Interval", 10, 3, 60, 1},\n        {"USB Mode", 0, 0, 2, 1},  // 0=CDC, 1=HID, 2=MSC\n        {"WiFi Channel", 0, 0, 13, 1}  // 0=auto\n    };\n    int selectedSetting = 0;\n    \n    void init() override {}\n    \n    void run() override {}\n    \n    void draw() override {\n        tft.fillScreen(TFT_BLACK);\n        tft.setTextColor(TFT_CYAN, TFT_BLACK);\n        tft.setTextSize(2);\n        tft.setCursor(10, 5);\n        tft.println("SETTINGS");\n        tft.setTextSize(1);\n        \n        for (int i = 0; i < 4; i++) {\n            int y = 35 + i * 20;\n            tft.setCursor(10, y);\n            if (i == selectedSetting) {\n                tft.setTextColor(TFT_BLACK, TFT_CYAN);\n            } else {\n                tft.setTextColor(TFT_WHITE, TFT_BLACK);\n            }\n            tft.printf(" %-16s %d ", settings[i].label, settings[i].value);\n        }\n        \n        // System info\n        tft.setTextColor(0x8410, TFT_BLACK);\n        tft.setCursor(10, 120);\n        tft.printf("Free heap: %d bytes\\n", ESP.getFreeHeap());\n        tft.printf("PSRAM: %d bytes\\n", ESP.getFreePsram());\n        tft.printf("Firmware: SG-111 Arsenal v1.0\\n");\n        tft.printf("Chip: %s Rev %d\\n", ESP.getChipModel(), ESP.getChipRevision());\n    }\n    \n    void cleanup() override {}\n    \n    void onButton(int btn) override {\n        if (btn == 0) {\n            selectedSetting = (selectedSetting + 1) % 4;\n            draw();\n        }\n        if (btn == 14) {\n            settings[selectedSetting].value += settings[selectedSetting].step;\n            if (settings[selectedSetting].value > settings[selectedSetting].maxVal)\n                settings[selectedSetting].value = settings[selectedSetting].minVal;\n            \n            // Apply brightness immediately\n            if (selectedSetting == 0) {\n                ledcWrite(0, settings[0].value);  // LEDC channel 0\n            }\n            draw();\n        }\n    }\n};',
                 language: 'C++',
                 tip: null
             }
@@ -949,21 +949,21 @@ window.SignalGuides = {
         commonMistakes: [
             { title: 'Not Implementing cleanup() Properly', correct: 'Every module must release ALL resources in cleanup(): WiFi radio off, BLE deinitialized, USB classes removed, timers stopped, callbacks unregistered.', incorrect: 'Leaving WiFi or BLE initialized when switching to a different module.', consequence: 'Resource conflicts. The BLE module cannot start because WiFi still owns the radio. The USB HID module cannot register because MSC is still active. The device appears to work but modules fail silently.' },
             { title: 'Allocating Memory Dynamically in Modules', correct: 'Use fixed-size static arrays for scan results, device lists, and buffers. Pre-allocate everything at compile time.', incorrect: 'Using malloc(), new, or String concatenation extensively inside module run() loops.', consequence: 'Heap fragmentation. After switching modules 5-10 times, the ESP32-S3 runs out of contiguous memory and crashes. This is the #1 cause of instability in multi-tool firmware.' },
-            { title: 'Building Without Testing Each Module Independently', correct: 'Test each module as a standalone sketch first (SG-93 through SG-99). Only integrate into the army knife after each module works perfectly alone.', incorrect: 'Writing all modules directly in the army knife codebase without standalone testing.', consequence: 'When something breaks, you cannot tell if the bug is in the module code, the module interface, the resource management, or the menu system. Debugging becomes exponentially harder.' }
+            { title: 'Building Without Testing Each Module Independently', correct: 'Test each module as a standalone sketch first (SG-103 through SG-109). Only integrate into the army knife after each module works perfectly alone.', incorrect: 'Writing all modules directly in the army knife codebase without standalone testing.', consequence: 'When something breaks, you cannot tell if the bug is in the module code, the module interface, the resource management, or the menu system. Debugging becomes exponentially harder.' }
         ]
     },
 
     // ========================================================================
-    // SG-102: Defense Lab — Detecting Every Attack You Built
+    // SG-112: Defense Lab — Detecting Every Attack You Built
     // ========================================================================
-    'sg-102': {
-        intro: '<p>The final project. You have spent SG-93 through SG-101 building offensive tools. Now you build the defense. Using a second ESP32 (standard DevKit or CYD from earlier projects), you will create a comprehensive threat detection dashboard that identifies every attack technique you learned.</p>' +
+    'sg-112': {
+        intro: '<p>The final project. You have spent SG-103 through SG-111 building offensive tools. Now you build the defense. Using a second ESP32 (standard DevKit or CYD from earlier projects), you will create a comprehensive threat detection dashboard that identifies every attack technique you learned.</p>' +
                '<p>The lesson: <strong>every attack has a signature, every signature has a detector.</strong> The tools you built are powerful because they are fast and automated. The detectors you build here are powerful because they understand the attack at the protocol level &mdash; because you wrote the attack code yourself.</p>' +
                '<p>This is the blue team capstone. Red builds the weapon. Blue builds the shield. The best security professionals can do both.</p>',
 
-        wiring: '    Two devices required:\n\n    Device 1: T-Display-S3 (attacker/red team)\n        Running SG-101 Army Knife firmware\n\n    Device 2: ESP32 DevKit or CYD (defender/blue team)\n        Running this detection firmware\n        Connected to your network via WiFi\n\n    Both devices on the same 2.4GHz space.',
+        wiring: '    Two devices required:\n\n    Device 1: T-Display-S3 (attacker/red team)\n        Running SG-111 Army Knife firmware\n\n    Device 2: ESP32 DevKit or CYD (defender/blue team)\n        Running this detection firmware\n        Connected to your network via WiFi\n\n    Both devices on the same 2.4GHz space.',
 
-        wiringNotes: '<p><strong>Two devices required.</strong> The T-Display-S3 runs the red team tools (SG-101). A second ESP32 runs the blue team detection firmware (this project). They operate simultaneously to demonstrate attack and detection in real time.</p>' +
+        wiringNotes: '<p><strong>Two devices required.</strong> The T-Display-S3 runs the red team tools (SG-111). A second ESP32 runs the blue team detection firmware (this project). They operate simultaneously to demonstrate attack and detection in real time.</p>' +
                      '<p><strong>Safety:</strong> Run both devices in an isolated environment. The red team device will generate WiFi and BLE traffic that could affect nearby networks. The blue team device is purely passive (receive-only).</p>',
 
         wiringSvg: '',
@@ -978,15 +978,15 @@ window.SignalGuides = {
             },
             {
                 title: 'WiFi Threat Detection',
-                content: '<p>Monitor for deauth attacks (from SG-99), beacon spam (from SG-100/Marauder), rogue access points (new SSIDs matching known networks), and evil twin portals (duplicate SSIDs with different BSSIDs).</p>',
-                code: '// WiFi threat detection (runs in promiscuous callback)\nvoid detectWiFiThreats() {\n    // 1. Deauth flood detection (from SG-99)\n    if (deauthCount > DEAUTH_THRESHOLD) {\n        char buf[128];\n        snprintf(buf, 128, "Deauth flood: %d frames, src: %02X:%02X:%02X:%02X:%02X:%02X",\n            deauthCount, lastAttackerMAC[0], lastAttackerMAC[1],\n            lastAttackerMAC[2], lastAttackerMAC[3],\n            lastAttackerMAC[4], lastAttackerMAC[5]);\n        logThreat("WIFI", "DEAUTH_FLOOD", 3, buf);\n    }\n    \n    // 2. Beacon spam detection\n    // Count SSIDs not in previous baseline\n    int newSSIDs = networkCount - baselineCount;\n    if (newSSIDs < 0) newSSIDs = 0;\n    if (newSSIDs > BEACON_SPAM_THRESHOLD) {\n        char buf[128];\n        snprintf(buf, 128, "Beacon spam: %d new SSIDs in last scan", newSSIDs);\n        logThreat("WIFI", "BEACON_SPAM", 2, buf);\n    }\n    \n    // 3. Evil twin detection (same SSID, different BSSID)\n    for (int i = 0; i < networkCount; i++) {\n        for (int j = i + 1; j < networkCount; j++) {\n            if (networks[i].ssid == networks[j].ssid &&\n                memcmp(networks[i].bssid, networks[j].bssid, 6) != 0) {\n                char buf[128];\n                snprintf(buf, 128, "Evil twin: SSID \\"%s\\" on 2 BSSIDs", networks[i].ssid.c_str());\n                logThreat("WIFI", "EVIL_TWIN", 3, buf);\n            }\n        }\n    }\n}',
+                content: '<p>Monitor for deauth attacks (from SG-109), beacon spam (from SG-110/Marauder), rogue access points (new SSIDs matching known networks), and evil twin portals (duplicate SSIDs with different BSSIDs).</p>',
+                code: '// WiFi threat detection (runs in promiscuous callback)\nvoid detectWiFiThreats() {\n    // 1. Deauth flood detection (from SG-109)\n    if (deauthCount > DEAUTH_THRESHOLD) {\n        char buf[128];\n        snprintf(buf, 128, "Deauth flood: %d frames, src: %02X:%02X:%02X:%02X:%02X:%02X",\n            deauthCount, lastAttackerMAC[0], lastAttackerMAC[1],\n            lastAttackerMAC[2], lastAttackerMAC[3],\n            lastAttackerMAC[4], lastAttackerMAC[5]);\n        logThreat("WIFI", "DEAUTH_FLOOD", 3, buf);\n    }\n    \n    // 2. Beacon spam detection\n    // Count SSIDs not in previous baseline\n    int newSSIDs = networkCount - baselineCount;\n    if (newSSIDs < 0) newSSIDs = 0;\n    if (newSSIDs > BEACON_SPAM_THRESHOLD) {\n        char buf[128];\n        snprintf(buf, 128, "Beacon spam: %d new SSIDs in last scan", newSSIDs);\n        logThreat("WIFI", "BEACON_SPAM", 2, buf);\n    }\n    \n    // 3. Evil twin detection (same SSID, different BSSID)\n    for (int i = 0; i < networkCount; i++) {\n        for (int j = i + 1; j < networkCount; j++) {\n            if (networks[i].ssid == networks[j].ssid &&\n                memcmp(networks[i].bssid, networks[j].bssid, 6) != 0) {\n                char buf[128];\n                snprintf(buf, 128, "Evil twin: SSID \\"%s\\" on 2 BSSIDs", networks[i].ssid.c_str());\n                logThreat("WIFI", "EVIL_TWIN", 3, buf);\n            }\n        }\n    }\n}',
                 language: 'C++',
                 tip: null
             },
             {
                 title: 'BLE Threat Detection',
                 content: '<p>Monitor for BLE beacon spam, unauthorized trackers, and suspicious device patterns.</p>',
-                code: '// BLE threat detection\n// BLE globals (populated by BLE scan in separate task)\nextern int bleDeviceCount;\nextern BLEDeviceInfo bleDevices[];\n\nvoid detectBLEThreats() {\n    // 1. Tracker detection (from SG-96)\n    for (int i = 0; i < bleDeviceCount; i++) {\n        if (bleDevices[i].isTracker) {\n            char buf[128];\n            snprintf(buf, 128, "Tracker: %s RSSI:%d", \n                bleDevices[i].address.c_str(), bleDevices[i].rssi);\n            logThreat("BLE", "TRACKER", 2, buf);\n        }\n    }\n    \n    // 2. BLE spam detection (too many advertisements)\n    if (bleDeviceCount > BLE_SPAM_THRESHOLD) {\n        char buf[128];\n        snprintf(buf, 128, "BLE spam: %d devices in scan (normal: <20)", bleDeviceCount);\n        logThreat("BLE", "ADV_SPAM", 2, buf);\n    }\n    \n    // 3. Espressif OUI detection (possible assessment tool)\n    for (int i = 0; i < bleDeviceCount; i++) {\n        // Check for Espressif OUI: 24:6F:28, DC:54:75, etc.\n        if (bleDevices[i].address.startsWith("24:6F:28") ||\n            bleDevices[i].address.startsWith("DC:54:75")) {\n            char buf[128];\n            snprintf(buf, 128, "Espressif device: %s (possible pentest tool)",\n                bleDevices[i].address.c_str());\n            logThreat("BLE", "ESPRESSIF_OUI", 1, buf);\n        }\n    }\n}',
+                code: '// BLE threat detection\n// BLE globals (populated by BLE scan in separate task)\nextern int bleDeviceCount;\nextern BLEDeviceInfo bleDevices[];\n\nvoid detectBLEThreats() {\n    // 1. Tracker detection (from SG-106)\n    for (int i = 0; i < bleDeviceCount; i++) {\n        if (bleDevices[i].isTracker) {\n            char buf[128];\n            snprintf(buf, 128, "Tracker: %s RSSI:%d", \n                bleDevices[i].address.c_str(), bleDevices[i].rssi);\n            logThreat("BLE", "TRACKER", 2, buf);\n        }\n    }\n    \n    // 2. BLE spam detection (too many advertisements)\n    if (bleDeviceCount > BLE_SPAM_THRESHOLD) {\n        char buf[128];\n        snprintf(buf, 128, "BLE spam: %d devices in scan (normal: <20)", bleDeviceCount);\n        logThreat("BLE", "ADV_SPAM", 2, buf);\n    }\n    \n    // 3. Espressif OUI detection (possible assessment tool)\n    for (int i = 0; i < bleDeviceCount; i++) {\n        // Check for Espressif OUI: 24:6F:28, DC:54:75, etc.\n        if (bleDevices[i].address.startsWith("24:6F:28") ||\n            bleDevices[i].address.startsWith("DC:54:75")) {\n            char buf[128];\n            snprintf(buf, 128, "Espressif device: %s (possible pentest tool)",\n                bleDevices[i].address.c_str());\n            logThreat("BLE", "ESPRESSIF_OUI", 1, buf);\n        }\n    }\n}',
                 language: 'C++',
                 tip: null
             },
@@ -999,7 +999,7 @@ window.SignalGuides = {
             }
         ],
 
-        testing: '<p>Test with your SG-101 Army Knife as the red team:</p>' +
+        testing: '<p>Test with your SG-111 Army Knife as the red team:</p>' +
                  '<ul>' +
                  '<li><strong>WiFi scan detection:</strong> Run WiFi scan on the army knife. The detector should show an Espressif OUI info event (if MAC is not randomized).</li>' +
                  '<li><strong>Deauth detection:</strong> If testing deauth in a shielded lab, the detector should immediately show a CRITICAL deauth flood alert with the attacker MAC.</li>' +
@@ -1020,7 +1020,7 @@ window.SignalGuides = {
                     '<p><strong>Challenge 3: Baseline Learning</strong> &mdash; Run the detector in "learning mode" for 24 hours. Record the normal environment: expected SSIDs, typical BLE device count, normal deauth rate. Then switch to "detection mode" and alert only on deviations from the baseline. This is how anomaly-based IDS systems work.</p>',
 
         stepVisuals: {},
-        componentCallouts: { svg: '', components: [{ id: 'esp32-detector', name: 'ESP32 DevKit or CYD (Blue Team)', purpose: 'Runs the threat detection firmware in promiscuous mode. Monitors WiFi and BLE for attack signatures. Displays real-time threat dashboard.', specs: ['Promiscuous WiFi capture', 'BLE passive scan', 'Event logging', 'Color-coded dashboard'] }, { id: 't-display-s3', name: 'LILYGO T-Display-S3 (Red Team)', purpose: 'Runs the SG-101 Army Knife firmware as the adversary. Generates attacks that the blue team device detects.', specs: ['WiFi/BLE/USB tools', 'SG-101 firmware', 'Attack generation', 'Red team device'] }] },
+        componentCallouts: { svg: '', components: [{ id: 'esp32-detector', name: 'ESP32 DevKit or CYD (Blue Team)', purpose: 'Runs the threat detection firmware in promiscuous mode. Monitors WiFi and BLE for attack signatures. Displays real-time threat dashboard.', specs: ['Promiscuous WiFi capture', 'BLE passive scan', 'Event logging', 'Color-coded dashboard'] }, { id: 't-display-s3', name: 'LILYGO T-Display-S3 (Red Team)', purpose: 'Runs the SG-111 Army Knife firmware as the adversary. Generates attacks that the blue team device detects.', specs: ['WiFi/BLE/USB tools', 'SG-111 firmware', 'Attack generation', 'Red team device'] }] },
         commonMistakes: [
             { title: 'Only Testing Detection Without Red Team Activity', correct: 'Run both devices simultaneously: the army knife generates attacks, the detector identifies them. Verify each detection rule fires when the corresponding attack runs.', incorrect: 'Only running the detector in a quiet environment and declaring it "works" because there are no alerts.', consequence: 'You have no evidence that the detector actually detects anything. A detector that has never been triggered might have bugs in its detection logic, wrong thresholds, or broken callbacks. Test with real attacks.' },
             { title: 'Trusting Detection as Prevention', correct: 'Detection tells you an attack is happening. Prevention requires separate action: enable PMF, disable USB ports, implement USB device policies, segment networks. Detection without response is just awareness.', incorrect: 'Assuming that because you can detect a deauth attack, your network is protected from it.', consequence: 'The attack continues while you watch the dashboard. Detection is step 1 of incident response. Without containment, eradication, and recovery steps, detection alone provides visibility without security.' },
