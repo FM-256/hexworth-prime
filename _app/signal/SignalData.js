@@ -250,7 +250,7 @@ const SignalData = {
             name: 'Home Lab Builds',
             tagline: 'Build your infrastructure.',
             description: 'Raspberry Pi servers, PXE boot, NAS storage, media servers, VPN gateways, and Pi-hole DNS. Real infrastructure on real hardware.',
-            icon: '../../assets/images/icons/icon-server.webp',
+            icon: '../../assets/images/icons/icon-desktop.webp',
             color: '#06b6d4',
             colorDim: 'rgba(6, 182, 212, 0.15)',
             sections: ['home-lab-builds']
@@ -1500,7 +1500,7 @@ const SignalData = {
             id: 'home-lab-builds',
             name: 'Home Lab Builds',
             track: 'home-lab-builds',
-            icon: '../../assets/images/icons/icon-server.webp',
+            icon: '../../assets/images/icons/icon-desktop.webp',
             description: 'Raspberry Pi servers, PXE boot, NAS storage, media servers, VPN gateways, and network services.',
             color: '#06b6d4',
             projects: [
