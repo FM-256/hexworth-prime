@@ -714,7 +714,7 @@ a { color: inherit; text-decoration: none; }
 .se-btn:hover { background: rgba(255, 107, 53, 0.25); }
 
 /* Main */
-.se-main { max-width: 1000px; margin: 0 auto; padding: 24px 20px 60px; position: relative; z-index: 1; }
+.se-main { max-width: 1200px; margin: 0 auto; padding: 24px 32px 60px; position: relative; z-index: 1; }
 .se-main.se-main-wide { max-width: 100%; padding-left: 30px; padding-right: 30px; }
 
 /* Particles */
@@ -952,7 +952,7 @@ a { color: inherit; text-decoration: none; }
 .se-section-hero { text-align: center; padding: 40px 0 28px; }
 .se-section-icon { border-radius: 10px; margin-bottom: 12px; }
 .se-section-title { font-size: 32px; font-weight: 800; color: #fff; }
-.se-section-desc { font-size: 14px; color: #8b949e; margin-top: 6px; max-width: 600px; margin-left: auto; margin-right: auto; }
+.se-section-desc { font-size: 14px; color: #8b949e; margin-top: 6px; max-width: 800px; margin-left: auto; margin-right: auto; }
 .se-section-stats { display: flex; justify-content: center; gap: 12px; margin: 16px 0 10px; font-size: 14px; color: ${color}; }
 
 /* Platform filter */
@@ -975,7 +975,7 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* Project list */
-.se-project-list { max-width: 1000px; margin: 0 auto; }
+.se-project-list { max-width: 1140px; margin: 0 auto; }
 .se-project-item {
     border-radius: 10px;
     border: 1px solid rgba(255,255,255,0.05);
@@ -1959,7 +1959,7 @@ a { color: inherit; text-decoration: none; }
 .sp-card {
     background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.06);
     border-radius: 12px; padding: 20px 24px; margin-bottom: 16px;
-    max-width: 1000px; margin-left: auto; margin-right: auto;
+    max-width: 1140px; margin-left: auto; margin-right: auto;
 }
 .sp-card-label {
     font-size: 11px; font-weight: 700; color: ${color};
@@ -2046,7 +2046,7 @@ a { color: inherit; text-decoration: none; }
 .sp-coming-desc { font-size: 13px; color: #555; margin-top: 6px; }
 
 /* Build guide content */
-.sp-guide { max-width: 1000px; margin: 0 auto; }
+.sp-guide { max-width: 1140px; margin: 0 auto; }
 .sp-guide:has(.sp-wiring-svg) { max-width: 100%; }
 .sp-guide:has(.sp-wiring-svg) .sp-card { max-width: 100%; }
 .sp-guide:has(.sp-sticky-layout) { padding: 0 20px; }
@@ -2216,7 +2216,7 @@ a { color: inherit; text-decoration: none; }
 /* XP bar */
 .sp-xp-bar {
     display: flex; justify-content: space-between; align-items: center;
-    max-width: 1000px; margin: 8px auto 0;
+    max-width: 1140px; margin: 8px auto 0;
     padding: 12px 24px; border-radius: 8px;
     background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04);
 }
