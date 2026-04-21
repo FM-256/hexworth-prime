@@ -153,6 +153,15 @@ const CertPathRenderer = (() => {
             });
     }
 
+    /* ── Icon normalizer — handles both <img> tags and raw paths ── */
+    function normalizeIcon(icon, size) {
+        size = size || '1.1em';
+        if (!icon) return '';
+        if (icon.includes('<img')) return icon;
+        // Raw path string — wrap in img tag
+        return '<img src="' + icon + '" alt="" style="width:' + size + ';height:' + size + ';vertical-align:middle;display:inline-block;object-fit:contain">';
+    }
+
     /* ── CSS injection ── */
     function injectStyles() {
         const c = pathData.color || '#8b5cf6';
@@ -248,7 +257,7 @@ body::before{content:'';position:absolute;inset:0;background:radial-gradient(ell
   <div class="hdr-l">
     <a href="${(typeof TenantRouter !== 'undefined' && TenantRouter.isActive()) ? TenantRouter.getUrl('dashboard') : '../../dashboard.html'}" class="back">\u2190 ${(typeof TenantRouter !== 'undefined' && TenantRouter.isActive()) ? TenantRouter.getName() : 'Dashboard'}</a>
     <div class="pbadge">
-      <span class="pbadge-icon">${pathData.icon}</span>
+      <span class="pbadge-icon">${normalizeIcon(pathData.icon, '1.2rem')}</span>
       <span class="pbadge-text">${pathData.name}</span>
     </div>
   </div>
@@ -257,7 +266,7 @@ body::before{content:'';position:absolute;inset:0;background:radial-gradient(ell
 
 <div class="wrap">
   <div class="hero">
-    <div class="hero-icon">${pathData.icon}</div>
+    <div class="hero-icon">${normalizeIcon(pathData.icon, '4rem')}</div>
     <h1 class="hero-h">${pathData.name}</h1>
     <p class="hero-p">${pathData.description}</p>
   </div>
