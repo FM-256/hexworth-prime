@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Introduction to AI on Azure | AI-900 Chapter 1</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container — fixed to viewport, hidden by default */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        /* Max-width wrapper so content does not stretch on wide screens */
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Gold progress bar across the very top */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c9a83a; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.15); color: #c9a83a; border-color: #c9a83a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button — shown only on last slide via JS */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #c9a83a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip for scenario or instructor notes */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.08); border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fef3c7; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids — 3-column and 2-column */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c9a83a;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #c9a83a; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+
+        /* Section label — small caps divider text */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Numbered summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c9a83a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Code-style data block */
+        .code-block {
+            background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #c9a83a; }
+        .code-block .fn { color: #06b6d4; }
+        .code-block .st { color: #3ab577; }
+        .code-block .cm { color: #475569; }
+        .code-block .nb { color: #f472b6; }
+
+        /* Inline code span */
+        .ic {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* SVG diagram containers */
+        .diagram-row {
+            display: flex; gap: 16px; align-items: center; justify-content: center;
+        }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        /* Hexagonal grid for Responsible AI */
+        .hex-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(201, 168, 58, 0.25);
+            border-radius: 8px; padding: 12px 14px;
+            text-align: center;
+            opacity: 0;
+            animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #c9a83a; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        /* Neural network animation */
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes flow {
+            0%   { stroke-dashoffset: 20; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes clusterForm {
+            0%   { opacity: 0; transform: translate(0px, 0px); }
+            100% { opacity: 1; }
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Introduction to AI on Azure — AI-900 Chapter 1</h1>
+
+<!-- Gold progress bar — width updated by goToSlide() -->
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; AI-900 &nbsp;|&nbsp; Chapter 1 of 6</div>
+        <div class="title-hero">
+            <!-- Brain / neural-network SVG — animated pulse on nodes -->
+            <svg width="120" height="100" viewBox="0 0 120 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Outer brain silhouette -->
+                <ellipse cx="60" cy="54" rx="46" ry="38" fill="rgba(201,168,58,0.07)" stroke="#c9a83a" stroke-width="1.2"/>
+                <!-- Neural network nodes -->
+                <circle cx="28" cy="54" r="5" fill="#c9a83a" style="animation: pulse 2s ease-in-out infinite 0s;"/>
+                <circle cx="50" cy="36" r="5" fill="#c9a83a" style="animation: pulse 2s ease-in-out infinite 0.3s;"/>
+                <circle cx="50" cy="72" r="5" fill="#c9a83a" style="animation: pulse 2s ease-in-out infinite 0.6s;"/>
+                <circle cx="72" cy="26" r="5" fill="#06b6d4" style="animation: pulse 2s ease-in-out infinite 0.9s;"/>
+                <circle cx="72" cy="54" r="5" fill="#06b6d4" style="animation: pulse 2s ease-in-out infinite 1.2s;"/>
+                <circle cx="72" cy="80" r="5" fill="#06b6d4" style="animation: pulse 2s ease-in-out infinite 1.5s;"/>
+                <circle cx="94" cy="40" r="5" fill="#3ab577" style="animation: pulse 2s ease-in-out infinite 1.8s;"/>
+                <circle cx="94" cy="68" r="5" fill="#3ab577" style="animation: pulse 2s ease-in-out infinite 2.1s;"/>
+                <!-- Connection lines -->
+                <line x1="28" y1="54" x2="50" y2="36" stroke="rgba(201,168,58,0.35)" stroke-width="1"/>
+                <line x1="28" y1="54" x2="50" y2="72" stroke="rgba(201,168,58,0.35)" stroke-width="1"/>
+                <line x1="50" y1="36" x2="72" y2="26" stroke="rgba(6,182,212,0.35)" stroke-width="1"/>
+                <line x1="50" y1="36" x2="72" y2="54" stroke="rgba(6,182,212,0.35)" stroke-width="1"/>
+                <line x1="50" y1="72" x2="72" y2="54" stroke="rgba(6,182,212,0.35)" stroke-width="1"/>
+                <line x1="50" y1="72" x2="72" y2="80" stroke="rgba(6,182,212,0.35)" stroke-width="1"/>
+                <line x1="72" y1="26" x2="94" y2="40" stroke="rgba(58,181,119,0.35)" stroke-width="1"/>
+                <line x1="72" y1="54" x2="94" y2="40" stroke="rgba(58,181,119,0.35)" stroke-width="1"/>
+                <line x1="72" y1="54" x2="94" y2="68" stroke="rgba(58,181,119,0.35)" stroke-width="1"/>
+                <line x1="72" y1="80" x2="94" y2="68" stroke="rgba(58,181,119,0.35)" stroke-width="1"/>
+            </svg>
+            <div class="big-title">
+                Introduction to <span class="accent">AI on Azure</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                AI Concepts &nbsp;&bull;&nbsp; Machine Learning &nbsp;&bull;&nbsp; Azure AI Services &nbsp;&bull;&nbsp; Responsible AI
+            </div>
+        </div>
+        <div class="scenario-strip">
+            AI-900 is Microsoft's foundational AI certification. This chapter establishes the concepts you need before touching any Azure service — what AI actually is, how machine learning works, where Azure fits in, and what "responsible AI" means in practice.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>AI-900 Exam Objectives</span>
+            <span>Chapter 1 of 6</span>
+            <span>Azure AI Fundamentals</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — WHAT IS AI ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">What is <span class="accent">Artificial Intelligence?</span></div>
+        <div class="slide-subtitle">Software that mimics human cognitive capabilities using data and math.</div>
+
+        <!-- Human vs Computer SVG -->
+        <div class="diagram-center">
+            <svg width="520" height="100" viewBox="0 0 520 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Human silhouette -->
+                <circle cx="70" cy="22" r="14" fill="none" stroke="#c9a83a" stroke-width="1.5"/>
+                <line x1="70" y1="36" x2="70" y2="72" stroke="#c9a83a" stroke-width="1.5"/>
+                <line x1="70" y1="50" x2="50" y2="64" stroke="#c9a83a" stroke-width="1.5"/>
+                <line x1="70" y1="50" x2="90" y2="64" stroke="#c9a83a" stroke-width="1.5"/>
+                <line x1="70" y1="72" x2="55" y2="90" stroke="#c9a83a" stroke-width="1.5"/>
+                <line x1="70" y1="72" x2="85" y2="90" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="70" y="98" text-anchor="middle" font-size="9" fill="#c9a83a" font-family="Segoe UI,sans-serif">Human</text>
+
+                <!-- Arrows with labels -->
+                <g>
+                    <line x1="140" y1="28" x2="280" y2="28" stroke="rgba(201,168,58,0.5)" stroke-width="1.2" stroke-dasharray="4,3"/>
+                    <polygon points="280,24 288,28 280,32" fill="#c9a83a"/>
+                    <text x="214" y="22" text-anchor="middle" font-size="9" fill="#c9a83a" font-family="Segoe UI,sans-serif">Vision</text>
+                </g>
+                <g>
+                    <line x1="140" y1="46" x2="280" y2="46" stroke="rgba(6,182,212,0.5)" stroke-width="1.2" stroke-dasharray="4,3"/>
+                    <polygon points="280,42 288,46 280,50" fill="#06b6d4"/>
+                    <text x="214" y="40" text-anchor="middle" font-size="9" fill="#06b6d4" font-family="Segoe UI,sans-serif">Language</text>
+                </g>
+                <g>
+                    <line x1="140" y1="64" x2="280" y2="64" stroke="rgba(58,181,119,0.5)" stroke-width="1.2" stroke-dasharray="4,3"/>
+                    <polygon points="280,60 288,64 280,68" fill="#3ab577"/>
+                    <text x="214" y="58" text-anchor="middle" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif">Decision</text>
+                </g>
+                <g>
+                    <line x1="140" y1="82" x2="280" y2="82" stroke="rgba(167,139,250,0.5)" stroke-width="1.2" stroke-dasharray="4,3"/>
+                    <polygon points="280,78 288,82 280,86" fill="#a78bfa"/>
+                    <text x="214" y="76" text-anchor="middle" font-size="9" fill="#a78bfa" font-family="Segoe UI,sans-serif">Learning</text>
+                </g>
+
+                <!-- Computer / robot icon -->
+                <rect x="298" y="14" width="52" height="42" rx="4" fill="none" stroke="#06b6d4" stroke-width="1.5"/>
+                <rect x="306" y="22" width="36" height="24" rx="2" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1"/>
+                <!-- Screen lines -->
+                <line x1="310" y1="28" x2="338" y2="28" stroke="#06b6d4" stroke-width="0.8" opacity="0.6"/>
+                <line x1="310" y1="34" x2="332" y2="34" stroke="#06b6d4" stroke-width="0.8" opacity="0.6"/>
+                <line x1="310" y1="40" x2="336" y2="40" stroke="#06b6d4" stroke-width="0.8" opacity="0.6"/>
+                <!-- Stand -->
+                <line x1="324" y1="56" x2="324" y2="68" stroke="#06b6d4" stroke-width="1.5"/>
+                <line x1="310" y1="68" x2="338" y2="68" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="324" y="82" text-anchor="middle" font-size="9" fill="#06b6d4" font-family="Segoe UI,sans-serif">AI System</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Vision</div>
+                <div class="card-desc">Identifying objects, people, text, and scenes in images and video. Humans do this naturally — AI learns it from millions of labeled examples.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Language</div>
+                <div class="card-desc">Understanding and generating human language — reading comprehension, translation, sentiment analysis, summarization, and conversation.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Decision &amp; Learning</div>
+                <div class="card-desc">Making predictions and recommendations from data patterns. Fraud detection, product recommendations, medical diagnosis support — all learned from examples, not hand-coded rules.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            "AI is not magic — it's math, data, and engineering."
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — ML FUNDAMENTALS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Machine Learning <span class="accent">Fundamentals</span></div>
+        <div class="slide-subtitle">Teaching computers to learn from data instead of explicit programming.</div>
+
+        <!-- ML Pipeline SVG: Data → Training → Model → Prediction -->
+        <div class="diagram-center">
+            <svg width="580" height="88" viewBox="0 0 580 88" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Data points -->
+                <rect x="8" y="18" width="88" height="52" rx="6" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.2"/>
+                <text x="52" y="40" text-anchor="middle" font-size="9" fill="#c9a83a" font-family="Segoe UI,sans-serif" font-weight="700">TRAINING</text>
+                <text x="52" y="52" text-anchor="middle" font-size="9" fill="#c9a83a" font-family="Segoe UI,sans-serif" font-weight="700">DATA</text>
+                <circle cx="24" cy="62" r="3" fill="#c9a83a" opacity="0.7"/>
+                <circle cx="36" cy="58" r="3" fill="#c9a83a" opacity="0.7"/>
+                <circle cx="48" cy="65" r="3" fill="#c9a83a" opacity="0.7"/>
+                <circle cx="60" cy="56" r="3" fill="#c9a83a" opacity="0.7"/>
+                <circle cx="72" cy="63" r="3" fill="#c9a83a" opacity="0.7"/>
+
+                <!-- Arrow 1 — animated data flow -->
+                <line x1="96" y1="44" x2="148" y2="44" stroke="rgba(201,168,58,0.6)" stroke-width="1.5" stroke-dasharray="5,4">
+                    <animate attributeName="stroke-dashoffset" values="18;0" dur="1.2s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="148,40 156,44 148,48" fill="#c9a83a"/>
+                <text x="122" y="38" text-anchor="middle" font-size="8" fill="#64748b" font-family="Segoe UI,sans-serif">Features + Labels</text>
+
+                <!-- Training box -->
+                <rect x="158" y="18" width="88" height="52" rx="6" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.2"/>
+                <text x="202" y="40" text-anchor="middle" font-size="9" fill="#06b6d4" font-family="Segoe UI,sans-serif" font-weight="700">TRAINING</text>
+                <text x="202" y="52" text-anchor="middle" font-size="9" fill="#06b6d4" font-family="Segoe UI,sans-serif" font-weight="700">ALGORITHM</text>
+                <!-- Gear icon lines -->
+                <circle cx="202" cy="63" r="5" fill="none" stroke="#06b6d4" stroke-width="0.8" opacity="0.5"/>
+                <line x1="202" y1="58" x2="202" y2="56" stroke="#06b6d4" stroke-width="0.8" opacity="0.5"/>
+                <line x1="202" y1="68" x2="202" y2="70" stroke="#06b6d4" stroke-width="0.8" opacity="0.5"/>
+                <line x1="197" y1="63" x2="195" y2="63" stroke="#06b6d4" stroke-width="0.8" opacity="0.5"/>
+                <line x1="207" y1="63" x2="209" y2="63" stroke="#06b6d4" stroke-width="0.8" opacity="0.5"/>
+
+                <!-- Arrow 2 -->
+                <line x1="246" y1="44" x2="298" y2="44" stroke="rgba(6,182,212,0.6)" stroke-width="1.5" stroke-dasharray="5,4">
+                    <animate attributeName="stroke-dashoffset" values="18;0" dur="1.2s" repeatCount="indefinite" begin="0.4s"/>
+                </line>
+                <polygon points="298,40 306,44 298,48" fill="#06b6d4"/>
+                <text x="272" y="38" text-anchor="middle" font-size="8" fill="#64748b" font-family="Segoe UI,sans-serif">Optimize weights</text>
+
+                <!-- Model box -->
+                <rect x="308" y="18" width="88" height="52" rx="6" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.2"/>
+                <text x="352" y="44" text-anchor="middle" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif" font-weight="700">TRAINED</text>
+                <text x="352" y="56" text-anchor="middle" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif" font-weight="700">MODEL</text>
+                <text x="352" y="66" text-anchor="middle" font-size="14" fill="#3ab577" font-family="Courier New,monospace">f(x)</text>
+
+                <!-- Arrow 3 -->
+                <line x1="396" y1="44" x2="446" y2="44" stroke="rgba(58,181,119,0.6)" stroke-width="1.5" stroke-dasharray="5,4">
+                    <animate attributeName="stroke-dashoffset" values="18;0" dur="1.2s" repeatCount="indefinite" begin="0.8s"/>
+                </line>
+                <polygon points="446,40 454,44 446,48" fill="#3ab577"/>
+                <text x="421" y="38" text-anchor="middle" font-size="8" fill="#64748b" font-family="Segoe UI,sans-serif">New data in</text>
+
+                <!-- Prediction box -->
+                <rect x="456" y="18" width="116" height="52" rx="6" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.2"/>
+                <text x="514" y="40" text-anchor="middle" font-size="9" fill="#a78bfa" font-family="Segoe UI,sans-serif" font-weight="700">PREDICTION</text>
+                <text x="514" y="54" text-anchor="middle" font-size="9" fill="#a78bfa" font-family="Segoe UI,sans-serif">y = f(x)</text>
+                <text x="514" y="66" text-anchor="middle" font-size="8" fill="#64748b" font-family="Segoe UI,sans-serif">output value</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Features — x (Inputs)</div>
+                <div class="card-desc">The measurable properties used to make a prediction. For predicting house prices: square footage, location, number of bedrooms. For email spam: word frequency, sender domain, link count. Features are your x values.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Labels — y (Known Answers)</div>
+                <div class="card-desc">The correct answer for each training example — the value you want the model to learn to predict. House price in dollars. Spam = 1 / not spam = 0. During training, the algorithm compares predicted y to actual y and adjusts.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Model — f (The Learned Function)</div>
+                <div class="card-desc">The mathematical function learned from training data. Given new x values (features it has never seen), the model computes f(x) and outputs a prediction. The formula <strong>y = f(x)</strong> is the entire concept of supervised ML in one expression.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — TYPES OF ML ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Types of <span class="accent">Machine Learning</span></div>
+        <div class="slide-subtitle">Three branches — defined by what kind of data you train on.</div>
+
+        <!-- Tree diagram SVG -->
+        <div class="diagram-center">
+            <svg width="560" height="110" viewBox="0 0 560 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Root: Machine Learning -->
+                <rect x="190" y="4" width="180" height="32" rx="6" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1.2"/>
+                <text x="280" y="24" text-anchor="middle" font-size="11" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Machine Learning</text>
+
+                <!-- Branch lines -->
+                <line x1="280" y1="36" x2="280" y2="52" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+                <line x1="80" y1="52" x2="480" y2="52" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+                <line x1="80" y1="52" x2="80" y2="66" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+                <line x1="280" y1="52" x2="280" y2="66" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+                <line x1="480" y1="52" x2="480" y2="66" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+
+                <!-- Branch 1: Supervised -->
+                <rect x="18" y="66" width="124" height="32" rx="6" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.2"/>
+                <text x="80" y="84" text-anchor="middle" font-size="10" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Supervised</text>
+                <text x="80" y="96" text-anchor="middle" font-size="8" fill="#64748b" font-family="Segoe UI,sans-serif">labeled training data</text>
+
+                <!-- Branch 2: Unsupervised -->
+                <rect x="218" y="66" width="124" height="32" rx="6" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.2"/>
+                <text x="280" y="84" text-anchor="middle" font-size="10" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Unsupervised</text>
+                <text x="280" y="96" text-anchor="middle" font-size="8" fill="#64748b" font-family="Segoe UI,sans-serif">no labels — find structure</text>
+
+                <!-- Branch 3: Deep Learning -->
+                <rect x="418" y="66" width="124" height="32" rx="6" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.2"/>
+                <text x="480" y="84" text-anchor="middle" font-size="10" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Deep Learning</text>
+                <text x="480" y="96" text-anchor="middle" font-size="8" fill="#64748b" font-family="Segoe UI,sans-serif">neural networks</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">Supervised Learning</div>
+                <div class="card-desc">
+                    Train with examples that have known correct answers (labels).<br>
+                    <strong style="color:#06b6d4;">Regression</strong> — predict a number. How much will this house sell for?<br>
+                    <strong style="color:#06b6d4;">Classification</strong> — predict a category. Is this email spam or not spam?
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Unsupervised Learning</div>
+                <div class="card-desc">
+                    No labels — the algorithm discovers patterns on its own.<br>
+                    <strong style="color:#3ab577;">Clustering</strong> — group similar data points together without being told what the groups are. Used for customer segmentation, anomaly detection, topic modeling.
+                </div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Deep Learning</div>
+                <div class="card-desc">
+                    Multi-layer neural networks that learn hierarchical representations.<br>
+                    Powers image recognition, speech, and large language models. Requires large datasets and significant compute. The foundation of modern AI.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — REGRESSION ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title"><span class="accent">Regression</span> — Predicting a Number</div>
+        <div class="slide-subtitle">Output is a continuous numeric value. The model learns the best-fit function through the data.</div>
+
+        <div class="diagram-row" style="align-items: flex-start; gap: 24px;">
+            <!-- Scatter plot with best-fit line -->
+            <div>
+                <svg width="280" height="180" viewBox="0 0 280 180" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <!-- Axes -->
+                    <line x1="36" y1="148" x2="262" y2="148" stroke="rgba(255,255,255,0.2)" stroke-width="1.2"/>
+                    <line x1="36" y1="16" x2="36" y2="148" stroke="rgba(255,255,255,0.2)" stroke-width="1.2"/>
+                    <!-- Axis labels -->
+                    <text x="149" y="168" text-anchor="middle" font-size="9" fill="#64748b" font-family="Segoe UI,sans-serif">Temperature (C)</text>
+                    <text x="14" y="82" text-anchor="middle" font-size="9" fill="#64748b" font-family="Segoe UI,sans-serif" transform="rotate(-90,14,82)">Ice Cream Sales</text>
+                    <!-- Tick labels x -->
+                    <text x="56" y="160" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">10</text>
+                    <text x="106" y="160" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">20</text>
+                    <text x="156" y="160" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">30</text>
+                    <text x="206" y="160" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">40</text>
+                    <!-- Scatter dots -->
+                    <circle cx="56"  cy="132" r="4" fill="#c9a83a" opacity="0.8"/>
+                    <circle cx="72"  cy="124" r="4" fill="#c9a83a" opacity="0.8"/>
+                    <circle cx="88"  cy="116" r="4" fill="#c9a83a" opacity="0.8"/>
+                    <circle cx="96"  cy="108" r="4" fill="#c9a83a" opacity="0.8"/>
+                    <circle cx="116" cy="100" r="4" fill="#c9a83a" opacity="0.8"/>
+                    <circle cx="124" cy="92"  r="4" fill="#c9a83a" opacity="0.8"/>
+                    <circle cx="140" cy="80"  r="4" fill="#c9a83a" opacity="0.8"/>
+                    <circle cx="156" cy="72"  r="4" fill="#c9a83a" opacity="0.8"/>
+                    <circle cx="164" cy="64"  r="4" fill="#c9a83a" opacity="0.8"/>
+                    <circle cx="180" cy="56"  r="4" fill="#c9a83a" opacity="0.8"/>
+                    <circle cx="196" cy="48"  r="4" fill="#c9a83a" opacity="0.8"/>
+                    <circle cx="210" cy="36"  r="4" fill="#c9a83a" opacity="0.8"/>
+                    <circle cx="232" cy="28"  r="4" fill="#c9a83a" opacity="0.8"/>
+                    <!-- Best-fit line -->
+                    <line x1="46" y1="138" x2="252" y2="22" stroke="#06b6d4" stroke-width="2" stroke-linecap="round"/>
+                    <text x="220" y="18" font-size="8" fill="#06b6d4" font-family="Segoe UI,sans-serif">best-fit line</text>
+                </svg>
+            </div>
+
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 10px;">
+                <div class="card c-gold">
+                    <div class="card-label">When to Use Regression</div>
+                    <div class="card-desc">Any time the answer is a number on a continuous scale: house price, temperature tomorrow, expected website traffic, stock value. If you can measure it with a ruler, regression probably applies.</div>
+                </div>
+                <div class="code-block"><span class="cm"># Example training record</span>
+<span class="kw">Features</span>: temperature=28, rainfall=2mm
+<span class="kw">Label</span>:    ice_cream_sales=215 units
+
+<span class="cm"># After training — predict with new data</span>
+<span class="kw">Features</span>: temperature=34, rainfall=0mm
+<span class="kw">Prediction</span>: <span class="nb">287</span> units</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">Common Regression Algorithms</div>
+                <div class="card-desc">Linear Regression (straight line), Polynomial Regression (curved line), Decision Tree Regression, Random Forest Regression, Neural Network Regression. Azure ML Designer has all of these as drag-and-drop components.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Measuring Regression Quality</div>
+                <div class="card-desc">Mean Absolute Error (MAE) — average distance between predicted and actual. Root Mean Squared Error (RMSE) — penalizes large errors more. R-squared (R2) — proportion of variance explained. Lower MAE/RMSE and higher R2 = better model.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — CLASSIFICATION ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title"><span class="accent">Classification</span> — Predicting a Category</div>
+        <div class="slide-subtitle">Output is a class label, not a number. Binary = 2 classes. Multiclass = 3 or more.</div>
+
+        <!-- Two-panel SVG: Binary vs Multiclass -->
+        <div class="diagram-center">
+            <svg width="540" height="150" viewBox="0 0 540 150" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Panel labels -->
+                <text x="122" y="14" text-anchor="middle" font-size="10" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Binary Classification</text>
+                <text x="390" y="14" text-anchor="middle" font-size="10" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Multiclass Classification</text>
+
+                <!-- Binary panel background -->
+                <rect x="16" y="20" width="212" height="122" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+
+                <!-- Binary: Group 0 (No diabetes) -->
+                <circle cx="50"  cy="50"  r="6" fill="#3ab577" opacity="0.8"/>
+                <circle cx="70"  cy="58"  r="6" fill="#3ab577" opacity="0.8"/>
+                <circle cx="55"  cy="72"  r="6" fill="#3ab577" opacity="0.8"/>
+                <circle cx="82"  cy="64"  r="6" fill="#3ab577" opacity="0.8"/>
+                <circle cx="64"  cy="90"  r="6" fill="#3ab577" opacity="0.8"/>
+                <circle cx="44"  cy="86"  r="6" fill="#3ab577" opacity="0.8"/>
+                <text x="62" y="120" text-anchor="middle" font-size="8" fill="#3ab577" font-family="Segoe UI,sans-serif">No Risk</text>
+
+                <!-- Decision boundary line -->
+                <line x1="120" y1="26" x2="120" y2="134" stroke="#c9a83a" stroke-width="1.5" stroke-dasharray="5,3"/>
+                <text x="120" y="140" text-anchor="middle" font-size="7" fill="#c9a83a" font-family="Segoe UI,sans-serif">decision boundary</text>
+
+                <!-- Binary: Group 1 (Diabetes) -->
+                <circle cx="152" cy="48"  r="6" fill="#ef4444" opacity="0.8"/>
+                <circle cx="172" cy="62"  r="6" fill="#ef4444" opacity="0.8"/>
+                <circle cx="158" cy="78"  r="6" fill="#ef4444" opacity="0.8"/>
+                <circle cx="192" cy="55"  r="6" fill="#ef4444" opacity="0.8"/>
+                <circle cx="178" cy="90"  r="6" fill="#ef4444" opacity="0.8"/>
+                <circle cx="196" cy="80"  r="6" fill="#ef4444" opacity="0.8"/>
+                <text x="174" y="120" text-anchor="middle" font-size="8" fill="#ef4444" font-family="Segoe UI,sans-serif">At Risk</text>
+
+                <!-- Multiclass panel background -->
+                <rect x="268" y="20" width="256" height="122" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+
+                <!-- Cluster 1: Adelie (blue) -->
+                <circle cx="300" cy="48"  r="6" fill="#06b6d4" opacity="0.8"/>
+                <circle cx="316" cy="56"  r="6" fill="#06b6d4" opacity="0.8"/>
+                <circle cx="304" cy="68"  r="6" fill="#06b6d4" opacity="0.8"/>
+                <circle cx="328" cy="44"  r="6" fill="#06b6d4" opacity="0.8"/>
+                <text x="314" y="90" text-anchor="middle" font-size="8" fill="#06b6d4" font-family="Segoe UI,sans-serif">Adelie</text>
+
+                <!-- Cluster 2: Gentoo (gold) -->
+                <circle cx="380" cy="40"  r="6" fill="#c9a83a" opacity="0.8"/>
+                <circle cx="396" cy="52"  r="6" fill="#c9a83a" opacity="0.8"/>
+                <circle cx="384" cy="64"  r="6" fill="#c9a83a" opacity="0.8"/>
+                <circle cx="408" cy="44"  r="6" fill="#c9a83a" opacity="0.8"/>
+                <text x="394" y="90" text-anchor="middle" font-size="8" fill="#c9a83a" font-family="Segoe UI,sans-serif">Gentoo</text>
+
+                <!-- Cluster 3: Chinstrap (purple) -->
+                <circle cx="336" cy="100" r="6" fill="#a78bfa" opacity="0.8"/>
+                <circle cx="354" cy="108" r="6" fill="#a78bfa" opacity="0.8"/>
+                <circle cx="370" cy="98"  r="6" fill="#a78bfa" opacity="0.8"/>
+                <circle cx="348" cy="124" r="6" fill="#a78bfa" opacity="0.8"/>
+                <text x="354" y="138" text-anchor="middle" font-size="8" fill="#a78bfa" font-family="Segoe UI,sans-serif">Chinstrap</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Binary Classification Examples</div>
+                <div class="card-desc">
+                    Spam / Not Spam &nbsp;&bull;&nbsp; Fraud / Legitimate &nbsp;&bull;&nbsp; Disease / Healthy<br>
+                    Churn / Retained &nbsp;&bull;&nbsp; Pass / Fail<br>
+                    Output is a probability: <strong>0.87 = 87% chance of spam</strong>. Apply a threshold (usually 0.5) to get the final yes/no label.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Multiclass Classification Examples</div>
+                <div class="card-desc">
+                    Penguin species (Adelie, Gentoo, Chinstrap)<br>
+                    Handwritten digit (0-9) &nbsp;&bull;&nbsp; Fruit type<br>
+                    Document category &nbsp;&bull;&nbsp; Sentiment (positive, neutral, negative)<br>
+                    Output is probabilities for each class — the highest wins.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — CLUSTERING ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title"><span class="accent">Clustering</span> — Finding Groups Without Labels</div>
+        <div class="slide-subtitle">Unsupervised learning discovers natural groupings in data. You do not tell it what the groups are.</div>
+
+        <!-- Clustering animation: dots start mixed, form into 3 clusters -->
+        <div class="diagram-center">
+            <svg width="460" height="160" viewBox="0 0 460 160" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" id="cluster-svg">
+                <!-- Stage label -->
+                <text x="100" y="14" text-anchor="middle" font-size="9" fill="#475569" font-family="Segoe UI,sans-serif">Before: unlabeled mix</text>
+                <text x="350" y="14" text-anchor="middle" font-size="9" fill="#475569" font-family="Segoe UI,sans-serif">After: 3 discovered clusters</text>
+
+                <!-- Divider -->
+                <line x1="230" y1="20" x2="230" y2="156" stroke="rgba(255,255,255,0.07)" stroke-width="1" stroke-dasharray="4,3"/>
+
+                <!-- Before panel: mixed grey dots -->
+                <circle cx="50"  cy="60"  r="5" fill="#475569" opacity="0.6"/>
+                <circle cx="70"  cy="80"  r="5" fill="#475569" opacity="0.6"/>
+                <circle cx="88"  cy="55"  r="5" fill="#475569" opacity="0.6"/>
+                <circle cx="62"  cy="110" r="5" fill="#475569" opacity="0.6"/>
+                <circle cx="110" cy="72"  r="5" fill="#475569" opacity="0.6"/>
+                <circle cx="90"  cy="130" r="5" fill="#475569" opacity="0.6"/>
+                <circle cx="140" cy="50"  r="5" fill="#475569" opacity="0.6"/>
+                <circle cx="130" cy="100" r="5" fill="#475569" opacity="0.6"/>
+                <circle cx="160" cy="80"  r="5" fill="#475569" opacity="0.6"/>
+                <circle cx="180" cy="120" r="5" fill="#475569" opacity="0.6"/>
+                <circle cx="200" cy="65"  r="5" fill="#475569" opacity="0.6"/>
+                <circle cx="170" cy="140" r="5" fill="#475569" opacity="0.6"/>
+
+                <!-- After panel: 3 distinct clusters with dotted circles -->
+                <!-- Cluster A (gold) -->
+                <circle cx="288" cy="50"  r="28" fill="none" stroke="#c9a83a" stroke-width="1" stroke-dasharray="4,3" opacity="0.5"/>
+                <circle cx="274" cy="44"  r="5" fill="#c9a83a" opacity="0.85" style="animation: clusterForm 0.6s ease forwards; animation-delay: 0.2s;"/>
+                <circle cx="292" cy="36"  r="5" fill="#c9a83a" opacity="0.85" style="animation: clusterForm 0.6s ease forwards; animation-delay: 0.35s;"/>
+                <circle cx="306" cy="50"  r="5" fill="#c9a83a" opacity="0.85" style="animation: clusterForm 0.6s ease forwards; animation-delay: 0.5s;"/>
+                <circle cx="280" cy="62"  r="5" fill="#c9a83a" opacity="0.85" style="animation: clusterForm 0.6s ease forwards; animation-delay: 0.65s;"/>
+                <text x="288" y="88" text-anchor="middle" font-size="8" fill="#c9a83a" font-family="Segoe UI,sans-serif">Group A</text>
+
+                <!-- Cluster B (cyan) -->
+                <circle cx="376" cy="52"  r="28" fill="none" stroke="#06b6d4" stroke-width="1" stroke-dasharray="4,3" opacity="0.5"/>
+                <circle cx="362" cy="44"  r="5" fill="#06b6d4" opacity="0.85" style="animation: clusterForm 0.6s ease forwards; animation-delay: 0.4s;"/>
+                <circle cx="380" cy="38"  r="5" fill="#06b6d4" opacity="0.85" style="animation: clusterForm 0.6s ease forwards; animation-delay: 0.55s;"/>
+                <circle cx="392" cy="56"  r="5" fill="#06b6d4" opacity="0.85" style="animation: clusterForm 0.6s ease forwards; animation-delay: 0.7s;"/>
+                <circle cx="368" cy="66"  r="5" fill="#06b6d4" opacity="0.85" style="animation: clusterForm 0.6s ease forwards; animation-delay: 0.85s;"/>
+                <text x="376" y="90" text-anchor="middle" font-size="8" fill="#06b6d4" font-family="Segoe UI,sans-serif">Group B</text>
+
+                <!-- Cluster C (green) -->
+                <circle cx="332" cy="128" r="26" fill="none" stroke="#3ab577" stroke-width="1" stroke-dasharray="4,3" opacity="0.5"/>
+                <circle cx="318" cy="122" r="5" fill="#3ab577" opacity="0.85" style="animation: clusterForm 0.6s ease forwards; animation-delay: 0.6s;"/>
+                <circle cx="336" cy="116" r="5" fill="#3ab577" opacity="0.85" style="animation: clusterForm 0.6s ease forwards; animation-delay: 0.75s;"/>
+                <circle cx="348" cy="130" r="5" fill="#3ab577" opacity="0.85" style="animation: clusterForm 0.6s ease forwards; animation-delay: 0.9s;"/>
+                <circle cx="324" cy="140" r="5" fill="#3ab577" opacity="0.85" style="animation: clusterForm 0.6s ease forwards; animation-delay: 1.05s;"/>
+                <text x="332" y="158" text-anchor="middle" font-size="8" fill="#3ab577" font-family="Segoe UI,sans-serif">Group C</text>
+
+                <!-- Arrow from left to right -->
+                <line x1="212" y1="88" x2="240" y2="88" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-dasharray="3,2"/>
+                <polygon points="240,84 248,88 240,92" fill="rgba(255,255,255,0.2)"/>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">How K-Means Clustering Works</div>
+                <div class="card-desc">
+                    1. Choose K (number of clusters)<br>
+                    2. Place K random centroids in the data space<br>
+                    3. Assign each point to its nearest centroid<br>
+                    4. Move each centroid to the mean of its group<br>
+                    5. Repeat steps 3-4 until centroids stop moving
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Real-World Applications</div>
+                <div class="card-desc">
+                    <strong>Customer segmentation</strong> — group customers by behavior without knowing what segments exist<br>
+                    <strong>Anomaly detection</strong> — points that don't fit any cluster may be outliers or threats<br>
+                    <strong>Document grouping</strong> — organize articles by topic automatically
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — DEEP LEARNING ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Deep Learning &amp; <span class="accent">Neural Networks</span></div>
+        <div class="slide-subtitle">Layers of interconnected nodes that progressively extract and transform features.</div>
+
+        <!-- Neural network diagram: 3 → 4 → 4 → 2 with animated signal flow -->
+        <div class="diagram-center">
+            <svg width="540" height="170" viewBox="0 0 540 170" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Layer labels -->
+                <text x="60"  y="14" text-anchor="middle" font-size="9" fill="#475569" font-family="Segoe UI,sans-serif">Input</text>
+                <text x="60"  y="24" text-anchor="middle" font-size="8" fill="#475569" font-family="Segoe UI,sans-serif">(3 nodes)</text>
+                <text x="200" y="14" text-anchor="middle" font-size="9" fill="#475569" font-family="Segoe UI,sans-serif">Hidden 1</text>
+                <text x="200" y="24" text-anchor="middle" font-size="8" fill="#475569" font-family="Segoe UI,sans-serif">(4 nodes)</text>
+                <text x="340" y="14" text-anchor="middle" font-size="9" fill="#475569" font-family="Segoe UI,sans-serif">Hidden 2</text>
+                <text x="340" y="24" text-anchor="middle" font-size="8" fill="#475569" font-family="Segoe UI,sans-serif">(4 nodes)</text>
+                <text x="480" y="14" text-anchor="middle" font-size="9" fill="#475569" font-family="Segoe UI,sans-serif">Output</text>
+                <text x="480" y="24" text-anchor="middle" font-size="8" fill="#475569" font-family="Segoe UI,sans-serif">(2 nodes)</text>
+
+                <!-- Connection lines: Input → Hidden1 -->
+                <line x1="76" y1="54"  x2="184" y2="48"  stroke="rgba(201,168,58,0.2)" stroke-width="0.8"/>
+                <line x1="76" y1="54"  x2="184" y2="76"  stroke="rgba(201,168,58,0.2)" stroke-width="0.8"/>
+                <line x1="76" y1="54"  x2="184" y2="104" stroke="rgba(201,168,58,0.2)" stroke-width="0.8"/>
+                <line x1="76" y1="54"  x2="184" y2="132" stroke="rgba(201,168,58,0.2)" stroke-width="0.8"/>
+                <line x1="76" y1="88"  x2="184" y2="48"  stroke="rgba(201,168,58,0.2)" stroke-width="0.8"/>
+                <line x1="76" y1="88"  x2="184" y2="76"  stroke="rgba(201,168,58,0.2)" stroke-width="0.8"/>
+                <line x1="76" y1="88"  x2="184" y2="104" stroke="rgba(201,168,58,0.2)" stroke-width="0.8"/>
+                <line x1="76" y1="88"  x2="184" y2="132" stroke="rgba(201,168,58,0.2)" stroke-width="0.8"/>
+                <line x1="76" y1="122" x2="184" y2="48"  stroke="rgba(201,168,58,0.2)" stroke-width="0.8"/>
+                <line x1="76" y1="122" x2="184" y2="76"  stroke="rgba(201,168,58,0.2)" stroke-width="0.8"/>
+                <line x1="76" y1="122" x2="184" y2="104" stroke="rgba(201,168,58,0.2)" stroke-width="0.8"/>
+                <line x1="76" y1="122" x2="184" y2="132" stroke="rgba(201,168,58,0.2)" stroke-width="0.8"/>
+
+                <!-- Connection lines: Hidden1 → Hidden2 -->
+                <line x1="216" y1="48"  x2="324" y2="48"  stroke="rgba(6,182,212,0.2)" stroke-width="0.8"/>
+                <line x1="216" y1="48"  x2="324" y2="76"  stroke="rgba(6,182,212,0.2)" stroke-width="0.8"/>
+                <line x1="216" y1="48"  x2="324" y2="104" stroke="rgba(6,182,212,0.2)" stroke-width="0.8"/>
+                <line x1="216" y1="48"  x2="324" y2="132" stroke="rgba(6,182,212,0.2)" stroke-width="0.8"/>
+                <line x1="216" y1="76"  x2="324" y2="48"  stroke="rgba(6,182,212,0.2)" stroke-width="0.8"/>
+                <line x1="216" y1="76"  x2="324" y2="76"  stroke="rgba(6,182,212,0.2)" stroke-width="0.8"/>
+                <line x1="216" y1="76"  x2="324" y2="104" stroke="rgba(6,182,212,0.2)" stroke-width="0.8"/>
+                <line x1="216" y1="76"  x2="324" y2="132" stroke="rgba(6,182,212,0.2)" stroke-width="0.8"/>
+                <line x1="216" y1="104" x2="324" y2="48"  stroke="rgba(6,182,212,0.2)" stroke-width="0.8"/>
+                <line x1="216" y1="104" x2="324" y2="76"  stroke="rgba(6,182,212,0.2)" stroke-width="0.8"/>
+                <line x1="216" y1="104" x2="324" y2="104" stroke="rgba(6,182,212,0.2)" stroke-width="0.8"/>
+                <line x1="216" y1="104" x2="324" y2="132" stroke="rgba(6,182,212,0.2)" stroke-width="0.8"/>
+                <line x1="216" y1="132" x2="324" y2="48"  stroke="rgba(6,182,212,0.2)" stroke-width="0.8"/>
+                <line x1="216" y1="132" x2="324" y2="76"  stroke="rgba(6,182,212,0.2)" stroke-width="0.8"/>
+                <line x1="216" y1="132" x2="324" y2="104" stroke="rgba(6,182,212,0.2)" stroke-width="0.8"/>
+                <line x1="216" y1="132" x2="324" y2="132" stroke="rgba(6,182,212,0.2)" stroke-width="0.8"/>
+
+                <!-- Connection lines: Hidden2 → Output -->
+                <line x1="356" y1="48"  x2="464" y2="76"  stroke="rgba(58,181,119,0.2)" stroke-width="0.8"/>
+                <line x1="356" y1="48"  x2="464" y2="112" stroke="rgba(58,181,119,0.2)" stroke-width="0.8"/>
+                <line x1="356" y1="76"  x2="464" y2="76"  stroke="rgba(58,181,119,0.2)" stroke-width="0.8"/>
+                <line x1="356" y1="76"  x2="464" y2="112" stroke="rgba(58,181,119,0.2)" stroke-width="0.8"/>
+                <line x1="356" y1="104" x2="464" y2="76"  stroke="rgba(58,181,119,0.2)" stroke-width="0.8"/>
+                <line x1="356" y1="104" x2="464" y2="112" stroke="rgba(58,181,119,0.2)" stroke-width="0.8"/>
+                <line x1="356" y1="132" x2="464" y2="76"  stroke="rgba(58,181,119,0.2)" stroke-width="0.8"/>
+                <line x1="356" y1="132" x2="464" y2="112" stroke="rgba(58,181,119,0.2)" stroke-width="0.8"/>
+
+                <!-- Input layer nodes (gold) — animated sequential pulse -->
+                <circle cx="76"  cy="54"  r="12" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1.5" style="animation: pulse 2.4s ease-in-out infinite 0s;"/>
+                <circle cx="76"  cy="88"  r="12" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1.5" style="animation: pulse 2.4s ease-in-out infinite 0.2s;"/>
+                <circle cx="76"  cy="122" r="12" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1.5" style="animation: pulse 2.4s ease-in-out infinite 0.4s;"/>
+
+                <!-- Hidden layer 1 nodes (cyan) -->
+                <circle cx="200" cy="48"  r="12" fill="rgba(6,182,212,0.12)" stroke="#06b6d4" stroke-width="1.5" style="animation: pulse 2.4s ease-in-out infinite 0.6s;"/>
+                <circle cx="200" cy="76"  r="12" fill="rgba(6,182,212,0.12)" stroke="#06b6d4" stroke-width="1.5" style="animation: pulse 2.4s ease-in-out infinite 0.8s;"/>
+                <circle cx="200" cy="104" r="12" fill="rgba(6,182,212,0.12)" stroke="#06b6d4" stroke-width="1.5" style="animation: pulse 2.4s ease-in-out infinite 1.0s;"/>
+                <circle cx="200" cy="132" r="12" fill="rgba(6,182,212,0.12)" stroke="#06b6d4" stroke-width="1.5" style="animation: pulse 2.4s ease-in-out infinite 1.2s;"/>
+
+                <!-- Hidden layer 2 nodes (cyan, slightly lighter) -->
+                <circle cx="340" cy="48"  r="12" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.5" style="animation: pulse 2.4s ease-in-out infinite 1.4s;"/>
+                <circle cx="340" cy="76"  r="12" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.5" style="animation: pulse 2.4s ease-in-out infinite 1.6s;"/>
+                <circle cx="340" cy="104" r="12" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.5" style="animation: pulse 2.4s ease-in-out infinite 1.8s;"/>
+                <circle cx="340" cy="132" r="12" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.5" style="animation: pulse 2.4s ease-in-out infinite 2.0s;"/>
+
+                <!-- Output layer nodes (green) -->
+                <circle cx="476" cy="76"  r="12" fill="rgba(58,181,119,0.12)" stroke="#3ab577" stroke-width="1.5" style="animation: pulse 2.4s ease-in-out infinite 2.2s;"/>
+                <circle cx="476" cy="112" r="12" fill="rgba(58,181,119,0.12)" stroke="#3ab577" stroke-width="1.5" style="animation: pulse 2.4s ease-in-out infinite 2.4s;"/>
+
+                <!-- Output labels -->
+                <text x="500" y="80"  font-size="8" fill="#3ab577" font-family="Segoe UI,sans-serif">Cat</text>
+                <text x="500" y="116" font-size="8" fill="#3ab577" font-family="Segoe UI,sans-serif">Dog</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Why "Deep"?</div>
+                <div class="card-desc">Depth = number of hidden layers. More layers = more abstract representations. Early layers detect edges and shapes. Later layers detect objects and concepts. "Deep" became synonymous with multi-layer networks in the 2010s when GPU training made them practical.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">On the AI-900 Exam</div>
+                <div class="card-desc">You need to know: neural networks have an input layer, one or more hidden layers, and an output layer. Each layer transforms the previous layer's output. Training adjusts the weights on all connections to minimize prediction error. Deep learning powers Azure AI Vision and Azure AI Speech.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — AZURE AI SERVICES ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Azure AI <span class="accent">Services Overview</span></div>
+        <div class="slide-subtitle">Pre-built AI capabilities via REST APIs — no training required to get started.</div>
+
+        <!-- Azure cloud hub diagram -->
+        <div class="diagram-center">
+            <svg width="480" height="130" viewBox="0 0 480 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central Azure cloud -->
+                <ellipse cx="240" cy="65" rx="52" ry="34" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="240" y="60" text-anchor="middle" font-size="10" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Azure</text>
+                <text x="240" y="74" text-anchor="middle" font-size="9" fill="#06b6d4" font-family="Segoe UI,sans-serif">AI Services</text>
+
+                <!-- Spoke lines -->
+                <line x1="194" y1="44" x2="96"  y2="28"  stroke="rgba(255,255,255,0.12)" stroke-width="1" stroke-dasharray="4,3"/>
+                <line x1="192" y1="65" x2="88"  y2="65"  stroke="rgba(255,255,255,0.12)" stroke-width="1" stroke-dasharray="4,3"/>
+                <line x1="194" y1="84" x2="96"  y2="104" stroke="rgba(255,255,255,0.12)" stroke-width="1" stroke-dasharray="4,3"/>
+                <line x1="286" y1="44" x2="384" y2="28"  stroke="rgba(255,255,255,0.12)" stroke-width="1" stroke-dasharray="4,3"/>
+                <line x1="292" y1="65" x2="392" y2="65"  stroke="rgba(255,255,255,0.12)" stroke-width="1" stroke-dasharray="4,3"/>
+
+                <!-- Service nodes -->
+                <rect x="20"  y="16"  width="76" height="24" rx="4" fill="rgba(201,168,58,0.08)"  stroke="#c9a83a" stroke-width="1"/>
+                <text x="58"  y="30"  text-anchor="middle" font-size="8" fill="#c9a83a"  font-family="Segoe UI,sans-serif" font-weight="700">AI Vision</text>
+
+                <rect x="10"  y="52"  width="78" height="24" rx="4" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1"/>
+                <text x="49"  y="66"  text-anchor="middle" font-size="8" fill="#a78bfa" font-family="Segoe UI,sans-serif" font-weight="700">AI Language</text>
+
+                <rect x="20"  y="92"  width="76" height="24" rx="4" fill="rgba(58,181,119,0.08)"  stroke="#3ab577" stroke-width="1"/>
+                <text x="58"  y="106" text-anchor="middle" font-size="8" fill="#3ab577"  font-family="Segoe UI,sans-serif" font-weight="700">AI Speech</text>
+
+                <rect x="384" y="16"  width="84" height="24" rx="4" fill="rgba(239,68,68,0.08)"    stroke="#ef4444" stroke-width="1"/>
+                <text x="426" y="30"  text-anchor="middle" font-size="8" fill="#ef4444"    font-family="Segoe UI,sans-serif" font-weight="700">Azure OpenAI</text>
+
+                <rect x="392" y="52"  width="80" height="24" rx="4" fill="rgba(6,182,212,0.08)"    stroke="#06b6d4" stroke-width="1"/>
+                <text x="432" y="63"  text-anchor="middle" font-size="7.5" fill="#06b6d4"    font-family="Segoe UI,sans-serif" font-weight="700">Document</text>
+                <text x="432" y="74"  text-anchor="middle" font-size="7.5" fill="#06b6d4"    font-family="Segoe UI,sans-serif" font-weight="700">Intelligence</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Azure AI Vision</div>
+                <div class="card-desc">Analyze images and video. Object detection, OCR (read text in images), face analysis, image classification, spatial analysis. Used in retail, manufacturing quality control, and accessibility tools.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Azure AI Language</div>
+                <div class="card-desc">Text analytics at scale. Sentiment analysis, key phrase extraction, named entity recognition, language detection, question answering, and summarization. Powers chatbots and document processing pipelines.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Azure AI Speech</div>
+                <div class="card-desc">Speech-to-text, text-to-speech, speech translation, and speaker recognition. Real-time transcription for meetings, voice-controlled applications, and accessibility captioning.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Azure OpenAI Service</strong> provides access to OpenAI models (GPT-4, DALL-E, Whisper) through Azure infrastructure — with enterprise security, compliance, and private networking that the public OpenAI API does not offer.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — GENERATIVE AI & LLMs ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Generative AI &amp; <span class="accent">Large Language Models</span></div>
+        <div class="slide-subtitle">LLMs trained on massive text corpora learn to generate coherent, contextually appropriate content.</div>
+
+        <!-- LLM pipeline: Data stack → funnel → LLM box → output text -->
+        <div class="diagram-center">
+            <svg width="520" height="100" viewBox="0 0 520 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Document stack -->
+                <rect x="10"  y="24" width="68" height="52" rx="3" fill="rgba(201,168,58,0.06)" stroke="#c9a83a" stroke-width="1"/>
+                <rect x="16"  y="18" width="68" height="52" rx="3" fill="rgba(201,168,58,0.06)" stroke="#c9a83a" stroke-width="1"/>
+                <rect x="22"  y="12" width="68" height="52" rx="3" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.2"/>
+                <!-- Text lines on top doc -->
+                <line x1="30" y1="24" x2="82" y2="24" stroke="rgba(201,168,58,0.3)" stroke-width="1"/>
+                <line x1="30" y1="32" x2="78" y2="32" stroke="rgba(201,168,58,0.3)" stroke-width="1"/>
+                <line x1="30" y1="40" x2="82" y2="40" stroke="rgba(201,168,58,0.3)" stroke-width="1"/>
+                <line x1="30" y1="48" x2="70" y2="48" stroke="rgba(201,168,58,0.3)" stroke-width="1"/>
+                <text x="56" y="76" text-anchor="middle" font-size="8" fill="#c9a83a" font-family="Segoe UI,sans-serif">Billions of</text>
+                <text x="56" y="86" text-anchor="middle" font-size="8" fill="#c9a83a" font-family="Segoe UI,sans-serif">text documents</text>
+
+                <!-- Arrow -->
+                <line x1="96" y1="50" x2="130" y2="50" stroke="rgba(255,255,255,0.2)" stroke-width="1.2" stroke-dasharray="4,3"/>
+                <polygon points="130,46 138,50 130,54" fill="rgba(255,255,255,0.2)"/>
+
+                <!-- Funnel -->
+                <path d="M140,28 L200,28 L180,64 L160,64 Z" fill="rgba(6,182,212,0.06)" stroke="#06b6d4" stroke-width="1"/>
+                <text x="170" y="82" text-anchor="middle" font-size="8" fill="#06b6d4" font-family="Segoe UI,sans-serif">Pre-training</text>
+
+                <!-- Arrow -->
+                <line x1="204" y1="50" x2="234" y2="50" stroke="rgba(255,255,255,0.2)" stroke-width="1.2" stroke-dasharray="4,3"/>
+                <polygon points="234,46 242,50 234,54" fill="rgba(255,255,255,0.2)"/>
+
+                <!-- LLM box -->
+                <rect x="244" y="26" width="80" height="48" rx="6" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.5"/>
+                <text x="284" y="48" text-anchor="middle" font-size="11" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">LLM</text>
+                <text x="284" y="62" text-anchor="middle" font-size="8" fill="#64748b" font-family="Segoe UI,sans-serif">GPT-4 etc.</text>
+
+                <!-- Arrow -->
+                <line x1="328" y1="50" x2="358" y2="50" stroke="rgba(255,255,255,0.2)" stroke-width="1.2" stroke-dasharray="4,3"/>
+                <polygon points="358,46 366,50 358,54" fill="rgba(255,255,255,0.2)"/>
+
+                <!-- Output text box -->
+                <rect x="368" y="12" width="144" height="76" rx="6" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="1"/>
+                <text x="376" y="30" font-size="8" fill="#3ab577" font-family="Segoe UI,sans-serif">Prompt: "Summarize</text>
+                <text x="376" y="42" font-size="8" fill="#3ab577" font-family="Segoe UI,sans-serif">this report for me"</text>
+                <line x1="376" y1="50" x2="504" y2="50" stroke="rgba(58,181,119,0.2)" stroke-width="0.8"/>
+                <text x="376" y="62" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">Response: "The report</text>
+                <text x="376" y="73" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">outlines three key risks:</text>
+                <text x="376" y="82" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">cost, compliance, timeline."</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Prompts</div>
+                <div class="card-desc">The input you give an LLM. The quality of the prompt directly determines the quality of the output. Prompt engineering — crafting effective inputs — is a real skill tested on AI-900 and used daily in Azure AI deployments.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Tokens</div>
+                <div class="card-desc">LLMs process text as tokens — roughly 4 characters or 0.75 words each. "Azure AI Fundamentals" = 4 tokens. Pricing, speed, and context limits are all measured in tokens, not words or characters.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Context Window</div>
+                <div class="card-desc">The maximum amount of text an LLM can consider at once (prompt + response). GPT-4 Turbo has a 128,000-token context window — about 100,000 words. Conversations are limited by this window.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            "LLMs don't 'understand' — they predict the most likely next token based on patterns learned from training data."
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — RESPONSIBLE AI ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Microsoft's <span class="accent">Responsible AI</span> Principles</div>
+        <div class="slide-subtitle">Six principles that define how AI should be designed, deployed, and governed.</div>
+
+        <!-- Hexagonal principle grid — cells animate in one by one -->
+        <div class="hex-grid">
+            <div class="hex-cell">
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="margin:0 auto 6px;">
+                    <!-- Scale/balance icon -->
+                    <line x1="16" y1="6" x2="16" y2="26" stroke="#c9a83a" stroke-width="1.5"/>
+                    <line x1="6"  y1="12" x2="26" y2="12" stroke="#c9a83a" stroke-width="1.5"/>
+                    <rect x="4"  y="22" width="8" height="4" rx="1" fill="none" stroke="#c9a83a" stroke-width="1"/>
+                    <rect x="20" y="22" width="8" height="4" rx="1" fill="none" stroke="#c9a83a" stroke-width="1"/>
+                </svg>
+                <div class="hex-title">Fairness</div>
+                <div class="hex-desc">AI systems should treat all people equitably. Avoid encoding biases from training data that could discriminate by race, gender, or age.</div>
+            </div>
+            <div class="hex-cell">
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="margin:0 auto 6px;">
+                    <!-- Shield icon -->
+                    <path d="M16 4 L28 9 L28 18 C28 23 22 27 16 30 C10 27 4 23 4 18 L4 9 Z" fill="none" stroke="#06b6d4" stroke-width="1.5"/>
+                    <line x1="12" y1="16" x2="15" y2="19" stroke="#06b6d4" stroke-width="1.5" stroke-linecap="round"/>
+                    <line x1="15" y1="19" x2="21" y2="13" stroke="#06b6d4" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                <div class="hex-title">Reliability &amp; Safety</div>
+                <div class="hex-desc">Systems perform reliably across conditions. Errors are handled gracefully without causing harm. Critical AI requires rigorous testing and fallback mechanisms.</div>
+            </div>
+            <div class="hex-cell">
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="margin:0 auto 6px;">
+                    <!-- Lock icon -->
+                    <rect x="8" y="14" width="16" height="14" rx="2" fill="none" stroke="#3ab577" stroke-width="1.5"/>
+                    <path d="M11 14 L11 10 C11 7 21 7 21 10 L21 14" fill="none" stroke="#3ab577" stroke-width="1.5"/>
+                    <circle cx="16" cy="20" r="2" fill="#3ab577"/>
+                    <line x1="16" y1="22" x2="16" y2="24" stroke="#3ab577" stroke-width="1.2"/>
+                </svg>
+                <div class="hex-title">Privacy &amp; Security</div>
+                <div class="hex-desc">Personal data is protected throughout the AI lifecycle — during training, inference, and storage. GDPR, HIPAA, and Azure compliance frameworks apply.</div>
+            </div>
+            <div class="hex-cell">
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="margin:0 auto 6px;">
+                    <!-- People icon -->
+                    <circle cx="12" cy="10" r="4" fill="none" stroke="#a78bfa" stroke-width="1.5"/>
+                    <circle cx="22" cy="10" r="4" fill="none" stroke="#a78bfa" stroke-width="1.5"/>
+                    <path d="M4 26 C4 20 8 17 12 17" fill="none" stroke="#a78bfa" stroke-width="1.5"/>
+                    <path d="M28 26 C28 20 24 17 20 17" fill="none" stroke="#a78bfa" stroke-width="1.5"/>
+                    <path d="M12 17 C14 15 18 15 20 17 C24 19 24 26 16 26 C8 26 8 19 12 17Z" fill="none" stroke="#a78bfa" stroke-width="1.5"/>
+                </svg>
+                <div class="hex-title">Inclusiveness</div>
+                <div class="hex-desc">AI must work for everyone — including people with disabilities, different languages, and diverse backgrounds. Accessibility is not an afterthought.</div>
+            </div>
+            <div class="hex-cell">
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="margin:0 auto 6px;">
+                    <!-- Eye / transparency icon -->
+                    <path d="M4 16 C8 8 24 8 28 16 C24 24 8 24 4 16 Z" fill="none" stroke="#c9a83a" stroke-width="1.5"/>
+                    <circle cx="16" cy="16" r="4" fill="none" stroke="#c9a83a" stroke-width="1.5"/>
+                    <circle cx="16" cy="16" r="1.5" fill="#c9a83a"/>
+                </svg>
+                <div class="hex-title">Transparency</div>
+                <div class="hex-desc">Users should understand how AI reaches decisions. Explainability and model cards help. Black-box decisions with no recourse undermine trust and accountability.</div>
+            </div>
+            <div class="hex-cell">
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="margin:0 auto 6px;">
+                    <!-- Person / accountability icon -->
+                    <circle cx="16" cy="10" r="5" fill="none" stroke="#ef4444" stroke-width="1.5"/>
+                    <path d="M6 28 C6 21 10 18 16 18 C22 18 26 21 26 28" fill="none" stroke="#ef4444" stroke-width="1.5"/>
+                    <line x1="16" y1="14" x2="16" y2="8" stroke="#ef4444" stroke-width="0.8" opacity="0.4"/>
+                </svg>
+                <div class="hex-title">Accountability</div>
+                <div class="hex-desc">Humans remain responsible for AI systems. Organizations must have governance frameworks, audit trails, and clear ownership. "The AI decided" is not an acceptable legal or ethical defense.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — SUMMARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12 &nbsp;|&nbsp; AI-900 Chapter 1</div>
+        <div class="slide-title">Chapter 1 <span class="accent">Summary</span></div>
+
+        <!-- SVG: Brain with 6 branching concept nodes -->
+        <svg width="100%" height="120" viewBox="0 0 500 100" style="margin: 8px auto; display: block; max-width: 600px;">
+            <circle cx="250" cy="50" r="28" fill="rgba(201,168,58,0.1)" stroke="#c9a83a" stroke-width="2">
+                <animate attributeName="r" values="28;31;28" dur="3s" repeatCount="indefinite"/>
+            </circle>
+            <text x="250" y="55" text-anchor="middle" font-family="monospace" font-size="11" fill="#c9a83a" font-weight="bold">AI</text>
+            <!-- ML branch -->
+            <line x1="222" y1="42" x2="120" y2="20" stroke="rgba(201,168,58,0.4)" stroke-width="1.5" stroke-dasharray="4 3"/>
+            <circle cx="120" cy="20" r="14" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1.5"/>
+            <text x="120" y="24" text-anchor="middle" font-size="7" fill="#06b6d4">ML</text>
+            <!-- Vision branch -->
+            <line x1="278" y1="42" x2="380" y2="20" stroke="rgba(201,168,58,0.4)" stroke-width="1.5" stroke-dasharray="4 3"/>
+            <circle cx="380" cy="20" r="14" fill="rgba(78,173,122,0.1)" stroke="#4ead7a" stroke-width="1.5"/>
+            <text x="380" y="24" text-anchor="middle" font-size="7" fill="#4ead7a">Vision</text>
+            <!-- NLP branch -->
+            <line x1="230" y1="72" x2="140" y2="85" stroke="rgba(201,168,58,0.4)" stroke-width="1.5" stroke-dasharray="4 3"/>
+            <circle cx="140" cy="85" r="14" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="1.5"/>
+            <text x="140" y="89" text-anchor="middle" font-size="7" fill="#a78bfa">NLP</text>
+            <!-- GenAI branch -->
+            <line x1="270" y1="72" x2="360" y2="85" stroke="rgba(201,168,58,0.4)" stroke-width="1.5" stroke-dasharray="4 3"/>
+            <circle cx="360" cy="85" r="14" fill="rgba(248,113,113,0.1)" stroke="#f87171" stroke-width="1.5"/>
+            <text x="360" y="89" text-anchor="middle" font-size="7" fill="#f87171">GenAI</text>
+            <!-- Azure branch -->
+            <line x1="250" y1="22" x2="250" y2="8" stroke="rgba(56,189,248,0.4)" stroke-width="1.5" stroke-dasharray="4 3"/>
+            <circle cx="250" cy="8" r="14" fill="rgba(56,189,248,0.1)" stroke="#38bdf8" stroke-width="1.5"/>
+            <text x="250" y="12" text-anchor="middle" font-size="7" fill="#38bdf8">Azure</text>
+            <!-- Ethics branch -->
+            <line x1="250" y1="78" x2="250" y2="92" stroke="rgba(251,191,36,0.4)" stroke-width="1.5" stroke-dasharray="4 3"/>
+            <circle cx="250" cy="92" r="14" fill="rgba(251,191,36,0.1)" stroke="#fbbf24" stroke-width="1.5"/>
+            <text x="250" y="96" text-anchor="middle" font-size="7" fill="#fbbf24">Ethics</text>
+        </svg>
+
+        <div class="scenario-strip">
+            You now have the conceptual foundation for the entire AI-900 exam. Every Azure service, every lab, and every exam question in chapters 2 through 6 builds directly on what is in this chapter. Learn the vocabulary precisely — exams use these words exactly.
+        </div>
+
+        <div class="section-label">Key Takeaways from Chapter 1</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text"><strong>AI mimics human capabilities</strong> — vision, language, decision-making, and learning — using data and mathematics, not magic or sentience.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text"><strong>Machine Learning formula:</strong> <code>y = f(x)</code>. Features (x) go in, a trained model f computes them, a prediction (y) comes out. This is the entire supervised learning concept.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text"><strong>Three ML types:</strong> Supervised (labeled data → regression + classification), Unsupervised (no labels → clustering), Deep Learning (neural networks for complex patterns).</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text"><strong>Regression predicts numbers. Classification predicts categories.</strong> Binary = 2 classes. Multiclass = 3 or more. Clustering finds groups without any labels.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text"><strong>Azure AI Services</strong> are pre-trained, ready-to-consume APIs. Vision, Language, Speech, OpenAI Service, and Document Intelligence — no training required to call them.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text"><strong>LLMs predict the next token.</strong> They do not understand — they generate. Key concepts: prompts, tokens (~4 chars each), and context window. Azure OpenAI provides enterprise-grade access.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text"><strong>6 Responsible AI principles:</strong> Fairness, Reliability &amp; Safety, Privacy &amp; Security, Inclusiveness, Transparency, Accountability. Memorize these — they appear directly on the exam.</span>
+            </div>
+        </div>
+
+        <div class="box box-cyan" style="font-size:0.83rem; text-align:center;">
+            <strong>Next: Chapter 2 — Computer Vision on Azure</strong> &nbsp;|&nbsp; Azure AI Vision, Custom Vision, image classification, object detection
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; AI-900</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* ── Slide navigation state ── */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        /* Boundary check */
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        /* Deactivate the currently visible slide */
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        /* Activate the target slide */
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        /* Update the gold progress bar at the top */
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        /* Update the counter label in the nav bar */
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        /* Disable Prev on slide 1, Next on last slide */
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        /* Show Mark Complete button only on the final slide */
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard arrow key navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    /* Initialize to slide 1 on page load */
+    goToSlide(1);
+</script>
+
+<script>
+    /* ── Module completion via ModuleProgress component ── */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('ai', 'ai900-ch01-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+</body>
+</html>

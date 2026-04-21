@@ -1,0 +1,1758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- Security / Auth: must run first; blocks unauthorized users immediately -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <script src="../../../components/FirebaseAuth.js"></script>
+    <script src="../../../components/TenantRouter.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure AI Fundamentals // AI-900</title>
+
+    <style>
+        /* ── CSS Custom Properties: AI House palette ── */
+        :root {
+            --ai-primary:   #a78bfa;
+            --ai-secondary: #c4b5fd;
+            --ai-accent:    #ddd6fe;
+            --ai-glow:      rgba(167, 139, 250, 0.3);
+            --ai-bg:        rgba(167, 139, 250, 0.05);
+            --ai-border:    rgba(167, 139, 250, 0.25);
+            --ai-dark:      #3b1f7a;
+            --ai-darker:    #1a0d3d;
+            --bg-main:      #07060f;
+            --bg-deep:      #04030c;
+            --bg-card:      #0b0918;
+            --bg-card-hover: #100d22;
+            --text-primary:  #e8e0ff;
+            --text-secondary: #9d87d4;
+            --text-muted:    #4a3a7a;
+            --border-color:  rgba(167, 139, 250, 0.12);
+            --border-hover:  rgba(167, 139, 250, 0.35);
+            --success:       #a78bfa;
+            --danger:        #ef4444;
+            --danger-border: rgba(239, 68, 68, 0.30);
+            --danger-bg:     rgba(239, 68, 68, 0.06);
+            --danger-hover-bg: rgba(239, 68, 68, 0.12);
+            --shadow-md:     0 4px 6px -1px rgba(0, 0, 0, 0.60);
+            --shadow-lg:     0 10px 18px -3px rgba(0, 0, 0, 0.70);
+            --shadow-glow:   0 0 28px rgba(167, 139, 250, 0.10);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background: linear-gradient(160deg, var(--bg-main) 0%, var(--bg-deep) 100%);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* Visually hidden: accessibility + SEO anchor */
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        /* ── Top navigation bar ── */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 10px 0;
+        }
+
+        .course-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* Single exit point back to AI house hub */
+        .dashboard-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.82rem;
+            font-weight: 500;
+            font-family: 'Courier New', Courier, monospace;
+            padding: 7px 16px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background: var(--ai-bg);
+            transition: all 0.2s ease;
+            letter-spacing: 0.5px;
+        }
+
+        .dashboard-btn:hover {
+            color: var(--ai-accent);
+            border-color: var(--border-hover);
+            background: rgba(167, 139, 250, 0.10);
+        }
+
+        .dashboard-btn-icon {
+            width: 14px;
+            height: 14px;
+            opacity: 0.7;
+            filter: hue-rotate(270deg) saturate(2);
+        }
+
+        /* ── Hero Header ── */
+        .header {
+            text-align: center;
+            margin-bottom: 28px;
+            padding: 44px 24px 36px;
+            background: linear-gradient(135deg, var(--ai-darker) 0%, #1e0f50 50%, var(--ai-darker) 100%);
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg), var(--shadow-glow);
+            border: 1px solid var(--ai-border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Neural grid pattern: subtle repeating lines with purple tint */
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                linear-gradient(rgba(167, 139, 250, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(167, 139, 250, 0.04) 1px, transparent 1px);
+            background-size: 32px 32px;
+            pointer-events: none;
+        }
+
+        /* Diagonal stripe overlay: subtle purple bands for AI aesthetic */
+        .header::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 18px,
+                rgba(167, 139, 250, 0.018) 18px,
+                rgba(167, 139, 250, 0.018) 20px
+            );
+            pointer-events: none;
+        }
+
+        /* Cert number pill */
+        .course-badge {
+            display: inline-block;
+            background: rgba(167, 139, 250, 0.15);
+            border: 1px solid rgba(167, 139, 250, 0.40);
+            color: var(--ai-primary);
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 4px 18px;
+            border-radius: 20px;
+            margin-bottom: 14px;
+            position: relative;
+            z-index: 1;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .header h2 {
+            font-size: 2.1rem;
+            color: #fff;
+            margin-bottom: 8px;
+            position: relative;
+            z-index: 1;
+            font-family: 'Courier New', Courier, monospace;
+            letter-spacing: 1px;
+        }
+
+        .header .subtitle {
+            font-size: 1rem;
+            color: var(--ai-accent);
+            opacity: 0.85;
+            position: relative;
+            z-index: 1;
+            letter-spacing: 0.5px;
+        }
+
+        /* Course stat chips */
+        .course-stats {
+            display: flex;
+            justify-content: center;
+            gap: 14px;
+            margin-top: 26px;
+            flex-wrap: wrap;
+            position: relative;
+            z-index: 1;
+        }
+
+        .course-stat {
+            background: rgba(167, 139, 250, 0.08);
+            border: 1px solid rgba(167, 139, 250, 0.22);
+            padding: 10px 22px;
+            border-radius: 10px;
+            text-align: center;
+            min-width: 80px;
+        }
+
+        .course-stat .value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--ai-primary);
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .course-stat .label {
+            font-size: 0.68rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-top: 2px;
+        }
+
+        /* ── Overall progress bar ── */
+        .progress-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 18px 22px;
+            margin-bottom: 28px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .progress-section h3 {
+            color: var(--ai-secondary);
+            font-size: 0.82rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .progress-bar-container {
+            background: rgba(167, 139, 250, 0.08);
+            border-radius: 10px;
+            height: 14px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--ai-dark), var(--ai-secondary), var(--ai-primary));
+            width: 0%;
+            transition: width 0.6s ease;
+            border-radius: 10px;
+            box-shadow: 0 0 8px rgba(167, 139, 250, 0.4);
+        }
+
+        .progress-text {
+            text-align: right;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 6px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* ── Section heading label ── */
+        .section-heading {
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            padding-left: 4px;
+        }
+
+        /* ── Chapter Cards (collapsible) ── */
+        .week-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            margin-bottom: 10px;
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+            transition: border-color 0.2s ease;
+        }
+
+        .week-card.locked {
+            opacity: 0.4;
+            pointer-events: none;
+            position: relative;
+        }
+        .week-card.locked::after {
+            content: 'COMING SOON';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.2em;
+            color: var(--text-muted);
+            background: rgba(0, 0, 0, 0.6);
+            padding: 6px 16px;
+            border-radius: 4px;
+            border: 1px solid rgba(167, 139, 250, 0.2);
+            z-index: 5;
+        }
+
+        .week-card:hover {
+            border-color: var(--border-hover);
+        }
+
+        /* Always-visible clickable header */
+        .week-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 22px;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s ease;
+        }
+
+        .week-header:hover {
+            background: rgba(167, 139, 250, 0.04);
+        }
+
+        .week-header-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        /* Chapter number badge */
+        .week-num {
+            background: linear-gradient(135deg, var(--ai-dark), var(--ai-secondary));
+            color: #000;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.95rem;
+            flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .week-title-group .week-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--ai-accent);
+            line-height: 1.25;
+            font-family: 'Courier New', Courier, monospace;
+            letter-spacing: 0.5px;
+        }
+
+        .week-title-group .week-sub {
+            font-size: 0.83rem;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        /* Objective and item count tags */
+        .week-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 5px;
+            flex-wrap: wrap;
+        }
+
+        .obj-tag {
+            font-size: 0.68rem;
+            font-weight: 700;
+            color: var(--ai-secondary);
+            background: rgba(167, 139, 250, 0.08);
+            border: 1px solid rgba(167, 139, 250, 0.18);
+            padding: 2px 8px;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+        }
+
+        .item-count-tag {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            background: rgba(167, 139, 250, 0.04);
+            border: 1px solid rgba(167, 139, 250, 0.10);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        /* Chevron: rotates 180deg when chapter is open */
+        .week-toggle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            transition: transform 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .week-card.open .week-toggle {
+            transform: rotate(180deg);
+        }
+
+        /* Expand/collapse via max-height transition */
+        .week-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .week-card.open .week-body {
+            max-height: 4200px;
+        }
+
+        .week-inner {
+            padding: 4px 22px 24px;
+            border-top: 1px solid rgba(167, 139, 250, 0.06);
+        }
+
+        /* ── Per-chapter progress bar ── */
+        .week-progress {
+            margin: 14px 0 8px;
+        }
+
+        .week-progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.70rem;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .week-progress-bar-container {
+            background: rgba(167, 139, 250, 0.06);
+            border-radius: 6px;
+            height: 5px;
+            overflow: hidden;
+        }
+
+        .week-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--ai-dark), var(--ai-primary));
+            width: 0%;
+            transition: width 0.5s ease;
+            border-radius: 6px;
+        }
+
+        /* ── Chapter Overview Card ── */
+        .week-overview {
+            background: linear-gradient(135deg, rgba(167, 139, 250, 0.04), rgba(167, 139, 250, 0.01));
+            border: 1px solid rgba(167, 139, 250, 0.15);
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+            margin-top: 14px;
+        }
+
+        .week-overview-title {
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--ai-primary);
+            margin-bottom: 8px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .week-overview-desc {
+            font-size: 0.86rem;
+            color: var(--text-secondary);
+            line-height: 1.65;
+        }
+
+        /* ── Subsection labels inside a chapter ── */
+        .subsection {
+            margin-top: 20px;
+        }
+
+        .subsection-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(74, 58, 122, 0.20);
+        }
+
+        /* Colored accent bar before label text */
+        .subsection-label::before {
+            content: '';
+            display: inline-block;
+            width: 3px;
+            height: 12px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        .subsection-label.label-presentation::before { background: var(--ai-secondary); }
+        .subsection-label.label-lab::before          { background: #ef4444; }
+        .subsection-label.label-assessment::before   { background: #fbbf24; }
+
+        /* ── Content type badges ── */
+        .content-badge {
+            font-size: 0.58rem;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            padding: 3px 8px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .badge-presentation {
+            background: rgba(167, 139, 250, 0.12);
+            color: #c4b5fd;
+            border: 1px solid rgba(167, 139, 250, 0.28);
+        }
+
+        .badge-quiz {
+            background: rgba(251, 191, 36, 0.12);
+            color: #fbbf24;
+            border: 1px solid rgba(251, 191, 36, 0.28);
+        }
+
+        /* ── Content link cards ── */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 6px;
+        }
+
+        .content-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 14px;
+            background: rgba(167, 139, 250, 0.02);
+            border: 1px solid rgba(167, 139, 250, 0.07);
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+        }
+
+        .content-card:hover {
+            background: rgba(167, 139, 250, 0.07);
+            border-color: rgba(167, 139, 250, 0.22);
+            transform: translateX(3px);
+        }
+
+        /* Module card completed state */
+        .content-card.is-complete {
+            border-color: rgba(167, 139, 250, 0.30);
+            background: rgba(167, 139, 250, 0.04);
+        }
+
+        /* Module ID badge: left side */
+        .card-id-badge {
+            font-size: 0.60rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: var(--ai-secondary);
+            background: rgba(167, 139, 250, 0.08);
+            border: 1px solid rgba(167, 139, 250, 0.18);
+            padding: 2px 7px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: nowrap;
+        }
+
+        /* Module icon */
+        .card-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            opacity: 0.75;
+            filter: hue-rotate(270deg) saturate(2) brightness(1.2);
+        }
+
+        /* Card text block */
+        .card-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .card-info .card-title {
+            font-size: 0.86rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .card-info .card-sub {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-top: 1px;
+        }
+
+        /* Domain objective pill */
+        .obj-pill {
+            font-size: 0.58rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: var(--ai-secondary);
+            background: rgba(167, 139, 250, 0.06);
+            border: 1px solid rgba(167, 139, 250, 0.14);
+            padding: 2px 6px;
+            border-radius: 3px;
+            flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: nowrap;
+        }
+
+        /* Purple checkmark: hidden until is-complete class is applied */
+        .card-check {
+            width: 16px;
+            height: 16px;
+            opacity: 0;
+            flex-shrink: 0;
+            transition: opacity 0.2s ease;
+            filter: hue-rotate(270deg) saturate(3);
+        }
+
+        .content-card.is-complete .card-check {
+            opacity: 1;
+        }
+
+        /* ── Lab cards: distinct from content cards ── */
+        /* Red/danger accent, pulsing hover effect */
+        .lab-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 13px 16px;
+            background: var(--danger-bg);
+            border: 1px solid var(--danger-border);
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.25s ease;
+            position: relative;
+        }
+
+        .lab-card:hover {
+            background: var(--danger-hover-bg);
+            border-color: rgba(239, 68, 68, 0.55);
+            transform: translateX(3px);
+            box-shadow: 0 0 12px rgba(239, 68, 68, 0.15);
+        }
+
+        /* Pulse animation on hover to signal interactive challenge */
+        @keyframes pulse-border {
+            0%, 100% { box-shadow: 0 0 6px rgba(239, 68, 68, 0.15); }
+            50%       { box-shadow: 0 0 16px rgba(239, 68, 68, 0.35); }
+        }
+
+        .lab-card:hover {
+            animation: pulse-border 1.4s ease infinite;
+        }
+
+        .lab-card.is-complete {
+            border-color: rgba(167, 139, 250, 0.30);
+            background: rgba(167, 139, 250, 0.04);
+        }
+
+        /* Lab ID badge */
+        .lab-id-badge {
+            font-size: 0.60rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: #f87171;
+            background: rgba(239, 68, 68, 0.10);
+            border: 1px solid rgba(239, 68, 68, 0.28);
+            padding: 2px 7px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: nowrap;
+        }
+
+        .lab-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            opacity: 0.80;
+        }
+
+        /* Duration badge on lab cards */
+        .lab-stats {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .lab-stat-badge {
+            font-size: 0.62rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: #fca5a5;
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.20);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: nowrap;
+        }
+
+        /* Checkmark for completed lab cards */
+        .lab-check {
+            width: 16px;
+            height: 16px;
+            opacity: 0;
+            flex-shrink: 0;
+            transition: opacity 0.2s ease;
+            filter: hue-rotate(270deg) saturate(3);
+        }
+
+        .lab-card.is-complete .lab-check {
+            opacity: 1;
+        }
+
+        /* ── Course info block (bottom) ── */
+        .course-info-block {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px 26px;
+            margin-top: 36px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .course-info-block h3 {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--ai-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 18px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .objectives-list {
+            list-style: none;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 10px;
+        }
+
+        .objectives-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 9px;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .objectives-list li::before {
+            content: '';
+            display: inline-block;
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--ai-primary);
+            flex-shrink: 0;
+            margin-top: 7px;
+            box-shadow: 0 0 6px rgba(167, 139, 250, 0.6);
+        }
+
+        /* ── Page footer ── */
+        .page-footer {
+            text-align: center;
+            padding: 28px 0 10px;
+            color: var(--text-muted);
+            font-size: 0.72rem;
+            font-family: 'Courier New', Courier, monospace;
+            letter-spacing: 0.5px;
+        }
+
+        .page-footer .footer-sub {
+            margin-top: 4px;
+            font-size: 0.65rem;
+            opacity: 0.7;
+        }
+
+        /* ── Mobile responsive ── */
+        @media (max-width: 768px) {
+            body { padding: 12px; }
+            .header { padding: 30px 16px 26px; }
+            .header h2 { font-size: 1.55rem; }
+            .header .subtitle { font-size: 0.9rem; }
+            .course-stats { gap: 10px; }
+            .course-stat { padding: 8px 14px; }
+            .course-stat .value { font-size: 1.15rem; }
+            .week-header { padding: 14px 16px; }
+            .week-inner { padding: 4px 16px 18px; }
+        }
+
+        @media (max-width: 480px) {
+            .header h2 { font-size: 1.3rem; }
+            .course-stat { padding: 6px 10px; }
+            .course-stat .value { font-size: 1rem; }
+            .course-stat .label { font-size: 0.60rem; }
+            .week-num { width: 34px; height: 34px; font-size: 0.82rem; }
+            .week-title-group .week-title { font-size: 0.92rem; }
+            .lab-stats { flex-direction: column; gap: 4px; }
+            .obj-pill { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Hidden H1 for screen readers and SEO -->
+    <h1 class="visually-hidden">Azure AI Fundamentals, AI-900 Certification Course Hub, AI House</h1>
+
+    <div class="container">
+
+        <!-- ── Top Bar: course label + single exit point ── -->
+        <div class="top-bar">
+            <span class="course-label">AI-900 // AI House</span>
+            <a href="../index.html" class="dashboard-btn" id="dashboardBtn">
+                <img src="../../../assets/images/icons/icon-arrow-left.webp"
+                     alt="" class="dashboard-btn-icon" aria-hidden="true">
+                AI Hub
+            </a>
+        </div>
+
+        <!-- ── Hero Header ── -->
+        <div class="header">
+            <span class="course-badge">AI-900</span>
+            <h2>Azure AI Fundamentals</h2>
+            <p class="subtitle">Master the foundations of artificial intelligence on Microsoft Azure.</p>
+
+            <!-- Course stat chips -->
+            <div class="course-stats">
+                <div class="course-stat">
+                    <div class="value">6</div>
+                    <div class="label">Chapters</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">18</div>
+                    <div class="label">Modules</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">40-60</div>
+                    <div class="label">Questions</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">45</div>
+                    <div class="label">Minutes</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">700</div>
+                    <div class="label">Passing</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Overall Course Progress ── -->
+        <!-- JS fills this from ModuleProgress after DOM is ready -->
+        <div class="progress-section">
+            <h3>Neural Sync: Course Progress</h3>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <div class="progress-text" id="progressText">Loading...</div>
+        </div>
+
+        <!-- ── Learning Path ── -->
+        <div class="section-heading">AI Learning Path</div>
+
+
+        <!-- ════════════════════════════════════════════
+             CHAPTER 1: Introduction to AI on Azure
+        ════════════════════════════════════════════ -->
+        <div class="week-card" id="ch01">
+            <div class="week-header" onclick="toggleWeek('ch01')">
+                <div class="week-header-left">
+                    <div class="week-num">1</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Introduction to AI on Azure</div>
+                        <div class="week-sub">CHAPTER 1 // AI FOUNDATIONS</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">AI Concepts</span>
+                            <span class="obj-tag">ML</span>
+                            <span class="item-count-tag">1 presentation + 1 lab + 1 quiz</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <!-- Per-chapter progress bar -->
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Chapter 1 Progress</span>
+                            <span id="ch01-progress-text">0 / 3</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="ch01-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Chapter overview -->
+                    <div class="week-overview">
+                        <div class="week-overview-title">AI FOUNDATIONS // CORE CONCEPTS</div>
+                        <div class="week-overview-desc">
+                            Understand what artificial intelligence is, how machine learning enables predictions from data,
+                            and the categories of AI workloads Azure supports. Explore responsible AI principles that guide
+                            ethical deployment across every Azure AI service.
+                        </div>
+                    </div>
+
+                    <!-- Presentation -->
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentation</div>
+                        <div class="content-grid">
+
+                            <a href="presentations/ai900-ch01-intro-ai.presentation.html"
+                               class="content-card" data-module="ai900-ch01-pres">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH01-P</span>
+                                <div class="card-info">
+                                    <div class="card-title">Introduction to AI on Azure</div>
+                                    <div class="card-sub">What is AI, ML fundamentals, AI workloads, responsible AI</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Lab -->
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Lab</div>
+                        <div class="content-grid">
+
+                            <a href="labs/ai900-ch01-intro-ai.lab.html"
+                               class="lab-card" data-module="ai900-ch01-lab">
+                                <img src="../../../assets/images/icons/icon-brain.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">CH01-L</span>
+                                <div class="card-info">
+                                    <div class="card-title">Exploring AI Concepts on Azure</div>
+                                    <div class="card-sub">Identify AI workload types, map responsible AI principles to real-world scenarios.</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">30 min</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Assessment -->
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+
+                            <a href="quizzes/ai900-ch01.quiz.html"
+                               class="content-card" data-module="ai900-ch01-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH01-Q</span>
+                                <div class="card-info">
+                                    <div class="card-title">Chapter 1 Quiz</div>
+                                    <div class="card-sub">What is AI, ML fundamentals, AI workloads, responsible AI</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div><!-- /ch01 -->
+
+
+        <!-- ════════════════════════════════════════════
+             CHAPTER 2: Computer Vision
+        ════════════════════════════════════════════ -->
+        <div class="week-card" id="ch02">
+            <div class="week-header" onclick="toggleWeek('ch02')">
+                <div class="week-header-left">
+                    <div class="week-num">2</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Computer Vision</div>
+                        <div class="week-sub">CHAPTER 2 // AZURE AI VISION</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Vision</span>
+                            <span class="obj-tag">OCR</span>
+                            <span class="item-count-tag">1 presentation + 1 lab + 1 quiz</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <!-- Per-chapter progress bar -->
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Chapter 2 Progress</span>
+                            <span id="ch02-progress-text">0 / 3</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="ch02-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Chapter overview -->
+                    <div class="week-overview">
+                        <div class="week-overview-title">COMPUTER VISION // AZURE AI VISION</div>
+                        <div class="week-overview-desc">
+                            Explore how machines interpret and analyze visual data. Cover image classification,
+                            object detection, semantic segmentation, optical character recognition, and facial
+                            analysis using Azure AI Vision services and the Face API.
+                        </div>
+                    </div>
+
+                    <!-- Presentation -->
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentation</div>
+                        <div class="content-grid">
+
+                            <a href="presentations/ai900-ch02-computer-vision.presentation.html"
+                               class="content-card" data-module="ai900-ch02-pres">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH02-P</span>
+                                <div class="card-info">
+                                    <div class="card-title">Computer Vision on Azure</div>
+                                    <div class="card-sub">Image classification, object detection, OCR, facial analysis</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Lab -->
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Lab</div>
+                        <div class="content-grid">
+
+                            <a href="labs/ai900-ch02-computer-vision.lab.html"
+                               class="lab-card" data-module="ai900-ch02-lab">
+                                <img src="../../../assets/images/icons/icon-camera.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">CH02-L</span>
+                                <div class="card-info">
+                                    <div class="card-title">Analyzing Images with Azure AI Vision</div>
+                                    <div class="card-sub">Use the Azure Vision API to classify images, detect objects, and extract text via OCR.</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">40 min</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Assessment -->
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+
+                            <a href="quizzes/ai900-ch02.quiz.html"
+                               class="content-card" data-module="ai900-ch02-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH02-Q</span>
+                                <div class="card-info">
+                                    <div class="card-title">Chapter 2 Quiz</div>
+                                    <div class="card-sub">Image classification, object detection, OCR, facial analysis</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div><!-- /ch02 -->
+
+
+        <!-- ════════════════════════════════════════════
+             CHAPTER 3: Natural Language Processing
+        ════════════════════════════════════════════ -->
+        <div class="week-card locked" id="ch03">
+            <div class="week-header" onclick="toggleWeek('ch03')">
+                <div class="week-header-left">
+                    <div class="week-num">3</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Natural Language Processing</div>
+                        <div class="week-sub">CHAPTER 3 // AZURE AI LANGUAGE</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">NLP</span>
+                            <span class="obj-tag">Language</span>
+                            <span class="item-count-tag">1 presentation + 1 lab + 1 quiz</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <!-- Per-chapter progress bar -->
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Chapter 3 Progress</span>
+                            <span id="ch03-progress-text">0 / 3</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="ch03-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Chapter overview -->
+                    <div class="week-overview">
+                        <div class="week-overview-title">NLP // AZURE AI LANGUAGE</div>
+                        <div class="week-overview-desc">
+                            Examine how Azure enables machines to understand and generate human language.
+                            Cover text analytics, key phrase extraction, sentiment analysis, named entity
+                            recognition, language understanding (CLU), and the Azure Translator service.
+                        </div>
+                    </div>
+
+                    <!-- Presentation -->
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentation</div>
+                        <div class="content-grid">
+
+                            <a href="presentations/ai900-ch03-nlp.presentation.html"
+                               class="content-card" data-module="ai900-ch03-pres">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH03-P</span>
+                                <div class="card-info">
+                                    <div class="card-title">Natural Language Processing on Azure</div>
+                                    <div class="card-sub">Text analytics, sentiment analysis, language understanding, translation</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Lab -->
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Lab</div>
+                        <div class="content-grid">
+
+                            <a href="labs/ai900-ch03-nlp.lab.html"
+                               class="lab-card" data-module="ai900-ch03-lab">
+                                <img src="../../../assets/images/icons/icon-speech.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">CH03-L</span>
+                                <div class="card-info">
+                                    <div class="card-title">Text Analytics and Language Understanding</div>
+                                    <div class="card-sub">Apply sentiment analysis, extract key phrases, and build a CLU model in Azure AI Language.</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">40 min</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Assessment -->
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+
+                            <a href="quizzes/ai900-ch03.quiz.html"
+                               class="content-card" data-module="ai900-ch03-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH03-Q</span>
+                                <div class="card-info">
+                                    <div class="card-title">Chapter 3 Quiz</div>
+                                    <div class="card-sub">Text analytics, sentiment analysis, language understanding, translation</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div><!-- /ch03 -->
+
+
+        <!-- ════════════════════════════════════════════
+             CHAPTER 4: Generative AI
+        ════════════════════════════════════════════ -->
+        <div class="week-card locked" id="ch04">
+            <div class="week-header" onclick="toggleWeek('ch04')">
+                <div class="week-header-left">
+                    <div class="week-num">4</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Generative AI</div>
+                        <div class="week-sub">CHAPTER 4 // AZURE OPENAI SERVICE</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">GenAI</span>
+                            <span class="obj-tag">OpenAI</span>
+                            <span class="item-count-tag">1 presentation + 1 lab + 1 quiz</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <!-- Per-chapter progress bar -->
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Chapter 4 Progress</span>
+                            <span id="ch04-progress-text">0 / 3</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="ch04-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Chapter overview -->
+                    <div class="week-overview">
+                        <div class="week-overview-title">GENERATIVE AI // AZURE OPENAI SERVICE</div>
+                        <div class="week-overview-desc">
+                            Understand how large language models and small language models generate content,
+                            and how Azure OpenAI Service provides access to GPT, DALL-E, and Whisper models.
+                            Learn prompt engineering fundamentals and how Microsoft Copilot leverages generative AI.
+                        </div>
+                    </div>
+
+                    <!-- Presentation -->
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentation</div>
+                        <div class="content-grid">
+
+                            <a href="presentations/ai900-ch04-generative-ai.presentation.html"
+                               class="content-card" data-module="ai900-ch04-pres">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH04-P</span>
+                                <div class="card-info">
+                                    <div class="card-title">Generative AI and Azure OpenAI</div>
+                                    <div class="card-sub">LLMs, SLMs, Azure OpenAI Service, prompt engineering, copilots</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Lab -->
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Lab</div>
+                        <div class="content-grid">
+
+                            <a href="labs/ai900-ch04-generative-ai.lab.html"
+                               class="lab-card" data-module="ai900-ch04-lab">
+                                <img src="../../../assets/images/icons/icon-star.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">CH04-L</span>
+                                <div class="card-info">
+                                    <div class="card-title">Prompt Engineering with Azure OpenAI</div>
+                                    <div class="card-sub">Craft and refine prompts in Azure AI Foundry playground. Compare zero-shot, few-shot, and chain-of-thought techniques.</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">45 min</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Assessment -->
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+
+                            <a href="quizzes/ai900-ch04.quiz.html"
+                               class="content-card" data-module="ai900-ch04-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH04-Q</span>
+                                <div class="card-info">
+                                    <div class="card-title">Chapter 4 Quiz</div>
+                                    <div class="card-sub">LLMs, SLMs, Azure OpenAI Service, prompt engineering, copilots</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div><!-- /ch04 -->
+
+
+        <!-- ════════════════════════════════════════════
+             CHAPTER 5: Predictive Models with Azure ML
+        ════════════════════════════════════════════ -->
+        <div class="week-card locked" id="ch05">
+            <div class="week-header" onclick="toggleWeek('ch05')">
+                <div class="week-header-left">
+                    <div class="week-num">5</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Predictive Models with Azure ML</div>
+                        <div class="week-sub">CHAPTER 5 // AZURE MACHINE LEARNING</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Azure ML</span>
+                            <span class="obj-tag">AutoML</span>
+                            <span class="item-count-tag">1 presentation + 1 lab + 1 quiz</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <!-- Per-chapter progress bar -->
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Chapter 5 Progress</span>
+                            <span id="ch05-progress-text">0 / 3</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="ch05-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Chapter overview -->
+                    <div class="week-overview">
+                        <div class="week-overview-title">PREDICTIVE MODELS // AZURE MACHINE LEARNING</div>
+                        <div class="week-overview-desc">
+                            Learn how Azure Machine Learning enables training and deploying predictive models at scale.
+                            Explore the Azure ML workspace, automated machine learning (AutoML), the visual designer,
+                            and the core ML problem types: regression, classification, and clustering.
+                        </div>
+                    </div>
+
+                    <!-- Presentation -->
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentation</div>
+                        <div class="content-grid">
+
+                            <a href="presentations/ai900-ch05-predictive-models.presentation.html"
+                               class="content-card" data-module="ai900-ch05-pres">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH05-P</span>
+                                <div class="card-info">
+                                    <div class="card-title">Predictive Models with Azure ML</div>
+                                    <div class="card-sub">Azure ML workspace, automated ML, designer, regression, classification, clustering</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Lab -->
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Lab</div>
+                        <div class="content-grid">
+
+                            <a href="labs/ai900-ch05-predictive-models.lab.html"
+                               class="lab-card" data-module="ai900-ch05-lab">
+                                <img src="../../../assets/images/icons/icon-chart.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">CH05-L</span>
+                                <div class="card-info">
+                                    <div class="card-title">Training a Predictive Model with AutoML</div>
+                                    <div class="card-sub">Configure an AutoML run in Azure ML Studio. Train a regression model and review evaluation metrics.</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">45 min</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Assessment -->
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+
+                            <a href="quizzes/ai900-ch05.quiz.html"
+                               class="content-card" data-module="ai900-ch05-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH05-Q</span>
+                                <div class="card-info">
+                                    <div class="card-title">Chapter 5 Quiz</div>
+                                    <div class="card-sub">Azure ML workspace, automated ML, designer, regression, classification, clustering</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div><!-- /ch05 -->
+
+
+        <!-- ════════════════════════════════════════════
+             CHAPTER 6: Azure AI Services
+        ════════════════════════════════════════════ -->
+        <div class="week-card locked" id="ch06">
+            <div class="week-header" onclick="toggleWeek('ch06')">
+                <div class="week-header-left">
+                    <div class="week-num">6</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Azure AI Services</div>
+                        <div class="week-sub">CHAPTER 6 // AI SERVICES PLATFORM</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">AI Services</span>
+                            <span class="obj-tag">Foundry</span>
+                            <span class="item-count-tag">1 presentation + 1 lab + 1 quiz</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <!-- Per-chapter progress bar -->
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Chapter 6 Progress</span>
+                            <span id="ch06-progress-text">0 / 3</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="ch06-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Chapter overview -->
+                    <div class="week-overview">
+                        <div class="week-overview-title">AI SERVICES PLATFORM // AZURE AI FOUNDRY</div>
+                        <div class="week-overview-desc">
+                            Survey the Azure AI Services platform: Speech services for speech-to-text and text-to-speech,
+                            Document Intelligence for extracting structured data from forms and documents, and the
+                            Azure AI Foundry portal as the unified hub for building and deploying AI solutions on Azure.
+                        </div>
+                    </div>
+
+                    <!-- Presentation -->
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentation</div>
+                        <div class="content-grid">
+
+                            <a href="presentations/ai900-ch06-ai-services.presentation.html"
+                               class="content-card" data-module="ai900-ch06-pres">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH06-P</span>
+                                <div class="card-info">
+                                    <div class="card-title">Azure AI Services Overview</div>
+                                    <div class="card-sub">Speech services, document intelligence, AI Foundry portal</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Lab -->
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Lab</div>
+                        <div class="content-grid">
+
+                            <a href="labs/ai900-ch06-ai-services.lab.html"
+                               class="lab-card" data-module="ai900-ch06-lab">
+                                <img src="../../../assets/images/icons/icon-cloud.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">CH06-L</span>
+                                <div class="card-info">
+                                    <div class="card-title">Working with Azure AI Services</div>
+                                    <div class="card-sub">Provision Azure AI Services, use Speech and Document Intelligence APIs, navigate AI Foundry.</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">45 min</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Assessment -->
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+
+                            <a href="quizzes/ai900-ch06.quiz.html"
+                               class="content-card" data-module="ai900-ch06-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH06-Q</span>
+                                <div class="card-info">
+                                    <div class="card-title">Chapter 6 Quiz</div>
+                                    <div class="card-sub">Speech services, document intelligence, AI Foundry portal</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div><!-- /ch06 -->
+
+
+        <!-- ── Exam Objectives ── -->
+        <div class="course-info-block">
+            <h3>AI-900 Exam Objectives</h3>
+            <ul class="objectives-list">
+                <li>Describe core AI concepts including machine learning, computer vision, NLP, and generative AI</li>
+                <li>Identify features and use cases for Azure AI Vision image classification and object detection</li>
+                <li>Explain how optical character recognition and facial analysis work in Azure AI Vision</li>
+                <li>Describe text analytics capabilities including sentiment analysis and key phrase extraction</li>
+                <li>Identify use cases for conversational language understanding and Azure Bot Service</li>
+                <li>Explain how Azure Translator enables multilingual text and speech translation</li>
+                <li>Describe how large language models (LLMs) and small language models (SLMs) generate content</li>
+                <li>Identify capabilities and use cases of Azure OpenAI Service including GPT, DALL-E, and Whisper</li>
+                <li>Explain prompt engineering techniques including zero-shot, few-shot, and chain-of-thought</li>
+                <li>Describe how Microsoft Copilot and copilot extensions use generative AI</li>
+                <li>Identify Azure Machine Learning workspace components and the automated ML workflow</li>
+                <li>Explain regression, classification, and clustering and when each approach applies</li>
+                <li>Describe how the Azure ML designer enables no-code model training and deployment</li>
+                <li>Identify Azure AI Speech capabilities for speech-to-text and text-to-speech scenarios</li>
+                <li>Explain Document Intelligence and its ability to extract structured data from forms</li>
+                <li>Describe the Azure AI Foundry portal as the unified development hub for AI solutions</li>
+                <li>Apply Microsoft responsible AI principles: fairness, reliability, privacy, inclusiveness, transparency, accountability</li>
+                <li>Provision and manage Azure AI Services resources using the Azure portal and REST APIs</li>
+            </ul>
+        </div>
+
+        <!-- ── Page Footer ── -->
+        <div class="page-footer">
+            House of AI // Azure AI Fundamentals // AI-900
+            <div class="footer-sub">Master the foundations of artificial intelligence on Microsoft Azure.</div>
+        </div>
+
+    </div><!-- /.container -->
+
+    <!-- ── JavaScript ── -->
+    <script>
+        /**
+         * toggleWeek(id)
+         * Adds/removes the 'open' class on a chapter card to expand or collapse it.
+         * The max-height CSS transition handles the animation.
+         */
+        function toggleWeek(id) {
+            var card = document.getElementById(id);
+            if (card) {
+                card.classList.toggle('open');
+            }
+        }
+
+        // ── Auto-open from URL hash ────────────────────────────────────────
+        // Supports links like index.html#ch02 to jump directly to that chapter.
+        (function () {
+            var hash = window.location.hash;
+            if (hash && /^#ch0[1-6]$/.test(hash)) {
+                var id   = hash.substring(1);
+                var card = document.getElementById(id);
+                if (card) {
+                    card.classList.add('open');
+                    setTimeout(function () {
+                        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 300);
+                }
+            }
+        })();
+
+        // ── Progress Tracking ─────────────────────────────────────────────
+        // Runs after DOM is ready so all [data-module] elements exist.
+        // Uses ModuleProgress.isCompleted('ai', moduleId) to check state.
+        // Highlights completed cards, fills per-chapter bars, fills overall bar.
+        document.addEventListener('DOMContentLoaded', function () {
+            if (!window.ModuleProgress) {
+                document.getElementById('progressText').textContent = 'Progress unavailable';
+                return;
+            }
+
+            // All module IDs, grouped by chapter card ID.
+            // Total: 3 items per chapter x 6 chapters = 18 items.
+            var weeks = {
+                ch01: [
+                    'ai900-ch01-pres',
+                    'ai900-ch01-lab',
+                    'ai900-ch01-quiz'
+                ],
+                ch02: [
+                    'ai900-ch02-pres',
+                    'ai900-ch02-lab',
+                    'ai900-ch02-quiz'
+                ],
+                ch03: [
+                    'ai900-ch03-pres',
+                    'ai900-ch03-lab',
+                    'ai900-ch03-quiz'
+                ],
+                ch04: [
+                    'ai900-ch04-pres',
+                    'ai900-ch04-lab',
+                    'ai900-ch04-quiz'
+                ],
+                ch05: [
+                    'ai900-ch05-pres',
+                    'ai900-ch05-lab',
+                    'ai900-ch05-quiz'
+                ],
+                ch06: [
+                    'ai900-ch06-pres',
+                    'ai900-ch06-lab',
+                    'ai900-ch06-quiz'
+                ]
+            };
+
+            var totalItems     = 0;
+            var totalCompleted = 0;
+
+            // Process each chapter: check completions, mark cards, update bars
+            Object.keys(weeks).forEach(function (chapterId) {
+                var ids       = weeks[chapterId];
+                var completed = 0;
+
+                ids.forEach(function (moduleId) {
+                    if (ModuleProgress.isCompleted('ai', moduleId)) {
+                        completed++;
+
+                        // Highlight the card via data-module attribute lookup
+                        var el = document.querySelector('[data-module="' + moduleId + '"]');
+                        if (el) {
+                            el.classList.add('is-complete');
+                        }
+                    }
+                });
+
+                // Update per-chapter progress bar and text counter
+                var weekPct  = ids.length > 0 ? Math.round((completed / ids.length) * 100) : 0;
+                var weekBar  = document.getElementById(chapterId + '-progress-bar');
+                var weekText = document.getElementById(chapterId + '-progress-text');
+                if (weekBar)  { weekBar.style.width = weekPct + '%'; }
+                if (weekText) { weekText.textContent = completed + ' / ' + ids.length; }
+
+                totalItems     += ids.length;
+                totalCompleted += completed;
+            });
+
+            // Update overall progress bar at the top of the page
+            var overallPct  = totalItems > 0 ? Math.round((totalCompleted / totalItems) * 100) : 0;
+            var overallBar  = document.getElementById('progressBar');
+            var overallText = document.getElementById('progressText');
+            if (overallBar)  { overallBar.style.width = overallPct + '%'; }
+            if (overallText) {
+                overallText.textContent =
+                    totalCompleted + ' of ' + totalItems + ' modules completed (' + overallPct + '%)';
+            }
+        });
+    </script>
+
+    <!-- ── Shared Components ── -->
+    <script src="../../../components/TenantShell.js"></script>
+    <script src="../../../components/ContentDiscovery.js"></script>
+
+</body>
+</html>

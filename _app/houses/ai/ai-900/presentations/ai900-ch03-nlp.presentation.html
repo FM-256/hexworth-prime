@@ -1,0 +1,1244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Natural Language Processing | AI-900 Chapter 3</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container — fixed to viewport, hidden by default */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        /* Max-width wrapper so content does not stretch on wide screens */
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Gold progress bar across the very top */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c9a83a; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.15); color: #c9a83a; border-color: #c9a83a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button — shown only on last slide via JS */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #c9a83a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip for scenario or instructor notes */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.08); border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fef3c7; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids — 3-column and 2-column */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c9a83a;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+
+        /* Section label — small caps divider text */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Numbered summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c9a83a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Inline code span */
+        .ic {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* SVG diagram containers */
+        .diagram-row {
+            display: flex; gap: 16px; align-items: center; justify-content: center;
+        }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        /* Hex grid for scenarios */
+        .hex-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(201, 168, 58, 0.25);
+            border-radius: 8px; padding: 12px 14px;
+            text-align: center;
+            opacity: 0;
+            animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #c9a83a; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        /* Shared animation keyframes */
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes flow {
+            0%   { stroke-dashoffset: 20; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes boxGrow {
+            from { opacity: 0; transform: scale(0.7); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes labelSlide {
+            from { opacity: 0; transform: translateX(-8px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+        /* Typing cursor blink */
+        @keyframes cursorBlink {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0; }
+        }
+        /* Typing text reveal — moves a mask rect left to right */
+        @keyframes typeReveal {
+            from { width: 100%; }
+            to   { width: 0%; }
+        }
+        /* Gauge needle sweep */
+        @keyframes needleSweep {
+            0%   { transform: rotate(-60deg); }
+            60%  { transform: rotate(20deg); }
+            100% { transform: rotate(10deg); }
+        }
+        /* Floating tag drift */
+        @keyframes tagFloat {
+            0%, 100% { transform: translateY(0px); }
+            50%       { transform: translateY(-4px); }
+        }
+        /* Entity tag pop-in */
+        @keyframes entityPop {
+            from { opacity: 0; transform: scale(0.6) translateY(6px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        /* Scanline for NLP engine */
+        @keyframes scanLine {
+            0%   { transform: translateX(-100%); opacity: 0; }
+            20%  { opacity: 1; }
+            80%  { opacity: 1; }
+            100% { transform: translateX(100%); opacity: 0; }
+        }
+        /* Hub spoke pulse */
+        @keyframes spokePulse {
+            0%   { stroke-dashoffset: 40; opacity: 0.3; }
+            50%  { opacity: 1; }
+            100% { stroke-dashoffset: 0; opacity: 0.6; }
+        }
+        /* Sentiment bar grow */
+        @keyframes barGrow {
+            from { width: 0; }
+        }
+        /* Chat bubble pop */
+        @keyframes bubblePop {
+            from { opacity: 0; transform: scale(0.8) translateY(8px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Natural Language Processing — AI-900 Chapter 3</h1>
+
+<!-- Gold progress bar — width updated by goToSlide() -->
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; AI-900 &nbsp;|&nbsp; Chapter 3 of 6</div>
+        <div class="title-hero">
+            <!-- Speech bubble with animated typing effect SVG -->
+            <svg width="160" height="110" viewBox="0 0 160 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Outer speech bubble -->
+                <rect x="8" y="8" width="136" height="76" rx="12" fill="rgba(201,168,58,0.07)" stroke="#c9a83a" stroke-width="1.4"/>
+                <!-- Bubble tail -->
+                <path d="M32 84 L20 102 L52 84 Z" fill="rgba(201,168,58,0.07)" stroke="#c9a83a" stroke-width="1.2"/>
+                <!-- Text line 1 (full) -->
+                <rect x="20" y="22" width="112" height="8" rx="3" fill="rgba(201,168,58,0.18)"/>
+                <!-- Text line 2 (partial — typewriter feel) -->
+                <rect x="20" y="36" width="88" height="8" rx="3" fill="rgba(201,168,58,0.14)"/>
+                <!-- Text line 3 — animated reveal with clipping mask trick -->
+                <rect x="20" y="50" width="96" height="8" rx="3" fill="rgba(201,168,58,0.10)"/>
+                <!-- Typing cursor -->
+                <rect x="122" y="50" width="3" height="8" rx="1" fill="#c9a83a" style="animation: cursorBlink 0.9s step-end infinite;"/>
+                <!-- Text line 4 short partial — growing effect -->
+                <rect x="20" y="64" width="60" height="8" rx="3" fill="rgba(6,182,212,0.12)"/>
+                <!-- Pulse dot on bubble -->
+                <circle cx="140" cy="16" r="4" fill="#c9a83a" style="animation: pulse 1.8s ease-in-out infinite;"/>
+                <circle cx="150" cy="16" r="3" fill="rgba(201,168,58,0.4)" style="animation: pulse 1.8s ease-in-out infinite 0.4s;"/>
+                <!-- Small AI chip icon bottom-right of bubble -->
+                <rect x="104" y="60" width="30" height="18" rx="4" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="0.8"/>
+                <text x="119" y="72" text-anchor="middle" font-size="7" fill="#06b6d4" font-family="Segoe UI,sans-serif" font-weight="700">NLP</text>
+            </svg>
+            <div class="big-title">
+                Natural Language <span class="accent">Processing</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Text Analytics &nbsp;&bull;&nbsp; Sentiment &nbsp;&bull;&nbsp; Entities &nbsp;&bull;&nbsp; Translation &nbsp;&bull;&nbsp; Conversational AI
+            </div>
+        </div>
+        <div class="scenario-strip">
+            NLP gives machines the ability to read, understand, and generate human language. From analyzing customer feedback to powering chatbots, Azure AI Language services provide pre-built NLP capabilities that require no custom model training.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>AI-900 Exam Objectives</span>
+            <span>Chapter 3 of 6</span>
+            <span>Azure AI Fundamentals</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — WHAT IS NLP ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">What is <span class="accent">NLP?</span></div>
+        <div class="slide-subtitle">AI that reads, understands, and generates human language — turning unstructured text into structured meaning.</div>
+
+        <!-- Text → NLP Engine → Structured Output pipeline SVG -->
+        <div class="diagram-center">
+            <svg width="580" height="106" viewBox="0 0 580 106" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Raw text input box -->
+                <rect x="8" y="14" width="120" height="78" rx="8" fill="rgba(201,168,58,0.07)" stroke="#c9a83a" stroke-width="1.2"/>
+                <text x="68" y="30" text-anchor="middle" font-size="8.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Raw Text</text>
+                <line x1="16" y1="38" x2="120" y2="38" stroke="rgba(201,168,58,0.15)" stroke-width="0.8"/>
+                <text x="16" y="51" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">"The new Azure</text>
+                <text x="16" y="62" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif"> laptop is great!</text>
+                <text x="16" y="73" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif"> Fast delivery too."</text>
+                <text x="68" y="100" text-anchor="middle" font-size="8.5" fill="#c9a83a" font-family="Segoe UI,sans-serif">Input</text>
+
+                <!-- Arrow 1 — animated flow -->
+                <line x1="132" y1="53" x2="176" y2="53" stroke="rgba(201,168,58,0.6)" stroke-width="1.5" stroke-dasharray="5,4">
+                    <animate attributeName="stroke-dashoffset" values="18;0" dur="1.2s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="176,49 184,53 176,57" fill="#c9a83a"/>
+
+                <!-- NLP Engine box -->
+                <rect x="186" y="18" width="108" height="70" rx="8" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.4"/>
+                <text x="240" y="40" text-anchor="middle" font-size="11" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">NLP</text>
+                <text x="240" y="53" text-anchor="middle" font-size="9" fill="#06b6d4" font-family="Segoe UI,sans-serif">Engine</text>
+                <!-- Scanning line inside engine -->
+                <rect x="194" y="60" width="92" height="8" rx="2" fill="rgba(6,182,212,0.05)" overflow="hidden"/>
+                <rect x="194" y="60" width="20" height="8" rx="2" fill="rgba(6,182,212,0.3)"
+                    style="animation: scanLine 2s ease-in-out infinite;"/>
+                <text x="240" y="100" text-anchor="middle" font-size="8.5" fill="#06b6d4" font-family="Segoe UI,sans-serif">Azure AI Language</text>
+
+                <!-- Arrow 2 -->
+                <line x1="298" y1="53" x2="342" y2="53" stroke="rgba(6,182,212,0.6)" stroke-width="1.5" stroke-dasharray="5,4">
+                    <animate attributeName="stroke-dashoffset" values="18;0" dur="1.2s" repeatCount="indefinite" begin="0.4s"/>
+                </line>
+                <polygon points="342,49 350,53 342,57" fill="#06b6d4"/>
+
+                <!-- Output — 3 stacked tags -->
+                <rect x="352" y="10" width="218" height="86" rx="8" fill="rgba(15,15,26,0.4)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+                <!-- Entity tag -->
+                <rect x="362" y="18" width="88" height="20" rx="5" fill="rgba(167,139,250,0.15)" stroke="#a78bfa" stroke-width="1"
+                    style="animation: entityPop 0.5s ease forwards 0.3s; opacity:0;"/>
+                <text x="406" y="31" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Entity: Azure (ORG)</text>
+                <!-- Sentiment tag -->
+                <rect x="362" y="44" width="96" height="20" rx="5" fill="rgba(58,181,119,0.12)" stroke="#3ab577" stroke-width="1"
+                    style="animation: entityPop 0.5s ease forwards 0.55s; opacity:0;"/>
+                <text x="410" y="57" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Sentiment: Positive</text>
+                <!-- Key phrase tag -->
+                <rect x="362" y="70" width="104" height="20" rx="5" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1"
+                    style="animation: entityPop 0.5s ease forwards 0.8s; opacity:0;"/>
+                <text x="414" y="83" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Key Phrase: laptop</text>
+                <text x="461" y="100" text-anchor="middle" font-size="8.5" fill="#3ab577" font-family="Segoe UI,sans-serif">Structured Output</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Why NLP is Hard</div>
+                <div class="card-desc">Human language is ambiguous, contextual, and evolving. "I saw the bank" could mean a riverbank or a financial institution. Sarcasm, idioms, spelling errors, and cultural nuance make language a uniquely challenging AI problem.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">What NLP Produces</div>
+                <div class="card-desc">Structured data from unstructured text: named entities, sentiment scores, key topics, detected language, intent labels, and summarized content. This structured output can feed databases, dashboards, and automated workflows.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Foundation for Generative AI</div>
+                <div class="card-desc">Large Language Models (GPT, Phi, etc.) are built on NLP fundamentals. Understanding tokenization, embeddings, and semantic parsing is prerequisite knowledge for working with generative AI — making this chapter essential groundwork.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            "NLP bridges the gap between the way humans communicate and the structured data computers require."
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — TEXT ANALYTICS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Text <span class="accent">Analytics</span></div>
+        <div class="slide-subtitle">Extract meaning from raw text — sentiment, key phrases, named entities, language detection, and PII detection.</div>
+
+        <!-- Text paragraph with entity highlights + sentiment gauge SVG -->
+        <div class="diagram-center">
+            <svg width="580" height="116" viewBox="0 0 580 116" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Text paragraph box -->
+                <rect x="8" y="8" width="300" height="100" rx="8" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+                <text x="18" y="26" font-size="8.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">"</text>
+                <!-- Line 1: Microsoft highlighted -->
+                <rect x="22" y="18" width="52" height="12" rx="3" fill="rgba(167,139,250,0.2)" stroke="#a78bfa" stroke-width="0.7"/>
+                <text x="22" y="28" font-size="8" fill="#a78bfa" font-family="Segoe UI,sans-serif">Microsoft</text>
+                <text x="76" y="28" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif"> recently launched a</text>
+                <!-- Line 2: new product highlighted -->
+                <text x="22" y="44" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">new </text>
+                <rect x="42" y="34" width="48" height="12" rx="3" fill="rgba(201,168,58,0.18)" stroke="#c9a83a" stroke-width="0.7"/>
+                <text x="42" y="44" font-size="8" fill="#c9a83a" font-family="Segoe UI,sans-serif">Surface Pro</text>
+                <text x="92" y="44" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif"> in</text>
+                <!-- Line 2: date highlighted -->
+                <rect x="106" y="34" width="74" height="12" rx="3" fill="rgba(6,182,212,0.18)" stroke="#06b6d4" stroke-width="0.7"/>
+                <text x="106" y="44" font-size="8" fill="#06b6d4" font-family="Segoe UI,sans-serif">October 2025</text>
+                <!-- Line 3 -->
+                <text x="22" y="60" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">receiving overwhelmingly</text>
+                <!-- Line 4 -->
+                <rect x="22" y="64" width="52" height="12" rx="3" fill="rgba(58,181,119,0.18)" stroke="#3ab577" stroke-width="0.7"/>
+                <text x="22" y="74" font-size="8" fill="#3ab577" font-family="Segoe UI,sans-serif">positive</text>
+                <text x="76" y="74" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif"> reviews worldwide."</text>
+                <!-- Legend -->
+                <rect x="22" y="88" width="10" height="8" rx="2" fill="rgba(167,139,250,0.3)" stroke="#a78bfa" stroke-width="0.6"/>
+                <text x="35" y="95" font-size="7" fill="#a78bfa" font-family="Segoe UI,sans-serif">ORG</text>
+                <rect x="66" y="88" width="10" height="8" rx="2" fill="rgba(201,168,58,0.3)" stroke="#c9a83a" stroke-width="0.6"/>
+                <text x="79" y="95" font-size="7" fill="#c9a83a" font-family="Segoe UI,sans-serif">PRODUCT</text>
+                <rect x="128" y="88" width="10" height="8" rx="2" fill="rgba(6,182,212,0.3)" stroke="#06b6d4" stroke-width="0.6"/>
+                <text x="141" y="95" font-size="7" fill="#06b6d4" font-family="Segoe UI,sans-serif">DATE</text>
+                <rect x="186" y="88" width="10" height="8" rx="2" fill="rgba(58,181,119,0.3)" stroke="#3ab577" stroke-width="0.6"/>
+                <text x="199" y="95" font-size="7" fill="#3ab577" font-family="Segoe UI,sans-serif">SENTIMENT</text>
+
+                <!-- Separator -->
+                <line x1="320" y1="8" x2="320" y2="108" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+
+                <!-- Sentiment gauge -->
+                <text x="450" y="26" text-anchor="middle" font-size="9" fill="#94a3b8" font-weight="700" font-family="Segoe UI,sans-serif">Sentiment Score</text>
+                <!-- Gauge arc background -->
+                <path d="M 345 90 A 105 105 0 0 1 555 90" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="14" stroke-linecap="round"/>
+                <!-- Negative sector (red) -->
+                <path d="M 345 90 A 105 105 0 0 1 392 36" fill="none" stroke="rgba(239,68,68,0.35)" stroke-width="14" stroke-linecap="round"/>
+                <!-- Neutral sector (yellow) -->
+                <path d="M 392 36 A 105 105 0 0 1 508 36" fill="none" stroke="rgba(234,179,8,0.35)" stroke-width="14" stroke-linecap="round"/>
+                <!-- Positive sector (green) -->
+                <path d="M 508 36 A 105 105 0 0 1 555 90" fill="none" stroke="rgba(58,181,119,0.45)" stroke-width="14" stroke-linecap="round"/>
+                <!-- Gauge labels -->
+                <text x="342" y="104" font-size="7.5" fill="#ef4444" font-family="Segoe UI,sans-serif">Negative</text>
+                <text x="440" y="32" text-anchor="middle" font-size="7.5" fill="#eab308" font-family="Segoe UI,sans-serif">Neutral</text>
+                <text x="540" y="104" font-size="7.5" fill="#3ab577" font-family="Segoe UI,sans-serif">Positive</text>
+                <!-- Needle — animated sweep toward positive -->
+                <g style="transform-origin:450px 90px; animation: needleSweep 1.8s cubic-bezier(0.34,1.56,0.64,1) forwards 0.4s; transform: rotate(-60deg);">
+                    <line x1="450" y1="90" x2="450" y2="40" stroke="#f1f5f9" stroke-width="2" stroke-linecap="round"/>
+                    <circle cx="450" cy="90" r="5" fill="#c9a83a"/>
+                </g>
+                <!-- Score label -->
+                <text x="450" y="108" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">0.87 Positive</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Sentiment Analysis</div>
+                <div class="card-desc">Classifies text as positive, negative, neutral, or mixed. Returns a confidence score for each category (0.0 to 1.0). Sentence-level and document-level scores are both available. Ideal for social media monitoring and support ticket triage.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Key Phrase Extraction</div>
+                <div class="card-desc">Identifies the main talking points of a text — noun phrases that capture the topics. For "The new Surface Pro is fast and elegant," key phrases would be: "new Surface Pro," "fast," "elegant." Useful for search indexing and document tagging.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Named Entity Recognition</div>
+                <div class="card-desc">Detects and categorizes named items: people, organizations, locations, products, dates, monetary values, and quantities. The text above yields: Microsoft (ORG), Surface Pro (PRODUCT), October 2025 (DATE). Supports 20+ entity categories.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — SENTIMENT ANALYSIS ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Sentiment <span class="accent">Analysis</span></div>
+        <div class="slide-subtitle">Determine whether a piece of text is positive, negative, neutral, or mixed — at both the document and sentence level.</div>
+
+        <!-- 3 review cards with colored sentiment bars SVG -->
+        <div class="diagram-center">
+            <svg width="578" height="118" viewBox="0 0 578 118" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Review Card 1 — Positive -->
+                <rect x="8" y="8" width="172" height="100" rx="8" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="1.2"/>
+                <text x="94" y="24" text-anchor="middle" font-size="8.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">POSITIVE</text>
+                <text x="18" y="40" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">"Best product I've ever</text>
+                <text x="18" y="52" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif"> bought. Fast shipping."</text>
+                <!-- Score bar track -->
+                <rect x="18" y="68" width="144" height="8" rx="3" fill="rgba(255,255,255,0.05)"/>
+                <!-- Score bar fill — animated grow -->
+                <rect x="18" y="68" width="126" height="8" rx="3" fill="rgba(58,181,119,0.6)"
+                    style="animation: boxGrow 0.8s cubic-bezier(0.34,1.56,0.64,1) forwards 0.3s; transform-origin: left; opacity:0;"/>
+                <text x="94" y="90" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Score: 0.92</text>
+                <!-- Star icons -->
+                <text x="30" y="108" font-size="11" fill="#c9a83a" font-family="Segoe UI,sans-serif">&#9733;&#9733;&#9733;&#9733;&#9733;</text>
+
+                <!-- Review Card 2 — Negative -->
+                <rect x="202" y="8" width="172" height="100" rx="8" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.2"/>
+                <text x="288" y="24" text-anchor="middle" font-size="8.5" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">NEGATIVE</text>
+                <text x="212" y="40" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">"Terrible experience.</text>
+                <text x="212" y="52" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif"> Support never replied."</text>
+                <rect x="212" y="68" width="144" height="8" rx="3" fill="rgba(255,255,255,0.05)"/>
+                <rect x="212" y="68" width="44" height="8" rx="3" fill="rgba(239,68,68,0.6)"
+                    style="animation: boxGrow 0.8s cubic-bezier(0.34,1.56,0.64,1) forwards 0.55s; transform-origin: left; opacity:0;"/>
+                <text x="288" y="90" text-anchor="middle" font-size="9" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Score: 0.88</text>
+                <text x="222" y="108" font-size="11" fill="#475569" font-family="Segoe UI,sans-serif">&#9733;</text>
+                <text x="238" y="108" font-size="11" fill="#475569" font-family="Segoe UI,sans-serif">&#9734;&#9734;&#9734;&#9734;</text>
+
+                <!-- Review Card 3 — Neutral / Mixed -->
+                <rect x="396" y="8" width="172" height="100" rx="8" fill="rgba(234,179,8,0.06)" stroke="#eab308" stroke-width="1.2"/>
+                <text x="482" y="24" text-anchor="middle" font-size="8.5" fill="#eab308" font-weight="700" font-family="Segoe UI,sans-serif">NEUTRAL</text>
+                <text x="406" y="40" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">"It arrived on time.</text>
+                <text x="406" y="52" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif"> Does what it says."</text>
+                <rect x="406" y="68" width="144" height="8" rx="3" fill="rgba(255,255,255,0.05)"/>
+                <rect x="406" y="68" width="86" height="8" rx="3" fill="rgba(234,179,8,0.5)"
+                    style="animation: boxGrow 0.8s cubic-bezier(0.34,1.56,0.64,1) forwards 0.8s; transform-origin: left; opacity:0;"/>
+                <text x="482" y="90" text-anchor="middle" font-size="9" fill="#eab308" font-weight="700" font-family="Segoe UI,sans-serif">Score: 0.61</text>
+                <text x="414" y="108" font-size="11" fill="#c9a83a" font-family="Segoe UI,sans-serif">&#9733;&#9733;&#9733;</text>
+                <text x="446" y="108" font-size="11" fill="#475569" font-family="Segoe UI,sans-serif">&#9734;&#9734;</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">How It Works</div>
+                <div class="card-desc">The model tokenizes the text, generates contextual embeddings, and maps them to a sentiment distribution. Unlike rule-based keyword matching, modern transformer-based models understand context — "not bad" is correctly read as positive, not negative.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Mixed Sentiment</div>
+                <div class="card-desc">A single document can contain multiple sentences with conflicting tones: "The product is great (positive) but delivery took 3 weeks (negative)." Azure AI Language returns a confidence score for each of the four labels simultaneously — you decide the threshold.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Business Applications</div>
+                <div class="card-desc">Brand monitoring across social media, customer review aggregation, support ticket prioritization (route negative tickets to senior staff first), employee feedback analysis, and political speech analysis. One of the most widely deployed NLP capabilities in production.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — KEY PHRASE EXTRACTION ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Key Phrase <span class="accent">Extraction</span></div>
+        <div class="slide-subtitle">Identify the main talking points in text — noun phrases that capture topic and intent. No pre-defined categories required.</div>
+
+        <!-- Document with key phrases floating out as tags SVG -->
+        <div class="diagram-center">
+            <svg width="580" height="112" viewBox="0 0 580 112" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Source document (support ticket) -->
+                <rect x="8" y="8" width="188" height="96" rx="8" fill="rgba(255,255,255,0.03)" stroke="rgba(201,168,58,0.3)" stroke-width="1.2"/>
+                <!-- Page fold -->
+                <path d="M176,8 L196,28 L176,28 Z" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="0.8"/>
+                <text x="102" y="24" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Support Ticket #8821</text>
+                <line x1="16" y1="30" x2="186" y2="30" stroke="rgba(201,168,58,0.12)" stroke-width="0.8"/>
+                <text x="16" y="44" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">"My laptop battery drains</text>
+                <text x="16" y="55" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif"> rapidly after the latest</text>
+                <text x="16" y="66" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif"> Windows update. It used to</text>
+                <text x="16" y="77" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif"> last 8 hours. Now only 2.</text>
+                <text x="16" y="88" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif"> Need urgent help."</text>
+                <text x="102" y="106" text-anchor="middle" font-size="7.5" fill="#c9a83a" font-family="Segoe UI,sans-serif">Input Document</text>
+
+                <!-- Arrow to extractor -->
+                <line x1="200" y1="56" x2="238" y2="56" stroke="rgba(201,168,58,0.5)" stroke-width="1.5" stroke-dasharray="5,4">
+                    <animate attributeName="stroke-dashoffset" values="18;0" dur="1.1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="238,52 246,56 238,60" fill="#c9a83a"/>
+
+                <!-- Extractor engine -->
+                <rect x="248" y="32" width="84" height="48" rx="8" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.2"/>
+                <text x="290" y="53" text-anchor="middle" font-size="9" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Key Phrase</text>
+                <text x="290" y="65" text-anchor="middle" font-size="9" fill="#06b6d4" font-family="Segoe UI,sans-serif">Extractor</text>
+                <text x="290" y="106" text-anchor="middle" font-size="7.5" fill="#06b6d4" font-family="Segoe UI,sans-serif">NLP Model</text>
+
+                <!-- Arrow to tags -->
+                <line x1="336" y1="56" x2="366" y2="56" stroke="rgba(6,182,212,0.5)" stroke-width="1.5" stroke-dasharray="5,4">
+                    <animate attributeName="stroke-dashoffset" values="18;0" dur="1.1s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+                <polygon points="366,52 374,56 366,60" fill="#06b6d4"/>
+
+                <!-- Floating key phrase tags -->
+                <rect x="376" y="10" width="96" height="18" rx="9" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1"
+                    style="animation: tagFloat 2.4s ease-in-out infinite 0s;"/>
+                <text x="424" y="22" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">laptop battery</text>
+
+                <rect x="386" y="34" width="82" height="18" rx="9" fill="rgba(6,182,212,0.12)" stroke="#06b6d4" stroke-width="1"
+                    style="animation: tagFloat 2.4s ease-in-out infinite 0.4s;"/>
+                <text x="427" y="46" text-anchor="middle" font-size="8" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Windows update</text>
+
+                <rect x="380" y="58" width="100" height="18" rx="9" fill="rgba(167,139,250,0.12)" stroke="#a78bfa" stroke-width="1"
+                    style="animation: tagFloat 2.4s ease-in-out infinite 0.8s;"/>
+                <text x="430" y="70" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">battery drains</text>
+
+                <rect x="390" y="82" width="88" height="18" rx="9" fill="rgba(58,181,119,0.12)" stroke="#3ab577" stroke-width="1"
+                    style="animation: tagFloat 2.4s ease-in-out infinite 1.2s;"/>
+                <text x="434" y="94" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">urgent help</text>
+                <text x="468" y="106" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">Extracted Tags</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">How Extraction Works</div>
+                <div class="card-desc">The model identifies noun phrases with high information density — terms that would most effectively summarize the document if all other words were removed. It uses part-of-speech tagging, dependency parsing, and statistical frequency to rank candidate phrases.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Support Ticket Use Case</div>
+                <div class="card-desc">IT helpdesks receive thousands of tickets daily. Key phrase extraction automatically tags each ticket with its core topics (battery, Windows update, performance). This enables routing by topic, trend analysis over time, and knowledge base auto-population — all without human review.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Azure API Response</div>
+                <div class="card-desc">The <span class="ic">analyze-text</span> endpoint returns a <span class="ic">keyPhrases</span> array: <span class="ic">["laptop battery", "Windows update", "battery drains rapidly", "urgent help"]</span>. No training required — works out of the box for 30+ supported languages including English, Spanish, French, and German.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — NAMED ENTITY RECOGNITION ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Named Entity <span class="accent">Recognition</span></div>
+        <div class="slide-subtitle">Identify and classify specific real-world items in text — organizations, people, places, products, dates, and monetary values.</div>
+
+        <!-- Sentence with inline colored entity tags SVG -->
+        <div class="diagram-center">
+            <svg width="578" height="120" viewBox="0 0 578 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Background sentence box -->
+                <rect x="8" y="8" width="562" height="56" rx="8" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+                <!-- Plain text before entity -->
+                <!-- Entity 1: Microsoft — ORG (purple) -->
+                <rect x="18" y="18" width="70" height="20" rx="4" fill="rgba(167,139,250,0.18)" stroke="#a78bfa" stroke-width="1"
+                    style="animation: entityPop 0.4s ease forwards 0.2s; opacity:0;"/>
+                <text x="53" y="31" text-anchor="middle" font-size="9" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Microsoft</text>
+                <text x="18" y="49" font-size="7" fill="#a78bfa" font-family="Segoe UI,sans-serif">ORG</text>
+
+                <text x="92" y="31" font-size="9" fill="#475569" font-family="Segoe UI,sans-serif"> released </text>
+
+                <!-- Entity 2: Windows 11 — PRODUCT (gold) -->
+                <rect x="140" y="18" width="76" height="20" rx="4" fill="rgba(201,168,58,0.18)" stroke="#c9a83a" stroke-width="1"
+                    style="animation: entityPop 0.4s ease forwards 0.45s; opacity:0;"/>
+                <text x="178" y="31" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Windows 11</text>
+                <text x="140" y="49" font-size="7" fill="#c9a83a" font-family="Segoe UI,sans-serif">PRODUCT</text>
+
+                <text x="220" y="31" font-size="9" fill="#475569" font-family="Segoe UI,sans-serif"> in </text>
+
+                <!-- Entity 3: October 2021 — DATE (cyan) -->
+                <rect x="238" y="18" width="86" height="20" rx="4" fill="rgba(6,182,212,0.18)" stroke="#06b6d4" stroke-width="1"
+                    style="animation: entityPop 0.4s ease forwards 0.7s; opacity:0;"/>
+                <text x="281" y="31" text-anchor="middle" font-size="9" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">October 2021</text>
+                <text x="238" y="49" font-size="7" fill="#06b6d4" font-family="Segoe UI,sans-serif">DATE</text>
+
+                <text x="328" y="31" font-size="9" fill="#475569" font-family="Segoe UI,sans-serif"> and partnered with </text>
+
+                <!-- Entity 4: Intel — ORG (purple) -->
+                <rect x="432" y="18" width="40" height="20" rx="4" fill="rgba(167,139,250,0.18)" stroke="#a78bfa" stroke-width="1"
+                    style="animation: entityPop 0.4s ease forwards 0.95s; opacity:0;"/>
+                <text x="452" y="31" text-anchor="middle" font-size="9" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Intel</text>
+                <text x="432" y="49" font-size="7" fill="#a78bfa" font-family="Segoe UI,sans-serif">ORG</text>
+
+                <text x="476" y="31" font-size="9" fill="#475569" font-family="Segoe UI,sans-serif"> on chips.</text>
+
+                <!-- Entity category legend row -->
+                <rect x="8" y="76" width="562" height="36" rx="6" fill="rgba(15,15,26,0.5)" stroke="rgba(255,255,255,0.05)" stroke-width="0.8"/>
+                <!-- ORG -->
+                <rect x="20" y="84" width="12" height="12" rx="3" fill="rgba(167,139,250,0.3)" stroke="#a78bfa" stroke-width="0.8"/>
+                <text x="36" y="94" font-size="8" fill="#a78bfa" font-family="Segoe UI,sans-serif">Organization</text>
+                <!-- PRODUCT -->
+                <rect x="126" y="84" width="12" height="12" rx="3" fill="rgba(201,168,58,0.3)" stroke="#c9a83a" stroke-width="0.8"/>
+                <text x="142" y="94" font-size="8" fill="#c9a83a" font-family="Segoe UI,sans-serif">Product</text>
+                <!-- DATE -->
+                <rect x="220" y="84" width="12" height="12" rx="3" fill="rgba(6,182,212,0.3)" stroke="#06b6d4" stroke-width="0.8"/>
+                <text x="236" y="94" font-size="8" fill="#06b6d4" font-family="Segoe UI,sans-serif">Date / Time</text>
+                <!-- PERSON -->
+                <rect x="330" y="84" width="12" height="12" rx="3" fill="rgba(58,181,119,0.3)" stroke="#3ab577" stroke-width="0.8"/>
+                <text x="346" y="94" font-size="8" fill="#3ab577" font-family="Segoe UI,sans-serif">Person</text>
+                <!-- LOCATION -->
+                <rect x="414" y="84" width="12" height="12" rx="3" fill="rgba(249,115,22,0.3)" stroke="#f97316" stroke-width="0.8"/>
+                <text x="430" y="94" font-size="8" fill="#f97316" font-family="Segoe UI,sans-serif">Location</text>
+                <!-- QUANTITY -->
+                <rect x="506" y="84" width="12" height="12" rx="3" fill="rgba(239,68,68,0.3)" stroke="#ef4444" stroke-width="0.8"/>
+                <text x="522" y="94" font-size="8" fill="#ef4444" font-family="Segoe UI,sans-serif">Quantity</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-purple">
+                <div class="card-label">Entity Categories</div>
+                <div class="card-desc">Azure AI Language NER recognizes 20+ entity categories: Person, Organization, Location, Product, Event, DateTime, Quantity, Percentage, Currency, PhoneNumber, Email, URL, IP Address, Age, and more. Categories map to real-world knowledge domains.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">PII Detection</div>
+                <div class="card-desc">A specialized NER variant called PII (Personally Identifiable Information) Detection specifically identifies sensitive data: social security numbers, passport numbers, credit card numbers, email addresses, phone numbers. Used for data redaction and compliance workflows.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Linked Entities</div>
+                <div class="card-desc">Linked entity recognition goes further — it identifies entities AND disambiguates them using a knowledge base (Wikipedia). "Microsoft" is not just categorized as ORG; it is linked to the specific Microsoft Corporation Wikipedia article, resolving ambiguity when the same name refers to different things.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — LANGUAGE UNDERSTANDING ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Language <span class="accent">Understanding</span></div>
+        <div class="slide-subtitle">Identify user intent and extract slot entities from natural language — the core of every intelligent conversational application.</div>
+
+        <!-- "Book a flight to London tomorrow" → model → intent + entities SVG -->
+        <div class="diagram-center">
+            <svg width="578" height="112" viewBox="0 0 578 112" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- User utterance box -->
+                <rect x="8" y="20" width="180" height="56" rx="8" fill="rgba(201,168,58,0.07)" stroke="#c9a83a" stroke-width="1.2"/>
+                <!-- Speech bubble tail -->
+                <path d="M28 76 L16 94 L54 76 Z" fill="rgba(201,168,58,0.07)" stroke="#c9a83a" stroke-width="0.8"/>
+                <text x="98" y="38" text-anchor="middle" font-size="8" fill="#64748b" font-family="Segoe UI,sans-serif">User Utterance</text>
+                <text x="98" y="54" text-anchor="middle" font-size="9" fill="#f1f5f9" font-weight="700" font-family="Segoe UI,sans-serif">"Book a flight to</text>
+                <text x="98" y="67" text-anchor="middle" font-size="9" fill="#f1f5f9" font-weight="700" font-family="Segoe UI,sans-serif">London tomorrow"</text>
+
+                <!-- Arrow to model -->
+                <line x1="192" y1="48" x2="236" y2="48" stroke="rgba(201,168,58,0.5)" stroke-width="1.5" stroke-dasharray="5,4">
+                    <animate attributeName="stroke-dashoffset" values="18;0" dur="1.1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="236,44 244,48 236,52" fill="#c9a83a"/>
+
+                <!-- CLU Model box -->
+                <rect x="246" y="20" width="86" height="56" rx="8" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.4"/>
+                <text x="289" y="44" text-anchor="middle" font-size="9" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">CLU</text>
+                <text x="289" y="57" text-anchor="middle" font-size="8" fill="#64748b" font-family="Segoe UI,sans-serif">Model</text>
+                <!-- Neural network dots -->
+                <circle cx="272" cy="66" r="2" fill="#06b6d4" style="animation: pulse 1.6s ease-in-out infinite 0s;"/>
+                <circle cx="280" cy="66" r="2" fill="#06b6d4" style="animation: pulse 1.6s ease-in-out infinite 0.2s;"/>
+                <circle cx="288" cy="66" r="2" fill="#06b6d4" style="animation: pulse 1.6s ease-in-out infinite 0.4s;"/>
+                <circle cx="296" cy="66" r="2" fill="#06b6d4" style="animation: pulse 1.6s ease-in-out infinite 0.6s;"/>
+                <circle cx="304" cy="66" r="2" fill="#06b6d4" style="animation: pulse 1.6s ease-in-out infinite 0.8s;"/>
+
+                <!-- Arrow to output -->
+                <line x1="336" y1="48" x2="374" y2="48" stroke="rgba(6,182,212,0.5)" stroke-width="1.5" stroke-dasharray="5,4">
+                    <animate attributeName="stroke-dashoffset" values="18;0" dur="1.1s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+                <polygon points="374,44 382,48 374,52" fill="#06b6d4"/>
+
+                <!-- Output box -->
+                <rect x="384" y="8" width="186" height="96" rx="8" fill="rgba(15,15,26,0.5)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+                <text x="477" y="24" text-anchor="middle" font-size="8" fill="#64748b" font-family="Segoe UI,sans-serif">Structured Output</text>
+                <line x1="392" y1="30" x2="562" y2="30" stroke="rgba(255,255,255,0.06)" stroke-width="0.8"/>
+                <!-- Intent row -->
+                <text x="394" y="44" font-size="8.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">intent:</text>
+                <rect x="438" y="34" width="96" height="16" rx="4" fill="rgba(58,181,119,0.2)" stroke="#3ab577" stroke-width="0.8"
+                    style="animation: labelSlide 0.4s ease forwards 0.5s; opacity:0;"/>
+                <text x="486" y="45" text-anchor="middle" font-size="8.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">BookFlight</text>
+                <!-- Entity 1 row -->
+                <text x="394" y="64" font-size="8.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">destination:</text>
+                <rect x="456" y="54" width="60" height="16" rx="4" fill="rgba(6,182,212,0.2)" stroke="#06b6d4" stroke-width="0.8"
+                    style="animation: labelSlide 0.4s ease forwards 0.7s; opacity:0;"/>
+                <text x="486" y="65" text-anchor="middle" font-size="8.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">London</text>
+                <!-- Entity 2 row -->
+                <text x="394" y="84" font-size="8.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">date:</text>
+                <rect x="426" y="74" width="86" height="16" rx="4" fill="rgba(201,168,58,0.2)" stroke="#c9a83a" stroke-width="0.8"
+                    style="animation: labelSlide 0.4s ease forwards 0.9s; opacity:0;"/>
+                <text x="469" y="85" text-anchor="middle" font-size="8.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">tomorrow</text>
+                <!-- Confidence -->
+                <text x="394" y="100" font-size="7.5" fill="#475569" font-family="Segoe UI,sans-serif">confidence: 0.97</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Intents vs. Entities</div>
+                <div class="card-desc">An <strong>intent</strong> is what the user wants to do (BookFlight, CancelOrder, GetWeather). An <strong>entity</strong> is a variable that fills in the details (destination=London, date=tomorrow, passengers=2). Together they give you enough information to execute the user's request programmatically.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Conversational Language Understanding (CLU)</div>
+                <div class="card-desc">Azure's CLU service replaces the older LUIS service. You define intents and entity types, provide example utterances, and CLU trains a model. Once deployed, you send utterances to the REST endpoint and receive structured intent + entity predictions with confidence scores.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Training Requirements</div>
+                <div class="card-desc">Unlike sentiment analysis or NER (which work zero-shot), CLU requires labeled training data. You define your specific intents (BookFlight, CheckStatus) and entities (destination, date) and provide at least 5-10 example utterances per intent. More examples yield higher accuracy.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — AZURE AI LANGUAGE SERVICE ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Azure AI <span class="accent">Language Service</span></div>
+        <div class="slide-subtitle">A unified API surface for all Azure NLP capabilities — one resource, one endpoint, multiple pre-built and custom features.</div>
+
+        <!-- Azure hub with branching service cards SVG -->
+        <div class="diagram-center">
+            <svg width="578" height="120" viewBox="0 0 578 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central Azure cloud hub -->
+                <ellipse cx="289" cy="60" rx="48" ry="34" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.6"/>
+                <!-- Cloud bumps -->
+                <ellipse cx="289" cy="44" rx="22" ry="16" fill="rgba(6,182,212,0.06)" stroke="#06b6d4" stroke-width="1"/>
+                <ellipse cx="268" cy="50" rx="16" ry="12" fill="rgba(6,182,212,0.05)" stroke="#06b6d4" stroke-width="0.8"/>
+                <ellipse cx="310" cy="50" rx="16" ry="12" fill="rgba(6,182,212,0.05)" stroke="#06b6d4" stroke-width="0.8"/>
+                <text x="289" y="63" text-anchor="middle" font-size="10" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Azure AI</text>
+                <text x="289" y="76" text-anchor="middle" font-size="9" fill="#06b6d4" font-family="Segoe UI,sans-serif">Language</text>
+                <!-- Pulse ring -->
+                <circle cx="289" cy="60" r="52" fill="none" stroke="rgba(6,182,212,0.12)" stroke-width="1.5" style="animation: pulse 2.4s ease-in-out infinite;"/>
+
+                <!-- Service branch 1: Sentiment — top left -->
+                <line x1="244" y1="38" x2="168" y2="18" stroke="rgba(58,181,119,0.4)" stroke-width="1.2" stroke-dasharray="5,4">
+                    <animate attributeName="stroke-dashoffset" values="40;0" dur="2s" repeatCount="indefinite"/>
+                </line>
+                <rect x="80" y="8" width="86" height="24" rx="5" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1"
+                    style="animation: entityPop 0.4s ease forwards 0.2s; opacity:0;"/>
+                <text x="123" y="23" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Sentiment Analysis</text>
+
+                <!-- Service branch 2: NER — left -->
+                <line x1="241" y1="56" x2="170" y2="52" stroke="rgba(167,139,250,0.4)" stroke-width="1.2" stroke-dasharray="5,4">
+                    <animate attributeName="stroke-dashoffset" values="40;0" dur="2s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+                <rect x="72" y="42" width="96" height="24" rx="5" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="1"
+                    style="animation: entityPop 0.4s ease forwards 0.4s; opacity:0;"/>
+                <text x="120" y="57" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">NER &amp; Linked Entities</text>
+
+                <!-- Service branch 3: Summarization — bottom left -->
+                <line x1="246" y1="78" x2="172" y2="92" stroke="rgba(249,115,22,0.4)" stroke-width="1.2" stroke-dasharray="5,4">
+                    <animate attributeName="stroke-dashoffset" values="40;0" dur="2s" repeatCount="indefinite" begin="0.6s"/>
+                </line>
+                <rect x="74" y="82" width="96" height="24" rx="5" fill="rgba(249,115,22,0.1)" stroke="#f97316" stroke-width="1"
+                    style="animation: entityPop 0.4s ease forwards 0.6s; opacity:0;"/>
+                <text x="122" y="97" text-anchor="middle" font-size="8" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">Text Summarization</text>
+
+                <!-- Service branch 4: PII — top right -->
+                <line x1="334" y1="38" x2="410" y2="18" stroke="rgba(239,68,68,0.4)" stroke-width="1.2" stroke-dasharray="5,4">
+                    <animate attributeName="stroke-dashoffset" values="40;0" dur="2s" repeatCount="indefinite" begin="0.4s"/>
+                </line>
+                <rect x="412" y="8" width="82" height="24" rx="5" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1"
+                    style="animation: entityPop 0.4s ease forwards 0.5s; opacity:0;"/>
+                <text x="453" y="23" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">PII Detection</text>
+
+                <!-- Service branch 5: Lang Detection — right -->
+                <line x1="337" y1="56" x2="406" y2="52" stroke="rgba(201,168,58,0.4)" stroke-width="1.2" stroke-dasharray="5,4">
+                    <animate attributeName="stroke-dashoffset" values="40;0" dur="2s" repeatCount="indefinite" begin="0.7s"/>
+                </line>
+                <rect x="408" y="42" width="100" height="24" rx="5" fill="rgba(201,168,58,0.1)" stroke="#c9a83a" stroke-width="1"
+                    style="animation: entityPop 0.4s ease forwards 0.7s; opacity:0;"/>
+                <text x="458" y="57" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Language Detection</text>
+
+                <!-- Service branch 6: Key phrases — bottom right -->
+                <line x1="332" y1="78" x2="406" y2="92" stroke="rgba(6,182,212,0.4)" stroke-width="1.2" stroke-dasharray="5,4">
+                    <animate attributeName="stroke-dashoffset" values="40;0" dur="2s" repeatCount="indefinite" begin="1s"/>
+                </line>
+                <rect x="408" y="82" width="94" height="24" rx="5" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1"
+                    style="animation: entityPop 0.4s ease forwards 0.9s; opacity:0;"/>
+                <text x="455" y="97" text-anchor="middle" font-size="8" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Key Phrase Extraction</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">One Resource, Many Features</div>
+                <div class="card-desc">Azure AI Language consolidates what were previously separate services (Text Analytics, LUIS, QnA Maker) into a single unified resource. Create one Azure AI Language resource, call one endpoint, and access all features through the <span class="ic">analyze-text</span> and <span class="ic">analyze-conversations</span> APIs.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Pre-built vs. Custom</div>
+                <div class="card-desc">Pre-built features (sentiment, NER, language detection, key phrases, PII) work with zero training — call the API and get results. Custom features (CLU for intent recognition, Custom NER, Custom text classification) require you to define labels and provide training examples.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Exam Scope</div>
+                <div class="card-desc">The AI-900 exam tests your knowledge of what each feature does and when to use it — not the implementation details. Key distinctions: sentiment vs. opinion mining, NER vs. PII detection, key phrase extraction vs. summarization, CLU vs. QnA for different conversational scenarios.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — TRANSLATION ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Azure AI <span class="accent">Translator</span></div>
+        <div class="slide-subtitle">Real-time text and document translation across 100+ languages — powered by neural machine translation (NMT).</div>
+
+        <!-- English text → Translator → Spanish / French / Japanese SVG -->
+        <div class="diagram-center">
+            <svg width="578" height="108" viewBox="0 0 578 108" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Source: English -->
+                <rect x="8" y="16" width="130" height="76" rx="8" fill="rgba(201,168,58,0.07)" stroke="#c9a83a" stroke-width="1.2"/>
+                <rect x="20" y="20" width="20" height="14" rx="2" fill="rgba(201,168,58,0.25)"/>
+                <text x="24" y="30" font-size="8.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">EN</text>
+                <text x="74" y="36" text-anchor="middle" font-size="7.5" fill="#64748b" font-family="Segoe UI,sans-serif">English</text>
+                <text x="20" y="54" font-size="8" fill="#f1f5f9" font-family="Segoe UI,sans-serif">"Welcome to</text>
+                <text x="20" y="66" font-size="8" fill="#f1f5f9" font-family="Segoe UI,sans-serif"> Azure AI</text>
+                <text x="20" y="78" font-size="8" fill="#f1f5f9" font-family="Segoe UI,sans-serif"> Translator."</text>
+                <text x="74" y="98" text-anchor="middle" font-size="7.5" fill="#c9a83a" font-family="Segoe UI,sans-serif">Source</text>
+
+                <!-- Arrow to translator -->
+                <line x1="142" y1="54" x2="182" y2="54" stroke="rgba(201,168,58,0.5)" stroke-width="1.5" stroke-dasharray="5,4">
+                    <animate attributeName="stroke-dashoffset" values="18;0" dur="1.1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="182,50 190,54 182,58" fill="#c9a83a"/>
+
+                <!-- Translator box -->
+                <rect x="192" y="24" width="86" height="60" rx="8" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.6"/>
+                <text x="235" y="48" text-anchor="middle" font-size="9.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Azure AI</text>
+                <text x="235" y="62" text-anchor="middle" font-size="9.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Translator</text>
+                <!-- Animated pulse ring -->
+                <circle cx="235" cy="55" r="38" fill="none" stroke="rgba(6,182,212,0.1)" stroke-width="1.5" style="animation: pulse 2s ease-in-out infinite;"/>
+                <text x="235" y="98" text-anchor="middle" font-size="7.5" fill="#06b6d4" font-family="Segoe UI,sans-serif">NMT Engine</text>
+
+                <!-- Arrow from translator to outputs -->
+                <line x1="282" y1="54" x2="320" y2="54" stroke="rgba(6,182,212,0.5)" stroke-width="1.5" stroke-dasharray="5,4">
+                    <animate attributeName="stroke-dashoffset" values="18;0" dur="1.1s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+                <polygon points="320,50 328,54 320,58" fill="#06b6d4"/>
+
+                <!-- Output 1: Spanish -->
+                <rect x="330" y="10" width="72" height="62" rx="6" fill="rgba(239,68,68,0.07)" stroke="#ef4444" stroke-width="1"
+                    style="animation: entityPop 0.4s ease forwards 0.4s; opacity:0;"/>
+                <rect x="340" y="14" width="18" height="12" rx="2" fill="rgba(239,68,68,0.25)"/>
+                <text x="342" y="23" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">ES</text>
+                <text x="366" y="36" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">Spanish</text>
+                <text x="338" y="50" font-size="7.5" fill="#f1f5f9" font-family="Segoe UI,sans-serif">"Bienvenido</text>
+                <text x="338" y="62" font-size="7.5" fill="#f1f5f9" font-family="Segoe UI,sans-serif"> a Azure..."</text>
+                <text x="366" y="82" text-anchor="middle" font-size="7" fill="#ef4444" font-family="Segoe UI,sans-serif">es</text>
+
+                <!-- Output 2: French -->
+                <rect x="412" y="10" width="72" height="62" rx="6" fill="rgba(6,182,212,0.07)" stroke="#06b6d4" stroke-width="1"
+                    style="animation: entityPop 0.4s ease forwards 0.65s; opacity:0;"/>
+                <rect x="422" y="14" width="18" height="12" rx="2" fill="rgba(6,182,212,0.25)"/>
+                <text x="424" y="23" font-size="8" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">FR</text>
+                <text x="448" y="36" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">French</text>
+                <text x="420" y="50" font-size="7.5" fill="#f1f5f9" font-family="Segoe UI,sans-serif">"Bienvenue</text>
+                <text x="420" y="62" font-size="7.5" fill="#f1f5f9" font-family="Segoe UI,sans-serif"> dans Azure..."</text>
+                <text x="448" y="82" text-anchor="middle" font-size="7" fill="#06b6d4" font-family="Segoe UI,sans-serif">fr</text>
+
+                <!-- Output 3: Japanese -->
+                <rect x="494" y="10" width="76" height="62" rx="6" fill="rgba(167,139,250,0.07)" stroke="#a78bfa" stroke-width="1"
+                    style="animation: entityPop 0.4s ease forwards 0.9s; opacity:0;"/>
+                <rect x="504" y="14" width="18" height="12" rx="2" fill="rgba(167,139,250,0.25)"/>
+                <text x="505" y="23" font-size="8" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">JA</text>
+                <text x="532" y="36" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">Japanese</text>
+                <text x="502" y="50" font-size="8" fill="#f1f5f9" font-family="Noto Sans JP,Segoe UI,sans-serif">&#12371;&#12435;&#12395;&#12385;&#12399;</text>
+                <text x="502" y="63" font-size="8" fill="#f1f5f9" font-family="Noto Sans JP,Segoe UI,sans-serif">Azure&#12408;</text>
+                <text x="532" y="82" text-anchor="middle" font-size="7" fill="#a78bfa" font-family="Segoe UI,sans-serif">ja</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Neural Machine Translation</div>
+                <div class="card-desc">Azure Translator uses deep neural networks (encoder-decoder with attention) rather than rule-based or phrase-based translation. NMT models understand entire sentences as context — producing fluent, natural output rather than literal word-for-word substitution. Supports 100+ languages and 1,000+ language pairs.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Key Capabilities</div>
+                <div class="card-desc">Text translation (single call, multiple target languages simultaneously), document translation (preserves formatting in Word, PDF, HTML), custom translator (fine-tune on domain-specific terminology), language auto-detection, transliteration (converting script without translation), and dictionary lookup for word definitions.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Real-Time Use Cases</div>
+                <div class="card-desc">Multilingual customer support portals, international e-commerce product listings, cross-language search, live chat translation, global news aggregation, and enterprise document localization. Combined with Speech services, enables real-time spoken translation for international meetings.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — CONVERSATIONAL AI ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Conversational <span class="accent">AI</span></div>
+        <div class="slide-subtitle">Chatbots, virtual assistants, and QnA systems that understand user intent and maintain multi-turn dialog context.</div>
+
+        <!-- User and bot exchanging messages with intent labels SVG -->
+        <div class="diagram-center">
+            <svg width="578" height="118" viewBox="0 0 578 118" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Chat container -->
+                <rect x="8" y="4" width="562" height="110" rx="10" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+                <text x="289" y="18" text-anchor="middle" font-size="7.5" fill="#475569" font-family="Segoe UI,sans-serif">Conversation Thread</text>
+                <line x1="16" y1="22" x2="562" y2="22" stroke="rgba(255,255,255,0.05)" stroke-width="0.8"/>
+
+                <!-- User message 1 (right-aligned) -->
+                <rect x="300" y="28" width="200" height="24" rx="6" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="0.8"
+                    style="animation: bubblePop 0.4s ease forwards 0.2s; opacity:0;"/>
+                <text x="314" y="43" font-size="8.5" fill="#f1f5f9" font-family="Segoe UI,sans-serif">"What are your office hours?"</text>
+                <circle cx="516" cy="40" r="7" fill="rgba(201,168,58,0.2)" stroke="#c9a83a" stroke-width="0.8"/>
+                <text x="516" y="43" text-anchor="middle" font-size="7" fill="#c9a83a" font-family="Segoe UI,sans-serif">U</text>
+                <!-- Intent label for user msg 1 -->
+                <rect x="358" y="17" width="86" height="12" rx="3" fill="rgba(201,168,58,0.1)" stroke="#c9a83a" stroke-width="0.6"
+                    style="animation: entityPop 0.3s ease forwards 0.6s; opacity:0;"/>
+                <text x="401" y="26" text-anchor="middle" font-size="6.5" fill="#c9a83a" font-family="Segoe UI,sans-serif">intent: GetHours</text>
+
+                <!-- Bot reply 1 (left-aligned) -->
+                <circle cx="24" cy="64" r="7" fill="rgba(6,182,212,0.2)" stroke="#06b6d4" stroke-width="0.8"/>
+                <text x="24" y="67" text-anchor="middle" font-size="7" fill="#06b6d4" font-family="Segoe UI,sans-serif">B</text>
+                <rect x="36" y="53" width="270" height="24" rx="6" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="0.8"
+                    style="animation: bubblePop 0.4s ease forwards 0.8s; opacity:0;"/>
+                <text x="48" y="68" font-size="8.5" fill="#f1f5f9" font-family="Segoe UI,sans-serif">"Our offices are open Mon-Fri, 9am-6pm."</text>
+                <!-- Intent label for bot reply 1 -->
+                <rect x="50" y="42" width="88" height="12" rx="3" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="0.6"
+                    style="animation: entityPop 0.3s ease forwards 1.1s; opacity:0;"/>
+                <text x="94" y="51" text-anchor="middle" font-size="6.5" fill="#06b6d4" font-family="Segoe UI,sans-serif">action: AnswerFAQ</text>
+
+                <!-- User message 2 (right-aligned) -->
+                <rect x="318" y="84" width="182" height="24" rx="6" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="0.8"
+                    style="animation: bubblePop 0.4s ease forwards 1.3s; opacity:0;"/>
+                <text x="330" y="99" font-size="8.5" fill="#f1f5f9" font-family="Segoe UI,sans-serif">"Book an appointment Friday."</text>
+                <circle cx="516" cy="96" r="7" fill="rgba(201,168,58,0.2)" stroke="#c9a83a" stroke-width="0.8"/>
+                <text x="516" y="99" text-anchor="middle" font-size="7" fill="#c9a83a" font-family="Segoe UI,sans-serif">U</text>
+                <!-- Intent label for user msg 2 -->
+                <rect x="340" y="73" width="100" height="12" rx="3" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="0.6"
+                    style="animation: entityPop 0.3s ease forwards 1.6s; opacity:0;"/>
+                <text x="390" y="82" text-anchor="middle" font-size="6.5" fill="#a78bfa" font-family="Segoe UI,sans-serif">intent: BookAppointment</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Azure Bot Service</div>
+                <div class="card-desc">A managed PaaS platform for building, hosting, and connecting bots to multiple channels (Teams, Slack, WhatsApp, web chat). Integrates with Azure AI Language for intent recognition, QnA, and CLU. Handles authentication, state management, and channel adapters so you focus on dialog logic.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Custom Question Answering</div>
+                <div class="card-desc">Formerly "QnA Maker" — now part of Azure AI Language. You provide a knowledge base (FAQ documents, URLs, or manual Q&amp;A pairs) and the service builds a retrieval model. When users ask questions, the bot returns the most relevant answer with a confidence score. No intent training required.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Bot Framework Composer</div>
+                <div class="card-desc">A low-code graphical dialog designer for building multi-turn conversational flows. Define triggers (intents, events), branches (conditions), and actions (API calls, responses). Generates standard Bot Framework dialogs that can be extended in code. Lowers the barrier for building production bots without writing everything from scratch.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — NLP SCENARIOS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">NLP <span class="accent">Scenarios</span></div>
+        <div class="slide-subtitle">Where NLP creates tangible business value across industries — five real-world deployment patterns you need to recognize for the AI-900 exam.</div>
+
+        <!-- 5 scenario icons in hex-grid style SVG + cards below -->
+        <div class="diagram-center">
+            <svg width="576" height="80" viewBox="0 0 576 80" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Scenario 1: Customer Support — headset icon -->
+                <rect x="8" y="8" width="96" height="64" rx="8" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="1"
+                    style="animation: entityPop 0.4s ease forwards 0.1s; opacity:0;"/>
+                <!-- Headset path -->
+                <circle cx="56" cy="34" r="14" fill="none" stroke="#3ab577" stroke-width="1.2"/>
+                <path d="M42 34 Q42 20 56 20 Q70 20 70 34" fill="none" stroke="#3ab577" stroke-width="1.2"/>
+                <rect x="38" y="32" width="6" height="12" rx="3" fill="rgba(58,181,119,0.3)" stroke="#3ab577" stroke-width="0.8"/>
+                <rect x="68" y="32" width="6" height="12" rx="3" fill="rgba(58,181,119,0.3)" stroke="#3ab577" stroke-width="0.8"/>
+                <text x="56" y="68" text-anchor="middle" font-size="7.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Customer Support</text>
+
+                <!-- Scenario 2: Document Summarization — document with lines shrinking -->
+                <rect x="118" y="8" width="96" height="64" rx="8" fill="rgba(6,182,212,0.06)" stroke="#06b6d4" stroke-width="1"
+                    style="animation: entityPop 0.4s ease forwards 0.25s; opacity:0;"/>
+                <rect x="136" y="18" width="60" height="6" rx="2" fill="rgba(6,182,212,0.3)"/>
+                <rect x="136" y="28" width="50" height="5" rx="2" fill="rgba(6,182,212,0.2)"/>
+                <rect x="136" y="36" width="54" height="5" rx="2" fill="rgba(6,182,212,0.2)"/>
+                <!-- Arrow compressing down -->
+                <polygon points="166,42 162,52 170,52" fill="rgba(6,182,212,0.5)"/>
+                <rect x="142" y="54" width="48" height="6" rx="2" fill="rgba(6,182,212,0.4)"/>
+                <text x="166" y="68" text-anchor="middle" font-size="7.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Summarization</text>
+
+                <!-- Scenario 3: Multilingual Apps — globe icon -->
+                <rect x="228" y="8" width="96" height="64" rx="8" fill="rgba(201,168,58,0.06)" stroke="#c9a83a" stroke-width="1"
+                    style="animation: entityPop 0.4s ease forwards 0.4s; opacity:0;"/>
+                <circle cx="276" cy="36" r="16" fill="none" stroke="#c9a83a" stroke-width="1.2"/>
+                <ellipse cx="276" cy="36" rx="8" ry="16" fill="none" stroke="#c9a83a" stroke-width="0.8"/>
+                <line x1="260" y1="30" x2="292" y2="30" stroke="#c9a83a" stroke-width="0.8"/>
+                <line x1="260" y1="36" x2="292" y2="36" stroke="#c9a83a" stroke-width="0.8"/>
+                <line x1="260" y1="42" x2="292" y2="42" stroke="#c9a83a" stroke-width="0.8"/>
+                <text x="276" y="68" text-anchor="middle" font-size="7.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Multilingual Apps</text>
+
+                <!-- Scenario 4: Chatbots — chat bubble icon -->
+                <rect x="338" y="8" width="96" height="64" rx="8" fill="rgba(167,139,250,0.06)" stroke="#a78bfa" stroke-width="1"
+                    style="animation: entityPop 0.4s ease forwards 0.55s; opacity:0;"/>
+                <rect x="352" y="20" width="68" height="30" rx="6" fill="none" stroke="#a78bfa" stroke-width="1.2"/>
+                <path d="M362 50 L356 62 L374 50 Z" fill="none" stroke="#a78bfa" stroke-width="0.8"/>
+                <line x1="360" y1="30" x2="406" y2="30" stroke="rgba(167,139,250,0.5)" stroke-width="1"/>
+                <line x1="360" y1="38" x2="398" y2="38" stroke="rgba(167,139,250,0.4)" stroke-width="1"/>
+                <text x="386" y="68" text-anchor="middle" font-size="7.5" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Chatbots</text>
+
+                <!-- Scenario 5: Content Moderation — shield icon -->
+                <rect x="448" y="8" width="96" height="64" rx="8" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1"
+                    style="animation: entityPop 0.4s ease forwards 0.7s; opacity:0;"/>
+                <path d="M496 20 L518 28 L518 46 Q518 58 496 64 Q474 58 474 46 L474 28 Z" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.2"/>
+                <!-- Checkmark inside shield -->
+                <path d="M488 42 L494 48 L506 34" fill="none" stroke="#ef4444" stroke-width="1.8" stroke-linecap="round"/>
+                <text x="496" y="73" text-anchor="middle" font-size="7.5" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Content Moderation</text>
+            </svg>
+        </div>
+
+        <div class="card-grid" style="grid-template-columns: repeat(3, 1fr);">
+            <div class="card c-green">
+                <div class="card-label">Customer Support Automation</div>
+                <div class="card-desc">Classify incoming support tickets by topic and urgency using NER and sentiment. Route negative, high-urgency tickets to senior staff immediately. Auto-suggest knowledge base answers to agents. Deflect common questions with a QnA bot before human escalation.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Document Summarization</div>
+                <div class="card-desc">Automatically generate abstractive or extractive summaries of long documents — legal contracts, research papers, medical records, earnings reports. Azure AI Language's summarization feature produces multi-sentence summaries and sentence-level rank scores.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Content Moderation</div>
+                <div class="card-desc">Detect and filter hate speech, personal attacks, profanity, and sensitive information in user-generated content before it is published. NLP-based moderation understands context — "I love this product!" and "I love destroying things!" are processed very differently from keyword matching alone.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            AI-900 exam tip: match the scenario to the Azure service — QnA for FAQ bots, CLU for intent-driven apps, Translator for multilingual, sentiment for feedback analysis.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — SUMMARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12 &nbsp;|&nbsp; AI-900 Chapter 3</div>
+        <div class="slide-title">Chapter 3 <span class="accent">Summary</span></div>
+
+        <!-- Summary SVG — speech bubble with emanating signals -->
+        <div class="diagram-center">
+            <svg width="320" height="56" viewBox="0 0 320 56" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Speech bubble center -->
+                <rect x="86" y="4" width="148" height="42" rx="10" fill="rgba(201,168,58,0.06)" stroke="#c9a83a" stroke-width="1.2"/>
+                <path d="M106 46 L96 56 L124 46 Z" fill="rgba(201,168,58,0.06)" stroke="#c9a83a" stroke-width="0.8"/>
+                <!-- Text lines inside bubble -->
+                <rect x="98" y="14" width="124" height="6" rx="2" fill="rgba(201,168,58,0.2)"/>
+                <rect x="98" y="25" width="100" height="6" rx="2" fill="rgba(201,168,58,0.14)"/>
+                <rect x="98" y="36" width="112" height="6" rx="2" fill="rgba(201,168,58,0.10)"/>
+                <!-- Emanating signal arcs (left) -->
+                <path d="M80 24 Q68 12 68 25 Q68 38 80 32" fill="none" stroke="rgba(6,182,212,0.35)" stroke-width="1.2" style="animation: pulse 2s ease-in-out infinite 0s;"/>
+                <path d="M72 20 Q56 10 56 25 Q56 40 72 36" fill="none" stroke="rgba(6,182,212,0.2)" stroke-width="1" style="animation: pulse 2s ease-in-out infinite 0.4s;"/>
+                <!-- Emanating signal arcs (right) -->
+                <path d="M240 24 Q252 12 252 25 Q252 38 240 32" fill="none" stroke="rgba(58,181,119,0.35)" stroke-width="1.2" style="animation: pulse 2s ease-in-out infinite 0.2s;"/>
+                <path d="M248 20 Q264 10 264 25 Q264 40 248 36" fill="none" stroke="rgba(58,181,119,0.2)" stroke-width="1" style="animation: pulse 2s ease-in-out infinite 0.6s;"/>
+                <!-- Gold cursor blink -->
+                <rect x="218" y="36" width="2.5" height="6" rx="1" fill="#c9a83a" style="animation: cursorBlink 0.9s step-end infinite;"/>
+            </svg>
+        </div>
+
+        <div class="section-label">Key Takeaways from Chapter 3</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text"><strong>NLP</strong> = AI that reads, understands, and generates human language by converting unstructured text into structured data — entities, intents, sentiment, and topics.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text"><strong>Text Analytics</strong> provides four pre-built, zero-shot features: sentiment analysis, key phrase extraction, named entity recognition (NER), and language detection. No training data required.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text"><strong>Sentiment analysis</strong> returns positive/negative/neutral/mixed scores at both document and sentence level. <strong>NER</strong> detects typed entities (ORG, PERSON, DATE, PRODUCT). <strong>PII detection</strong> specializes in sensitive data identification.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text"><strong>CLU (Conversational Language Understanding)</strong> requires training data to recognize custom intents and extract slot entities. Use for action-oriented apps (booking, ordering). Use <strong>Custom Question Answering</strong> for FAQ-style retrieval.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text"><strong>Azure AI Translator</strong> supports 100+ languages with neural machine translation. Supports text, document, and custom domain translation. Language detection is automatic.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text"><strong>Conversational AI</strong> combines Azure Bot Service + CLU + Custom QnA + Bot Framework Composer. Together they power helpdesks, virtual assistants, and knowledge search interfaces.</span>
+            </div>
+        </div>
+
+        <div class="box box-cyan" style="font-size:0.83rem; text-align:center;">
+            <strong>Next: Chapter 4 — Generative AI on Azure</strong> &nbsp;|&nbsp; Large Language Models, Azure OpenAI Service, Prompt Engineering, Responsible AI
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; AI-900</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* ── Slide navigation state ── */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        /* Boundary check */
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        /* Deactivate the currently visible slide */
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        /* Activate the target slide */
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        /* Update the gold progress bar at the top */
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        /* Update the counter label in the nav bar */
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        /* Disable Prev on slide 1, Next on last slide */
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        /* Show Mark Complete button only on the final slide */
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard arrow key navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    /* Initialize to slide 1 on page load */
+    goToSlide(1);
+</script>
+
+<script>
+    /* ── Module completion via ModuleProgress component ── */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('ai', 'ai900-ch03-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+</body>
+</html>

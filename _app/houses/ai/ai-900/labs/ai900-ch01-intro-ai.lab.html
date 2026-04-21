@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <script src="../../../../components/AccessGuard.js"></script>
+  <script>AccessGuard.require('sorted');</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lab: AI Workload Classifier — AI-900</title>
+  <script src="../../../../components/ModuleProgress.js"></script>
+  <script src="../../../../components/FirebaseAuth.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      background: #07060f;
+      color: #e2e8f0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+
+    /* ── HEADER ── */
+    #header {
+      height: 56px;
+      min-height: 56px;
+      background: #0b0918;
+      border-bottom: 1px solid #a78bfa40;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+
+    #header a.exit-link {
+      color: #a78bfa;
+      text-decoration: none;
+      font-size: 13px;
+      border: 1px solid #a78bfa50;
+      padding: 4px 12px;
+      border-radius: 4px;
+      white-space: nowrap;
+      transition: background 0.15s;
+      flex-shrink: 0;
+    }
+
+    #header a.exit-link:hover { background: #a78bfa15; }
+
+    #header h1 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #c4b5fd;
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Progress bar strip in header */
+    #progress-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    #progress-bar-outer {
+      width: 140px;
+      height: 6px;
+      background: #1a1a2e;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    #progress-bar-inner {
+      height: 100%;
+      background: linear-gradient(90deg, #7c3aed, #a78bfa);
+      border-radius: 3px;
+      transition: width 0.4s ease;
+      width: 0%;
+    }
+
+    #progress-text {
+      font-size: 12px;
+      color: #a78bfa;
+      white-space: nowrap;
+    }
+
+    #score-display {
+      font-size: 13px;
+      color: #a78bfa;
+      background: #1a1a2e;
+      border: 1px solid #a78bfa30;
+      padding: 4px 14px;
+      border-radius: 4px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* ── MAIN GRID ── */
+    #main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      min-height: 0;
+    }
+
+    /* ── LEFT PANEL — Scenario ── */
+    #left-panel {
+      background: #0b0918;
+      border-right: 1px solid #1a1030;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #panel-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #6b7280;
+      padding: 14px 18px 6px;
+      flex-shrink: 0;
+    }
+
+    #panel-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #c4b5fd;
+      padding: 0 18px 12px;
+      border-bottom: 1px solid #1a1030;
+      flex-shrink: 0;
+    }
+
+    /* Scenario card body */
+    #scenario-body {
+      flex: 1;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow: hidden;
+    }
+
+    /* Industry badge above scenario */
+    #scenario-industry {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #a78bfa;
+      background: #a78bfa15;
+      border: 1px solid #a78bfa30;
+      padding: 4px 10px;
+      border-radius: 20px;
+      width: fit-content;
+    }
+
+    #scenario-num {
+      font-size: 11px;
+      color: #6b7280;
+      padding-bottom: 2px;
+    }
+
+    #scenario-text {
+      font-size: 14px;
+      color: #e2e8f0;
+      line-height: 1.7;
+      background: #110e20;
+      border: 1px solid #a78bfa20;
+      border-left: 3px solid #a78bfa;
+      padding: 14px 16px;
+      border-radius: 0 6px 6px 0;
+    }
+
+    /* Hint section — shown after first wrong attempt */
+    #hint-box {
+      background: #1a0d2e;
+      border: 1px solid #ef4444a0;
+      border-left: 3px solid #ef4444;
+      border-radius: 0 6px 6px 0;
+      padding: 10px 14px;
+      display: none;
+    }
+
+    #hint-box.visible { display: block; }
+
+    #hint-box .hint-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #ef4444;
+      margin-bottom: 4px;
+    }
+
+    #hint-box .hint-text {
+      font-size: 12px;
+      color: #fca5a5;
+      line-height: 1.6;
+    }
+
+    /* Scoring footer in left panel */
+    #score-footer {
+      padding: 14px 18px;
+      border-top: 1px solid #1a1030;
+      flex-shrink: 0;
+    }
+
+    #score-footer .footer-label {
+      font-size: 11px;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    #score-footer .footer-val {
+      font-size: 24px;
+      font-weight: 700;
+      color: #a78bfa;
+      line-height: 1.2;
+    }
+
+    #score-footer .footer-sub {
+      font-size: 11px;
+      color: #4b5563;
+      margin-top: 2px;
+    }
+
+    /* ── RIGHT PANEL — Workload grid ── */
+    #right-panel {
+      background: #07060f;
+      display: flex;
+      flex-direction: column;
+      padding: 20px 24px;
+      gap: 16px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #right-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #6b7280;
+      flex-shrink: 0;
+    }
+
+    /* 2x4 grid of workload cards */
+    #workload-grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 12px;
+      min-height: 0;
+    }
+
+    .workload-card {
+      background: #0f0d1e;
+      border: 1.5px solid #a78bfa25;
+      border-radius: 8px;
+      padding: 14px 12px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: border-color 0.2s, background 0.2s, transform 0.1s, box-shadow 0.2s;
+      position: relative;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    .workload-card:hover {
+      border-color: #a78bfa80;
+      background: #14102a;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px #a78bfa18;
+    }
+
+    .workload-card:active {
+      transform: translateY(0);
+    }
+
+    /* Icon circle */
+    .wc-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: #a78bfa18;
+      border: 1px solid #a78bfa30;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .wc-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: #c4b5fd;
+      line-height: 1.2;
+    }
+
+    .wc-desc {
+      font-size: 11px;
+      color: #6b7280;
+      line-height: 1.5;
+      flex: 1;
+    }
+
+    /* Correct flash */
+    .workload-card.correct {
+      border-color: #22c55e !important;
+      background: #052e16 !important;
+      animation: flash-correct 0.5s ease;
+    }
+
+    @keyframes flash-correct {
+      0%   { box-shadow: 0 0 0 0 #22c55e60; }
+      50%  { box-shadow: 0 0 0 12px #22c55e00; }
+      100% { box-shadow: 0 0 0 0 #22c55e00; }
+    }
+
+    .workload-card.correct .wc-icon  { background: #22c55e20; border-color: #22c55e40; }
+    .workload-card.correct .wc-name  { color: #4ade80; }
+
+    /* Wrong flash */
+    .workload-card.wrong {
+      border-color: #ef4444 !important;
+      background: #1a0a0a !important;
+      animation: shake-wrong 0.4s ease;
+    }
+
+    @keyframes shake-wrong {
+      0%, 100% { transform: translateX(0); }
+      15%  { transform: translateX(-6px); }
+      35%  { transform: translateX(6px); }
+      55%  { transform: translateX(-4px); }
+      75%  { transform: translateX(4px); }
+      90%  { transform: translateX(-2px); }
+    }
+
+    .workload-card.wrong .wc-icon { background: #ef444420; border-color: #ef444440; }
+
+    /* Disabled state once a scenario is answered */
+    .workload-card.locked {
+      pointer-events: none;
+      opacity: 0.45;
+    }
+
+    /* Keep the correct card visible even when others are locked */
+    .workload-card.correct.locked {
+      opacity: 1;
+    }
+
+    /* ── COMPLETION OVERLAY ── */
+    #complete-overlay {
+      position: absolute;
+      inset: 0;
+      background: #07060fed;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      z-index: 100;
+    }
+
+    #complete-overlay.visible { display: flex; }
+
+    #complete-overlay h2 {
+      font-size: 26px;
+      font-weight: 700;
+      color: #22c55e;
+      letter-spacing: -0.02em;
+    }
+
+    #complete-overlay .complete-sub {
+      font-size: 14px;
+      color: #94a3b8;
+      text-align: center;
+      max-width: 380px;
+      line-height: 1.6;
+    }
+
+    #complete-score {
+      font-size: 48px;
+      font-weight: 800;
+      color: #a78bfa;
+      letter-spacing: -0.03em;
+      line-height: 1;
+    }
+
+    #complete-grade {
+      font-size: 15px;
+      font-weight: 600;
+      color: #c4b5fd;
+    }
+
+    /* Score breakdown table */
+    #score-breakdown {
+      background: #0f0d1e;
+      border: 1px solid #a78bfa20;
+      border-radius: 8px;
+      padding: 12px 20px;
+      width: 440px;
+      max-width: 90%;
+    }
+
+    .breakdown-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 5px 0;
+      font-size: 12px;
+      color: #94a3b8;
+      border-bottom: 1px solid #1a1030;
+    }
+
+    .breakdown-row:last-child { border-bottom: none; }
+
+    .breakdown-row .br-label { flex: 1; }
+
+    .breakdown-row .br-pts {
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .breakdown-row .br-pts.perfect { color: #22c55e; }
+    .breakdown-row .br-pts.partial { color: #f59e0b; }
+
+    #btn-return {
+      background: #22c55e;
+      color: #fff;
+      border: none;
+      padding: 12px 36px;
+      border-radius: 6px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    #btn-return:hover { background: #16a34a; }
+
+    /* Scrollbar (fallback for tiny viewports) */
+    #left-panel::-webkit-scrollbar { width: 4px; }
+    #left-panel::-webkit-scrollbar-track { background: #07060f; }
+    #left-panel::-webkit-scrollbar-thumb { background: #2a1a4e; border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<header id="header">
+  <a href="../index.html" class="exit-link">Exit Lab</a>
+  <h1>AI Workload Classifier — Azure AI Fundamentals</h1>
+  <div id="progress-wrap">
+    <div id="progress-bar-outer">
+      <div id="progress-bar-inner"></div>
+    </div>
+    <div id="progress-text">0 / 10</div>
+  </div>
+  <div id="score-display">Score: <span id="score-val">0</span></div>
+</header>
+
+<!-- ═══ MAIN ═══ -->
+<div id="main">
+
+  <!-- LEFT PANEL — Active Scenario -->
+  <div id="left-panel">
+    <div id="panel-label">Current Scenario</div>
+    <div id="panel-title">Classify the Workload</div>
+
+    <div id="scenario-body">
+      <div id="scenario-industry"></div>
+      <div id="scenario-num"></div>
+      <div id="scenario-text"></div>
+      <div id="hint-box">
+        <div class="hint-label">Why that was wrong</div>
+        <div class="hint-text" id="hint-text"></div>
+      </div>
+    </div>
+
+    <div id="score-footer">
+      <div class="footer-label">Total Score</div>
+      <div class="footer-val"><span id="total-score-val">0</span> <span style="font-size:14px;color:#4b5563">/ 1000</span></div>
+      <div class="footer-sub">100 pts first try &middot; 50 pts second try &middot; 25 pts thereafter</div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL — Workload Category Cards -->
+  <div id="right-panel">
+    <div id="right-label">Select the correct Azure AI workload type</div>
+
+    <div id="workload-grid">
+      <!-- Cards are rendered by JS -->
+    </div>
+
+    <!-- Completion overlay (inside right panel so it only covers the grid area) -->
+    <div id="complete-overlay">
+      <h2>Lab Complete</h2>
+      <div id="complete-score">0 / 1000</div>
+      <div id="complete-grade"></div>
+      <p class="complete-sub">You classified all 10 real-world AI scenarios. Results saved to your progress.</p>
+      <div id="score-breakdown"></div>
+      <button id="btn-return" onclick="handleReturn()">Return to AI-900</button>
+    </div>
+  </div>
+
+</div><!-- #main -->
+
+<script>
+  /* ─────────────────────────────────────────────────────────
+     WORKLOAD CATEGORY DEFINITIONS
+     Each category card that appears in the right panel.
+  ───────────────────────────────────────────────────────── */
+  const WORKLOADS = [
+    {
+      id: 'regression',
+      name: 'Regression',
+      icon: 'R',
+      desc: 'Predict a numeric value from input features'
+    },
+    {
+      id: 'classification',
+      name: 'Classification',
+      icon: 'C',
+      desc: 'Predict which category an input belongs to'
+    },
+    {
+      id: 'clustering',
+      name: 'Clustering',
+      icon: 'K',
+      desc: 'Find natural groups in unlabeled data'
+    },
+    {
+      id: 'computer-vision',
+      name: 'Computer Vision',
+      icon: 'V',
+      desc: 'Analyze and interpret images or video frames'
+    },
+    {
+      id: 'nlp',
+      name: 'NLP',
+      icon: 'N',
+      desc: 'Understand and process human language in text'
+    },
+    {
+      id: 'generative-ai',
+      name: 'Generative AI',
+      icon: 'G',
+      desc: 'Create new content: text, images, code, or audio'
+    },
+    {
+      id: 'speech',
+      name: 'Speech',
+      icon: 'S',
+      desc: 'Convert between spoken audio and text'
+    },
+    {
+      id: 'information-extraction',
+      name: 'Info Extraction',
+      icon: 'I',
+      desc: 'Pull structured data from unstructured documents'
+    }
+  ];
+
+  /* ─────────────────────────────────────────────────────────
+     SCENARIO DEFINITIONS
+     answer: must match a WORKLOAD id exactly.
+     wrongHints: keyed by incorrect workload id — shown when
+     a student picks that wrong category.
+  ───────────────────────────────────────────────────────── */
+  const SCENARIOS = [
+    {
+      id: 's01',
+      industry: 'Retail',
+      text: 'A retail chain wants to predict next month\'s sales revenue based on historical data, seasonality, and marketing spend.',
+      answer: 'regression',
+      wrongHints: {
+        'classification': 'Classification predicts a category (e.g., "high" vs "low" sales), not a specific numeric dollar amount. When the output is a continuous number, that\'s Regression.',
+        'clustering': 'Clustering finds groups in unlabeled data — it doesn\'t predict future values. This scenario requires forecasting a specific revenue figure.',
+        'nlp': 'NLP handles language and text. This scenario uses structured numeric data (sales history, dates, spend) to predict a future number.',
+        'generative-ai': 'Generative AI creates new content. This scenario needs a precise numeric forecast, not generated text or creative output.',
+        'default': 'This scenario asks for a specific future number (revenue). Whenever the output is a continuous numeric value predicted from features, the correct workload is Regression.'
+      }
+    },
+    {
+      id: 's02',
+      industry: 'Email / Messaging',
+      text: 'An email provider needs to automatically sort incoming messages as spam or not spam.',
+      answer: 'classification',
+      wrongHints: {
+        'nlp': 'NLP understands the meaning of text, but spam detection specifically involves assigning a message to one of two categories (spam / not spam). That decision boundary is Classification.',
+        'regression': 'Regression outputs a continuous number. This task produces a discrete label — one of two categories — which is Classification (specifically binary classification).',
+        'information-extraction': 'Information Extraction pulls fields from documents. This task categorizes the entire message, not extracts fields from it.',
+        'default': 'The output is a category label — spam or not spam. Any time you\'re assigning an input to a discrete class, that\'s Classification.'
+      }
+    },
+    {
+      id: 's03',
+      industry: 'Marketing',
+      text: 'A marketing team wants to group their customer base into segments based on purchasing behavior, without any predefined categories.',
+      answer: 'clustering',
+      wrongHints: {
+        'classification': 'Classification requires predefined labeled categories to train on. The key phrase here is "without predefined categories" — the groups emerge from the data. That\'s Clustering.',
+        'regression': 'Regression predicts a number. This task is about discovering natural groupings in customer data, not predicting a value.',
+        'nlp': 'NLP processes text and language. This scenario uses structured behavioral data (purchases, frequency, spend) to find groups — that\'s Clustering.',
+        'default': 'The critical phrase is "without predefined categories." When you discover natural groups in unlabeled data without knowing the categories in advance, that\'s Clustering.'
+      }
+    },
+    {
+      id: 's04',
+      industry: 'Manufacturing',
+      text: 'A manufacturing plant needs to detect defective products on an assembly line using camera feeds.',
+      answer: 'computer-vision',
+      wrongHints: {
+        'classification': 'While this does involve classifying "defective vs OK," the input is a camera image, not structured data. Any time the input is visual (image or video), the workload is Computer Vision.',
+        'nlp': 'NLP processes text. The input here is a camera feed — visual data. When you\'re analyzing images or video, that\'s Computer Vision.',
+        'information-extraction': 'Information Extraction works on documents and text. Camera feeds producing visual data point to Computer Vision.',
+        'default': 'The input is a camera feed — visual data. Any AI task that analyzes images, video frames, or visual streams is Computer Vision.'
+      }
+    },
+    {
+      id: 's05',
+      industry: 'Customer Service',
+      text: 'A call center wants to analyze customer feedback emails to determine whether sentiment is positive, negative, or neutral.',
+      answer: 'nlp',
+      wrongHints: {
+        'classification': 'Sentiment analysis does output a category, but the input is unstructured human text. Azure groups sentiment analysis under NLP (Natural Language Processing), not general Classification.',
+        'information-extraction': 'Information Extraction pulls specific fields (dates, names, numbers) from documents. Determining emotional tone from text is Sentiment Analysis — an NLP task.',
+        'generative-ai': 'Generative AI creates new content. Reading emails and determining their emotional tone is understanding existing text — that\'s NLP.',
+        'default': 'Reading and understanding the emotional tone of text (sentiment analysis) is a core NLP task. Whenever you\'re interpreting meaning, tone, or intent from human language, that\'s NLP.'
+      }
+    },
+    {
+      id: 's06',
+      industry: 'Content / Media',
+      text: 'A content team needs to generate blog post drafts from a list of topic outlines.',
+      answer: 'generative-ai',
+      wrongHints: {
+        'nlp': 'NLP understands and processes existing text. Creating new written content from scratch (drafts, articles, code) goes beyond NLP — that\'s Generative AI.',
+        'classification': 'Classification assigns inputs to categories. Creating brand-new text content based on an outline is Generative AI.',
+        'information-extraction': 'Information Extraction reads documents to pull out data. Writing new documents is the opposite — that\'s Generative AI.',
+        'default': 'The task is to create new written content. Any AI that produces new text, images, code, or audio from a prompt or outline is Generative AI.'
+      }
+    },
+    {
+      id: 's07',
+      industry: 'Healthcare',
+      text: 'A healthcare app needs to transcribe doctor-patient conversations into text notes automatically.',
+      answer: 'speech',
+      wrongHints: {
+        'nlp': 'NLP processes text. Transcription converts audio speech into text — the input is audio, not text. That conversion step is the Speech workload. (NLP could then process the transcript, but the transcription itself is Speech.)',
+        'information-extraction': 'Information Extraction pulls structured data from existing text documents. Converting spoken audio to text is a Speech workload.',
+        'generative-ai': 'Generative AI creates new content. Converting a real audio conversation into its text equivalent is transcription — a Speech workload.',
+        'default': 'Converting spoken audio into text (or vice versa) is the Speech workload. This covers speech-to-text (transcription) and text-to-speech (synthesis).'
+      }
+    },
+    {
+      id: 's08',
+      industry: 'Insurance',
+      text: 'An insurance company needs to extract policy numbers, dates, and claim amounts from scanned paper forms.',
+      answer: 'information-extraction',
+      wrongHints: {
+        'nlp': 'NLP analyzes language for meaning, tone, or intent. Pulling specific structured fields (policy numbers, dates, amounts) from a document is Information Extraction — a more targeted, document-intelligence task.',
+        'computer-vision': 'While the source is a scanned image, the goal is extracting specific text fields from a document, not analyzing visual content. Azure Document Intelligence / Form Recognizer handles this as Information Extraction.',
+        'classification': 'Classification would assign the document to a category. This task pulls specific field values out of the document — that\'s Information Extraction.',
+        'default': 'Pulling specific structured fields (IDs, dates, amounts) from documents — especially scanned forms — is Information Extraction, handled by Azure Document Intelligence / Form Recognizer.'
+      }
+    },
+    {
+      id: 's09',
+      industry: 'Real Estate',
+      text: 'A real estate company wants to estimate property values based on square footage, location, and number of bedrooms.',
+      answer: 'regression',
+      wrongHints: {
+        'classification': 'Classification predicts a category. A property\'s estimated value is a continuous dollar amount — not a class. Predicting a number from numeric features is Regression.',
+        'clustering': 'Clustering groups unlabeled data without predicting anything. This task predicts a specific monetary value for each property.',
+        'nlp': 'NLP processes text. This task uses structured numeric features (size, bedrooms, location coordinates) to predict a price — that\'s Regression.',
+        'default': 'Estimating a price, score, or any numeric value from a set of input features is Regression. The output is a continuous number, not a category.'
+      }
+    },
+    {
+      id: 's10',
+      industry: 'Wildlife Research',
+      text: 'A wildlife researcher wants to identify whether an animal in a photo is a bear, wolf, or elk.',
+      answer: 'computer-vision',
+      wrongHints: {
+        'classification': 'While this is multiclass classification under the hood, the input is an image. In Azure\'s AI workload taxonomy, any task where the input is an image or video falls under Computer Vision — specifically image classification.',
+        'nlp': 'NLP processes text. The input here is a photograph, not a text description. Identifying objects in photos is Computer Vision.',
+        'information-extraction': 'Information Extraction works on text documents. Analyzing the contents of a photo (recognizing animal species) is Computer Vision.',
+        'default': 'The input is a photograph. Identifying, classifying, or detecting objects within images or video is Computer Vision, regardless of how many classes are involved.'
+      }
+    }
+  ];
+
+  /* ─────────────────────────────────────────────────────────
+     STATE
+  ───────────────────────────────────────────────────────── */
+  const state = {
+    order: [],          // shuffled SCENARIOS array
+    index: 0,           // current scenario index
+    tries: {},          // { scenarioId: tryCount }
+    scores: {},         // { scenarioId: pointsEarned }
+    totalScore: 0,
+    completed: false
+  };
+
+  /* ─────────────────────────────────────────────────────────
+     DOM REFS
+  ───────────────────────────────────────────────────────── */
+  const progressBarInner = document.getElementById('progress-bar-inner');
+  const progressText     = document.getElementById('progress-text');
+  const scoreVal         = document.getElementById('score-val');
+  const totalScoreVal    = document.getElementById('total-score-val');
+  const scenarioIndustry = document.getElementById('scenario-industry');
+  const scenarioNum      = document.getElementById('scenario-num');
+  const scenarioText     = document.getElementById('scenario-text');
+  const hintBox          = document.getElementById('hint-box');
+  const hintText         = document.getElementById('hint-text');
+  const workloadGrid     = document.getElementById('workload-grid');
+  const completeOverlay  = document.getElementById('complete-overlay');
+  const completeScore    = document.getElementById('complete-score');
+  const completeGrade    = document.getElementById('complete-grade');
+  const scoreBreakdown   = document.getElementById('score-breakdown');
+
+  /* ─────────────────────────────────────────────────────────
+     BUILD WORKLOAD CARDS
+     Creates the 8 category cards in the right-panel grid.
+  ───────────────────────────────────────────────────────── */
+  function buildWorkloadCards() {
+    workloadGrid.innerHTML = '';
+    WORKLOADS.forEach(w => {
+      const card = document.createElement('div');
+      card.className = 'workload-card';
+      card.dataset.workload = w.id;
+      card.id = 'wcard-' + w.id;
+
+      card.innerHTML =
+        '<div class="wc-icon">' + w.icon + '</div>' +
+        '<div class="wc-name">' + w.name + '</div>' +
+        '<div class="wc-desc">' + w.desc + '</div>';
+
+      card.addEventListener('click', () => handleCardClick(w.id));
+      workloadGrid.appendChild(card);
+    });
+  }
+
+  /* ─────────────────────────────────────────────────────────
+     LOAD SCENARIO
+     Displays the scenario at state.index in the left panel.
+  ───────────────────────────────────────────────────────── */
+  function loadScenario(index) {
+    const s = state.order[index];
+
+    // Left panel content
+    scenarioIndustry.textContent = s.industry;
+    scenarioNum.textContent = 'Scenario ' + (index + 1) + ' of ' + state.order.length;
+    scenarioText.textContent = s.text;
+
+    // Reset hint
+    hintBox.classList.remove('visible');
+    hintText.textContent = '';
+
+    // Unlock all cards and clear visual states
+    document.querySelectorAll('.workload-card').forEach(card => {
+      card.classList.remove('correct', 'wrong', 'locked');
+    });
+  }
+
+  /* ─────────────────────────────────────────────────────────
+     UPDATE PROGRESS BAR + HEADER SCORE
+  ───────────────────────────────────────────────────────── */
+  function updateProgress(completedCount) {
+    const pct = (completedCount / state.order.length) * 100;
+    progressBarInner.style.width = pct + '%';
+    progressText.textContent = completedCount + ' / ' + state.order.length;
+    scoreVal.textContent = state.totalScore;
+    totalScoreVal.textContent = state.totalScore;
+  }
+
+  /* ─────────────────────────────────────────────────────────
+     HANDLE CARD CLICK
+     Core interaction handler — called when student clicks
+     a workload category card.
+  ───────────────────────────────────────────────────────── */
+  function handleCardClick(workloadId) {
+    if (state.completed) return;
+    if (state.index >= state.order.length) return;
+
+    const currentScenario = state.order[state.index];
+    const clickedCard     = document.getElementById('wcard-' + workloadId);
+    if (!clickedCard || clickedCard.classList.contains('locked')) return;
+
+    if (workloadId === currentScenario.answer) {
+      handleCorrect(currentScenario, clickedCard);
+    } else {
+      handleWrong(currentScenario, workloadId, clickedCard);
+    }
+  }
+
+  /* ─────────────────────────────────────────────────────────
+     CORRECT ANSWER
+  ───────────────────────────────────────────────────────── */
+  function handleCorrect(scenario, clickedCard) {
+    const tries = (state.tries[scenario.id] || 0) + 1;
+    state.tries[scenario.id] = tries;
+
+    // Score tiers: 100 / 50 / 25
+    const pts = tries === 1 ? 100 : tries === 2 ? 50 : 25;
+    state.scores[scenario.id] = pts;
+    state.totalScore += pts;
+
+    // Green flash on the correct card
+    clickedCard.classList.add('correct');
+
+    // Lock all cards to prevent further interaction on this scenario
+    document.querySelectorAll('.workload-card').forEach(card => {
+      card.classList.add('locked');
+    });
+
+    // Clear hint
+    hintBox.classList.remove('visible');
+
+    // Update score displays
+    updateProgress(state.index + 1);
+
+    // Advance to next scenario after a brief pause to let the green flash register
+    setTimeout(() => {
+      state.index++;
+      if (state.index < state.order.length) {
+        loadScenario(state.index);
+      } else {
+        finishLab();
+      }
+    }, 700);
+  }
+
+  /* ─────────────────────────────────────────────────────────
+     WRONG ANSWER
+     Shakes the card, increments tries, shows a targeted
+     explanation of why that choice was incorrect.
+  ───────────────────────────────────────────────────────── */
+  function handleWrong(scenario, workloadId, clickedCard) {
+    // Increment tries for this scenario
+    state.tries[scenario.id] = (state.tries[scenario.id] || 0) + 1;
+
+    // Red shake animation — force reflow to restart if already animating
+    clickedCard.classList.remove('wrong');
+    void clickedCard.offsetWidth;
+    clickedCard.classList.add('wrong');
+
+    setTimeout(() => clickedCard.classList.remove('wrong'), 500);
+
+    // Show targeted explanation, fall back to generic default
+    const hint = (scenario.wrongHints && scenario.wrongHints[workloadId])
+      ? scenario.wrongHints[workloadId]
+      : (scenario.wrongHints && scenario.wrongHints['default'])
+        ? scenario.wrongHints['default']
+        : 'That is not the correct workload type. Consider what kind of output this scenario requires.';
+
+    hintText.textContent = hint;
+    hintBox.classList.add('visible');
+
+    // Update score display header (score unchanged, just visual refresh)
+    scoreVal.textContent = state.totalScore;
+  }
+
+  /* ─────────────────────────────────────────────────────────
+     FINISH LAB
+     Shows completion overlay, calculates grade, saves progress.
+  ───────────────────────────────────────────────────────── */
+  function finishLab() {
+    state.completed = true;
+
+    const maxScore = state.order.length * 100; // 1000
+    const pct = Math.round((state.totalScore / maxScore) * 100);
+
+    let grade = 'Needs Practice';
+    if (pct === 100) grade = 'Perfect — Exam Ready';
+    else if (pct >= 90) grade = 'Outstanding';
+    else if (pct >= 75) grade = 'Proficient';
+    else if (pct >= 60) grade = 'Developing';
+
+    completeScore.textContent = state.totalScore + ' / ' + maxScore;
+    completeGrade.textContent = grade + ' (' + pct + '%)';
+
+    // Build per-scenario breakdown table
+    scoreBreakdown.innerHTML = '';
+    state.order.forEach(s => {
+      const pts = state.scores[s.id] || 0;
+      const tries = state.tries[s.id] || 0;
+      const row = document.createElement('div');
+      row.className = 'breakdown-row';
+
+      const ptsClass = pts === 100 ? 'perfect' : 'partial';
+      const triesLabel = tries === 1 ? '1 try' : tries + ' tries';
+      row.innerHTML =
+        '<span class="br-label">' + s.industry + '</span>' +
+        '<span style="font-size:11px;color:#4b5563;margin-right:12px">' + triesLabel + '</span>' +
+        '<span class="br-pts ' + ptsClass + '">+' + pts + '</span>';
+      scoreBreakdown.appendChild(row);
+    });
+
+    completeOverlay.classList.add('visible');
+
+    // Save progress to the platform
+    if (typeof ModuleProgress !== 'undefined') {
+      ModuleProgress.complete('ai', 'ai900-ch01-lab');
+    }
+  }
+
+  /* ─────────────────────────────────────────────────────────
+     RETURN BUTTON
+  ───────────────────────────────────────────────────────── */
+  function handleReturn() {
+    window.location.href = '../index.html';
+  }
+
+  /* ─────────────────────────────────────────────────────────
+     INIT
+     Shuffle scenarios for variety, build cards, load first.
+  ───────────────────────────────────────────────────────── */
+  function init() {
+    // Shallow copy and shuffle for variety on each attempt
+    state.order = [...SCENARIOS].sort(() => Math.random() - 0.5);
+
+    buildWorkloadCards();
+    loadScenario(0);
+    updateProgress(0);
+  }
+
+  init();
+</script>
+</body>
+</html>

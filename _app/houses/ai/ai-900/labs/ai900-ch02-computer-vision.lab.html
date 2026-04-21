@@ -1,0 +1,1667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <script src="../../../../components/AccessGuard.js"></script>
+  <script>AccessGuard.require('sorted');</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lab: Azure AI Vision Analyzer — AI-900</title>
+  <script src="../../../../components/ModuleProgress.js"></script>
+  <script src="../../../../components/FirebaseAuth.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      background: #07060f;
+      color: #e2e8f0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+
+    /* ── HEADER ── */
+    #header {
+      height: 56px;
+      min-height: 56px;
+      background: #0b0918;
+      border-bottom: 1px solid #a78bfa40;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+
+    #header a.exit-link {
+      color: #a78bfa;
+      text-decoration: none;
+      font-size: 13px;
+      border: 1px solid #a78bfa50;
+      padding: 4px 12px;
+      border-radius: 4px;
+      white-space: nowrap;
+      transition: background 0.15s;
+      flex-shrink: 0;
+    }
+
+    #header a.exit-link:hover { background: #a78bfa15; }
+
+    #header h1 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #c4b5fd;
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Progress bar strip in header */
+    #progress-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    #progress-bar-outer {
+      width: 140px;
+      height: 6px;
+      background: #1a1a2e;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    #progress-bar-inner {
+      height: 100%;
+      background: linear-gradient(90deg, #7c3aed, #a78bfa);
+      border-radius: 3px;
+      transition: width 0.4s ease;
+      width: 0%;
+    }
+
+    #progress-text {
+      font-size: 12px;
+      color: #a78bfa;
+      white-space: nowrap;
+    }
+
+    #score-display {
+      font-size: 13px;
+      color: #a78bfa;
+      background: #1a1a2e;
+      border: 1px solid #a78bfa30;
+      padding: 4px 14px;
+      border-radius: 4px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* ── MAIN GRID ── */
+    #main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      min-height: 0;
+    }
+
+    /* ── LEFT PANEL — Image + Task ── */
+    #left-panel {
+      background: #0b0918;
+      border-right: 1px solid #1a1030;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #panel-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #6b7280;
+      padding: 14px 18px 6px;
+      flex-shrink: 0;
+    }
+
+    #panel-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #c4b5fd;
+      padding: 0 18px 12px;
+      border-bottom: 1px solid #1a1030;
+      flex-shrink: 0;
+    }
+
+    /* Image canvas area */
+    #image-viewport {
+      flex-shrink: 0;
+      padding: 16px 18px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    #image-label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    #image-type-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #a78bfa;
+      background: #a78bfa15;
+      border: 1px solid #a78bfa30;
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+
+    #image-num {
+      font-size: 11px;
+      color: #6b7280;
+    }
+
+    /* SVG illustration frame */
+    #svg-frame {
+      width: 100%;
+      background: #0f0d1e;
+      border: 1px solid #a78bfa25;
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 180px;
+    }
+
+    #svg-frame svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Task description box */
+    #task-body {
+      flex: 1;
+      padding: 0 18px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    #task-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #6b7280;
+      flex-shrink: 0;
+    }
+
+    #task-text {
+      font-size: 13px;
+      color: #e2e8f0;
+      line-height: 1.65;
+      background: #110e20;
+      border: 1px solid #a78bfa20;
+      border-left: 3px solid #a78bfa;
+      padding: 12px 14px;
+      border-radius: 0 6px 6px 0;
+      flex-shrink: 0;
+    }
+
+    /* Hint / wrong feedback box */
+    #hint-box {
+      background: #1a0d2e;
+      border: 1px solid #ef4444a0;
+      border-left: 3px solid #ef4444;
+      border-radius: 0 6px 6px 0;
+      padding: 10px 14px;
+      display: none;
+      flex-shrink: 0;
+    }
+
+    #hint-box.visible { display: block; }
+
+    #hint-box .hint-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #ef4444;
+      margin-bottom: 4px;
+    }
+
+    #hint-box .hint-text {
+      font-size: 12px;
+      color: #fca5a5;
+      line-height: 1.6;
+    }
+
+    /* Score footer */
+    #score-footer {
+      padding: 14px 18px;
+      border-top: 1px solid #1a1030;
+      flex-shrink: 0;
+      margin-top: auto;
+    }
+
+    #score-footer .footer-label {
+      font-size: 11px;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    #score-footer .footer-val {
+      font-size: 24px;
+      font-weight: 700;
+      color: #a78bfa;
+      line-height: 1.2;
+    }
+
+    #score-footer .footer-sub {
+      font-size: 11px;
+      color: #4b5563;
+      margin-top: 2px;
+    }
+
+    /* ── RIGHT PANEL — Tools + API Response ── */
+    #right-panel {
+      background: #07060f;
+      display: flex;
+      flex-direction: column;
+      padding: 20px 24px;
+      gap: 16px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #right-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #6b7280;
+      flex-shrink: 0;
+    }
+
+    /* Tool button grid — 5 tools */
+    #tool-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .tool-btn {
+      background: #0f0d1e;
+      border: 1.5px solid #a78bfa25;
+      border-radius: 10px;
+      padding: 18px 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      transition: border-color 0.2s, background 0.2s, transform 0.1s, box-shadow 0.2s;
+      user-select: none;
+    }
+
+    .tool-btn:hover {
+      border-color: #a78bfa80;
+      background: #14102a;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px #a78bfa18;
+    }
+
+    .tool-btn:active { transform: translateY(0); }
+
+    /* Icon circle for each tool */
+    .tb-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      background: #a78bfa18;
+      border: 1px solid #a78bfa30;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .tb-icon svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    .tb-info { display: flex; flex-direction: column; gap: 3px; }
+
+    .tb-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #c4b5fd;
+    }
+
+    .tb-desc {
+      font-size: 11px;
+      color: #6b7280;
+      line-height: 1.4;
+    }
+
+    /* Correct tool flash */
+    .tool-btn.correct {
+      border-color: #22c55e !important;
+      background: #052e16 !important;
+      animation: flash-correct 0.5s ease;
+    }
+
+    @keyframes flash-correct {
+      0%   { box-shadow: 0 0 0 0 #22c55e60; }
+      50%  { box-shadow: 0 0 0 14px #22c55e00; }
+      100% { box-shadow: 0 0 0 0 #22c55e00; }
+    }
+
+    .tool-btn.correct .tb-icon { background: #22c55e20; border-color: #22c55e40; }
+    .tool-btn.correct .tb-name { color: #4ade80; }
+
+    /* Wrong shake */
+    .tool-btn.wrong {
+      border-color: #ef4444 !important;
+      background: #1a0a0a !important;
+      animation: shake-wrong 0.4s ease;
+    }
+
+    @keyframes shake-wrong {
+      0%, 100% { transform: translateX(0); }
+      15%  { transform: translateX(-6px); }
+      35%  { transform: translateX(6px); }
+      55%  { transform: translateX(-4px); }
+      75%  { transform: translateX(4px); }
+      90%  { transform: translateX(-2px); }
+    }
+
+    .tool-btn.wrong .tb-icon { background: #ef444420; border-color: #ef444440; }
+
+    /* Locked (disabled after answer) */
+    .tool-btn.locked {
+      pointer-events: none;
+      opacity: 0.45;
+    }
+
+    .tool-btn.correct.locked { opacity: 1; }
+
+    /* ── API RESPONSE PANEL ── */
+    /* Slides up from below after correct answer */
+    #api-response {
+      flex: 1;
+      background: #0a0818;
+      border: 1px solid #a78bfa30;
+      border-radius: 10px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transform: translateY(24px);
+      opacity: 0;
+      transition: transform 0.35s ease, opacity 0.35s ease;
+      min-height: 0;
+    }
+
+    #api-response.visible {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    #api-response-header {
+      background: #110e20;
+      border-bottom: 1px solid #a78bfa25;
+      padding: 9px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    /* Traffic-light dots like a terminal titlebar */
+    .tl-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .tl-dot.red    { background: #ef4444; }
+    .tl-dot.yellow { background: #f59e0b; }
+    .tl-dot.green  { background: #22c55e; }
+
+    #api-response-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: #6b7280;
+      font-family: 'Consolas', 'Courier New', monospace;
+      flex: 1;
+    }
+
+    #api-response-status {
+      font-size: 11px;
+      font-weight: 700;
+      color: #22c55e;
+      font-family: 'Consolas', 'Courier New', monospace;
+    }
+
+    #api-response-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 18px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 12px;
+      line-height: 1.7;
+      color: #94a3b8;
+    }
+
+    /* JSON syntax coloring classes */
+    .json-key   { color: #c4b5fd; }
+    .json-str   { color: #86efac; }
+    .json-num   { color: #fb923c; }
+    .json-bool  { color: #38bdf8; }
+    .json-dim   { color: #374151; }
+
+    /* ── COMPLETION OVERLAY ── */
+    #complete-overlay {
+      position: absolute;
+      inset: 0;
+      background: #07060fed;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      z-index: 100;
+    }
+
+    #complete-overlay.visible { display: flex; }
+
+    #complete-overlay h2 {
+      font-size: 26px;
+      font-weight: 700;
+      color: #22c55e;
+      letter-spacing: -0.02em;
+    }
+
+    #complete-overlay .complete-sub {
+      font-size: 14px;
+      color: #94a3b8;
+      text-align: center;
+      max-width: 400px;
+      line-height: 1.6;
+    }
+
+    #complete-score {
+      font-size: 48px;
+      font-weight: 800;
+      color: #a78bfa;
+      letter-spacing: -0.03em;
+      line-height: 1;
+    }
+
+    #complete-grade {
+      font-size: 15px;
+      font-weight: 600;
+      color: #c4b5fd;
+    }
+
+    #score-breakdown {
+      background: #0f0d1e;
+      border: 1px solid #a78bfa20;
+      border-radius: 8px;
+      padding: 12px 20px;
+      width: 460px;
+      max-width: 90%;
+    }
+
+    .breakdown-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 5px 0;
+      font-size: 12px;
+      color: #94a3b8;
+      border-bottom: 1px solid #1a1030;
+    }
+
+    .breakdown-row:last-child { border-bottom: none; }
+    .breakdown-row .br-label { flex: 1; }
+
+    .breakdown-row .br-pts {
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .breakdown-row .br-pts.perfect { color: #22c55e; }
+    .breakdown-row .br-pts.partial { color: #f59e0b; }
+
+    #btn-return {
+      background: #22c55e;
+      color: #fff;
+      border: none;
+      padding: 12px 36px;
+      border-radius: 6px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    #btn-return:hover { background: #16a34a; }
+
+    /* Scrollbars */
+    #api-response-body::-webkit-scrollbar { width: 4px; }
+    #api-response-body::-webkit-scrollbar-track { background: #0a0818; }
+    #api-response-body::-webkit-scrollbar-thumb { background: #2a1a4e; border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<header id="header">
+  <a href="../index.html" class="exit-link">Exit Lab</a>
+  <h1>Azure AI Vision Analyzer — Azure AI Fundamentals</h1>
+  <div id="progress-wrap">
+    <div id="progress-bar-outer">
+      <div id="progress-bar-inner"></div>
+    </div>
+    <div id="progress-text">0 / 8</div>
+  </div>
+  <div id="score-display">Score: <span id="score-val">0</span></div>
+</header>
+
+<!-- ═══ MAIN ═══ -->
+<div id="main">
+
+  <!-- LEFT PANEL — Image + Task -->
+  <div id="left-panel">
+    <div id="panel-label">Current Image</div>
+    <div id="panel-title">Select the Right Vision Tool</div>
+
+    <div id="image-viewport">
+      <div id="image-label-row">
+        <div id="image-type-badge">Image</div>
+        <div id="image-num"></div>
+      </div>
+      <!-- SVG illustration is injected here by JS -->
+      <div id="svg-frame"></div>
+    </div>
+
+    <div id="task-body">
+      <div id="task-label">Your Task</div>
+      <div id="task-text"></div>
+      <div id="hint-box">
+        <div class="hint-label">Why that tool doesn't fit</div>
+        <div class="hint-text" id="hint-text"></div>
+      </div>
+    </div>
+
+    <div id="score-footer">
+      <div class="footer-label">Total Score</div>
+      <div class="footer-val"><span id="total-score-val">0</span> <span style="font-size:14px;color:#4b5563">/ 800</span></div>
+      <div class="footer-sub">100 pts first try &middot; 50 pts second try &middot; 25 pts thereafter</div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL — Tool Buttons + API Response -->
+  <div id="right-panel">
+    <div id="right-label">Choose the correct Azure AI Vision tool</div>
+
+    <!-- 4 tool cards in 2x2 grid -->
+    <div id="tool-grid">
+      <!-- Rendered by JS -->
+    </div>
+
+    <!-- Simulated API response panel — slides in after correct pick -->
+    <div id="api-response">
+      <div id="api-response-header">
+        <div class="tl-dot red"></div>
+        <div class="tl-dot yellow"></div>
+        <div class="tl-dot green"></div>
+        <div id="api-response-title">Azure AI Vision API — Response</div>
+        <div id="api-response-status">200 OK</div>
+      </div>
+      <div id="api-response-body">
+        <!-- JSON-like content injected by JS -->
+      </div>
+    </div>
+
+    <!-- Completion overlay (inside right panel) -->
+    <div id="complete-overlay">
+      <h2>Lab Complete</h2>
+      <div id="complete-score">0 / 800</div>
+      <div id="complete-grade"></div>
+      <p class="complete-sub">You matched all 8 images to the correct Azure AI Vision tool. Results saved to your progress.</p>
+      <div id="score-breakdown"></div>
+      <button id="btn-return" onclick="handleReturn()">Return to AI-900</button>
+    </div>
+  </div>
+
+</div><!-- #main -->
+
+<script>
+  /* ─────────────────────────────────────────────────────────
+     SVG ILLUSTRATION DEFINITIONS
+     Each function returns an SVG string representing the scene.
+     Scenes use basic geometric shapes, color fills, and text
+     labels to be recognizable without external image assets.
+  ───────────────────────────────────────────────────────── */
+  const SVG_SCENES = {
+
+    /* Task 1 — Photo ID card with name, ID number, photo box */
+    id_card: `<svg viewBox="0 0 304 180" xmlns="http://www.w3.org/2000/svg">
+      <rect width="304" height="180" fill="#0f0d1e"/>
+      <!-- Card body -->
+      <rect x="40" y="30" width="224" height="120" rx="8" fill="#1e1b3a" stroke="#a78bfa40" stroke-width="1.5"/>
+      <!-- Color stripe -->
+      <rect x="40" y="30" width="224" height="18" rx="8" fill="#4c1d95"/>
+      <rect x="40" y="40" width="224" height="8" fill="#4c1d95"/>
+      <!-- Photo box -->
+      <rect x="56" y="62" width="52" height="68" rx="4" fill="#2d2460" stroke="#a78bfa40" stroke-width="1"/>
+      <circle cx="82" cy="84" r="14" fill="#7c3aed" opacity="0.7"/>
+      <rect x="62" y="104" width="40" height="20" rx="0" fill="#5b21b6" opacity="0.5"/>
+      <!-- Text lines -->
+      <text x="120" y="72" font-family="monospace" font-size="9" fill="#94a3b8">GOVERNMENT ID</text>
+      <text x="120" y="88" font-family="monospace" font-size="8.5" fill="#c4b5fd" font-weight="bold">MORGAN, A.J.</text>
+      <text x="120" y="103" font-family="monospace" font-size="7.5" fill="#6b7280">DOB: 1988-04-15</text>
+      <text x="120" y="117" font-family="monospace" font-size="7.5" fill="#6b7280">ID: 4472-B9831-TX</text>
+      <text x="120" y="131" font-family="monospace" font-size="7.5" fill="#6b7280">EXP: 2028-04-14</text>
+      <!-- Barcode lines -->
+      <g transform="translate(56,138)">
+        <rect x="0"  y="0" width="2"  height="10" fill="#a78bfa80"/>
+        <rect x="4"  y="0" width="3"  height="10" fill="#a78bfa80"/>
+        <rect x="9"  y="0" width="1"  height="10" fill="#a78bfa80"/>
+        <rect x="12" y="0" width="2"  height="10" fill="#a78bfa80"/>
+        <rect x="16" y="0" width="4"  height="10" fill="#a78bfa80"/>
+        <rect x="22" y="0" width="1"  height="10" fill="#a78bfa80"/>
+        <rect x="25" y="0" width="3"  height="10" fill="#a78bfa80"/>
+        <rect x="30" y="0" width="2"  height="10" fill="#a78bfa80"/>
+        <rect x="34" y="0" width="1"  height="10" fill="#a78bfa80"/>
+        <rect x="37" y="0" width="4"  height="10" fill="#a78bfa80"/>
+        <rect x="43" y="0" width="2"  height="10" fill="#a78bfa80"/>
+        <rect x="47" y="0" width="1"  height="10" fill="#a78bfa80"/>
+      </g>
+    </svg>`,
+
+    /* Task 2 — Factory assembly line with one red defective item */
+    factory: `<svg viewBox="0 0 304 180" xmlns="http://www.w3.org/2000/svg">
+      <rect width="304" height="180" fill="#0a0a14"/>
+      <!-- Ceiling / structure -->
+      <rect x="0" y="0" width="304" height="28" fill="#111827"/>
+      <rect x="20" y="4" width="8"  height="60" fill="#1f2937"/>
+      <rect x="136" y="4" width="8" height="60" fill="#1f2937"/>
+      <rect x="276" y="4" width="8" height="60" fill="#1f2937"/>
+      <!-- Conveyor belt surface -->
+      <rect x="0" y="100" width="304" height="14" fill="#1f2937" rx="0"/>
+      <rect x="0" y="108" width="304" height="6"  fill="#374151"/>
+      <!-- Belt dividers -->
+      <line x1="30"  y1="100" x2="30"  y2="114" stroke="#4b5563" stroke-width="1.5"/>
+      <line x1="80"  y1="100" x2="80"  y2="114" stroke="#4b5563" stroke-width="1.5"/>
+      <line x1="130" y1="100" x2="130" y2="114" stroke="#4b5563" stroke-width="1.5"/>
+      <line x1="180" y1="100" x2="180" y2="114" stroke="#4b5563" stroke-width="1.5"/>
+      <line x1="230" y1="100" x2="230" y2="114" stroke="#4b5563" stroke-width="1.5"/>
+      <line x1="280" y1="100" x2="280" y2="114" stroke="#4b5563" stroke-width="1.5"/>
+      <!-- Normal products (grey boxes) -->
+      <rect x="14"  y="72" width="36" height="28" rx="3" fill="#374151" stroke="#4b5563" stroke-width="1"/>
+      <text x="32"  y="90" font-family="monospace" font-size="8" fill="#9ca3af" text-anchor="middle">OK</text>
+      <rect x="94"  y="72" width="36" height="28" rx="3" fill="#374151" stroke="#4b5563" stroke-width="1"/>
+      <text x="112" y="90" font-family="monospace" font-size="8" fill="#9ca3af" text-anchor="middle">OK</text>
+      <rect x="194" y="72" width="36" height="28" rx="3" fill="#374151" stroke="#4b5563" stroke-width="1"/>
+      <text x="212" y="90" font-family="monospace" font-size="8" fill="#9ca3af" text-anchor="middle">OK</text>
+      <rect x="244" y="72" width="36" height="28" rx="3" fill="#374151" stroke="#4b5563" stroke-width="1"/>
+      <text x="262" y="90" font-family="monospace" font-size="8" fill="#9ca3af" text-anchor="middle">OK</text>
+      <!-- DEFECTIVE product (red, dashed border) -->
+      <rect x="144" y="70" width="36" height="30" rx="3" fill="#450a0a" stroke="#ef4444" stroke-width="2" stroke-dasharray="4 2"/>
+      <text x="162" y="84" font-family="monospace" font-size="7" fill="#ef4444" text-anchor="middle" font-weight="bold">DEF</text>
+      <line x1="148" y1="74" x2="176" y2="96" stroke="#ef4444" stroke-width="1.5" opacity="0.7"/>
+      <line x1="176" y1="74" x2="148" y2="96" stroke="#ef4444" stroke-width="1.5" opacity="0.7"/>
+      <!-- Robotic arm suggestion -->
+      <line x1="162" y1="28" x2="162" y2="60" stroke="#6b7280" stroke-width="4"/>
+      <rect x="152" y="58" width="20" height="12" rx="2" fill="#374151" stroke="#6b7280" stroke-width="1"/>
+      <text x="20" y="170" font-family="monospace" font-size="8" fill="#4b5563">ASSEMBLY LINE — UNIT INSPECTION</text>
+    </svg>`,
+
+    /* Task 3 — Dog in a park (brown dog, green grass, blue sky) */
+    dog_park: `<svg viewBox="0 0 304 180" xmlns="http://www.w3.org/2000/svg">
+      <!-- Sky gradient background -->
+      <defs>
+        <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#0369a1"/>
+          <stop offset="100%" stop-color="#38bdf8"/>
+        </linearGradient>
+      </defs>
+      <rect width="304" height="180" fill="url(#skyGrad)"/>
+      <!-- Ground -->
+      <rect x="0" y="118" width="304" height="62" fill="#15803d"/>
+      <rect x="0" y="116" width="304" height="8"  fill="#16a34a"/>
+      <!-- Tree -->
+      <rect x="240" y="70" width="10" height="52" fill="#854d0e"/>
+      <ellipse cx="245" cy="62" rx="28" ry="22" fill="#15803d"/>
+      <ellipse cx="232" cy="70" rx="18" ry="16" fill="#16a34a"/>
+      <ellipse cx="258" cy="68" rx="16" ry="14" fill="#14532d"/>
+      <!-- Cloud -->
+      <ellipse cx="80"  cy="30" rx="30" ry="14" fill="white" opacity="0.85"/>
+      <ellipse cx="108" cy="30" rx="20" ry="11" fill="white" opacity="0.85"/>
+      <ellipse cx="58"  cy="33" rx="18" ry="10" fill="white" opacity="0.85"/>
+      <!-- Dog body -->
+      <ellipse cx="148" cy="118" rx="38" ry="22" fill="#92400e"/>
+      <!-- Dog head -->
+      <ellipse cx="184" cy="106" rx="22" ry="18" fill="#a16207"/>
+      <!-- Snout -->
+      <ellipse cx="198" cy="112" rx="10" ry="7"  fill="#b45309"/>
+      <ellipse cx="200" cy="114" rx="5"  ry="3"  fill="#292524"/>
+      <!-- Eyes -->
+      <circle cx="188" cy="102" r="3.5" fill="#1c1917"/>
+      <circle cx="189" cy="101" r="1"   fill="white"/>
+      <!-- Ears -->
+      <ellipse cx="175" cy="94" rx="8"  ry="12" fill="#92400e" transform="rotate(-15 175 94)"/>
+      <ellipse cx="196" cy="92" rx="7"  ry="10" fill="#92400e" transform="rotate(10 196 92)"/>
+      <!-- Legs -->
+      <rect x="120" y="134" width="10" height="20" rx="4" fill="#78350f"/>
+      <rect x="136" y="136" width="10" height="18" rx="4" fill="#78350f"/>
+      <rect x="152" y="136" width="10" height="18" rx="4" fill="#78350f"/>
+      <rect x="168" y="134" width="10" height="20" rx="4" fill="#78350f"/>
+      <!-- Tail -->
+      <path d="M 112 112 Q 96 98 104 86" stroke="#92400e" stroke-width="8" fill="none" stroke-linecap="round"/>
+      <!-- Ball -->
+      <circle cx="66" cy="140" r="10" fill="#dc2626"/>
+      <path d="M 58 134 Q 66 142 74 134" stroke="#7f1d1d" stroke-width="1.5" fill="none"/>
+    </svg>`,
+
+    /* Task 4 — Street scene: cars, pedestrians, signs */
+    street: `<svg viewBox="0 0 304 180" xmlns="http://www.w3.org/2000/svg">
+      <rect width="304" height="180" fill="#111827"/>
+      <!-- Sky -->
+      <rect x="0" y="0" width="304" height="80" fill="#1e3a5f"/>
+      <!-- Buildings left -->
+      <rect x="0"  y="20" width="55" height="100" fill="#1f2937"/>
+      <rect x="8"  y="28" width="12" height="12" fill="#fef08a" opacity="0.8"/>
+      <rect x="26" y="28" width="12" height="12" fill="#fef08a" opacity="0.6"/>
+      <rect x="8"  y="48" width="12" height="12" fill="#4b5563"/>
+      <rect x="26" y="48" width="12" height="12" fill="#fef08a" opacity="0.9"/>
+      <rect x="8"  y="68" width="12" height="12" fill="#fef08a" opacity="0.5"/>
+      <rect x="26" y="68" width="12" height="12" fill="#4b5563"/>
+      <!-- Buildings right -->
+      <rect x="254" y="10" width="50" height="110" fill="#1f2937"/>
+      <rect x="260" y="18" width="12" height="12" fill="#fef08a" opacity="0.7"/>
+      <rect x="278" y="18" width="12" height="12" fill="#4b5563"/>
+      <rect x="260" y="38" width="12" height="12" fill="#4b5563"/>
+      <rect x="278" y="38" width="12" height="12" fill="#fef08a" opacity="0.9"/>
+      <rect x="260" y="58" width="12" height="12" fill="#fef08a" opacity="0.4"/>
+      <rect x="278" y="58" width="12" height="12" fill="#4b5563"/>
+      <!-- Road surface -->
+      <rect x="0"  y="120" width="304" height="60" fill="#1f2937"/>
+      <rect x="0"  y="118" width="304" height="6"  fill="#374151"/>
+      <!-- Road markings -->
+      <rect x="148" y="122" width="8" height="20" fill="#fef08a" opacity="0.6" rx="1"/>
+      <rect x="148" y="148" width="8" height="18" fill="#fef08a" opacity="0.6" rx="1"/>
+      <!-- Sidewalk line -->
+      <rect x="0" y="116" width="304" height="4" fill="#4b5563"/>
+      <!-- Car 1 (blue sedan) -->
+      <rect x="60"  y="125" width="64" height="30" rx="4" fill="#1d4ed8"/>
+      <rect x="70"  y="118" width="44" height="18" rx="3" fill="#2563eb"/>
+      <rect x="73"  y="120" width="16" height="14" rx="2" fill="#bfdbfe" opacity="0.8"/>
+      <rect x="95"  y="120" width="16" height="14" rx="2" fill="#bfdbfe" opacity="0.8"/>
+      <circle cx="72"  cy="157" r="8" fill="#111827"/>
+      <circle cx="72"  cy="157" r="5" fill="#374151"/>
+      <circle cx="112" cy="157" r="8" fill="#111827"/>
+      <circle cx="112" cy="157" r="5" fill="#374151"/>
+      <!-- Car 2 (red) -->
+      <rect x="168" y="127" width="58" height="26" rx="4" fill="#991b1b"/>
+      <rect x="175" y="120" width="40" height="16" rx="3" fill="#b91c1c"/>
+      <rect x="178" y="121" width="14" height="12" rx="2" fill="#fca5a5" opacity="0.7"/>
+      <rect x="197" y="121" width="14" height="12" rx="2" fill="#fca5a5" opacity="0.7"/>
+      <circle cx="180" cy="155" r="7" fill="#111827"/>
+      <circle cx="180" cy="155" r="4" fill="#374151"/>
+      <circle cx="218" cy="155" r="7" fill="#111827"/>
+      <circle cx="218" cy="155" r="4" fill="#374151"/>
+      <!-- Traffic light pole -->
+      <rect x="240" y="68" width="5" height="52" fill="#374151"/>
+      <rect x="234" y="60" width="18" height="38" rx="3" fill="#1f2937" stroke="#4b5563" stroke-width="1"/>
+      <circle cx="243" cy="68" r="5" fill="#ef4444" opacity="0.9"/>
+      <circle cx="243" cy="80" r="5" fill="#f59e0b" opacity="0.4"/>
+      <circle cx="243" cy="92" r="5" fill="#22c55e" opacity="0.4"/>
+      <!-- Pedestrian 1 -->
+      <circle cx="44" cy="108" r="6"  fill="#e2e8f0"/>
+      <rect x="40"  y="115" width="8"  height="16" rx="2" fill="#3b82f6"/>
+      <rect x="38"  y="131" width="4"  height="10" rx="1" fill="#1d4ed8"/>
+      <rect x="46"  y="131" width="4"  height="10" rx="1" fill="#1d4ed8"/>
+      <!-- Pedestrian 2 -->
+      <circle cx="26" cy="110" r="5"  fill="#fed7aa"/>
+      <rect x="22"  y="116" width="8"  height="14" rx="2" fill="#dc2626"/>
+      <rect x="20"  y="130" width="4"  height="9"  rx="1" fill="#7f1d1d"/>
+      <rect x="28"  y="130" width="4"  height="9"  rx="1" fill="#7f1d1d"/>
+      <!-- Street sign -->
+      <rect x="274" y="90" width="26" height="12" rx="2" fill="#166534"/>
+      <text x="287" y="99" font-family="monospace" font-size="7" fill="white" text-anchor="middle">MAIN ST</text>
+      <rect x="280" y="102" width="4"  height="18" fill="#374151"/>
+    </svg>`,
+
+    /* Task 5 — Scanned receipt with itemized list and total */
+    receipt: `<svg viewBox="0 0 304 180" xmlns="http://www.w3.org/2000/svg">
+      <rect width="304" height="180" fill="#0f0d1e"/>
+      <!-- Receipt paper -->
+      <rect x="72" y="8" width="160" height="164" fill="#f8fafc" rx="3"/>
+      <!-- Torn top edge -->
+      <path d="M 72 14 Q 82 8 92 14 Q 102 20 112 14 Q 122 8 132 14 Q 142 20 152 14 Q 162 8 172 14 Q 182 20 192 14 Q 202 8 212 14 Q 222 20 232 14" stroke="#e2e8f0" stroke-width="1" fill="#f8fafc"/>
+      <!-- Store header -->
+      <text x="152" y="36" font-family="monospace" font-size="9"  fill="#111827" text-anchor="middle" font-weight="bold">MARKET FRESH</text>
+      <text x="152" y="47" font-family="monospace" font-size="7"  fill="#6b7280" text-anchor="middle">123 Oak Ave, Austin TX</text>
+      <text x="152" y="57" font-family="monospace" font-size="7"  fill="#6b7280" text-anchor="middle">TEL: (512) 555-0183</text>
+      <!-- Divider -->
+      <line x1="82" y1="62" x2="222" y2="62" stroke="#d1d5db" stroke-width="0.8" stroke-dasharray="3 2"/>
+      <!-- Date and receipt number -->
+      <text x="86"  y="72" font-family="monospace" font-size="7" fill="#374151">DATE: 04/17/2026</text>
+      <text x="174" y="72" font-family="monospace" font-size="7" fill="#374151">RCP#: 00847</text>
+      <!-- Divider -->
+      <line x1="82" y1="76" x2="222" y2="76" stroke="#d1d5db" stroke-width="0.8" stroke-dasharray="3 2"/>
+      <!-- Line items -->
+      <text x="86"  y="87"  font-family="monospace" font-size="7" fill="#374151">Whole Milk 1gal</text>
+      <text x="210" y="87"  font-family="monospace" font-size="7" fill="#374151" text-anchor="end">$4.29</text>
+      <text x="86"  y="98"  font-family="monospace" font-size="7" fill="#374151">Sourdough Loaf</text>
+      <text x="210" y="98"  font-family="monospace" font-size="7" fill="#374151" text-anchor="end">$3.75</text>
+      <text x="86"  y="109" font-family="monospace" font-size="7" fill="#374151">Organic Eggs 12ct</text>
+      <text x="210" y="109" font-family="monospace" font-size="7" fill="#374151" text-anchor="end">$5.99</text>
+      <text x="86"  y="120" font-family="monospace" font-size="7" fill="#374151">Coffee Beans 12oz</text>
+      <text x="210" y="120" font-family="monospace" font-size="7" fill="#374151" text-anchor="end">$11.49</text>
+      <text x="86"  y="131" font-family="monospace" font-size="7" fill="#374151">Orange Juice 64oz</text>
+      <text x="210" y="131" font-family="monospace" font-size="7" fill="#374151" text-anchor="end">$4.89</text>
+      <!-- Divider -->
+      <line x1="82" y1="136" x2="222" y2="136" stroke="#d1d5db" stroke-width="0.8"/>
+      <!-- Subtotal / tax / total -->
+      <text x="86"  y="146" font-family="monospace" font-size="7" fill="#6b7280">SUBTOTAL</text>
+      <text x="210" y="146" font-family="monospace" font-size="7" fill="#374151" text-anchor="end">$30.41</text>
+      <text x="86"  y="155" font-family="monospace" font-size="7" fill="#6b7280">TAX (8.25%)</text>
+      <text x="210" y="155" font-family="monospace" font-size="7" fill="#374151" text-anchor="end">$2.51</text>
+      <!-- Total line highlighted -->
+      <rect x="82" y="158" width="140" height="12" fill="#e0e7ff" rx="1"/>
+      <text x="86"  y="167" font-family="monospace" font-size="8" fill="#1e1b4b" font-weight="bold">TOTAL</text>
+      <text x="210" y="167" font-family="monospace" font-size="8" fill="#1e1b4b" font-weight="bold" text-anchor="end">$32.92</text>
+    </svg>`,
+
+    /* Task 6 — Sunset over snow-capped mountains */
+    sunset: `<svg viewBox="0 0 304 180" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="sunsetSky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stop-color="#312e81"/>
+          <stop offset="35%"  stop-color="#7c3aed"/>
+          <stop offset="65%"  stop-color="#c2410c"/>
+          <stop offset="100%" stop-color="#f97316"/>
+        </linearGradient>
+        <linearGradient id="sunGlow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%" gradientUnits="objectBoundingBox">
+          <stop offset="0%"   stop-color="#fef08a" stop-opacity="1"/>
+          <stop offset="100%" stop-color="#f97316" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <!-- Sky -->
+      <rect width="304" height="180" fill="url(#sunsetSky)"/>
+      <!-- Sun glow -->
+      <ellipse cx="152" cy="108" rx="60" ry="28" fill="#fef08a" opacity="0.18"/>
+      <!-- Sun disk (partially behind mountains) -->
+      <circle cx="152" cy="114" r="20" fill="#fef08a" opacity="0.92"/>
+      <circle cx="152" cy="114" r="26" fill="#fde68a" opacity="0.25"/>
+      <!-- Horizon reflection on ground -->
+      <rect x="0" y="140" width="304" height="40" fill="#1c1917"/>
+      <!-- Mountain range back -->
+      <polygon points="0,140 40,72 80,105 120,60 160,95 200,55 240,90 280,68 304,100 304,140" fill="#1e1b4b"/>
+      <!-- Mountain range front -->
+      <polygon points="0,140 30,98 70,125 110,82 150,118 190,75 230,108 270,85 304,115 304,140" fill="#1f2937"/>
+      <!-- Snow caps -->
+      <polygon points="110,82 118,90 125,84 130,90 138,82 126,72" fill="white" opacity="0.9"/>
+      <polygon points="190,75 196,83 202,77 208,84 214,76 202,64" fill="white" opacity="0.9"/>
+      <polygon points="270,85 276,93 281,87 286,94 292,86 281,75" fill="white" opacity="0.85"/>
+      <!-- Pink/purple clouds -->
+      <ellipse cx="60"  cy="50" rx="36" ry="12" fill="#a855f7" opacity="0.5"/>
+      <ellipse cx="90"  cy="44" rx="24" ry="9"  fill="#ec4899" opacity="0.4"/>
+      <ellipse cx="230" cy="38" rx="30" ry="10" fill="#a855f7" opacity="0.45"/>
+      <ellipse cx="258" cy="34" rx="20" ry="8"  fill="#c026d3" opacity="0.4"/>
+      <!-- Star dots -->
+      <circle cx="20"  cy="18" r="1.5" fill="white" opacity="0.8"/>
+      <circle cx="56"  cy="10" r="1"   fill="white" opacity="0.7"/>
+      <circle cx="100" cy="22" r="1.2" fill="white" opacity="0.6"/>
+      <circle cx="280" cy="14" r="1.5" fill="white" opacity="0.8"/>
+      <circle cx="260" cy="24" r="1"   fill="white" opacity="0.6"/>
+    </svg>`,
+
+    /* Task 7 — Warehouse shelf with labeled boxes */
+    warehouse: `<svg viewBox="0 0 304 180" xmlns="http://www.w3.org/2000/svg">
+      <rect width="304" height="180" fill="#0d1117"/>
+      <!-- Back wall -->
+      <rect x="0" y="0" width="304" height="180" fill="#111827"/>
+      <!-- Overhead lighting strip -->
+      <rect x="60" y="0" width="80" height="6" fill="#fef9c3" opacity="0.7" rx="2"/>
+      <rect x="60" y="0" width="80" height="30" fill="#fef9c3" opacity="0.04"/>
+      <rect x="180" y="0" width="80" height="6" fill="#fef9c3" opacity="0.7" rx="2"/>
+      <rect x="180" y="0" width="80" height="30" fill="#fef9c3" opacity="0.04"/>
+      <!-- Shelf uprights -->
+      <rect x="18"  y="10" width="8" height="170" fill="#374151"/>
+      <rect x="278" y="10" width="8" height="170" fill="#374151"/>
+      <rect x="148" y="10" width="8" height="170" fill="#374151"/>
+      <!-- Shelf boards -->
+      <rect x="18" y="45"  width="268" height="8" fill="#4b5563"/>
+      <rect x="18" y="95"  width="268" height="8" fill="#4b5563"/>
+      <rect x="18" y="145" width="268" height="8" fill="#4b5563"/>
+      <!-- Top shelf: boxes -->
+      <rect x="28"  y="18" width="40" height="27" rx="2" fill="#1e3a5f" stroke="#2563eb50" stroke-width="1"/>
+      <text x="48"  y="34" font-family="monospace" font-size="7" fill="#60a5fa" text-anchor="middle">A-1042</text>
+      <rect x="74"  y="18" width="40" height="27" rx="2" fill="#1e3a5f" stroke="#2563eb50" stroke-width="1"/>
+      <text x="94"  y="34" font-family="monospace" font-size="7" fill="#60a5fa" text-anchor="middle">A-1043</text>
+      <rect x="162" y="18" width="40" height="27" rx="2" fill="#1e3a5f" stroke="#2563eb50" stroke-width="1"/>
+      <text x="182" y="34" font-family="monospace" font-size="7" fill="#60a5fa" text-anchor="middle">B-2081</text>
+      <rect x="208" y="18" width="40" height="27" rx="2" fill="#1e3a5f" stroke="#2563eb50" stroke-width="1"/>
+      <text x="228" y="34" font-family="monospace" font-size="7" fill="#60a5fa" text-anchor="middle">B-2082</text>
+      <rect x="254" y="18" width="26" height="27" rx="2" fill="#1e3a5f" stroke="#2563eb50" stroke-width="1"/>
+      <text x="267" y="34" font-family="monospace" font-size="7" fill="#60a5fa" text-anchor="middle">B-2083</text>
+      <!-- Middle shelf: mixed boxes -->
+      <rect x="28"  y="58" width="50" height="37" rx="2" fill="#1a2e1a" stroke="#16a34a50" stroke-width="1"/>
+      <text x="53"  y="78" font-family="monospace" font-size="7" fill="#4ade80" text-anchor="middle">C-0391</text>
+      <rect x="84"  y="58" width="50" height="37" rx="2" fill="#1a2e1a" stroke="#16a34a50" stroke-width="1"/>
+      <text x="109" y="78" font-family="monospace" font-size="7" fill="#4ade80" text-anchor="middle">C-0392</text>
+      <rect x="162" y="58" width="50" height="37" rx="2" fill="#2d1a00" stroke="#d9770650" stroke-width="1"/>
+      <text x="187" y="75" font-family="monospace" font-size="6.5" fill="#fb923c" text-anchor="middle">FRAGILE</text>
+      <text x="187" y="86" font-family="monospace" font-size="6.5" fill="#fb923c" text-anchor="middle">D-7710</text>
+      <rect x="218" y="58" width="50" height="37" rx="2" fill="#2d1a00" stroke="#d9770650" stroke-width="1"/>
+      <text x="243" y="75" font-family="monospace" font-size="6.5" fill="#fb923c" text-anchor="middle">FRAGILE</text>
+      <text x="243" y="86" font-family="monospace" font-size="6.5" fill="#fb923c" text-anchor="middle">D-7711</text>
+      <!-- Bottom shelf: large pallets -->
+      <rect x="28"  y="108" width="100" height="37" rx="2" fill="#1f2937" stroke="#4b5563" stroke-width="1"/>
+      <text x="78"  y="130" font-family="monospace" font-size="8" fill="#9ca3af" text-anchor="middle">PALLET E-001</text>
+      <rect x="162" y="108" width="120" height="37" rx="2" fill="#1f2937" stroke="#4b5563" stroke-width="1"/>
+      <text x="222" y="130" font-family="monospace" font-size="8" fill="#9ca3af" text-anchor="middle">PALLET E-002</text>
+      <!-- Floor -->
+      <rect x="0" y="153" width="304" height="27" fill="#0d1117"/>
+      <line x1="0" y1="153" x2="304" y2="153" stroke="#374151" stroke-width="1"/>
+      <!-- Floor markings -->
+      <rect x="50"  y="160" width="60" height="6" fill="#854d0e" opacity="0.5" rx="1"/>
+      <rect x="200" y="160" width="60" height="6" fill="#854d0e" opacity="0.5" rx="1"/>
+    </svg>`,
+
+    /* Task 8 — Whiteboard with handwritten notes */
+    whiteboard: `<svg viewBox="0 0 304 180" xmlns="http://www.w3.org/2000/svg">
+      <rect width="304" height="180" fill="#1a1a2e"/>
+      <!-- Board frame -->
+      <rect x="16" y="12" width="272" height="152" rx="4" fill="#1e293b" stroke="#334155" stroke-width="2"/>
+      <!-- Whiteboard surface -->
+      <rect x="22" y="18" width="260" height="136" rx="2" fill="#f1f5f9"/>
+      <!-- Board legs -->
+      <line x1="80"  y1="164" x2="66"  y2="178" stroke="#334155" stroke-width="4" stroke-linecap="round"/>
+      <line x1="224" y1="164" x2="238" y2="178" stroke="#334155" stroke-width="4" stroke-linecap="round"/>
+      <!-- Tray at bottom -->
+      <rect x="22" y="148" width="260" height="6" fill="#334155" rx="0"/>
+      <!-- Marker in tray -->
+      <rect x="100" y="150" width="40" height="3" rx="1" fill="#3b82f6"/>
+      <rect x="148" y="150" width="30" height="3" rx="1" fill="#ef4444"/>
+      <!-- Handwritten title (wavy lines to suggest handwriting) -->
+      <text x="152" y="40" font-family="'Segoe UI', cursive" font-size="11" fill="#1e293b" text-anchor="middle" font-weight="bold" transform="rotate(-1 152 40)">Project Alpha — Sprint 3</text>
+      <!-- Underline -->
+      <path d="M 62 44 Q 152 48 242 44" stroke="#1e293b" stroke-width="1.5" fill="none"/>
+      <!-- Bullet points (hand-drawn style) -->
+      <circle cx="40" cy="62" r="3" fill="#1e293b"/>
+      <text x="50" y="67" font-family="'Segoe UI', cursive" font-size="9" fill="#1e293b" transform="rotate(-0.5 50 67)">Review API endpoints</text>
+      <circle cx="40" cy="80" r="3" fill="#1e293b"/>
+      <text x="50" y="85" font-family="'Segoe UI', cursive" font-size="9" fill="#1e293b" transform="rotate(0.8 50 85)">Fix auth token expiry bug</text>
+      <circle cx="40" cy="98" r="3" fill="#1e293b"/>
+      <text x="50" y="103" font-family="'Segoe UI', cursive" font-size="9" fill="#1e293b" transform="rotate(-0.5 50 103)">Deploy staging by Fri</text>
+      <!-- Action items box (rough rectangle) -->
+      <path d="M 28 112 L 146 110 L 148 140 L 26 142 Z" stroke="#ef4444" stroke-width="1.5" fill="none" stroke-dasharray="4 2"/>
+      <text x="32" y="124" font-family="'Segoe UI', cursive" font-size="8.5" fill="#991b1b">Action Items:</text>
+      <text x="32" y="134" font-family="'Segoe UI', cursive" font-size="7.5" fill="#374151">- QA sign-off by Thurs</text>
+      <!-- Equation / formula area -->
+      <text x="168" y="80" font-family="'Segoe UI', cursive" font-size="10" fill="#1d4ed8">velocity = pts / sprint</text>
+      <text x="168" y="96" font-family="'Segoe UI', cursive" font-size="10" fill="#1d4ed8">= 42 / 2 = 21 pts/wk</text>
+      <!-- Small bar chart sketch -->
+      <rect x="168" y="115" width="10" height="20" fill="#3b82f6" opacity="0.6"/>
+      <rect x="182" y="108" width="10" height="27" fill="#3b82f6" opacity="0.6"/>
+      <rect x="196" y="112" width="10" height="23" fill="#3b82f6" opacity="0.6"/>
+      <rect x="210" y="105" width="10" height="30" fill="#3b82f6" opacity="0.6"/>
+      <line x1="164" y1="135" x2="228" y2="135" stroke="#374151" stroke-width="1"/>
+      <line x1="164" y1="135" x2="164" y2="102" stroke="#374151" stroke-width="1"/>
+    </svg>`
+  };
+
+  /* ─────────────────────────────────────────────────────────
+     TOOL DEFINITIONS
+     The 4 Azure AI Vision tools displayed in the right panel.
+  ───────────────────────────────────────────────────────── */
+  const TOOLS = [
+    {
+      id: 'classify',
+      name: 'Classify',
+      desc: 'Identify the main subject or category of an image',
+      icon: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="3" y="3"  width="8" height="8"  rx="2" stroke="#a78bfa" stroke-width="1.8"/>
+        <rect x="13" y="3"  width="8" height="8"  rx="2" stroke="#a78bfa" stroke-width="1.8"/>
+        <rect x="3" y="13" width="8" height="8"  rx="2" stroke="#a78bfa" stroke-width="1.8"/>
+        <rect x="13" y="13" width="8" height="8" rx="2" stroke="#a78bfa" stroke-width="1.8" fill="#a78bfa30"/>
+        <path d="M 15 17 L 17 19 L 21 15" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`
+    },
+    {
+      id: 'detect',
+      name: 'Detect Objects',
+      desc: 'Find and label objects with bounding boxes',
+      icon: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="2" y="2" width="20" height="20" rx="2" stroke="#a78bfa" stroke-width="1.8" stroke-dasharray="4 2"/>
+        <rect x="6" y="9" width="5"  height="6" rx="1" stroke="#a78bfa" stroke-width="1.5"/>
+        <rect x="13" y="7" width="6" height="8" rx="1" stroke="#a78bfa" stroke-width="1.5"/>
+        <line x1="6"  y1="9"  x2="2"  y2="6"  stroke="#a78bfa" stroke-width="1" opacity="0.6"/>
+        <line x1="19" y1="7"  x2="22" y2="4"  stroke="#a78bfa" stroke-width="1" opacity="0.6"/>
+      </svg>`
+    },
+    {
+      id: 'ocr',
+      name: 'Extract Text (OCR)',
+      desc: 'Pull printed or handwritten text out of an image',
+      icon: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="3" y="4" width="18" height="16" rx="2" stroke="#a78bfa" stroke-width="1.8"/>
+        <line x1="7" y1="9"  x2="17" y2="9"  stroke="#a78bfa" stroke-width="1.6" stroke-linecap="round"/>
+        <line x1="7" y1="13" x2="17" y2="13" stroke="#a78bfa" stroke-width="1.6" stroke-linecap="round"/>
+        <line x1="7" y1="17" x2="13" y2="17" stroke="#a78bfa" stroke-width="1.6" stroke-linecap="round"/>
+        <circle cx="20" cy="4" r="4" fill="#0f0d1e"/>
+        <text x="20" y="6.5" font-family="monospace" font-size="5.5" fill="#a78bfa" text-anchor="middle" font-weight="bold">T</text>
+      </svg>`
+    },
+    {
+      id: 'docint',
+      name: 'Document Intelligence',
+      desc: 'Extract structured fields and tables from forms and documents',
+      icon: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="3" y="2" width="18" height="20" rx="2" stroke="#a78bfa" stroke-width="1.8"/>
+        <line x1="7" y1="7" x2="11" y2="7" stroke="#a78bfa" stroke-width="1.4" stroke-linecap="round" opacity="0.5"/>
+        <line x1="13" y1="7" x2="17" y2="7" stroke="#a78bfa" stroke-width="1.4" stroke-linecap="round"/>
+        <line x1="7" y1="11" x2="11" y2="11" stroke="#a78bfa" stroke-width="1.4" stroke-linecap="round" opacity="0.5"/>
+        <line x1="13" y1="11" x2="17" y2="11" stroke="#a78bfa" stroke-width="1.4" stroke-linecap="round"/>
+        <line x1="7" y1="15" x2="11" y2="15" stroke="#a78bfa" stroke-width="1.4" stroke-linecap="round" opacity="0.5"/>
+        <line x1="13" y1="15" x2="17" y2="15" stroke="#a78bfa" stroke-width="1.4" stroke-linecap="round"/>
+        <rect x="6" y="5" width="6" height="3" rx="1" fill="rgba(167,139,250,0.15)" stroke="#a78bfa" stroke-width="0.8"/>
+      </svg>`
+    },
+    {
+      id: 'describe',
+      name: 'Describe',
+      desc: 'Generate a natural language caption of the image',
+      icon: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="9"  r="6" stroke="#a78bfa" stroke-width="1.8"/>
+        <circle cx="12" cy="9"  r="2.5" fill="#a78bfa" opacity="0.5"/>
+        <path d="M 4 20 Q 12 14 20 20" stroke="#a78bfa" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+        <line x1="8"  y1="22" x2="8"  y2="19" stroke="#a78bfa" stroke-width="1.4" stroke-linecap="round"/>
+        <line x1="12" y1="22" x2="12" y2="18" stroke="#a78bfa" stroke-width="1.4" stroke-linecap="round"/>
+        <line x1="16" y1="22" x2="16" y2="19" stroke="#a78bfa" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>`
+    }
+  ];
+
+  /* ─────────────────────────────────────────────────────────
+     TASK DEFINITIONS
+     Each task references an SVG scene key, the task text,
+     the correct tool id, simulated API response HTML, and
+     wrong-answer hints keyed by tool id.
+  ───────────────────────────────────────────────────────── */
+  const TASKS = [
+    {
+      id: 't01',
+      sceneKey: 'id_card',
+      badgeLabel: 'ID Card',
+      task: 'Extract the name, ID number, date of birth, and expiry from this government-issued photo ID so it can be indexed in the database.',
+      answer: 'docint',
+      apiResponse: buildDocIntResponse([
+        { field: 'FULL_NAME',   value: 'MORGAN, A.J.' },
+        { field: 'ID_NUMBER',   value: '4472-B9831-TX' },
+        { field: 'DATE_OF_BIRTH', value: '1988-04-15' },
+        { field: 'EXPIRY',      value: '2028-04-14' }
+      ], 'idDocument', 'Government ID — structured fields extracted'),
+      wrongHints: {
+        'classify':  'Classify identifies the overall category (e.g., "ID card" vs "passport"). Your task is to extract specific named fields — that requires Document Intelligence, which understands form structure.',
+        'detect':    'Object Detection finds objects with bounding boxes. To extract structured key-value pairs (name, ID number, dates) from a form, you need Document Intelligence.',
+        'ocr':       'OCR extracts raw text lines from an image. But your task needs structured field extraction — name mapped to its value, ID number mapped to its value. Document Intelligence understands form layouts and returns key-value pairs, not just raw text.',
+        'describe':  'Describe generates a caption like "a blue ID card." Your task requires extracting specific named fields with their values — that is Document Intelligence.'
+      }
+    },
+    {
+      id: 't02',
+      sceneKey: 'factory',
+      badgeLabel: 'Factory Cam',
+      task: 'Check the assembly line camera feed and identify if any products are defective, with their positions on the belt.',
+      answer: 'detect',
+      apiResponse: buildDetectResponse([
+        { label: 'Product — OK',        conf: 98, x: 14,  y: 72,  w: 36, h: 28 },
+        { label: 'Product — OK',        conf: 97, x: 94,  y: 72,  w: 36, h: 28 },
+        { label: 'Product — DEFECTIVE', conf: 94, x: 144, y: 70,  w: 36, h: 30 },
+        { label: 'Product — OK',        conf: 99, x: 194, y: 72,  w: 36, h: 28 },
+        { label: 'Product — OK',        conf: 98, x: 244, y: 72,  w: 36, h: 28 }
+      ]),
+      wrongHints: {
+        'classify':  'Classify returns a single label for the whole image (e.g., "assembly line"). Your task needs individual product locations and defect status — that requires Detect Objects with bounding boxes.',
+        'ocr':       'OCR extracts text from the image. Camera quality inspection requires locating objects and assessing their condition spatially — that is Detect Objects.',
+        'docint':    'Document Intelligence extracts structured fields from forms and documents. This is a camera feed of physical products — not a document. Use Detect Objects to find and locate items.',
+        'describe':  'Describe produces a general caption. Pinpointing defective items and their positions on the belt requires Detect Objects to return bounding box coordinates.'
+      }
+    },
+    {
+      id: 't03',
+      sceneKey: 'dog_park',
+      badgeLabel: 'Photo',
+      task: 'A user uploaded this photo. Determine what kind of animal is in the image.',
+      answer: 'classify',
+      apiResponse: buildClassifyResponse([
+        { label: 'Dog',          confidence: 97.4 },
+        { label: 'Golden Retriever', confidence: 83.1 },
+        { label: 'Animal',       confidence: 99.8 },
+        { label: 'Mammal',       confidence: 99.1 }
+      ]),
+      wrongHints: {
+        'detect':   'Detect Objects would find bounding boxes around the dog and other objects. You only need to know what kind of animal it is — that single category answer is Classify.',
+        'ocr':      'OCR extracts text. There is no text to extract from this outdoor photo. To identify the animal species, use Classify.',
+        'docint':   'Document Intelligence extracts structured fields from forms and documents. This is a photo of an animal — not a document. Use Classify to identify the species.',
+        'describe': 'Describe would generate a sentence like "A brown dog playing in a park." Your task asks for a specific category answer (what animal), which is Classify — returning labels with confidence scores.'
+      }
+    },
+    {
+      id: 't04',
+      sceneKey: 'street',
+      badgeLabel: 'Street View',
+      task: 'Identify all distinct objects in this street scene along with their approximate locations in the image.',
+      answer: 'detect',
+      apiResponse: buildDetectResponse([
+        { label: 'Car (Blue Sedan)',  conf: 96, x: 60,  y: 118, w: 64, h: 40 },
+        { label: 'Car (Red)',         conf: 95, x: 168, y: 120, w: 58, h: 38 },
+        { label: 'Person',           conf: 91, x: 36,  y: 100, w: 18, h: 44 },
+        { label: 'Person',           conf: 88, x: 18,  y: 103, w: 16, h: 40 },
+        { label: 'Traffic Light',    conf: 97, x: 234, y: 60,  w: 22, h: 62 },
+        { label: 'Street Sign',      conf: 93, x: 274, y: 88,  w: 28, h: 26 }
+      ]),
+      wrongHints: {
+        'classify':  'Classify gives you one label for the entire image (e.g., "street scene"). You need individual object labels AND positions — that requires Detect Objects, which returns bounding boxes for each item.',
+        'ocr':       'OCR would only pull the text off the street sign. Your task asks for all objects and their locations — that is Detect Objects.',
+        'docint':    'Document Intelligence extracts structured fields from forms and documents. This is a street photo, not a form. Use Detect Objects to find and locate all objects.',
+        'describe':  'Describe returns a single sentence description. Locating every car, pedestrian, and sign with spatial coordinates requires Detect Objects.'
+      }
+    },
+    {
+      id: 't05',
+      sceneKey: 'receipt',
+      badgeLabel: 'Receipt Scan',
+      task: 'Extract the total amount paid, tax, and transaction date from this scanned grocery receipt for automated expense reporting.',
+      answer: 'docint',
+      apiResponse: buildDocIntResponse([
+        { field: 'STORE_NAME',  value: 'MARKET FRESH' },
+        { field: 'DATE',        value: '04/17/2026' },
+        { field: 'RECEIPT_NO',  value: '00847' },
+        { field: 'SUBTOTAL',    value: '$30.41' },
+        { field: 'TAX',         value: '$2.51' },
+        { field: 'TOTAL',       value: '$32.92' }
+      ], 'receipt', 'Receipt — structured fields extracted'),
+      wrongHints: {
+        'classify':  'Classify would label this as "receipt" or "document." You need specific named fields (date, total, tax) mapped to their values — that is Document Intelligence.',
+        'detect':    'Detect Objects finds visual objects with bounding boxes. To extract structured financial data from a receipt, you need Document Intelligence.',
+        'ocr':       'OCR extracts raw text lines — it would give you every line of text on the receipt. But your task needs structured key-value extraction (DATE → 04/17/2026, TOTAL → $32.92). Document Intelligence understands receipt layouts and returns structured fields.',
+        'describe':  'Describe generates a caption like "a white paper receipt." Your task requires specific financial data fields — that is Document Intelligence territory.'
+      }
+    },
+    {
+      id: 't06',
+      sceneKey: 'sunset',
+      badgeLabel: 'Landscape',
+      task: 'Generate an image description for an accessibility screen reader. The caption should be natural and descriptive.',
+      answer: 'describe',
+      apiResponse: buildDescribeResponse(
+        'A vibrant sunset over snow-capped mountains, with an orange and deep purple sky.',
+        [
+          { tag: 'sunset',    conf: 98.2 },
+          { tag: 'mountains', conf: 97.5 },
+          { tag: 'sky',       conf: 99.1 },
+          { tag: 'landscape', conf: 96.8 },
+          { tag: 'nature',    conf: 95.4 }
+        ]
+      ),
+      wrongHints: {
+        'classify':  'Classify returns a short category label (e.g., "landscape"). Accessibility captions need a full natural language sentence. That is the Describe tool — built exactly for generating human-readable captions.',
+        'detect':    'Detect Objects identifies bounding boxes around discrete items. A screen reader needs a flowing sentence about the whole scene, not a JSON list of coordinates. Use Describe.',
+        'ocr':       'OCR extracts text. There is no text in this landscape photograph. For a natural language caption, use the Describe tool.',
+        'docint':    'Document Intelligence processes forms and documents. This is a landscape photo — not a document. Use Describe to generate an accessibility caption.'
+      }
+    },
+    {
+      id: 't07',
+      sceneKey: 'warehouse',
+      badgeLabel: 'Warehouse',
+      task: 'A facilities manager submitted this image. Classify the type of environment shown to auto-tag it in the asset system.',
+      answer: 'classify',
+      apiResponse: buildClassifyResponse([
+        { label: 'Warehouse',          confidence: 89.3 },
+        { label: 'Industrial Facility', confidence: 76.1 },
+        { label: 'Storage Room',       confidence: 67.4 },
+        { label: 'Indoor',             confidence: 98.7 }
+      ]),
+      wrongHints: {
+        'detect':   'Detect Objects would find individual boxes and shelves. Your task only needs a category tag for the environment as a whole — one label with a confidence score. That is Classify.',
+        'ocr':      'OCR reads the text labels on the boxes, but you need the overall environment type ("Warehouse") as a tag — not the box ID numbers. Use Classify.',
+        'docint':   'Document Intelligence processes forms. This is a photo of a warehouse — not a document. Use Classify to categorize the environment type.',
+        'describe': 'Describe would write a sentence about the image. Auto-tagging systems expect short category labels with confidence scores — exactly what Classify returns.'
+      }
+    },
+    {
+      id: 't08',
+      sceneKey: 'whiteboard',
+      badgeLabel: 'Whiteboard',
+      task: 'A team needs to digitize this meeting whiteboard so the content can be searched and stored in their knowledge base.',
+      answer: 'ocr',
+      apiResponse: buildOCRResponse([
+        { field: 'LINE_1',  value: 'Project Alpha — Sprint 3' },
+        { field: 'LINE_2',  value: 'Review API endpoints' },
+        { field: 'LINE_3',  value: 'Fix auth token expiry bug' },
+        { field: 'LINE_4',  value: 'Deploy staging by Fri' },
+        { field: 'LINE_5',  value: 'Action Items: QA sign-off by Thurs' },
+        { field: 'LINE_6',  value: 'velocity = pts / sprint = 42 / 2 = 21 pts/wk' }
+      ], 'Whiteboard — handwritten content digitized'),
+      wrongHints: {
+        'classify':  'Classify would label this as "whiteboard" — but you need the actual written content. To digitize and make handwritten notes searchable, you need Extract Text (OCR), which handles both printed and handwritten text.',
+        'detect':    'Detect Objects would draw boxes around the board and markers. To capture the searchable text content of the notes, you need OCR.',
+        'docint':    'Document Intelligence extracts structured key-value fields from forms. A whiteboard has freeform handwriting — not structured form fields. Use OCR to extract the raw text content.',
+        'describe':  'Describe returns a single caption about the scene. To capture every word on the board for storage in a knowledge base, you need OCR, which returns the full text content line by line.'
+      }
+    }
+  ];
+
+  /* ─────────────────────────────────────────────────────────
+     RESPONSE BUILDERS
+     Each function returns an HTML string for the API
+     response body, styled with JSON-like syntax coloring.
+  ───────────────────────────────────────────────────────── */
+
+  /* OCR response: extracted key/value fields */
+  function buildDocIntResponse(fields, docType, note) {
+    let rows = fields.map(f =>
+      `<div>      <span class="json-key">"${f.field}"</span>` +
+      `<span class="json-dim">: </span>` +
+      `<span class="json-str">"${f.value}"</span><span class="json-dim">,</span>` +
+      `<span class="json-dim"> // confidence: </span><span class="json-num">0.${90 + Math.floor(Math.random()*9)}</span></div>`
+    ).join('');
+    return (
+      `<div><span class="json-dim">{</span></div>` +
+      `<div>  <span class="json-key">"service"</span><span class="json-dim">: </span><span class="json-str">"azure-ai-document-intelligence"</span><span class="json-dim">,</span></div>` +
+      `<div>  <span class="json-key">"model"</span><span class="json-dim">: </span><span class="json-str">"prebuilt-${docType}"</span><span class="json-dim">,</span></div>` +
+      `<div>  <span class="json-key">"apiVersion"</span><span class="json-dim">: </span><span class="json-str">"2024-11-30"</span><span class="json-dim">,</span></div>` +
+      `<div>  <span class="json-key">"note"</span><span class="json-dim">: </span><span class="json-str">"${note}"</span><span class="json-dim">,</span></div>` +
+      `<div>  <span class="json-key">"documents"</span><span class="json-dim">: [{</span></div>` +
+      `<div>    <span class="json-key">"docType"</span><span class="json-dim">: </span><span class="json-str">"${docType}"</span><span class="json-dim">,</span></div>` +
+      `<div>    <span class="json-key">"fields"</span><span class="json-dim">: {</span></div>` +
+      rows +
+      `<div>    <span class="json-dim">}</span></div>` +
+      `<div>  <span class="json-dim">}]</span></div>` +
+      `<div><span class="json-dim">}</span></div>`
+    );
+  }
+
+  function buildOCRResponse(fields, note) {
+    let rows = fields.map(f =>
+      `<div>  <span class="json-key">"${f.field}"</span>` +
+      `<span class="json-dim">: </span>` +
+      `<span class="json-str">"${f.value}"</span><span class="json-dim">,</span></div>`
+    ).join('');
+    return (
+      `<div><span class="json-dim">{</span></div>` +
+      `<div>  <span class="json-key">"model"</span><span class="json-dim">: </span><span class="json-str">"azure-vision-ocr-v3.2"</span><span class="json-dim">,</span></div>` +
+      `<div>  <span class="json-key">"operation"</span><span class="json-dim">: </span><span class="json-str">"extractText"</span><span class="json-dim">,</span></div>` +
+      `<div>  <span class="json-key">"confidence"</span><span class="json-dim">: </span><span class="json-num">0.98</span><span class="json-dim">,</span></div>` +
+      `<div>  <span class="json-key">"note"</span><span class="json-dim">: </span><span class="json-str">"${note}"</span><span class="json-dim">,</span></div>` +
+      `<div>  <span class="json-key">"extractedFields"</span><span class="json-dim">: {</span></div>` +
+      rows +
+      `<div>  <span class="json-dim">},</span></div>` +
+      `<div>  <span class="json-key">"language"</span><span class="json-dim">: </span><span class="json-str">"en"</span></div>` +
+      `<div><span class="json-dim">}</span></div>`
+    );
+  }
+
+  /* Detect response: array of bounding-box objects */
+  function buildDetectResponse(objects) {
+    let items = objects.map((o, i) => {
+      const comma = i < objects.length - 1 ? '<span class="json-dim">,</span>' : '';
+      return (
+        `<div>    <span class="json-dim">{</span></div>` +
+        `<div>      <span class="json-key">"label"</span><span class="json-dim">: </span><span class="json-str">"${o.label}"</span><span class="json-dim">,</span></div>` +
+        `<div>      <span class="json-key">"confidence"</span><span class="json-dim">: </span><span class="json-num">${o.conf}</span><span class="json-dim">,</span></div>` +
+        `<div>      <span class="json-key">"boundingBox"</span><span class="json-dim">: { </span>` +
+        `<span class="json-key">"x"</span><span class="json-dim">:</span><span class="json-num">${o.x}</span>` +
+        `<span class="json-dim">, </span><span class="json-key">"y"</span><span class="json-dim">:</span><span class="json-num">${o.y}</span>` +
+        `<span class="json-dim">, </span><span class="json-key">"w"</span><span class="json-dim">:</span><span class="json-num">${o.w}</span>` +
+        `<span class="json-dim">, </span><span class="json-key">"h"</span><span class="json-dim">:</span><span class="json-num">${o.h}</span>` +
+        `<span class="json-dim"> }</span></div>` +
+        `<div>    <span class="json-dim">}</span>${comma}</div>`
+      );
+    }).join('');
+    return (
+      `<div><span class="json-dim">{</span></div>` +
+      `<div>  <span class="json-key">"model"</span><span class="json-dim">: </span><span class="json-str">"azure-vision-detect-v4.0"</span><span class="json-dim">,</span></div>` +
+      `<div>  <span class="json-key">"operation"</span><span class="json-dim">: </span><span class="json-str">"detectObjects"</span><span class="json-dim">,</span></div>` +
+      `<div>  <span class="json-key">"objectsDetected"</span><span class="json-dim">: </span><span class="json-num">${objects.length}</span><span class="json-dim">,</span></div>` +
+      `<div>  <span class="json-key">"objects"</span><span class="json-dim">: [</span></div>` +
+      items +
+      `<div>  <span class="json-dim">]</span></div>` +
+      `<div><span class="json-dim">}</span></div>`
+    );
+  }
+
+  /* Classify response: top-N label predictions */
+  function buildClassifyResponse(predictions) {
+    let rows = predictions.map((p, i) => {
+      const comma = i < predictions.length - 1 ? '<span class="json-dim">,</span>' : '';
+      return (
+        `<div>    <span class="json-dim">{ </span>` +
+        `<span class="json-key">"label"</span><span class="json-dim">: </span><span class="json-str">"${p.label}"</span>` +
+        `<span class="json-dim">, </span><span class="json-key">"confidence"</span><span class="json-dim">: </span><span class="json-num">${p.confidence}%</span>` +
+        ` <span class="json-dim">}${comma.replace('<span class="json-dim">,</span>', ',')}</span></div>`
+      );
+    }).join('');
+    return (
+      `<div><span class="json-dim">{</span></div>` +
+      `<div>  <span class="json-key">"model"</span><span class="json-dim">: </span><span class="json-str">"azure-vision-classify-v3.1"</span><span class="json-dim">,</span></div>` +
+      `<div>  <span class="json-key">"operation"</span><span class="json-dim">: </span><span class="json-str">"classifyImage"</span><span class="json-dim">,</span></div>` +
+      `<div>  <span class="json-key">"topPrediction"</span><span class="json-dim">: </span><span class="json-str">"${predictions[0].label}"</span><span class="json-dim">,</span></div>` +
+      `<div>  <span class="json-key">"predictions"</span><span class="json-dim">: [</span></div>` +
+      rows +
+      `<div>  <span class="json-dim">]</span></div>` +
+      `<div><span class="json-dim">}</span></div>`
+    );
+  }
+
+  /* Describe response: caption + tag list */
+  function buildDescribeResponse(caption, tags) {
+    let tagRows = tags.map((t, i) => {
+      const comma = i < tags.length - 1 ? '<span class="json-dim">,</span>' : '';
+      return (
+        `<div>    <span class="json-dim">{ </span>` +
+        `<span class="json-key">"tag"</span><span class="json-dim">: </span><span class="json-str">"${t.tag}"</span>` +
+        `<span class="json-dim">, </span><span class="json-key">"confidence"</span><span class="json-dim">: </span><span class="json-num">${t.conf}%</span>` +
+        ` <span class="json-dim">}${comma.replace('<span class="json-dim">,</span>', ',')}</span></div>`
+      );
+    }).join('');
+    return (
+      `<div><span class="json-dim">{</span></div>` +
+      `<div>  <span class="json-key">"model"</span><span class="json-dim">: </span><span class="json-str">"azure-vision-describe-v4.0"</span><span class="json-dim">,</span></div>` +
+      `<div>  <span class="json-key">"operation"</span><span class="json-dim">: </span><span class="json-str">"describeImage"</span><span class="json-dim">,</span></div>` +
+      `<div>  <span class="json-key">"caption"</span><span class="json-dim">: </span><span class="json-str">"${caption}"</span><span class="json-dim">,</span></div>` +
+      `<div>  <span class="json-key">"confidence"</span><span class="json-dim">: </span><span class="json-num">0.96</span><span class="json-dim">,</span></div>` +
+      `<div>  <span class="json-key">"tags"</span><span class="json-dim">: [</span></div>` +
+      tagRows +
+      `<div>  <span class="json-dim">]</span></div>` +
+      `<div><span class="json-dim">}</span></div>`
+    );
+  }
+
+  /* ─────────────────────────────────────────────────────────
+     STATE
+  ───────────────────────────────────────────────────────── */
+  const state = {
+    order: [],       // task array (fixed order — tasks have logical progression)
+    index: 0,        // current task index
+    tries: {},       // { taskId: tryCount }
+    scores: {},      // { taskId: pointsEarned }
+    totalScore: 0,
+    completed: false
+  };
+
+  /* ─────────────────────────────────────────────────────────
+     DOM REFS
+  ───────────────────────────────────────────────────────── */
+  const progressBarInner = document.getElementById('progress-bar-inner');
+  const progressText     = document.getElementById('progress-text');
+  const scoreVal         = document.getElementById('score-val');
+  const totalScoreVal    = document.getElementById('total-score-val');
+  const imageTypeBadge   = document.getElementById('image-type-badge');
+  const imageNum         = document.getElementById('image-num');
+  const svgFrame         = document.getElementById('svg-frame');
+  const taskText         = document.getElementById('task-text');
+  const hintBox          = document.getElementById('hint-box');
+  const hintText         = document.getElementById('hint-text');
+  const toolGrid         = document.getElementById('tool-grid');
+  const apiResponse      = document.getElementById('api-response');
+  const apiResponseBody  = document.getElementById('api-response-body');
+  const completeOverlay  = document.getElementById('complete-overlay');
+  const completeScore    = document.getElementById('complete-score');
+  const completeGrade    = document.getElementById('complete-grade');
+  const scoreBreakdown   = document.getElementById('score-breakdown');
+
+  /* ─────────────────────────────────────────────────────────
+     BUILD TOOL CARDS
+     Renders the 4 Vision tool buttons into the right panel.
+  ───────────────────────────────────────────────────────── */
+  function buildToolCards() {
+    toolGrid.innerHTML = '';
+    TOOLS.forEach(t => {
+      const btn = document.createElement('div');
+      btn.className = 'tool-btn';
+      btn.dataset.tool = t.id;
+      btn.id = 'tbtn-' + t.id;
+
+      // Icon container + text info
+      const iconDiv = document.createElement('div');
+      iconDiv.className = 'tb-icon';
+      iconDiv.innerHTML = t.icon;
+
+      const infoDiv = document.createElement('div');
+      infoDiv.className = 'tb-info';
+      infoDiv.innerHTML =
+        '<div class="tb-name">' + t.name + '</div>' +
+        '<div class="tb-desc">' + t.desc + '</div>';
+
+      btn.appendChild(iconDiv);
+      btn.appendChild(infoDiv);
+      btn.addEventListener('click', () => handleToolClick(t.id));
+      toolGrid.appendChild(btn);
+    });
+  }
+
+  /* ─────────────────────────────────────────────────────────
+     LOAD TASK
+     Populates the left panel with the current task's image
+     and instruction text, resets all UI state.
+  ───────────────────────────────────────────────────────── */
+  function loadTask(index) {
+    const task = state.order[index];
+
+    // Left panel
+    imageTypeBadge.textContent = task.badgeLabel;
+    imageNum.textContent = 'Image ' + (index + 1) + ' of ' + state.order.length;
+    svgFrame.innerHTML = SVG_SCENES[task.sceneKey];
+    taskText.textContent = task.task;
+
+    // Hide hint
+    hintBox.classList.remove('visible');
+    hintText.textContent = '';
+
+    // Hide API response panel (slide it out)
+    apiResponse.classList.remove('visible');
+    apiResponseBody.innerHTML = '';
+
+    // Unlock all tool buttons and clear visual states
+    document.querySelectorAll('.tool-btn').forEach(btn => {
+      btn.classList.remove('correct', 'wrong', 'locked');
+    });
+  }
+
+  /* ─────────────────────────────────────────────────────────
+     UPDATE PROGRESS BAR + HEADER SCORE
+  ───────────────────────────────────────────────────────── */
+  function updateProgress(completedCount) {
+    const pct = (completedCount / state.order.length) * 100;
+    progressBarInner.style.width = pct + '%';
+    progressText.textContent = completedCount + ' / ' + state.order.length;
+    scoreVal.textContent = state.totalScore;
+    totalScoreVal.textContent = state.totalScore;
+  }
+
+  /* ─────────────────────────────────────────────────────────
+     HANDLE TOOL CLICK
+     Core interaction handler — dispatches to correct/wrong.
+  ───────────────────────────────────────────────────────── */
+  function handleToolClick(toolId) {
+    if (state.completed) return;
+    if (state.index >= state.order.length) return;
+
+    const currentTask = state.order[state.index];
+    const clickedBtn  = document.getElementById('tbtn-' + toolId);
+    if (!clickedBtn || clickedBtn.classList.contains('locked')) return;
+
+    if (toolId === currentTask.answer) {
+      handleCorrect(currentTask, clickedBtn);
+    } else {
+      handleWrong(currentTask, toolId, clickedBtn);
+    }
+  }
+
+  /* ─────────────────────────────────────────────────────────
+     CORRECT ANSWER
+     Flashes green, shows API response, advances after pause.
+  ───────────────────────────────────────────────────────── */
+  function handleCorrect(task, clickedBtn) {
+    const tries = (state.tries[task.id] || 0) + 1;
+    state.tries[task.id] = tries;
+
+    // Score tiers: 100 / 50 / 25
+    const pts = tries === 1 ? 100 : tries === 2 ? 50 : 25;
+    state.scores[task.id] = pts;
+    state.totalScore += pts;
+
+    // Green flash on the correct card
+    clickedBtn.classList.add('correct');
+
+    // Lock all buttons to prevent re-clicking
+    document.querySelectorAll('.tool-btn').forEach(btn => {
+      btn.classList.add('locked');
+    });
+
+    // Hide any hint
+    hintBox.classList.remove('visible');
+
+    // Update score displays
+    updateProgress(state.index + 1);
+
+    // Inject and animate the API response panel
+    apiResponseBody.innerHTML = task.apiResponse;
+    // Slight delay so the green flash registers before response slides in
+    setTimeout(() => {
+      apiResponse.classList.add('visible');
+    }, 150);
+
+    // Advance to next task after allowing time to read the response
+    setTimeout(() => {
+      state.index++;
+      if (state.index < state.order.length) {
+        loadTask(state.index);
+      } else {
+        finishLab();
+      }
+    }, 2200);
+  }
+
+  /* ─────────────────────────────────────────────────────────
+     WRONG ANSWER
+     Shakes the card, shows a targeted explanation.
+  ───────────────────────────────────────────────────────── */
+  function handleWrong(task, toolId, clickedBtn) {
+    // Increment tries for this task
+    state.tries[task.id] = (state.tries[task.id] || 0) + 1;
+
+    // Red shake — force reflow to restart animation if already running
+    clickedBtn.classList.remove('wrong');
+    void clickedBtn.offsetWidth;
+    clickedBtn.classList.add('wrong');
+    setTimeout(() => clickedBtn.classList.remove('wrong'), 500);
+
+    // Show targeted explanation, fall back to generic
+    const hint = (task.wrongHints && task.wrongHints[toolId])
+      ? task.wrongHints[toolId]
+      : 'That tool does not match the task. Consider what kind of output this task requires.';
+
+    hintText.textContent = hint;
+    hintBox.classList.add('visible');
+
+    // Refresh score display (no change, but keep consistent)
+    scoreVal.textContent = state.totalScore;
+  }
+
+  /* ─────────────────────────────────────────────────────────
+     FINISH LAB
+     Shows the completion overlay and saves progress.
+  ───────────────────────────────────────────────────────── */
+  function finishLab() {
+    state.completed = true;
+
+    const maxScore = state.order.length * 100; // 800
+    const pct = Math.round((state.totalScore / maxScore) * 100);
+
+    let grade = 'Needs Practice';
+    if (pct === 100) grade = 'Perfect — Exam Ready';
+    else if (pct >= 90) grade = 'Outstanding';
+    else if (pct >= 75) grade = 'Proficient';
+    else if (pct >= 60) grade = 'Developing';
+
+    completeScore.textContent = state.totalScore + ' / ' + maxScore;
+    completeGrade.textContent = grade + ' (' + pct + '%)';
+
+    // Per-task breakdown table
+    scoreBreakdown.innerHTML = '';
+    state.order.forEach(t => {
+      const pts   = state.scores[t.id] || 0;
+      const tries = state.tries[t.id] || 0;
+      const row   = document.createElement('div');
+      row.className = 'breakdown-row';
+
+      const ptsClass   = pts === 100 ? 'perfect' : 'partial';
+      const triesLabel = tries === 1 ? '1 try' : tries + ' tries';
+
+      row.innerHTML =
+        '<span class="br-label">' + t.badgeLabel + '</span>' +
+        '<span style="font-size:11px;color:#4b5563;margin-right:12px">' + triesLabel + '</span>' +
+        '<span class="br-pts ' + ptsClass + '">+' + pts + '</span>';
+
+      scoreBreakdown.appendChild(row);
+    });
+
+    completeOverlay.classList.add('visible');
+
+    // Mark complete in platform progress system
+    if (typeof ModuleProgress !== 'undefined') {
+      ModuleProgress.complete('ai', 'ai900-ch02-lab');
+    }
+  }
+
+  /* ─────────────────────────────────────────────────────────
+     RETURN BUTTON
+  ───────────────────────────────────────────────────────── */
+  function handleReturn() {
+    window.location.href = '../index.html';
+  }
+
+  /* ─────────────────────────────────────────────────────────
+     INIT
+     Tasks run in a fixed logical order (not shuffled) to
+     provide a coherent pedagogical progression through the
+     four Vision tool types.
+  ───────────────────────────────────────────────────────── */
+  function init() {
+    state.order = [...TASKS]; // fixed order, deliberate pedagogy
+    buildToolCards();
+    loadTask(0);
+    updateProgress(0);
+  }
+
+  init();
+</script>
+</body>
+</html>
