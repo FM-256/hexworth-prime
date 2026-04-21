@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Microsoft Entra ID, Defender, and Purview Lab -- MS-900 Chapter 2</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { height: 100vh; overflow: hidden; background: #0c0c0c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #b3cef5; display: flex; flex-direction: column; }
+        .lab-header { flex-shrink: 0; padding: 15px 30px; background: rgba(10,12,20,0.95); border-bottom: 1px solid rgba(59,130,246,0.2); display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn { padding: 8px 16px; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; color: #3b82f6; text-decoration: none; font-size: 0.85rem; transition: all 0.3s ease; }
+        .back-btn:hover { background: rgba(59,130,246,0.2); }
+        .lab-title { font-size: 1rem; color: #dbeafe; }
+        .lab-badge { padding: 4px 12px; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); border-radius: 12px; font-size: 0.7rem; color: #60a5fa; }
+        .lab-badge-ch { padding: 4px 12px; background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.3); border-radius: 12px; font-size: 0.7rem; color: #34d399; }
+        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #6b82a0; }
+        .task-count { color: #3b82f6; font-weight: 500; }
+        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(59,130,246,0.15); border-radius: 3px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #1d4ed8); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
+        .lab-container { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
+        .task-panel { background: rgba(10,14,22,0.95); border-right: 1px solid rgba(59,130,246,0.15); overflow-y: auto; padding: 20px; }
+        .task-section { margin-bottom: 25px; }
+        .task-section-title { font-size: 0.68rem; color: #3b5278; letter-spacing: 0.15em; margin-bottom: 12px; text-transform: uppercase; }
+        .task-card { background: rgba(12,18,32,0.8); border: 1px solid rgba(59,130,246,0.15); border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s ease; }
+        .task-card:hover { border-color: rgba(59,130,246,0.4); }
+        .task-card.active { border-color: #3b82f6; background: rgba(59,130,246,0.1); }
+        .task-card.completed { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.04); }
+        .task-card.completed .task-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; font-weight: 400; }
+        .task-number { font-size: 0.68rem; color: #3b82f6; margin-bottom: 4px; }
+        .task-name { font-size: 0.9rem; color: #dbeafe; margin-bottom: 4px; }
+        .task-desc { font-size: 0.77rem; color: #6b82a0; line-height: 1.45; }
+        .task-desc code { background: rgba(59,130,246,0.15); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; color: #60a5fa; font-family: 'Consolas', monospace; }
+        .terminal-panel { display: flex; flex-direction: column; background: #0a0a0a; position: relative; overflow: hidden; }
+        .term-toolbar { flex-shrink: 0; padding: 8px 20px; background: rgba(12,18,28,0.9); border-bottom: 1px solid rgba(59,130,246,0.15); display: flex; align-items: center; gap: 12px; }
+        .term-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .term-dot-red { background: #ff5f57; } .term-dot-amber { background: #febc2e; } .term-dot-green { background: #28c840; }
+        .term-title { flex: 1; text-align: center; font-size: 0.8rem; color: #4a6080; font-family: 'Consolas', monospace; }
+        .term-vm-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #34d399; }
+        .term-status-dot { width: 7px; height: 7px; background: #34d399; border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .term-output { flex: 1; overflow-y: auto; padding: 16px 360px 8px 20px; font-family: 'Consolas', monospace; font-size: 0.875rem; line-height: 1.6; }
+        .term-input-row { flex-shrink: 0; display: flex; align-items: center; padding: 8px 360px 12px 20px; border-top: 1px solid rgba(59,130,246,0.1); }
+        .term-prompt-label { font-family: 'Consolas', monospace; font-size: 0.875rem; white-space: nowrap; flex-shrink: 0; }
+        .term-prompt-user { color: #3b82f6; } .term-prompt-sep { color: #3b5278; } .term-prompt-path { color: #34d399; } .term-prompt-dollar { color: #dbeafe; margin-right: 6px; }
+        .term-input { flex: 1; background: transparent; border: none; outline: none; color: #dbeafe; font-family: 'Consolas', monospace; font-size: 0.875rem; caret-color: #3b82f6; }
+        .term-line { white-space: pre-wrap; word-break: break-all; }
+        .term-line-cmd { color: #b3cef5; } .term-line-out { color: #a0d4a0; } .term-line-err { color: #f87171; }
+        .term-line-info { color: #60a5fa; } .term-line-warn { color: #fbbf24; } .term-line-dim { color: #374860; }
+        .term-welcome { color: #3b82f6; }
+        .term-prompt-span { color: #3b82f6; } .term-path-span { color: #34d399; } .term-ps1-sep { color: #3b5278; }
+        .json-key { color: #60a5fa; } .json-string { color: #86efac; } .json-number { color: #fbbf24; } .json-bool { color: #93c5fd; }
+        .instructions-panel { position: absolute; top: 20px; right: 20px; width: 320px; background: rgba(10,16,28,0.97); border: 1px solid rgba(59,130,246,0.3); border-radius: 12px; padding: 20px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
+        .instructions-panel.collapsed { width: auto; padding: 10px 14px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-body { display: none; }
+        .instructions-title { font-size: 1rem; color: #3b82f6; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-title { margin-bottom: 0; font-size: 0.85rem; }
+        .instructions-toggle { margin-left: auto; width: 28px; height: 28px; background: rgba(59,130,246,0.2); border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; color: #3b82f6; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .instructions-step { font-size: 0.88rem; color: #b3cef5; line-height: 1.65; margin-bottom: 14px; }
+        .instructions-step code { background: rgba(59,130,246,0.2); padding: 2px 7px; border-radius: 4px; font-family: 'Consolas', monospace; color: #60a5fa; font-size: 0.85em; }
+        .instructions-hint { font-size: 0.78rem; color: #3b5278; font-style: italic; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(59,130,246,0.15); }
+        .hint-btn { margin-top: 12px; padding: 6px 12px; background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.25); border-radius: 5px; color: #3b82f6; font-size: 0.75rem; cursor: pointer; width: 100%; text-align: center; }
+        .hint-command { display: none; margin-top: 10px; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(59,130,246,0.25); border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.78rem; color: #86efac; white-space: pre-wrap; }
+        .hint-command.visible { display: block; }
+        .success-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 2000; }
+        .success-overlay.active { display: flex; }
+        .success-card { background: rgba(10,16,28,0.97); border: 1px solid rgba(52,211,153,0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
+        .success-message { color: #b3cef5; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
+        .success-btn { padding: 12px 30px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; }
+        @media (max-width: 1024px) { .lab-container { grid-template-columns: 1fr; } .task-panel { display: none; } .term-output, .term-input-row { padding-right: 20px; } .instructions-panel { bottom: 60px; top: auto; right: 10px; left: 10px; width: auto; } }
+    </style>
+</head>
+<body>
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Microsoft Entra ID, Defender, and Purview</span>
+            <span class="lab-badge">MS-900</span>
+            <span class="lab-badge-ch">CH.2</span>
+        </div>
+        <div class="task-progress"><span>Progress:</span><div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBarFill"></div></div><span class="task-count" id="taskProgress">0 / 10 Tasks</span></div>
+    </header>
+    <div class="lab-container">
+        <aside class="task-panel" id="taskPanel">
+            <div class="task-section"><div class="task-section-title">Phase 1 -- Identity</div>
+                <div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)"><div class="task-number">Task 1</div><div class="task-name">List Entra ID Users</div><div class="task-desc">Run <code>m365 entra user list --properties mfaEnabled</code> to see all users and their MFA status.</div></div>
+                <div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)"><div class="task-number">Task 2</div><div class="task-name">Check Conditional Access</div><div class="task-desc">Run <code>m365 entra ca policy list</code> to list Conditional Access policies in the tenant.</div></div>
+                <div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)"><div class="task-number">Task 3</div><div class="task-name">View Entra ID Groups</div><div class="task-desc">Run <code>m365 entra group list</code> to see security and M365 groups.</div></div>
+            </div>
+            <div class="task-section"><div class="task-section-title">Phase 2 -- Defender</div>
+                <div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)"><div class="task-number">Task 4</div><div class="task-name">View Secure Score</div><div class="task-desc">Run <code>m365 tenant security securescores list</code> to check the organization's Secure Score.</div></div>
+                <div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)"><div class="task-number">Task 5</div><div class="task-name">List Security Alerts</div><div class="task-desc">Run <code>m365 tenant security alerts list</code> to see recent security alerts from Defender.</div></div>
+                <div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)"><div class="task-number">Task 6</div><div class="task-name">Check Safe Links Policy</div><div class="task-desc">Run <code>m365 defender safelinks policy list</code> to view Safe Links configuration.</div></div>
+            </div>
+            <div class="task-section"><div class="task-section-title">Phase 3 -- Purview</div>
+                <div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)"><div class="task-number">Task 7</div><div class="task-name">List Sensitivity Labels</div><div class="task-desc">Run <code>m365 purview sensitivitylabel list</code> to see published sensitivity labels.</div></div>
+                <div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)"><div class="task-number">Task 8</div><div class="task-name">View DLP Policies</div><div class="task-desc">Run <code>m365 purview dlp policy list</code> to inspect data loss prevention policies.</div></div>
+            </div>
+            <div class="task-section"><div class="task-section-title">Phase 4 -- Trust</div>
+                <div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)"><div class="task-number">Task 9</div><div class="task-name">Check Retention Policies</div><div class="task-desc">Run <code>m365 purview retentionpolicy list</code> to view data retention configurations.</div></div>
+                <div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)"><div class="task-number">Task 10</div><div class="task-name">View Compliance Score</div><div class="task-desc">Run <code>m365 purview compliancescore get</code> to check the organization's compliance posture.</div></div>
+            </div>
+        </aside>
+        <main class="terminal-panel" id="terminalPanel">
+            <div class="term-toolbar"><div class="term-dot term-dot-red"></div><div class="term-dot term-dot-amber"></div><div class="term-dot term-dot-green"></div><div class="term-title">secadmin@cloud-shell -- bash</div><div class="term-vm-status"><div class="term-status-dot"></div>M365 Security CLI</div></div>
+            <div class="term-output" id="termOutput"></div>
+            <div class="term-input-row"><span class="term-prompt-label"><span class="term-prompt-user">secadmin@cloud-shell</span><span class="term-prompt-sep">:</span><span class="term-prompt-path">~</span><span class="term-prompt-dollar">$</span></span><input class="term-input" id="termInput" type="text" autocomplete="off" spellcheck="false" aria-label="Terminal input" /></div>
+            <div class="instructions-panel" id="instructionsPanel">
+                <div class="instructions-title" onclick="toggleInstructions()"><img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Task Instructions <button class="instructions-toggle" id="instructionsToggle">&#9660;</button></div>
+                <div class="instructions-body" id="instructionsBody"><div class="instructions-step" id="instructionsStep">Type the command in the terminal and press Enter.</div><div class="instructions-hint" id="instructionsHint"><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block"> Select a task to see instructions.</div><button class="hint-btn" onclick="revealHint()">Show command hint</button><div class="hint-command" id="hintCommand"></div></div>
+            </div>
+            <div class="success-overlay" id="successOverlay"><div class="success-card"><div style="margin-bottom:20px"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:3rem;height:3rem;object-fit:contain"></div><div class="success-title">MS-900 Chapter 2 Lab Complete!</div><div class="success-message">You audited Entra ID users and MFA status, reviewed Conditional Access policies, checked the Secure Score and security alerts, inspected Defender Safe Links, explored Purview sensitivity labels and DLP policies, reviewed retention policies, and checked compliance posture.</div><button class="success-btn" onclick="finishLab()">Complete Lab</button></div></div>
+        </main>
+    </div>
+    <script>
+    (function(){
+        'use strict';
+        var USER='secadmin',HOST='cloud-shell';var cmdHistory=[],histIdx=-1,currentTask=1;
+        var taskDone={1:false,2:false,3:false,4:false,5:false,6:false,7:false,8:false,9:false,10:false},TOTAL_TASKS=10;
+        var outputEl,inputEl;
+        function addLine(t,c){var d=document.createElement('div');d.className='term-line'+(c?' '+c:'');d.textContent=t;outputEl.appendChild(d);outputEl.scrollTop=outputEl.scrollHeight;}
+        function addHTML(h,c){var d=document.createElement('div');d.className='term-line'+(c?' '+c:'');d.innerHTML=h;outputEl.appendChild(d);outputEl.scrollTop=outputEl.scrollHeight;}
+        function addBlank(){addLine('');}
+        function addPromptLine(cmd){addHTML('<span class="term-prompt-span">'+USER+'@'+HOST+'</span><span class="term-ps1-sep">:~$ </span>'+cmd.replace(/</g,'&lt;'),'term-line-cmd');}
+        function printJSON(obj){var r=JSON.stringify(obj,null,2).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"([^"]+)":/g,'<span class="json-key">"$1"</span>:').replace(/: "([^"]*)"/g,': <span class="json-string">"$1"</span>').replace(/: (true|false)/g,': <span class="json-bool">$1</span>').replace(/: (-?\d+\.?\d*)/g,': <span class="json-number">$1</span>');r.split('\n').forEach(function(l){addHTML(l,'term-line-out');});}
+
+        var taskInfo={
+            1:{step:'Run <code>m365 entra user list --properties mfaEnabled</code> to check MFA status for all users.',hint:'m365 entra user list --properties mfaEnabled'},
+            2:{step:'Run <code>m365 entra ca policy list</code> to list Conditional Access policies.',hint:'m365 entra ca policy list'},
+            3:{step:'Run <code>m365 entra group list</code> to view security and M365 groups.',hint:'m365 entra group list'},
+            4:{step:'Run <code>m365 tenant security securescores list</code> to check Secure Score.',hint:'m365 tenant security securescores list'},
+            5:{step:'Run <code>m365 tenant security alerts list</code> to view security alerts.',hint:'m365 tenant security alerts list'},
+            6:{step:'Run <code>m365 defender safelinks policy list</code> to inspect Safe Links configuration.',hint:'m365 defender safelinks policy list'},
+            7:{step:'Run <code>m365 purview sensitivitylabel list</code> to see sensitivity labels.',hint:'m365 purview sensitivitylabel list'},
+            8:{step:'Run <code>m365 purview dlp policy list</code> to view DLP policies.',hint:'m365 purview dlp policy list'},
+            9:{step:'Run <code>m365 purview retentionpolicy list</code> to check retention policies.',hint:'m365 purview retentionpolicy list'},
+            10:{step:'Run <code>m365 purview compliancescore get</code> to view compliance score.',hint:'m365 purview compliancescore get'}
+        };
+        window.selectTask=function(n){currentTask=n;document.querySelectorAll('.task-card').forEach(function(c){c.classList.remove('active');});var card=document.getElementById('task-card-'+n);if(card)card.classList.add('active');var i=taskInfo[n];if(i){document.getElementById('instructionsStep').innerHTML=i.step;document.getElementById('hintCommand').textContent=i.hint;document.getElementById('hintCommand').classList.remove('visible');}};
+        window.toggleInstructions=function(){document.getElementById('instructionsPanel').classList.toggle('collapsed');};
+        window.revealHint=function(){document.getElementById('hintCommand').classList.toggle('visible');};
+        window.finishLab=function(){if(typeof ModuleProgress!=='undefined'){ModuleProgress.complete('cloud','ms900-ch02-lab',{returnUrl:'../index.html'});}else{window.location.href='../index.html';}};
+
+        function completeTask(n){if(taskDone[n])return;taskDone[n]=true;var card=document.getElementById('task-card-'+n);if(card)card.classList.add('completed');var done=Object.keys(taskDone).filter(function(k){return taskDone[k];}).length;document.getElementById('taskProgress').textContent=done+' / '+TOTAL_TASKS+' Tasks';document.getElementById('progressBarFill').style.width=(done/TOTAL_TASKS*100)+'%';if(done===TOTAL_TASKS)setTimeout(function(){document.getElementById('successOverlay').classList.add('active');},600);}
+
+        function processCommand(raw){var cmd=raw.trim();if(!cmd)return;addPromptLine(cmd);cmdHistory.unshift(cmd);histIdx=-1;
+            if(cmd==='clear'){outputEl.innerHTML='';return;}
+            if(cmd==='help'){addLine('Commands: m365 entra user list --properties mfaEnabled, m365 entra ca policy list, m365 entra group list, m365 tenant security securescores list, m365 tenant security alerts list, m365 defender safelinks policy list, m365 purview sensitivitylabel list, m365 purview dlp policy list, m365 purview retentionpolicy list, m365 purview compliancescore get','term-line-info');return;}
+            if(cmd.indexOf('m365 entra user list')===0&&cmd.indexOf('mfaEnabled')>=0){printJSON([{displayName:'Admin User',userPrincipalName:'admin@contoso.com',mfaEnabled:true,mfaMethods:['microsoftAuthenticator','phone']},{displayName:'Sarah Chen',userPrincipalName:'sarah.chen@contoso.com',mfaEnabled:true,mfaMethods:['microsoftAuthenticator']},{displayName:'Marcus Williams',userPrincipalName:'marcus.williams@contoso.com',mfaEnabled:true,mfaMethods:['microsoftAuthenticator']},{displayName:'Alex Johnson',userPrincipalName:'alex.johnson@contoso.com',mfaEnabled:false,mfaMethods:[]},{displayName:'Priya Patel',userPrincipalName:'priya.patel@contoso.com',mfaEnabled:true,mfaMethods:['phone']}]);addBlank();addLine('  4 of 5 users have MFA enabled. alex.johnson@contoso.com needs MFA registration.','term-line-warn');completeTask(1);return;}
+            if(cmd==='m365 entra ca policy list'){printJSON([{id:'ca-001',displayName:'Require MFA for Admins',state:'enabled',conditions:{users:{includeRoles:['Global Administrator','Exchange Administrator']},locations:{includeLocations:['All']}},grantControls:{builtInControls:['mfa']}},{id:'ca-002',displayName:'Block Legacy Authentication',state:'enabled',conditions:{clientAppTypes:['exchangeActiveSync','other']},grantControls:{builtInControls:['block']}},{id:'ca-003',displayName:'Require Compliant Device for SharePoint',state:'enabledForReportingButNotEnforced',conditions:{applications:{includeApplications:['SharePoint Online']},platforms:{includePlatforms:['windows','iOS']}},grantControls:{builtInControls:['compliantDevice']}}]);addBlank();addLine('  3 Conditional Access policies found. 2 enforced, 1 in report-only mode.','term-line-info');completeTask(2);return;}
+            if(cmd==='m365 entra group list'){printJSON([{id:'grp-001',displayName:'IT Operations',groupTypes:['Unified'],securityEnabled:true,memberCount:3},{id:'grp-002',displayName:'All Employees',groupTypes:[],securityEnabled:true,memberCount:5},{id:'grp-003',displayName:'Marketing',groupTypes:['Unified'],securityEnabled:false,memberCount:2},{id:'grp-004',displayName:'E3 License Group',groupTypes:[],securityEnabled:true,memberCount:3,assignedLicenses:['ENTERPRISEPACK']}]);addBlank();addLine('  4 groups found. E3 License Group uses group-based licensing.','term-line-info');completeTask(3);return;}
+            if(cmd==='m365 tenant security securescores list'){printJSON({currentScore:62,maxScore:100,averageComparativeScore:48,controlScores:[{controlName:'MFARegistrationV2',score:9,maxScore:9,description:'Ensure all users are registered for MFA'},{controlName:'BlockLegacyAuthentication',score:8,maxScore:8,description:'Block legacy authentication'},{controlName:'AdminMFAV2',score:10,maxScore:10,description:'Require MFA for admins'},{controlName:'OneAdmin',score:0,maxScore:5,description:'Designate fewer than 5 global admins'},{controlName:'SignInRiskPolicy',score:0,maxScore:6,description:'Enable sign-in risk policy'}]});addBlank();addLine('  Secure Score: 62/100. Above average (48). Top improvement: enable sign-in risk policy.','term-line-info');completeTask(4);return;}
+            if(cmd==='m365 tenant security alerts list'){printJSON([{id:'alert-001',title:'Suspicious inbox forwarding rule',severity:'Medium',status:'New',createdDateTime:'2026-04-20T14:32:00Z',userStates:[{userPrincipalName:'sarah.chen@contoso.com'}]},{id:'alert-002',title:'Impossible travel activity',severity:'High',status:'InProgress',createdDateTime:'2026-04-19T09:15:00Z',userStates:[{userPrincipalName:'marcus.williams@contoso.com'}]},{id:'alert-003',title:'Anonymous IP address sign-in',severity:'Low',status:'Resolved',createdDateTime:'2026-04-18T22:45:00Z',userStates:[{userPrincipalName:'admin@contoso.com'}]}]);addBlank();addLine('  3 alerts: 1 High, 1 Medium, 1 Low. Impossible travel alert needs investigation.','term-line-warn');completeTask(5);return;}
+            if(cmd==='m365 defender safelinks policy list'){printJSON([{id:'sl-001',name:'Default Safe Links Policy',isEnabled:true,doNotRewriteUrls:[],doNotTrackUserClicks:false,scanUrls:true,enableForInternalSenders:true,deliverMessageAfterScan:true,disableUrlRewrite:false,enableOrganizationBranding:true}]);addBlank();addLine('  Safe Links enabled. All URLs rewritten and scanned at click time.','term-line-info');completeTask(6);return;}
+            if(cmd==='m365 purview sensitivitylabel list'){printJSON([{id:'label-001',name:'Public',description:'Information freely available to anyone',priority:0,isActive:true,contentFormats:['file','email']},{id:'label-002',name:'Internal',description:'For internal use only -- not for external sharing',priority:1,isActive:true,contentFormats:['file','email'],encryption:false},{id:'label-003',name:'Confidential',description:'Sensitive business data requiring protection',priority:2,isActive:true,contentFormats:['file','email','site'],encryption:true,watermark:'CONFIDENTIAL'},{id:'label-004',name:'Highly Confidential',description:'Restricted access -- encryption required',priority:3,isActive:true,contentFormats:['file','email'],encryption:true,watermark:'HIGHLY CONFIDENTIAL',accessRestrictions:'Specified users only'}]);addBlank();addLine('  4 sensitivity labels published. Confidential and Highly Confidential enforce encryption.','term-line-info');completeTask(7);return;}
+            if(cmd==='m365 purview dlp policy list'){printJSON([{id:'dlp-001',name:'Credit Card Number Detection',isEnabled:true,mode:'Enforce',locations:['Exchange','SharePoint','OneDrive','Teams'],sensitiveInfoTypes:['Credit Card Number'],action:'BlockAccess',notifyUser:true},{id:'dlp-002',name:'SSN Protection',isEnabled:true,mode:'TestWithNotifications',locations:['Exchange','SharePoint'],sensitiveInfoTypes:['U.S. Social Security Number'],action:'NotifyOnly',notifyUser:true}]);addBlank();addLine('  2 DLP policies. Credit card policy enforcing, SSN policy in test mode.','term-line-info');completeTask(8);return;}
+            if(cmd==='m365 purview retentionpolicy list'){printJSON([{id:'ret-001',name:'7-Year Email Retention',isEnabled:true,retainDays:2555,locations:['Exchange'],retainAction:'Keep',deleteAction:'SoftDelete'},{id:'ret-002',name:'3-Year SharePoint Retention',isEnabled:true,retainDays:1095,locations:['SharePoint','OneDrive'],retainAction:'Keep',deleteAction:'SoftDelete'},{id:'ret-003',name:'Teams Chat 1-Year',isEnabled:true,retainDays:365,locations:['TeamsChat','TeamsChannel'],retainAction:'Keep',deleteAction:'HardDelete'}]);addBlank();addLine('  3 retention policies active across Exchange, SharePoint, OneDrive, and Teams.','term-line-info');completeTask(9);return;}
+            if(cmd==='m365 purview compliancescore get'){printJSON({overallScore:68,maxScore:100,assessmentCount:3,assessments:[{name:'GDPR Assessment',score:72,maxScore:100,controlsPassed:18,controlsTotal:25},{name:'ISO 27001',score:65,maxScore:100,controlsPassed:32,controlsTotal:49},{name:'NIST 800-53',score:58,maxScore:100,controlsPassed:45,controlsTotal:78}],topImprovementActions:[{action:'Enable audit logging for all users',pointsToGain:5},{action:'Implement data classification scheme',pointsToGain:4},{action:'Configure insider risk policies',pointsToGain:3}]});addBlank();addLine('  Compliance Score: 68/100. Top action: enable audit logging (+5 points).','term-line-info');completeTask(10);return;}
+            addLine('Command not recognized. Type "help" for available commands.','term-line-err');
+        }
+        document.addEventListener('DOMContentLoaded',function(){
+            outputEl=document.getElementById('termOutput');inputEl=document.getElementById('termInput');
+            addLine('Microsoft 365 CLI v7.5.0 -- Security Admin Session','term-welcome');addLine('Connected to tenant: Contoso. Type "help" for commands.','term-line-dim');addBlank();
+            selectTask(1);
+            inputEl.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();processCommand(inputEl.value);inputEl.value='';}else if(e.key==='ArrowUp'){e.preventDefault();if(histIdx<cmdHistory.length-1){histIdx++;inputEl.value=cmdHistory[histIdx];}}else if(e.key==='ArrowDown'){e.preventDefault();if(histIdx>0){histIdx--;inputEl.value=cmdHistory[histIdx];}else{histIdx=-1;inputEl.value='';}}});
+            inputEl.focus();
+        });
+    })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

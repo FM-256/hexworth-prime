@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Concepts and Microsoft 365 | MS-900 Chapter 1</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #3b82f6; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: #3b82f6;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.08); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #3b82f6;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .diagram-row { display: flex; gap: 16px; align-items: center; justify-content: center; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        .hex-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 8px; padding: 12px 14px;
+            text-align: center;
+            opacity: 0;
+            animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #3b82f6; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes flow {
+            0%   { stroke-dashoffset: 20; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes boxGrow {
+            from { opacity: 0; transform: scale(0.7); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes entityPop {
+            from { opacity: 0; transform: scale(0.6) translateY(6px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes spokePulse {
+            0%   { stroke-dashoffset: 40; opacity: 0.3; }
+            50%  { opacity: 1; }
+            100% { stroke-dashoffset: 0; opacity: 0.6; }
+        }
+        @keyframes orbitSpin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+        @keyframes glowPulse {
+            0%, 100% { filter: drop-shadow(0 0 4px rgba(59,130,246,0.3)); }
+            50%       { filter: drop-shadow(0 0 14px rgba(59,130,246,0.9)); }
+        }
+
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.4);
+            color: #3b82f6; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Cloud Concepts and Microsoft 365 -- MS-900 Chapter 1</h1>
+
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; MS-900 &nbsp;|&nbsp; Chapter 1 &nbsp;|&nbsp; Cloud &amp; M365</div>
+        <div class="title-hero">
+            <svg width="420" height="120" viewBox="0 0 420 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central M365 logo box -->
+                <rect x="160" y="20" width="100" height="80" rx="14" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="210" y="50" text-anchor="middle" font-size="11" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Microsoft</text>
+                <text x="210" y="65" text-anchor="middle" font-size="14" fill="#93c5fd" font-weight="800" font-family="Segoe UI,sans-serif">365</text>
+                <text x="210" y="80" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Cloud Productivity</text>
+                <!-- Glow ring -->
+                <ellipse cx="210" cy="60" rx="62" ry="48" fill="none" stroke="rgba(59,130,246,0.1)" stroke-width="1.2"
+                    style="animation: pulse 2.8s ease-in-out infinite;"/>
+                <!-- Teams box - left -->
+                <rect x="14" y="10" width="100" height="40" rx="8" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.4"
+                    style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="64" y="27" text-anchor="middle" font-size="9" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Teams</text>
+                <text x="64" y="40" text-anchor="middle" font-size="7" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Chat + Meetings</text>
+                <!-- SharePoint box - bottom left -->
+                <rect x="14" y="60" width="100" height="40" rx="8" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.4"
+                    style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="64" y="77" text-anchor="middle" font-size="9" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">SharePoint</text>
+                <text x="64" y="90" text-anchor="middle" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif">Content + Sites</text>
+                <!-- Exchange box - right -->
+                <rect x="306" y="10" width="100" height="40" rx="8" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.4"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="356" y="27" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Exchange</text>
+                <text x="356" y="40" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Email + Calendar</text>
+                <!-- OneDrive box - bottom right -->
+                <rect x="306" y="60" width="100" height="40" rx="8" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.4"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="356" y="77" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">OneDrive</text>
+                <text x="356" y="90" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">File Storage</text>
+                <!-- Connecting lines -->
+                <line x1="114" y1="30" x2="159" y2="50" stroke="rgba(167,139,250,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <line x1="114" y1="80" x2="159" y2="65" stroke="rgba(6,182,212,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.15s"/>
+                </line>
+                <line x1="306" y1="30" x2="261" y2="50" stroke="rgba(58,181,119,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <line x1="306" y1="80" x2="261" y2="65" stroke="rgba(201,168,58,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.25s"/>
+                </line>
+            </svg>
+            <div class="big-title">
+                Cloud Concepts and <span class="accent">Microsoft 365</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Cloud Models &nbsp;&bull;&nbsp; M365 Components &nbsp;&bull;&nbsp; Subscription Plans &nbsp;&bull;&nbsp; Organizational Benefits
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Microsoft 365 delivers productivity as a cloud service. This chapter covers the cloud computing models that make it possible, the core M365 components every organization uses, the subscription plans that bundle them, and the business benefits that drive cloud adoption.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>MS-900 Exam Objectives</span>
+            <span>Chapter 1 of 3</span>
+            <span>Microsoft 365 Fundamentals</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — CLOUD COMPUTING BASICS ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">What is <span class="accent">Cloud Computing</span>?</div>
+        <div class="slide-subtitle">On-demand delivery of computing services over the internet, with pay-as-you-go pricing.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="110" viewBox="0 0 680 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- On-premises box -->
+                <rect x="4" y="15" width="140" height="80" rx="10" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="74" y="35" text-anchor="middle" font-size="9" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">On-Premises</text>
+                <text x="74" y="50" text-anchor="middle" font-size="7.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">You own the hardware</text>
+                <text x="74" y="62" text-anchor="middle" font-size="7.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">You manage everything</text>
+                <text x="74" y="74" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">CapEx model</text>
+                <text x="74" y="86" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">Scale = buy more servers</text>
+                <!-- Arrow -->
+                <line x1="150" y1="55" x2="195" y2="55" stroke="rgba(255,255,255,0.3)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="195,50 205,55 195,60" fill="rgba(255,255,255,0.3)"/>
+                <!-- Cloud box -->
+                <rect x="210" y="5" width="260" height="100" rx="14" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.2s; opacity:0;"/>
+                <text x="340" y="22" text-anchor="middle" font-size="10" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Cloud Computing</text>
+                <text x="340" y="38" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Microsoft manages infrastructure</text>
+                <text x="340" y="52" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">OpEx model -- pay for what you use</text>
+                <text x="340" y="66" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Scale on demand -- no hardware orders</text>
+                <text x="340" y="80" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Built-in redundancy + global availability</text>
+                <text x="340" y="96" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">IaaS | PaaS | SaaS</text>
+                <!-- Pulse ring -->
+                <rect x="202" y="-3" width="276" height="116" rx="18" fill="none" stroke="rgba(59,130,246,0.08)" stroke-width="1.2"
+                    style="animation: pulse 2.5s ease-in-out infinite;"/>
+                <!-- Benefits on right -->
+                <rect x="500" y="10" width="170" height="26" rx="6" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="585" y="27" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">High Availability + SLAs</text>
+                <rect x="500" y="42" width="170" height="26" rx="6" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.5s; opacity:0;"/>
+                <text x="585" y="59" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Elastic Scalability</text>
+                <rect x="500" y="74" width="170" height="26" rx="6" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.6s; opacity:0;"/>
+                <text x="585" y="91" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Global Reach + Geo-Redundancy</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">IaaS</div>
+                <div class="card-desc">Infrastructure as a Service. You rent VMs, storage, and networking. You manage the OS, middleware, and apps. The cloud provider manages the physical hardware, power, and cooling. Maximum control, maximum responsibility.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">PaaS</div>
+                <div class="card-desc">Platform as a Service. The provider manages the OS and runtime in addition to the infrastructure. You focus on deploying your code and data. Examples: Azure App Service, Azure SQL Database. Less management, faster development.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">SaaS</div>
+                <div class="card-desc">Software as a Service. The provider manages everything -- you just use the application. Microsoft 365 is the defining SaaS example: Exchange Online, Teams, SharePoint, OneDrive -- all delivered as services you subscribe to, not install.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — CLOUD DEPLOYMENT MODELS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Cloud Deployment <span class="accent">Models</span></div>
+        <div class="slide-subtitle">Public, private, and hybrid clouds serve different organizational needs and compliance requirements.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="100" viewBox="0 0 680 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Public -->
+                <rect x="4" y="10" width="200" height="80" rx="10" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="104" y="30" text-anchor="middle" font-size="10" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Public Cloud</text>
+                <text x="104" y="46" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Owned by cloud provider (Microsoft)</text>
+                <text x="104" y="58" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Shared infrastructure, multi-tenant</text>
+                <text x="104" y="70" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Lowest cost, highest scalability</text>
+                <text x="104" y="82" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Microsoft 365, Azure, AWS, GCP</text>
+                <!-- Private -->
+                <rect x="240" y="10" width="200" height="80" rx="10" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="340" y="30" text-anchor="middle" font-size="10" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Private Cloud</text>
+                <text x="340" y="46" text-anchor="middle" font-size="7.5" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Dedicated to a single organization</text>
+                <text x="340" y="58" text-anchor="middle" font-size="7.5" fill="#c4b5fd" font-family="Segoe UI,sans-serif">On-premises or hosted by provider</text>
+                <text x="340" y="70" text-anchor="middle" font-size="7.5" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Maximum control + compliance</text>
+                <text x="340" y="82" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Azure Stack, VMware on Azure</text>
+                <!-- Hybrid -->
+                <rect x="476" y="10" width="200" height="80" rx="10" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="576" y="30" text-anchor="middle" font-size="10" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Hybrid Cloud</text>
+                <text x="576" y="46" text-anchor="middle" font-size="7.5" fill="#86efac" font-family="Segoe UI,sans-serif">Combines public + private</text>
+                <text x="576" y="58" text-anchor="middle" font-size="7.5" fill="#86efac" font-family="Segoe UI,sans-serif">Data flows between environments</text>
+                <text x="576" y="70" text-anchor="middle" font-size="7.5" fill="#86efac" font-family="Segoe UI,sans-serif">Best of both: flexibility + control</text>
+                <text x="576" y="82" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Most common enterprise model</text>
+                <!-- Connecting dashes -->
+                <line x1="205" y1="50" x2="239" y2="50" stroke="rgba(255,255,255,0.15)" stroke-width="1" stroke-dasharray="3,3"/>
+                <line x1="441" y1="50" x2="475" y2="50" stroke="rgba(255,255,255,0.15)" stroke-width="1" stroke-dasharray="3,3"/>
+            </svg>
+        </div>
+
+        <div class="scenario-strip">
+            Most organizations using Microsoft 365 operate in a hybrid model. They have Microsoft Entra ID synchronized with on-premises Active Directory, mailboxes in Exchange Online alongside on-premises file servers, and Conditional Access policies that span both environments. The MS-900 exam expects you to understand when each model is appropriate.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Public Benefits</div>
+                <div class="card-desc">No capital expenditure, near-unlimited scalability, pay only for what you consume, automatic updates, global availability. Microsoft 365 is a public cloud SaaS offering -- every tenant shares the underlying infrastructure with logical isolation.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Private Benefits</div>
+                <div class="card-desc">Full control over hardware and data residency. Required for some regulatory frameworks (ITAR, certain government classifications). Higher cost but maximum security control. Can run Microsoft 365 workloads on Azure Stack for air-gapped environments.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Hybrid Benefits</div>
+                <div class="card-desc">Keep sensitive workloads on-premises while using cloud for collaboration and productivity. Microsoft Entra Connect synchronizes identities. Exchange hybrid enables gradual mailbox migration. Most M365 enterprise deployments start here.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — M365 OVERVIEW ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Microsoft 365 <span class="accent">Ecosystem</span></div>
+        <div class="slide-subtitle">An integrated suite of cloud productivity, collaboration, and security services delivered as SaaS.</div>
+
+        <div class="diagram-center">
+            <svg width="600" height="110" viewBox="0 0 600 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central hub -->
+                <circle cx="300" cy="55" r="30" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="300" y="52" text-anchor="middle" font-size="10" fill="#3b82f6" font-weight="800" font-family="Segoe UI,sans-serif">M365</text>
+                <text x="300" y="64" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Hub</text>
+                <!-- Pulse -->
+                <circle cx="300" cy="55" r="40" fill="none" stroke="rgba(59,130,246,0.08)" stroke-width="1"
+                    style="animation: pulse 2.5s ease-in-out infinite;"/>
+                <!-- Office Apps -->
+                <rect x="4" y="8" width="100" height="34" rx="7" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.15s; opacity:0;"/>
+                <text x="54" y="22" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Office Apps</text>
+                <text x="54" y="34" text-anchor="middle" font-size="6.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">Word, Excel, PPT, Outlook</text>
+                <!-- Teams -->
+                <rect x="4" y="52" width="100" height="34" rx="7" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="54" y="66" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Teams</text>
+                <text x="54" y="78" text-anchor="middle" font-size="6.5" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Chat, Meetings, Calls</text>
+                <!-- Exchange -->
+                <rect x="130" y="78" width="100" height="28" rx="7" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="180" y="96" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Exchange Online</text>
+                <!-- SharePoint -->
+                <rect x="370" y="78" width="100" height="28" rx="7" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="420" y="96" text-anchor="middle" font-size="8" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">SharePoint Online</text>
+                <!-- OneDrive -->
+                <rect x="496" y="52" width="100" height="34" rx="7" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="546" y="66" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">OneDrive</text>
+                <text x="546" y="78" text-anchor="middle" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Personal Cloud Storage</text>
+                <!-- Security -->
+                <rect x="496" y="8" width="100" height="34" rx="7" fill="rgba(249,115,22,0.08)" stroke="#f97316" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.45s; opacity:0;"/>
+                <text x="546" y="22" text-anchor="middle" font-size="8" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">Security</text>
+                <text x="546" y="34" text-anchor="middle" font-size="6.5" fill="#fdba74" font-family="Segoe UI,sans-serif">Entra ID, Defender, Purview</text>
+                <!-- Spokes -->
+                <line x1="104" y1="25" x2="270" y2="48" stroke="rgba(239,68,68,0.3)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.2s" repeatCount="indefinite"/></line>
+                <line x1="104" y1="69" x2="270" y2="58" stroke="rgba(167,139,250,0.3)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.2s" repeatCount="indefinite" begin="0.1s"/></line>
+                <line x1="230" y1="92" x2="275" y2="70" stroke="rgba(58,181,119,0.3)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.2s" repeatCount="indefinite" begin="0.2s"/></line>
+                <line x1="370" y1="92" x2="325" y2="70" stroke="rgba(6,182,212,0.3)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.2s" repeatCount="indefinite" begin="0.3s"/></line>
+                <line x1="496" y1="69" x2="330" y2="58" stroke="rgba(201,168,58,0.3)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.2s" repeatCount="indefinite" begin="0.35s"/></line>
+                <line x1="496" y1="25" x2="330" y2="48" stroke="rgba(249,115,22,0.3)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.2s" repeatCount="indefinite" begin="0.4s"/></line>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Productivity + Collaboration</div>
+                <div class="card-desc">Office apps (Word, Excel, PowerPoint, Outlook) are available as web, desktop, and mobile apps. Teams unifies chat, video meetings, phone, and file sharing. SharePoint powers team sites, intranets, and content management. OneDrive provides per-user cloud file storage with sync.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Security + Compliance</div>
+                <div class="card-desc">Microsoft Entra ID handles identity and access management. Microsoft 365 Defender protects endpoints, email, and cloud apps. Microsoft Purview provides compliance, data loss prevention, and information governance. All integrated into the same admin console.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — OFFICE APPS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Microsoft 365 <span class="accent">Office Apps</span></div>
+        <div class="slide-subtitle">Familiar productivity applications available across web, desktop, and mobile -- always up to date.</div>
+
+        <div class="diagram-center">
+            <svg width="600" height="90" viewBox="0 0 600 90" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="4" y="10" width="90" height="70" rx="8" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.1s; opacity:0;"/>
+                <text x="49" y="32" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Word</text>
+                <text x="49" y="46" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Documents</text>
+                <text x="49" y="58" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Co-authoring</text>
+                <text x="49" y="70" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Real-time collab</text>
+
+                <rect x="104" y="10" width="90" height="70" rx="8" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="149" y="32" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Excel</text>
+                <text x="149" y="46" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Spreadsheets</text>
+                <text x="149" y="58" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Power Query</text>
+                <text x="149" y="70" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Data analysis</text>
+
+                <rect x="204" y="10" width="90" height="70" rx="8" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="249" y="32" text-anchor="middle" font-size="9" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">PowerPoint</text>
+                <text x="249" y="46" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Presentations</text>
+                <text x="249" y="58" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Designer AI</text>
+                <text x="249" y="70" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Visual storytelling</text>
+
+                <rect x="304" y="10" width="90" height="70" rx="8" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="349" y="32" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Outlook</text>
+                <text x="349" y="46" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Email + Calendar</text>
+                <text x="349" y="58" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Focused Inbox</text>
+                <text x="349" y="70" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Scheduling</text>
+
+                <rect x="404" y="10" width="90" height="70" rx="8" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.5s; opacity:0;"/>
+                <text x="449" y="32" text-anchor="middle" font-size="9" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">OneNote</text>
+                <text x="449" y="46" text-anchor="middle" font-size="7" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Digital Notebook</text>
+                <text x="449" y="58" text-anchor="middle" font-size="7" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Shared sections</text>
+                <text x="449" y="70" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Ink + media</text>
+
+                <rect x="504" y="10" width="90" height="70" rx="8" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.6s; opacity:0;"/>
+                <text x="549" y="32" text-anchor="middle" font-size="9" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Access</text>
+                <text x="549" y="46" text-anchor="middle" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif">Desktop DB</text>
+                <text x="549" y="58" text-anchor="middle" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif">Forms + Reports</text>
+                <text x="549" y="70" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Desktop only</text>
+            </svg>
+        </div>
+
+        <div class="scenario-strip">
+            Microsoft 365 Apps for Enterprise (formerly Office 365 ProPlus) delivers always-updated desktop apps via Click-to-Run. Web versions are available in any modern browser at no desktop installation required. Mobile apps on iOS and Android provide editing on the go. All versions save to OneDrive or SharePoint for seamless co-authoring.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Deployment Channels</div>
+                <div class="card-desc">Current Channel gets features first. Monthly Enterprise Channel is for predictable monthly updates. Semi-Annual Enterprise Channel provides the most stable, least-frequent updates. IT admins choose channels per organizational risk tolerance.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Co-Authoring</div>
+                <div class="card-desc">Multiple users edit the same document simultaneously in Word, Excel, and PowerPoint. Changes are synced in real time. AutoSave automatically saves to OneDrive or SharePoint. Version history lets you roll back to any previous version.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Licensing Model</div>
+                <div class="card-desc">Desktop apps require Business Standard/Premium or E3/E5 licenses. Web-only access is included in Business Basic. Each user can install on up to 5 PCs/Macs, 5 tablets, and 5 phones. Apps deactivate (read-only) if the license is removed.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — EXCHANGE, SHAREPOINT, ONEDRIVE ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Exchange, SharePoint, and <span class="accent">OneDrive</span></div>
+        <div class="slide-subtitle">Enterprise email, team content management, and personal cloud storage -- the three pillars of M365 data services.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="100" viewBox="0 0 680 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="4" y="10" width="200" height="80" rx="10" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.1s; opacity:0;"/>
+                <text x="104" y="28" text-anchor="middle" font-size="10" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Exchange Online</text>
+                <text x="104" y="42" text-anchor="middle" font-size="7.5" fill="#86efac" font-family="Segoe UI,sans-serif">50 GB mailbox (E3) / 100 GB (E5)</text>
+                <text x="104" y="54" text-anchor="middle" font-size="7.5" fill="#86efac" font-family="Segoe UI,sans-serif">Shared calendars + scheduling</text>
+                <text x="104" y="66" text-anchor="middle" font-size="7.5" fill="#86efac" font-family="Segoe UI,sans-serif">Transport rules + mail flow</text>
+                <text x="104" y="78" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Anti-spam, anti-malware built in</text>
+
+                <rect x="240" y="10" width="200" height="80" rx="10" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.2s; opacity:0;"/>
+                <text x="340" y="28" text-anchor="middle" font-size="10" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">SharePoint Online</text>
+                <text x="340" y="42" text-anchor="middle" font-size="7.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">Team sites + communication sites</text>
+                <text x="340" y="54" text-anchor="middle" font-size="7.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">Document libraries + versioning</text>
+                <text x="340" y="66" text-anchor="middle" font-size="7.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">Intranet + content hub</text>
+                <text x="340" y="78" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">1 TB + 10 GB/user storage pool</text>
+
+                <rect x="476" y="10" width="200" height="80" rx="10" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.3s; opacity:0;"/>
+                <text x="576" y="28" text-anchor="middle" font-size="10" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">OneDrive for Business</text>
+                <text x="576" y="42" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">1 TB per user (default)</text>
+                <text x="576" y="54" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Desktop + mobile sync client</text>
+                <text x="576" y="66" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Known Folder Move (KFM)</text>
+                <text x="576" y="78" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Personal file storage + sharing</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Exchange Online</div>
+                <div class="card-desc">Enterprise-grade email with Outlook integration. Features include shared mailboxes, distribution lists, Microsoft 365 Groups, calendar delegation, room/resource booking, and compliance holds. Exchange Online Protection (EOP) filters spam and malware at the transport layer.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">SharePoint Online</div>
+                <div class="card-desc">The content platform behind Microsoft 365. Every Teams channel gets a SharePoint site. Document libraries provide versioning, co-authoring, metadata columns, and content types. Power Automate workflows trigger on document events. SharePoint search indexes all M365 content.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">OneDrive for Business</div>
+                <div class="card-desc">Each user gets 1 TB of personal cloud storage. Known Folder Move silently redirects Desktop, Documents, and Pictures to OneDrive. Files On-Demand downloads files only when opened, saving local disk space. Sharing links provide internal or external access with permission controls.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — TEAMS ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Microsoft <span class="accent">Teams</span></div>
+        <div class="slide-subtitle">The hub for teamwork -- chat, meetings, calls, and collaboration in a single platform backed by M365 services.</div>
+
+        <div class="diagram-center">
+            <svg width="500" height="110" viewBox="0 0 500 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Teams central -->
+                <rect x="175" y="10" width="150" height="90" rx="12" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="250" y="30" text-anchor="middle" font-size="12" fill="#a78bfa" font-weight="800" font-family="Segoe UI,sans-serif">Teams</text>
+                <text x="250" y="46" text-anchor="middle" font-size="7.5" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Chat + Channels</text>
+                <text x="250" y="58" text-anchor="middle" font-size="7.5" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Video Meetings (up to 1000)</text>
+                <text x="250" y="70" text-anchor="middle" font-size="7.5" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Teams Phone (PSTN)</text>
+                <text x="250" y="82" text-anchor="middle" font-size="7.5" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Webinars + Town Halls</text>
+                <text x="250" y="94" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Tabs, Apps, Bots, Workflows</text>
+                <!-- Pulse -->
+                <rect x="165" y="0" width="170" height="110" rx="16" fill="none" stroke="rgba(167,139,250,0.08)" stroke-width="1"
+                    style="animation: pulse 2.5s ease-in-out infinite;"/>
+                <!-- Backend services -->
+                <rect x="4" y="15" width="130" height="26" rx="6" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="69" y="32" text-anchor="middle" font-size="7.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Exchange (Calendar)</text>
+                <rect x="4" y="47" width="130" height="26" rx="6" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="69" y="64" text-anchor="middle" font-size="7.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">SharePoint (Files)</text>
+                <rect x="4" y="79" width="130" height="26" rx="6" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="69" y="96" text-anchor="middle" font-size="7.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">OneDrive (1:1 Files)</text>
+                <!-- Arrows -->
+                <line x1="134" y1="28" x2="174" y2="40" stroke="rgba(58,181,119,0.3)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/></line>
+                <line x1="134" y1="60" x2="174" y2="55" stroke="rgba(6,182,212,0.3)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.1s"/></line>
+                <line x1="134" y1="92" x2="174" y2="70" stroke="rgba(201,168,58,0.3)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/></line>
+                <!-- Integrations right -->
+                <rect x="366" y="20" width="130" height="26" rx="6" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="431" y="37" text-anchor="middle" font-size="7.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Power Platform</text>
+                <rect x="366" y="54" width="130" height="26" rx="6" fill="rgba(249,115,22,0.08)" stroke="#f97316" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="431" y="71" text-anchor="middle" font-size="7.5" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">3rd Party Apps</text>
+                <line x1="326" y1="40" x2="365" y2="33" stroke="rgba(59,130,246,0.3)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.15s"/></line>
+                <line x1="326" y1="60" x2="365" y2="67" stroke="rgba(249,115,22,0.3)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.25s"/></line>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-purple">
+                <div class="card-label">Unified Communication</div>
+                <div class="card-desc">Teams replaces Skype for Business as the primary communication tool. Persistent chat channels organized by team and topic. Meeting recordings automatically saved to OneDrive or SharePoint. Live captions and transcription available in all plans.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Teams as Platform</div>
+                <div class="card-desc">Teams is extensible: tabs embed web apps directly in channels, bots automate interactions, message extensions add custom actions, and connectors pull data from external services. Power Automate workflows can be triggered from Teams messages and approvals.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Backend Architecture</div>
+                <div class="card-desc">Teams does not store its own files -- it delegates to SharePoint (channel files) and OneDrive (1:1 chat files). Calendar and meetings run on Exchange Online. Understanding this architecture is critical: managing Teams means managing the underlying services.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — SUBSCRIPTION PLANS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Microsoft 365 <span class="accent">Subscription Plans</span></div>
+        <div class="slide-subtitle">Business, Enterprise, and Frontline tiers serve different organizational sizes and requirements.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="110" viewBox="0 0 680 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Business tier -->
+                <rect x="4" y="5" width="140" height="100" rx="10" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="74" y="20" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">BUSINESS TIER</text>
+                <text x="74" y="35" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Basic: Web + Mobile only</text>
+                <text x="74" y="48" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Standard: + Desktop apps</text>
+                <text x="74" y="61" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Premium: + Security + Intune</text>
+                <text x="74" y="78" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Up to 300 users</text>
+                <text x="74" y="90" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">SMB-focused</text>
+                <!-- Enterprise tier -->
+                <rect x="180" y="5" width="200" height="100" rx="10" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="280" y="20" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">ENTERPRISE TIER</text>
+                <text x="280" y="35" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">E3: Core productivity + security</text>
+                <text x="280" y="48" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">E5: + Advanced security, analytics, voice</text>
+                <text x="280" y="61" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Unlimited users</text>
+                <text x="280" y="78" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">E5 adds: Defender P2, Purview Advanced,</text>
+                <text x="280" y="90" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Phone System, Power BI Pro</text>
+                <!-- Frontline tier -->
+                <rect x="416" y="5" width="140" height="100" rx="10" fill="rgba(201,168,58,0.06)" stroke="#c9a83a" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="486" y="20" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">FRONTLINE TIER</text>
+                <text x="486" y="35" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">F1: Teams + Web apps only</text>
+                <text x="486" y="48" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">F3: + Exchange kiosk (2 GB)</text>
+                <text x="486" y="61" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Shift workers, retail, factory</text>
+                <text x="486" y="78" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Lowest per-user cost</text>
+                <text x="486" y="90" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">No desktop Office apps</text>
+                <!-- Education box -->
+                <rect x="592" y="20" width="82" height="70" rx="8" fill="rgba(167,139,250,0.06)" stroke="#a78bfa" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="633" y="38" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">EDUCATION</text>
+                <text x="633" y="52" text-anchor="middle" font-size="7" fill="#c4b5fd" font-family="Segoe UI,sans-serif">A1 / A3 / A5</text>
+                <text x="633" y="64" text-anchor="middle" font-size="7" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Free A1 tier</text>
+                <text x="633" y="76" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Verified EDU</text>
+            </svg>
+        </div>
+
+        <div class="scenario-strip">
+            The MS-900 exam tests your ability to recommend the right plan for a scenario. A 50-person law firm that needs desktop Outlook and advanced compliance features? Business Premium or E3. A hospital with 2000 nurses who need Teams on shared devices? F1 or F3. A startup with 20 people who only need email and web apps? Business Basic.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Business Basic</div>
+                <div class="card-desc">Web and mobile Office apps only -- no desktop installations. Includes Exchange Online (50 GB), SharePoint, OneDrive (1 TB), Teams. Up to 300 users. The lowest-cost plan that includes core M365 collaboration services.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">E3 vs E5</div>
+                <div class="card-desc">E3 includes desktop apps, 100 GB mailbox, core security, and Purview basics. E5 adds Microsoft Defender for Office 365 Plan 2, Defender for Endpoint Plan 2, Purview advanced compliance, Power BI Pro, and Teams Phone System. E5 is the full security and analytics bundle.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">F1 / F3 Frontline</div>
+                <div class="card-desc">Designed for shift workers who share devices. F1 is the most basic -- Teams and web apps only, 2 GB mailbox. F3 adds limited Exchange, SharePoint, and OneDrive access. Neither includes desktop Office apps. Priced significantly lower than E-series plans.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — CLOUD BENEFITS ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Benefits of <span class="accent">Cloud Services</span></div>
+        <div class="slide-subtitle">Why organizations move to Microsoft 365 -- the business case for cloud-delivered productivity.</div>
+
+        <div class="hex-grid">
+            <div class="hex-cell">
+                <div class="hex-title">High Availability</div>
+                <div class="hex-desc">Microsoft guarantees 99.9% uptime SLAs for M365 services. Financially-backed -- service credits if SLA is missed. Built on globally distributed datacenters with automatic failover.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Scalability</div>
+                <div class="hex-desc">Add or remove user licenses instantly. No hardware procurement cycle. A company that grows from 50 to 500 users simply purchases more licenses -- no server upgrades needed.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Cost Predictability</div>
+                <div class="hex-desc">Per-user, per-month pricing converts CapEx to OpEx. No upfront server costs, no maintenance contracts, no hardware refresh cycles. Budget is predictable and scales linearly with headcount.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Security Updates</div>
+                <div class="hex-desc">Microsoft patches and updates all M365 services automatically. No patch Tuesday for Exchange servers. No SSL certificate management for SharePoint. Security is built into the service, not bolted on after deployment.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Mobility</div>
+                <div class="hex-desc">Access email, files, and meetings from any device, anywhere. Conditional Access policies ensure secure access without VPN. Intune manages device compliance. Work is no longer tied to a physical office or network.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Collaboration</div>
+                <div class="hex-desc">Real-time co-authoring in Office apps, persistent Teams chat, shared calendars, and SharePoint sites break down silos. External sharing with partners and clients is built in with granular access controls.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — SHARED RESPONSIBILITY ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Shared Responsibility <span class="accent">Model</span></div>
+        <div class="slide-subtitle">Microsoft secures the infrastructure. You secure your data, identities, and access policies.</div>
+
+        <div class="diagram-center">
+            <svg width="600" height="110" viewBox="0 0 600 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Microsoft side -->
+                <rect x="4" y="5" width="280" height="100" rx="10" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.1s; opacity:0;"/>
+                <text x="144" y="22" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">MICROSOFT MANAGES</text>
+                <text x="144" y="38" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Physical datacenters + hardware</text>
+                <text x="144" y="50" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Network infrastructure + connectivity</text>
+                <text x="144" y="62" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Host operating systems + hypervisors</text>
+                <text x="144" y="74" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Service availability + patching</text>
+                <text x="144" y="86" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Physical security + environmental controls</text>
+                <text x="144" y="98" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Encryption at rest + in transit</text>
+                <!-- Customer side -->
+                <rect x="316" y="5" width="280" height="100" rx="10" fill="rgba(201,168,58,0.06)" stroke="#c9a83a" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.2s; opacity:0;"/>
+                <text x="456" y="22" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">CUSTOMER MANAGES</text>
+                <text x="456" y="38" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">User accounts + identity governance</text>
+                <text x="456" y="50" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Access policies + Conditional Access</text>
+                <text x="456" y="62" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Data classification + DLP policies</text>
+                <text x="456" y="74" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Device management + compliance</text>
+                <text x="456" y="86" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Sharing settings + external access</text>
+                <text x="456" y="98" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Training users + phishing awareness</text>
+                <!-- Divider -->
+                <line x1="300" y1="10" x2="300" y2="100" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" stroke-dasharray="5,4">
+                    <animate attributeName="stroke-dashoffset" values="18;0" dur="1.5s" repeatCount="indefinite"/>
+                </line>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Microsoft's Responsibility</div>
+                <div class="card-desc">Microsoft operates the physical infrastructure, maintains the software, patches vulnerabilities, and ensures service availability per published SLAs. They encrypt data at rest and in transit by default. But they cannot control how your organization configures access or trains its users.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Your Responsibility</div>
+                <div class="card-desc">You own your data, your identities, and your access policies. If an employee uses a weak password with no MFA and gets phished, that is a customer responsibility failure -- not a Microsoft service failure. Configuring Conditional Access, DLP, and sensitivity labels is on you.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — WINDOWS + INTUNE ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Windows + <span class="accent">Endpoint Management</span></div>
+        <div class="slide-subtitle">Microsoft 365 includes Windows management through Microsoft Intune and Autopilot.</div>
+
+        <div class="diagram-center">
+            <svg width="560" height="100" viewBox="0 0 560 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Intune hub -->
+                <rect x="200" y="10" width="160" height="80" rx="12" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.1s; opacity:0;"/>
+                <text x="280" y="30" text-anchor="middle" font-size="10" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Microsoft Intune</text>
+                <text x="280" y="45" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">MDM + MAM</text>
+                <text x="280" y="57" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Compliance Policies</text>
+                <text x="280" y="69" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">App Protection</text>
+                <text x="280" y="81" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Windows, iOS, Android, macOS</text>
+                <!-- Devices -->
+                <rect x="4" y="20" width="110" height="26" rx="6" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="59" y="37" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Windows PCs</text>
+                <rect x="4" y="54" width="110" height="26" rx="6" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="59" y="71" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">iOS / Android</text>
+                <!-- Autopilot -->
+                <rect x="420" y="25" width="130" height="50" rx="8" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="485" y="44" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Windows Autopilot</text>
+                <text x="485" y="57" text-anchor="middle" font-size="7" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Zero-touch deployment</text>
+                <text x="485" y="68" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Ship PC directly to user</text>
+                <!-- Arrows -->
+                <line x1="114" y1="33" x2="199" y2="40" stroke="rgba(58,181,119,0.3)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/></line>
+                <line x1="114" y1="67" x2="199" y2="60" stroke="rgba(201,168,58,0.3)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.1s"/></line>
+                <line x1="361" y1="50" x2="419" y2="50" stroke="rgba(167,139,250,0.3)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/></line>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Microsoft Intune</div>
+                <div class="card-desc">Cloud-based endpoint management that handles mobile device management (MDM) and mobile application management (MAM). Enforce compliance policies -- require encryption, PIN, OS version. Push apps and configurations. Wipe corporate data on lost devices without touching personal data.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Windows Autopilot</div>
+                <div class="card-desc">Zero-touch deployment for Windows PCs. The hardware vendor ships directly to the employee. On first boot, the device registers with Intune, applies policies, installs apps, and joins Microsoft Entra ID automatically. No IT imaging or physical staging required.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Included in Premium/E3+</div>
+                <div class="card-desc">Intune is included in Microsoft 365 Business Premium, E3, and E5. Business Basic and Standard do not include device management. For organizations that need Intune but not the full M365 suite, it is available as a standalone plan or as part of Enterprise Mobility + Security (EMS).</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — CHAPTER SUMMARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Chapter 1 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Key concepts for the MS-900 exam -- cloud computing and Microsoft 365 fundamentals.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Cloud computing</strong> delivers IT resources on demand over the internet. Microsoft 365 is a <strong>SaaS</strong> offering -- Microsoft manages everything except your data and access policies.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>IaaS/PaaS/SaaS</strong> represent increasing levels of provider management. M365 sits at the SaaS level, but Azure (also part of the Microsoft cloud) offers all three.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Microsoft 365 components:</strong> Office apps, Exchange Online, SharePoint, OneDrive, Teams, and security services (Entra ID, Defender, Purview). They integrate tightly -- Teams uses SharePoint for files.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Subscription plans:</strong> Business Basic/Standard/Premium for SMB (up to 300 users). E3/E5 for enterprise. F1/F3 for frontline workers. Education A1/A3/A5 for schools.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Cloud benefits:</strong> High availability (99.9% SLA), elastic scalability, predictable OpEx pricing, automatic security updates, global access, and real-time collaboration.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>Shared responsibility:</strong> Microsoft secures the infrastructure and service. You secure your identities, data, access policies, and device compliance.</span></div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Chapter 2 &mdash; Security, Compliance, Privacy, and Trust</strong> &nbsp;|&nbsp; Entra ID &bull; Defender &bull; Purview &bull; Trust Center
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; MS-900</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('cloud', 'ms900-ch01-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
