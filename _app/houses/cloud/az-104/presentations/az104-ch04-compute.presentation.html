@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deploy and Manage Azure Compute | AZ-104 Chapter 4</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container — fixed to viewport, hidden by default */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        /* Max-width wrapper so content does not stretch on wide screens */
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Blue progress bar across the very top — Cloud house color */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #3b82f6; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: #3b82f6;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button — shown only on last slide via JS */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip for scenario or instructor notes */
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.08); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids — 3-column and 2-column */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #3b82f6;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+
+        /* Section label — small caps divider text */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Numbered summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Inline code span — gold accent */
+        .ic {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* SVG diagram containers */
+        .diagram-row {
+            display: flex; gap: 16px; align-items: center; justify-content: center;
+        }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        /* Hex grid */
+        .hex-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 8px; padding: 12px 14px;
+            text-align: center;
+            opacity: 0;
+            animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #3b82f6; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        /* Shared animation keyframes */
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes flow {
+            0%   { stroke-dashoffset: 20; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes boxGrow {
+            from { opacity: 0; transform: scale(0.7); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes labelSlide {
+            from { opacity: 0; transform: translateX(-8px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes entityPop {
+            from { opacity: 0; transform: scale(0.6) translateY(6px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes spokePulse {
+            0%   { stroke-dashoffset: 40; opacity: 0.3; }
+            50%  { opacity: 1; }
+            100% { stroke-dashoffset: 0; opacity: 0.6; }
+        }
+        @keyframes barGrow {
+            from { width: 0; }
+        }
+        @keyframes bubblePop {
+            from { opacity: 0; transform: scale(0.8) translateY(8px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes orbitSpin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+        @keyframes waveFlow {
+            0%   { stroke-dashoffset: 24; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes glowPulse {
+            0%, 100% { filter: drop-shadow(0 0 4px rgba(59,130,246,0.3)); }
+            50%       { filter: drop-shadow(0 0 14px rgba(59,130,246,0.9)); }
+        }
+        @keyframes barRise {
+            from { transform: scaleY(0); transform-origin: bottom; }
+            to   { transform: scaleY(1); transform-origin: bottom; }
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+        @keyframes arrowMarch {
+            0%   { stroke-dashoffset: 14; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes dropDown {
+            from { opacity: 0; transform: translateY(-8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideRight {
+            from { opacity: 0; transform: translateX(-12px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scaleX(0.4); transform-origin: left; }
+            to   { opacity: 1; transform: scaleX(1); transform-origin: left; }
+        }
+        @keyframes vmAppear {
+            from { opacity: 0; transform: translateY(12px) scale(0.8); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes pingRing {
+            0%   { r: 10; opacity: 0.6; }
+            100% { r: 22; opacity: 0; }
+        }
+        @keyframes swapPulse {
+            0%, 100% { fill: rgba(59,130,246,0.15); }
+            50%       { fill: rgba(59,130,246,0.35); }
+        }
+        @keyframes containerPop {
+            from { opacity: 0; transform: scale(0.65); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+
+        /* Step-by-step flow list */
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.4);
+            color: #3b82f6; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        /* Code block */
+        .code-block {
+            background: rgba(0,0,0,0.35); border: 1px solid rgba(201,168,58,0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #c9a83a; line-height: 1.6; white-space: pre;
+        }
+        .code-block .cm { color: #64748b; }
+        .code-block .kw { color: #93c5fd; }
+        .code-block .st { color: #86efac; }
+        .code-block .nu { color: #fdba74; }
+
+        /* Two-column code compare */
+        .code-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .code-panel-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.07em; margin-bottom: 5px; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .card-grid-4 { grid-template-columns: 1fr 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .code-compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Deploy and Manage Azure Compute — AZ-104 Chapter 4</h1>
+
+<!-- Blue progress bar — width updated by goToSlide() -->
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; AZ-104 &nbsp;|&nbsp; Chapter 4 &nbsp;|&nbsp; Deploy and Manage Azure Compute</div>
+        <div class="title-hero">
+            <!-- Compute cluster: VM icon, App Service icon, Container icon orbiting a central hub -->
+            <svg width="460" height="130" viewBox="0 0 460 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central hub -->
+                <rect x="190" y="38" width="80" height="54" rx="10"
+                    fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="230" y="58" text-anchor="middle" font-size="7.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Azure</text>
+                <text x="230" y="68" text-anchor="middle" font-size="7.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Compute</text>
+                <text x="230" y="80" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">IaaS / PaaS / CaaS</text>
+                <!-- Pulse ring around hub -->
+                <ellipse cx="230" cy="65" rx="52" ry="34" fill="none" stroke="rgba(59,130,246,0.12)" stroke-width="1.2"
+                    style="animation: pulse 2.5s ease-in-out infinite;"/>
+
+                <!-- VM icon — left -->
+                <rect x="28" y="30" width="66" height="52" rx="8" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.45)" stroke-width="1.4"
+                    style="animation: entityPop 0.35s ease forwards 0.2s; opacity:0;"/>
+                <!-- VM screen shape -->
+                <rect x="36" y="36" width="42" height="28" rx="3" fill="none" stroke="#3b82f6" stroke-width="1.2"/>
+                <line x1="36" y1="52" x2="78" y2="52" stroke="#3b82f6" stroke-width="0.8" opacity="0.4"/>
+                <!-- VM stand -->
+                <line x1="57" y1="64" x2="57" y2="70" stroke="#3b82f6" stroke-width="1.2"/>
+                <line x1="50" y1="70" x2="64" y2="70" stroke="#3b82f6" stroke-width="1.2"/>
+                <text x="61" y="80" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Virtual</text>
+                <text x="61" y="88" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Machines</text>
+
+                <!-- Connector: VM to hub -->
+                <line x1="95" y1="56" x2="188" y2="62" stroke="rgba(59,130,246,0.35)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.2s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="188,59 196,62 188,65" fill="#3b82f6" opacity="0.7"/>
+
+                <!-- App Service icon — top right -->
+                <rect x="316" y="8" width="66" height="52" rx="8" fill="rgba(58,181,119,0.08)" stroke="rgba(58,181,119,0.45)" stroke-width="1.4"
+                    style="animation: entityPop 0.35s ease forwards 0.3s; opacity:0;"/>
+                <!-- App Service code brackets -->
+                <text x="330" y="36" font-size="16" fill="#3ab577" font-family="Courier New,monospace" opacity="0.8">&lt;/&gt;</text>
+                <text x="349" y="48" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">App</text>
+                <text x="349" y="56" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Service</text>
+
+                <!-- Connector: App Service to hub (top) -->
+                <line x1="316" y1="40" x2="272" y2="46" stroke="rgba(58,181,119,0.35)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.2s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <polygon points="272,43 264,46 272,49" fill="#3ab577" opacity="0.7"/>
+
+                <!-- Container icon — bottom right -->
+                <rect x="316" y="74" width="66" height="52" rx="8" fill="rgba(6,182,212,0.08)" stroke="rgba(6,182,212,0.45)" stroke-width="1.4"
+                    style="animation: entityPop 0.35s ease forwards 0.4s; opacity:0;"/>
+                <!-- Container box visual -->
+                <rect x="326" y="82" width="46" height="28" rx="3" fill="none" stroke="#06b6d4" stroke-width="1.2"/>
+                <line x1="343" y1="82" x2="343" y2="110" stroke="#06b6d4" stroke-width="0.8" opacity="0.4"/>
+                <line x1="359" y1="82" x2="359" y2="110" stroke="#06b6d4" stroke-width="0.8" opacity="0.4"/>
+                <text x="349" y="118" text-anchor="middle" font-size="6.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">Containers</text>
+
+                <!-- Connector: Container to hub (bottom) -->
+                <line x1="316" y1="92" x2="272" y2="80" stroke="rgba(6,182,212,0.35)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.2s" repeatCount="indefinite" begin="0.4s"/>
+                </line>
+                <polygon points="272,77 264,80 272,83" fill="#06b6d4" opacity="0.7"/>
+
+                <!-- Bottom label -->
+                <text x="230" y="122" text-anchor="middle" font-size="7.5" fill="#475569" font-family="Segoe UI,sans-serif"
+                    style="animation: fadeUp 0.4s ease forwards 0.6s; opacity:0;">VMs &bull; Scale Sets &bull; App Service &bull; ACI &bull; AKS — pick the right compute for the job.</text>
+            </svg>
+            <div class="big-title">
+                Deploy and Manage <span class="accent">Azure Compute</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Virtual Machines &nbsp;&bull;&nbsp; Availability Sets &amp; Zones &nbsp;&bull;&nbsp; Scale Sets &nbsp;&bull;&nbsp; App Service &nbsp;&bull;&nbsp; ACI &nbsp;&bull;&nbsp; AKS
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Compute is 20-25% of the AZ-104 exam — the single largest domain. Availability sets vs. availability zones is the most-tested concept. App Service plan tiers, VM extensions, and the difference between ACI and AKS are all fair game. Every exam scenario that says "high availability," "auto-scale," or "PaaS" is testing this chapter.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>AZ-104 Exam Objectives</span>
+            <span>Chapter 4 of 8</span>
+            <span>20-25% of Exam Score</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — AZURE VIRTUAL MACHINES ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Azure <span class="accent">Virtual Machines</span></div>
+        <div class="slide-subtitle">IaaS compute — you manage the OS, patches, and applications. Azure manages the physical hardware, networking, and hypervisor. You pick the size, image, disk, and network configuration. The VM size family determines the vCPU-to-RAM ratio and the workload type it is optimized for.</div>
+
+        <!-- VM anatomy diagram -->
+        <div class="diagram-center">
+            <svg width="700" height="108" viewBox="0 0 700 108" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Outer VM boundary -->
+                <rect x="4" y="6" width="692" height="96" rx="12" fill="rgba(59,130,246,0.05)" stroke="#3b82f6" stroke-width="1.8"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="350" y="20" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Virtual Machine  (Standard_D4s_v5 — 4 vCPU, 16 GB RAM)</text>
+
+                <!-- vCPU block -->
+                <rect x="18" y="28" width="118" height="66" rx="8" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.4)" stroke-width="1.2"
+                    style="animation: entityPop 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="77" y="46" text-anchor="middle" font-size="8.5" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">vCPU</text>
+                <!-- Small CPU grid -->
+                <rect x="32" y="52" width="20" height="14" rx="2" fill="rgba(59,130,246,0.2)" stroke="#3b82f6" stroke-width="0.8"/>
+                <rect x="58" y="52" width="20" height="14" rx="2" fill="rgba(59,130,246,0.2)" stroke="#3b82f6" stroke-width="0.8"/>
+                <rect x="84" y="52" width="20" height="14" rx="2" fill="rgba(59,130,246,0.2)" stroke="#3b82f6" stroke-width="0.8"/>
+                <rect x="110" y="52" width="20" height="14" rx="2" fill="rgba(59,130,246,0.2)" stroke="#3b82f6" stroke-width="0.8"/>
+                <text x="77" y="80" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">4 cores (this size)</text>
+                <text x="77" y="90" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">hyperthreaded</text>
+
+                <!-- RAM block -->
+                <rect x="152" y="28" width="118" height="66" rx="8" fill="rgba(58,181,119,0.08)" stroke="rgba(58,181,119,0.4)" stroke-width="1.2"
+                    style="animation: entityPop 0.35s ease forwards 0.28s; opacity:0;"/>
+                <text x="211" y="46" text-anchor="middle" font-size="8.5" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">RAM</text>
+                <!-- RAM bar visual -->
+                <rect x="164" y="54" width="95" height="12" rx="3" fill="rgba(0,0,0,0.3)" stroke="rgba(58,181,119,0.3)" stroke-width="0.8"/>
+                <rect x="164" y="54" width="72" height="12" rx="3" fill="rgba(58,181,119,0.35)"
+                    style="animation: barGrow 0.6s ease forwards 0.5s; width:0;"/>
+                <text x="211" y="80" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">16 GB (this size)</text>
+                <text x="211" y="90" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">~75% used shown</text>
+
+                <!-- OS Disk block -->
+                <rect x="286" y="28" width="118" height="66" rx="8" fill="rgba(201,168,58,0.08)" stroke="rgba(201,168,58,0.4)" stroke-width="1.2"
+                    style="animation: entityPop 0.35s ease forwards 0.36s; opacity:0;"/>
+                <text x="345" y="46" text-anchor="middle" font-size="8.5" fill="#fef3c7" font-weight="700" font-family="Segoe UI,sans-serif">OS Disk</text>
+                <!-- Disk platter visual -->
+                <ellipse cx="345" cy="64" rx="20" ry="8" fill="none" stroke="#c9a83a" stroke-width="1.2"/>
+                <ellipse cx="345" cy="64" rx="6" ry="3" fill="rgba(201,168,58,0.2)" stroke="#c9a83a" stroke-width="0.8"/>
+                <text x="345" y="82" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Premium SSD / Std SSD</text>
+                <text x="345" y="90" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">persists after stop/deallocate</text>
+
+                <!-- Data Disks block -->
+                <rect x="420" y="28" width="118" height="66" rx="8" fill="rgba(249,115,22,0.08)" stroke="rgba(249,115,22,0.4)" stroke-width="1.2"
+                    style="animation: entityPop 0.35s ease forwards 0.44s; opacity:0;"/>
+                <text x="479" y="46" text-anchor="middle" font-size="8.5" fill="#fdba74" font-weight="700" font-family="Segoe UI,sans-serif">Data Disks</text>
+                <ellipse cx="475" cy="63" rx="18" ry="6" fill="none" stroke="#f97316" stroke-width="1.2"/>
+                <ellipse cx="479" cy="68" rx="18" ry="6" fill="none" stroke="#f97316" stroke-width="1.2" opacity="0.5"/>
+                <text x="479" y="82" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Up to 32 per VM (size)</text>
+                <text x="479" y="90" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">attach / detach at runtime</text>
+
+                <!-- NIC block -->
+                <rect x="554" y="28" width="134" height="66" rx="8" fill="rgba(167,139,250,0.08)" stroke="rgba(167,139,250,0.4)" stroke-width="1.2"
+                    style="animation: entityPop 0.35s ease forwards 0.52s; opacity:0;"/>
+                <text x="621" y="46" text-anchor="middle" font-size="8.5" fill="#c4b5fd" font-weight="700" font-family="Segoe UI,sans-serif">NIC</text>
+                <!-- Network waves -->
+                <path d="M572 60 Q583 54 594 60 Q605 66 616 60 Q627 54 638 60 Q649 66 660 60 Q671 54 682 60" stroke="#a78bfa" stroke-width="1.4" fill="none"
+                    style="animation: waveFlow 1.4s ease-in-out infinite;"/>
+                <text x="621" y="80" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Private IP (required)</text>
+                <text x="621" y="90" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Public IP is optional</text>
+            </svg>
+        </div>
+
+        <div class="section-label">VM Size Families — Match the Family to the Workload</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">General Purpose (B, D, DC)</div>
+                <div class="card-desc"><strong>Balanced CPU-to-memory ratio.</strong> B-series are burstable — they accumulate CPU credits when idle and spend them during spikes. Great for dev/test, low-traffic web servers. D-series are the workhorse for production general workloads: web servers, databases, enterprise apps. Use D-series when you need consistent, sustained CPU.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Compute Optimized (F) &amp; Memory Optimized (E, M)</div>
+                <div class="card-desc"><strong>F-series:</strong> high CPU-to-memory ratio. Use for batch processing, web servers under heavy load, game servers, analytics. <strong>E-series:</strong> high memory-to-CPU. Good for relational databases, in-memory caches, SAP. <strong>M-series:</strong> extreme memory — up to 11.4 TB RAM. For SAP HANA and the largest in-memory database workloads.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Storage Optimized (L) &amp; GPU (N)</div>
+                <div class="card-desc"><strong>L-series:</strong> High disk throughput and IOPS. Use for NoSQL databases (Cassandra, MongoDB), data warehouses that need local NVMe disks. <strong>N-series:</strong> GPU-backed. NC = ML training/inference, ND = deep learning, NV = remote visualization and GPU-based rendering. GPU VMs are expensive — use spot instances for batch ML jobs.</div>
+            </div>
+        </div>
+
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Resource Group:</strong> All VM resources (NIC, disk, public IP, NSG) are created inside the same resource group unless you specify otherwise. Deleting the resource group deletes everything.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Image:</strong> The OS image determines the base. Marketplace images include Windows Server 2022, Ubuntu 22.04, RHEL, and thousands of pre-configured application images (SQL Server, Palo Alto, etc.).</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Authentication:</strong> Windows VMs use a local admin username/password. Linux VMs can use password or SSH public key — SSH keys are strongly recommended. Disable password auth on Linux VMs in production.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — VM AVAILABILITY SETS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">VM <span class="accent">Availability Sets</span></div>
+        <div class="slide-subtitle">A single VM is a single point of failure. An availability set tells Azure to spread your VMs across separate physical hardware so that planned maintenance or an unexpected hardware failure does not take all your VMs down at the same time. This is the foundational HA pattern for IaaS workloads within one datacenter.</div>
+
+        <!-- Fault domains and update domains diagram -->
+        <div class="diagram-center">
+            <svg width="700" height="118" viewBox="0 0 700 118" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Availability Set boundary -->
+                <rect x="4" y="6" width="692" height="108" rx="12" fill="rgba(59,130,246,0.04)" stroke="rgba(59,130,246,0.35)" stroke-width="1.5" stroke-dasharray="5,3"/>
+                <text x="350" y="20" text-anchor="middle" font-size="8.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Availability Set  (2 Fault Domains, 5 Update Domains)</text>
+
+                <!-- Fault Domain 0 rack -->
+                <rect x="18" y="26" width="320" height="80" rx="8" fill="rgba(239,68,68,0.05)" stroke="rgba(239,68,68,0.3)" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="178" y="40" text-anchor="middle" font-size="7.5" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Fault Domain 0 — Rack A (separate power + switch)</text>
+
+                <!-- VMs in FD0 — UD0 and UD2 -->
+                <rect x="36" y="48" width="54" height="48" rx="6" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="1.3"
+                    style="animation: vmAppear 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="63" y="66" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">VM-1</text>
+                <text x="63" y="76" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">FD:0</text>
+                <text x="63" y="85" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">UD:0</text>
+
+                <rect x="150" y="48" width="54" height="48" rx="6" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="1.3"
+                    style="animation: vmAppear 0.3s ease forwards 0.45s; opacity:0;"/>
+                <text x="177" y="66" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">VM-3</text>
+                <text x="177" y="76" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">FD:0</text>
+                <text x="177" y="85" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">UD:2</text>
+
+                <rect x="256" y="48" width="54" height="48" rx="6" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="1.3"
+                    style="animation: vmAppear 0.3s ease forwards 0.6s; opacity:0;"/>
+                <text x="283" y="66" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">VM-5</text>
+                <text x="283" y="76" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">FD:0</text>
+                <text x="283" y="85" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">UD:4</text>
+
+                <!-- Fault Domain 1 rack -->
+                <rect x="360" y="26" width="328" height="80" rx="8" fill="rgba(201,168,58,0.05)" stroke="rgba(201,168,58,0.3)" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="524" y="40" text-anchor="middle" font-size="7.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Fault Domain 1 — Rack B (separate power + switch)</text>
+
+                <!-- VMs in FD1 — UD1 and UD3 -->
+                <rect x="378" y="48" width="54" height="48" rx="6" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1.3"
+                    style="animation: vmAppear 0.3s ease forwards 0.38s; opacity:0;"/>
+                <text x="405" y="66" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-weight="700" font-family="Segoe UI,sans-serif">VM-2</text>
+                <text x="405" y="76" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">FD:1</text>
+                <text x="405" y="85" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">UD:1</text>
+
+                <rect x="610" y="48" width="54" height="48" rx="6" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1.3"
+                    style="animation: vmAppear 0.3s ease forwards 0.53s; opacity:0;"/>
+                <text x="637" y="66" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-weight="700" font-family="Segoe UI,sans-serif">VM-4</text>
+                <text x="637" y="76" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">FD:1</text>
+                <text x="637" y="85" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">UD:3</text>
+
+                <!-- Update domain rolling animation: highlight UD:0 being patched -->
+                <rect x="36" y="48" width="54" height="48" rx="6" fill="rgba(239,68,68,0.0)" stroke="rgba(239,68,68,0)" stroke-width="0">
+                    <animate attributeName="fill" values="rgba(239,68,68,0);rgba(239,68,68,0.18);rgba(239,68,68,0)" dur="3s" repeatCount="indefinite" begin="1.2s"/>
+                    <animate attributeName="stroke" values="rgba(239,68,68,0);rgba(239,68,68,0.8);rgba(239,68,68,0)" dur="3s" repeatCount="indefinite" begin="1.2s"/>
+                </rect>
+                <text x="350" y="112" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif"
+                    style="animation: fadeUp 0.4s ease forwards 0.7s; opacity:0;">UD:0 highlighted during rolling update — only 1 update domain reboots at a time</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Fault Domains — Hardware Failure Protection</div>
+                <div class="card-desc">A fault domain is a group of VMs that share the same physical rack, power supply, and network switch. Azure supports up to <strong>3 fault domains</strong>. When you place VM-1 in FD0 and VM-2 in FD1, a rack fire, power failure, or switch failure only kills one of the two VMs. A single-VM deployment has zero fault isolation — it is on one physical server that can fail.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Update Domains — Planned Maintenance Protection</div>
+                <div class="card-desc">Azure performs planned maintenance — OS updates, hypervisor patches, hardware replacements — in rolling waves. An update domain is a logical group that Azure updates together. With 5 update domains (the default), Azure only reboots 1/5 of your VMs at a time. VM-1 (UD0) reboots, VM-2 (UD1) stays up. After VM-1 is healthy, VM-2 reboots. You always have capacity online.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Why This Is Not Enough Alone</div>
+                <div class="card-desc">Availability sets protect against rack failure and rolling reboots, but all VMs are still in the same physical datacenter. A datacenter-level outage (natural disaster, cooling failure, power grid event) takes down all VMs in the set. For datacenter-level protection, you need Availability Zones. For exam questions: if the question says "single datacenter" or "hardware failure," availability sets answer it.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — AVAILABILITY ZONES ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Availability <span class="accent">Zones</span></div>
+        <div class="slide-subtitle">Availability zones are physically separate datacenters within the same Azure region. Each zone has independent power, cooling, and networking. Deploying across zones gives you protection against datacenter-level failures — something availability sets cannot provide.</div>
+
+        <!-- Region with 3 zones, VMs distributed -->
+        <div class="diagram-center">
+            <svg width="700" height="110" viewBox="0 0 700 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Region boundary -->
+                <rect x="4" y="4" width="692" height="102" rx="12" fill="rgba(59,130,246,0.04)" stroke="rgba(59,130,246,0.25)" stroke-width="1.5" stroke-dasharray="6,4"/>
+                <text x="350" y="18" text-anchor="middle" font-size="8.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">East US 2  (Azure Region — multiple datacenters, &lt;2 ms latency between zones)</text>
+
+                <!-- Zone 1 -->
+                <rect x="18" y="24" width="204" height="76" rx="8" fill="rgba(59,130,246,0.07)" stroke="#3b82f6" stroke-width="1.4"
+                    style="animation: entityPop 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="120" y="38" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Zone 1  — Datacenter A</text>
+                <rect x="32" y="46" width="48" height="38" rx="6" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="1.2"
+                    style="animation: vmAppear 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="56" y="63" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">VM-1</text>
+                <text x="56" y="75" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Zone:1</text>
+                <rect x="92" y="46" width="48" height="38" rx="6" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="1.2"
+                    style="animation: vmAppear 0.3s ease forwards 0.38s; opacity:0;"/>
+                <text x="116" y="63" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">VM-2</text>
+                <text x="116" y="75" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Zone:1</text>
+                <text x="120" y="98" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">own power, cooling, network</text>
+
+                <!-- Zone 2 -->
+                <rect x="248" y="24" width="204" height="76" rx="8" fill="rgba(58,181,119,0.07)" stroke="#3ab577" stroke-width="1.4"
+                    style="animation: entityPop 0.35s ease forwards 0.22s; opacity:0;"/>
+                <text x="350" y="38" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Zone 2  — Datacenter B</text>
+                <rect x="262" y="46" width="48" height="38" rx="6" fill="rgba(58,181,119,0.15)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: vmAppear 0.3s ease forwards 0.45s; opacity:0;"/>
+                <text x="286" y="63" text-anchor="middle" font-size="7.5" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">VM-3</text>
+                <text x="286" y="75" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Zone:2</text>
+                <rect x="322" y="46" width="48" height="38" rx="6" fill="rgba(58,181,119,0.15)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: vmAppear 0.3s ease forwards 0.53s; opacity:0;"/>
+                <text x="346" y="63" text-anchor="middle" font-size="7.5" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">VM-4</text>
+                <text x="346" y="75" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Zone:2</text>
+                <text x="350" y="98" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">own power, cooling, network</text>
+
+                <!-- Zone 3 -->
+                <rect x="478" y="24" width="210" height="76" rx="8" fill="rgba(201,168,58,0.07)" stroke="#c9a83a" stroke-width="1.4"
+                    style="animation: entityPop 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="583" y="38" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Zone 3  — Datacenter C</text>
+                <rect x="492" y="46" width="48" height="38" rx="6" fill="rgba(201,168,58,0.15)" stroke="#c9a83a" stroke-width="1.2"
+                    style="animation: vmAppear 0.3s ease forwards 0.6s; opacity:0;"/>
+                <text x="516" y="63" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-weight="700" font-family="Segoe UI,sans-serif">VM-5</text>
+                <text x="516" y="75" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Zone:3</text>
+                <rect x="552" y="46" width="48" height="38" rx="6" fill="rgba(201,168,58,0.15)" stroke="#c9a83a" stroke-width="1.2"
+                    style="animation: vmAppear 0.3s ease forwards 0.68s; opacity:0;"/>
+                <text x="576" y="63" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-weight="700" font-family="Segoe UI,sans-serif">VM-6</text>
+                <text x="576" y="75" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Zone:3</text>
+                <text x="583" y="98" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">own power, cooling, network</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Availability Sets vs. Availability Zones — The Exam Question</div>
+                <div class="card-desc">This comparison appears on nearly every practice exam. <strong>Availability Set:</strong> Distributes VMs across fault domains and update domains inside a <em>single datacenter</em>. SLA: 99.95%. Protects against: hardware failure (rack/power), rolling planned maintenance. Does NOT protect against: datacenter outage. <strong>Availability Zones:</strong> Distributes VMs across <em>separate physical datacenters</em> within the same region. SLA: 99.99%. Protects against: hardware failure AND datacenter-level outages. Cost: zone-redundant load balancer required, inter-zone data transfer has a small charge. Rule of thumb: if the exam says "survive datacenter failure," the answer is zones, not sets.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Zonal vs. Zone-Redundant Services</div>
+                <div class="card-desc"><strong>Zonal:</strong> You pin the resource to a specific zone (Zone 1, Zone 2, or Zone 3). Example: creating a VM and selecting "Zone: 1." The resource lives in that zone and fails if that zone fails. <strong>Zone-Redundant:</strong> Azure automatically spreads the resource across all available zones. Example: Zone-Redundant Storage (ZRS), Standard Load Balancer (zone-redundant by default). Zone-redundant services are recommended for most production workloads — they require no manual zone selection and survive any single zone failure automatically.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Exam scenario: "You have two VMs in an availability set. Datacenter A suffers a complete power outage. Are both VMs affected?" Answer: Yes — availability sets do not protect against datacenter-level failures. You need availability zones for that. Conversely, "Azure is performing planned maintenance on the host node." Answer: No — update domain staggering means only one domain reboots at a time.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — VIRTUAL MACHINE SCALE SETS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Virtual Machine <span class="accent">Scale Sets (VMSS)</span></div>
+        <div class="slide-subtitle">Scale sets let you deploy and manage a group of identical, load-balanced VMs that automatically scale in and out based on demand metrics. You define the configuration once — image, size, extensions — and Azure replicates it across all instances. The VMs are identical by design: no snowflakes.</div>
+
+        <!-- VMSS animated scaling diagram -->
+        <div class="diagram-center">
+            <svg width="700" height="116" viewBox="0 0 700 116" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Load Balancer top bar -->
+                <rect x="230" y="4" width="240" height="24" rx="6" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="1.5"
+                    style="animation: dropDown 0.4s ease forwards 0.1s; opacity:0;"/>
+                <text x="350" y="20" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Azure Load Balancer  (distributes traffic)</text>
+
+                <!-- Traffic lines from LB to VMs -->
+                <line x1="290" y1="28" x2="230" y2="46" stroke="rgba(59,130,246,0.3)" stroke-width="1" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.9s" repeatCount="indefinite"/>
+                </line>
+                <line x1="320" y1="28" x2="320" y2="46" stroke="rgba(59,130,246,0.3)" stroke-width="1" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.9s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <line x1="350" y1="28" x2="400" y2="46" stroke="rgba(59,130,246,0.3)" stroke-width="1" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.9s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+
+                <!-- Baseline 3 VMs -->
+                <rect x="196" y="46" width="52" height="46" rx="8" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="1.3"
+                    style="animation: vmAppear 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="222" y="65" text-anchor="middle" font-size="8" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">VM-1</text>
+                <text x="222" y="82" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">CPU: 30%</text>
+
+                <rect x="324" y="46" width="52" height="46" rx="8" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="1.3"
+                    style="animation: vmAppear 0.3s ease forwards 0.28s; opacity:0;"/>
+                <text x="350" y="65" text-anchor="middle" font-size="8" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">VM-2</text>
+                <text x="350" y="82" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">CPU: 30%</text>
+
+                <rect x="452" y="46" width="52" height="46" rx="8" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="1.3"
+                    style="animation: vmAppear 0.3s ease forwards 0.36s; opacity:0;"/>
+                <text x="478" y="65" text-anchor="middle" font-size="8" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">VM-3</text>
+                <text x="478" y="82" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">CPU: 30%</text>
+
+                <!-- Scale OUT signal: CPU spike indicator -->
+                <rect x="4" y="48" width="172" height="42" rx="8" fill="rgba(239,68,68,0.07)" stroke="rgba(239,68,68,0.4)" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.5s; opacity:0;"/>
+                <text x="90" y="64" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">CPU Spike</text>
+                <text x="90" y="76" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Avg CPU &gt; 70% threshold</text>
+                <text x="90" y="86" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Auto-scale OUT triggers</text>
+
+                <!-- Scale OUT arrow -->
+                <line x1="177" y1="69" x2="194" y2="69" stroke="#ef4444" stroke-width="1.5">
+                    <animate attributeName="stroke-dashoffset" values="8;0" dur="0.7s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="194,65 202,69 194,73" fill="#ef4444"/>
+
+                <!-- Scale IN signal -->
+                <rect x="524" y="48" width="172" height="42" rx="8" fill="rgba(58,181,119,0.07)" stroke="rgba(58,181,119,0.4)" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.55s; opacity:0;"/>
+                <text x="610" y="64" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Load Drops</text>
+                <text x="610" y="76" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Avg CPU &lt; 20% threshold</text>
+                <text x="610" y="86" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Auto-scale IN triggers</text>
+
+                <!-- Scale IN arrow -->
+                <line x1="522" y1="69" x2="506" y2="69" stroke="#3ab577" stroke-width="1.5"/>
+                <polygon points="506,65 498,69 506,73" fill="#3ab577"/>
+
+                <!-- Scaled-out VM-4 and VM-5 (appear animated, then fade) -->
+                <rect x="130" y="90" width="52" height="22" rx="6" fill="rgba(239,68,68,0.12)" stroke="rgba(239,68,68,0.5)" stroke-width="1">
+                    <animate attributeName="opacity" values="0;1;1;0" dur="4s" repeatCount="indefinite" begin="1.5s"/>
+                </rect>
+                <text x="156" y="105" text-anchor="middle" font-size="7" fill="#fca5a5" font-weight="700" font-family="Segoe UI,sans-serif">VM-4 (new)</text>
+
+                <rect x="518" y="90" width="52" height="22" rx="6" fill="rgba(239,68,68,0.12)" stroke="rgba(239,68,68,0.5)" stroke-width="1">
+                    <animate attributeName="opacity" values="0;1;1;0" dur="4s" repeatCount="indefinite" begin="1.8s"/>
+                </rect>
+                <text x="544" y="105" text-anchor="middle" font-size="7" fill="#fca5a5" font-weight="700" font-family="Segoe UI,sans-serif">VM-5 (new)</text>
+
+                <text x="350" y="112" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif"
+                    style="animation: fadeUp 0.4s ease forwards 0.7s; opacity:0;">VMSS adds VM-4 and VM-5 on scale-out, terminates them on scale-in — all automatically</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Scale Policies — What Triggers Scaling</div>
+                <div class="card-desc"><strong>Metric-based (reactive):</strong> Average CPU%, memory%, queue depth, custom metrics. You define a scale-out rule (add N VMs when CPU &gt; 70% for 5 min) and a scale-in rule (remove N VMs when CPU &lt; 20% for 10 min). <strong>Schedule-based (proactive):</strong> Scale to 10 VMs at 8am on weekdays. Scale to 2 VMs at 8pm. Use this when you know traffic patterns in advance — it's faster than waiting for metric thresholds to fire.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Orchestration Modes</div>
+                <div class="card-desc"><strong>Uniform orchestration:</strong> All instances are identical. Azure manages them as a group. Instances are not individually addressable by name. Best for stateless, interchangeable workloads. <strong>Flexible orchestration:</strong> Instances can have individual configurations. You can mix VM sizes. Instances appear as individual VMs in the portal. Best for workloads that need individual instance management while still leveraging the scaling infrastructure.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Key Design Points</div>
+                <div class="card-desc">VMSS instances are <strong>stateless by design</strong> — any instance can be terminated during scale-in. Store state in external services (Azure SQL, Redis, Storage) not on the local disk. The <strong>min/max instance count</strong> bounds the scale. Set a non-zero minimum if you cannot afford cold-start latency. VMSS integrates with Standard Load Balancer and Application Gateway for traffic distribution across instances.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — VM EXTENSIONS AND CUSTOM SCRIPT ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">VM Extensions and <span class="accent">Custom Script</span></div>
+        <div class="slide-subtitle">Extensions are lightweight post-deployment automation agents that run on VMs after creation. Instead of manually connecting to each VM to install software or apply configuration, you define the work in an extension and Azure executes it. This enables repeatable, scripted, infrastructure-as-code deployments.</div>
+
+        <!-- Extension pipeline diagram: VM deployed -> extension applied -> configured -->
+        <div class="diagram-center">
+            <svg width="700" height="92" viewBox="0 0 700 92" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Step 1: VM deployed -->
+                <rect x="4" y="16" width="130" height="60" rx="8" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.4"
+                    style="animation: entityPop 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="69" y="38" text-anchor="middle" font-size="8" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">VM Deployed</text>
+                <text x="69" y="52" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Base OS image</text>
+                <text x="69" y="62" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">no software yet</text>
+                <text x="69" y="86" text-anchor="middle" font-size="6" fill="#3b82f6" font-family="Segoe UI,sans-serif">Step 1</text>
+
+                <line x1="136" y1="46" x2="156" y2="46" stroke="rgba(59,130,246,0.5)" stroke-width="1.5">
+                    <animate attributeName="stroke-dashoffset" values="8;0" dur="0.6s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="156,42 164,46 156,50" fill="#3b82f6"/>
+
+                <!-- Step 2: Extension applied -->
+                <rect x="166" y="16" width="152" height="60" rx="8" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.4"
+                    style="animation: entityPop 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="242" y="38" text-anchor="middle" font-size="8" fill="#fef3c7" font-weight="700" font-family="Segoe UI,sans-serif">Extension Applied</text>
+                <text x="242" y="52" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">CustomScriptExtension</text>
+                <text x="242" y="62" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">script.ps1 / install.sh</text>
+                <text x="242" y="86" text-anchor="middle" font-size="6" fill="#c9a83a" font-family="Segoe UI,sans-serif">Step 2</text>
+
+                <line x1="320" y1="46" x2="340" y2="46" stroke="rgba(201,168,58,0.5)" stroke-width="1.5"/>
+                <polygon points="340,42 348,46 340,50" fill="#c9a83a"/>
+
+                <!-- Step 3: Software installed -->
+                <rect x="350" y="16" width="152" height="60" rx="8" fill="rgba(249,115,22,0.08)" stroke="#f97316" stroke-width="1.4"
+                    style="animation: entityPop 0.35s ease forwards 0.4s; opacity:0;"/>
+                <text x="426" y="38" text-anchor="middle" font-size="8" fill="#fdba74" font-weight="700" font-family="Segoe UI,sans-serif">Software Installed</text>
+                <text x="426" y="52" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">IIS / nginx / .NET / SQL</text>
+                <text x="426" y="62" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">agent downloads + runs</text>
+                <text x="426" y="86" text-anchor="middle" font-size="6" fill="#f97316" font-family="Segoe UI,sans-serif">Step 3</text>
+
+                <line x1="504" y1="46" x2="524" y2="46" stroke="rgba(249,115,22,0.5)" stroke-width="1.5"/>
+                <polygon points="524,42 532,46 524,50" fill="#f97316"/>
+
+                <!-- Step 4: VM fully configured -->
+                <rect x="534" y="16" width="162" height="60" rx="8" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.4"
+                    style="animation: entityPop 0.35s ease forwards 0.55s; opacity:0;"/>
+                <text x="615" y="38" text-anchor="middle" font-size="8" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">VM Configured</text>
+                <text x="615" y="52" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">ready for workload</text>
+                <text x="615" y="62" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">no manual SSH needed</text>
+                <text x="615" y="86" text-anchor="middle" font-size="6" fill="#3ab577" font-family="Segoe UI,sans-serif">Step 4</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Custom Script Extension</div>
+                <div class="card-desc">The most-tested extension. Runs a script on the VM after deployment — PowerShell for Windows, Bash for Linux. The script lives in a Storage Account blob or a public URL. The extension agent downloads and executes it with SYSTEM or root privileges. <strong>Use case:</strong> Install IIS + ASP.NET, configure firewall rules, join a domain, pull application code from a repo. One critical limit: it runs once. To re-run, you must remove and re-add the extension.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">DSC Extension &amp; Azure Monitor Agent</div>
+                <div class="card-desc"><strong>Desired State Configuration (DSC):</strong> PowerShell-based declarative configuration. You define the desired state (IIS enabled, specific service running, registry value set), and DSC continuously enforces it. If someone manually disables IIS, DSC re-enables it. <strong>Azure Monitor Agent (AMA):</strong> Collects performance metrics and logs from the VM and sends them to Log Analytics workspace. Required for VM Insights, Defender for Cloud agent-based scanning, and diagnostics.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Run Command (Not an Extension)</div>
+                <div class="card-desc">Run Command lets you execute scripts on a VM from the portal, CLI, or API without needing network connectivity to the VM. The script runs via the VM agent (already installed on all Azure Marketplace images). <strong>Use case:</strong> Emergency access — VM is misconfigured and you cannot SSH/RDP. Run Command bypasses the network and executes directly through the agent. Not for production automation — use Custom Script Extension or DSC instead.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Attach Custom Script Extension via Azure CLI</span>
+<span class="kw">az</span> vm extension set \
+  --resource-group <span class="st">myRG</span> \
+  --vm-name <span class="st">myVM</span> \
+  --name CustomScriptExtension \
+  --publisher Microsoft.Compute \
+  --settings <span class="st">'{"fileUris":["https://mystg.blob.core.windows.net/scripts/install-iis.ps1"],"commandToExecute":"powershell -ExecutionPolicy Unrestricted -File install-iis.ps1"}'</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — AZURE APP SERVICE ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Azure <span class="accent">App Service</span></div>
+        <div class="slide-subtitle">PaaS for web applications, REST APIs, and mobile backends. You deploy code — Azure handles everything else: OS updates, runtime patches, scaling infrastructure, load balancing, SSL certificates, and network plumbing. You do not manage a VM. You do not patch an OS. You focus on code.</div>
+
+        <!-- Code -> App Service -> Running app diagram -->
+        <div class="diagram-center">
+            <svg width="700" height="100" viewBox="0 0 700 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Code source -->
+                <rect x="4" y="14" width="138" height="72" rx="8" fill="rgba(59,130,246,0.07)" stroke="rgba(59,130,246,0.4)" stroke-width="1.4"
+                    style="animation: entityPop 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="73" y="34" text-anchor="middle" font-size="8" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">Your Code</text>
+                <text x="73" y="48" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Git push / ZIP deploy</text>
+                <text x="73" y="58" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">GitHub Actions / ADO</text>
+                <text x="73" y="68" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Docker container image</text>
+                <text x="73" y="82" text-anchor="middle" font-size="6" fill="#3b82f6" font-family="Segoe UI,sans-serif">.NET / Node / Python / Java / PHP</text>
+
+                <!-- Arrow to App Service -->
+                <line x1="144" y1="50" x2="174" y2="50" stroke="rgba(58,181,119,0.6)" stroke-width="1.8" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="174,46 182,50 174,54" fill="#3ab577"/>
+
+                <!-- App Service Plan box -->
+                <rect x="184" y="8" width="200" height="84" rx="10" fill="rgba(58,181,119,0.07)" stroke="#3ab577" stroke-width="1.8"
+                    style="animation: boxGrow 0.4s ease forwards 0.2s; opacity:0;"/>
+                <text x="284" y="26" text-anchor="middle" font-size="8.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">App Service Plan</text>
+                <text x="284" y="38" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">(the hosting compute)</text>
+                <!-- Inner App Service box -->
+                <rect x="200" y="44" width="168" height="40" rx="6" fill="rgba(58,181,119,0.1)" stroke="rgba(58,181,119,0.4)" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="284" y="60" text-anchor="middle" font-size="8" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">App Service (Web App)</text>
+                <text x="284" y="73" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">auto-scale &bull; SSL &bull; custom domain &bull; CI/CD</text>
+                <!-- Pulse ring -->
+                <ellipse cx="284" cy="64" rx="86" ry="22" fill="none" stroke="rgba(58,181,119,0.12)" stroke-width="1">
+                    <animate attributeName="rx" values="86;92;86" dur="2.5s" repeatCount="indefinite"/>
+                    <animate attributeName="ry" values="22;26;22" dur="2.5s" repeatCount="indefinite"/>
+                </ellipse>
+
+                <!-- Arrow to deployed app -->
+                <line x1="386" y1="50" x2="416" y2="50" stroke="rgba(6,182,212,0.6)" stroke-width="1.8" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+                <polygon points="416,46 424,50 416,54" fill="#06b6d4"/>
+
+                <!-- Running app endpoint -->
+                <rect x="426" y="14" width="270" height="72" rx="8" fill="rgba(6,182,212,0.07)" stroke="rgba(6,182,212,0.4)" stroke-width="1.4"
+                    style="animation: entityPop 0.35s ease forwards 0.45s; opacity:0;"/>
+                <text x="561" y="34" text-anchor="middle" font-size="8" fill="#67e8f9" font-weight="700" font-family="Segoe UI,sans-serif">Deployed Web Application</text>
+                <text x="561" y="48" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">https://myapp.azurewebsites.net</text>
+                <text x="561" y="60" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">or custom domain: https://myapp.com</text>
+                <text x="561" y="74" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">HTTPS enforced &bull; free managed TLS cert &bull; always-on</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">IaaS (VM) vs. PaaS (App Service) — Pick the Right Tool</div>
+                <div class="card-desc"><strong>Use Virtual Machines when:</strong> You need OS-level control (custom kernel modules, specific OS configuration), you are running legacy software that requires a specific OS/runtime not on App Service, you need persistent local storage with specific IOPS, or you are running non-HTTP workloads (raw socket servers, GPU workloads). <strong>Use App Service when:</strong> You are deploying web apps, REST APIs, or mobile backends in a supported runtime. You want built-in CI/CD, scaling, SSL, and monitoring without managing infrastructure. App Service is cheaper to operate because you are not paying for OS licensing and admin overhead — and Azure patches everything.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Built-In Capabilities (No Extra Config)</div>
+                <div class="card-desc"><strong>Auto-scale:</strong> Scale out to multiple instances based on CPU, HTTP queue depth, or schedule. <strong>Deployment slots:</strong> Staging and production environments with one-click swap (Slide 9). <strong>CI/CD integration:</strong> Connect GitHub, Azure DevOps, Bitbucket, or any Docker registry. Push to main branch = automatic deployment. <strong>SSL / TLS:</strong> Free managed certificate for azurewebsites.net subdomain. Bring your own cert for custom domains. <strong>Custom domains:</strong> Map any domain via CNAME or A record with domain verification.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Exam scenario: "A developer team wants to deploy a Node.js API to Azure without managing the underlying operating system." App Service is the answer. Not a VM, not ACI — App Service is specifically designed for this. Exam tip: App Service runs on VMs internally, but you never interact with them — that is the "managed" part of PaaS.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — APP SERVICE PLANS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">App Service <span class="accent">Plans</span></div>
+        <div class="slide-subtitle">The App Service Plan defines the region, compute resources, and feature set for your web apps. Every App Service app must run inside a plan. Multiple apps can share the same plan and share its compute capacity. The plan tier determines what you can do — not the app itself.</div>
+
+        <!-- Tier comparison diagram -->
+        <div class="diagram-center">
+            <svg width="700" height="86" viewBox="0 0 700 86" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Gradient background track -->
+                <rect x="4" y="4" width="692" height="78" rx="10" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+
+                <!-- Free tier -->
+                <rect x="12" y="10" width="52" height="66" rx="7" fill="rgba(100,116,139,0.1)" stroke="rgba(100,116,139,0.35)" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.1s; opacity:0;"/>
+                <text x="38" y="26" text-anchor="middle" font-size="7" fill="#94a3b8" font-weight="700" font-family="Segoe UI,sans-serif">Free</text>
+                <text x="38" y="38" text-anchor="middle" font-size="5.5" fill="#64748b" font-family="Segoe UI,sans-serif">dev/test</text>
+                <text x="38" y="49" text-anchor="middle" font-size="5.5" fill="#64748b" font-family="Segoe UI,sans-serif">no custom</text>
+                <text x="38" y="59" text-anchor="middle" font-size="5.5" fill="#64748b" font-family="Segoe UI,sans-serif">domain</text>
+                <text x="38" y="70" text-anchor="middle" font-size="5.5" fill="#ef4444" font-family="Segoe UI,sans-serif">no SLA</text>
+                <!-- Shared tier -->
+                <rect x="68" y="10" width="52" height="66" rx="7" fill="rgba(100,116,139,0.1)" stroke="rgba(100,116,139,0.35)" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.15s; opacity:0;"/>
+                <text x="94" y="26" text-anchor="middle" font-size="7" fill="#94a3b8" font-weight="700" font-family="Segoe UI,sans-serif">Shared</text>
+                <text x="94" y="38" text-anchor="middle" font-size="5.5" fill="#64748b" font-family="Segoe UI,sans-serif">custom</text>
+                <text x="94" y="49" text-anchor="middle" font-size="5.5" fill="#64748b" font-family="Segoe UI,sans-serif">domains</text>
+                <text x="94" y="59" text-anchor="middle" font-size="5.5" fill="#64748b" font-family="Segoe UI,sans-serif">no SSL</text>
+                <text x="94" y="70" text-anchor="middle" font-size="5.5" fill="#ef4444" font-family="Segoe UI,sans-serif">no SLA</text>
+
+                <!-- Basic tier -->
+                <rect x="130" y="10" width="120" height="66" rx="7" fill="rgba(59,130,246,0.07)" stroke="rgba(59,130,246,0.35)" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.18s; opacity:0;"/>
+                <text x="190" y="26" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">Basic (B1-B3)</text>
+                <text x="190" y="38" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">small production</text>
+                <text x="190" y="49" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">dedicated compute</text>
+                <text x="190" y="59" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">custom domains + SSL</text>
+                <text x="190" y="70" text-anchor="middle" font-size="6" fill="#3b82f6" font-family="Segoe UI,sans-serif">manual scale only</text>
+
+                <!-- Standard tier -->
+                <rect x="260" y="10" width="140" height="66" rx="7" fill="rgba(58,181,119,0.07)" stroke="rgba(58,181,119,0.35)" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.26s; opacity:0;"/>
+                <text x="330" y="26" text-anchor="middle" font-size="7.5" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">Standard (S1-S3)</text>
+                <text x="330" y="38" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">production workloads</text>
+                <text x="330" y="49" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">auto-scale (up to 10)</text>
+                <text x="330" y="59" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">5 deployment slots</text>
+                <text x="330" y="70" text-anchor="middle" font-size="6" fill="#3ab577" font-family="Segoe UI,sans-serif">VNet integration</text>
+
+                <!-- Premium tier -->
+                <rect x="410" y="10" width="140" height="66" rx="7" fill="rgba(201,168,58,0.07)" stroke="rgba(201,168,58,0.35)" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.34s; opacity:0;"/>
+                <text x="480" y="26" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-weight="700" font-family="Segoe UI,sans-serif">Premium (P0v3-P3v3)</text>
+                <text x="480" y="38" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">high performance</text>
+                <text x="480" y="49" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">20 deployment slots</text>
+                <text x="480" y="59" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">enhanced VNet integration</text>
+                <text x="480" y="70" text-anchor="middle" font-size="6" fill="#c9a83a" font-family="Segoe UI,sans-serif">zone redundancy available</text>
+
+                <!-- Isolated tier -->
+                <rect x="560" y="10" width="134" height="66" rx="7" fill="rgba(167,139,250,0.07)" stroke="rgba(167,139,250,0.35)" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.42s; opacity:0;"/>
+                <text x="627" y="26" text-anchor="middle" font-size="7.5" fill="#c4b5fd" font-weight="700" font-family="Segoe UI,sans-serif">Isolated (I1v2-I6v2)</text>
+                <text x="627" y="38" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">App Service Env (ASE)</text>
+                <text x="627" y="49" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">dedicated VNet</text>
+                <text x="627" y="59" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">100 instances max</text>
+                <text x="627" y="70" text-anchor="middle" font-size="6" fill="#a78bfa" font-family="Segoe UI,sans-serif">compliance / air-gap</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">The Plan is the Billing Unit</div>
+                <div class="card-desc">You pay for the App Service Plan, not for individual apps. If you run 5 apps on one Standard S1 plan, you pay for one S1. Running one app per plan wastes money. Consolidate apps that have similar traffic patterns onto the same plan. Note: if one app has a memory leak that hammers the shared CPU, all apps on the plan suffer — co-tenancy is real. Move isolated, resource-hungry apps to their own plan.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Auto-Scale: Standard Tier and Above</div>
+                <div class="card-desc">Auto-scale (horizontal scale-out) is only available starting at Standard tier. Free, Shared, and Basic are manual scale only. <strong>Scale-out</strong> adds more instances (up to 10 on Standard, 30 on Premium). <strong>Scale-up</strong> moves to a larger VM size within the same tier category. Important exam distinction: you cannot auto-scale on Basic. If the question says "automatically scale based on CPU," the answer requires Standard or Premium plan.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Isolated + App Service Environment (ASE)</div>
+                <div class="card-desc">Isolated plans run inside an App Service Environment — a fully dedicated deployment in your own VNet. No shared infrastructure with other Azure customers. Required for: HIPAA compliance requiring complete network isolation, inbound/outbound private IP requirements, internal-only apps that cannot have a public endpoint. ASE v3 is the current version. ASE is expensive (the ASE itself has a base cost plus per-instance costs) — only use it when isolation is truly required.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — DEPLOYMENT SLOTS ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Deployment <span class="accent">Slots</span></div>
+        <div class="slide-subtitle">Deployment slots give you separate instances of your app — staging, UAT, canary — that share the same App Service Plan but run independently. You deploy to a slot, test it, and then swap it with production. The swap is atomic and zero-downtime. If something is wrong, you swap back in seconds.</div>
+
+        <!-- Slot swap animation diagram -->
+        <div class="diagram-center">
+            <svg width="700" height="112" viewBox="0 0 700 112" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Before swap: left side production, right side staging -->
+
+                <!-- Production slot -->
+                <rect x="30" y="8" width="270" height="88" rx="10" fill="rgba(58,181,119,0.07)" stroke="#3ab577" stroke-width="1.8"
+                    style="animation: entityPop 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="165" y="26" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">PRODUCTION  (slot)</text>
+                <text x="165" y="40" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">https://myapp.azurewebsites.net</text>
+                <rect x="52" y="50" width="226" height="38" rx="6" fill="rgba(58,181,119,0.1)" stroke="rgba(58,181,119,0.3)" stroke-width="1">
+                    <animate attributeName="fill" values="rgba(58,181,119,0.1);rgba(58,181,119,0.2);rgba(58,181,119,0.1)" dur="3s" repeatCount="indefinite" begin="1.4s"/>
+                </rect>
+                <text x="165" y="65" text-anchor="middle" font-size="7.5" fill="#d1fae5" font-weight="700" font-family="Segoe UI,sans-serif">v1.4.0  — LIVE traffic</text>
+                <text x="165" y="80" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">users hitting this right now</text>
+                <text x="165" y="104" text-anchor="middle" font-size="6" fill="#3ab577" font-family="Segoe UI,sans-serif">app settings: slot-sticky settings stay</text>
+
+                <!-- Swap arrows (bidirectional animated) -->
+                <g style="animation: fadeUp 0.4s ease forwards 0.5s; opacity:0;">
+                    <!-- Arrow left: staging -> production -->
+                    <path d="M318 44 Q350 30 382 44" stroke="#3b82f6" stroke-width="2" fill="none" stroke-dasharray="5,3">
+                        <animate attributeName="stroke-dashoffset" values="16;0" dur="1.2s" repeatCount="indefinite"/>
+                    </path>
+                    <polygon points="382,40 390,44 382,48" fill="#3b82f6"/>
+                    <!-- Arrow right: production -> staging -->
+                    <path d="M318 68 Q350 82 382 68" stroke="#c9a83a" stroke-width="2" fill="none" stroke-dasharray="5,3">
+                        <animate attributeName="stroke-dashoffset" values="16;0" dur="1.2s" repeatCount="indefinite" begin="0.4s"/>
+                    </path>
+                    <polygon points="318,64 310,68 318,72" fill="#c9a83a"/>
+                    <!-- SWAP label center -->
+                    <rect x="326" y="48" width="48" height="20" rx="5" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="1.2">
+                        <animate attributeName="fill" values="rgba(59,130,246,0.15);rgba(59,130,246,0.3);rgba(59,130,246,0.15)" dur="2s" repeatCount="indefinite"/>
+                    </rect>
+                    <text x="350" y="62" text-anchor="middle" font-size="8.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">SWAP</text>
+                </g>
+
+                <!-- Staging slot -->
+                <rect x="400" y="8" width="270" height="88" rx="10" fill="rgba(201,168,58,0.07)" stroke="#c9a83a" stroke-width="1.8"
+                    style="animation: entityPop 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="535" y="26" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">STAGING  (slot)</text>
+                <text x="535" y="40" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">https://myapp-staging.azurewebsites.net</text>
+                <rect x="422" y="50" width="226" height="38" rx="6" fill="rgba(201,168,58,0.1)" stroke="rgba(201,168,58,0.3)" stroke-width="1"/>
+                <text x="535" y="65" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-weight="700" font-family="Segoe UI,sans-serif">v1.5.0  — tested, ready</text>
+                <text x="535" y="80" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">QA team validated this</text>
+                <text x="535" y="104" text-anchor="middle" font-size="6" fill="#c9a83a" font-family="Segoe UI,sans-serif">swap: v1.5.0 goes live, v1.4.0 goes to staging</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">How the Swap Works (Zero-Downtime)</div>
+                <div class="card-desc">When you swap two slots, Azure does not copy files. It swaps the routing layer — the same IP addresses and hostnames, but now pointing to the other slot's worker processes. The old production becomes staging (perfect for rollback). The swap takes 10-30 seconds. During the swap, Azure does a warm-up: it sends a few requests to the staging slot before flipping traffic, ensuring the new version has loaded and is ready to serve users.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Slot-Sticky vs. Swapped Settings</div>
+                <div class="card-desc">App settings and connection strings can be marked as "slot sticky" — they stay with the slot and do not move when you swap. This is critical: your production database connection string should be sticky so that staging always connects to the staging database, not production. Non-sticky settings travel with the code during the swap. Exam scenario: "After a swap, the production app is reading from the staging database." This means the connection string was not marked sticky.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Slot Availability by Plan Tier</div>
+                <div class="card-desc">Free/Shared: 0 extra slots (only production). Basic: 0 extra slots. <strong>Standard: 5 total slots</strong> (4 staging + production). <strong>Premium: 20 total slots</strong>. Isolated: 20 total slots. This is an exam-tested number — Standard = 5 slots. Slots are separate app instances — each uses compute from the shared plan. Running 5 full-traffic slots on a single S1 plan will exhaust its compute. Size the plan for total expected load across all active slots.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — AZURE CONTAINER INSTANCES ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Azure Container Instances <span class="accent">(ACI)</span></div>
+        <div class="slide-subtitle">ACI lets you run containers in Azure without provisioning or managing any VMs. You push a container image, define CPU and memory, and Azure starts the container in seconds. You are billed per second for actual usage — when the container stops, billing stops. No infrastructure to maintain.</div>
+
+        <!-- Container image -> ACI -> running container diagram -->
+        <div class="diagram-center">
+            <svg width="700" height="100" viewBox="0 0 700 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Container image source -->
+                <rect x="4" y="12" width="148" height="76" rx="8" fill="rgba(6,182,212,0.07)" stroke="rgba(6,182,212,0.4)" stroke-width="1.4"
+                    style="animation: containerPop 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="78" y="32" text-anchor="middle" font-size="8" fill="#67e8f9" font-weight="700" font-family="Segoe UI,sans-serif">Container Image</text>
+                <!-- Stacked layer visual -->
+                <rect x="22" y="40" width="112" height="10" rx="3" fill="rgba(6,182,212,0.2)" stroke="rgba(6,182,212,0.5)" stroke-width="0.8"/>
+                <rect x="22" y="52" width="112" height="10" rx="3" fill="rgba(6,182,212,0.15)" stroke="rgba(6,182,212,0.4)" stroke-width="0.8"/>
+                <rect x="22" y="64" width="112" height="10" rx="3" fill="rgba(6,182,212,0.1)" stroke="rgba(6,182,212,0.3)" stroke-width="0.8"/>
+                <text x="78" y="47" text-anchor="middle" font-size="5.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">app layer</text>
+                <text x="78" y="59" text-anchor="middle" font-size="5.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">runtime layer</text>
+                <text x="78" y="71" text-anchor="middle" font-size="5.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">base OS layer</text>
+                <text x="78" y="88" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">ACR / Docker Hub</text>
+
+                <!-- Arrow to ACI -->
+                <line x1="154" y1="50" x2="186" y2="50" stroke="rgba(6,182,212,0.5)" stroke-width="1.8" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="186,46 194,50 186,54" fill="#06b6d4"/>
+
+                <!-- ACI box -->
+                <rect x="196" y="6" width="210" height="88" rx="10" fill="rgba(6,182,212,0.07)" stroke="#06b6d4" stroke-width="1.8"
+                    style="animation: boxGrow 0.4s ease forwards 0.2s; opacity:0;"/>
+                <text x="301" y="24" text-anchor="middle" font-size="8.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Azure Container Instances</text>
+                <text x="301" y="36" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">serverless container runtime</text>
+                <!-- Container running indicator -->
+                <rect x="214" y="44" width="174" height="40" rx="6" fill="rgba(6,182,212,0.1)" stroke="rgba(6,182,212,0.35)" stroke-width="1">
+                    <animate attributeName="fill" values="rgba(6,182,212,0.1);rgba(6,182,212,0.2);rgba(6,182,212,0.1)" dur="2.5s" repeatCount="indefinite"/>
+                </rect>
+                <text x="301" y="59" text-anchor="middle" font-size="7.5" fill="#67e8f9" font-weight="700" font-family="Segoe UI,sans-serif">Container Running</text>
+                <text x="301" y="72" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">1 vCPU / 1.5 GB RAM / per-second billing</text>
+
+                <!-- Arrow to running app -->
+                <line x1="408" y1="50" x2="440" y2="50" stroke="rgba(58,181,119,0.5)" stroke-width="1.8" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+                <polygon points="440,46 448,50 440,54" fill="#3ab577"/>
+
+                <!-- Exposed endpoint -->
+                <rect x="450" y="12" width="246" height="76" rx="8" fill="rgba(58,181,119,0.07)" stroke="rgba(58,181,119,0.4)" stroke-width="1.4"
+                    style="animation: entityPop 0.35s ease forwards 0.45s; opacity:0;"/>
+                <text x="573" y="32" text-anchor="middle" font-size="8" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">Exposed Port &amp; IP</text>
+                <text x="573" y="48" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Public IP (optional) or VNet integration</text>
+                <text x="573" y="60" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Port 80/443 or custom port</text>
+                <text x="573" y="74" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">DNS label: myapp.eastus.azurecontainer.io</text>
+                <text x="573" y="86" text-anchor="middle" font-size="6" fill="#3ab577" font-family="Segoe UI,sans-serif">stops billing when container stops</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">When to Use ACI</div>
+                <div class="card-desc"><strong>Batch processing:</strong> Run a data transformation container, complete, and it stops. You pay for 45 seconds, not 24 hours. <strong>Event-driven tasks:</strong> Trigger a container on a queue message or event. <strong>Dev/test workloads:</strong> Spin up a containerized test environment in 5 seconds. <strong>Sidecar pattern:</strong> Run a supporting container alongside another service. ACI is not designed for long-running, stateful production web workloads at scale — use AKS for that. No load balancer, no auto-scaling, no orchestration: that simplicity is both its strength and its limit.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">ACI vs. AKS — The Comparison That Gets Tested</div>
+                <div class="card-desc"><strong>ACI:</strong> Single container or container group. No cluster to manage. Fastest startup (seconds). Per-second billing. No auto-scaling. No service mesh. Best for: short-lived, simple workloads. <strong>AKS:</strong> Kubernetes cluster — control plane managed by Azure, worker nodes you manage. Supports multi-container apps (pods), service discovery, rolling deployments, auto-scaling (HPA + cluster autoscaler), persistent volumes, RBAC, network policies. Best for: production microservices requiring orchestration, scale, and resilience. Cost: AKS control plane is free; you pay for node VMs and storage.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Exam scenario: "A developer needs to run a nightly data processing job in a Docker container. The job completes in 20 minutes. Cost must be minimized." ACI is correct — not AKS (over-engineered for a batch job), not a VM (always-on cost). ACI per-second billing means you pay for 20 minutes of compute, not 24 hours.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — AZURE KUBERNETES SERVICE ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Azure Kubernetes Service <span class="accent">(AKS)</span></div>
+        <div class="slide-subtitle">AKS is managed Kubernetes. Azure runs the Kubernetes control plane (API server, etcd, scheduler) at no charge. You provision worker nodes — these are standard Azure VMs you pay for. You run pods, define services, and manage deployments. Azure handles control plane upgrades, HA, and patching for free.</div>
+
+        <!-- AKS architecture diagram -->
+        <div class="diagram-center">
+            <svg width="700" height="118" viewBox="0 0 700 118" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Cluster boundary -->
+                <rect x="4" y="4" width="692" height="110" rx="12" fill="rgba(59,130,246,0.04)" stroke="rgba(59,130,246,0.3)" stroke-width="1.5" stroke-dasharray="6,4"/>
+                <text x="350" y="17" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">AKS Cluster  (myaks — East US 2)</text>
+
+                <!-- Control Plane box (managed by Azure, free) -->
+                <rect x="14" y="22" width="240" height="84" rx="8" fill="rgba(59,130,246,0.07)" stroke="#3b82f6" stroke-width="1.4"
+                    style="animation: entityPop 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="134" y="38" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Control Plane  (FREE — Azure managed)</text>
+                <!-- Control plane components -->
+                <rect x="24" y="44" width="96" height="24" rx="5" fill="rgba(59,130,246,0.1)" stroke="rgba(59,130,246,0.35)" stroke-width="0.8"
+                    style="animation: vmAppear 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="72" y="53" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">API Server</text>
+                <text x="72" y="63" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">kubectl endpoint</text>
+
+                <rect x="134" y="44" width="110" height="24" rx="5" fill="rgba(59,130,246,0.1)" stroke="rgba(59,130,246,0.35)" stroke-width="0.8"
+                    style="animation: vmAppear 0.3s ease forwards 0.38s; opacity:0;"/>
+                <text x="189" y="53" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">etcd + Scheduler</text>
+                <text x="189" y="63" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">state store + routing</text>
+
+                <text x="134" y="90" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Azure patches, upgrades, HA — you do nothing</text>
+
+                <!-- Connector: control plane to node pool -->
+                <line x1="256" y1="64" x2="284" y2="64" stroke="rgba(59,130,246,0.4)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="284,60 292,64 284,68" fill="#3b82f6"/>
+
+                <!-- Node Pool box (you pay for these) -->
+                <rect x="294" y="22" width="286" height="84" rx="8" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="1.4"
+                    style="animation: entityPop 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="437" y="38" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Node Pool  (you manage &amp; pay for VMs)</text>
+                <!-- Three node VMs with pods inside -->
+                <rect x="304" y="44" width="72" height="54" rx="6" fill="rgba(58,181,119,0.1)" stroke="rgba(58,181,119,0.35)" stroke-width="1"
+                    style="animation: vmAppear 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="340" y="57" text-anchor="middle" font-size="6.5" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">Node 1</text>
+                <rect x="310" y="62" width="26" height="16" rx="3" fill="rgba(6,182,212,0.2)" stroke="#06b6d4" stroke-width="0.8"/>
+                <text x="323" y="73" text-anchor="middle" font-size="5.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">Pod A</text>
+                <rect x="340" y="62" width="26" height="16" rx="3" fill="rgba(6,182,212,0.2)" stroke="#06b6d4" stroke-width="0.8"/>
+                <text x="353" y="73" text-anchor="middle" font-size="5.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">Pod B</text>
+                <text x="340" y="90" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Standard_D2s_v3</text>
+
+                <rect x="393" y="44" width="72" height="54" rx="6" fill="rgba(58,181,119,0.1)" stroke="rgba(58,181,119,0.35)" stroke-width="1"
+                    style="animation: vmAppear 0.3s ease forwards 0.43s; opacity:0;"/>
+                <text x="429" y="57" text-anchor="middle" font-size="6.5" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">Node 2</text>
+                <rect x="399" y="62" width="26" height="16" rx="3" fill="rgba(6,182,212,0.2)" stroke="#06b6d4" stroke-width="0.8"/>
+                <text x="412" y="73" text-anchor="middle" font-size="5.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">Pod C</text>
+                <rect x="429" y="62" width="26" height="16" rx="3" fill="rgba(6,182,212,0.2)" stroke="#06b6d4" stroke-width="0.8"/>
+                <text x="442" y="73" text-anchor="middle" font-size="5.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">Pod D</text>
+                <text x="429" y="90" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Standard_D2s_v3</text>
+
+                <rect x="482" y="44" width="88" height="54" rx="6" fill="rgba(58,181,119,0.1)" stroke="rgba(58,181,119,0.35)" stroke-width="1"
+                    style="animation: vmAppear 0.3s ease forwards 0.51s; opacity:0;"/>
+                <text x="526" y="57" text-anchor="middle" font-size="6.5" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">Node 3</text>
+                <rect x="488" y="62" width="26" height="16" rx="3" fill="rgba(6,182,212,0.2)" stroke="#06b6d4" stroke-width="0.8"/>
+                <text x="501" y="73" text-anchor="middle" font-size="5.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">Pod E</text>
+                <rect x="522" y="62" width="26" height="16" rx="3" fill="rgba(6,182,212,0.2)" stroke="#06b6d4" stroke-width="0.8"/>
+                <text x="535" y="73" text-anchor="middle" font-size="5.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">Pod F</text>
+                <text x="526" y="90" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Standard_D2s_v3</text>
+
+                <!-- Load Balancer -->
+                <rect x="592" y="30" width="96" height="44" rx="7" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.4"
+                    style="animation: entityPop 0.35s ease forwards 0.6s; opacity:0;"/>
+                <text x="640" y="48" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-weight="700" font-family="Segoe UI,sans-serif">Azure LB</text>
+                <text x="640" y="60" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Service: LoadBalancer</text>
+                <text x="640" y="70" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">public IP auto-created</text>
+                <!-- LB to node pool connector -->
+                <line x1="592" y1="52" x2="582" y2="64" stroke="rgba(201,168,58,0.4)" stroke-width="1.2" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.8s" repeatCount="indefinite"/>
+                </line>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Core Kubernetes Concepts for AZ-104</div>
+                <div class="card-desc"><strong>Pod:</strong> Smallest deployable unit. One or more containers that share network/storage. Pods are ephemeral — they can be restarted, rescheduled, replaced. <strong>Deployment:</strong> Manages replica sets of pods. Defines desired state (e.g., 3 replicas of myapp:v2). Kubernetes continuously reconciles actual state to match desired state. <strong>Service:</strong> Stable network endpoint for a set of pods. Types: ClusterIP (internal), NodePort (node port), LoadBalancer (creates Azure LB). Services give pods a stable IP even as pod IPs change.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">AKS Scaling — Two Layers</div>
+                <div class="card-desc"><strong>Horizontal Pod Autoscaler (HPA):</strong> Adds or removes pod replicas based on CPU/memory/custom metrics. Scales pods, not nodes. <strong>Cluster Autoscaler:</strong> Adds or removes worker nodes based on pending pod scheduling. When HPA adds pods but there are no nodes with capacity, cluster autoscaler adds a new VM to the node pool. Remove a node: cluster autoscaler drains pods to other nodes first, then terminates the VM. Both must be enabled to achieve true elastic scaling.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">What Azure Manages vs. What You Manage</div>
+                <div class="card-desc"><strong>Azure manages (free):</strong> API server HA, etcd HA, control plane upgrades, API server TLS certificates, regional failover of control plane. <strong>You manage:</strong> Worker node OS patching (or use node image upgrades), application deployments, container images, persistent volume claims, network policies, RBAC for workloads. <strong>Key cost driver:</strong> You pay for worker node VMs, attached managed disks, and load balancers. A 3-node cluster with Standard_D4s_v3 VMs runs ~$400/month in East US before storage and networking.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — SUMMARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Chapter 4 <span class="accent">Summary</span></div>
+
+        <!-- Summary checklist SVG -->
+        <div class="diagram-center">
+            <svg width="700" height="76" viewBox="0 0 700 76" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Left column -->
+                <rect x="4" y="6" width="338" height="18" rx="5" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.2)" stroke-width="1"
+                    style="animation: slideRight 0.3s ease forwards 0.1s; opacity:0;"/>
+                <circle cx="18" cy="15" r="5" fill="rgba(58,181,119,0.25)" stroke="#3ab577" stroke-width="1.2"/>
+                <path d="M15 15 L18 18 L23 11" stroke="#3ab577" stroke-width="1.2" stroke-linecap="round"/>
+                <text x="32" y="19" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Availability set = 1 datacenter, rack isolation. Zones = separate datacenters.</text>
+
+                <rect x="4" y="28" width="338" height="18" rx="5" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.2)" stroke-width="1"
+                    style="animation: slideRight 0.3s ease forwards 0.25s; opacity:0;"/>
+                <circle cx="18" cy="37" r="5" fill="rgba(58,181,119,0.25)" stroke="#3ab577" stroke-width="1.2"/>
+                <path d="M15 37 L18 40 L23 33" stroke="#3ab577" stroke-width="1.2" stroke-linecap="round"/>
+                <text x="32" y="41" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">VMSS = identical VMs, auto-scale in/out, stateless design required.</text>
+
+                <rect x="4" y="50" width="338" height="18" rx="5" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.2)" stroke-width="1"
+                    style="animation: slideRight 0.3s ease forwards 0.4s; opacity:0;"/>
+                <circle cx="18" cy="59" r="5" fill="rgba(58,181,119,0.25)" stroke="#3ab577" stroke-width="1.2"/>
+                <path d="M15 59 L18 62 L23 55" stroke="#3ab577" stroke-width="1.2" stroke-linecap="round"/>
+                <text x="32" y="63" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">App Service Plan tier determines auto-scale, slots, and VNet integration.</text>
+
+                <!-- Right column -->
+                <rect x="358" y="6" width="338" height="18" rx="5" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.2)" stroke-width="1"
+                    style="animation: slideRight 0.3s ease forwards 0.15s; opacity:0;"/>
+                <circle cx="372" cy="15" r="5" fill="rgba(58,181,119,0.25)" stroke="#3ab577" stroke-width="1.2"/>
+                <path d="M369 15 L372 18 L377 11" stroke="#3ab577" stroke-width="1.2" stroke-linecap="round"/>
+                <text x="386" y="19" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Deployment slots: Standard = 5, Premium = 20. Slot-sticky settings don't swap.</text>
+
+                <rect x="358" y="28" width="338" height="18" rx="5" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.2)" stroke-width="1"
+                    style="animation: slideRight 0.3s ease forwards 0.3s; opacity:0;"/>
+                <circle cx="372" cy="37" r="5" fill="rgba(58,181,119,0.25)" stroke="#3ab577" stroke-width="1.2"/>
+                <path d="M369 37 L372 40 L377 33" stroke="#3ab577" stroke-width="1.2" stroke-linecap="round"/>
+                <text x="386" y="41" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">ACI = single container, per-second billing, no orchestration. Best for batch.</text>
+
+                <rect x="358" y="50" width="338" height="18" rx="5" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.2)" stroke-width="1"
+                    style="animation: slideRight 0.3s ease forwards 0.45s; opacity:0;"/>
+                <circle cx="372" cy="59" r="5" fill="rgba(58,181,119,0.25)" stroke="#3ab577" stroke-width="1.2"/>
+                <path d="M369 59 L372 62 L377 55" stroke="#3ab577" stroke-width="1.2" stroke-linecap="round"/>
+                <text x="386" y="63" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">AKS control plane is free. You pay for worker node VMs and storage.</text>
+            </svg>
+        </div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Availability Sets vs. Availability Zones — know this cold.</strong> Availability sets distribute VMs across fault domains (racks) and update domains within a single datacenter. SLA: 99.95%. Availability zones distribute VMs across physically separate datacenters in the same region. SLA: 99.99%. If the exam says "survive datacenter failure," the answer is zones. If the exam says "rolling maintenance" or "hardware failure," either works but zones is the better answer when available.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>VMSS instances must be stateless.</strong> During scale-in, Azure can terminate any instance. Any local disk data on that instance is gone. Architecture requirement: all state (session data, files, database records) must live in external storage — Azure SQL, Redis Cache, Azure Storage. VMSS integrates with Standard Load Balancer and supports both metric-based and schedule-based auto-scaling. Uniform orchestration = identical instances; Flexible orchestration = individual control.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>App Service Plan tier gates features, not just compute size.</strong> Auto-scale requires Standard or above. Deployment slots start at Standard (5 slots) with more at Premium (20 slots). VNet integration requires Standard. Isolated tier means App Service Environment — dedicated VNet, complete network isolation, compliance use cases. The plan is the billing unit — you pay per plan, not per app. Multiple apps can share one plan.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Deployment slot swap is zero-downtime because Azure swaps the router, not the files.</strong> App settings marked as slot-sticky stay with the slot — critical for database connection strings. Standard = 5 slots total, Premium = 20. After a swap, the old production is now in staging, ready for immediate rollback. The staging slot is warmed up before traffic switches.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>ACI vs. AKS decision tree:</strong> Single container, short-lived, batch job, dev/test = ACI. Multi-container app, production microservices, auto-scaling, service mesh, rolling deployments = AKS. AKS control plane is free — you pay for worker node VMs. HPA scales pods; cluster autoscaler scales nodes. Both are needed for true elastic Kubernetes.</span></div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Chapter 5 &mdash; Configure Virtual Networks</strong> &nbsp;|&nbsp; VNet design &bull; Subnets &bull; NSGs &bull; Route tables &bull; VNet peering &bull; VPN Gateway &bull; ExpressRoute
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; AZ-104</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* ── Slide navigation state ── */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        /* Boundary check */
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        /* Deactivate the currently visible slide */
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        /* Activate the target slide */
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        /* Update the blue progress bar at the top */
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        /* Update the counter label in the nav bar */
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        /* Disable Prev on slide 1, Next on last slide */
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        /* Show Mark Complete button only on the final slide */
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard arrow key navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    /* Initialize to slide 1 on page load */
+    goToSlide(1);
+</script>
+
+<script>
+    /* ── Module completion via ModuleProgress component ── */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('cloud', 'az104-ch04-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
