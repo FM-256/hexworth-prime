@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Microsoft Defender for Office 365 | SC-200 Chapter 3</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0608 0%, #140a10 50%, #1a0c14 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #ef4444; transition: width 0.4s ease; z-index: 200;
+        }
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(10, 6, 8, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(239, 68, 68, 0.15); color: #ef4444; border-color: #ef4444;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #ef4444; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ef4444; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip {
+            background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fca5a5; font-style: italic;
+        }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ef4444; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #ef4444;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #ef4444; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #ef4444;
+            background: rgba(239, 68, 68, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+        .ic {
+            font-family: 'Courier New', monospace; color: #ef4444;
+            background: rgba(239, 68, 68, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+        .diagram-row { display: flex; gap: 16px; align-items: center; justify-content: center; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            border-radius: 8px; padding: 12px 14px; text-align: center;
+            opacity: 0; animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #ef4444; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes flow { 0% { stroke-dashoffset: 20; } 100% { stroke-dashoffset: 0; } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes entityPop { from { opacity: 0; transform: scale(0.6) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes arrowMarch { 0% { stroke-dashoffset: 14; } 100% { stroke-dashoffset: 0; } }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.4);
+            color: #ef4444; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+        .code-block {
+            background: rgba(0,0,0,0.35); border: 1px solid rgba(239,68,68,0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #ef4444; line-height: 1.6; white-space: pre;
+        }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Microsoft Defender for Office 365 -- SC-200 Chapter 3</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- SLIDE 1 -- TITLE -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; SC-200 &nbsp;|&nbsp; Chapter 3 &nbsp;|&nbsp; Defender for Office 365</div>
+        <div class="title-hero">
+            <svg width="420" height="130" viewBox="0 0 420 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="150" y="15" width="120" height="100" rx="16" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="2" style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="210" y="45" text-anchor="middle" font-size="10" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">DEFENDER FOR</text>
+                <text x="210" y="60" text-anchor="middle" font-size="10" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">OFFICE 365</text>
+                <text x="210" y="78" text-anchor="middle" font-size="8" fill="#fca5a5" font-family="Segoe UI,sans-serif">Email &amp; Collaboration</text>
+                <rect x="210" y="88" width="0" height="0" fill="none"/>
+                <rect x="10" y="20" width="110" height="42" rx="9" fill="rgba(239,68,68,0.06)" stroke="#f87171" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="65" y="38" text-anchor="middle" font-size="8" fill="#f87171" font-weight="700" font-family="Segoe UI,sans-serif">Safe Attachments</text>
+                <text x="65" y="52" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Sandbox detonation</text>
+                <rect x="10" y="72" width="110" height="42" rx="9" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="65" y="90" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Safe Links</text>
+                <text x="65" y="104" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">URL time-of-click</text>
+                <rect x="300" y="20" width="110" height="42" rx="9" fill="rgba(251,191,36,0.06)" stroke="#fbbf24" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="355" y="38" text-anchor="middle" font-size="8" fill="#fbbf24" font-weight="700" font-family="Segoe UI,sans-serif">Anti-Phishing</text>
+                <text x="355" y="52" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Impersonation guard</text>
+                <rect x="300" y="72" width="110" height="42" rx="9" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="355" y="90" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Threat Explorer</text>
+                <text x="355" y="104" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Real-time detections</text>
+                <line x1="120" y1="41" x2="149" y2="55" stroke="rgba(239,68,68,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/></line>
+                <line x1="120" y1="93" x2="149" y2="75" stroke="rgba(59,130,246,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/></line>
+                <line x1="299" y1="41" x2="271" y2="55" stroke="rgba(251,191,36,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.15s"/></line>
+                <line x1="299" y1="93" x2="271" y2="75" stroke="rgba(58,181,119,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/></line>
+            </svg>
+            <div class="big-title">Microsoft <span class="accent">Defender for Office 365</span></div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Safe Attachments &nbsp;&bull;&nbsp; Safe Links &nbsp;&bull;&nbsp; Anti-Phishing &nbsp;&bull;&nbsp; Threat Explorer &nbsp;&bull;&nbsp; Attack Simulation
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Microsoft Defender for Office 365 protects email and collaboration tools against phishing, malware, and business email compromise. It provides pre-delivery protection (Safe Attachments, Safe Links), post-delivery remediation (ZAP), and investigation tools (Threat Explorer, automated investigation) to secure the email attack surface.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>SC-200 Exam Objectives</span>
+            <span>Chapter 3 of 4</span>
+            <span>Security Operations</span>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 2 -- DEFENDER FOR OFFICE 365 OVERVIEW -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Defender for Office 365 <span class="accent">Overview</span></div>
+        <div class="slide-subtitle">Defender for Office 365 adds advanced threat protection to Exchange Online, SharePoint Online, OneDrive for Business, and Microsoft Teams. It defends against zero-day malware, phishing, and business email compromise (BEC).</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Plan 1 (P1)</div><div class="card-desc">Pre-delivery protection: Safe Attachments (sandbox detonation), Safe Links (URL wrapping and time-of-click verification), and anti-phishing policies with impersonation detection. Covers email, SharePoint, OneDrive, and Teams.</div></div>
+            <div class="card c-blue"><div class="card-label">Plan 2 (P2)</div><div class="card-desc">Everything in P1 plus post-breach tools: Threat Explorer (real-time detections), Threat Trackers, Attack Simulation Training, Automated Investigation and Response (AIR) for email, and Campaign Views for coordinated attack analysis.</div></div>
+            <div class="card c-gold"><div class="card-label">Exchange Online Protection (EOP)</div><div class="card-desc">The baseline layer included with all Exchange Online mailboxes. Handles anti-spam filtering, basic anti-malware, connection filtering, and outbound spam control. Defender for Office 365 sits on top of EOP.</div></div>
+            <div class="card c-green"><div class="card-label">Protection Stack</div><div class="card-desc">Email flows through a layered stack: EOP edge protection first (connection filter, anti-malware, transport rules), then Defender for Office 365 (Safe Attachments detonation, Safe Links rewrite, anti-phishing AI). Layered defense, not single-pass.</div></div>
+        </div>
+        <div class="box box-red"><div class="box-label">Key Concept</div>EOP is always the first layer. Defender for Office 365 P1 adds advanced pre-delivery protection. P2 adds investigation, simulation, and automation tools. The SC-200 exam expects you to know which features belong to which tier.</div>
+    </div>
+</section>
+
+<!-- SLIDE 3 -- SAFE ATTACHMENTS -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title"><span class="accent">Safe Attachments</span></div>
+        <div class="slide-subtitle">Safe Attachments opens email attachments in a virtual sandbox (detonation chamber) to detect zero-day malware before the message reaches the user mailbox.</div>
+        <div class="diagram-center">
+            <svg width="600" height="110" viewBox="0 0 600 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="10" y="30" width="100" height="50" rx="8" fill="rgba(239,68,68,0.08)" stroke="#f87171" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="60" y="52" text-anchor="middle" font-size="9" fill="#f87171" font-weight="700" font-family="Segoe UI,sans-serif">Inbound Email</text>
+                <text x="60" y="68" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">with attachment</text>
+                <line x1="110" y1="55" x2="170" y2="55" stroke="rgba(239,68,68,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/></line>
+                <rect x="170" y="20" width="130" height="70" rx="10" fill="rgba(251,191,36,0.08)" stroke="#fbbf24" stroke-width="1.5" style="animation: boxGrow 0.4s ease forwards 0.25s; opacity:0;"/>
+                <text x="235" y="48" text-anchor="middle" font-size="9" fill="#fbbf24" font-weight="700" font-family="Segoe UI,sans-serif">Detonation</text>
+                <text x="235" y="62" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Sandbox analysis</text>
+                <text x="235" y="78" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">VM opens file, monitors</text>
+                <line x1="300" y1="40" x2="380" y2="30" stroke="rgba(58,181,119,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/></line>
+                <line x1="300" y1="70" x2="380" y2="80" stroke="rgba(239,68,68,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/></line>
+                <rect x="380" y="5" width="110" height="44" rx="8" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.4s; opacity:0;"/>
+                <text x="435" y="24" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Clean</text>
+                <text x="435" y="40" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Deliver to mailbox</text>
+                <rect x="380" y="60" width="110" height="44" rx="8" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.5s; opacity:0;"/>
+                <text x="435" y="79" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Malicious</text>
+                <text x="435" y="95" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Block / Quarantine</text>
+            </svg>
+        </div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">Policy Actions</div><div class="card-desc"><strong>Block</strong> -- quarantine the message. <strong>Replace</strong> -- deliver message but remove malicious attachment. <strong>Dynamic Delivery</strong> -- deliver message body immediately with a placeholder; replace placeholder with clean attachment after scan completes. <strong>Monitor</strong> -- deliver and log only.</div></div>
+            <div class="card c-blue"><div class="card-label">Scope and Targets</div><div class="card-desc">Policies apply to specific users, groups, or domains. Safe Attachments also covers SharePoint Online, OneDrive for Business, and Microsoft Teams when enabled globally. Files uploaded to these services are scanned asynchronously.</div></div>
+            <div class="card c-green"><div class="card-label">Built-in Protection</div><div class="card-desc">Microsoft provides a built-in protection preset that applies Safe Attachments to all recipients by default. Custom policies take priority over the built-in preset. The Strict preset applies the most aggressive settings.</div></div>
+        </div>
+        <div class="box box-gold"><div class="box-label">Exam Tip</div>Dynamic Delivery is the recommended action for most organizations. It delivers the message body immediately so users are not delayed, then swaps in the scanned attachment once detonation completes. No other action avoids delivery delay.</div>
+    </div>
+</section>
+
+<!-- SLIDE 4 -- SAFE LINKS -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title"><span class="accent">Safe Links</span></div>
+        <div class="slide-subtitle">Safe Links rewrites URLs in inbound email and verifies them at time of click. If a URL becomes malicious after delivery, Safe Links blocks access when the user clicks it.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>URL Rewriting</strong> -- Safe Links rewrites URLs in email messages to route through the Microsoft filtering service. The rewritten URL starts with <span class="ic">https://nam01.safelinks.protection.outlook.com</span>. Original URL is preserved in a parameter.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Time-of-Click Verification</strong> -- when the user clicks a rewritten link, Safe Links checks the URL reputation in real time. If the URL has been flagged as malicious since delivery, the user sees a warning page instead of the destination.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>URL Detonation</strong> -- for unknown URLs, Safe Links can trigger detonation (URL sandboxing) that follows the link and analyzes the landing page for credential harvesting forms, exploit kits, or malware downloads.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Click-Through Tracking</strong> -- Safe Links logs every click: who clicked, when, which URL, and whether the click was blocked or allowed. This data feeds into Threat Explorer and advanced hunting tables.</span></div>
+        </div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Policy Settings</div><div class="card-desc"><strong>Do not rewrite URLs</strong> -- still scans at time of click but preserves the original URL in the message. <strong>Do not track user clicks</strong> -- disables click logging. <strong>Do not let users click through</strong> -- blocks users from dismissing the warning page.</div></div>
+            <div class="card c-blue"><div class="card-label">Coverage Beyond Email</div><div class="card-desc">Safe Links also protects URLs in Microsoft Teams messages, Office desktop apps (Word, Excel, PowerPoint), and Office for the web. URLs in Teams chats are scanned at click time the same way email URLs are scanned.</div></div>
+        </div>
+        <div class="box box-red"><div class="box-label">Key Concept</div>Safe Links provides protection against weaponized URLs -- URLs that are clean at delivery time but become malicious later. Traditional gateway scanners only check at delivery. Safe Links checks again at the moment of click.</div>
+    </div>
+</section>
+
+<!-- SLIDE 5 -- ANTI-PHISHING POLICIES -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title"><span class="accent">Anti-Phishing</span> Policies</div>
+        <div class="slide-subtitle">Anti-phishing policies in Defender for Office 365 use AI and machine learning to detect impersonation, spoofing, and business email compromise (BEC) attacks that bypass standard email authentication.</div>
+        <div class="hex-grid">
+            <div class="hex-cell"><div class="hex-title">User Impersonation</div><div class="hex-desc">Protects specific high-value users (CEO, CFO, HR director). Detects display name lookalikes and sender address variants. Up to 350 protected users per policy.</div></div>
+            <div class="hex-cell"><div class="hex-title">Domain Impersonation</div><div class="hex-desc">Protects your organization domains and specified external domains. Detects typo-squatting and homoglyph attacks like contoso.com vs c0ntoso.com or contoso-inc.com.</div></div>
+            <div class="hex-cell"><div class="hex-title">Mailbox Intelligence</div><div class="hex-desc">AI analyzes each user communication patterns -- who they email frequently, typical senders, expected domains. Flags messages from senders that break established patterns.</div></div>
+            <div class="hex-cell"><div class="hex-title">Spoof Intelligence</div><div class="hex-desc">Detects senders spoofing your domain or partner domains. Uses DMARC, DKIM, and SPF results plus Microsoft proprietary signals. Spoof intelligence insight shows detected spoofing sources.</div></div>
+            <div class="hex-cell"><div class="hex-title">Advanced Thresholds</div><div class="hex-desc">Phishing email threshold (1-4) controls sensitivity. Level 1 is Standard. Level 4 is Most Aggressive -- catches more phishing but may increase false positives. Set per policy.</div></div>
+            <div class="hex-cell"><div class="hex-title">Policy Actions</div><div class="hex-desc">Actions per detection type: move to Junk Email folder, quarantine the message, redirect to a specific address, or delete the message. Quarantine with admin-only release is the strictest option.</div></div>
+        </div>
+        <div class="box box-gold"><div class="box-label">Exam Tip</div>Mailbox intelligence is unique to Defender for Office 365. It uses per-user AI models to learn each user's communication graph. When impersonation protection and mailbox intelligence are enabled together, false positives drop significantly because the AI knows who each user normally corresponds with.</div>
+    </div>
+</section>
+
+<!-- SLIDE 6 -- PRESET SECURITY POLICIES -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Preset Security <span class="accent">Policies</span></div>
+        <div class="slide-subtitle">Microsoft provides preset security policies that apply recommended configurations for EOP and Defender for Office 365 in a single click. These are the fastest way to deploy protection.</div>
+        <div class="card-grid">
+            <div class="card c-green"><div class="card-label">Standard Preset</div><div class="card-desc">Balanced protection suitable for most users. Applies Safe Attachments (Dynamic Delivery), Safe Links (URL rewrite enabled), anti-phishing (impersonation + mailbox intelligence enabled, threshold level 2), and anti-spam/anti-malware baseline settings.</div></div>
+            <div class="card c-red"><div class="card-label">Strict Preset</div><div class="card-desc">Aggressive protection for high-value targets (executives, finance). Higher phishing threshold (level 4), stricter quarantine policies, blocks user overrides, enables "do not let users click through" for Safe Links. Higher false-positive rate.</div></div>
+            <div class="card c-blue"><div class="card-label">Built-in Protection</div><div class="card-desc">Automatically applies Safe Links and Safe Attachments to all recipients not already covered by a custom or preset policy. Lowest priority -- any custom policy overrides it. Cannot be disabled, only overridden.</div></div>
+        </div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Priority order</strong> -- Strict preset takes priority over Standard preset, which takes priority over custom policies, which take priority over Built-in Protection. Higher-priority policies are evaluated first.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Scope</strong> -- assign presets to specific users, groups, or domains. Use Standard for the entire organization and Strict for executive accounts and finance teams.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Quarantine policies</strong> -- preset policies include quarantine notification settings. Standard sends quarantine notifications to users. Strict restricts release to admin-only.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 7 -- THREAT EXPLORER -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title"><span class="accent">Threat Explorer</span> and Real-Time Detections</div>
+        <div class="slide-subtitle">Threat Explorer is the investigation and hunting tool for email threats. It provides near-real-time visibility into all email flowing through the organization and the actions taken on each message.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Threat Explorer (P2)</div><div class="card-desc">Full investigation tool with 30 days of data. Pivot by sender, recipient, subject, delivery action, detection technology, URL, attachment hash, or campaign. Supports bulk remediation -- select messages and take action across all affected mailboxes.</div></div>
+            <div class="card c-blue"><div class="card-label">Real-Time Detections (P1)</div><div class="card-desc">Subset of Threat Explorer available in P1. Shows recent threats detected by Safe Attachments and Safe Links. Limited to 7 days of data. Does not support bulk remediation or all pivot options.</div></div>
+            <div class="card c-gold"><div class="card-label">Views</div><div class="card-desc"><strong>All Email</strong> -- every message. <strong>Malware</strong> -- messages with malware detections. <strong>Phish</strong> -- phishing detections. <strong>Content Malware</strong> -- malicious files in SharePoint/OneDrive/Teams. Each view supports filtering and export.</div></div>
+            <div class="card c-green"><div class="card-label">Email Timeline</div><div class="card-desc">Click any message to see its full lifecycle: delivery, detection, ZAP action, user clicks on URLs, admin remediation. Shows every event that happened to the message from arrival through current state.</div></div>
+        </div>
+        <div class="box box-red"><div class="box-label">Key Concept</div>Threat Explorer supports manual remediation actions: soft delete, hard delete, move to Junk, or move to Inbox. SOC analysts use it to clean up phishing campaigns that bypassed initial detection -- select all affected messages and remediate in bulk.</div>
+    </div>
+</section>
+
+<!-- SLIDE 8 -- ZERO-HOUR AUTO PURGE (ZAP) -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Zero-Hour Auto Purge <span class="accent">(ZAP)</span></div>
+        <div class="slide-subtitle">ZAP is the post-delivery protection mechanism. When Microsoft identifies a delivered message as malicious after the fact, ZAP automatically moves it out of the user mailbox retroactively.</div>
+        <div class="diagram-center">
+            <svg width="550" height="110" viewBox="0 0 550 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="10" y="30" width="110" height="50" rx="8" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="65" y="52" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Email Delivered</text>
+                <text x="65" y="66" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Passed initial scan</text>
+                <line x1="120" y1="55" x2="185" y2="55" stroke="rgba(251,191,36,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/></line>
+                <rect x="185" y="25" width="140" height="60" rx="10" fill="rgba(251,191,36,0.08)" stroke="#fbbf24" stroke-width="1.5" style="animation: boxGrow 0.4s ease forwards 0.25s; opacity:0;"/>
+                <text x="255" y="48" text-anchor="middle" font-size="9" fill="#fbbf24" font-weight="700" font-family="Segoe UI,sans-serif">New Intelligence</text>
+                <text x="255" y="64" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Signature updated, URL</text>
+                <text x="255" y="76" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">flagged, or sandbox verdict</text>
+                <line x1="325" y1="55" x2="385" y2="55" stroke="rgba(239,68,68,0.4)" stroke-width="1.5" stroke-dasharray="5,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/></line>
+                <rect x="385" y="25" width="150" height="60" rx="10" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.5" style="animation: boxGrow 0.4s ease forwards 0.4s; opacity:0;"/>
+                <text x="460" y="48" text-anchor="middle" font-size="9" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">ZAP Action</text>
+                <text x="460" y="64" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Move to Junk or Quarantine</text>
+                <text x="460" y="76" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">retroactively</text>
+            </svg>
+        </div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">ZAP for Malware</div><div class="card-desc">Quarantines messages with newly detected malware attachments. Works on unread and read messages. Always enabled -- cannot be disabled. Applies to Exchange Online mailboxes only (not on-premises).</div></div>
+            <div class="card c-blue"><div class="card-label">ZAP for Phishing</div><div class="card-desc">Quarantines messages reclassified as phishing. Works on unread and read messages. Controlled by the anti-spam policy setting for high-confidence phishing. Default action is quarantine.</div></div>
+            <div class="card c-gold"><div class="card-label">ZAP for Spam</div><div class="card-desc">Moves messages reclassified as spam to the Junk Email folder. Only works on unread messages -- if the user has already read the message, ZAP for spam does not move it. Controlled by anti-spam policy settings.</div></div>
+        </div>
+        <div class="box box-cyan"><div class="box-label">Important</div>ZAP does not work on messages in quarantine or messages where the user has already moved the message to a folder. ZAP for spam only targets unread messages, but ZAP for malware and phishing act on both read and unread messages.</div>
+    </div>
+</section>
+
+<!-- SLIDE 9 -- ATTACK SIMULATION TRAINING -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Attack <span class="accent">Simulation Training</span></div>
+        <div class="slide-subtitle">Attack Simulation Training (P2) lets security teams run realistic phishing simulations against their own users to measure susceptibility and deliver targeted training to users who fail.</div>
+        <div class="hex-grid">
+            <div class="hex-cell"><div class="hex-title">Simulation Types</div><div class="hex-desc">Credential harvest, malware attachment, link in attachment, link to malware, drive-by URL. Each type mimics a real attack technique with customizable email templates and landing pages.</div></div>
+            <div class="hex-cell"><div class="hex-title">Payloads</div><div class="hex-desc">Pre-built payloads from Microsoft or custom payloads. Payloads include the phishing email template, the landing page, and the training assignment. Target specific users, groups, or the entire organization.</div></div>
+            <div class="hex-cell"><div class="hex-title">Training Assignments</div><div class="hex-desc">Users who interact with the simulation (click, submit credentials) are automatically assigned training modules. Training covers phishing awareness, reporting suspicious messages, and social engineering red flags.</div></div>
+            <div class="hex-cell"><div class="hex-title">Reporting</div><div class="hex-desc">Dashboards show click rate, compromise rate, report rate, and training completion. Track improvements over time across multiple simulation campaigns. Compare results by department or role.</div></div>
+            <div class="hex-cell"><div class="hex-title">Automation</div><div class="hex-desc">Simulation automations run on a schedule with randomized payloads and sending windows. Continuous simulation without manual campaign setup. Supports multiple concurrent automations.</div></div>
+            <div class="hex-cell"><div class="hex-title">Predicted Compromise</div><div class="hex-desc">Machine learning predicts which users are most likely to be compromised based on simulation history, email patterns, and training completion. Prioritize high-risk users for additional training.</div></div>
+        </div>
+        <div class="box box-gold"><div class="box-label">Exam Tip</div>Attack Simulation Training requires Defender for Office 365 Plan 2 or Microsoft 365 E5. Simulated phishing emails bypass Safe Links and Safe Attachments scanning so they reach users realistically. The Report Message button in Outlook is the correct user response.</div>
+    </div>
+</section>
+
+<!-- SLIDE 10 -- THREAT TRACKERS AND CAMPAIGNS -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Threat <span class="accent">Trackers</span> and Campaigns</div>
+        <div class="slide-subtitle">Threat Trackers provide curated intelligence on active email threats targeting your organization. Campaign Views group related phishing and malware messages into coordinated attack campaigns.</div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">Noteworthy Trackers</div><div class="card-desc">Microsoft-curated alerts about trending threats: new phishing kits, emerging malware families, exploit campaigns. Each tracker links to Threat Explorer with pre-built filters so you can immediately see if your organization is affected.</div></div>
+            <div class="card c-blue"><div class="card-label">Tracked Queries</div><div class="card-desc">Save custom Threat Explorer queries as trackers. They run automatically and notify you when new matches appear. Use these to monitor specific threat indicators -- a sender domain, attachment hash, or URL pattern unique to a threat you are investigating.</div></div>
+            <div class="card c-green"><div class="card-label">Campaign Views</div><div class="card-desc">Microsoft automatically groups related malicious messages into campaigns. Each campaign shows: sender infrastructure, targeted recipients, delivery actions, detection technologies used, and timeline. Helps identify coordinated attacks across the organization.</div></div>
+        </div>
+        <div class="box box-blue"><div class="box-label">Campaign Details</div>Campaign Views show the full scope of a coordinated attack: how many messages were sent, how many were blocked vs delivered, which users clicked, and what remediation actions were taken. Campaign detection uses machine learning to correlate messages by infrastructure, content, and timing.</div>
+    </div>
+</section>
+
+<!-- SLIDE 11 -- AUTOMATED INVESTIGATION FOR EMAIL -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Automated Investigation for <span class="accent">Email</span></div>
+        <div class="slide-subtitle">Automated Investigation and Response (AIR) for Defender for Office 365 automatically investigates email-based alerts and recommends or executes remediation actions across all affected mailboxes.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Trigger</strong> -- AIR starts when: a user reports a phishing message, ZAP quarantines a delivered message, an admin triggers investigation from Threat Explorer, or a high-confidence phishing alert fires. Each trigger starts the automated investigation playbook.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Scope Expansion</strong> -- AIR identifies all related messages: same sender, same URL, same attachment hash. It checks how many mailboxes received the same threat and whether any users clicked malicious URLs or opened attachments.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Verdict</strong> -- each entity (message, URL, file) receives a verdict: Malicious, Suspicious, or Clean. Verdicts are based on detonation results, reputation signals, and the expanded investigation scope.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Remediation</strong> -- AIR recommends actions: soft delete messages, block sender, block URL. With auto-remediation enabled, approved action types execute automatically. Pending actions appear in the Action Center for analyst review.</span></div>
+            <div class="step-row"><span class="step-num">5</span><span class="step-text"><strong>Action Center</strong> -- all completed and pending AIR actions are tracked in the unified Action Center at security.microsoft.com. Analysts approve, reject, or undo remediation actions from a single queue.</span></div>
+        </div>
+        <div class="box box-red"><div class="box-label">Key Concept</div>When a user reports a phishing email using the Report Message button, AIR automatically investigates the reported message and all similar messages across the organization. This turns user reports into automated, organization-wide threat response.</div>
+    </div>
+</section>
+
+<!-- SLIDE 12 -- SUMMARY -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Chapter 3 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Key concepts you must know for the SC-200 exam.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Safe Attachments</strong> -- sandbox detonation for email attachments. Dynamic Delivery is the recommended action (delivers body immediately, swaps in scanned attachment). Also covers SharePoint, OneDrive, and Teams.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Safe Links</strong> -- URL rewriting and time-of-click verification. Protects against weaponized URLs that become malicious after delivery. Covers email, Teams, and Office desktop apps.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Anti-Phishing</strong> -- user impersonation, domain impersonation, mailbox intelligence (per-user AI), and spoof intelligence. Up to 350 protected users per policy. Phishing threshold levels 1-4.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>ZAP</strong> -- Zero-Hour Auto Purge retroactively removes malicious messages after delivery. ZAP for malware/phishing works on read and unread messages. ZAP for spam works only on unread messages.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Threat Explorer</strong> -- investigation tool with 30 days of data (P2). Real-Time Detections is the P1 subset (7 days). Supports bulk remediation, email timeline, and pivot-based investigation.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>Attack Simulation Training</strong> -- run phishing simulations, measure click/compromise rates, assign training to users who fail. Simulation automations run on schedule. Requires P2 or E5 license.</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text"><strong>AIR for Email</strong> -- automated investigation triggered by user reports, ZAP actions, or phishing alerts. Expands scope to all related messages across the organization and recommends remediation in the Action Center.</span></div>
+        </div>
+        <div class="box box-red" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Chapter 4 -- Mitigate Threats Using Microsoft Defender for Cloud</strong> &nbsp;|&nbsp; Cloud Security Posture &bull; Workload Protection &bull; Regulatory Compliance &bull; Security Alerts
+        </div>
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; SC-200</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) { completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none'; }
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+    goToSlide(1);
+</script>
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'sc200-ch03-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

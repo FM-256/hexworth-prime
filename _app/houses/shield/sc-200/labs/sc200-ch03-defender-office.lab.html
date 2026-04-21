@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Defender for Office 365 Lab -- SC-200 Chapter 3</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { height: 100vh; overflow: hidden; background: #0c0c0c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #f5b3b3; display: flex; flex-direction: column; }
+        .lab-header { flex-shrink: 0; padding: 15px 30px; background: rgba(10,6,8,0.95); border-bottom: 1px solid rgba(239,68,68,0.2); display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn { padding: 8px 16px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; color: #ef4444; text-decoration: none; font-size: 0.85rem; transition: all 0.3s ease; }
+        .back-btn:hover { background: rgba(239,68,68,0.2); }
+        .lab-title { font-size: 1rem; color: #fde2e2; }
+        .lab-badge { padding: 4px 12px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; font-size: 0.7rem; color: #f87171; letter-spacing: 0.05em; }
+        .lab-badge-ch { padding: 4px 12px; background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.3); border-radius: 12px; font-size: 0.7rem; color: #34d399; letter-spacing: 0.05em; }
+        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #7a4040; }
+        .task-count { color: #ef4444; font-weight: 500; }
+        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(239,68,68,0.15); border-radius: 3px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #ef4444, #991b1b); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
+        .lab-container { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
+        .task-panel { background: rgba(10,6,8,0.95); border-right: 1px solid rgba(239,68,68,0.15); overflow-y: auto; padding: 20px; }
+        .task-section { margin-bottom: 25px; }
+        .task-section-title { font-size: 0.68rem; color: #5a2020; letter-spacing: 0.15em; margin-bottom: 12px; text-transform: uppercase; }
+        .task-card { background: rgba(20,10,16,0.8); border: 1px solid rgba(239,68,68,0.15); border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s ease; }
+        .task-card:hover { border-color: rgba(239,68,68,0.4); }
+        .task-card.active { border-color: #ef4444; background: rgba(239,68,68,0.1); }
+        .task-card.completed { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.04); }
+        .task-card.completed .task-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; font-weight: 400; }
+        .task-number { font-size: 0.68rem; color: #ef4444; margin-bottom: 4px; }
+        .task-name { font-size: 0.9rem; color: #fde2e2; margin-bottom: 4px; }
+        .task-desc { font-size: 0.77rem; color: #7a4040; line-height: 1.45; }
+        .task-desc code { background: rgba(239,68,68,0.15); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; color: #f87171; font-family: 'Consolas', monospace; }
+        .terminal-panel { display: flex; flex-direction: column; background: #0a0a0a; position: relative; overflow: hidden; }
+        .term-toolbar { flex-shrink: 0; padding: 8px 20px; background: rgba(20,10,16,0.9); border-bottom: 1px solid rgba(239,68,68,0.15); display: flex; align-items: center; gap: 12px; }
+        .term-dot { width: 12px; height: 12px; border-radius: 50%; } .term-dot-red { background: #ff5f57; } .term-dot-amber { background: #febc2e; } .term-dot-green { background: #28c840; }
+        .term-title { flex: 1; text-align: center; font-size: 0.8rem; color: #5a3030; font-family: 'Consolas', monospace; }
+        .term-vm-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #34d399; }
+        .term-status-dot { width: 7px; height: 7px; background: #34d399; border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .term-output { flex: 1; overflow-y: auto; padding: 16px 360px 8px 20px; font-family: 'Consolas', monospace; font-size: 0.875rem; line-height: 1.6; }
+        .term-input-row { flex-shrink: 0; display: flex; align-items: center; padding: 8px 360px 12px 20px; border-top: 1px solid rgba(239,68,68,0.1); gap: 0; }
+        .term-prompt-label { font-family: 'Consolas', monospace; font-size: 0.875rem; white-space: nowrap; flex-shrink: 0; }
+        .term-prompt-user { color: #ef4444; } .term-prompt-sep { color: #5a2020; } .term-prompt-path { color: #34d399; } .term-prompt-dollar { color: #fde2e2; margin-right: 6px; }
+        .term-input { flex: 1; background: transparent; border: none; outline: none; color: #fde2e2; font-family: 'Consolas', monospace; font-size: 0.875rem; caret-color: #ef4444; }
+        .term-line { white-space: pre-wrap; word-break: break-all; }
+        .term-line-cmd { color: #f5b3b3; } .term-line-out { color: #a0d4a0; } .term-line-err { color: #f87171; } .term-line-info { color: #f87171; } .term-line-warn { color: #fbbf24; } .term-line-dim { color: #4a2020; } .term-welcome { color: #ef4444; }
+        .term-prompt-span { color: #ef4444; } .term-path-span { color: #34d399; } .term-ps1-sep { color: #5a2020; }
+        .json-key { color: #f87171; } .json-string { color: #86efac; } .json-number { color: #fbbf24; } .json-bool { color: #93c5fd; } .json-null { color: #f87171; }
+        .instructions-panel { position: absolute; top: 20px; right: 20px; width: 320px; background: rgba(10,6,8,0.97); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; padding: 20px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.4); transition: all 0.3s ease; }
+        .instructions-panel.collapsed { width: auto; padding: 10px 14px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-body { display: none; }
+        .instructions-title { font-size: 1rem; color: #ef4444; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-title { margin-bottom: 0; font-size: 0.85rem; }
+        .instructions-toggle { margin-left: auto; width: 28px; height: 28px; background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; color: #ef4444; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .instructions-step { font-size: 0.88rem; color: #f5b3b3; line-height: 1.65; margin-bottom: 14px; }
+        .instructions-step code { background: rgba(239,68,68,0.2); padding: 2px 7px; border-radius: 4px; font-family: 'Consolas', monospace; color: #f87171; font-size: 0.85em; }
+        .instructions-hint { font-size: 0.78rem; color: #5a2020; font-style: italic; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(239,68,68,0.15); line-height: 1.5; }
+        .hint-btn { margin-top: 12px; padding: 6px 12px; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); border-radius: 5px; color: #ef4444; font-size: 0.75rem; cursor: pointer; font-family: 'Segoe UI', sans-serif; width: 100%; text-align: center; }
+        .hint-command { display: none; margin-top: 10px; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(239,68,68,0.25); border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.78rem; color: #86efac; line-height: 1.55; white-space: pre-wrap; }
+        .hint-command.visible { display: block; }
+        .success-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 2000; }
+        .success-overlay.active { display: flex; }
+        .success-card { background: rgba(10,6,8,0.97); border: 1px solid rgba(52,211,153,0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
+        .success-message { color: #f5b3b3; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
+        .success-btn { padding: 12px 30px; background: linear-gradient(135deg, #ef4444, #991b1b); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; }
+        @media (max-width: 1024px) { .lab-container { grid-template-columns: 1fr; } .task-panel { display: none; } .term-output, .term-input-row { padding-right: 20px; } .instructions-panel { position: absolute; bottom: 60px; top: auto; right: 10px; left: 10px; width: auto; } }
+    </style>
+</head>
+<body>
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Defender for Office 365 Lab</span>
+            <span class="lab-badge">SC-200</span>
+            <span class="lab-badge-ch">CH.3</span>
+        </div>
+        <div class="task-progress">
+            <span>Progress:</span>
+            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBarFill"></div></div>
+            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
+        </div>
+    </header>
+    <div class="lab-container">
+        <aside class="task-panel" id="taskPanel"><div class="task-section"><div class="task-section-title">Phase 1 -- Safe Attachments and Safe Links</div><div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)"><div class="task-number">Task 1</div><div class="task-name">View Safe Attachments Policies</div><div class="task-desc">Run <code>mdo-policy list safe-attachments</code> to display the current Safe Attachments policy configuration.</div></div><div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)"><div class="task-number">Task 2</div><div class="task-name">Check Detonation Results</div><div class="task-desc">Run <code>mdo-detonation show --id DET-0782</code> to review the sandbox analysis results for a suspicious attachment.</div></div><div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)"><div class="task-number">Task 3</div><div class="task-name">View Safe Links Policies</div><div class="task-desc">Run <code>mdo-policy list safe-links</code> to display URL rewriting and time-of-click protection settings.</div></div></div><div class="task-section"><div class="task-section-title">Phase 2 -- Anti-Phishing and ZAP</div><div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)"><div class="task-number">Task 4</div><div class="task-name">Review Anti-Phishing Policy</div><div class="task-desc">Run <code>mdo-policy show anti-phishing --name "Executive Protection"</code> to review impersonation and mailbox intelligence settings.</div></div><div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)"><div class="task-number">Task 5</div><div class="task-name">Check ZAP Activity</div><div class="task-desc">Run <code>mdo-zap list actions --last 24h</code> to view Zero-Hour Auto Purge actions taken on delivered messages.</div></div></div><div class="task-section"><div class="task-section-title">Phase 3 -- Threat Explorer</div><div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)"><div class="task-number">Task 6</div><div class="task-name">Search Threat Explorer</div><div class="task-desc">Run <code>mdo-explorer search --view phish --days 7</code> to find phishing messages detected in the last 7 days.</div></div><div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)"><div class="task-number">Task 7</div><div class="task-name">Remediate Phishing Messages</div><div class="task-desc">Run <code>mdo-explorer remediate --sender "attacker@evil-domain.com" --action soft-delete</code> to bulk-remove phishing messages.</div></div></div><div class="task-section"><div class="task-section-title">Phase 4 -- Simulation and Investigation</div><div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)"><div class="task-number">Task 8</div><div class="task-name">Launch Attack Simulation</div><div class="task-desc">Run <code>mdo-simulation create --type credential-harvest --target "Sales Team"</code> to launch a phishing simulation campaign.</div></div><div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)"><div class="task-number">Task 9</div><div class="task-name">View Simulation Results</div><div class="task-desc">Run <code>mdo-simulation report --id SIM-0341</code> to review click rates, compromise rates, and training assignments.</div></div><div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)"><div class="task-number">Task 10</div><div class="task-name">Review AIR Investigation</div><div class="task-desc">Run <code>mdo-air show investigation --id AIR-3104</code> to review an automated email investigation and pending remediation actions.</div></div></div></aside>
+        <main class="terminal-panel" id="terminalPanel">
+            <div class="term-toolbar">
+                <div class="term-dot term-dot-red"></div><div class="term-dot term-dot-amber"></div><div class="term-dot term-dot-green"></div>
+                <div class="term-title">socanalyst@mdo-lab -- bash</div>
+                <div class="term-vm-status"><div class="term-status-dot"></div>MDO Lab Online</div>
+            </div>
+            <div class="term-output" id="termOutput"></div>
+            <div class="term-input-row">
+                <span class="term-prompt-label"><span class="term-prompt-user">socanalyst@mdo-lab</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span></span>
+                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
+            </div>
+            <div class="instructions-panel" id="instructionsPanel">
+                <div class="instructions-title" onclick="toggleInstructions()">
+                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+                    Task Instructions
+                    <button class="instructions-toggle" id="instructionsToggle">&#9660;</button>
+                </div>
+                <div class="instructions-body" id="instructionsBody">
+                    <div class="instructions-step" id="instructionsStep">Type the command in the terminal and press Enter.</div>
+                    <div class="instructions-hint" id="instructionsHint">Hint text loads when you select a task.</div>
+                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
+                    <div class="hint-command" id="hintCommand"></div>
+                </div>
+            </div>
+            <div class="success-overlay" id="successOverlay">
+                <div class="success-card">
+                    <div class="success-title">SC-200 Chapter 3 Lab Complete!</div>
+                    <div class="success-message">You configured Safe Attachments and Safe Links policies, reviewed detonation results, investigated phishing with Threat Explorer, ran an attack simulation campaign, and reviewed automated email investigation actions. These are the core Defender for Office 365 workflows for the SC-200 exam.</div>
+                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script>
+    (function(){
+        'use strict';
+        var TOTAL_TASKS = 10;
+        var taskDone = {}; for(var i=1;i<=TOTAL_TASKS;i++) taskDone[i]=false;
+        var currentTask = 1;
+        var cmdHistory = [], histIdx = -1;
+        var outputEl, inputEl, ps1PathEl;
+
+        var TASK_INSTRUCTIONS = {1:{step:"View Safe Attachments policies:\n<code>mdo-policy list safe-attachments</code>\n\nReview the policy actions and scope assignments.",hint:"Safe Attachments opens files in a detonation sandbox. Dynamic Delivery is the recommended action.",cmd:"mdo-policy list safe-attachments"},2:{step:"Check sandbox detonation results:\n<code>mdo-detonation show --id DET-0782</code>",hint:"Detonation opens the attachment in a virtual machine and monitors for malicious behavior like process injection or C2 callbacks.",cmd:"mdo-detonation show --id DET-0782"},3:{step:"View Safe Links policies:\n<code>mdo-policy list safe-links</code>",hint:"Safe Links rewrites URLs and checks reputation at time of click, not just at delivery.",cmd:"mdo-policy list safe-links"},4:{step:"Review anti-phishing policy settings:\n<code>mdo-policy show anti-phishing --name \"Executive Protection\"</code>",hint:"Anti-phishing policies use impersonation detection and mailbox intelligence to catch BEC attacks.",cmd:"mdo-policy show anti-phishing --name \"Executive Protection\""},5:{step:"Check ZAP activity in the last 24 hours:\n<code>mdo-zap list actions --last 24h</code>",hint:"ZAP retroactively removes delivered messages when new threat intelligence identifies them as malicious.",cmd:"mdo-zap list actions --last 24h"},6:{step:"Search Threat Explorer for phishing detections:\n<code>mdo-explorer search --view phish --days 7</code>",hint:"Threat Explorer provides 30 days of email data with pivot and bulk remediation capabilities.",cmd:"mdo-explorer search --view phish --days 7"},7:{step:"Bulk-remediate phishing messages:\n<code>mdo-explorer remediate --sender \"attacker@evil-domain.com\" --action soft-delete</code>",hint:"Soft delete moves messages to Deleted Items. Hard delete permanently removes them. Both actions apply across all affected mailboxes.",cmd:"mdo-explorer remediate --sender \"attacker@evil-domain.com\" --action soft-delete"},8:{step:"Launch a phishing simulation:\n<code>mdo-simulation create --type credential-harvest --target \"Sales Team\"</code>",hint:"Simulated phishing emails bypass Safe Links and Safe Attachments so they reach users realistically.",cmd:"mdo-simulation create --type credential-harvest --target \"Sales Team\""},9:{step:"View simulation campaign results:\n<code>mdo-simulation report --id SIM-0341</code>",hint:"Track click rate, compromise rate, and report rate. Users who fail are assigned training automatically.",cmd:"mdo-simulation report --id SIM-0341"},10:{step:"Review an automated email investigation:\n<code>mdo-air show investigation --id AIR-3104</code>",hint:"AIR for email expands scope to all similar messages across the organization and recommends bulk remediation.",cmd:"mdo-air show investigation --id AIR-3104"}};
+
+        var TASK_NAMES = {};
+        TASK_NAMES[1]="View Safe Attachments Policies";
+        TASK_NAMES[2]="Check Detonation Results";
+        TASK_NAMES[3]="View Safe Links Policies";
+        TASK_NAMES[4]="Review Anti-Phishing Policy";
+        TASK_NAMES[5]="Check ZAP Activity";
+        TASK_NAMES[6]="Search Threat Explorer";
+        TASK_NAMES[7]="Remediate Phishing Messages";
+        TASK_NAMES[8]="Launch Attack Simulation";
+        TASK_NAMES[9]="View Simulation Results";
+        TASK_NAMES[10]="Review AIR Investigation";
+
+        var CMD_RESPONSES = {"mdo-policy list safe-attachments":{"lines":[{"text":"=== Safe Attachments Policies ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Policy Name             Action              Scope                    Priority","cls":"term-line-warn"},{"text":"  Strict Executives       Block               CEO, CFO, CISO           1","cls":"term-line-err"},{"text":"  Standard All Users      Dynamic Delivery    All Recipients           2","cls":"term-line-out"},{"text":"  Built-in Protection     Block               Default (fallback)       Lowest","cls":"term-line-dim"},{"text":"","cls":"term-line-out"},{"text":"  Global Settings:","cls":"term-line-warn"},{"text":"    Safe Attachments for SharePoint, OneDrive, Teams: Enabled","cls":"term-line-out"},{"text":"    Safe Documents (Office desktop):                  Enabled","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  3 policies active | Dynamic Delivery recommended for most users","cls":"term-line-dim"}],"completesTask":1},"mdo-detonation show --id DET-0782":{"lines":[{"text":"=== Detonation Report DET-0782 ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  File: Invoice_Q1_2026.docm (SHA256: 7f3a2b...)","cls":"term-line-out"},{"text":"  Size: 287 KB | Type: Office Macro Document","cls":"term-line-out"},{"text":"  Verdict: MALICIOUS","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  Sandbox Analysis:","cls":"term-line-warn"},{"text":"    [1] Document opened in Windows 11 sandbox VM","cls":"term-line-out"},{"text":"    [2] VBA macro auto-executed on open","cls":"term-line-err"},{"text":"    [3] Macro spawned powershell.exe with encoded command","cls":"term-line-err"},{"text":"    [4] PowerShell downloaded payload from 198.51.100.44/stage2.exe","cls":"term-line-err"},{"text":"    [5] Payload attempted to inject into svchost.exe","cls":"term-line-err"},{"text":"    [6] Outbound C2 connection to 203.0.113.88:443 detected","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  Action Taken: Message quarantined before delivery","cls":"term-line-warn"},{"text":"  Recipients: jsmith@contoso.com, finance@contoso.com","cls":"term-line-dim"}],"completesTask":2},"mdo-policy list safe-links":{"lines":[{"text":"=== Safe Links Policies ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Policy Name             URL Rewrite   Click Track   Block Override   Priority","cls":"term-line-warn"},{"text":"  Strict Executives       Yes           Yes           Yes              1","cls":"term-line-err"},{"text":"  Standard All Users      Yes           Yes           No               2","cls":"term-line-out"},{"text":"  Built-in Protection     Yes           Yes           No               Lowest","cls":"term-line-dim"},{"text":"","cls":"term-line-out"},{"text":"  Coverage:","cls":"term-line-warn"},{"text":"    Email messages:            Enabled","cls":"term-line-out"},{"text":"    Microsoft Teams:           Enabled","cls":"term-line-out"},{"text":"    Office desktop apps:       Enabled","cls":"term-line-out"},{"text":"    URL detonation:            Enabled (wait for scan to complete)","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  3 policies active | URLs checked at time of click","cls":"term-line-dim"}],"completesTask":3},"mdo-policy show anti-phishing --name \"Executive Protection\"":{"lines":[{"text":"=== Anti-Phishing Policy: Executive Protection ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Scope: CEO, CFO, CISO, VP Finance, HR Director","cls":"term-line-out"},{"text":"  Phishing Threshold: 3 (More Aggressive)","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  Impersonation Protection:","cls":"term-line-warn"},{"text":"    User impersonation:        Enabled (5 protected users)","cls":"term-line-out"},{"text":"    Domain impersonation:      Enabled (contoso.com + 3 partner domains)","cls":"term-line-out"},{"text":"    Mailbox intelligence:      Enabled","cls":"term-line-out"},{"text":"    Intelligence impersonation: Enabled","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Actions:","cls":"term-line-warn"},{"text":"    Impersonated user:         Quarantine message","cls":"term-line-err"},{"text":"    Impersonated domain:       Quarantine message","cls":"term-line-err"},{"text":"    Mailbox intelligence:      Move to Junk Email","cls":"term-line-out"},{"text":"    Spoof:                     Quarantine message","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  Safety tips: Enabled | First contact tip: Enabled","cls":"term-line-dim"}],"completesTask":4},"mdo-zap list actions --last 24h":{"lines":[{"text":"=== Zero-Hour Auto Purge -- Last 24 Hours ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Time              Type       Action         Recipient                Subject","cls":"term-line-warn"},{"text":"  14:22 today       Phishing   Quarantined    abrown@contoso.com       Urgent: Verify Account","cls":"term-line-err"},{"text":"  14:22 today       Phishing   Quarantined    jdoe@contoso.com         Urgent: Verify Account","cls":"term-line-err"},{"text":"  11:08 today       Malware    Quarantined    procurement@contoso.com  PO #8841 Attached","cls":"term-line-err"},{"text":"  09:45 today       Spam       Moved to Junk  sales@contoso.com        Exclusive Deal Today","cls":"term-line-out"},{"text":"  03:17 today       Phishing   Quarantined    hr@contoso.com           Benefits Update Required","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  5 ZAP actions in last 24 hours | 4 phishing/malware, 1 spam","cls":"term-line-warn"},{"text":"  Note: ZAP for spam only acts on unread messages","cls":"term-line-dim"}],"completesTask":5},"mdo-explorer search --view phish --days 7":{"lines":[{"text":"=== Threat Explorer -- Phish View (Last 7 Days) ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Total phishing detections: 47","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  Delivery Action      Count","cls":"term-line-warn"},{"text":"    Blocked             31","cls":"term-line-out"},{"text":"    Quarantined          9","cls":"term-line-out"},{"text":"    Delivered (ZAP'd)    5","cls":"term-line-out"},{"text":"    Delivered            2","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  Top Senders:","cls":"term-line-warn"},{"text":"    attacker@evil-domain.com        12 messages","cls":"term-line-err"},{"text":"    noreply@phish-kit.net            8 messages","cls":"term-line-err"},{"text":"    support@contoso-reset.com        7 messages","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  Detection Technologies: URL detonation (18), Impersonation (14), Spoof intelligence (9), URL reputation (6)","cls":"term-line-dim"},{"text":"  2 messages delivered and not yet remediated -- action required","cls":"term-line-err"}],"completesTask":6},"mdo-explorer remediate --sender \"attacker@evil-domain.com\" --action soft-delete":{"lines":[{"text":"=== Threat Explorer -- Bulk Remediation ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Sender filter: attacker@evil-domain.com","cls":"term-line-out"},{"text":"  Action: Soft delete (move to Deleted Items)","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  Scanning affected mailboxes...","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Messages found:  12","cls":"term-line-warn"},{"text":"  Mailboxes:       8","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  [OK] jsmith@contoso.com        -- 3 messages soft-deleted","cls":"term-line-out"},{"text":"  [OK] finance@contoso.com       -- 2 messages soft-deleted","cls":"term-line-out"},{"text":"  [OK] abrown@contoso.com        -- 2 messages soft-deleted","cls":"term-line-out"},{"text":"  [OK] hr@contoso.com            -- 1 message soft-deleted","cls":"term-line-out"},{"text":"  [OK] procurement@contoso.com   -- 1 message soft-deleted","cls":"term-line-out"},{"text":"  [OK] sales@contoso.com         -- 1 message soft-deleted","cls":"term-line-out"},{"text":"  [OK] admin@contoso.com         -- 1 message soft-deleted","cls":"term-line-out"},{"text":"  [OK] legal@contoso.com         -- 1 message soft-deleted","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Remediation complete: 12 messages removed from 8 mailboxes","cls":"term-line-warn"}],"completesTask":7},"mdo-simulation create --type credential-harvest --target \"Sales Team\"":{"lines":[{"text":"=== Attack Simulation Training ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Simulation ID: SIM-0341","cls":"term-line-out"},{"text":"  Type: Credential Harvest","cls":"term-line-warn"},{"text":"  Target: Sales Team (24 users)","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Payload: \"Action Required: Update Your Sales Portal Password\"","cls":"term-line-out"},{"text":"  Landing page: Fake Microsoft 365 sign-in page","cls":"term-line-err"},{"text":"  Training: Phishing Awareness Module (auto-assigned on failure)","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  [LAUNCHING] Sending simulated phishing emails...","cls":"term-line-warn"},{"text":"  [OK] 24 emails queued for delivery","cls":"term-line-out"},{"text":"  [OK] Emails bypass Safe Links and Safe Attachments (by design)","cls":"term-line-dim"},{"text":"  [OK] Simulation SIM-0341 active -- results available in 48 hours","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Use mdo-simulation report --id SIM-0341 to view results","cls":"term-line-dim"}],"completesTask":8},"mdo-simulation report --id SIM-0341":{"lines":[{"text":"=== Simulation Report SIM-0341 ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Type: Credential Harvest | Target: Sales Team (24 users)","cls":"term-line-out"},{"text":"  Status: Completed","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  Results:","cls":"term-line-warn"},{"text":"    Emails delivered:           24 / 24 (100%)","cls":"term-line-out"},{"text":"    Emails opened:              19 / 24 (79.2%)","cls":"term-line-out"},{"text":"    Link clicked:                8 / 24 (33.3%)","cls":"term-line-err"},{"text":"    Credentials submitted:       5 / 24 (20.8%)","cls":"term-line-err"},{"text":"    Reported as phishing:        6 / 24 (25.0%)","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Training Assigned:","cls":"term-line-warn"},{"text":"    8 users assigned Phishing Awareness Module","cls":"term-line-out"},{"text":"    3 users completed training | 5 users pending","cls":"term-line-dim"},{"text":"","cls":"term-line-out"},{"text":"  Predicted compromise rate (org average): 28.4%","cls":"term-line-dim"},{"text":"  Sales Team rate: 33.3% -- above average, recommend additional training","cls":"term-line-err"}],"completesTask":9},"mdo-air show investigation --id AIR-3104":{"lines":[{"text":"=== AIR Investigation AIR-3104 ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Triggered by: User reported phishing (abrown@contoso.com)","cls":"term-line-out"},{"text":"  Status: Remediation Pending | Scope: Organization-wide","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  Investigation Scope:","cls":"term-line-warn"},{"text":"    Original reported message:     1","cls":"term-line-out"},{"text":"    Similar messages found:        14 (same sender + URL)","cls":"term-line-err"},{"text":"    Total mailboxes affected:      11","cls":"term-line-err"},{"text":"    Users who clicked URL:          3","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  Entity Verdicts:","cls":"term-line-warn"},{"text":"    email-sender                 Malicious     Spoofed contoso.com domain","cls":"term-line-err"},{"text":"    url-credential-page          Malicious     Credential harvesting form","cls":"term-line-err"},{"text":"    14 email messages            Malicious     Same campaign, same payload","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  Recommended Actions:","cls":"term-line-warn"},{"text":"    Soft delete 14 messages from 11 mailboxes     Pending approval","cls":"term-line-out"},{"text":"    Block sender domain                           Pending approval","cls":"term-line-out"},{"text":"    Block credential harvesting URL                Pending approval","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Approve actions in the Action Center at security.microsoft.com","cls":"term-line-dim"}],"completesTask":10}};
+
+        function escH(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        function addLine(t,c) { var d=document.createElement('div'); d.className='term-line'+(c?' '+c:''); d.textContent=t; outputEl.appendChild(d); outputEl.scrollTop=outputEl.scrollHeight; }
+        function addHTML(h,c) { var d=document.createElement('div'); d.className='term-line'+(c?' '+c:''); d.innerHTML=h; outputEl.appendChild(d); outputEl.scrollTop=outputEl.scrollHeight; }
+        function addBlank() { addLine('',''); }
+        function addPromptLine(cmd) { addHTML('<span class="term-prompt-span">socanalyst@mdo-lab</span><span class="term-ps1-sep">:</span><span class="term-path-span">~</span><span class="term-ps1-sep">$ </span>'+escH(cmd),'term-line-cmd'); }
+
+        function execLine(raw) {
+            var trimmed = raw.trim();
+            addPromptLine(trimmed);
+            if (!trimmed) return;
+            var matched = false;
+            for (var key in CMD_RESPONSES) {
+                if (trimmed === key || trimmed.indexOf(key) === 0) {
+                    var resp = CMD_RESPONSES[key];
+                    resp.lines.forEach(function(l) { addLine(l.text, l.cls); });
+                    addBlank();
+                    if (resp.completesTask) { completeTask(resp.completesTask); }
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                if (trimmed === 'help') { addLine('Type the commands shown in the task instructions.', 'term-line-info'); addLine('Each task provides the exact command to run.', 'term-line-dim'); }
+                else if (trimmed === 'clear') { outputEl.innerHTML = ''; }
+                else { addLine('Command not recognized in this lab simulation. Check the task instructions.', 'term-line-err'); }
+            }
+        }
+
+        function completeTask(num) {
+            if (taskDone[num]) return;
+            taskDone[num] = true;
+            var card = document.getElementById('task-card-' + num);
+            if (card) { card.classList.add('completed'); card.classList.remove('active'); }
+            var doneCount = Object.keys(taskDone).filter(function(k){return taskDone[k];}).length;
+            document.getElementById('taskProgress').textContent = doneCount + ' / ' + TOTAL_TASKS + ' Tasks';
+            document.getElementById('progressBarFill').style.width = Math.round((doneCount/TOTAL_TASKS)*100) + '%';
+            addBlank();
+            addHTML('  <span style="color:#34d399">[Task ' + num + ' complete]</span> <span style="color:#5a2020">' + escH(TASK_NAMES[num]||'') + '</span>', 'term-line-info');
+            addBlank();
+            if (doneCount === TOTAL_TASKS) { setTimeout(function(){ document.getElementById('successOverlay').classList.add('active'); }, 700); return; }
+            var next = null; for (var j=1;j<=TOTAL_TASKS;j++) { if (!taskDone[j]) { next=j; break; } }
+            if (next) selectTask(next);
+        }
+
+        function selectTask(num) {
+            currentTask = num;
+            for (var i=1;i<=TOTAL_TASKS;i++) { var c=document.getElementById('task-card-'+i); if(c){c.classList.remove('active'); if(i===num) c.classList.add('active');} }
+            var info = TASK_INSTRUCTIONS[num]; if (!info) return;
+            var stepEl=document.getElementById('instructionsStep'); var hintEl=document.getElementById('instructionsHint'); var hintCmd=document.getElementById('hintCommand');
+            if (stepEl) stepEl.innerHTML = info.step.replace(/\n/g,'<br>');
+            if (hintEl) hintEl.textContent = info.hint;
+            if (hintCmd) { hintCmd.textContent = info.cmd; hintCmd.classList.remove('visible'); }
+            var panel=document.getElementById('instructionsPanel'); if(panel&&panel.classList.contains('collapsed')) panel.classList.remove('collapsed');
+        }
+
+        window.selectTask = selectTask;
+        window.toggleInstructions = function() { document.getElementById('instructionsPanel').classList.toggle('collapsed'); };
+        window.revealHint = function() { var h=document.getElementById('hintCommand'); if(h) h.classList.toggle('visible'); };
+        window.finishLab = function() { if (typeof ModuleProgress !== 'undefined') { ModuleProgress.complete('shield', 'sc200-ch03-lab', { returnUrl: '../index.html' }); } else { window.location.href = '../index.html'; } };
+
+        function init() {
+            outputEl = document.getElementById('termOutput');
+            inputEl = document.getElementById('termInput');
+            ps1PathEl = document.getElementById('termPS1Path');
+            if (!outputEl || !inputEl) return;
+            addLine("Defender for Office 365 Lab -- SC-200 Chapter 3", "term-welcome");
+            addLine("Shield House Security Operations Terminal", "term-welcome");
+            addLine("", "term-line-out");
+            addLine("Configure email protection, investigate phishing threats, run attack simulations, and review automated investigations.", "term-line-info");
+            addLine("Type \"help\" for guidance. Complete 10 tasks to finish the lab.", "term-line-info");
+            addBlank();
+            inputEl.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') { var cmd=inputEl.value; inputEl.value=''; if(cmd.trim()){cmdHistory.push(cmd);histIdx=cmdHistory.length;} execLine(cmd); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); if(histIdx>0){histIdx--;inputEl.value=cmdHistory[histIdx];} }
+                else if (e.key === 'ArrowDown') { e.preventDefault(); if(histIdx<cmdHistory.length-1){histIdx++;inputEl.value=cmdHistory[histIdx];}else{histIdx=cmdHistory.length;inputEl.value='';} }
+            });
+            outputEl.addEventListener('click', function(){ inputEl.focus(); });
+            inputEl.focus();
+            selectTask(1);
+        }
+        if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
+    })();
+    </script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

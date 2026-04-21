@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Defender for Endpoint Lab -- SC-200 Chapter 2</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { height: 100vh; overflow: hidden; background: #0c0c0c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #f5b3b3; display: flex; flex-direction: column; }
+        .lab-header { flex-shrink: 0; padding: 15px 30px; background: rgba(10,6,8,0.95); border-bottom: 1px solid rgba(239,68,68,0.2); display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn { padding: 8px 16px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; color: #ef4444; text-decoration: none; font-size: 0.85rem; transition: all 0.3s ease; }
+        .back-btn:hover { background: rgba(239,68,68,0.2); }
+        .lab-title { font-size: 1rem; color: #fde2e2; }
+        .lab-badge { padding: 4px 12px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; font-size: 0.7rem; color: #f87171; letter-spacing: 0.05em; }
+        .lab-badge-ch { padding: 4px 12px; background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.3); border-radius: 12px; font-size: 0.7rem; color: #34d399; letter-spacing: 0.05em; }
+        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #7a4040; }
+        .task-count { color: #ef4444; font-weight: 500; }
+        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(239,68,68,0.15); border-radius: 3px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #ef4444, #991b1b); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
+        .lab-container { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
+        .task-panel { background: rgba(10,6,8,0.95); border-right: 1px solid rgba(239,68,68,0.15); overflow-y: auto; padding: 20px; }
+        .task-section { margin-bottom: 25px; }
+        .task-section-title { font-size: 0.68rem; color: #5a2020; letter-spacing: 0.15em; margin-bottom: 12px; text-transform: uppercase; }
+        .task-card { background: rgba(20,10,16,0.8); border: 1px solid rgba(239,68,68,0.15); border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s ease; }
+        .task-card:hover { border-color: rgba(239,68,68,0.4); }
+        .task-card.active { border-color: #ef4444; background: rgba(239,68,68,0.1); }
+        .task-card.completed { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.04); }
+        .task-card.completed .task-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; font-weight: 400; }
+        .task-number { font-size: 0.68rem; color: #ef4444; margin-bottom: 4px; }
+        .task-name { font-size: 0.9rem; color: #fde2e2; margin-bottom: 4px; }
+        .task-desc { font-size: 0.77rem; color: #7a4040; line-height: 1.45; }
+        .task-desc code { background: rgba(239,68,68,0.15); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; color: #f87171; font-family: 'Consolas', monospace; }
+        .terminal-panel { display: flex; flex-direction: column; background: #0a0a0a; position: relative; overflow: hidden; }
+        .term-toolbar { flex-shrink: 0; padding: 8px 20px; background: rgba(20,10,16,0.9); border-bottom: 1px solid rgba(239,68,68,0.15); display: flex; align-items: center; gap: 12px; }
+        .term-dot { width: 12px; height: 12px; border-radius: 50%; } .term-dot-red { background: #ff5f57; } .term-dot-amber { background: #febc2e; } .term-dot-green { background: #28c840; }
+        .term-title { flex: 1; text-align: center; font-size: 0.8rem; color: #5a3030; font-family: 'Consolas', monospace; }
+        .term-vm-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #34d399; }
+        .term-status-dot { width: 7px; height: 7px; background: #34d399; border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .term-output { flex: 1; overflow-y: auto; padding: 16px 360px 8px 20px; font-family: 'Consolas', monospace; font-size: 0.875rem; line-height: 1.6; }
+        .term-input-row { flex-shrink: 0; display: flex; align-items: center; padding: 8px 360px 12px 20px; border-top: 1px solid rgba(239,68,68,0.1); gap: 0; }
+        .term-prompt-label { font-family: 'Consolas', monospace; font-size: 0.875rem; white-space: nowrap; flex-shrink: 0; }
+        .term-prompt-user { color: #ef4444; } .term-prompt-sep { color: #5a2020; } .term-prompt-path { color: #34d399; } .term-prompt-dollar { color: #fde2e2; margin-right: 6px; }
+        .term-input { flex: 1; background: transparent; border: none; outline: none; color: #fde2e2; font-family: 'Consolas', monospace; font-size: 0.875rem; caret-color: #ef4444; }
+        .term-line { white-space: pre-wrap; word-break: break-all; }
+        .term-line-cmd { color: #f5b3b3; } .term-line-out { color: #a0d4a0; } .term-line-err { color: #f87171; } .term-line-info { color: #f87171; } .term-line-warn { color: #fbbf24; } .term-line-dim { color: #4a2020; } .term-welcome { color: #ef4444; }
+        .term-prompt-span { color: #ef4444; } .term-path-span { color: #34d399; } .term-ps1-sep { color: #5a2020; }
+        .json-key { color: #f87171; } .json-string { color: #86efac; } .json-number { color: #fbbf24; } .json-bool { color: #93c5fd; } .json-null { color: #f87171; }
+        .instructions-panel { position: absolute; top: 20px; right: 20px; width: 320px; background: rgba(10,6,8,0.97); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; padding: 20px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.4); transition: all 0.3s ease; }
+        .instructions-panel.collapsed { width: auto; padding: 10px 14px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-body { display: none; }
+        .instructions-title { font-size: 1rem; color: #ef4444; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-title { margin-bottom: 0; font-size: 0.85rem; }
+        .instructions-toggle { margin-left: auto; width: 28px; height: 28px; background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; color: #ef4444; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .instructions-step { font-size: 0.88rem; color: #f5b3b3; line-height: 1.65; margin-bottom: 14px; }
+        .instructions-step code { background: rgba(239,68,68,0.2); padding: 2px 7px; border-radius: 4px; font-family: 'Consolas', monospace; color: #f87171; font-size: 0.85em; }
+        .instructions-hint { font-size: 0.78rem; color: #5a2020; font-style: italic; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(239,68,68,0.15); line-height: 1.5; }
+        .hint-btn { margin-top: 12px; padding: 6px 12px; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); border-radius: 5px; color: #ef4444; font-size: 0.75rem; cursor: pointer; font-family: 'Segoe UI', sans-serif; width: 100%; text-align: center; }
+        .hint-command { display: none; margin-top: 10px; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(239,68,68,0.25); border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.78rem; color: #86efac; line-height: 1.55; white-space: pre-wrap; }
+        .hint-command.visible { display: block; }
+        .success-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 2000; }
+        .success-overlay.active { display: flex; }
+        .success-card { background: rgba(10,6,8,0.97); border: 1px solid rgba(52,211,153,0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
+        .success-message { color: #f5b3b3; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
+        .success-btn { padding: 12px 30px; background: linear-gradient(135deg, #ef4444, #991b1b); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; }
+        @media (max-width: 1024px) { .lab-container { grid-template-columns: 1fr; } .task-panel { display: none; } .term-output, .term-input-row { padding-right: 20px; } .instructions-panel { position: absolute; bottom: 60px; top: auto; right: 10px; left: 10px; width: auto; } }
+    </style>
+</head>
+<body>
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Defender for Endpoint Lab</span>
+            <span class="lab-badge">SC-200</span>
+            <span class="lab-badge-ch">CH.2</span>
+        </div>
+        <div class="task-progress">
+            <span>Progress:</span>
+            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBarFill"></div></div>
+            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
+        </div>
+    </header>
+    <div class="lab-container">
+        <aside class="task-panel" id="taskPanel"><div class="task-section"><div class="task-section-title">Phase 1 -- Onboarding</div><div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)"><div class="task-number">Task 1</div><div class="task-name">View Onboarding Methods</div><div class="task-desc">Run <code>mde-config show onboarding-methods</code> to display available device onboarding options.</div></div><div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)"><div class="task-number">Task 2</div><div class="task-name">Onboard a Device</div><div class="task-desc">Run <code>mde-config onboard --method local-script --device WKS-PC042</code> to onboard a workstation using the local script.</div></div><div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)"><div class="task-number">Task 3</div><div class="task-name">Verify Sensor Health</div><div class="task-desc">Run <code>mde-config check sensor-health --device WKS-PC042</code> to confirm the endpoint sensor is active and reporting.</div></div></div><div class="task-section"><div class="task-section-title">Phase 2 -- ASR and EDR</div><div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)"><div class="task-number">Task 4</div><div class="task-name">List ASR Rules</div><div class="task-desc">Run <code>mde-asr list rules --device WKS-PC042</code> to display attack surface reduction rules and their current enforcement mode.</div></div><div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)"><div class="task-number">Task 5</div><div class="task-name">Enable an ASR Rule</div><div class="task-desc">Run <code>mde-asr set rule --id block-credential-stealing --mode block</code> to enforce the LSASS credential protection rule.</div></div><div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)"><div class="task-number">Task 6</div><div class="task-name">View EDR Alerts</div><div class="task-desc">Run <code>mde-edr list alerts --severity high</code> to display high-severity endpoint detection and response alerts.</div></div></div><div class="task-section"><div class="task-section-title">Phase 3 -- Live Response and Investigation</div><div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)"><div class="task-number">Task 7</div><div class="task-name">Start Live Response</div><div class="task-desc">Run <code>mde-live-response connect --device WKS-PC042</code> to open a remote investigation session on the device.</div></div><div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)"><div class="task-number">Task 8</div><div class="task-name">Review Automated Investigation</div><div class="task-desc">Run <code>mde-air show investigation --id INV-3047</code> to review the automated investigation results and entity verdicts.</div></div></div><div class="task-section"><div class="task-section-title">Phase 4 -- TVM</div><div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)"><div class="task-number">Task 9</div><div class="task-name">Check Exposure Score</div><div class="task-desc">Run <code>mde-tvm show exposure-score</code> to display the organization vulnerability exposure score and top recommendations.</div></div><div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)"><div class="task-number">Task 10</div><div class="task-name">View Software Inventory</div><div class="task-desc">Run <code>mde-tvm list software --vulnerable</code> to list software with known vulnerabilities across managed endpoints.</div></div></div></aside>
+        <main class="terminal-panel" id="terminalPanel">
+            <div class="term-toolbar">
+                <div class="term-dot term-dot-red"></div><div class="term-dot term-dot-amber"></div><div class="term-dot term-dot-green"></div>
+                <div class="term-title">socanalyst@mde-lab -- bash</div>
+                <div class="term-vm-status"><div class="term-status-dot"></div>MDE Lab Online</div>
+            </div>
+            <div class="term-output" id="termOutput"></div>
+            <div class="term-input-row">
+                <span class="term-prompt-label"><span class="term-prompt-user">socanalyst@mde-lab</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span></span>
+                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
+            </div>
+            <div class="instructions-panel" id="instructionsPanel">
+                <div class="instructions-title" onclick="toggleInstructions()">
+                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+                    Task Instructions
+                    <button class="instructions-toggle" id="instructionsToggle">&#9660;</button>
+                </div>
+                <div class="instructions-body" id="instructionsBody">
+                    <div class="instructions-step" id="instructionsStep">Type the command in the terminal and press Enter.</div>
+                    <div class="instructions-hint" id="instructionsHint">Hint text loads when you select a task.</div>
+                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
+                    <div class="hint-command" id="hintCommand"></div>
+                </div>
+            </div>
+            <div class="success-overlay" id="successOverlay">
+                <div class="success-card">
+                    <div class="success-title">SC-200 Chapter 2 Lab Complete!</div>
+                    <div class="success-message">You onboarded a device, verified sensor health, configured ASR rules, reviewed EDR alerts, initiated a live response session, analyzed automated investigations, and assessed vulnerability exposure with TVM. These are the core Defender for Endpoint workflows for the SC-200 exam.</div>
+                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script>
+    (function(){
+        'use strict';
+        var TOTAL_TASKS = 10;
+        var taskDone = {}; for(var i=1;i<=TOTAL_TASKS;i++) taskDone[i]=false;
+        var currentTask = 1;
+        var cmdHistory = [], histIdx = -1;
+        var outputEl, inputEl, ps1PathEl;
+
+        var TASK_INSTRUCTIONS = {1:{step:"View the available onboarding methods:\n<code>mde-config show onboarding-methods</code>\n\nReview each method and when to use it.",hint:"Local script is for up to 10 devices. GPO for domain-joined, Intune for cloud-managed, ConfigMgr for enterprise.",cmd:"mde-config show onboarding-methods"},2:{step:"Onboard a workstation using the local script:\n<code>mde-config onboard --method local-script --device WKS-PC042</code>",hint:"The local script downloads the onboarding package and registers the device sensor with the Defender for Endpoint cloud service.",cmd:"mde-config onboard --method local-script --device WKS-PC042"},3:{step:"Verify the sensor is reporting correctly:\n<code>mde-config check sensor-health --device WKS-PC042</code>",hint:"The MsSense.exe service must be running. Check that the device appears in the portal device inventory with Active status.",cmd:"mde-config check sensor-health --device WKS-PC042"},4:{step:"List ASR rules and their modes:\n<code>mde-asr list rules --device WKS-PC042</code>",hint:"Each ASR rule can be in Audit, Block, or Warn mode. Deploy in Audit first, then switch to Block after reviewing impact.",cmd:"mde-asr list rules --device WKS-PC042"},5:{step:"Enable the LSASS credential stealing protection rule:\n<code>mde-asr set rule --id block-credential-stealing --mode block</code>",hint:"This rule blocks processes from accessing the LSASS process memory. It prevents Mimikatz-style credential dumping attacks.",cmd:"mde-asr set rule --id block-credential-stealing --mode block"},6:{step:"View high-severity EDR alerts:\n<code>mde-edr list alerts --severity high</code>",hint:"EDR alerts show post-breach detections. Each alert maps to a MITRE ATT&CK technique and includes recommended response actions.",cmd:"mde-edr list alerts --severity high"},7:{step:"Start a live response session:\n<code>mde-live-response connect --device WKS-PC042</code>",hint:"Live response opens a remote shell as SYSTEM. Basic commands: dir, processes, connections. Advanced: getfile, putfile, run.",cmd:"mde-live-response connect --device WKS-PC042"},8:{step:"Review an automated investigation:\n<code>mde-air show investigation --id INV-3047</code>",hint:"Automated investigation expands the alert scope, analyzes entities, and proposes remediation actions based on verdicts.",cmd:"mde-air show investigation --id INV-3047"},9:{step:"Check the organization exposure score:\n<code>mde-tvm show exposure-score</code>",hint:"The exposure score factors in vulnerability count, severity, affected devices, and active exploits. Lower is better.",cmd:"mde-tvm show exposure-score"},10:{step:"List vulnerable software across endpoints:\n<code>mde-tvm list software --vulnerable</code>",hint:"TVM uses the existing sensor -- no additional scanning agents. Software inventory shows version numbers and known CVEs.",cmd:"mde-tvm list software --vulnerable"}};
+
+        var TASK_NAMES = {};
+        TASK_NAMES[1]="View Onboarding Methods";
+        TASK_NAMES[2]="Onboard a Device";
+        TASK_NAMES[3]="Verify Sensor Health";
+        TASK_NAMES[4]="List ASR Rules";
+        TASK_NAMES[5]="Enable an ASR Rule";
+        TASK_NAMES[6]="View EDR Alerts";
+        TASK_NAMES[7]="Start Live Response";
+        TASK_NAMES[8]="Review Automated Investigation";
+        TASK_NAMES[9]="Check Exposure Score";
+        TASK_NAMES[10]="View Software Inventory";
+
+        var CMD_RESPONSES = {"mde-config show onboarding-methods":{"lines":[{"text":"=== Defender for Endpoint Onboarding Methods ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Method            Scope              Platform           Best For","cls":"term-line-warn"},{"text":"  Local Script      Up to 10 devices   Windows            Testing, pilot, POC","cls":"term-line-out"},{"text":"  Group Policy      Domain-joined      Windows            On-prem AD environments","cls":"term-line-out"},{"text":"  Microsoft Intune  Cloud-managed      Win/Mac/Linux/iOS  Cloud-first organizations","cls":"term-line-out"},{"text":"  ConfigMgr/SCCM    Enterprise fleet   Windows/Server     Large-scale existing infra","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Onboarding packages are tenant-specific and expire after 30 days","cls":"term-line-dim"},{"text":"  Download from: Settings > Endpoints > Onboarding","cls":"term-line-dim"}],"completesTask":1},"mde-config onboard --method local-script --device WKS-PC042":{"lines":[{"text":"=== Device Onboarding: WKS-PC042 ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Method: Local onboarding script","cls":"term-line-out"},{"text":"  Package: WindowsDefenderATPLocalOnboardingScript.cmd","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  [STEP 1] Copying onboarding package to WKS-PC042...      [OK]","cls":"term-line-out"},{"text":"  [STEP 2] Executing onboarding script as Administrator...  [OK]","cls":"term-line-out"},{"text":"  [STEP 3] Registering device with tenant workspace...      [OK]","cls":"term-line-out"},{"text":"  [STEP 4] Starting MsSense.exe sensor service...           [OK]","cls":"term-line-out"},{"text":"  [STEP 5] Establishing cloud connectivity...               [OK]","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Device WKS-PC042 onboarded successfully","cls":"term-line-warn"},{"text":"  Device will appear in portal inventory within 5-30 minutes","cls":"term-line-dim"}],"completesTask":2},"mde-config check sensor-health --device WKS-PC042":{"lines":[{"text":"=== Sensor Health: WKS-PC042 ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Device:          WKS-PC042 (Windows 11 23H2)","cls":"term-line-out"},{"text":"  Sensor Status:   Active","cls":"term-line-out"},{"text":"  Service:         MsSense.exe -- Running (Automatic)","cls":"term-line-out"},{"text":"  Last Seen:       2026-04-21 14:32:08 UTC","cls":"term-line-out"},{"text":"  Cloud Endpoint:  Connected","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Connectivity Test:","cls":"term-line-warn"},{"text":"    winatp-gw-eus.microsoft.com         [OK]","cls":"term-line-out"},{"text":"    us-v20.events.data.microsoft.com    [OK]","cls":"term-line-out"},{"text":"    automatedirstrprdeus.blob.core...    [OK]","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Sensor health: HEALTHY -- all endpoints reachable","cls":"term-line-warn"}],"completesTask":3},"mde-asr list rules --device WKS-PC042":{"lines":[{"text":"=== ASR Rules: WKS-PC042 ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Rule ID                              Rule Name                                    Mode","cls":"term-line-warn"},{"text":"  d4f940ab-401b-4efc-aadc-ad5f3c50688a  Block Office apps from creating child proc   Block","cls":"term-line-out"},{"text":"  3b576869-a4ec-4529-8536-b80a7769e899  Block Office apps from creating executables  Block","cls":"term-line-out"},{"text":"  75668c1f-73b5-4cf0-bb93-3ecf5cb7cc84  Block Office apps from injecting code        Audit","cls":"term-line-warn"},{"text":"  d3e037e1-3eb8-44c8-a917-57927947596d  Block JS/VBS launching downloaded content     Block","cls":"term-line-out"},{"text":"  be9ba2d9-53ea-4cdc-84e5-9b1eeee46550  Block executable content from email client   Block","cls":"term-line-out"},{"text":"  9e6c4e1f-7d60-472f-ba1a-a39ef669e4b2  Block credential stealing from LSASS         Audit","cls":"term-line-err"},{"text":"  c1db55ab-c21a-4637-bb3f-a12568109d35  Advanced ransomware protection               Audit","cls":"term-line-warn"},{"text":"  d1e49aac-8f56-4280-b9ba-993a6d77406c  Block process creations from PSExec/WMI      Not configured","cls":"term-line-dim"},{"text":"","cls":"term-line-out"},{"text":"  3 rules in Block | 3 in Audit | 2 Not configured","cls":"term-line-dim"}],"completesTask":4},"mde-asr set rule --id block-credential-stealing --mode block":{"lines":[{"text":"=== ASR Rule Update ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Rule: Block credential stealing from LSASS","cls":"term-line-out"},{"text":"  GUID: 9e6c4e1f-7d60-472f-ba1a-a39ef669e4b2","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Previous mode: Audit","cls":"term-line-warn"},{"text":"  New mode:      Block","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  [OK] Rule updated successfully","cls":"term-line-out"},{"text":"  [OK] Policy will apply on next Group Policy refresh or Intune sync","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  This rule blocks processes from accessing LSASS memory","cls":"term-line-dim"},{"text":"  Prevents Mimikatz-style credential dumping attacks","cls":"term-line-dim"}],"completesTask":5},"mde-edr list alerts --severity high":{"lines":[{"text":"=== EDR Alerts -- High Severity ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  ID          Device         Technique                    Status      Time","cls":"term-line-warn"},{"text":"  EDR-8821    WKS-PC042      Suspicious PowerShell exec   New         14:22","cls":"term-line-err"},{"text":"  EDR-8819    SRV-FILE01     Lateral movement via PsExec  Active      13:48","cls":"term-line-err"},{"text":"  EDR-8815    WKS-PC037      Ransomware behavior detect   Resolved    11:15","cls":"term-line-out"},{"text":"  EDR-8812    SRV-DC01       LSASS credential access      Active      10:32","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  4 high-severity alerts | 3 require investigation","cls":"term-line-warn"},{"text":"  Alerts correlated into Defender XDR incident queue","cls":"term-line-dim"}],"completesTask":6},"mde-live-response connect --device WKS-PC042":{"lines":[{"text":"=== Live Response Session ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Connecting to WKS-PC042 (10.0.1.42)...","cls":"term-line-out"},{"text":"  [OK] Session established -- running as SYSTEM","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  Available commands (Basic):","cls":"term-line-warn"},{"text":"    dir, cd, fileinfo, processes, connections, registry, trace","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Available commands (Advanced):","cls":"term-line-warn"},{"text":"    getfile     -- Download file from device for analysis","cls":"term-line-out"},{"text":"    putfile     -- Upload investigation tools to device","cls":"term-line-out"},{"text":"    run         -- Execute uploaded script on device","cls":"term-line-out"},{"text":"    remediate   -- Quarantine a file on device","cls":"term-line-out"},{"text":"    undo        -- Restore a quarantined file","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Session timeout: 30 minutes | Max concurrent: 25 sessions","cls":"term-line-dim"}],"completesTask":7},"mde-air show investigation --id INV-3047":{"lines":[{"text":"=== Automated Investigation INV-3047 ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Triggered by: EDR-8821 (Suspicious PowerShell on WKS-PC042)","cls":"term-line-out"},{"text":"  Status: Partially Remediated | Automation: Semi","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  Entity Verdicts:","cls":"term-line-warn"},{"text":"    powershell.exe -enc JAB...    Malicious     Encoded command execution","cls":"term-line-err"},{"text":"    C:\\Temp\\payload.dll           Malicious     Trojan dropper (SHA256: 7f3a1b...)","cls":"term-line-err"},{"text":"    svchost.exe (PID 4412)        Suspicious    Unusual parent-child relationship","cls":"term-line-warn"},{"text":"    WKS-PC042                     Suspicious    Multiple malicious artifacts found","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  Auto-Remediated: payload.dll quarantined","cls":"term-line-out"},{"text":"  Pending Approval: Isolate WKS-PC042, run full AV scan","cls":"term-line-warn"}],"completesTask":8},"mde-tvm show exposure-score":{"lines":[{"text":"=== Threat and Vulnerability Management ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Exposure Score: 38 / 100  (Medium risk)","cls":"term-line-warn"},{"text":"  Devices Managed: 312","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Top Security Recommendations:","cls":"term-line-warn"},{"text":"    [CRITICAL]  Update Microsoft Edge (47 devices on vulnerable version)","cls":"term-line-err"},{"text":"    [CRITICAL]  Patch CVE-2026-21391 on Windows Server 2019 (12 servers)","cls":"term-line-err"},{"text":"    [HIGH]      Remove Adobe Flash Player EOL (8 devices)","cls":"term-line-warn"},{"text":"    [HIGH]      Update Java Runtime 8u351 to latest (23 devices)","cls":"term-line-warn"},{"text":"    [MEDIUM]    Disable SMBv1 protocol (15 devices)","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Implementing top 2 recommendations reduces score to 29","cls":"term-line-dim"}],"completesTask":9},"mde-tvm list software --vulnerable":{"lines":[{"text":"=== Vulnerable Software Inventory ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Software                    Version       CVEs    Devices   Severity","cls":"term-line-warn"},{"text":"  Microsoft Edge              120.0.2210    3       47        Critical","cls":"term-line-err"},{"text":"  Windows Server 2019         10.0.17763    2       12        Critical","cls":"term-line-err"},{"text":"  Java Runtime Environment    8u351         5       23        High","cls":"term-line-warn"},{"text":"  Adobe Flash Player          32.0.0.465    1       8         High (EOL)","cls":"term-line-warn"},{"text":"  7-Zip                       21.07         1       34        Medium","cls":"term-line-out"},{"text":"  PuTTY                       0.78          2       19        Medium","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  6 vulnerable products | 143 total devices affected","cls":"term-line-dim"},{"text":"  Use mde-tvm remediate --software <name> to create remediation ticket","cls":"term-line-dim"}],"completesTask":10}};
+
+        function escH(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        function addLine(t,c) { var d=document.createElement('div'); d.className='term-line'+(c?' '+c:''); d.textContent=t; outputEl.appendChild(d); outputEl.scrollTop=outputEl.scrollHeight; }
+        function addHTML(h,c) { var d=document.createElement('div'); d.className='term-line'+(c?' '+c:''); d.innerHTML=h; outputEl.appendChild(d); outputEl.scrollTop=outputEl.scrollHeight; }
+        function addBlank() { addLine('',''); }
+        function addPromptLine(cmd) { addHTML('<span class="term-prompt-span">socanalyst@mde-lab</span><span class="term-ps1-sep">:</span><span class="term-path-span">~</span><span class="term-ps1-sep">$ </span>'+escH(cmd),'term-line-cmd'); }
+
+        function execLine(raw) {
+            var trimmed = raw.trim();
+            addPromptLine(trimmed);
+            if (!trimmed) return;
+            var matched = false;
+            for (var key in CMD_RESPONSES) {
+                if (trimmed === key || trimmed.indexOf(key) === 0) {
+                    var resp = CMD_RESPONSES[key];
+                    resp.lines.forEach(function(l) { addLine(l.text, l.cls); });
+                    addBlank();
+                    if (resp.completesTask) { completeTask(resp.completesTask); }
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                if (trimmed === 'help') { addLine('Type the commands shown in the task instructions.', 'term-line-info'); addLine('Each task provides the exact command to run.', 'term-line-dim'); }
+                else if (trimmed === 'clear') { outputEl.innerHTML = ''; }
+                else { addLine('Command not recognized in this lab simulation. Check the task instructions.', 'term-line-err'); }
+            }
+        }
+
+        function completeTask(num) {
+            if (taskDone[num]) return;
+            taskDone[num] = true;
+            var card = document.getElementById('task-card-' + num);
+            if (card) { card.classList.add('completed'); card.classList.remove('active'); }
+            var doneCount = Object.keys(taskDone).filter(function(k){return taskDone[k];}).length;
+            document.getElementById('taskProgress').textContent = doneCount + ' / ' + TOTAL_TASKS + ' Tasks';
+            document.getElementById('progressBarFill').style.width = Math.round((doneCount/TOTAL_TASKS)*100) + '%';
+            addBlank();
+            addHTML('  <span style="color:#34d399">[Task ' + num + ' complete]</span> <span style="color:#5a2020">' + escH(TASK_NAMES[num]||'') + '</span>', 'term-line-info');
+            addBlank();
+            if (doneCount === TOTAL_TASKS) { setTimeout(function(){ document.getElementById('successOverlay').classList.add('active'); }, 700); return; }
+            var next = null; for (var j=1;j<=TOTAL_TASKS;j++) { if (!taskDone[j]) { next=j; break; } }
+            if (next) selectTask(next);
+        }
+
+        function selectTask(num) {
+            currentTask = num;
+            for (var i=1;i<=TOTAL_TASKS;i++) { var c=document.getElementById('task-card-'+i); if(c){c.classList.remove('active'); if(i===num) c.classList.add('active');} }
+            var info = TASK_INSTRUCTIONS[num]; if (!info) return;
+            var stepEl=document.getElementById('instructionsStep'); var hintEl=document.getElementById('instructionsHint'); var hintCmd=document.getElementById('hintCommand');
+            if (stepEl) stepEl.innerHTML = info.step.replace(/\n/g,'<br>');
+            if (hintEl) hintEl.textContent = info.hint;
+            if (hintCmd) { hintCmd.textContent = info.cmd; hintCmd.classList.remove('visible'); }
+            var panel=document.getElementById('instructionsPanel'); if(panel&&panel.classList.contains('collapsed')) panel.classList.remove('collapsed');
+        }
+
+        window.selectTask = selectTask;
+        window.toggleInstructions = function() { document.getElementById('instructionsPanel').classList.toggle('collapsed'); };
+        window.revealHint = function() { var h=document.getElementById('hintCommand'); if(h) h.classList.toggle('visible'); };
+        window.finishLab = function() { if (typeof ModuleProgress !== 'undefined') { ModuleProgress.complete('shield', 'sc200-ch02-lab', { returnUrl: '../index.html' }); } else { window.location.href = '../index.html'; } };
+
+        function init() {
+            outputEl = document.getElementById('termOutput');
+            inputEl = document.getElementById('termInput');
+            ps1PathEl = document.getElementById('termPS1Path');
+            if (!outputEl || !inputEl) return;
+            addLine("Defender for Endpoint Lab -- SC-200 Chapter 2", "term-welcome");
+            addLine("Shield House Endpoint Security Terminal", "term-welcome");
+            addLine("", "term-line-out");
+            addLine("Onboard devices, configure ASR rules, investigate EDR alerts, and assess vulnerabilities with TVM.", "term-line-info");
+            addLine("Type \"help\" for guidance. Complete 10 tasks to finish the lab.", "term-line-info");
+            addBlank();
+            inputEl.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') { var cmd=inputEl.value; inputEl.value=''; if(cmd.trim()){cmdHistory.push(cmd);histIdx=cmdHistory.length;} execLine(cmd); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); if(histIdx>0){histIdx--;inputEl.value=cmdHistory[histIdx];} }
+                else if (e.key === 'ArrowDown') { e.preventDefault(); if(histIdx<cmdHistory.length-1){histIdx++;inputEl.value=cmdHistory[histIdx];}else{histIdx=cmdHistory.length;inputEl.value='';} }
+            });
+            outputEl.addEventListener('click', function(){ inputEl.focus(); });
+            inputEl.focus();
+            selectTask(1);
+        }
+        if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
+    })();
+    </script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

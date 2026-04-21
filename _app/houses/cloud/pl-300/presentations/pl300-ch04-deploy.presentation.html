@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deploy and Maintain | PL-300 Chapter 4</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #3b82f6; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95); border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1); padding: 8px 22px; border-radius: 6px;
+            font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) { background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: #3b82f6; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.08); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #3b82f6;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #c9a83a; background: rgba(201, 168, 58, 0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .ic { font-family: 'Courier New', monospace; color: #c9a83a; background: rgba(201, 168, 58, 0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  { background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.4); color: #3b82f6; font-weight: 700; font-size: 0.78rem; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px; }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Deploy and Maintain -- PL-300 Chapter 4</h1>
+
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- SLIDE 1 -- TITLE -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; PL-300 &nbsp;|&nbsp; Chapter 4 &nbsp;|&nbsp; Deploy and Maintain</div>
+        <div class="title-hero">
+            <svg width="460" height="120" viewBox="0 0 460 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Dev -->
+                <rect x="20" y="30" width="110" height="60" rx="10" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="2" style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="75" y="55" text-anchor="middle" font-size="11" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Development</text>
+                <text x="75" y="72" text-anchor="middle" font-size="8" fill="#93c5fd" font-family="Segoe UI,sans-serif">Power BI Desktop</text>
+                <!-- Arrow 1 -->
+                <line x1="135" y1="60" x2="170" y2="60" stroke="rgba(255,255,255,0.25)" stroke-width="2" stroke-dasharray="6,4"><animate attributeName="stroke-dashoffset" values="20;0" dur="1.5s" repeatCount="indefinite"/></line>
+                <!-- Test -->
+                <rect x="175" y="30" width="110" height="60" rx="10" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="2" style="animation: boxGrow 0.4s ease forwards 0.15s; opacity:0;"/>
+                <text x="230" y="55" text-anchor="middle" font-size="11" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Test</text>
+                <text x="230" y="72" text-anchor="middle" font-size="8" fill="#fef3c7" font-family="Segoe UI,sans-serif">Validate &amp; Review</text>
+                <!-- Arrow 2 -->
+                <line x1="290" y1="60" x2="325" y2="60" stroke="rgba(255,255,255,0.25)" stroke-width="2" stroke-dasharray="6,4"><animate attributeName="stroke-dashoffset" values="20;0" dur="1.5s" repeatCount="indefinite"/></line>
+                <!-- Prod -->
+                <rect x="330" y="30" width="110" height="60" rx="10" fill="rgba(58,181,119,0.12)" stroke="#3ab577" stroke-width="2" style="animation: boxGrow 0.4s ease forwards 0.25s; opacity:0;"/>
+                <text x="385" y="55" text-anchor="middle" font-size="11" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Production</text>
+                <text x="385" y="72" text-anchor="middle" font-size="8" fill="#86efac" font-family="Segoe UI,sans-serif">End Users</text>
+            </svg>
+            <div class="big-title">Deploy and <span class="accent">Maintain</span></div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Power BI Service &nbsp;&bull;&nbsp; Workspaces &nbsp;&bull;&nbsp; Data Refresh &nbsp;&bull;&nbsp; Row-Level Security &nbsp;&bull;&nbsp; Deployment Pipelines
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Building a great report is only half the battle. This chapter covers publishing to the Power BI Service, managing workspaces, configuring data refresh, enforcing row-level security, and using deployment pipelines to promote content from dev to production safely.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>PL-300 Exam Objectives</span>
+            <span>Chapter 4 of 5</span>
+            <span>Power BI Data Analyst</span>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 2 -- POWER BI SERVICE -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">The Power BI <span class="accent">Service</span></div>
+        <div class="slide-subtitle">The cloud-based SaaS platform where reports are shared, consumed, and managed by end users.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">app.powerbi.com</div>
+                <div class="card-desc">The Power BI Service is a browser-based environment at app.powerbi.com. After publishing a .pbix from Desktop, users consume reports here -- no Desktop install required. The Service hosts datasets, reports, dashboards, dataflows, and apps.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Publishing Flow</div>
+                <div class="card-desc">In Power BI Desktop: Home > Publish > select a workspace. The .pbix uploads as two artifacts -- a dataset (data model + queries) and a report (visuals). If the dataset already exists, it is overwritten; the report is updated in place.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Licensing</div>
+                <div class="card-desc">Power BI Free lets you publish to "My Workspace" only. Power BI Pro is required to share content in shared workspaces and with other users. Premium Per User (PPU) or Premium capacity unlocks advanced features like deployment pipelines, paginated reports, and larger datasets.</div>
+            </div>
+        </div>
+        <div class="box box-cyan">
+            <div class="box-label">Exam Note</div>
+            The PL-300 tests the difference between Desktop (authoring tool) and Service (sharing/consumption platform). Desktop is for building; Service is for distributing. Some features like dashboards and alerts exist only in the Service.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 3 -- WORKSPACES -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title"><span class="accent">Workspaces</span></div>
+        <div class="slide-subtitle">Workspaces are containers in the Service that hold datasets, reports, dashboards, and dataflows.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">My Workspace</div>
+                <div class="card-desc">A personal sandbox available to every user. Content here is private -- only you can see it. Useful for prototyping, but you cannot share content from My Workspace with others (requires Pro). My Workspace cannot be backed by Premium capacity.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Shared Workspaces (New Experience)</div>
+                <div class="card-desc">Collaborative containers where teams publish and manage content together. Require Pro or PPU licenses. Support four roles: Admin, Member, Contributor, Viewer. Admins manage settings and access; Members can publish and edit; Contributors publish but cannot manage access; Viewers can only consume.</div>
+            </div>
+        </div>
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Admin</div>
+                <div class="card-desc">Full control -- manage members, delete workspace, configure settings, publish, edit, and view all content.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Member</div>
+                <div class="card-desc">Publish content, edit reports, manage dataset refresh, share items. Cannot manage workspace settings or add Admins.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Contributor</div>
+                <div class="card-desc">Publish and update content they own. Cannot share with external users or manage workspace settings. Good for report developers.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 4 -- DASHBOARDS vs REPORTS -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Dashboards vs <span class="accent">Reports</span></div>
+        <div class="slide-subtitle">Two distinct artifact types in the Power BI Service -- each with different capabilities.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Reports</div>
+                <div class="card-desc">Multi-page, interactive visualizations built in Desktop or the Service. Support slicers, cross-filtering, drill-down, bookmarks, and tooltips. Connected to a single dataset. Can be exported to PDF, PowerPoint, or paginated format. Reports are the primary authoring artifact.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Dashboards</div>
+                <div class="card-desc">Single-canvas collections of pinned tiles from multiple reports and datasets. Dashboards exist only in the Service (cannot be created in Desktop). Support data alerts on card/gauge tiles, natural language Q&amp;A, and live streaming tiles. Dashboards provide a high-level overview; clicking a tile navigates to the source report.</div>
+            </div>
+        </div>
+        <div class="box box-green">
+            <div class="box-label">Pinning Tiles</div>
+            To add a visual to a dashboard: in a report, hover over a visual and select "Pin visual." Choose an existing dashboard or create a new one. You can also pin an entire report page as a live tile. Tiles show a snapshot that updates when the underlying dataset refreshes.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 5 -- DATA REFRESH -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Data <span class="accent">Refresh</span></div>
+        <div class="slide-subtitle">Keeping your data current -- scheduled refresh, incremental refresh, and dataflows.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Scheduled Refresh</div>
+                <div class="card-desc">Configure in dataset Settings > Scheduled Refresh. Set the time zone, frequency (up to 8x/day with Pro, 48x/day with Premium), and data source credentials. Requires a gateway for on-premises sources. The entire dataset is re-imported each time -- fast for small datasets, slow for large ones.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Incremental Refresh</div>
+                <div class="card-desc">Only refreshes new and changed data instead of the entire dataset. Define a RangeStart/RangeEnd parameter pair in Power Query, then configure an incremental refresh policy (keep X years, refresh last Y days). Dramatically reduces refresh time and resource usage for large datasets. Requires Premium or PPU.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Dataflows</div>
+                <div class="card-desc">Cloud-based ETL using Power Query Online. Dataflows prepare and transform data independently from any report. Multiple datasets can reference the same dataflow, ensuring a single source of truth. Dataflows refresh on their own schedule and store results in Azure Data Lake or Dataverse.</div>
+            </div>
+        </div>
+        <div class="box box-red">
+            <div class="box-label">Gateway Requirement</div>
+            On-premises data sources (SQL Server, file shares, Oracle) require an on-premises data gateway installed on a server with network access to the source. Cloud sources (Azure SQL, SharePoint Online, Dataverse) connect directly -- no gateway needed.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 6 -- ON-PREMISES GATEWAY -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">On-Premises Data <span class="accent">Gateway</span></div>
+        <div class="slide-subtitle">The bridge between the Power BI Service and your on-premises data sources.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Standard Gateway</div>
+                <div class="card-desc">Installed on a dedicated server (always-on, not a laptop). Supports multiple users, multiple data sources, and can be managed centrally. Recommended for enterprise deployments. Admins add data source connections and grant user access in the Power BI admin portal.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Personal Gateway</div>
+                <div class="card-desc">Installed on a single user's machine. Supports only that user -- no sharing. Suitable for prototyping or individual use cases. The machine must be running and connected to the network during scheduled refresh times. Not recommended for production workloads.</div>
+            </div>
+        </div>
+        <div class="box box-cyan">
+            <div class="box-label">How It Works</div>
+            The gateway creates an encrypted outbound connection to Azure Service Bus -- no inbound firewall rules needed. When a refresh triggers, the Service sends a query request through Service Bus to the gateway, which executes the query against the on-premises source and returns encrypted results.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 7 -- ROW-LEVEL SECURITY -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Row-Level <span class="accent">Security</span></div>
+        <div class="slide-subtitle">RLS restricts data access at the row level so users only see the data they are authorized to view.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Static RLS</div>
+                <div class="card-desc">DAX filter expressions are hardcoded per role. Example: create a "West Region" role with filter <code class="ic">[Region] = "West"</code>. Users assigned to this role only see West data. Simple and predictable, but requires creating and maintaining a separate role for every group -- does not scale well for large organizations.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Dynamic RLS</div>
+                <div class="card-desc">Uses <code class="ic">USERPRINCIPALNAME()</code> in the DAX filter to match the logged-in user to a security table. One role handles all users. Example: <code class="ic">[ManagerEmail] = USERPRINCIPALNAME()</code>. The security table maps each user email to the data they can see. Scales to thousands of users with zero role maintenance.</div>
+            </div>
+        </div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Define roles in Desktop:</strong> Modeling tab > Manage Roles > create a role with a DAX filter expression on the relevant table.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Test in Desktop:</strong> Modeling tab > View As > select the role to verify the filter works correctly.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Assign users in Service:</strong> Dataset > Security > add Azure AD users or groups to each role. Members and Admins are exempt from RLS.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 8 -- DEPLOYMENT PIPELINES -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Deployment <span class="accent">Pipelines</span></div>
+        <div class="slide-subtitle">A Premium feature that manages content lifecycle across Development, Test, and Production stages.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Development</div>
+                <div class="card-desc">Where authors build and iterate on reports and datasets. Publish from Desktop to the Dev workspace. Make changes, test DAX, and validate data without affecting end users. This stage is the sandbox.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Test</div>
+                <div class="card-desc">Promote content from Dev to Test for validation. Stakeholders review visuals, verify data accuracy, and test RLS roles. Data source rules can point Test to a staging database separate from production data.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Production</div>
+                <div class="card-desc">Final promotion delivers content to end users. Production datasets connect to live data sources. Only deploy to Production after Test approval. This stage is what business users consume daily.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">Deployment Rules</div>
+            Deployment rules let you change data source connection strings and parameters per stage. Example: Dev connects to DevSQL, Test to StagingSQL, Production to ProdSQL -- all using the same .pbix with different connection rules applied at each stage.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 9 -- ENDORSEMENT -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Content <span class="accent">Endorsement</span></div>
+        <div class="slide-subtitle">Endorsement helps users discover trusted, authoritative content in the Power BI Service.</div>
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Promoted</div>
+                <div class="card-desc">Any workspace Member or Admin can promote content. Promotes a dataset, report, or dataflow to indicate it is production-ready and recommended for use. Promoted content appears with a badge in search and content lists. No admin approval required -- this is a team-level endorsement.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Certified</div>
+                <div class="card-desc">Requires tenant-level admin approval. A Power BI admin or delegated certifier reviews the content and certifies it as the organization's authoritative source of truth. Certified content gets a stronger badge and appears higher in search results. Use for official KPIs, shared datasets, and enterprise reports.</div>
+            </div>
+        </div>
+        <div class="box box-cyan">
+            <div class="box-label">Why It Matters</div>
+            In large organizations with hundreds of datasets, users need to know which ones to trust. Endorsement prevents the "which Sales report is the right one?" problem. Certified datasets should be the single source of truth; promoted datasets are reliable but not yet formally certified.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 10 -- USAGE METRICS -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Usage <span class="accent">Metrics</span></div>
+        <div class="slide-subtitle">Understand how your published content is being consumed to make data-driven decisions about what to maintain.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Usage Metrics Report</div>
+                <div class="card-desc">Available per report and per dashboard in the Service. Shows views per day, unique viewers, most-viewed pages, and viewing methods (web, mobile, embedded). Helps identify which reports are actively used and which can be retired.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Dataset Refresh History</div>
+                <div class="card-desc">Shows each refresh attempt with status (success/failure), duration, and error details. Critical for monitoring data freshness. Set up email alerts for refresh failures so you can fix gateway or credential issues before users notice stale data.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Admin Monitoring</div>
+                <div class="card-desc">Power BI Admins access the Admin Portal for tenant-wide activity logs, audit logs (via Office 365), and capacity utilization metrics. Activity logs track who published, viewed, shared, or exported content -- essential for compliance and governance.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 11 -- APPS AND SHARING -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Apps and <span class="accent">Sharing</span></div>
+        <div class="slide-subtitle">Two primary ways to distribute content to consumers in the Power BI Service.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Power BI Apps</div>
+                <div class="card-desc">Package a workspace's reports and dashboards into a curated app experience. Users install the app from AppSource or a direct link. Apps provide a clean, read-only interface -- consumers see only what you include, in the order you define. Apps have their own permissions separate from workspace roles.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Direct Sharing</div>
+                <div class="card-desc">Share individual reports or dashboards via link or email. Three link types: People in your organization, People with existing access, Specific people. Shared items appear in the "Shared with me" section. Simpler than apps but harder to manage at scale -- use apps for broad distribution.</div>
+            </div>
+        </div>
+        <div class="box box-red">
+            <div class="box-label">Exam Warning</div>
+            The PL-300 tests whether you know that Apps are the recommended distribution method for broad audiences. Direct sharing works for ad-hoc scenarios. Workspace access should only be granted to content creators, not consumers. Never add business users to workspace roles just so they can view reports -- use an App instead.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 12 -- SUMMARY -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Chapter 4 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Key concepts for the PL-300 exam -- deploying and maintaining Power BI content.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Power BI Service</strong> is the cloud platform where reports are shared and consumed. Publish from Desktop to a workspace; consumers access via browser or mobile app.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Workspaces</strong> have four roles: Admin, Member, Contributor, Viewer. Use Apps to distribute content to consumers, not workspace Viewer roles.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Dashboards</strong> are single-canvas pinned tile collections (Service only). Reports are multi-page interactive visuals. Dashboards support alerts; reports support drill-down.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Data refresh:</strong> scheduled (up to 48x/day with Premium), incremental (RangeStart/RangeEnd for large datasets), and dataflows (shared cloud ETL). On-prem sources need a gateway.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Row-level security:</strong> static RLS uses hardcoded filters per role; dynamic RLS uses <code>USERPRINCIPALNAME()</code> to scale. Define in Desktop, assign users in Service.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>Deployment pipelines</strong> (Dev > Test > Prod) with deployment rules for data source switching. Endorsement: Promoted (team-level) and Certified (admin-approved).</span></div>
+        </div>
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Chapter 5 &mdash; DAX Deep-Dive</strong> &nbsp;|&nbsp; CALCULATE &bull; Time Intelligence &bull; Iterators &bull; Filter Manipulation
+        </div>
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; PL-300</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('cloud', 'pl300-ch04-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Users and Groups | MS-102 Chapter 2</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #3b82f6; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: #3b82f6;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.08); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #3b82f6;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .diagram-row { display: flex; gap: 16px; align-items: center; justify-content: center; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        .hex-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 8px; padding: 12px 14px;
+            text-align: center;
+            opacity: 0;
+            animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #3b82f6; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes flow {
+            0%   { stroke-dashoffset: 20; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes boxGrow {
+            from { opacity: 0; transform: scale(0.7); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes entityPop {
+            from { opacity: 0; transform: scale(0.6) translateY(6px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.4);
+            color: #3b82f6; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Manage Users and Groups -- MS-102 Chapter 2</h1>
+
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; MS-102 &nbsp;|&nbsp; Chapter 2 &nbsp;|&nbsp; Users &amp; Groups</div>
+        <div class="title-hero">
+            <svg width="480" height="120" viewBox="0 0 480 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central Entra ID box -->
+                <rect x="165" y="15" width="150" height="90" rx="14" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="240" y="38" text-anchor="middle" font-size="11" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Microsoft Entra ID</text>
+                <text x="240" y="56" text-anchor="middle" font-size="14" fill="#93c5fd" font-weight="800" font-family="Segoe UI,sans-serif">USERS &amp; GROUPS</text>
+                <text x="240" y="72" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Create | Modify | Delete | Recover</text>
+                <text x="240" y="84" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Bulk Ops | Licenses | Guest Access</text>
+                <!-- Glow ring -->
+                <ellipse cx="240" cy="60" rx="90" ry="56" fill="none" stroke="rgba(59,130,246,0.1)" stroke-width="1.2"
+                    style="animation: pulse 2.8s ease-in-out infinite;"/>
+                <!-- User Lifecycle - left -->
+                <rect x="4" y="10" width="120" height="44" rx="8" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.4"
+                    style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="64" y="28" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">User Lifecycle</text>
+                <text x="64" y="42" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Create / Soft Delete / Restore</text>
+                <!-- Groups - bottom left -->
+                <rect x="4" y="66" width="120" height="44" rx="8" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.4"
+                    style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="64" y="84" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Group Types</text>
+                <text x="64" y="98" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">M365 / Security / Distribution</text>
+                <!-- Bulk Ops - right -->
+                <rect x="356" y="10" width="120" height="44" rx="8" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.4"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="416" y="28" text-anchor="middle" font-size="9" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Bulk Operations</text>
+                <text x="416" y="42" text-anchor="middle" font-size="7" fill="#c4b5fd" font-family="Segoe UI,sans-serif">CSV Import / Export</text>
+                <!-- Licenses - bottom right -->
+                <rect x="356" y="66" width="120" height="44" rx="8" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.4"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="416" y="84" text-anchor="middle" font-size="9" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">License Assignment</text>
+                <text x="416" y="98" text-anchor="middle" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif">Direct / Group-Based</text>
+                <!-- Connecting lines -->
+                <line x1="124" y1="32" x2="164" y2="50" stroke="rgba(58,181,119,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <line x1="124" y1="88" x2="164" y2="68" stroke="rgba(201,168,58,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.15s"/>
+                </line>
+                <line x1="356" y1="32" x2="316" y2="50" stroke="rgba(167,139,250,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <line x1="356" y1="88" x2="316" y2="68" stroke="rgba(6,182,212,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.25s"/>
+                </line>
+            </svg>
+            <div class="big-title">
+                Manage <span class="accent">Users and Groups</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                User Lifecycle &nbsp;&bull;&nbsp; Bulk Operations &nbsp;&bull;&nbsp; Group Types &nbsp;&bull;&nbsp; License Assignment
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Managing users and groups in Microsoft 365 is centered on Microsoft Entra ID. This chapter covers creating and modifying user accounts, bulk CSV imports, guest user collaboration (B2B), the four group types, dynamic membership rules, self-service group management, soft-deleted user recovery, and license assignment strategies.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>MS-102 Exam Objectives</span>
+            <span>Chapter 2 of 4</span>
+            <span>Microsoft 365 Administrator</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- USER ACCOUNTS ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Creating and Managing <span class="accent">User Accounts</span></div>
+        <div class="slide-subtitle">User accounts are identity objects in Microsoft Entra ID that grant access to M365 services.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="110" viewBox="0 0 680 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Create -->
+                <rect x="4" y="20" width="150" height="70" rx="10" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="79" y="38" text-anchor="middle" font-size="10" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Create User</text>
+                <text x="79" y="53" text-anchor="middle" font-size="7.5" fill="#86efac" font-family="Segoe UI,sans-serif">Display name + UPN</text>
+                <text x="79" y="65" text-anchor="middle" font-size="7.5" fill="#86efac" font-family="Segoe UI,sans-serif">Assign license + role</text>
+                <text x="79" y="77" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Admin center or PowerShell</text>
+                <!-- Arrow -->
+                <line x1="160" y1="55" x2="205" y2="55" stroke="rgba(255,255,255,0.3)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="205,50 215,55 205,60" fill="rgba(255,255,255,0.3)"/>
+                <!-- Active -->
+                <rect x="220" y="8" width="240" height="94" rx="14" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.2s; opacity:0;"/>
+                <text x="340" y="28" text-anchor="middle" font-size="10" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Active User Account</text>
+                <text x="340" y="44" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">UPN: jsmith@contoso.com</text>
+                <text x="340" y="58" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Mailbox + OneDrive + Teams</text>
+                <text x="340" y="72" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Group memberships + Roles</text>
+                <text x="340" y="86" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Managed in Entra ID or M365 Admin Center</text>
+                <!-- Properties list -->
+                <rect x="500" y="12" width="170" height="26" rx="6" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="585" y="29" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Usage Location (Required)</text>
+                <rect x="500" y="44" width="170" height="26" rx="6" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.5s; opacity:0;"/>
+                <text x="585" y="61" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Department + Job Title</text>
+                <rect x="500" y="76" width="170" height="26" rx="6" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.6s; opacity:0;"/>
+                <text x="585" y="93" text-anchor="middle" font-size="8" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Sign-in Status (Block/Allow)</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">User Principal Name (UPN)</div>
+                <div class="card-desc">The UPN is the user's sign-in name in email format (e.g., <code class="ic">jsmith@contoso.com</code>). It must be unique within the tenant. The domain portion must be a verified domain. Changing the UPN changes the sign-in address but not the underlying Object ID.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Usage Location</div>
+                <div class="card-desc">A two-letter country code (e.g., <code class="ic">US</code>) that determines which M365 services are available to the user based on regional regulations. <strong>Required before a license can be assigned.</strong> Users without a usage location cannot receive licenses.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Block Sign-in</div>
+                <div class="card-desc">Disabling sign-in prevents the user from authenticating without deleting the account. Use this for employees on leave or during security investigations. Existing sessions are revoked within 60 minutes. The account, mailbox, and data remain intact.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- MODIFY AND DELETE USERS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Modify and <span class="accent">Delete Users</span></div>
+        <div class="slide-subtitle">Editing user properties and understanding the soft-delete recovery window.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="100" viewBox="0 0 680 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Active -->
+                <rect x="4" y="15" width="150" height="70" rx="10" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="79" y="33" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Active User</text>
+                <text x="79" y="48" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Modify: name, UPN, dept</text>
+                <text x="79" y="60" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Reset password, block sign-in</text>
+                <text x="79" y="72" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Edit roles, groups, licenses</text>
+                <!-- Arrow -->
+                <line x1="160" y1="50" x2="205" y2="50" stroke="rgba(239,68,68,0.4)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <text x="183" y="42" text-anchor="middle" font-size="7" fill="#f87171" font-family="Segoe UI,sans-serif">Delete</text>
+                <!-- Soft Deleted -->
+                <rect x="220" y="15" width="200" height="70" rx="10" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="320" y="33" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Soft-Deleted (Recycle Bin)</text>
+                <text x="320" y="48" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">30-day recovery window</text>
+                <text x="320" y="60" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">License released immediately</text>
+                <text x="320" y="72" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Mailbox + OneDrive preserved</text>
+                <!-- Arrow restore -->
+                <line x1="320" y1="14" x2="320" y2="4" stroke="rgba(58,181,119,0.5)" stroke-width="1.2" stroke-dasharray="3,3"/>
+                <text x="320" y="0" text-anchor="middle" font-size="7" fill="#3ab577" font-family="Segoe UI,sans-serif">Restore (within 30 days)</text>
+                <!-- Arrow permanent -->
+                <line x1="426" y1="50" x2="471" y2="50" stroke="rgba(239,68,68,0.4)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <text x="449" y="42" text-anchor="middle" font-size="7" fill="#f87171" font-family="Segoe UI,sans-serif">30 days</text>
+                <!-- Hard Deleted -->
+                <rect x="486" y="15" width="180" height="70" rx="10" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="576" y="33" text-anchor="middle" font-size="9" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Permanently Deleted</text>
+                <text x="576" y="48" text-anchor="middle" font-size="7.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">Account irrecoverable</text>
+                <text x="576" y="60" text-anchor="middle" font-size="7.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">Mailbox purged after 30 more days</text>
+                <text x="576" y="72" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">OneDrive data deleted per policy</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Soft Delete (30-Day Window)</div>
+                <div class="card-desc">When you delete a user, the account moves to the Deleted Users container in the M365 admin center. For 30 days, you can restore the user with all properties, group memberships, and mailbox data intact. After 30 days, the account is permanently purged and cannot be recovered.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Restoring a Deleted User</div>
+                <div class="card-desc">Navigate to <code class="ic">Users > Deleted users</code> in the admin center, select the account, and click Restore. If the original UPN is taken, you must assign a new one. The license must be re-assigned manually after restoration. Group memberships are preserved.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Exam Tip</div>
+            When a user is deleted, their license is released immediately and can be reassigned to another user. However, the mailbox enters an inactive state and is retained for 30 days by default. OneDrive data follows the retention policy set in the SharePoint admin center (default: 30 days after account deletion).
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- BULK OPERATIONS ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Bulk <span class="accent">User Operations</span></div>
+        <div class="slide-subtitle">Use CSV files to create, modify, or delete users at scale from the M365 admin center.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="100" viewBox="0 0 680 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- CSV -->
+                <rect x="4" y="15" width="150" height="70" rx="10" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="79" y="33" text-anchor="middle" font-size="9" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Prepare CSV File</text>
+                <text x="79" y="48" text-anchor="middle" font-size="7.5" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Download template from portal</text>
+                <text x="79" y="60" text-anchor="middle" font-size="7.5" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Fill: UPN, Name, Location</text>
+                <text x="79" y="72" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Max: 50,000 users per CSV</text>
+                <!-- Arrow -->
+                <line x1="160" y1="50" x2="205" y2="50" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="205,45 215,50 205,55" fill="rgba(255,255,255,0.2)"/>
+                <!-- Upload -->
+                <rect x="220" y="15" width="150" height="70" rx="10" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="295" y="33" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Upload to Admin Center</text>
+                <text x="295" y="48" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Users > Active users > Bulk</text>
+                <text x="295" y="60" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Validate + Process</text>
+                <text x="295" y="72" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Errors logged for review</text>
+                <!-- Arrow -->
+                <line x1="376" y1="50" x2="421" y2="50" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="421,45 431,50 421,55" fill="rgba(255,255,255,0.2)"/>
+                <!-- Result -->
+                <rect x="436" y="15" width="150" height="70" rx="10" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="511" y="33" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Users Created</text>
+                <text x="511" y="48" text-anchor="middle" font-size="7.5" fill="#86efac" font-family="Segoe UI,sans-serif">Temp passwords generated</text>
+                <text x="511" y="60" text-anchor="middle" font-size="7.5" fill="#86efac" font-family="Segoe UI,sans-serif">Download results CSV</text>
+                <text x="511" y="72" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Assign licenses separately</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-purple">
+                <div class="card-label">Bulk Create</div>
+                <div class="card-desc">Upload a CSV with required columns: <code class="ic">User name</code>, <code class="ic">First name</code>, <code class="ic">Last name</code>, <code class="ic">Display name</code>. Each user receives a temporary password. Download the CSV template from the admin center to ensure correct column headers.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Bulk Delete</div>
+                <div class="card-desc">Upload a CSV containing UPNs of users to delete. All listed accounts move to the soft-deleted state with the standard 30-day recovery window. Useful for offboarding entire departments or class cohorts at once.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">PowerShell Alternative</div>
+                <div class="card-desc">For advanced bulk operations, use <code class="ic">Import-Csv</code> piped to <code class="ic">New-MgUser</code> (Microsoft Graph PowerShell). This allows setting properties not available in the CSV template, such as custom attributes, manager, and password policies.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Exam Tip</div>
+            The M365 admin center bulk operations support four actions: bulk create, bulk delete, bulk invite (guest users), and bulk download (export user list). Each uses a specific CSV template. Licenses are NOT assigned during bulk create -- they must be assigned separately after user creation.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- GUEST USERS (B2B) ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Guest Users and <span class="accent">B2B Collaboration</span></div>
+        <div class="slide-subtitle">Microsoft Entra B2B lets external users access your M365 resources using their own identity.</div>
+
+        <div class="hex-grid">
+            <div class="hex-cell">
+                <div class="hex-title">What is B2B?</div>
+                <div class="hex-desc">Business-to-Business collaboration allows you to invite external users (partners, vendors, contractors) as guest accounts. They sign in with their own organizational or personal credentials -- no separate password to manage.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Invitation Flow</div>
+                <div class="hex-desc">Invite via admin center, Teams, SharePoint, or PowerShell. The guest receives an email with a redemption link. After accepting, they appear in your directory as <code class="ic">UserType: Guest</code>.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Guest Permissions</div>
+                <div class="hex-desc">By default, guests have limited directory access. They can participate in Teams channels, access shared files, and use assigned apps. Permissions are controlled by external collaboration settings and Conditional Access policies.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">External Collaboration Settings</div>
+                <div class="hex-desc">Control who can invite guests: only admins, members + admins, or anyone including guests. Restrict invitations to specific domains using allow/deny lists. Found at <code class="ic">Entra ID > External Identities</code>.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Guest Licensing</div>
+                <div class="hex-desc">Guests do not consume a paid license for basic collaboration (Teams, SharePoint, OneDrive sharing). However, if you assign a premium feature (e.g., Power BI Pro), a license is consumed from your tenant pool.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Bulk Invite</div>
+                <div class="hex-desc">Use the admin center bulk invite feature to send invitations via CSV. Required columns: <code class="ic">Email address</code> and <code class="ic">Redirect URL</code>. PowerShell alternative: <code class="ic">New-MgInvitation</code>.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Common Pitfall</div>
+            Guest users count toward the 50,000-object limit in Microsoft Entra ID Free tier. In Entra ID P1/P2 tenants, there is no hard object limit, but excessive guest accounts without access reviews create security risks. Implement regular guest access reviews using Entra ID Governance.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- GROUP TYPES OVERVIEW ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Microsoft 365 <span class="accent">Group Types</span></div>
+        <div class="slide-subtitle">Four group types serve different purposes -- choosing the right type is critical for the MS-102 exam.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Microsoft 365 Groups</div>
+                <div class="card-desc">A collaboration group that provisions a shared mailbox, SharePoint site, OneNote notebook, Planner board, and Teams workspace. Members can be internal users or guests. Supports dynamic or assigned membership. <strong>This is the recommended group for collaboration workloads.</strong></div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Security Groups</div>
+                <div class="card-desc">Used to control access to resources: SharePoint sites, apps, Conditional Access policies, and license assignment. No shared mailbox or collaboration tools. Supports dynamic or assigned membership. Members: users, devices, other groups, or service principals.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Distribution Groups</div>
+                <div class="card-desc">Email-only groups for sending messages to a collection of recipients. No access control capabilities. Managed in Exchange admin center. <strong>Cannot use dynamic membership.</strong> Being gradually replaced by M365 Groups which can also receive email.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Mail-Enabled Security Groups</div>
+                <div class="card-desc">Combines security group access control with a distribution list email address. Use when you need both email delivery AND permission assignment to the same set of users. <strong>Cannot use dynamic membership.</strong> Managed in Exchange admin center.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Quick Comparison</div>
+            <strong>Need collaboration (Teams, SharePoint)?</strong> M365 Group. <strong>Need access control only?</strong> Security Group. <strong>Need email-only distribution?</strong> Distribution Group. <strong>Need email + access control?</strong> Mail-Enabled Security Group. Only M365 Groups and Security Groups support dynamic membership.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- DYNAMIC MEMBERSHIP RULES ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Dynamic <span class="accent">Membership Rules</span></div>
+        <div class="slide-subtitle">Automatically add or remove members based on user or device attribute expressions.</div>
+
+        <div class="scenario-strip">
+            Instead of manually managing group membership, dynamic groups use rules that evaluate user attributes (department, job title, usage location, etc.) or device attributes (OS, compliance state). When a user's attributes change, they are automatically added to or removed from matching dynamic groups.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Rule Syntax</div>
+                <div class="card-desc">Rules use the expression format: <code class="ic">(user.department -eq "Sales")</code>. Combine with <code class="ic">-and</code>, <code class="ic">-or</code>, <code class="ic">-not</code>. Complex example: <code class="ic">(user.department -eq "Sales") -and (user.country -eq "US")</code>. The rule builder in Entra ID provides a visual editor.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Supported Attributes</div>
+                <div class="card-desc">User attributes: <code class="ic">department</code>, <code class="ic">jobTitle</code>, <code class="ic">usageLocation</code>, <code class="ic">companyName</code>, <code class="ic">userType</code> (Member/Guest), and 15+ extension attributes. Device attributes: <code class="ic">deviceOSType</code>, <code class="ic">deviceOwnership</code>, <code class="ic">enrollmentProfileName</code>.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Processing Delay</div>
+                <div class="card-desc">Dynamic membership changes are not instant. After an attribute update, the rule re-evaluates during the next processing cycle -- typically within minutes but can take up to 24 hours for large tenants. There is no manual refresh option in the portal.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Exam Tip</div>
+            Dynamic groups require <strong>Microsoft Entra ID P1 or P2</strong> licensing. They are available for M365 Groups and Security Groups only -- not Distribution Groups or Mail-Enabled Security Groups. You cannot manually add or remove members from a dynamic group; membership is entirely rule-driven.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- SELF-SERVICE GROUP MANAGEMENT ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Self-Service <span class="accent">Group Management</span></div>
+        <div class="slide-subtitle">Delegate group creation and membership management to end users while maintaining admin oversight.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Group Creation Policy</div>
+                <div class="card-desc">By default, all users can create M365 Groups (which creates Teams, SharePoint sites, etc.). To prevent sprawl, restrict creation to a security group of approved users via <code class="ic">Entra ID > Groups > General > Self-service group management</code>. This requires Entra ID P1.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Naming Policies</div>
+                <div class="card-desc">Enforce consistent naming with prefix/suffix policies. Example: <code class="ic">GRP_[GroupName]_[Department]</code>. Block custom words (profanity, reserved names). Configured in <code class="ic">Entra ID > Groups > Naming policy</code>. Requires Entra ID P1.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Expiration Policies</div>
+                <div class="card-desc">M365 Groups can be set to expire after 180, 365, or a custom number of days. Owners receive renewal notifications 30 days, 15 days, and 1 day before expiry. Unrenewed groups are soft-deleted (30-day recovery). Configured at <code class="ic">Entra ID > Groups > Expiration</code>.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Owner vs. Member</div>
+                <div class="card-desc">Group <strong>owners</strong> can add/remove members, approve join requests, edit group settings, and renew expiring groups. <strong>Members</strong> have access to group resources but cannot manage membership. Every group should have at least two owners for continuity.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Exam Tip</div>
+            Restricting M365 Group creation does NOT prevent users from creating Security Groups or Distribution Groups in Outlook. The restriction applies only to M365 Groups (Teams, SharePoint, Planner). This distinction is frequently tested on the MS-102 exam.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- LICENSE ASSIGNMENT ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">License <span class="accent">Assignment</span></div>
+        <div class="slide-subtitle">Two methods: direct assignment per user, or group-based licensing for automatic assignment.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="100" viewBox="0 0 680 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Direct -->
+                <rect x="4" y="10" width="200" height="80" rx="10" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="104" y="30" text-anchor="middle" font-size="10" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Direct Assignment</text>
+                <text x="104" y="46" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Admin assigns license per user</text>
+                <text x="104" y="58" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Fine-grained service plan control</text>
+                <text x="104" y="70" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Best for small orgs or exceptions</text>
+                <text x="104" y="82" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Manual -- does not scale</text>
+                <!-- VS -->
+                <text x="340" y="55" text-anchor="middle" font-size="14" fill="#475569" font-weight="700" font-family="Segoe UI,sans-serif">vs</text>
+                <!-- Group-based -->
+                <rect x="476" y="10" width="200" height="80" rx="10" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="576" y="30" text-anchor="middle" font-size="10" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Group-Based Licensing</text>
+                <text x="576" y="46" text-anchor="middle" font-size="7.5" fill="#86efac" font-family="Segoe UI,sans-serif">Assign license to a group</text>
+                <text x="576" y="58" text-anchor="middle" font-size="7.5" fill="#86efac" font-family="Segoe UI,sans-serif">Members auto-receive license</text>
+                <text x="576" y="70" text-anchor="middle" font-size="7.5" fill="#86efac" font-family="Segoe UI,sans-serif">Scales to thousands of users</text>
+                <text x="576" y="82" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Requires Entra ID P1 or M365 E3/E5</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Group-Based Licensing</div>
+                <div class="card-desc">Assign a license (e.g., M365 E5) to a Security Group or M365 Group. All members automatically receive the license. When a user is removed from the group, the license is reclaimed. Works with dynamic groups for fully automated license management.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Service Plan Toggle</div>
+                <div class="card-desc">Each M365 license contains multiple service plans (Exchange, Teams, SharePoint, etc.). Both direct and group-based assignment let you enable or disable individual service plans. Example: assign M365 E5 but disable Power BI Pro for a specific group.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">License Conflicts</div>
+                <div class="card-desc">If a user inherits conflicting licenses from multiple groups (e.g., E3 from Group A and E5 from Group B), the conflict is flagged in the admin center. The <code class="ic">License assignment errors</code> blade shows which users have conflicts and which service plans overlap.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Exam Tip</div>
+            <strong>Usage location is required</strong> before any license can be assigned -- whether direct or group-based. If a user in a licensed group has no usage location, the license assignment fails silently for that user. Check <code class="ic">Entra ID > Groups > [Group] > Licenses > Assignment errors</code> for failures.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- M365 GROUPS DEEP DIVE ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Microsoft 365 Groups <span class="accent">Deep Dive</span></div>
+        <div class="slide-subtitle">One group object that provisions multiple collaboration workloads simultaneously.</div>
+
+        <div class="hex-grid">
+            <div class="hex-cell">
+                <div class="hex-title">Shared Mailbox</div>
+                <div class="hex-desc">Every M365 Group gets a shared Exchange mailbox. Members can send/receive as the group. The address is <code class="ic">groupname@contoso.com</code>. Emails are stored centrally, not in individual mailboxes.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">SharePoint Site</div>
+                <div class="hex-desc">A team site is auto-provisioned with a document library, pages, and lists. Group members have Edit access by default. The site URL follows the pattern: <code class="ic">contoso.sharepoint.com/sites/groupname</code>.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Teams Workspace</div>
+                <div class="hex-desc">When Teams is added, the M365 Group becomes the Teams backend. Channels, chats, meetings, and file storage all connect to the same group membership. Removing a Team does not delete the M365 Group.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Planner Board</div>
+                <div class="hex-desc">A Planner plan is available to group members for task management. Tasks can be assigned, categorized with labels, and tracked with charts. The plan is accessible from Teams, Outlook, and the Planner web app.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">OneNote Notebook</div>
+                <div class="hex-desc">A shared notebook is created for the group. Useful for meeting notes, shared references, and project documentation. Accessible through the group in Outlook, Teams, or directly via OneNote.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Guest Access</div>
+                <div class="hex-desc">External users can be added as group members. Guest access must be enabled at the tenant level (<code class="ic">Entra ID > External Identities</code>) and at the group level. Guests see the group in their own tenant's guest list.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- ADMIN BEST PRACTICES ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Administration <span class="accent">Best Practices</span></div>
+        <div class="slide-subtitle">Key strategies for managing users and groups at enterprise scale.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Least-Privilege Roles</div>
+                <div class="card-desc">Use <strong>User Administrator</strong> for creating and managing users and groups (not Global Admin). Use <strong>Groups Administrator</strong> for group-only management. Use <strong>License Administrator</strong> for license assignment. Reserve Global Admin for tenant-level operations.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Access Reviews</div>
+                <div class="card-desc">Schedule regular access reviews for guest users and group memberships. Entra ID Governance (P2) automates this: reviewers confirm or deny continued access, and stale accounts are auto-removed. Critical for compliance (SOC 2, HIPAA, CMMC).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Administrative Units</div>
+                <div class="card-desc">Scope admin permissions to a subset of users. Example: a regional IT admin can manage only users in the "UK" administrative unit. Supported roles: User Administrator, Groups Administrator, Helpdesk Administrator, and more. Requires Entra ID P1.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Monitoring and Alerts</div>
+                <div class="card-desc">Enable audit logging for user and group changes in the M365 Compliance center. Set up alerts for bulk deletions, privileged role assignments, and guest invitation surges. Integrate with Microsoft Sentinel for advanced SIEM capabilities.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2" style="margin-top:4px;">
+            <div class="card c-cyan">
+                <div class="card-label">Hybrid Considerations</div>
+                <div class="card-desc">Organizations with on-premises Active Directory use Microsoft Entra Connect to sync users and groups. Synced objects are managed on-premises -- changes in the admin center are overwritten on the next sync cycle. Cloud-only attributes (e.g., licenses) are managed in Entra ID.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Password Policies</div>
+                <div class="card-desc">Cloud-only users follow the tenant password policy (default: never expire per Microsoft recommendation). Enforce strong passwords via banned password lists and Smart Lockout. Synced users follow on-premises AD password policies unless Password Writeback is enabled.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- SUMMARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Chapter 2 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Key concepts for Manage Users and Groups</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>User accounts:</strong> Created in Microsoft Entra ID with a UPN, display name, and usage location. Usage location is required before license assignment. Block sign-in disables access without deleting the account.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Soft delete:</strong> Deleted users move to a recycle bin with a 30-day recovery window. Licenses are released immediately. After 30 days, accounts are permanently purged and irrecoverable.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Bulk operations:</strong> CSV import via admin center supports bulk create, delete, and invite. Max 50,000 users per CSV. Licenses must be assigned separately after bulk creation.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Guest users (B2B):</strong> External users sign in with their own credentials. Controlled by external collaboration settings in Entra ID. Basic collaboration does not consume a paid license.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Group types:</strong> M365 Groups (collaboration), Security Groups (access control), Distribution Groups (email only), Mail-Enabled Security Groups (email + access). Dynamic membership requires Entra ID P1 and is only for M365 and Security groups.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>License assignment:</strong> Direct (per user) or group-based (via Security/M365 Group). Group-based licensing requires Entra ID P1. Usage location must be set or assignment fails silently.</span></div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Chapter 3 &mdash; Manage Roles and Security</strong> &nbsp;|&nbsp; Admin Roles &bull; PIM &bull; Conditional Access &bull; MFA
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; MS-102</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('cloud', 'ms102-ch02-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

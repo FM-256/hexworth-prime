@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualize and Analyze Data | PL-300 Chapter 3</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #3b82f6; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95); border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1); padding: 8px 22px; border-radius: 6px;
+            font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) { background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: #3b82f6; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.08); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #3b82f6;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #c9a83a; background: rgba(201, 168, 58, 0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .ic { font-family: 'Courier New', monospace; color: #c9a83a; background: rgba(201, 168, 58, 0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .diagram-row { display: flex; gap: 16px; align-items: center; justify-content: center; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 8px; padding: 12px 14px; text-align: center;
+            opacity: 0; animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #3b82f6; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes flow { 0% { stroke-dashoffset: 20; } 100% { stroke-dashoffset: 0; } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes entityPop { from { opacity: 0; transform: scale(0.6) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  { background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.4); color: #3b82f6; font-weight: 700; font-size: 0.78rem; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px; }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .card-grid-4 { grid-template-columns: 1fr 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Visualize and Analyze Data -- PL-300 Chapter 3</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- SLIDE 1 -- TITLE -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; PL-300 &nbsp;|&nbsp; Chapter 3 &nbsp;|&nbsp; Visualize and Analyze Data</div>
+        <div class="title-hero">
+            <svg width="460" height="120" viewBox="0 0 460 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="10" y="70" width="22" height="40" rx="3" fill="rgba(59,130,246,0.3)" stroke="#3b82f6" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <rect x="38" y="50" width="22" height="60" rx="3" fill="rgba(59,130,246,0.4)" stroke="#3b82f6" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <rect x="66" y="30" width="22" height="80" rx="3" fill="rgba(59,130,246,0.5)" stroke="#3b82f6" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <rect x="94" y="15" width="22" height="95" rx="3" fill="rgba(59,130,246,0.6)" stroke="#3b82f6" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.4s; opacity:0;"/>
+                <circle cx="180" cy="60" r="35" fill="none" stroke="#c9a83a" stroke-width="1.4" style="animation: boxGrow 0.4s ease forwards 0.15s; opacity:0;"/>
+                <path d="M180 25 L180 60 L210 60" fill="none" stroke="rgba(201,168,58,0.6)" stroke-width="1.2"/>
+                <path d="M180 60 L158 80" fill="none" stroke="rgba(201,168,58,0.4)" stroke-width="1.2"/>
+                <text x="180" y="63" text-anchor="middle" font-size="7" fill="#c9a83a" font-family="Segoe UI,sans-serif">Donut</text>
+                <polyline points="250,90 280,60 310,70 340,40 370,50 400,20" fill="none" stroke="#3ab577" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="animation: boxGrow 0.4s ease forwards 0.25s; opacity:0;"/>
+                <circle cx="250" cy="90" r="3" fill="#3ab577" style="animation: boxGrow 0.3s ease forwards 0.35s; opacity:0;"/>
+                <circle cx="310" cy="70" r="3" fill="#3ab577" style="animation: boxGrow 0.3s ease forwards 0.45s; opacity:0;"/>
+                <circle cx="370" cy="50" r="3" fill="#3ab577" style="animation: boxGrow 0.3s ease forwards 0.55s; opacity:0;"/>
+                <circle cx="400" cy="20" r="3" fill="#3ab577" style="animation: boxGrow 0.3s ease forwards 0.6s; opacity:0;"/>
+                <rect x="420" y="10" width="35" height="100" rx="6" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <rect x="425" y="50" width="25" height="55" rx="3" fill="rgba(167,139,250,0.25)" style="animation: boxGrow 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="437" y="45" text-anchor="middle" font-size="6" fill="#a78bfa" font-family="Segoe UI,sans-serif">KPI</text>
+            </svg>
+            <div class="big-title">Visualize &amp; Analyze <span class="accent">Data</span></div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Chart Types &bull; Conditional Formatting &bull; Drill-Down &bull; Bookmarks &bull; Q&amp;A &bull; Analytics Lines
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Your data is modeled and your DAX is ready. Now you need to tell the story. This chapter covers every visualization type tested on the PL-300 -- from basic bar charts to AI-powered visuals like Key Influencers and Decomposition Tree -- plus the interactivity features that make reports dynamic.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>PL-300 Exam Domain</span>
+            <span>Chapter 3 of 5</span>
+            <span>Power BI Data Analyst</span>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 2 -- Comparison Charts -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Comparison <span class="accent">Charts</span></div>
+        <div class="slide-subtitle">Bar and column charts are the backbone of Power BI reports. Use them whenever you need to compare values across categories.</div>
+        <div class="hex-grid">
+            <div class="hex-cell"><div class="hex-title">Bar Chart</div><div class="hex-desc">Horizontal bars. Best for many categories or long label text. Axis field on Y, Values on X.</div></div>
+            <div class="hex-cell"><div class="hex-title">Column Chart</div><div class="hex-desc">Vertical bars. Best for time-based categories on the X-axis. Clustered or stacked variants.</div></div>
+            <div class="hex-cell"><div class="hex-title">Stacked Bar/Column</div><div class="hex-desc">Segments within each bar show sub-category breakdown. Adds a Legend field to split values.</div></div>
+            <div class="hex-cell"><div class="hex-title">100% Stacked</div><div class="hex-desc">Every bar extends to 100%. Shows proportional contribution instead of absolute values.</div></div>
+            <div class="hex-cell"><div class="hex-title">Clustered</div><div class="hex-desc">Groups bars side by side for each category. Better for comparing individual sub-categories than stacked.</div></div>
+            <div class="hex-cell"><div class="hex-title">Combo Chart</div><div class="hex-desc">Combines column and line on one visual. Uses a secondary Y-axis. Good for revenue (bars) vs margin % (line).</div></div>
+        </div>
+        <div class="box box-gold"><div class="box-label">Exam Tip</div>Know when to use stacked vs clustered. Stacked shows part-to-whole within each category. Clustered lets you compare individual sub-category values directly. The PL-300 tests your ability to pick the right chart for the scenario.</div>
+    </div>
+</section>
+
+<!-- SLIDE 3 -- Trend and Distribution Charts -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Trend &amp; Distribution <span class="accent">Charts</span></div>
+        <div class="slide-subtitle">Line and area charts show changes over time. Scatter plots reveal correlations. Choose based on what you want the viewer to understand.</div>
+        <div class="card-grid">
+            <div class="card c-blue"><div class="card-label">Line Chart</div><div class="card-desc">Connects data points chronologically. Best for showing trends over time. Add multiple series to compare trends. Use the Axis field for dates and Values for the measure.</div></div>
+            <div class="card c-green"><div class="card-label">Area Chart</div><div class="card-desc">Line chart with filled region below. Stacked area charts show cumulative totals over time. Use when the sum of all series matters as much as individual trends.</div></div>
+            <div class="card c-gold"><div class="card-label">Scatter Chart</div><div class="card-desc">Plots two measures against each other (X and Y axes). Add a Legend to color-code categories. Use the Size well to add a third measure as bubble size. Reveals correlations and outliers.</div></div>
+        </div>
+        <div class="box box-cyan"><div class="box-label">Key Concept</div>Scatter plots are the only visual that places a measure on both the X and Y axes. This makes them ideal for correlation analysis -- e.g., plotting Revenue vs Profit Margin per product to find high-revenue, low-margin outliers.</div>
+    </div>
+</section>
+
+<!-- SLIDE 4 -- Part-to-Whole and Hierarchical -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Part-to-Whole &amp; <span class="accent">Hierarchical</span> Visuals</div>
+        <div class="slide-subtitle">When your goal is to show how segments contribute to a total, or to display hierarchical breakdowns of data.</div>
+        <div class="card-grid">
+            <div class="card c-blue"><div class="card-label">Pie Chart</div><div class="card-desc">Circular segments sized by value. Effective with 2-5 categories maximum. More than 5 categories makes slices hard to compare -- switch to a bar chart instead.</div></div>
+            <div class="card c-gold"><div class="card-label">Donut Chart</div><div class="card-desc">Pie chart with a hollow center. The center can display a total or a key metric. Same category limit applies -- keep it under 6 segments.</div></div>
+            <div class="card c-green"><div class="card-label">Treemap</div><div class="card-desc">Nested rectangles sized by value. Handles many categories better than pie charts. Supports hierarchical drill-down through nested groupings. Color encodes a second dimension.</div></div>
+        </div>
+        <div class="card-grid">
+            <div class="card c-cyan"><div class="card-label">Map Visual</div><div class="card-desc">Plots data points on a geographic map using latitude/longitude or location names. Bubble size encodes a measure. Requires Bing Maps integration enabled in admin settings.</div></div>
+            <div class="card c-purple"><div class="card-label">Filled Map</div><div class="card-desc">Shades entire regions (countries, states, ZIP codes) by value intensity. A choropleth map. Best for comparing geographic regions where boundaries matter more than individual points.</div></div>
+            <div class="card c-orange"><div class="card-label">Shape Map</div><div class="card-desc">Uses custom TopoJSON shapes. Build custom floor plans, campus maps, or non-standard boundaries. Requires importing your own TopoJSON file.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 5 -- Tables, Matrices, and Cards -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Tables, Matrices, &amp; <span class="accent">Cards</span></div>
+        <div class="slide-subtitle">Not every insight needs a chart. Tables show raw detail, matrices add row/column grouping, and cards spotlight single KPIs.</div>
+        <div class="card-grid">
+            <div class="card c-blue"><div class="card-label">Table</div><div class="card-desc">Flat grid of rows and columns. Shows detail-level data. Supports conditional formatting, URL hyperlinks, and inline bar charts (data bars). No built-in drill-down -- use a matrix if you need hierarchies.</div></div>
+            <div class="card c-gold"><div class="card-label">Matrix</div><div class="card-desc">Pivot-table equivalent. Supports row and column hierarchies with expand/collapse. Step layout indents child levels; tabular layout flattens them. Subtotals and grand totals are configurable per level.</div></div>
+            <div class="card c-green"><div class="card-label">Card / Multi-Row Card</div><div class="card-desc">Displays a single number (Card) or multiple label-value pairs (Multi-Row Card). Use for top-of-page KPIs: Total Revenue, Customer Count, YTD Growth. Format with display units (K, M, B) and decimal places.</div></div>
+        </div>
+        <div class="card-grid">
+            <div class="card c-cyan"><div class="card-label">KPI Visual</div><div class="card-desc">Shows a value, a target, and a trend. Fields: Indicator (current value), Trend Axis (date), Target. Color-codes green/red based on whether the indicator meets the target. Compact, executive-level visual.</div></div>
+            <div class="card c-purple"><div class="card-label">Gauge</div><div class="card-desc">Semi-circular dial with a needle. Shows progress toward a target. Fields: Value, Minimum, Maximum, Target. Color bands indicate zones (red/yellow/green). Best for single-metric dashboards.</div></div>
+            <div class="card c-orange"><div class="card-label">Conditional Formatting</div><div class="card-desc">Apply color scales, data bars, icons, or web URLs to table and matrix cells. Access via Format pane or right-click a field in Values well. Rules-based or gradient-based logic supported.</div></div>
+        </div>
+        <div class="box box-gold"><div class="box-label">Exam Tip</div>The PL-300 tests whether you know when to choose a matrix over a table. If the scenario mentions grouping, hierarchies, or expand/collapse -- the answer is matrix. If the scenario says "show all rows" or "detail data" -- the answer is table.</div>
+    </div>
+</section>
+
+<!-- SLIDE 6 -- Conditional Formatting Deep Dive -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Conditional <span class="accent">Formatting</span></div>
+        <div class="slide-subtitle">Transform plain numbers into meaningful visual signals. Conditional formatting applies to tables, matrices, and card visuals.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue"><div class="card-label">Background Color Scales</div><div class="card-desc">Apply a gradient across cell backgrounds. Configure min/mid/max colors. Based on the field value or a separate measure. Use diverging gradients (red-white-green) for profit/loss scenarios.</div></div>
+            <div class="card c-gold"><div class="card-label">Data Bars</div><div class="card-desc">Inline horizontal bars inside table cells. Length proportional to value. Negative values extend left with a different color. Combines the precision of a number with the visual impact of a bar chart.</div></div>
+            <div class="card c-green"><div class="card-label">Icons</div><div class="card-desc">Display icons (arrows, flags, traffic lights) based on rule thresholds. Define rules: if value is above X show up-arrow, below Y show down-arrow. Up to 5 rule tiers supported.</div></div>
+            <div class="card c-purple"><div class="card-label">Rules vs Field Value</div><div class="card-desc">Rules: you define fixed thresholds (e.g., red below 50, green above 80). Field Value: color is driven by a measure or column dynamically. Field Value is more flexible for data-driven formatting.</div></div>
+        </div>
+        <div class="box box-red"><div class="box-label">Common Mistake</div>Applying too many conditional formatting rules makes reports visually noisy and slows rendering. Limit to one formatting type per column. Use color intentionally -- red for danger, green for good, neutral for everything else.</div>
+    </div>
+</section>
+
+<!-- SLIDE 7 -- Drill-Down and Drill-Through -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Drill-Down &amp; <span class="accent">Drill-Through</span></div>
+        <div class="slide-subtitle">Let users explore data from summary to detail without leaving the report. Two different mechanisms with different purposes.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue"><div class="card-label">Drill-Down</div><div class="card-desc">Navigate within a visual's hierarchy. A column chart showing Year can drill into Quarter, then Month, then Day. Requires a hierarchy in the Axis field. Three modes: drill-down on one data point, expand all to next level, or show next level.</div></div>
+            <div class="card c-gold"><div class="card-label">Drill-Through</div><div class="card-desc">Navigate from one report page to another, passing filter context. Create a detail page, add a field to the Drill-Through filter well, and users right-click a data point to jump to that page with context. A Back button is auto-generated.</div></div>
+        </div>
+        <div class="card-grid">
+            <div class="card c-green"><div class="card-label">Hierarchy Setup</div><div class="card-desc">Drag multiple fields into the same Axis well to create an ad-hoc hierarchy. Or define a named hierarchy in the Model view: Year &gt; Quarter &gt; Month &gt; Day. The drill icons appear in the visual header.</div></div>
+            <div class="card c-cyan"><div class="card-label">Cross-Report Drill-Through</div><div class="card-desc">Drill from a visual in one report to a page in a different report. Enabled in the target report's drill-through settings. Both reports must be in the same workspace. Passes filter context across reports.</div></div>
+            <div class="card c-red"><div class="card-label">Keep All Filters</div><div class="card-desc">By default, drill-through passes only the drill-through filter field. Check "Keep all filters" to also pass slicer and visual-level filters to the target page. Uncheck to see unfiltered detail.</div></div>
+        </div>
+        <div class="box box-gold"><div class="box-label">Exam Tip</div>Drill-down = within a visual (hierarchy navigation). Drill-through = between pages (contextual navigation). The PL-300 will describe a scenario and ask which one to use. If it says "see detail on a separate page" -- that is drill-through.</div>
+    </div>
+</section>
+
+<!-- SLIDE 8 -- Bookmarks and Buttons -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Bookmarks &amp; <span class="accent">Buttons</span></div>
+        <div class="slide-subtitle">Bookmarks capture the current state of a page -- filters, slicer selections, and visual visibility. Buttons let users trigger bookmark navigation.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue"><div class="card-label">Creating Bookmarks</div><div class="card-desc">Set up the page exactly as you want it -- apply filters, hide/show visuals, scroll position. Go to View &gt; Bookmarks pane &gt; Add. Name it descriptively (e.g., "Sales by Region" or "Chart View"). Each bookmark saves the full page state.</div></div>
+            <div class="card c-gold"><div class="card-label">Bookmark Properties</div><div class="card-desc">Data: saves filter and slicer state. Display: saves visual visibility (which visuals are shown/hidden). Current Page: saves which page is active. Toggle these independently to create targeted bookmarks.</div></div>
+            <div class="card c-green"><div class="card-label">Action Buttons</div><div class="card-desc">Insert &gt; Button (or use blank, back, reset, navigation types). In Format pane, set Action type to Bookmark and select which bookmark to apply. Users click the button to toggle between views -- e.g., switch between chart view and table view.</div></div>
+            <div class="card c-purple"><div class="card-label">Bookmark Navigator</div><div class="card-desc">Auto-generates a button bar from a bookmark group. Group related bookmarks in the Bookmarks pane, then insert a Bookmark Navigator. Automatically creates one button per bookmark. Tab-like navigation without manual button setup.</div></div>
+        </div>
+        <div class="box box-cyan"><div class="box-label">Key Concept</div>Bookmarks + button visibility toggling is the standard pattern for building tabbed reports in Power BI. Create two bookmarks -- one showing Chart A and hiding Chart B, the other showing Chart B and hiding Chart A -- then attach each to a button.</div>
+    </div>
+</section>
+
+<!-- SLIDE 9 -- Tooltips and Q&A Visual -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Tooltips &amp; <span class="accent">Q&amp;A</span> Visual</div>
+        <div class="slide-subtitle">Add depth with custom tooltips and let users ask natural-language questions directly inside the report.</div>
+        <div class="card-grid">
+            <div class="card c-blue"><div class="card-label">Default Tooltips</div><div class="card-desc">Every visual auto-generates a tooltip showing the fields in the visual. Add extra fields to the Tooltips well to show supplementary data on hover without cluttering the visual itself.</div></div>
+            <div class="card c-gold"><div class="card-label">Report Page Tooltips</div><div class="card-desc">Create an entire report page as a tooltip. Set page size to Tooltip (320x240 px). Under Page Information, toggle "Allow use as tooltip." In the target visual's Format pane, set Tooltip page to your custom page. Rich, interactive hover experiences.</div></div>
+            <div class="card c-green"><div class="card-label">Q&amp;A Visual</div><div class="card-desc">Users type natural-language questions ("total sales by region last quarter") and Power BI auto-generates a visual. Define synonyms in the model (e.g., "revenue" = SalesAmount) to improve accuracy. Manage linguistic schema via Q&amp;A setup.</div></div>
+        </div>
+        <div class="box box-gold"><div class="box-label">Exam Tip</div>The PL-300 tests report page tooltips specifically. Know: tooltip pages must be set to Tooltip size, "Allow use as tooltip" must be enabled, and the target visual must reference the tooltip page in its Format settings. All three steps are required.</div>
+    </div>
+</section>
+
+<!-- SLIDE 10 -- AI Visuals -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">AI-Powered <span class="accent">Visuals</span></div>
+        <div class="slide-subtitle">Power BI includes built-in AI visuals that surface insights without requiring you to write statistical code.</div>
+        <div class="card-grid">
+            <div class="card c-blue"><div class="card-label">Key Influencers</div><div class="card-desc">Analyzes which factors most influence a metric to increase or decrease. Drag the metric to Analyze, and potential factors to Explain by. Uses ML regression/classification under the hood. Shows top factors ranked by impact strength.</div></div>
+            <div class="card c-gold"><div class="card-label">Decomposition Tree</div><div class="card-desc">Interactive breakdown of a measure across dimensions. Users click to expand each level, choosing which dimension to split by next. AI Splits (lightbulb icon) automatically finds the highest or lowest contributor at each level.</div></div>
+            <div class="card c-green"><div class="card-label">Smart Narratives</div><div class="card-desc">Auto-generates a text summary of the data in a visual or on the entire page. Updates dynamically as filters change. Customizable templates let you mix static text with dynamic values. Good for executive summaries.</div></div>
+        </div>
+        <div class="box box-blue"><div class="box-label">Best Practice</div>AI visuals are powerful but can be slow on large datasets. Use them on filtered pages or drill-through detail pages, not on summary dashboards with millions of rows. Key Influencers works best with 10 or fewer Explain-by fields.</div>
+    </div>
+</section>
+
+<!-- SLIDE 11 -- Analytics Lines -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Analytics <span class="accent">Lines</span></div>
+        <div class="slide-subtitle">Add statistical context to your visuals with reference lines, trend lines, and forecasting -- all built into the Analytics pane.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue"><div class="card-label">Trend Line</div><div class="card-desc">Adds a best-fit line (linear, exponential, logarithmic, polynomial) to line and scatter charts. Reveals the underlying direction of the data. Configure confidence interval shading to show uncertainty.</div></div>
+            <div class="card c-gold"><div class="card-label">Forecast</div><div class="card-desc">Extends a time-series visual into the future. Set forecast length (periods), confidence interval (typically 95%), and seasonality. Requires a date axis with consistent intervals. Grayed out for non-time visuals.</div></div>
+            <div class="card c-green"><div class="card-label">Reference Lines</div><div class="card-desc">Constant line: a fixed value (e.g., target = 100K). Average/median/min/max line: dynamically calculated from the data. Percentile line: e.g., 90th percentile. All configurable with labels, colors, and line styles.</div></div>
+            <div class="card c-purple"><div class="card-label">Error Bars</div><div class="card-desc">Show variability or uncertainty around data points. Configure upper/lower bounds as fixed value, percentage, percentile, or standard deviation. Available on bar, column, line, and scatter charts.</div></div>
+        </div>
+        <div class="box box-red"><div class="box-label">Common Mistake</div>Forecast only works on line charts with a single date field on the axis and one or more measures. If you have a category in the Legend, forecasting operates per series. Remove the Legend to forecast the aggregate trend.</div>
+    </div>
+</section>
+
+<!-- SLIDE 12 -- Chapter Summary -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Chapter 3 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Key takeaways from Visualize and Analyze Data</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Match the visual to the question.</strong> Comparison = bar/column. Trend = line/area. Correlation = scatter. Part-to-whole = pie/donut/treemap. Detail = table/matrix.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Conditional formatting turns numbers into signals.</strong> Color scales, data bars, and icons in tables/matrices. Use rules or field-value-driven formatting.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Drill-down navigates within a hierarchy; drill-through navigates between pages.</strong> Both pass filter context. Cross-report drill-through connects separate reports in the same workspace.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Bookmarks + buttons create interactive, tabbed reports.</strong> Report page tooltips provide rich hover experiences. Q&amp;A lets users ask natural-language questions.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>AI visuals (Key Influencers, Decomposition Tree) surface insights automatically.</strong> Analytics pane adds trend lines, forecasts, and reference lines for statistical context.</span></div>
+        </div>
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Chapter 4 &mdash; Deploy and Maintain Assets</strong> &nbsp;|&nbsp; Workspaces &bull; Apps &bull; Row-Level Security &bull; Gateways &bull; Refresh Schedules
+        </div>
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; PL-300</button></a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+    goToSlide(1);
+</script>
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('cloud', 'pl300-ch03-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
