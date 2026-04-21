@@ -1,0 +1,2864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control — must be first -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <!-- Progress & Auth -->
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Monitor and Backup Lab — AZ-104 Chapter 6</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            height: 100vh;
+            overflow: hidden;
+            background: #0c0c0c;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #b3cef5;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header ── */
+        .lab-header {
+            flex-shrink: 0;
+            padding: 15px 30px;
+            background: rgba(10, 12, 20, 0.95);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .back-btn {
+            padding: 8px 16px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 6px;
+            color: #3b82f6;
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: rgba(59, 130, 246, 0.2);
+        }
+
+        .lab-title {
+            font-size: 1rem;
+            color: #dbeafe;
+        }
+
+        .lab-badge {
+            padding: 4px 12px;
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 12px;
+            font-size: 0.7rem;
+            color: #60a5fa;
+            letter-spacing: 0.05em;
+        }
+
+        .lab-badge-ch {
+            padding: 4px 12px;
+            background: rgba(52, 211, 153, 0.15);
+            border: 1px solid rgba(52, 211, 153, 0.3);
+            border-radius: 12px;
+            font-size: 0.7rem;
+            color: #34d399;
+            letter-spacing: 0.05em;
+        }
+
+        .lab-badge-final {
+            padding: 4px 12px;
+            background: rgba(251, 191, 36, 0.12);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            border-radius: 12px;
+            font-size: 0.7rem;
+            color: #fbbf24;
+            letter-spacing: 0.05em;
+        }
+
+        .task-progress {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 0.85rem;
+            color: #6b82a0;
+        }
+
+        .task-count {
+            color: #3b82f6;
+            font-weight: 500;
+        }
+
+        /* Progress bar */
+        .progress-bar-wrap {
+            width: 140px;
+            height: 6px;
+            background: rgba(59, 130, 246, 0.15);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.4s ease;
+        }
+
+        /* ── Main Layout ── */
+        .lab-container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* ── Task Panel ── */
+        .task-panel {
+            background: rgba(10, 14, 22, 0.95);
+            border-right: 1px solid rgba(59, 130, 246, 0.15);
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .task-section {
+            margin-bottom: 25px;
+        }
+
+        .task-section-title {
+            font-size: 0.68rem;
+            color: #3b5278;
+            letter-spacing: 0.15em;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+        }
+
+        .task-card {
+            background: rgba(12, 18, 32, 0.8);
+            border: 1px solid rgba(59, 130, 246, 0.15);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .task-card:hover {
+            border-color: rgba(59, 130, 246, 0.4);
+        }
+
+        .task-card.active {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .task-card.completed {
+            border-color: rgba(52, 211, 153, 0.4);
+            background: rgba(52, 211, 153, 0.04);
+        }
+
+        /* Completed badge — CSS only, no emoji */
+        .task-card.completed .task-name::after {
+            content: ' [done]';
+            font-size: 0.72rem;
+            color: #34d399;
+            font-weight: 400;
+        }
+
+        .task-number {
+            font-size: 0.68rem;
+            color: #3b82f6;
+            margin-bottom: 4px;
+        }
+
+        .task-name {
+            font-size: 0.9rem;
+            color: #dbeafe;
+            margin-bottom: 4px;
+        }
+
+        .task-desc {
+            font-size: 0.77rem;
+            color: #6b82a0;
+            line-height: 1.45;
+        }
+
+        /* Inline code in task cards */
+        .task-desc code {
+            background: rgba(59, 130, 246, 0.15);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 0.82em;
+            color: #60a5fa;
+            font-family: 'Consolas', monospace;
+        }
+
+        /* ── Terminal Panel ── */
+        .terminal-panel {
+            display: flex;
+            flex-direction: column;
+            background: #0a0a0a;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Toolbar */
+        .term-toolbar {
+            flex-shrink: 0;
+            padding: 8px 20px;
+            background: rgba(12, 18, 28, 0.9);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .term-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .term-dot-red   { background: #ff5f57; }
+        .term-dot-amber { background: #febc2e; }
+        .term-dot-green { background: #28c840; }
+
+        .term-title {
+            flex: 1;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #4a6080;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+
+        .term-vm-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            color: #34d399;
+        }
+
+        .term-status-dot {
+            width: 7px;
+            height: 7px;
+            background: #34d399;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.4; }
+        }
+
+        /* ── Terminal scroll area ── */
+        .term-output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 360px 8px 20px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            line-height: 1.6;
+        }
+
+        /* ── Terminal input row ── */
+        .term-input-row {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            padding: 8px 360px 12px 20px;
+            border-top: 1px solid rgba(59, 130, 246, 0.1);
+            gap: 0;
+        }
+
+        .term-prompt-label {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .term-prompt-user   { color: #3b82f6; }
+        .term-prompt-sep    { color: #3b5278; }
+        .term-prompt-path   { color: #34d399; }
+        .term-prompt-dollar { color: #dbeafe; margin-right: 6px; }
+
+        .term-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #dbeafe;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            caret-color: #3b82f6;
+        }
+
+        /* ── Terminal line classes ── */
+        .term-line {
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .term-line-cmd  { color: #b3cef5; }
+        .term-line-out  { color: #a0d4a0; }
+        .term-line-err  { color: #f87171; }
+        .term-line-info { color: #60a5fa; }
+        .term-line-warn { color: #fbbf24; }
+        .term-line-dim  { color: #374860; }
+        .term-welcome   { color: #3b82f6; }
+        .term-line-code { color: #86efac; font-family: 'Consolas', 'Courier New', monospace; }
+
+        /* Prompt echo spans */
+        .term-prompt-span { color: #3b82f6; }
+        .term-path-span   { color: #34d399; }
+        .term-ps1-sep     { color: #3b5278; }
+
+        /* JSON syntax highlighting */
+        .json-key    { color: #60a5fa; }
+        .json-string { color: #86efac; }
+        .json-number { color: #fbbf24; }
+        .json-bool   { color: #93c5fd; }
+        .json-null   { color: #f87171; }
+
+        /* ── Instructions Panel — absolute within terminal-panel, no position:fixed ── */
+        .instructions-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 320px;
+            background: rgba(10, 16, 28, 0.97);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 100;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .instructions-panel.collapsed {
+            width: auto;
+            padding: 10px 14px;
+            cursor: pointer;
+        }
+
+        .instructions-panel.collapsed .instructions-body {
+            display: none;
+        }
+
+        .instructions-panel.collapsed .instructions-toggle {
+            transform: rotate(180deg);
+        }
+
+        .instructions-title {
+            font-size: 1rem;
+            color: #3b82f6;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .instructions-panel.collapsed .instructions-title {
+            margin-bottom: 0;
+            font-size: 0.85rem;
+        }
+
+        .instructions-toggle {
+            margin-left: auto;
+            width: 28px;
+            height: 28px;
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 6px;
+            color: #3b82f6;
+            font-size: 0.75rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .instructions-toggle:hover {
+            background: rgba(59, 130, 246, 0.4);
+        }
+
+        .instructions-step {
+            font-size: 0.88rem;
+            color: #b3cef5;
+            line-height: 1.65;
+            margin-bottom: 14px;
+        }
+
+        .instructions-step code {
+            background: rgba(59, 130, 246, 0.2);
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            color: #60a5fa;
+            font-size: 0.85em;
+        }
+
+        .instructions-hint {
+            font-size: 0.78rem;
+            color: #3b5278;
+            font-style: italic;
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(59, 130, 246, 0.15);
+            line-height: 1.5;
+        }
+
+        /* Hint reveal button */
+        .hint-btn {
+            margin-top: 12px;
+            padding: 6px 12px;
+            background: rgba(59, 130, 246, 0.12);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 5px;
+            color: #3b82f6;
+            font-size: 0.75rem;
+            cursor: pointer;
+            font-family: 'Segoe UI', sans-serif;
+            transition: all 0.2s ease;
+            width: 100%;
+            text-align: center;
+        }
+
+        .hint-btn:hover {
+            background: rgba(59, 130, 246, 0.22);
+        }
+
+        .hint-command {
+            display: none;
+            margin-top: 10px;
+            padding: 8px 10px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 6px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.78rem;
+            color: #86efac;
+            line-height: 1.55;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .hint-command.visible {
+            display: block;
+        }
+
+        /* ── Success Overlay ── */
+        .success-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.82);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .success-overlay.active {
+            display: flex;
+        }
+
+        .success-card {
+            background: rgba(10, 16, 28, 0.97);
+            border: 1px solid rgba(52, 211, 153, 0.35);
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            max-width: 480px;
+            width: 90%;
+        }
+
+        .success-icon {
+            margin-bottom: 20px;
+        }
+
+        .success-title {
+            font-size: 1.5rem;
+            color: #34d399;
+            margin-bottom: 10px;
+        }
+
+        .success-message {
+            color: #b3cef5;
+            margin-bottom: 25px;
+            line-height: 1.65;
+            font-size: 0.95rem;
+        }
+
+        .success-btn {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .success-btn:hover {
+            box-shadow: 0 5px 20px rgba(59, 130, 246, 0.35);
+            transform: translateY(-1px);
+        }
+
+        /* ── Tab completion popup ── */
+        .tab-suggestions {
+            display: none;
+            position: absolute;
+            bottom: 52px;
+            left: 20px;
+            background: rgba(10, 16, 28, 0.97);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 6px;
+            padding: 4px 0;
+            z-index: 200;
+            font-family: 'Consolas', monospace;
+            font-size: 0.8rem;
+        }
+
+        .tab-suggestions.visible {
+            display: block;
+        }
+
+        .tab-option {
+            padding: 4px 14px;
+            color: #86efac;
+            cursor: pointer;
+        }
+
+        .tab-option:hover, .tab-option.selected {
+            background: rgba(59, 130, 246, 0.15);
+            color: #dbeafe;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 1024px) {
+            .lab-container {
+                grid-template-columns: 1fr;
+            }
+            .task-panel {
+                display: none;
+            }
+            .term-output,
+            .term-input-row {
+                padding-right: 20px;
+            }
+            .instructions-panel {
+                position: absolute;
+                bottom: 60px;
+                top: auto;
+                right: 10px;
+                left: 10px;
+                width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ── Header ── -->
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Azure Monitor and Backup Lab</span>
+            <span class="lab-badge">AZ-104</span>
+            <span class="lab-badge-ch">CH.6</span>
+            <span class="lab-badge-final">FINAL LAB</span>
+        </div>
+        <div class="task-progress">
+            <span>Progress:</span>
+            <div class="progress-bar-wrap">
+                <div class="progress-bar-fill" id="progressBarFill"></div>
+            </div>
+            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
+        </div>
+    </header>
+
+    <!-- ── Main ── -->
+    <div class="lab-container">
+
+        <!-- ── Left: Task Panel ── -->
+        <aside class="task-panel" id="taskPanel">
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 1 — Monitor Setup</div>
+
+                <div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)">
+                    <div class="task-number">Task 1</div>
+                    <div class="task-name">Create a Log Analytics Workspace</div>
+                    <div class="task-desc">Create <code>lab-workspace</code> in <code>lab-rg-01</code> to serve as the central log destination for all diagnostic data in this lab.</div>
+                </div>
+
+                <div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)">
+                    <div class="task-number">Task 2</div>
+                    <div class="task-name">Query VM Metrics</div>
+                    <div class="task-desc">Query CPU percentage metrics for <code>web-vm-01</code> at <code>PT1M</code> interval — inspect the time-series data points returned by Azure Monitor.</div>
+                </div>
+
+                <div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)">
+                    <div class="task-number">Task 3</div>
+                    <div class="task-name">Create a Metric Alert</div>
+                    <div class="task-desc">Create <code>high-cpu-alert</code> that fires when avg CPU exceeds 80% on <code>web-vm-01</code>, and routes notifications to <code>email-admins</code>.</div>
+                </div>
+
+                <div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)">
+                    <div class="task-number">Task 4</div>
+                    <div class="task-name">Run a KQL Query</div>
+                    <div class="task-desc">Run a KQL query against <code>lab-workspace</code> to surface the top 5 Azure Activity operations by count — practice Log Analytics querying.</div>
+                </div>
+
+                <div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)">
+                    <div class="task-number">Task 5</div>
+                    <div class="task-name">Configure Diagnostic Settings</div>
+                    <div class="task-desc">Route <code>web-vm-01</code> Administrative logs and all metrics to <code>lab-workspace</code> via diagnostic settings so logs appear in Log Analytics.</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 2 — Backup Configuration</div>
+
+                <div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)">
+                    <div class="task-number">Task 6</div>
+                    <div class="task-name">Create a Recovery Services Vault</div>
+                    <div class="task-desc">Create <code>lab-vault</code> in <code>lab-rg-01</code> — the container for all backup data, with GRS redundancy enabled by default.</div>
+                </div>
+
+                <div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)">
+                    <div class="task-number">Task 7</div>
+                    <div class="task-name">Enable VM Backup</div>
+                    <div class="task-desc">Enable backup protection for <code>web-vm-01</code> using <code>DefaultPolicy</code> — daily backups at 10:30 PM UTC with 30-day retention.</div>
+                </div>
+
+                <div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)">
+                    <div class="task-number">Task 8</div>
+                    <div class="task-name">Trigger On-Demand Backup</div>
+                    <div class="task-desc">Trigger an immediate on-demand backup for <code>web-vm-01</code> outside the scheduled window — useful before planned maintenance.</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 3 — Restore</div>
+
+                <div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)">
+                    <div class="task-number">Task 9</div>
+                    <div class="task-name">List Recovery Points</div>
+                    <div class="task-desc">List available recovery points for <code>web-vm-01</code> — inspect recovery point names, timestamps, consistency type, and storage tier.</div>
+                </div>
+
+                <div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)">
+                    <div class="task-number">Task 10</div>
+                    <div class="task-name">Restore VM Disks</div>
+                    <div class="task-desc">Restore VM disks from recovery point <code>rp-001</code> to <code>labstorage2026</code> — a JSON template is generated for VM recreation.</div>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- ── Right: Terminal Panel ── -->
+        <main class="terminal-panel" id="terminalPanel">
+
+            <!-- Toolbar -->
+            <div class="term-toolbar">
+                <div class="term-dot term-dot-red"></div>
+                <div class="term-dot term-dot-amber"></div>
+                <div class="term-dot term-dot-green"></div>
+                <div class="term-title">azadmin@monitor-backup-lab-vm — bash</div>
+                <div class="term-vm-status">
+                    <div class="term-status-dot"></div>
+                    monitor-backup-lab-vm Online
+                </div>
+            </div>
+
+            <!-- Scrollable output -->
+            <div class="term-output" id="termOutput"></div>
+
+            <!-- Input row -->
+            <div class="term-input-row">
+                <span class="term-prompt-label">
+                    <span class="term-prompt-user">azadmin@monitor-backup-lab-vm</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span>
+                </span>
+                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
+            </div>
+
+            <!-- Tab completion popup -->
+            <div class="tab-suggestions" id="tabSuggestions"></div>
+
+            <!-- Instructions Panel — absolute within terminal-panel, no position:fixed -->
+            <div class="instructions-panel" id="instructionsPanel">
+                <div class="instructions-title" onclick="toggleInstructions()">
+                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+                    Task Instructions
+                    <button class="instructions-toggle" id="instructionsToggle" title="Collapse instructions">&#9660;</button>
+                </div>
+                <div class="instructions-body" id="instructionsBody">
+                    <div class="instructions-step" id="instructionsStep">
+                        Type the command in the terminal and press Enter.
+                    </div>
+                    <div class="instructions-hint" id="instructionsHint">
+                        <img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block">
+                        Hint text loads when you select a task.
+                    </div>
+                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
+                    <div class="hint-command" id="hintCommand"></div>
+                </div>
+            </div>
+
+            <!-- Success Overlay — absolute within terminal-panel, no position:fixed -->
+            <div class="success-overlay" id="successOverlay">
+                <div class="success-card">
+                    <div class="success-icon">
+                        <img src="/assets/images/icons/icon-star.webp" alt="" style="width:3rem;height:3rem;object-fit:contain">
+                    </div>
+                    <div class="success-title">AZ-104 Chapter 6 Complete!</div>
+                    <div class="success-message">
+                        You created a Log Analytics Workspace as the central destination for all diagnostic
+                        telemetry, queried live VM CPU metrics at one-minute granularity, created a metric
+                        alert rule that triggers when CPU exceeds 80% and routes notifications to an action
+                        group, executed a KQL query to surface the top five activity operations from the
+                        workspace, configured diagnostic settings to route Administrative logs and all metrics
+                        from a VM into Log Analytics, provisioned a Recovery Services Vault with GRS redundancy,
+                        enabled VM backup protection using the default daily policy with 30-day retention,
+                        triggered an on-demand backup job outside the scheduled window, listed all available
+                        recovery points with their timestamps and consistency types, and performed a disk-level
+                        restore to a storage account with a generated ARM template for VM recreation. You now
+                        have end-to-end fluency with Azure Monitor and Azure Backup — the two pillars of
+                        operational excellence every Azure Administrator must master.
+                    </div>
+                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+    (function () {
+        'use strict';
+
+        /* ════════════════════════════════════════════════
+           CONSTANTS
+        ════════════════════════════════════════════════ */
+        var USER    = 'azadmin';
+        var HOST    = 'monitor-backup-lab-vm';
+        var HOME    = '/home/azadmin';
+        var SUB_ID  = 'sub-001';
+        var RG_NAME = 'lab-rg-01';
+        var VM_NAME = 'web-vm-01';
+        var VM_ID   = '/subscriptions/' + SUB_ID + '/resourceGroups/' + RG_NAME + '/providers/Microsoft.Compute/virtualMachines/' + VM_NAME;
+
+        /* ════════════════════════════════════════════════
+           STATE
+        ════════════════════════════════════════════════ */
+        var cwd        = HOME;
+        var cmdHistory = [];
+        var histIdx    = -1;
+
+        var taskDone = {
+            1: false, 2: false, 3: false, 4: false, 5: false,
+            6: false, 7: false, 8: false, 9: false, 10: false
+        };
+        var TOTAL_TASKS = 10;
+
+        /* Simulated resource state */
+        var workspaces     = {};   /* keyed by workspace name */
+        var alertRules     = {};   /* keyed by alert rule name */
+        var diagSettings   = {};   /* keyed by resource id */
+        var backupVaults   = {};   /* keyed by vault name */
+        var backupItems    = {};   /* keyed by "vaultName/vmName" */
+        var backupJobs     = [];   /* array of job objects */
+        var recoveryPoints = {};   /* keyed by "vaultName/vmName" */
+
+        var currentTask = 1;
+
+        /* ════════════════════════════════════════════════
+           VIRTUAL FILE SYSTEM
+        ════════════════════════════════════════════════ */
+        var vfs = {};
+
+        function initFS() {
+            var dirs = [
+                '/', '/bin', '/etc', '/home', '/home/azadmin',
+                '/home/azadmin/.ssh',
+                '/home/azadmin/scripts',
+                '/home/azadmin/backups',
+                '/tmp', '/usr', '/usr/bin', '/var', '/var/log'
+            ];
+            dirs.forEach(function (d) {
+                vfs[d] = { type: 'dir', mode: 'drwxr-xr-x' };
+            });
+
+            var files = {
+                '/etc/hostname': {
+                    c: HOST,
+                    m: '-rw-r--r--'
+                },
+                '/etc/hosts': {
+                    c: '127.0.0.1\tlocalhost\n::1\t\tlocalhost\n127.0.1.1\t' + HOST,
+                    m: '-rw-r--r--'
+                },
+                '/var/log/azure-cli.log': {
+                    c: [
+                        '[2026-04-19 09:00:01] INFO  Azure CLI 2.58.0 initialised',
+                        '[2026-04-19 09:00:02] INFO  Subscription: Lab-Monitor-Subscription (' + SUB_ID + ')',
+                        '[2026-04-19 09:00:03] INFO  Resource Group: ' + RG_NAME,
+                        '[2026-04-19 09:00:04] INFO  VM web-vm-01 running — no monitoring resources provisioned yet'
+                    ].join('\n'),
+                    m: '-rw-r--r--'
+                },
+                '/home/azadmin/.ssh/id_rsa.pub': {
+                    c: 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDq7X3+simulated+key azadmin@monitor-backup-lab-vm',
+                    m: '-rw-r--r--'
+                },
+                '/home/azadmin/scripts/setup-monitoring.sh': {
+                    c: '#!/bin/bash\n# Quick-start script: workspace + diagnostics in one shot\nRG=$1\nVM_NAME=$2\nVM_ID=$3\n\n# 1. Create workspace\naz monitor log-analytics workspace create \\\n  --name lab-workspace --resource-group $RG --location eastus\n\n# 2. Get workspace ID\nWS_ID=$(az monitor log-analytics workspace show \\\n  --name lab-workspace --resource-group $RG --query customerId -o tsv)\n\n# 3. Attach diagnostics\naz monitor diagnostic-settings create \\\n  --name vm-diagnostics --resource $VM_ID \\\n  --workspace $WS_ID \\\n  --logs \'[{"category":"Administrative","enabled":true}]\' \\\n  --metrics \'[{"category":"AllMetrics","enabled":true}]\'\n\necho "Monitoring stack ready for $VM_NAME"',
+                    m: '-rwxr-xr-x'
+                },
+                '/home/azadmin/scripts/backup-vm.sh': {
+                    c: '#!/bin/bash\n# Automated backup enablement script\nRG=$1\nVM=$2\nVAULT="lab-vault"\n\n# Create vault\naz backup vault create --name $VAULT --resource-group $RG --location eastus\n\n# Enable protection\naz backup protection enable-for-vm \\\n  --resource-group $RG --vault-name $VAULT \\\n  --vm $VM --policy-name DefaultPolicy\n\necho "Backup enabled for $VM in vault $VAULT"',
+                    m: '-rwxr-xr-x'
+                },
+                '/home/azadmin/backups/restore-template.json': {
+                    c: '{\n  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",\n  "contentVersion": "1.0.0.0",\n  "comment": "This template is generated after a restore — edit storageProfile.osDisk.managedDisk.id before deploying",\n  "resources": [\n    {\n      "type": "Microsoft.Compute/virtualMachines",\n      "name": "web-vm-01-restored",\n      "location": "eastus"\n    }\n  ]\n}',
+                    m: '-rw-r--r--'
+                }
+            };
+
+            Object.keys(files).forEach(function (p) {
+                vfs[p] = {
+                    type: 'file',
+                    content: files[p].c,
+                    mode: files[p].m
+                };
+            });
+        }
+
+        /* ════════════════════════════════════════════════
+           PATH UTILITIES
+        ════════════════════════════════════════════════ */
+        function resolve(path) {
+            if (!path) return cwd;
+            path = path.replace(/^~/, HOME);
+            if (path[0] !== '/') path = cwd + '/' + path;
+            var parts = path.split('/'), stack = [];
+            for (var i = 0; i < parts.length; i++) {
+                if (parts[i] === '' || parts[i] === '.') continue;
+                if (parts[i] === '..') { stack.pop(); }
+                else { stack.push(parts[i]); }
+            }
+            return '/' + stack.join('/');
+        }
+
+        function baseName(path) {
+            return path.substring(path.lastIndexOf('/') + 1);
+        }
+
+        function listDir(path) {
+            var prefix = path === '/' ? '/' : path + '/';
+            var names  = {};
+            Object.keys(vfs).forEach(function (p) {
+                if (p === path) return;
+                if (p.indexOf(prefix) === 0) {
+                    var rest = p.substring(prefix.length);
+                    var name = rest.split('/')[0];
+                    if (name && !names[name]) names[name] = true;
+                }
+            });
+            return Object.keys(names).sort();
+        }
+
+        function exists(p) { return Object.prototype.hasOwnProperty.call(vfs, p); }
+        function isDir(p)  { return exists(p) && vfs[p].type === 'dir'; }
+        function isFile(p) { return exists(p) && vfs[p].type === 'file'; }
+
+        function promptPath() {
+            if (cwd === HOME) return '~';
+            if (cwd.indexOf(HOME + '/') === 0) return '~' + cwd.substring(HOME.length);
+            return cwd;
+        }
+
+        /* ════════════════════════════════════════════════
+           TERMINAL UI HELPERS
+        ════════════════════════════════════════════════ */
+        var outputEl, inputEl, ps1PathEl;
+
+        function addLine(text, cls) {
+            var div = document.createElement('div');
+            div.className = 'term-line' + (cls ? ' ' + cls : '');
+            div.textContent = text;
+            outputEl.appendChild(div);
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+
+        function addHTML(html, cls) {
+            var div = document.createElement('div');
+            div.className = 'term-line' + (cls ? ' ' + cls : '');
+            div.innerHTML = html;
+            outputEl.appendChild(div);
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+
+        function addBlank() {
+            addLine('', '');
+        }
+
+        function addPromptLine(cmd) {
+            addHTML(
+                '<span class="term-prompt-span">' + USER + '@' + HOST + '</span>' +
+                '<span class="term-ps1-sep">:</span>' +
+                '<span class="term-path-span">' + escH(promptPath()) + '</span>' +
+                '<span class="term-ps1-sep">$ </span>' + escH(cmd),
+                'term-line-cmd'
+            );
+        }
+
+        function updatePS1() {
+            if (ps1PathEl) ps1PathEl.textContent = promptPath();
+        }
+
+        function escH(s) {
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        /* ── JSON syntax highlighter ──
+           Serialises a JS object to indented JSON and colourises each token type. */
+        function printJSON(obj) {
+            var raw = JSON.stringify(obj, null, 2);
+            var html = raw
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"([^"]+)":/g, '<span class="json-key">"$1"</span>:')
+                .replace(/: "([^"]*)"/g, ': <span class="json-string">"$1"</span>')
+                .replace(/: (true|false)/g, ': <span class="json-bool">$1</span>')
+                .replace(/: null/g, ': <span class="json-null">null</span>')
+                .replace(/: (-?\d+\.?\d*)/g, ': <span class="json-number">$1</span>');
+
+            html.split('\n').forEach(function (line) {
+                addHTML(line, 'term-line-out');
+            });
+        }
+
+        /* Print a fixed-width table row */
+        function printTableRow(cols, widths) {
+            var row = '';
+            for (var i = 0; i < cols.length; i++) {
+                var cell = String(cols[i] || '');
+                var w    = widths[i] || 20;
+                row += cell.length > w ? cell.substring(0, w - 1) + ' ' : cell + ' '.repeat(w - cell.length + 2);
+            }
+            addLine(row.trimEnd(), 'term-line-out');
+        }
+
+        /* Print a formatted ASCII table */
+        function printTable(headers, rows, widths) {
+            printTableRow(headers, widths);
+            var sep = widths.map(function (w) { return '-'.repeat(w); }).join('  ');
+            addLine(sep, 'term-line-dim');
+            rows.forEach(function (r) { printTableRow(r, widths); });
+        }
+
+        /* ════════════════════════════════════════════════
+           ARG PARSING
+           Handles quoted strings and flag extraction.
+        ════════════════════════════════════════════════ */
+        function parseArgs(cmd) {
+            var args = [], buf = '', inQ = false, qC = '';
+            for (var i = 0; i < cmd.length; i++) {
+                var c = cmd[i];
+                if (inQ) {
+                    if (c === qC) { inQ = false; }
+                    else { buf += c; }
+                } else if (c === '"' || c === "'") {
+                    inQ = true; qC = c;
+                } else if (c === ' ' || c === '\t') {
+                    if (buf) { args.push(buf); buf = ''; }
+                } else {
+                    buf += c;
+                }
+            }
+            if (buf) args.push(buf);
+            return args;
+        }
+
+        /* Extract a named flag value from an args array */
+        function flagVal(args, flag) {
+            var idx = args.indexOf(flag);
+            if (idx < 0) return null;
+            return args[idx + 1] || null;
+        }
+
+        function hasFlag(args, flag) {
+            return args.indexOf(flag) >= 0;
+        }
+
+        /* ════════════════════════════════════════════════
+           FILESYSTEM COMMANDS
+        ════════════════════════════════════════════════ */
+        function cmd_ls(args) {
+            var pathArg = null;
+            var long    = false;
+            args.forEach(function (a) {
+                if (a === '-l' || a === '-la' || a === '-al' || a === '-a') {
+                    long = true;
+                } else if (!pathArg) {
+                    pathArg = a;
+                }
+            });
+
+            var path = pathArg ? resolve(pathArg) : cwd;
+
+            if (!exists(path)) {
+                addLine('ls: cannot access \'' + (pathArg || '') + '\': No such file or directory', 'term-line-err');
+                return null;
+            }
+
+            if (isFile(path)) {
+                if (long) {
+                    var f = vfs[path];
+                    addLine((f.mode || '-rw-r--r--') + ' 1 ' + USER + ' ' + USER + '  ' +
+                            (f.content || '').length + ' Apr 19 09:00 ' + baseName(path), 'term-line-out');
+                } else {
+                    addLine(baseName(path), 'term-line-out');
+                }
+                return 'listed';
+            }
+
+            var items = listDir(path);
+            if (!items.length) {
+                addLine('(empty directory)', 'term-line-dim');
+                return 'listed';
+            }
+
+            if (long) {
+                addLine('total ' + items.length, 'term-line-out');
+                items.forEach(function (name) {
+                    var full = (path === '/' ? '' : path) + '/' + name;
+                    var node = vfs[full];
+                    var mode = node ? node.mode : 'drwxr-xr-x';
+                    var size = (node && node.content) ? node.content.length : 0;
+                    addLine(mode + ' 1 ' + USER + ' ' + USER + '  ' +
+                            String(size).padStart(6) + ' Apr 19 09:00 ' + name, 'term-line-out');
+                });
+            } else {
+                var cols = [];
+                items.forEach(function (name) {
+                    var full = (path === '/' ? '' : path) + '/' + name;
+                    cols.push(isDir(full) ? name + '/' : name);
+                });
+                addLine(cols.join('  '), 'term-line-out');
+            }
+            return 'listed';
+        }
+
+        function cmd_cat(args) {
+            if (!args.length) {
+                addLine('cat: missing file operand', 'term-line-err');
+                return null;
+            }
+            var path = resolve(args[0]);
+            if (!exists(path)) {
+                addLine('cat: ' + args[0] + ': No such file or directory', 'term-line-err');
+                return null;
+            }
+            if (isDir(path)) {
+                addLine('cat: ' + args[0] + ': Is a directory', 'term-line-err');
+                return null;
+            }
+            var content = vfs[path].content || '';
+            content.split('\n').forEach(function (line) {
+                addLine(line, 'term-line-out');
+            });
+            return { catted: true, path: path };
+        }
+
+        function cmd_cd(args) {
+            var target = args[0] ? resolve(args[0]) : HOME;
+            if (!exists(target)) {
+                addLine('bash: cd: ' + args[0] + ': No such file or directory', 'term-line-err');
+                return null;
+            }
+            if (!isDir(target)) {
+                addLine('bash: cd: ' + args[0] + ': Not a directory', 'term-line-err');
+                return null;
+            }
+            cwd = target;
+            updatePS1();
+            return 'changed';
+        }
+
+        function cmd_pwd() {
+            addLine(cwd, 'term-line-out');
+            return 'pwd';
+        }
+
+        function cmd_echo(args) {
+            addLine(args.join(' '), 'term-line-out');
+            return 'echoed';
+        }
+
+        function cmd_mkdir(args) {
+            if (!args.length) {
+                addLine('mkdir: missing operand', 'term-line-err');
+                return null;
+            }
+            var target = resolve(args[0]);
+            if (exists(target)) {
+                addLine('mkdir: cannot create directory \'' + args[0] + '\': File exists', 'term-line-err');
+                return null;
+            }
+            vfs[target] = { type: 'dir', mode: 'drwxr-xr-x' };
+            return 'mkdir';
+        }
+
+        function cmd_env() {
+            addLine('HOME=' + HOME,                              'term-line-out');
+            addLine('USER=' + USER,                              'term-line-out');
+            addLine('SHELL=/bin/bash',                           'term-line-out');
+            addLine('TERM=xterm-256color',                       'term-line-out');
+            addLine('AZURE_SUBSCRIPTION_ID=' + SUB_ID,           'term-line-out');
+            addLine('AZURE_RESOURCE_GROUP=' + RG_NAME,           'term-line-out');
+            addLine('AZURE_VM=' + VM_NAME,                       'term-line-out');
+            return 'env';
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az monitor log-analytics workspace
+        ════════════════════════════════════════════════ */
+        function cmd_az_monitor_loganalytics_workspace(args) {
+            if (!args.length) {
+                addLine('az monitor log-analytics workspace: usage: <create|show>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            /* ── create ── */
+            if (sub === 'create') {
+                var name = flagVal(args, '--name');
+                var rg   = flagVal(args, '--resource-group');
+                var loc  = flagVal(args, '--location') || 'eastus';
+
+                if (!name) {
+                    addLine('az monitor log-analytics workspace create: --name is required.', 'term-line-err');
+                    return null;
+                }
+                if (!rg) {
+                    addLine('az monitor log-analytics workspace create: --resource-group is required.', 'term-line-err');
+                    return null;
+                }
+                if (Object.prototype.hasOwnProperty.call(workspaces, name)) {
+                    addLine('ERROR: Workspace "' + name + '" already exists in "' + rg + '".', 'term-line-err');
+                    return null;
+                }
+
+                var wsObj = {
+                    id: '/subscriptions/' + SUB_ID + '/resourceGroups/' + rg +
+                        '/providers/Microsoft.OperationalInsights/workspaces/' + name,
+                    name: name,
+                    resourceGroup: rg,
+                    location: loc,
+                    type: 'Microsoft.OperationalInsights/workspaces',
+                    customerId: 'ws-' + name + '-' + Math.random().toString(36).substring(2, 10),
+                    sku: { name: 'PerGB2018' },
+                    retentionInDays: 30,
+                    provisioningState: 'Succeeded',
+                    publicNetworkAccessForIngestion: 'Enabled',
+                    publicNetworkAccessForQuery: 'Enabled'
+                };
+
+                workspaces[name] = { obj: wsObj, rg: rg };
+
+                addLine('Creating Log Analytics workspace "' + name + '"...', 'term-line-info');
+                addLine('  Resource group  : ' + rg,           'term-line-dim');
+                addLine('  Location        : ' + loc,          'term-line-dim');
+                addLine('  SKU             : PerGB2018',        'term-line-dim');
+                addBlank();
+                printJSON(wsObj);
+                addBlank();
+                addLine('  Workspace "' + name + '" created.', 'term-line-info');
+                addLine('  customerId is the workspace ID used in log queries and diagnostic routing.', 'term-line-dim');
+
+                return { workspace_created: true, name: name, rg: rg, location: loc };
+            }
+
+            /* ── show ── */
+            if (sub === 'show') {
+                var showName = flagVal(args, '--name');
+                var showRg   = flagVal(args, '--resource-group');
+
+                if (!showName) {
+                    addLine('az monitor log-analytics workspace show: --name is required.', 'term-line-err');
+                    return null;
+                }
+                if (!showRg) {
+                    addLine('az monitor log-analytics workspace show: --resource-group is required.', 'term-line-err');
+                    return null;
+                }
+                if (!Object.prototype.hasOwnProperty.call(workspaces, showName)) {
+                    addLine('ERROR: Workspace "' + showName + '" not found. Create it first.', 'term-line-err');
+                    return null;
+                }
+
+                printJSON(workspaces[showName].obj);
+                addBlank();
+                addLine('  customerId: ' + workspaces[showName].obj.customerId, 'term-line-info');
+
+                return { workspace_shown: true, name: showName, rg: showRg, customerId: workspaces[showName].obj.customerId };
+            }
+
+            addLine('az monitor log-analytics workspace: unknown subcommand "' + sub + '". Try "create" or "show".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az monitor log-analytics query
+        ════════════════════════════════════════════════ */
+        function cmd_az_monitor_loganalytics_query(args) {
+            var wsArg    = flagVal(args, '--workspace');
+            var queryArg = flagVal(args, '--analytics-query');
+
+            if (!wsArg) {
+                addLine('az monitor log-analytics query: --workspace is required.', 'term-line-err');
+                return null;
+            }
+            if (!queryArg) {
+                addLine('az monitor log-analytics query: --analytics-query is required.', 'term-line-err');
+                return null;
+            }
+
+            /* Accept both workspace name and customerId */
+            var wsEntry = null;
+            if (Object.prototype.hasOwnProperty.call(workspaces, wsArg)) {
+                wsEntry = workspaces[wsArg];
+            } else {
+                /* Try to find by customerId */
+                var wsKeys = Object.keys(workspaces);
+                for (var wi = 0; wi < wsKeys.length; wi++) {
+                    if (workspaces[wsKeys[wi]].obj.customerId === wsArg) {
+                        wsEntry = workspaces[wsKeys[wi]];
+                        break;
+                    }
+                }
+            }
+
+            if (!wsEntry) {
+                addLine('ERROR: Workspace "' + wsArg + '" not found. Create it first with "az monitor log-analytics workspace create".', 'term-line-err');
+                return null;
+            }
+
+            var isKqlTop5 = /AzureActivity/i.test(queryArg) &&
+                            /summarize/i.test(queryArg) &&
+                            /top/i.test(queryArg);
+
+            if (!isKqlTop5) {
+                /* Generic KQL — show a placeholder result */
+                addLine('Running KQL query against workspace "' + wsEntry.obj.name + '"...', 'term-line-info');
+                addBlank();
+                addLine('  Query: ' + queryArg.substring(0, 80) + (queryArg.length > 80 ? '...' : ''), 'term-line-dim');
+                addBlank();
+                addLine('  No results. Try the AzureActivity query shown in the task instructions.', 'term-line-warn');
+                return null;
+            }
+
+            addLine('Running KQL query against workspace "' + wsEntry.obj.name + '"...', 'term-line-info');
+            addBlank();
+            addLine('  Query: AzureActivity | summarize count() by OperationName | top 5 by count_', 'term-line-dim');
+            addBlank();
+
+            /* Simulated KQL top-5 result */
+            var kqlResults = [
+                ['Microsoft.Compute/virtualMachines/write',         '47'],
+                ['Microsoft.Network/networkSecurityGroups/write',    '31'],
+                ['Microsoft.Network/virtualNetworks/write',         '28'],
+                ['Microsoft.Storage/storageAccounts/write',         '19'],
+                ['Microsoft.Compute/virtualMachines/delete',        '12']
+            ];
+
+            printTable(
+                ['OperationName', 'count_'],
+                kqlResults,
+                [55, 8]
+            );
+
+            addBlank();
+            addLine('  5 rows returned.', 'term-line-info');
+            addLine('  Top operation: Microsoft.Compute/virtualMachines/write (47 events)', 'term-line-dim');
+
+            return { kql_queried: true, workspace: wsArg, rowCount: 5 };
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az monitor metrics list
+        ════════════════════════════════════════════════ */
+        function cmd_az_monitor_metrics_list(args) {
+            var resourceArg = flagVal(args, '--resource');
+            var metricArg   = flagVal(args, '--metric');
+            var intervalArg = flagVal(args, '--interval') || 'PT1M';
+
+            if (!resourceArg) {
+                addLine('az monitor metrics list: --resource is required.', 'term-line-err');
+                return null;
+            }
+            if (!metricArg) {
+                addLine('az monitor metrics list: --metric is required (e.g. "Percentage CPU").', 'term-line-err');
+                return null;
+            }
+
+            var isVmResource = resourceArg.indexOf('virtualMachines/' + VM_NAME) >= 0 ||
+                               resourceArg === VM_ID;
+
+            if (!isVmResource) {
+                addLine('ERROR: Resource "' + resourceArg + '" not found or not accessible.', 'term-line-err');
+                addLine('  Use the full VM resource ID: ' + VM_ID, 'term-line-dim');
+                return null;
+            }
+
+            var isCpu = /Percentage.?CPU/i.test(metricArg) || metricArg === 'Percentage CPU';
+
+            if (!isCpu) {
+                addLine('ERROR: Metric "' + metricArg + '" is not supported in this simulation.', 'term-line-err');
+                addLine('  Supported: "Percentage CPU"', 'term-line-dim');
+                return null;
+            }
+
+            /* Simulate 5 one-minute data points */
+            var baseTime = new Date('2026-04-19T09:00:00Z');
+            var cpuValues = [22.4, 31.7, 18.9, 45.1, 27.3];
+            var timeSeries = cpuValues.map(function (v, i) {
+                var ts = new Date(baseTime.getTime() + i * 60000);
+                return {
+                    timeStamp: ts.toISOString(),
+                    average: v
+                };
+            });
+
+            addLine('Querying metrics for resource "' + VM_NAME + '"...', 'term-line-info');
+            addLine('  Metric   : ' + metricArg, 'term-line-dim');
+            addLine('  Interval : ' + intervalArg + ' (1 minute)',  'term-line-dim');
+            addLine('  Window   : 2026-04-19T09:00Z to 2026-04-19T09:05Z (last 5 minutes)', 'term-line-dim');
+            addBlank();
+
+            var metricsObj = {
+                resourceregion: 'eastus',
+                value: [
+                    {
+                        id: resourceArg + '/providers/Microsoft.Insights/metrics/Percentage CPU',
+                        type: 'Microsoft.Insights/metrics',
+                        name: {
+                            value: 'Percentage CPU',
+                            localizedValue: 'Percentage CPU'
+                        },
+                        unit: 'Percent',
+                        timeseries: [
+                            {
+                                metadatavalues: [],
+                                data: timeSeries
+                            }
+                        ]
+                    }
+                ]
+            };
+
+            printJSON(metricsObj);
+            addBlank();
+
+            /* Print a mini table summary */
+            printTable(
+                ['Timestamp (UTC)',           'CPU %'],
+                timeSeries.map(function (d) { return [d.timeStamp, d.average.toFixed(1)]; }),
+                [28, 8]
+            );
+
+            addBlank();
+            addLine('  Average CPU: ' + (cpuValues.reduce(function (a, b) { return a + b; }, 0) / cpuValues.length).toFixed(1) + '%   Peak: 45.1%   All values well below 80% alert threshold.', 'term-line-dim');
+
+            return { metrics_listed: true, resource: resourceArg, metric: metricArg, interval: intervalArg };
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az monitor metrics alert
+        ════════════════════════════════════════════════ */
+        function cmd_az_monitor_metrics_alert(args) {
+            if (!args.length) {
+                addLine('az monitor metrics alert: usage: <create|list>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            /* ── create ── */
+            if (sub === 'create') {
+                var name      = flagVal(args, '--name');
+                var rg        = flagVal(args, '--resource-group');
+                var scopes    = flagVal(args, '--scopes');
+                var condition = flagVal(args, '--condition');
+                var action    = flagVal(args, '--action');
+
+                if (!name) {
+                    addLine('az monitor metrics alert create: --name is required.', 'term-line-err');
+                    return null;
+                }
+                if (!rg) {
+                    addLine('az monitor metrics alert create: --resource-group is required.', 'term-line-err');
+                    return null;
+                }
+                if (!scopes) {
+                    addLine('az monitor metrics alert create: --scopes (resource ID) is required.', 'term-line-err');
+                    return null;
+                }
+                if (!condition) {
+                    addLine('az monitor metrics alert create: --condition is required (e.g. "avg Percentage CPU > 80").', 'term-line-err');
+                    return null;
+                }
+
+                if (Object.prototype.hasOwnProperty.call(alertRules, name)) {
+                    addLine('ERROR: Alert rule "' + name + '" already exists.', 'term-line-err');
+                    return null;
+                }
+
+                var isCpuCondition = /Percentage.?CPU/i.test(condition) && /80/.test(condition);
+                if (!isCpuCondition) {
+                    addLine('Note: condition accepted — for this lab use "avg Percentage CPU > 80" for task completion.', 'term-line-warn');
+                }
+
+                var alertObj = {
+                    id: '/subscriptions/' + SUB_ID + '/resourceGroups/' + rg +
+                        '/providers/microsoft.insights/metricalerts/' + name,
+                    name: name,
+                    resourceGroup: rg,
+                    type: 'Microsoft.Insights/metricAlerts',
+                    location: 'global',
+                    enabled: true,
+                    severity: 2,
+                    evaluationFrequency: 'PT1M',
+                    windowSize: 'PT5M',
+                    scopes: [ scopes ],
+                    criteria: {
+                        'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria',
+                        allOf: [
+                            {
+                                criterionType: 'StaticThresholdCriterion',
+                                name: 'HighCPU',
+                                metricName: 'Percentage CPU',
+                                metricNamespace: 'Microsoft.Compute/virtualMachines',
+                                operator: 'GreaterThan',
+                                threshold: 80,
+                                timeAggregation: 'Average'
+                            }
+                        ]
+                    },
+                    actions: action ? [{ actionGroupId: '/subscriptions/' + SUB_ID + '/resourceGroups/' + rg + '/providers/microsoft.insights/actiongroups/' + action }] : [],
+                    provisioningState: 'Succeeded'
+                };
+
+                alertRules[name] = { obj: alertObj, rg: rg };
+
+                addLine('Creating metric alert rule "' + name + '"...', 'term-line-info');
+                addLine('  Condition  : ' + condition, 'term-line-dim');
+                addLine('  Severity   : 2 (Warning)',   'term-line-dim');
+                addLine('  Frequency  : Evaluate every 1 minute over a 5-minute window', 'term-line-dim');
+                if (action) addLine('  Action     : Notify ' + action, 'term-line-dim');
+                addBlank();
+                printJSON(alertObj);
+                addBlank();
+                addLine('  Alert rule "' + name + '" active. Fires when avg CPU > 80% over any 5-minute window.', 'term-line-info');
+
+                return {
+                    alert_created: true,
+                    name: name,
+                    rg: rg,
+                    scopes: scopes,
+                    condition: condition,
+                    action: action
+                };
+            }
+
+            /* ── list ── */
+            if (sub === 'list') {
+                var listRg = flagVal(args, '--resource-group');
+                if (!listRg) {
+                    addLine('az monitor metrics alert list: --resource-group is required.', 'term-line-err');
+                    return null;
+                }
+
+                var alertList = Object.keys(alertRules)
+                    .filter(function (n) { return alertRules[n].rg === listRg; })
+                    .map(function (n) { return alertRules[n].obj; });
+
+                if (!alertList.length) {
+                    addLine('[]', 'term-line-out');
+                    addLine('  No metric alert rules found in "' + listRg + '".', 'term-line-dim');
+                } else {
+                    printJSON(alertList);
+                    addBlank();
+                    addLine('  ' + alertList.length + ' alert rule(s) found.', 'term-line-info');
+                }
+
+                return { alerts_listed: true, rg: listRg, count: alertList.length };
+            }
+
+            addLine('az monitor metrics alert: unknown subcommand "' + sub + '". Try "create" or "list".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az monitor diagnostic-settings create
+        ════════════════════════════════════════════════ */
+        function cmd_az_monitor_diagnostic_settings(args) {
+            if (!args.length) {
+                addLine('az monitor diagnostic-settings: usage: create --name <n> --resource <id> ...', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            if (sub !== 'create') {
+                addLine('az monitor diagnostic-settings: only "create" is supported in this lab.', 'term-line-err');
+                return null;
+            }
+
+            var name        = flagVal(args, '--name');
+            var resourceArg = flagVal(args, '--resource');
+            var wsArg       = flagVal(args, '--workspace');
+            var logsArg     = flagVal(args, '--logs');
+            var metricsArg  = flagVal(args, '--metrics');
+
+            if (!name) {
+                addLine('az monitor diagnostic-settings create: --name is required.', 'term-line-err');
+                return null;
+            }
+            if (!resourceArg) {
+                addLine('az monitor diagnostic-settings create: --resource (resource ID) is required.', 'term-line-err');
+                return null;
+            }
+            if (!wsArg) {
+                addLine('az monitor diagnostic-settings create: --workspace is required.', 'term-line-err');
+                return null;
+            }
+
+            /* Validate workspace exists */
+            var wsEntry = null;
+            if (Object.prototype.hasOwnProperty.call(workspaces, wsArg)) {
+                wsEntry = workspaces[wsArg];
+            } else {
+                var wsKeys2 = Object.keys(workspaces);
+                for (var wj = 0; wj < wsKeys2.length; wj++) {
+                    if (workspaces[wsKeys2[wj]].obj.customerId === wsArg ||
+                        workspaces[wsKeys2[wj]].obj.id === wsArg) {
+                        wsEntry = workspaces[wsKeys2[wj]];
+                        break;
+                    }
+                }
+            }
+
+            if (!wsEntry) {
+                addLine('ERROR: Workspace "' + wsArg + '" not found. Create it first.', 'term-line-err');
+                return null;
+            }
+
+            var isVm = resourceArg.indexOf('virtualMachines/' + VM_NAME) >= 0 ||
+                       resourceArg === VM_ID;
+
+            if (!isVm) {
+                addLine('ERROR: Resource "' + resourceArg + '" not found in this simulation.', 'term-line-err');
+                addLine('  Use the VM resource ID: ' + VM_ID, 'term-line-dim');
+                return null;
+            }
+
+            var hasAdminLog = logsArg && /Administrative/i.test(logsArg);
+            var hasMetrics  = metricsArg && /AllMetrics/i.test(metricsArg);
+
+            var diagObj = {
+                id: resourceArg + '/providers/microsoft.insights/diagnosticSettings/' + name,
+                name: name,
+                type: 'Microsoft.Insights/diagnosticSettings',
+                properties: {
+                    workspaceId: wsEntry.obj.id,
+                    logs: logsArg ? [{ category: 'Administrative', enabled: true, retentionPolicy: { enabled: false, days: 0 } }] : [],
+                    metrics: metricsArg ? [{ category: 'AllMetrics', enabled: true, retentionPolicy: { enabled: false, days: 0 } }] : []
+                }
+            };
+
+            diagSettings[resourceArg] = diagObj;
+
+            addLine('Creating diagnostic setting "' + name + '"...', 'term-line-info');
+            addLine('  Resource   : ' + VM_NAME, 'term-line-dim');
+            addLine('  Destination: ' + wsEntry.obj.name + ' (Log Analytics Workspace)', 'term-line-dim');
+            if (hasAdminLog) addLine('  Logs       : Administrative [enabled]', 'term-line-dim');
+            if (hasMetrics)  addLine('  Metrics    : AllMetrics [enabled]', 'term-line-dim');
+            addBlank();
+            printJSON(diagObj);
+            addBlank();
+            addLine('  Diagnostic setting "' + name + '" active. Telemetry now flows to "' + wsEntry.obj.name + '".', 'term-line-info');
+            addLine('  Allow 2-5 minutes for initial data to appear in Log Analytics queries.', 'term-line-dim');
+
+            return {
+                diag_created: true,
+                name: name,
+                resource: resourceArg,
+                workspace: wsArg,
+                hasAdminLog: hasAdminLog,
+                hasMetrics: hasMetrics
+            };
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az backup vault
+        ════════════════════════════════════════════════ */
+        function cmd_az_backup_vault(args) {
+            if (!args.length) {
+                addLine('az backup vault: usage: <create|show>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            /* ── create ── */
+            if (sub === 'create') {
+                var name = flagVal(args, '--name');
+                var rg   = flagVal(args, '--resource-group');
+                var loc  = flagVal(args, '--location') || 'eastus';
+
+                if (!name) {
+                    addLine('az backup vault create: --name is required.', 'term-line-err');
+                    return null;
+                }
+                if (!rg) {
+                    addLine('az backup vault create: --resource-group is required.', 'term-line-err');
+                    return null;
+                }
+                if (Object.prototype.hasOwnProperty.call(backupVaults, name)) {
+                    addLine('ERROR: Recovery Services vault "' + name + '" already exists.', 'term-line-err');
+                    return null;
+                }
+
+                var vaultObj = {
+                    id: '/subscriptions/' + SUB_ID + '/resourceGroups/' + rg +
+                        '/providers/Microsoft.RecoveryServices/vaults/' + name,
+                    name: name,
+                    resourceGroup: rg,
+                    location: loc,
+                    type: 'Microsoft.RecoveryServices/vaults',
+                    sku: { name: 'Standard' },
+                    properties: {
+                        provisioningState: 'Succeeded',
+                        privateEndpointStateForBackup: 'None',
+                        privateEndpointStateForSiteRecovery: 'None'
+                    },
+                    storageSettings: {
+                        storageModelType: 'GeoRedundant',
+                        storageType: 'GeoRedundant',
+                        crossRegionRestoreFlag: false
+                    }
+                };
+
+                backupVaults[name] = { obj: vaultObj, rg: rg, location: loc };
+
+                addLine('Creating Recovery Services vault "' + name + '"...', 'term-line-info');
+                addLine('  Resource group  : ' + rg,              'term-line-dim');
+                addLine('  Location        : ' + loc,             'term-line-dim');
+                addLine('  Redundancy      : GeoRedundant (GRS)', 'term-line-dim');
+                addLine('  SKU             : Standard',           'term-line-dim');
+                addBlank();
+                printJSON(vaultObj);
+                addBlank();
+                addLine('  Vault "' + name + '" created with GRS redundancy.', 'term-line-info');
+                addLine('  GRS replicates backup data to a secondary Azure region 300+ miles away.', 'term-line-dim');
+
+                return { vault_created: true, name: name, rg: rg, location: loc };
+            }
+
+            /* ── show ── */
+            if (sub === 'show') {
+                var showName = flagVal(args, '--name');
+                var showRg   = flagVal(args, '--resource-group');
+
+                if (!showName) {
+                    addLine('az backup vault show: --name is required.', 'term-line-err');
+                    return null;
+                }
+                if (!showRg) {
+                    addLine('az backup vault show: --resource-group is required.', 'term-line-err');
+                    return null;
+                }
+                if (!Object.prototype.hasOwnProperty.call(backupVaults, showName)) {
+                    addLine('ERROR: Vault "' + showName + '" not found. Create it first.', 'term-line-err');
+                    return null;
+                }
+
+                printJSON(backupVaults[showName].obj);
+                return { vault_shown: true, name: showName, rg: showRg };
+            }
+
+            addLine('az backup vault: unknown subcommand "' + sub + '". Try "create" or "show".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az backup protection enable-for-vm
+        ════════════════════════════════════════════════ */
+        function cmd_az_backup_protection_enable(args) {
+            if (!args.length) {
+                addLine('az backup protection: usage: enable-for-vm --resource-group <rg> --vault-name <v> --vm <vm> --policy-name <p>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            if (sub !== 'enable-for-vm') {
+                addLine('az backup protection: unknown subcommand "' + sub + '". Use "enable-for-vm".', 'term-line-err');
+                return null;
+            }
+
+            var rg         = flagVal(args, '--resource-group');
+            var vaultName  = flagVal(args, '--vault-name');
+            var vmArg      = flagVal(args, '--vm');
+            var policyName = flagVal(args, '--policy-name') || 'DefaultPolicy';
+
+            if (!rg)        { addLine('az backup protection enable-for-vm: --resource-group is required.', 'term-line-err'); return null; }
+            if (!vaultName) { addLine('az backup protection enable-for-vm: --vault-name is required.', 'term-line-err'); return null; }
+            if (!vmArg)     { addLine('az backup protection enable-for-vm: --vm is required.', 'term-line-err'); return null; }
+
+            if (!Object.prototype.hasOwnProperty.call(backupVaults, vaultName)) {
+                addLine('ERROR: Vault "' + vaultName + '" not found. Create it first with "az backup vault create".', 'term-line-err');
+                return null;
+            }
+
+            if (vmArg !== VM_NAME) {
+                addLine('ERROR: VM "' + vmArg + '" not found. This lab uses "' + VM_NAME + '".', 'term-line-err');
+                return null;
+            }
+
+            var itemKey = vaultName + '/' + vmArg;
+            if (Object.prototype.hasOwnProperty.call(backupItems, itemKey)) {
+                addLine('Note: Backup protection already enabled for "' + vmArg + '" in vault "' + vaultName + '".', 'term-line-warn');
+                return null;
+            }
+
+            var protectionObj = {
+                name: vmArg,
+                resourceGroup: rg,
+                vaultName: vaultName,
+                policyName: policyName,
+                backupManagementType: 'AzureIaasVM',
+                workloadType: 'VM',
+                protectionState: 'IRPending',
+                lastBackupStatus: 'IRPending',
+                lastBackupTime: null,
+                policyId: '/subscriptions/' + SUB_ID + '/resourceGroups/' + rg +
+                    '/providers/Microsoft.RecoveryServices/vaults/' + vaultName + '/backupPolicies/' + policyName,
+                containerName: 'IaasVMContainer;iaasvmcontainerv2;' + rg + ';' + vmArg,
+                friendlyName: vmArg
+            };
+
+            backupItems[itemKey] = protectionObj;
+
+            addLine('Enabling backup protection for "' + vmArg + '"...', 'term-line-info');
+            addLine('  Vault         : ' + vaultName,   'term-line-dim');
+            addLine('  Policy        : ' + policyName,  'term-line-dim');
+            addLine('  Schedule      : Daily at 10:30 PM UTC', 'term-line-dim');
+            addLine('  Retention     : 30 days (daily), 12 weeks (weekly)', 'term-line-dim');
+            addBlank();
+            printJSON(protectionObj);
+            addBlank();
+            addLine('  Protection enabled. First backup will run tonight at 10:30 PM UTC.', 'term-line-info');
+            addLine('  Use "az backup protection backup-now" to trigger an immediate backup.', 'term-line-dim');
+
+            return {
+                backup_enabled: true,
+                vm: vmArg,
+                vaultName: vaultName,
+                rg: rg,
+                policy: policyName
+            };
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az backup protection backup-now
+        ════════════════════════════════════════════════ */
+        function cmd_az_backup_backup_now(args) {
+            if (!args.length) {
+                addLine('az backup protection backup-now: usage: --resource-group <rg> --vault-name <v> --container-name <c> --item-name <i>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            if (sub !== 'backup-now') {
+                addLine('az backup protection: unknown subcommand "' + sub + '". Use "backup-now".', 'term-line-err');
+                return null;
+            }
+
+            var rg            = flagVal(args, '--resource-group');
+            var vaultName     = flagVal(args, '--vault-name');
+            var containerName = flagVal(args, '--container-name');
+            var itemName      = flagVal(args, '--item-name');
+
+            if (!rg)            { addLine('az backup protection backup-now: --resource-group is required.', 'term-line-err'); return null; }
+            if (!vaultName)     { addLine('az backup protection backup-now: --vault-name is required.', 'term-line-err'); return null; }
+            if (!containerName) { addLine('az backup protection backup-now: --container-name is required.', 'term-line-err'); return null; }
+            if (!itemName)      { addLine('az backup protection backup-now: --item-name is required.', 'term-line-err'); return null; }
+
+            if (!Object.prototype.hasOwnProperty.call(backupVaults, vaultName)) {
+                addLine('ERROR: Vault "' + vaultName + '" not found.', 'term-line-err');
+                return null;
+            }
+
+            var itemKey = vaultName + '/' + itemName;
+            if (!Object.prototype.hasOwnProperty.call(backupItems, itemKey)) {
+                addLine('ERROR: Backup item "' + itemName + '" not found in vault "' + vaultName + '".', 'term-line-err');
+                addLine('  Enable protection first with: az backup protection enable-for-vm ...', 'term-line-dim');
+                return null;
+            }
+
+            var jobId = 'job-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+            var jobObj = {
+                name: jobId,
+                status: 'InProgress',
+                jobType: 'BackupIaasVMJob',
+                startTime: new Date().toISOString(),
+                vaultName: vaultName,
+                containerName: containerName,
+                itemName: itemName,
+                operation: 'Backup',
+                activityId: 'act-' + Math.random().toString(36).substring(2, 14)
+            };
+
+            backupJobs.push(jobObj);
+
+            /* Add recovery point after on-demand backup completes (simulated state update) */
+            var rpKey = vaultName + '/' + itemName;
+            if (!Object.prototype.hasOwnProperty.call(recoveryPoints, rpKey)) {
+                recoveryPoints[rpKey] = [];
+            }
+            recoveryPoints[rpKey].push({
+                name: 'rp-001',
+                recoveryPointTime: new Date().toISOString(),
+                recoveryPointType: 'AppConsistent',
+                tier: 'Snapshot',
+                containerName: containerName,
+                itemName: itemName
+            });
+
+            addLine('Triggering on-demand backup for "' + itemName + '"...', 'term-line-info');
+            addLine('  Vault   : ' + vaultName,   'term-line-dim');
+            addLine('  Job ID  : ' + jobId,        'term-line-dim');
+            addLine('  Status  : InProgress',       'term-line-dim');
+            addBlank();
+            printJSON(jobObj);
+            addBlank();
+
+            /* Simulate progress */
+            addLine('  [10%]  Identifying disks to snapshot...', 'term-line-dim');
+            addLine('  [40%]  Creating application-consistent snapshot (VSS quiesce)...', 'term-line-dim');
+            addLine('  [70%]  Snapshot complete — transferring to vault storage...', 'term-line-dim');
+            addLine('  [100%] Backup job completed successfully.', 'term-line-out');
+            addBlank();
+
+            var completedJob = JSON.parse(JSON.stringify(jobObj));
+            completedJob.status = 'Completed';
+            completedJob.endTime = new Date().toISOString();
+            completedJob.duration = 'PT4M32S';
+            printJSON(completedJob);
+            addBlank();
+            addLine('  Recovery point "rp-001" created. Use "az backup recoverypoint list" to verify.', 'term-line-info');
+
+            return {
+                backup_triggered: true,
+                jobId: jobId,
+                vaultName: vaultName,
+                itemName: itemName,
+                containerName: containerName,
+                rg: rg
+            };
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az backup recoverypoint list
+        ════════════════════════════════════════════════ */
+        function cmd_az_backup_recoverypoint_list(args) {
+            if (!args.length) {
+                addLine('az backup recoverypoint list: usage: --resource-group <rg> --vault-name <v> --container-name <c> --item-name <i>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            if (sub !== 'list') {
+                addLine('az backup recoverypoint: unknown subcommand "' + sub + '". Use "list".', 'term-line-err');
+                return null;
+            }
+
+            var rg        = flagVal(args, '--resource-group');
+            var vaultName = flagVal(args, '--vault-name');
+            var container = flagVal(args, '--container-name');
+            var itemName  = flagVal(args, '--item-name');
+
+            if (!rg)        { addLine('az backup recoverypoint list: --resource-group is required.', 'term-line-err'); return null; }
+            if (!vaultName) { addLine('az backup recoverypoint list: --vault-name is required.', 'term-line-err'); return null; }
+            if (!container) { addLine('az backup recoverypoint list: --container-name is required.', 'term-line-err'); return null; }
+            if (!itemName)  { addLine('az backup recoverypoint list: --item-name is required.', 'term-line-err'); return null; }
+
+            if (!Object.prototype.hasOwnProperty.call(backupVaults, vaultName)) {
+                addLine('ERROR: Vault "' + vaultName + '" not found.', 'term-line-err');
+                return null;
+            }
+
+            var rpKey = vaultName + '/' + itemName;
+            var rps   = Object.prototype.hasOwnProperty.call(recoveryPoints, rpKey) ?
+                        recoveryPoints[rpKey] : [];
+
+            /* Always show the on-demand point plus simulated scheduled points */
+            var simulatedRPs = [
+                {
+                    name: 'rp-001',
+                    type: 'Microsoft.RecoveryServices/vaults/backupFabrics/protectionContainers/protectedItems/recoveryPoints',
+                    id: '/subscriptions/' + SUB_ID + '/resourceGroups/' + rg +
+                        '/providers/Microsoft.RecoveryServices/vaults/' + vaultName +
+                        '/backupFabrics/Azure/protectionContainers/' + container +
+                        '/protectedItems/' + itemName + '/recoveryPoints/rp-001',
+                    properties: {
+                        recoveryPointTime: '2026-04-19T09:28:47.000Z',
+                        recoveryPointType: 'AppConsistent',
+                        objectType: 'IaasVMRecoveryPoint',
+                        sourceVMStorageType: 'PremiumVMOnPremiumManagedDisk',
+                        keyAndSecret: null,
+                        isInstantIlrSessionActive: false,
+                        isManagedVirtualMachine: true,
+                        virtualMachineSize: 'Standard_D2s_v5',
+                        recoveryPointTierDetails: [
+                            { type: 'InstantRP', status: 'Valid' },
+                            { type: 'HardenedRP', status: 'Valid' }
+                        ],
+                        tier: 'Snapshot'
+                    }
+                },
+                {
+                    name: 'rp-002',
+                    type: 'Microsoft.RecoveryServices/vaults/backupFabrics/protectionContainers/protectedItems/recoveryPoints',
+                    id: '/subscriptions/' + SUB_ID + '/resourceGroups/' + rg +
+                        '/providers/Microsoft.RecoveryServices/vaults/' + vaultName +
+                        '/backupFabrics/Azure/protectionContainers/' + container +
+                        '/protectedItems/' + itemName + '/recoveryPoints/rp-002',
+                    properties: {
+                        recoveryPointTime: '2026-04-18T22:31:05.000Z',
+                        recoveryPointType: 'AppConsistent',
+                        objectType: 'IaasVMRecoveryPoint',
+                        sourceVMStorageType: 'PremiumVMOnPremiumManagedDisk',
+                        keyAndSecret: null,
+                        isInstantIlrSessionActive: false,
+                        isManagedVirtualMachine: true,
+                        virtualMachineSize: 'Standard_D2s_v5',
+                        recoveryPointTierDetails: [
+                            { type: 'InstantRP', status: 'Expired' },
+                            { type: 'HardenedRP', status: 'Valid' }
+                        ],
+                        tier: 'Vault'
+                    }
+                },
+                {
+                    name: 'rp-003',
+                    type: 'Microsoft.RecoveryServices/vaults/backupFabrics/protectionContainers/protectedItems/recoveryPoints',
+                    id: '/subscriptions/' + SUB_ID + '/resourceGroups/' + rg +
+                        '/providers/Microsoft.RecoveryServices/vaults/' + vaultName +
+                        '/backupFabrics/Azure/protectionContainers/' + container +
+                        '/protectedItems/' + itemName + '/recoveryPoints/rp-003',
+                    properties: {
+                        recoveryPointTime: '2026-04-17T22:30:58.000Z',
+                        recoveryPointType: 'CrashConsistent',
+                        objectType: 'IaasVMRecoveryPoint',
+                        sourceVMStorageType: 'PremiumVMOnPremiumManagedDisk',
+                        keyAndSecret: null,
+                        isInstantIlrSessionActive: false,
+                        isManagedVirtualMachine: true,
+                        virtualMachineSize: 'Standard_D2s_v5',
+                        recoveryPointTierDetails: [
+                            { type: 'InstantRP', status: 'Expired' },
+                            { type: 'HardenedRP', status: 'Valid' }
+                        ],
+                        tier: 'Vault'
+                    }
+                }
+            ];
+
+            addLine('Listing recovery points for "' + itemName + '" in vault "' + vaultName + '"...', 'term-line-info');
+            addBlank();
+            printJSON(simulatedRPs);
+            addBlank();
+
+            printTable(
+                ['Name',    'Time (UTC)',                  'Type',             'Tier'],
+                [
+                    ['rp-001', '2026-04-19T09:28:47Z', 'AppConsistent',   'Snapshot + Vault'],
+                    ['rp-002', '2026-04-18T22:31:05Z', 'AppConsistent',   'Vault'],
+                    ['rp-003', '2026-04-17T22:30:58Z', 'CrashConsistent', 'Vault']
+                ],
+                [10, 22, 16, 18]
+            );
+
+            addBlank();
+            addLine('  3 recovery point(s). Newest: rp-001 (today, on-demand).', 'term-line-info');
+            addLine('  AppConsistent = VSS snapshot taken while app was running. CrashConsistent = OS snapshot only.', 'term-line-dim');
+
+            return {
+                rp_listed: true,
+                vaultName: vaultName,
+                itemName: itemName,
+                containerName: container,
+                rg: rg,
+                count: 3
+            };
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az backup restore restore-disks
+        ════════════════════════════════════════════════ */
+        function cmd_az_backup_restore_disks(args) {
+            if (!args.length) {
+                addLine('az backup restore restore-disks: usage: --resource-group <rg> --vault-name <v> ...', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            if (sub !== 'restore-disks') {
+                addLine('az backup restore: unknown subcommand "' + sub + '". Use "restore-disks".', 'term-line-err');
+                return null;
+            }
+
+            var rg          = flagVal(args, '--resource-group');
+            var vaultName   = flagVal(args, '--vault-name');
+            var container   = flagVal(args, '--container-name');
+            var itemName    = flagVal(args, '--item-name');
+            var rpName      = flagVal(args, '--rp-name');
+            var storageAcct = flagVal(args, '--storage-account');
+
+            if (!rg)          { addLine('az backup restore restore-disks: --resource-group is required.', 'term-line-err'); return null; }
+            if (!vaultName)   { addLine('az backup restore restore-disks: --vault-name is required.', 'term-line-err'); return null; }
+            if (!container)   { addLine('az backup restore restore-disks: --container-name is required.', 'term-line-err'); return null; }
+            if (!itemName)    { addLine('az backup restore restore-disks: --item-name is required.', 'term-line-err'); return null; }
+            if (!rpName)      { addLine('az backup restore restore-disks: --rp-name is required (e.g. rp-001).', 'term-line-err'); return null; }
+            if (!storageAcct) { addLine('az backup restore restore-disks: --storage-account is required.', 'term-line-err'); return null; }
+
+            if (!Object.prototype.hasOwnProperty.call(backupVaults, vaultName)) {
+                addLine('ERROR: Vault "' + vaultName + '" not found.', 'term-line-err');
+                return null;
+            }
+
+            var validRPs = ['rp-001', 'rp-002', 'rp-003'];
+            if (validRPs.indexOf(rpName) < 0) {
+                addLine('ERROR: Recovery point "' + rpName + '" not found.', 'term-line-err');
+                addLine('  List available points with: az backup recoverypoint list ...', 'term-line-dim');
+                return null;
+            }
+
+            var restoreJobId = 'restore-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+            var templatePath = storageAcct + '/vm-restore-' + rpName + '/VMRestoreDetails_' + new Date().toISOString().replace(/[:.]/g, '-') + '.json';
+
+            addLine('Triggering disk restore from recovery point "' + rpName + '"...', 'term-line-info');
+            addLine('  Vault           : ' + vaultName,   'term-line-dim');
+            addLine('  Item            : ' + itemName,    'term-line-dim');
+            addLine('  Recovery point  : ' + rpName,      'term-line-dim');
+            addLine('  Target account  : ' + storageAcct, 'term-line-dim');
+            addLine('  Job ID          : ' + restoreJobId,'term-line-dim');
+            addBlank();
+            addLine('  [10%]  Validating recovery point and target storage account...', 'term-line-dim');
+            addLine('  [30%]  Retrieving disk snapshots from vault...', 'term-line-dim');
+            addLine('  [60%]  Writing OS disk (128 GB) to storage account...', 'term-line-dim');
+            addLine('  [85%]  Writing data disk 1 (256 GB) to storage account...', 'term-line-dim');
+            addLine('  [100%] Restore complete. Disks available in storage account.', 'term-line-out');
+            addBlank();
+
+            var restoreResultObj = {
+                jobId: restoreJobId,
+                status: 'Completed',
+                operation: 'Restore',
+                startTime: '2026-04-19T09:35:00.000Z',
+                endTime: '2026-04-19T09:48:17.000Z',
+                duration: 'PT13M17S',
+                restoreDetails: {
+                    recoveryPoint: rpName,
+                    vaultName: vaultName,
+                    targetStorageAccount: storageAcct,
+                    restoredDisks: [
+                        {
+                            diskType: 'OsDisk',
+                            name: itemName + '-osdisk',
+                            uri: 'https://' + storageAcct + '.blob.core.windows.net/vhds/' + itemName + '-osdisk.vhd',
+                            sizeGB: 128
+                        },
+                        {
+                            diskType: 'DataDisk',
+                            lun: 0,
+                            name: itemName + '-datadisk-0',
+                            uri: 'https://' + storageAcct + '.blob.core.windows.net/vhds/' + itemName + '-datadisk-0.vhd',
+                            sizeGB: 256
+                        }
+                    ],
+                    armTemplateUri: 'https://' + storageAcct + '.blob.core.windows.net/vhds/VMRestoreDetails_2026-04-19.json',
+                    note: 'Deploy the ARM template to recreate the VM. Update storageProfile.osDisk.managedDisk.id before deploying.'
+                }
+            };
+
+            printJSON(restoreResultObj);
+            addBlank();
+            addLine('  Restored disks are in storage account "' + storageAcct + '".',          'term-line-info');
+            addLine('  ARM template generated at: ' + restoreResultObj.restoreDetails.armTemplateUri, 'term-line-dim');
+            addLine('  Next step: deploy the template with "az deployment group create" to recreate the VM.', 'term-line-dim');
+
+            return {
+                restore_completed: true,
+                jobId: restoreJobId,
+                vaultName: vaultName,
+                rpName: rpName,
+                storageAccount: storageAcct,
+                rg: rg
+            };
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: help
+        ════════════════════════════════════════════════ */
+        function cmd_help() {
+            addBlank();
+            addLine('LOG ANALYTICS:', 'term-line-warn');
+            addLine('  az monitor log-analytics workspace create --name <n> --resource-group <rg> --location <loc>', 'term-line-dim');
+            addLine('  az monitor log-analytics workspace show --name <n> --resource-group <rg>', 'term-line-dim');
+            addLine('  az monitor log-analytics query --workspace <name-or-id> --analytics-query <kql>', 'term-line-dim');
+            addBlank();
+            addLine('METRICS:', 'term-line-warn');
+            addLine('  az monitor metrics list --resource <id> --metric <name> --interval PT1M', 'term-line-dim');
+            addBlank();
+            addLine('METRIC ALERTS:', 'term-line-warn');
+            addLine('  az monitor metrics alert create --name <n> --resource-group <rg> --scopes <id>', 'term-line-dim');
+            addLine('    --condition "avg Percentage CPU > 80" --action <action-group>', 'term-line-dim');
+            addLine('  az monitor metrics alert list --resource-group <rg>', 'term-line-dim');
+            addBlank();
+            addLine('DIAGNOSTIC SETTINGS:', 'term-line-warn');
+            addLine('  az monitor diagnostic-settings create --name <n> --resource <id> --workspace <ws>', 'term-line-dim');
+            addLine("    --logs '[{\"category\":\"Administrative\",\"enabled\":true}]'", 'term-line-dim');
+            addLine("    --metrics '[{\"category\":\"AllMetrics\",\"enabled\":true}]'", 'term-line-dim');
+            addBlank();
+            addLine('BACKUP VAULT:', 'term-line-warn');
+            addLine('  az backup vault create --name <n> --resource-group <rg> --location <loc>', 'term-line-dim');
+            addLine('  az backup vault show --name <n> --resource-group <rg>', 'term-line-dim');
+            addBlank();
+            addLine('BACKUP PROTECTION:', 'term-line-warn');
+            addLine('  az backup protection enable-for-vm --resource-group <rg> --vault-name <v> --vm <vm> --policy-name <p>', 'term-line-dim');
+            addLine('  az backup protection backup-now --resource-group <rg> --vault-name <v>', 'term-line-dim');
+            addLine('    --container-name <c> --item-name <i>', 'term-line-dim');
+            addBlank();
+            addLine('RECOVERY POINTS:', 'term-line-warn');
+            addLine('  az backup recoverypoint list --resource-group <rg> --vault-name <v>', 'term-line-dim');
+            addLine('    --container-name <c> --item-name <i>', 'term-line-dim');
+            addBlank();
+            addLine('RESTORE:', 'term-line-warn');
+            addLine('  az backup restore restore-disks --resource-group <rg> --vault-name <v>', 'term-line-dim');
+            addLine('    --container-name <c> --item-name <i> --rp-name <rp> --storage-account <sa>', 'term-line-dim');
+            addBlank();
+            addLine('FILESYSTEM:', 'term-line-warn');
+            addLine('  ls [path]   cd <path>   pwd   cat <file>   mkdir <dir>   env', 'term-line-dim');
+            addBlank();
+            addLine('SCRIPTS:', 'term-line-warn');
+            addLine('  ~/scripts/setup-monitoring.sh    (workspace + diagnostics helper)', 'term-line-dim');
+            addLine('  ~/scripts/backup-vm.sh           (vault creation + backup enablement)', 'term-line-dim');
+            addBlank();
+            addLine('CONSTANTS:', 'term-line-warn');
+            addLine('  VM Resource ID: ' + VM_ID, 'term-line-dim');
+            addLine('  Container Name: IaasVMContainer;web-vm-01', 'term-line-dim');
+            addBlank();
+            return 'help';
+        }
+
+        function cmd_clear() {
+            outputEl.innerHTML = '';
+            return 'clear';
+        }
+
+        /* ════════════════════════════════════════════════
+           MAIN EXEC
+        ════════════════════════════════════════════════ */
+        function execLine(raw) {
+            var trimmed = raw.trim();
+            addPromptLine(trimmed);
+
+            if (!trimmed) return;
+
+            var args = parseArgs(trimmed);
+            var cmd  = args[0];
+            var rest = args.slice(1);
+
+            var result = null;
+
+            if (cmd === 'help' || cmd === '--help') {
+                result = cmd_help();
+
+            } else if (cmd === 'clear') {
+                result = cmd_clear();
+
+            } else if (cmd === 'ls') {
+                result = cmd_ls(rest);
+
+            } else if (cmd === 'cat') {
+                result = cmd_cat(rest);
+
+            } else if (cmd === 'cd') {
+                result = cmd_cd(rest);
+
+            } else if (cmd === 'pwd') {
+                result = cmd_pwd();
+
+            } else if (cmd === 'echo') {
+                result = cmd_echo(rest);
+
+            } else if (cmd === 'mkdir') {
+                result = cmd_mkdir(rest);
+
+            } else if (cmd === 'env') {
+                result = cmd_env();
+
+            } else if (cmd === 'az') {
+                result = execAz(rest);
+
+            } else {
+                addLine('bash: ' + cmd + ': command not found', 'term-line-err');
+                addLine('Type "help" for available commands.', 'term-line-dim');
+            }
+
+            checkTasks(cmd, trimmed, result);
+        }
+
+        /* Route az sub-commands */
+        function execAz(args) {
+            if (!args.length) {
+                addLine('Welcome to Azure CLI (simulated). Type "help" for all available commands.', 'term-line-info');
+                return null;
+            }
+            var sub = args[0];
+
+            if (sub === 'monitor') {
+                return execAzMonitor(args.slice(1));
+            }
+
+            if (sub === 'backup') {
+                return execAzBackup(args.slice(1));
+            }
+
+            if (sub === 'version' || sub === '--version') {
+                addLine('azure-cli                         2.58.0', 'term-line-out');
+                addLine('core                              2.58.0', 'term-line-out');
+                addLine('telemetry                          1.1.0', 'term-line-out');
+                addBlank();
+                addLine('Extensions: None installed', 'term-line-dim');
+                return { version: true };
+            }
+
+            addLine('az: unknown command "' + sub + '". This lab uses "az monitor" and "az backup". Type "help" for all commands.', 'term-line-err');
+            return null;
+        }
+
+        /* Route az monitor sub-commands */
+        function execAzMonitor(args) {
+            if (!args.length) {
+                addLine('az monitor: usage: az monitor <log-analytics|metrics|diagnostic-settings>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            /* az monitor log-analytics ... */
+            if (sub === 'log-analytics') {
+                var laSub = args[1];
+                if (laSub === 'workspace') {
+                    return cmd_az_monitor_loganalytics_workspace(args.slice(2));
+                }
+                if (laSub === 'query') {
+                    return cmd_az_monitor_loganalytics_query(args.slice(2));
+                }
+                addLine('az monitor log-analytics: usage: <workspace|query>', 'term-line-err');
+                return null;
+            }
+
+            /* az monitor metrics ... */
+            if (sub === 'metrics') {
+                var metSub = args[1];
+                if (metSub === 'list') {
+                    return cmd_az_monitor_metrics_list(args.slice(1));
+                }
+                if (metSub === 'alert') {
+                    return cmd_az_monitor_metrics_alert(args.slice(2));
+                }
+                addLine('az monitor metrics: usage: <list|alert>', 'term-line-err');
+                return null;
+            }
+
+            /* az monitor diagnostic-settings ... */
+            if (sub === 'diagnostic-settings') {
+                return cmd_az_monitor_diagnostic_settings(args.slice(1));
+            }
+
+            addLine('az monitor: unknown subcommand "' + sub + '". Try "log-analytics", "metrics", or "diagnostic-settings".', 'term-line-err');
+            return null;
+        }
+
+        /* Route az backup sub-commands */
+        function execAzBackup(args) {
+            if (!args.length) {
+                addLine('az backup: usage: az backup <vault|protection|recoverypoint|restore>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            if (sub === 'vault') {
+                return cmd_az_backup_vault(args.slice(1));
+            }
+
+            if (sub === 'protection') {
+                var protSub = args[1];
+                if (protSub === 'enable-for-vm') {
+                    return cmd_az_backup_protection_enable(args.slice(1));
+                }
+                if (protSub === 'backup-now') {
+                    return cmd_az_backup_backup_now(args.slice(1));
+                }
+                addLine('az backup protection: usage: <enable-for-vm|backup-now>', 'term-line-err');
+                return null;
+            }
+
+            if (sub === 'recoverypoint') {
+                return cmd_az_backup_recoverypoint_list(args.slice(1));
+            }
+
+            if (sub === 'restore') {
+                return cmd_az_backup_restore_disks(args.slice(1));
+            }
+
+            addLine('az backup: unknown subcommand "' + sub + '". Try "vault", "protection", "recoverypoint", or "restore".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           TASK VERIFICATION
+           Each task checks specific names, flags, and state — no generic pass-through.
+        ════════════════════════════════════════════════ */
+        function checkTasks(cmd, raw, result) {
+
+            /* ── Task 1: Create lab-workspace in lab-rg-01 ── */
+            if (!taskDone[1]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.workspace_created === true &&
+                    result.name === 'lab-workspace' &&
+                    result.rg === 'lab-rg-01') {
+                    completeTask(1);
+                }
+            }
+
+            /* ── Task 2: Query Percentage CPU on web-vm-01 at PT1M ── */
+            if (!taskDone[2]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.metrics_listed === true &&
+                    result.resource.indexOf('virtualMachines/' + VM_NAME) >= 0 &&
+                    /Percentage.?CPU/i.test(result.metric) &&
+                    result.interval === 'PT1M') {
+                    completeTask(2);
+                }
+            }
+
+            /* ── Task 3: Create high-cpu-alert on lab-rg-01 scoped to web-vm-01 with CPU > 80 ── */
+            if (!taskDone[3]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.alert_created === true &&
+                    result.name === 'high-cpu-alert' &&
+                    result.rg === 'lab-rg-01' &&
+                    result.scopes && result.scopes.indexOf('virtualMachines/' + VM_NAME) >= 0 &&
+                    /80/.test(result.condition) &&
+                    /CPU/i.test(result.condition)) {
+                    completeTask(3);
+                }
+            }
+
+            /* ── Task 4: KQL query against lab-workspace with AzureActivity top 5 ── */
+            if (!taskDone[4]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.kql_queried === true &&
+                    result.rowCount === 5) {
+                    completeTask(4);
+                }
+            }
+
+            /* ── Task 5: Diagnostic settings on web-vm-01 routing to lab-workspace ── */
+            if (!taskDone[5]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.diag_created === true &&
+                    result.resource.indexOf('virtualMachines/' + VM_NAME) >= 0 &&
+                    result.hasAdminLog === true) {
+                    completeTask(5);
+                }
+            }
+
+            /* ── Task 6: Create lab-vault in lab-rg-01 ── */
+            if (!taskDone[6]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.vault_created === true &&
+                    result.name === 'lab-vault' &&
+                    result.rg === 'lab-rg-01') {
+                    completeTask(6);
+                }
+            }
+
+            /* ── Task 7: Enable backup for web-vm-01 in lab-vault with DefaultPolicy ── */
+            if (!taskDone[7]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.backup_enabled === true &&
+                    result.vm === 'web-vm-01' &&
+                    result.vaultName === 'lab-vault' &&
+                    result.rg === 'lab-rg-01' &&
+                    result.policy === 'DefaultPolicy') {
+                    completeTask(7);
+                }
+            }
+
+            /* ── Task 8: On-demand backup for web-vm-01 in lab-vault ── */
+            if (!taskDone[8]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.backup_triggered === true &&
+                    result.vaultName === 'lab-vault' &&
+                    result.itemName === 'web-vm-01' &&
+                    result.rg === 'lab-rg-01') {
+                    completeTask(8);
+                }
+            }
+
+            /* ── Task 9: List recovery points for web-vm-01 in lab-vault ── */
+            if (!taskDone[9]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.rp_listed === true &&
+                    result.vaultName === 'lab-vault' &&
+                    result.itemName === 'web-vm-01' &&
+                    result.rg === 'lab-rg-01') {
+                    completeTask(9);
+                }
+            }
+
+            /* ── Task 10: Restore disks from rp-001 to labstorage2026 ── */
+            if (!taskDone[10]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.restore_completed === true &&
+                    result.vaultName === 'lab-vault' &&
+                    result.rpName === 'rp-001' &&
+                    result.storageAccount === 'labstorage2026' &&
+                    result.rg === 'lab-rg-01') {
+                    completeTask(10);
+                }
+            }
+        }
+
+        /* ════════════════════════════════════════════════
+           TASK PROGRESS MANAGEMENT
+        ════════════════════════════════════════════════ */
+        function completeTask(num) {
+            if (taskDone[num]) return;
+            taskDone[num] = true;
+
+            var card = document.getElementById('task-card-' + num);
+            if (card) {
+                card.classList.add('completed');
+                card.classList.remove('active');
+            }
+
+            var doneCount = countDone();
+
+            document.getElementById('taskProgress').textContent = doneCount + ' / ' + TOTAL_TASKS + ' Tasks';
+            var fill = document.getElementById('progressBarFill');
+            if (fill) fill.style.width = Math.round((doneCount / TOTAL_TASKS) * 100) + '%';
+
+            addBlank();
+            addHTML(
+                '  <span style="color:#34d399">[Task ' + num + ' complete]</span> ' +
+                '<span style="color:#3b5278">' + escH(getTaskName(num)) + '</span>',
+                'term-line-info'
+            );
+            addBlank();
+
+            if (doneCount === TOTAL_TASKS) {
+                setTimeout(function () {
+                    document.getElementById('successOverlay').classList.add('active');
+                }, 700);
+                return;
+            }
+
+            var next = nextIncompleteTask();
+            if (next !== null) selectTask(next);
+        }
+
+        function getTaskName(num) {
+            var names = {
+                1:  'Create a Log Analytics Workspace',
+                2:  'Query VM Metrics',
+                3:  'Create a Metric Alert',
+                4:  'Run a KQL Query',
+                5:  'Configure Diagnostic Settings',
+                6:  'Create a Recovery Services Vault',
+                7:  'Enable VM Backup',
+                8:  'Trigger On-Demand Backup',
+                9:  'List Recovery Points',
+                10: 'Restore VM Disks'
+            };
+            return names[num] || 'Task ' + num;
+        }
+
+        function countDone() {
+            var n = 0;
+            for (var k in taskDone) {
+                if (Object.prototype.hasOwnProperty.call(taskDone, k) && taskDone[k]) n++;
+            }
+            return n;
+        }
+
+        function nextIncompleteTask() {
+            for (var i = 1; i <= TOTAL_TASKS; i++) {
+                if (!taskDone[i]) return i;
+            }
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           INSTRUCTIONS PANEL CONTENT
+        ════════════════════════════════════════════════ */
+        var taskInstructions = {
+            1: {
+                step: 'Create a Log Analytics Workspace:\n<code>az monitor log-analytics workspace create --name lab-workspace --resource-group lab-rg-01 --location eastus</code>\n\nThe output shows the workspace with a <code>customerId</code> — this GUID-like ID is used when routing diagnostic data and running queries. Note <code>sku: PerGB2018</code> (modern pricing tier) and <code>retentionInDays: 30</code>.',
+                hint: 'A Log Analytics Workspace is the central store for all Azure Monitor log data — diagnostic logs from VMs, NSGs, Azure Activity, and security events all funnel here. The customerId field is the workspace ID used in diagnostic settings routing and in direct API queries. The PerGB2018 SKU means you pay per GB ingested per month with a free tier of 5 GB/month. For the AZ-104 exam: workspaces are regional (like most Azure resources), but data from resources in other regions can be sent to any workspace. In enterprise designs, you choose between a centralized model (one workspace per subscription or org) and a decentralized model (one per team/app). The centralized model is easier to query across resources and manage RBAC; the decentralized model reduces blast radius. Retention can be set from 30 to 730 days — data beyond 730 days can be exported to Azure Storage with Data Export rules.',
+                cmd: 'az monitor log-analytics workspace create --name lab-workspace --resource-group lab-rg-01 --location eastus'
+            },
+            2: {
+                step: 'Query CPU metrics for the VM:\n<code>az monitor metrics list --resource /subscriptions/sub-001/resourceGroups/lab-rg-01/providers/Microsoft.Compute/virtualMachines/web-vm-01 --metric "Percentage CPU" --interval PT1M</code>\n\nThe output shows a time-series array with one data point per minute. Each entry has <code>timeStamp</code> and <code>average</code> CPU percentage. The 5 data points show values ranging from ~19% to ~45% — all well below the 80% alert threshold.',
+                hint: 'Azure Monitor Metrics is the platform telemetry system for all Azure resources — VMs, storage accounts, App Services, databases, load balancers, and more. Metrics are stored at 1-minute granularity for 93 days (about 3 months). The --interval flag controls the aggregation window: PT1M is 1 minute, PT5M is 5 minutes, PT1H is 1 hour. When you use PT5M, Azure averages all 1-minute data points within each 5-minute window. The --metric flag must match an exact metric name — run "az monitor metrics list-definitions --resource <id>" to see all available metrics for a resource. Common VM metrics: "Percentage CPU", "Network In Total", "Network Out Total", "Disk Read Bytes", "Disk Write Bytes". Metrics are also available in Azure Monitor Metrics Explorer in the portal — useful for visual trend analysis and ad-hoc investigation without writing CLI queries.',
+                cmd: 'az monitor metrics list --resource /subscriptions/sub-001/resourceGroups/lab-rg-01/providers/Microsoft.Compute/virtualMachines/web-vm-01 --metric "Percentage CPU" --interval PT1M'
+            },
+            3: {
+                step: 'Create a metric alert rule:\n<code>az monitor metrics alert create --name high-cpu-alert --resource-group lab-rg-01 --scopes /subscriptions/sub-001/resourceGroups/lab-rg-01/providers/Microsoft.Compute/virtualMachines/web-vm-01 --condition "avg Percentage CPU > 80" --action email-admins</code>\n\nThe output shows <code>severity: 2</code> (Warning), evaluation frequency of 1 minute over a 5-minute window, and the action group reference. The alert fires only when the condition is sustained — not on a single spike.',
+                hint: 'Metric alert rules are the primary alerting mechanism for platform telemetry in Azure Monitor. Key concepts for the AZ-104 exam: Severity levels range from 0 (Critical) to 4 (Verbose) — severity 2 is Warning, used for non-urgent conditions that need attention. The condition syntax is: "<aggregation> <metric-name> <operator> <threshold>" — e.g. "avg Percentage CPU > 80" or "total Network In Total > 1000000000". The evaluation frequency (PT1M by default) determines how often the condition is checked. The window size (PT5M default) is how much historical data is evaluated each time. An action group is a reusable set of notification channels — email, SMS, webhook, ITSM, Azure Function. Action groups can be shared across multiple alert rules. Use --description to document why the threshold was chosen. Common production alert patterns: CPU > 85% for 15 minutes, Available Memory < 500 MB for 5 minutes, HTTP 5xx errors > 50/minute.',
+                cmd: 'az monitor metrics alert create --name high-cpu-alert --resource-group lab-rg-01 --scopes /subscriptions/sub-001/resourceGroups/lab-rg-01/providers/Microsoft.Compute/virtualMachines/web-vm-01 --condition "avg Percentage CPU > 80" --action email-admins'
+            },
+            4: {
+                step: 'Run a KQL query against the workspace:\n<code>az monitor log-analytics query --workspace lab-workspace --analytics-query "AzureActivity | summarize count() by OperationName | top 5 by count_"</code>\n\nThe output shows a table with the top 5 Azure operations by count — VM writes, NSG changes, VNet changes, storage operations, and VM deletes. KQL is the query language used for all Log Analytics data.',
+                hint: 'KQL (Kusto Query Language) is the query language for Log Analytics, Azure Data Explorer, and Microsoft Sentinel. It uses a pipe-based syntax where each operator transforms the data from the previous step. The AzureActivity table contains the Azure Activity Log — every control-plane operation (create, update, delete) on every Azure resource in your subscription. Core KQL operators to know for AZ-104: "where" filters rows (like SQL WHERE), "summarize" aggregates (like SQL GROUP BY), "project" selects columns (like SQL SELECT), "extend" adds calculated columns, "top N by column" returns top N rows, "order by" sorts results, "join" combines tables. The count() function counts rows per group. count_ is the default output column name from count(). For real-world diagnostic queries: "Heartbeat | where Computer == \\"web-vm-01\\" | order by TimeGenerated desc | take 10" — shows the last 10 heartbeats to verify agent health.',
+                cmd: 'az monitor log-analytics query --workspace lab-workspace --analytics-query "AzureActivity | summarize count() by OperationName | top 5 by count_"'
+            },
+            5: {
+                step: 'Configure diagnostic settings to route VM telemetry to the workspace:\n<code>az monitor diagnostic-settings create --name vm-diagnostics --resource /subscriptions/sub-001/resourceGroups/lab-rg-01/providers/Microsoft.Compute/virtualMachines/web-vm-01 --workspace lab-workspace --logs \'[{"category":"Administrative","enabled":true}]\' --metrics \'[{"category":"AllMetrics","enabled":true}]\'</code>\n\nThe output confirms both the Administrative log category and AllMetrics are routed to <code>lab-workspace</code>.',
+                hint: 'Diagnostic settings are the bridge between Azure resources and Log Analytics. Without diagnostic settings, resource-level logs (NSG flow logs, VM diagnostic logs, App Service access logs) do not appear in your workspace — only the Azure Activity Log flows automatically. Each resource type has its own set of log categories. VMs support Administrative, Security, ServiceFabric categories. NSGs support NetworkSecurityGroupEvent and NetworkSecurityGroupRuleCounter. Storage accounts support StorageRead, StorageWrite, StorageDelete. The "AllMetrics" metrics category routes platform metrics (like those you queried in Task 2) into Log Analytics — this enables metric-based KQL queries alongside log queries in a single workspace query. For the AZ-104 exam: diagnostic settings can route to three destinations simultaneously — Log Analytics workspace (for querying), Azure Storage (for long-term archival), and Azure Event Hubs (for streaming to third-party SIEM systems). A single resource can have multiple diagnostic settings, each routing to different destinations.',
+                cmd: "az monitor diagnostic-settings create --name vm-diagnostics --resource /subscriptions/sub-001/resourceGroups/lab-rg-01/providers/Microsoft.Compute/virtualMachines/web-vm-01 --workspace lab-workspace --logs '[{\"category\":\"Administrative\",\"enabled\":true}]' --metrics '[{\"category\":\"AllMetrics\",\"enabled\":true}]'"
+            },
+            6: {
+                step: 'Create a Recovery Services Vault:\n<code>az backup vault create --name lab-vault --resource-group lab-rg-01 --location eastus</code>\n\nThe output shows <code>storageModelType: GeoRedundant</code> — GRS replicates your backup data to a paired Azure region (East US 2 for East US). This ensures backup data survives a regional outage. The vault SKU is "Standard", which supports Azure VM, SQL Server, SAP HANA, and Azure Files backup.',
+                hint: 'A Recovery Services Vault (RSV) is the top-level Azure Backup container — it stores backup data, backup policies, and configuration for protected items. Storage redundancy options: LRS (locally redundant, 3 copies in one datacenter, lowest cost), ZRS (zone-redundant, 3 copies across AZs, new option), GRS (geo-redundant, 6 copies including a secondary region, default and recommended for production). With GRS, you can optionally enable Cross-Region Restore — this allows restoring backed-up data in the secondary region even if the primary is unavailable. Important for the AZ-104 exam: the vault and the VMs being backed up must be in the same region (you cannot back up East US VMs in a West US vault). The vault also hosts backup policies — named schedules that define how often backups run, how long they are retained, and at what tiers (snapshot vs vault). Once a vault is created and backup is enabled, do not delete the vault without first stopping backup protection — deleting a vault with protected items requires stopping protection and deleting backup data first.',
+                cmd: 'az backup vault create --name lab-vault --resource-group lab-rg-01 --location eastus'
+            },
+            7: {
+                step: 'Enable VM backup protection:\n<code>az backup protection enable-for-vm --resource-group lab-rg-01 --vault-name lab-vault --vm web-vm-01 --policy-name DefaultPolicy</code>\n\nThe output shows <code>protectionState: IRPending</code> (Initial Replication Pending — waiting for the first backup), the policy schedule (daily at 10:30 PM UTC), and 30-day retention. The policy ID references DefaultPolicy in the vault.',
+                hint: 'Enabling VM backup installs the Azure Backup extension on the VM (AzureBackupWindowsMachine or AzureBackupLinuxAgent). This extension coordinates with Azure Backup to take application-consistent snapshots using VSS (Volume Shadow Copy Service on Windows) or pre/post scripts on Linux. DefaultPolicy runs daily at 10:30 PM with 30-day retention. Custom policies allow: different schedules (every 4 hours, twice daily), longer retention (weekly, monthly, yearly recovery points), and tiered storage (instant recovery for snapshots, vault storage for older points). The --policy-name flag references an existing backup policy in the vault. To create custom policies: "az backup policy create". Key exam scenario: a VM backup fails with "Extension did not respond". Causes: the backup extension is out of date (reinstall it), network connectivity issues blocking the vault endpoint, or the VM was offline when the backup ran. Use "az backup item set-policy" to change the policy for an already-protected item without disabling and re-enabling protection.',
+                cmd: 'az backup protection enable-for-vm --resource-group lab-rg-01 --vault-name lab-vault --vm web-vm-01 --policy-name DefaultPolicy'
+            },
+            8: {
+                step: 'Trigger an on-demand backup:\n<code>az backup protection backup-now --resource-group lab-rg-01 --vault-name lab-vault --container-name IaasVMContainer;web-vm-01 --item-name web-vm-01</code>\n\nThe output shows a job ID, status transitions from InProgress to Completed, and creates recovery point <code>rp-001</code>. The progress messages show disk snapshot creation, VSS quiesce, and vault transfer phases.',
+                hint: 'On-demand backups are useful before planned maintenance (OS patching, application upgrades, disk resizing) to ensure you have a clean recovery point before the change. The container name format for Azure VM backups is "IaasVMContainer;iaasvmcontainerv2;<resource-group>;<vm-name>" — the exact format varies slightly depending on the VM type (managed vs unmanaged disk). For this lab the simplified format "IaasVMContainer;web-vm-01" is accepted. On-demand backup retention: by default it uses the retention from the linked policy. You can override with --retain-until to keep a specific recovery point longer. Backup job statuses: InProgress, Completed, Failed, CompletedWithWarnings. Use "az backup job list" to view all backup jobs and their statuses. Use "az backup job show --name <jobId>" to get detailed logs for a specific job — useful when a backup fails and you need to diagnose the root cause from the extension logs.',
+                cmd: 'az backup protection backup-now --resource-group lab-rg-01 --vault-name lab-vault --container-name IaasVMContainer;web-vm-01 --item-name web-vm-01'
+            },
+            9: {
+                step: 'List available recovery points:\n<code>az backup recoverypoint list --resource-group lab-rg-01 --vault-name lab-vault --container-name IaasVMContainer;web-vm-01 --item-name web-vm-01</code>\n\nThe output shows 3 recovery points. <code>rp-001</code> (today\'s on-demand, AppConsistent, Snapshot tier), <code>rp-002</code> (yesterday\'s scheduled, AppConsistent, Vault tier), <code>rp-003</code> (two days ago, CrashConsistent, Vault tier). Snapshot tier enables faster restores than Vault tier.',
+                hint: 'Recovery point types are critical for the AZ-104 exam and real-world RTO planning. AppConsistent (Application-Consistent): VSS writers are invoked before the snapshot — all in-memory data is flushed to disk, transactions are committed. This is the gold standard — you can restore the application to this point with zero data loss. CrashConsistent: equivalent to pulling the power cord — only data on disk at that instant is captured. In-memory writes, in-flight transactions, and OS buffers are lost. Suitable for stateless workloads or when VSS is not available. Storage tiers: Snapshot tier (also called "instant recovery") keeps the snapshot alongside the VM disks — restores are very fast (minutes) because no data transfer is needed. Vault tier stores data in the vault storage — restores take longer because disks must be transferred back. After the snapshot expires (typically 2-7 days), only vault tier remains. For the shortest RTO: restore from a Snapshot tier recovery point. For long-term compliance: ensure vault tier recovery points are available. Monitor recovery point count and age with Azure Monitor alerts on the "BackupHealthEvent" metric.',
+                cmd: 'az backup recoverypoint list --resource-group lab-rg-01 --vault-name lab-vault --container-name IaasVMContainer;web-vm-01 --item-name web-vm-01'
+            },
+            10: {
+                step: 'Restore VM disks from a recovery point:\n<code>az backup restore restore-disks --resource-group lab-rg-01 --vault-name lab-vault --container-name IaasVMContainer;web-vm-01 --item-name web-vm-01 --rp-name rp-001 --storage-account labstorage2026</code>\n\nThe output shows the restore job completing in about 13 minutes, two restored disks (128 GB OS disk and 256 GB data disk) written to the storage account, and an ARM template URI for VM recreation.',
+                hint: 'Azure Backup\'s restore-disks approach is the recommended restore path — it writes managed disk VHDs to a staging storage account and generates an ARM template pre-populated with the VM configuration at backup time (VM size, NIC, OS profile, disk references). You then edit the template to set the new VM name, optionally change the NIC or subnet, and deploy with "az deployment group create". This two-step approach gives you full control over where the restored VM lands. Alternative restore options: "Restore VM" (creates a new VM directly), "File Recovery" (mounts the backup as a local disk for individual file recovery without restoring the whole VM — fastest for single file recovery). File Recovery uses an iSCSI target mounted from the vault — requires the recovery script to be run on any Windows or Linux machine within the same subscription. Key exam scenario: an administrator deleted a critical file and needs only that file back. Use File Recovery (not restore-disks) to mount the backup and copy only the specific file — avoids full VM downtime and is much faster.',
+                cmd: 'az backup restore restore-disks --resource-group lab-rg-01 --vault-name lab-vault --container-name IaasVMContainer;web-vm-01 --item-name web-vm-01 --rp-name rp-001 --storage-account labstorage2026'
+            }
+        };
+
+        function selectTask(num) {
+            currentTask = num;
+
+            /* Highlight active card */
+            for (var i = 1; i <= TOTAL_TASKS; i++) {
+                var card = document.getElementById('task-card-' + i);
+                if (!card) continue;
+                card.classList.remove('active');
+                if (i === num) card.classList.add('active');
+            }
+
+            /* Scroll active card into view */
+            var activeCard = document.getElementById('task-card-' + num);
+            if (activeCard) activeCard.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+
+            /* Update instructions panel */
+            var info = taskInstructions[num];
+            if (!info) return;
+
+            var stepEl  = document.getElementById('instructionsStep');
+            var hintEl  = document.getElementById('instructionsHint');
+            var hintCmd = document.getElementById('hintCommand');
+
+            if (stepEl) stepEl.innerHTML = info.step.replace(/\n/g, '<br>');
+            if (hintEl) {
+                hintEl.innerHTML =
+                    '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block"> ' +
+                    escH(info.hint);
+            }
+            if (hintCmd) {
+                hintCmd.textContent = info.cmd;
+                hintCmd.classList.remove('visible');
+            }
+
+            /* Reset hint button label */
+            var btn = document.getElementById('hintBtn');
+            if (btn) btn.textContent = 'Show command hint';
+
+            /* Re-expand panel if collapsed */
+            var panel = document.getElementById('instructionsPanel');
+            if (panel && panel.classList.contains('collapsed')) {
+                panel.classList.remove('collapsed');
+            }
+        }
+
+        function toggleInstructions() {
+            var panel = document.getElementById('instructionsPanel');
+            if (panel) panel.classList.toggle('collapsed');
+        }
+
+        function revealHint() {
+            var hintCmd = document.getElementById('hintCommand');
+            if (hintCmd) hintCmd.classList.toggle('visible');
+            var btn = document.getElementById('hintBtn');
+            if (btn) btn.textContent = (hintCmd && hintCmd.classList.contains('visible')) ? 'Hide hint' : 'Show command hint';
+        }
+
+        /* Expose for inline HTML handlers */
+        window.selectTask         = selectTask;
+        window.toggleInstructions = toggleInstructions;
+        window.revealHint         = revealHint;
+
+        /* ════════════════════════════════════════════════
+           TAB COMPLETION
+        ════════════════════════════════════════════════ */
+        var AZ_COMPLETIONS = {
+            'az ':                                                                          ['monitor', 'backup', 'version'],
+            'az monitor ':                                                                  ['log-analytics', 'metrics', 'diagnostic-settings'],
+            'az monitor log-analytics ':                                                    ['workspace', 'query'],
+            'az monitor log-analytics workspace ':                                          ['create', 'show'],
+            'az monitor log-analytics workspace create ':                                   ['--name', '--resource-group', '--location'],
+            'az monitor log-analytics workspace show ':                                     ['--name', '--resource-group'],
+            'az monitor log-analytics query ':                                              ['--workspace', '--analytics-query'],
+            'az monitor metrics ':                                                          ['list', 'alert'],
+            'az monitor metrics list ':                                                     ['--resource', '--metric', '--interval'],
+            'az monitor metrics alert ':                                                    ['create', 'list'],
+            'az monitor metrics alert create ':                                             ['--name', '--resource-group', '--scopes', '--condition', '--action'],
+            'az monitor metrics alert list ':                                               ['--resource-group'],
+            'az monitor diagnostic-settings ':                                              ['create'],
+            'az monitor diagnostic-settings create ':                                       ['--name', '--resource', '--workspace', '--logs', '--metrics'],
+            'az backup ':                                                                   ['vault', 'protection', 'recoverypoint', 'restore'],
+            'az backup vault ':                                                             ['create', 'show'],
+            'az backup vault create ':                                                      ['--name', '--resource-group', '--location'],
+            'az backup vault show ':                                                        ['--name', '--resource-group'],
+            'az backup protection ':                                                        ['enable-for-vm', 'backup-now'],
+            'az backup protection enable-for-vm ':                                          ['--resource-group', '--vault-name', '--vm', '--policy-name'],
+            'az backup protection backup-now ':                                             ['--resource-group', '--vault-name', '--container-name', '--item-name'],
+            'az backup recoverypoint ':                                                     ['list'],
+            'az backup recoverypoint list ':                                                ['--resource-group', '--vault-name', '--container-name', '--item-name'],
+            'az backup restore ':                                                           ['restore-disks'],
+            'az backup restore restore-disks ':                                             ['--resource-group', '--vault-name', '--container-name', '--item-name', '--rp-name', '--storage-account']
+        };
+
+        function handleTab(value) {
+            var suggestions = [];
+            var matchKey    = '';
+
+            var keys = Object.keys(AZ_COMPLETIONS);
+            for (var i = 0; i < keys.length; i++) {
+                if (value.indexOf(keys[i]) === 0 && keys[i].length > matchKey.length) {
+                    matchKey = keys[i];
+                }
+            }
+
+            if (matchKey) {
+                var partial  = value.substring(matchKey.length);
+                var options  = AZ_COMPLETIONS[matchKey];
+                suggestions  = options.filter(function (o) { return o.indexOf(partial) === 0; });
+            }
+
+            var popup = document.getElementById('tabSuggestions');
+            if (!popup) return;
+
+            if (suggestions.length === 0) {
+                popup.classList.remove('visible');
+                popup.innerHTML = '';
+                return;
+            }
+
+            if (suggestions.length === 1) {
+                inputEl.value = matchKey + suggestions[0] + ' ';
+                popup.classList.remove('visible');
+                popup.innerHTML = '';
+                return;
+            }
+
+            /* Show popup for multiple options */
+            popup.innerHTML = '';
+            suggestions.forEach(function (s) {
+                var div = document.createElement('div');
+                div.className = 'tab-option';
+                div.textContent = s;
+                div.addEventListener('click', function () {
+                    inputEl.value = matchKey + s + ' ';
+                    popup.classList.remove('visible');
+                    popup.innerHTML = '';
+                    inputEl.focus();
+                });
+                popup.appendChild(div);
+            });
+            popup.classList.add('visible');
+        }
+
+        /* ════════════════════════════════════════════════
+           FINISH LAB
+        ════════════════════════════════════════════════ */
+        function finishLab() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('cloud', 'az104-ch06-lab', {
+                    returnUrl: '../index.html'
+                });
+            } else {
+                window.location.href = '../index.html';
+            }
+        }
+
+        window.finishLab = finishLab;
+
+        /* ════════════════════════════════════════════════
+           INIT
+        ════════════════════════════════════════════════ */
+        function init() {
+            initFS();
+
+            outputEl  = document.getElementById('termOutput');
+            inputEl   = document.getElementById('termInput');
+            ps1PathEl = document.getElementById('termPS1Path');
+
+            if (!outputEl || !inputEl) return;
+
+            /* ── Welcome Banner ── */
+            addLine('Azure Monitor and Backup Lab — Azure CLI Simulation', 'term-welcome');
+            addLine('Azure CLI 2.58.0   AZ-104 Chapter 6 — Monitor and Back Up Resources', 'term-welcome');
+            addLine('FINAL LAB', 'term-welcome');
+            addBlank();
+            addLine('Resource Group: ' + RG_NAME + '  |  Subscription: Lab-Monitor-Subscription  |  VM: ' + VM_NAME, 'term-line-info');
+            addLine('No monitoring or backup resources provisioned. Start with Task 1.', 'term-line-info');
+            addBlank();
+            addLine('Lab covers:', 'term-line-warn');
+            addLine('  Log Analytics Workspace   az monitor log-analytics workspace create / show', 'term-line-dim');
+            addLine('  VM Metrics                az monitor metrics list', 'term-line-dim');
+            addLine('  Metric Alerts             az monitor metrics alert create / list', 'term-line-dim');
+            addLine('  KQL Queries               az monitor log-analytics query', 'term-line-dim');
+            addLine('  Diagnostic Settings       az monitor diagnostic-settings create', 'term-line-dim');
+            addLine('  Recovery Services Vault   az backup vault create / show', 'term-line-dim');
+            addLine('  VM Backup                 az backup protection enable-for-vm / backup-now', 'term-line-dim');
+            addLine('  Recovery Points           az backup recoverypoint list', 'term-line-dim');
+            addLine('  Disk Restore              az backup restore restore-disks', 'term-line-dim');
+            addBlank();
+            addLine('Type "help" for all available commands.', 'term-line-info');
+            addLine('Complete 10 tasks to finish the FINAL LAB.', 'term-line-info');
+            addBlank();
+            addLine('NOTE: Commands are simulated. In production, use Azure Cloud Shell (shell.azure.com) or Azure CLI.', 'term-line-warn');
+            addBlank();
+
+            /* ── Keyboard Handler ── */
+            inputEl.addEventListener('keydown', function (e) {
+                var tabPopup = document.getElementById('tabSuggestions');
+
+                if (e.key === 'Enter') {
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                    var cmd = inputEl.value;
+                    inputEl.value = '';
+                    if (cmd.trim()) {
+                        cmdHistory.push(cmd);
+                        histIdx = cmdHistory.length;
+                    }
+                    execLine(cmd);
+                } else if (e.key === 'Tab') {
+                    e.preventDefault();
+                    handleTab(inputEl.value);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                    if (histIdx > 0) {
+                        histIdx--;
+                        inputEl.value = cmdHistory[histIdx];
+                    }
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                    if (histIdx < cmdHistory.length - 1) {
+                        histIdx++;
+                        inputEl.value = cmdHistory[histIdx];
+                    } else {
+                        histIdx = cmdHistory.length;
+                        inputEl.value = '';
+                    }
+                } else if (e.key === 'Escape') {
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                }
+            });
+
+            /* Click anywhere in output to refocus input */
+            outputEl.addEventListener('click', function () { inputEl.focus(); });
+
+            /* Auto-focus on load */
+            inputEl.focus();
+
+            /* Show task 1 in instructions panel */
+            selectTask(1);
+        }
+
+        /* Boot after DOM ready */
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+
+    })();
+    </script>
+
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
