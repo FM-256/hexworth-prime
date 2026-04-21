@@ -2002,7 +2002,7 @@ class LearningPaths {
             description: 'Complete Linux administration certification prep covering system management, security, scripting, and troubleshooting',
             icon: '/assets/images/icons/icon-penguin.webp',
             color: '#22c55e',
-            courseHref: 'houses/comptia-linux/index.html',
+            courseHref: 'houses/matrix/adv-linux/index.html',
             modules: [
                 // Section 1: Linux Fundamentals
                 {
@@ -3122,7 +3122,7 @@ class LearningPaths {
             description: 'Complete Security+ certification prep covering general security concepts, threats, architecture, operations, and program management',
             icon: '/assets/images/icons/icon-padlock.webp',
             color: '#a855f7',
-            courseHref: 'houses/security-plus/index.html',
+            courseHref: 'houses/shield/security-plus/index.html',
             modules: [
                 // Domain 1: General Security Concepts
                 {
@@ -3418,7 +3418,7 @@ class LearningPaths {
             description: 'Complete Network+ certification prep covering networking concepts, implementation, operations, security, and troubleshooting',
             icon: '/assets/images/icons/icon-globe.webp',
             color: '#3b82f6',
-            courseHref: 'houses/comptia-network/index.html',
+            courseHref: 'houses/web/network-plus/index.html',
             modules: [
                 // Domain 1: Networking Concepts
                 {
@@ -4032,7 +4032,7 @@ class LearningPaths {
             description: 'CompTIA Security+ SY0-701 cryptography objectives: symmetric/asymmetric encryption, hashing, PKI, digital signatures, and key exchange',
             icon: '/assets/images/icons/icon-shield.webp',
             color: '#eab308',
-            courseHref: 'houses/security-plus-crypto/index.html',
+            courseHref: 'houses/shield/security-plus/index.html',
             modules: [
                 // Crypto Foundations (maps to SY0-701 Domain 1.4)
                 {
@@ -4175,7 +4175,7 @@ class LearningPaths {
             description: 'Security analyst certification prep covering threat detection, analysis, vulnerability management, incident response, and security operations',
             icon: '/assets/images/icons/icon-magnifier.webp',
             color: '#a855f7',
-            courseHref: 'houses/cysa-plus/index.html',
+            courseHref: 'houses/eye/cysa/index.html',
             modules: [
                 // Domain 1: Security Operations
                 {
@@ -4601,7 +4601,7 @@ class LearningPaths {
             description: 'CCNA certification prep covering network fundamentals, network access, IP connectivity, IP services, security fundamentals, and automation',
             icon: '/assets/images/icons/icon-wrench.webp',
             color: '#3b82f6',
-            courseHref: 'houses/ccna/index.html',
+            courseHref: 'houses/web/ccna/index.html',
             modules: [
                 // Domain 1: Network Fundamentals
                 {
@@ -5128,7 +5128,7 @@ class LearningPaths {
             description: 'Microsoft Azure Fundamentals certification prep covering cloud concepts, Azure services, security, privacy, compliance, and pricing',
             icon: '/assets/images/icons/icon-diamond.webp',
             color: '#0ea5e9',
-            courseHref: 'houses/azure-fundamentals/index.html',
+            courseHref: 'houses/cloud/az-900/index.html',
             modules: [
                 // Cloud Concepts
                 {
