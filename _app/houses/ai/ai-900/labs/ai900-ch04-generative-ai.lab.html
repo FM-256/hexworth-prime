@@ -1,0 +1,2558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control — must be first -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <!-- Progress & Auth -->
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure OpenAI Lab — AI-900 Chapter 4</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            height: 100vh;
+            overflow: hidden;
+            background: #0c0c0c;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #c4b5d4;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header ── */
+        .lab-header {
+            flex-shrink: 0;
+            padding: 15px 30px;
+            background: rgba(10, 10, 15, 0.95);
+            border-bottom: 1px solid rgba(167, 139, 250, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .back-btn {
+            padding: 8px 16px;
+            background: rgba(167, 139, 250, 0.1);
+            border: 1px solid rgba(167, 139, 250, 0.3);
+            border-radius: 6px;
+            color: #a78bfa;
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: rgba(167, 139, 250, 0.2);
+        }
+
+        .lab-title {
+            font-size: 1rem;
+            color: #e8d5f5;
+        }
+
+        .lab-badge {
+            padding: 4px 12px;
+            background: rgba(52, 211, 153, 0.15);
+            border: 1px solid rgba(52, 211, 153, 0.3);
+            border-radius: 12px;
+            font-size: 0.7rem;
+            color: #34d399;
+            letter-spacing: 0.05em;
+        }
+
+        .task-progress {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 0.85rem;
+            color: #8b7a9e;
+        }
+
+        .task-count {
+            color: #a78bfa;
+            font-weight: 500;
+        }
+
+        /* Progress bar */
+        .progress-bar-wrap {
+            width: 140px;
+            height: 6px;
+            background: rgba(167, 139, 250, 0.15);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #a78bfa, #7c3aed);
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.4s ease;
+        }
+
+        /* ── Main Layout ── */
+        .lab-container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* ── Task Panel ── */
+        .task-panel {
+            background: rgba(15, 12, 20, 0.95);
+            border-right: 1px solid rgba(167, 139, 250, 0.15);
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .task-section {
+            margin-bottom: 25px;
+        }
+
+        .task-section-title {
+            font-size: 0.68rem;
+            color: #6b5b7e;
+            letter-spacing: 0.15em;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+        }
+
+        .task-card {
+            background: rgba(25, 20, 35, 0.8);
+            border: 1px solid rgba(167, 139, 250, 0.15);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .task-card:hover {
+            border-color: rgba(167, 139, 250, 0.4);
+        }
+
+        .task-card.active {
+            border-color: #a78bfa;
+            background: rgba(167, 139, 250, 0.1);
+        }
+
+        .task-card.completed {
+            border-color: rgba(52, 211, 153, 0.4);
+            background: rgba(52, 211, 153, 0.04);
+        }
+
+        /* Completed badge — CSS only, no emoji */
+        .task-card.completed .task-name::after {
+            content: ' [done]';
+            font-size: 0.72rem;
+            color: #34d399;
+            font-weight: 400;
+        }
+
+        .task-number {
+            font-size: 0.68rem;
+            color: #a78bfa;
+            margin-bottom: 4px;
+        }
+
+        .task-name {
+            font-size: 0.9rem;
+            color: #e8d5f5;
+            margin-bottom: 4px;
+        }
+
+        .task-desc {
+            font-size: 0.77rem;
+            color: #8b7a9e;
+            line-height: 1.45;
+        }
+
+        /* Inline code in task cards */
+        .task-desc code {
+            background: rgba(167, 139, 250, 0.15);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 0.82em;
+            color: #a78bfa;
+            font-family: 'Consolas', monospace;
+        }
+
+        /* ── Terminal Panel ── */
+        .terminal-panel {
+            display: flex;
+            flex-direction: column;
+            background: #0a0a0a;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Toolbar */
+        .term-toolbar {
+            flex-shrink: 0;
+            padding: 8px 20px;
+            background: rgba(20, 15, 30, 0.9);
+            border-bottom: 1px solid rgba(167, 139, 250, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .term-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .term-dot-red   { background: #ff5f57; }
+        .term-dot-amber { background: #febc2e; }
+        .term-dot-green { background: #28c840; }
+
+        .term-title {
+            flex: 1;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #8b7a9e;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+
+        .term-vm-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            color: #34d399;
+        }
+
+        .term-status-dot {
+            width: 7px;
+            height: 7px;
+            background: #34d399;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.4; }
+        }
+
+        /* ── Terminal scroll area ── */
+        .term-output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 360px 8px 20px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            line-height: 1.6;
+        }
+
+        /* ── Terminal input row ── */
+        .term-input-row {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            padding: 8px 360px 12px 20px;
+            border-top: 1px solid rgba(167, 139, 250, 0.1);
+            gap: 0;
+        }
+
+        .term-prompt-label {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .term-prompt-user   { color: #a78bfa; }
+        .term-prompt-sep    { color: #6b5b7e; }
+        .term-prompt-path   { color: #34d399; }
+        .term-prompt-dollar { color: #e8d5f5; margin-right: 6px; }
+
+        .term-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #e8d5f5;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            caret-color: #a78bfa;
+        }
+
+        /* ── Terminal line classes ── */
+        .term-line {
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .term-line-cmd  { color: #c4b5d4; }
+        .term-line-out  { color: #a0d4a0; }
+        .term-line-err  { color: #f87171; }
+        .term-line-info { color: #60a5fa; }
+        .term-line-warn { color: #fbbf24; }
+        .term-line-dim  { color: #4b3f5e; }
+        .term-welcome   { color: #a78bfa; }
+        .term-line-code { color: #86efac; font-family: 'Consolas', 'Courier New', monospace; }
+
+        /* Prompt echo spans */
+        .term-prompt-span { color: #a78bfa; }
+        .term-path-span   { color: #34d399; }
+        .term-ps1-sep     { color: #6b5b7e; }
+
+        /* JSON syntax highlighting */
+        .json-key    { color: #a78bfa; }
+        .json-string { color: #86efac; }
+        .json-number { color: #fbbf24; }
+        .json-bool   { color: #60a5fa; }
+        .json-null   { color: #f87171; }
+
+        /* ── Instructions Panel — absolute within terminal-panel, no position:fixed ── */
+        .instructions-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 320px;
+            background: rgba(30, 25, 40, 0.97);
+            border: 1px solid rgba(167, 139, 250, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 100;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .instructions-panel.collapsed {
+            width: auto;
+            padding: 10px 14px;
+            cursor: pointer;
+        }
+
+        .instructions-panel.collapsed .instructions-body {
+            display: none;
+        }
+
+        .instructions-panel.collapsed .instructions-toggle {
+            transform: rotate(180deg);
+        }
+
+        .instructions-title {
+            font-size: 1rem;
+            color: #a78bfa;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .instructions-panel.collapsed .instructions-title {
+            margin-bottom: 0;
+            font-size: 0.85rem;
+        }
+
+        .instructions-toggle {
+            margin-left: auto;
+            width: 28px;
+            height: 28px;
+            background: rgba(167, 139, 250, 0.2);
+            border: 1px solid rgba(167, 139, 250, 0.3);
+            border-radius: 6px;
+            color: #a78bfa;
+            font-size: 0.75rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .instructions-toggle:hover {
+            background: rgba(167, 139, 250, 0.4);
+        }
+
+        .instructions-step {
+            font-size: 0.88rem;
+            color: #c4b5d4;
+            line-height: 1.65;
+            margin-bottom: 14px;
+        }
+
+        .instructions-step code {
+            background: rgba(167, 139, 250, 0.2);
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            color: #a78bfa;
+            font-size: 0.85em;
+        }
+
+        .instructions-hint {
+            font-size: 0.78rem;
+            color: #6b5b7e;
+            font-style: italic;
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(167, 139, 250, 0.15);
+            line-height: 1.5;
+        }
+
+        /* Hint reveal button */
+        .hint-btn {
+            margin-top: 12px;
+            padding: 6px 12px;
+            background: rgba(167, 139, 250, 0.12);
+            border: 1px solid rgba(167, 139, 250, 0.25);
+            border-radius: 5px;
+            color: #a78bfa;
+            font-size: 0.75rem;
+            cursor: pointer;
+            font-family: 'Segoe UI', sans-serif;
+            transition: all 0.2s ease;
+            width: 100%;
+            text-align: center;
+        }
+
+        .hint-btn:hover {
+            background: rgba(167, 139, 250, 0.22);
+        }
+
+        .hint-command {
+            display: none;
+            margin-top: 10px;
+            padding: 8px 10px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(167, 139, 250, 0.25);
+            border-radius: 6px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.78rem;
+            color: #86efac;
+            line-height: 1.55;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .hint-command.visible {
+            display: block;
+        }
+
+        /* ── Success Overlay ── */
+        .success-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.82);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .success-overlay.active {
+            display: flex;
+        }
+
+        .success-card {
+            background: rgba(30, 25, 40, 0.97);
+            border: 1px solid rgba(52, 211, 153, 0.35);
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            max-width: 440px;
+            width: 90%;
+        }
+
+        .success-icon {
+            margin-bottom: 20px;
+        }
+
+        .success-title {
+            font-size: 1.5rem;
+            color: #34d399;
+            margin-bottom: 10px;
+        }
+
+        .success-message {
+            color: #c4b5d4;
+            margin-bottom: 25px;
+            line-height: 1.65;
+            font-size: 0.95rem;
+        }
+
+        .success-btn {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #34d399, #10b981);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .success-btn:hover {
+            box-shadow: 0 5px 20px rgba(52, 211, 153, 0.3);
+            transform: translateY(-1px);
+        }
+
+        /* ── Tab completion popup ── */
+        .tab-suggestions {
+            display: none;
+            position: absolute;
+            bottom: 52px;
+            left: 20px;
+            background: rgba(30, 25, 40, 0.97);
+            border: 1px solid rgba(167, 139, 250, 0.3);
+            border-radius: 6px;
+            padding: 4px 0;
+            z-index: 200;
+            font-family: 'Consolas', monospace;
+            font-size: 0.8rem;
+        }
+
+        .tab-suggestions.visible {
+            display: block;
+        }
+
+        .tab-option {
+            padding: 4px 14px;
+            color: #a0d4a0;
+            cursor: pointer;
+        }
+
+        .tab-option:hover, .tab-option.selected {
+            background: rgba(167, 139, 250, 0.15);
+            color: #e8d5f5;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 1024px) {
+            .lab-container {
+                grid-template-columns: 1fr;
+            }
+            .task-panel {
+                display: none;
+            }
+            .term-output,
+            .term-input-row {
+                padding-right: 20px;
+            }
+            .instructions-panel {
+                position: absolute;
+                bottom: 60px;
+                top: auto;
+                right: 10px;
+                left: 10px;
+                width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ── Header ── -->
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Azure OpenAI Lab</span>
+            <span class="lab-badge">AI-900 CH.4</span>
+        </div>
+        <div class="task-progress">
+            <span>Progress:</span>
+            <div class="progress-bar-wrap">
+                <div class="progress-bar-fill" id="progressBarFill"></div>
+            </div>
+            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
+        </div>
+    </header>
+
+    <!-- ── Main ── -->
+    <div class="lab-container">
+
+        <!-- ── Left: Task Panel ── -->
+        <aside class="task-panel" id="taskPanel">
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 1 — Resource Setup</div>
+
+                <div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)">
+                    <div class="task-number">Task 1</div>
+                    <div class="task-name">Check Your OpenAI Resource</div>
+                    <div class="task-desc">Run <code>az cognitiveservices account show</code> to verify the pre-configured Azure OpenAI resource</div>
+                </div>
+
+                <div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)">
+                    <div class="task-number">Task 2</div>
+                    <div class="task-name">List Available Models</div>
+                    <div class="task-desc">Use <code>az openai model list</code> to see which GPT and embedding models are available in your resource</div>
+                </div>
+
+                <div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)">
+                    <div class="task-number">Task 3</div>
+                    <div class="task-name">Deploy a GPT Model</div>
+                    <div class="task-desc">Use <code>az openai deployment create</code> to deploy gpt-4o as "my-gpt" — required for all chat tasks</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 2 — Prompting Techniques</div>
+
+                <div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)">
+                    <div class="task-number">Task 4</div>
+                    <div class="task-name">Zero-Shot Prompt</div>
+                    <div class="task-desc">Send a direct question with no examples using <code>az openai chat --deployment my-gpt</code></div>
+                </div>
+
+                <div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)">
+                    <div class="task-number">Task 5</div>
+                    <div class="task-name">Few-Shot Prompt</div>
+                    <div class="task-desc">Use <code>~/prompts/few-shot.txt</code> — provide examples so the model learns the pattern</div>
+                </div>
+
+                <div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)">
+                    <div class="task-number">Task 6</div>
+                    <div class="task-name">System Message</div>
+                    <div class="task-desc">Use <code>--system</code> to give the model a persona and constrain its responses</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 3 — Parameters and Code</div>
+
+                <div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)">
+                    <div class="task-number">Task 7</div>
+                    <div class="task-name">Temperature Comparison</div>
+                    <div class="task-desc">Run the same haiku prompt at <code>--temperature 0.1</code> and <code>--temperature 1.8</code> — compare predictability vs creativity</div>
+                </div>
+
+                <div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)">
+                    <div class="task-number">Task 8</div>
+                    <div class="task-name">Code Generation</div>
+                    <div class="task-desc">Use <code>~/prompts/code-gen.txt</code> to generate a Python function — observe how GPT formats code output</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 4 — Safety and Tokens</div>
+
+                <div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)">
+                    <div class="task-number">Task 9</div>
+                    <div class="task-name">Content Filtering</div>
+                    <div class="task-desc">Use <code>az openai filter check</code> on both safe and harmful text — see how Azure's content filter categories work</div>
+                </div>
+
+                <div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)">
+                    <div class="task-number">Task 10</div>
+                    <div class="task-name">Tokenization</div>
+                    <div class="task-desc">Use <code>az openai tokenize</code> to see how text is split into sub-word tokens — the fundamental unit of LLM input</div>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- ── Right: Terminal Panel ── -->
+        <main class="terminal-panel" id="terminalPanel">
+
+            <!-- Toolbar -->
+            <div class="term-toolbar">
+                <div class="term-dot term-dot-red"></div>
+                <div class="term-dot term-dot-amber"></div>
+                <div class="term-dot term-dot-green"></div>
+                <div class="term-title">student@openai-lab-vm — bash</div>
+                <div class="term-vm-status">
+                    <div class="term-status-dot"></div>
+                    Azure VM Online
+                </div>
+            </div>
+
+            <!-- Scrollable output -->
+            <div class="term-output" id="termOutput"></div>
+
+            <!-- Input row -->
+            <div class="term-input-row">
+                <span class="term-prompt-label">
+                    <span class="term-prompt-user">student@openai-lab-vm</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span>
+                </span>
+                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
+            </div>
+
+            <!-- Tab completion popup -->
+            <div class="tab-suggestions" id="tabSuggestions"></div>
+
+            <!-- Instructions Panel — absolute within terminal-panel, no position:fixed -->
+            <div class="instructions-panel" id="instructionsPanel">
+                <div class="instructions-title" onclick="toggleInstructions()">
+                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+                    Task Instructions
+                    <button class="instructions-toggle" id="instructionsToggle" title="Collapse instructions">&#9660;</button>
+                </div>
+                <div class="instructions-body" id="instructionsBody">
+                    <div class="instructions-step" id="instructionsStep">
+                        Type the command in the terminal and press Enter.
+                    </div>
+                    <div class="instructions-hint" id="instructionsHint">
+                        <img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block">
+                        Hint text loads when you select a task.
+                    </div>
+                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
+                    <div class="hint-command" id="hintCommand"></div>
+                </div>
+            </div>
+
+            <!-- Success Overlay — absolute within terminal-panel, no position:fixed -->
+            <div class="success-overlay" id="successOverlay">
+                <div class="success-card">
+                    <div class="success-icon">
+                        <img src="/assets/images/icons/icon-star.webp" alt="" style="width:3rem;height:3rem;object-fit:contain">
+                    </div>
+                    <div class="success-title">Lab Complete!</div>
+                    <div class="success-message">
+                        You have deployed a GPT model on Azure OpenAI, crafted zero-shot and few-shot prompts,
+                        applied system messages to constrain model behavior, compared temperature settings to
+                        control output randomness, generated code with structured prompts, tested the content
+                        filter against safe and harmful inputs, and observed how text is broken into sub-word
+                        tokens. These are the core skills for working with generative AI in Azure.
+                    </div>
+                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+    (function () {
+        'use strict';
+
+        /* ════════════════════════════════════════════════
+           CONSTANTS
+        ════════════════════════════════════════════════ */
+        var USER      = 'student';
+        var HOST      = 'openai-lab-vm';
+        var HOME      = '/home/student';
+        var RG_NAME   = 'ai-fundamentals-rg';
+        var LOCATION  = 'eastus';
+        var SUB_ID    = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+        var SUB_NAME  = 'Azure-AI900-Lab-Subscription';
+        var TENANT    = 'f9e8d7c6-b5a4-3210-fedc-ba9876543210';
+
+        /* Pre-configured Azure OpenAI resource */
+        var AOAI_NAME     = 'openai-lab';
+        var AOAI_ENDPOINT = 'https://openai-lab.openai.azure.com/';
+        var AOAI_KEY1     = 'a3b4c5d6e7f8901234567890abcdef01';
+        var AOAI_KEY2     = 'b1c2d3e4f5a6078901234567890abcde';
+
+        /* ════════════════════════════════════════════════
+           STATE
+        ════════════════════════════════════════════════ */
+        var cwd        = HOME;
+        var cmdHistory = [];
+        var histIdx    = -1;
+
+        var taskDone = {
+            1: false, 2: false, 3: false, 4: false, 5: false,
+            6: false, 7: false, 8: false, 9: false, 10: false
+        };
+        var TOTAL_TASKS = 10;
+
+        /* Sub-step trackers for multi-step tasks */
+        var task7_low   = false;   /* low-temperature haiku saved */
+        var task7_high  = false;   /* high-temperature haiku saved */
+        var task9_safe  = false;   /* safe content checked */
+        var task9_harm  = false;   /* harmful content blocked */
+        var task10_norm = false;   /* normal phrase tokenized */
+        var task10_long = false;   /* long word tokenized */
+
+        /* Track deployed models: name -> model */
+        var deployments = {};
+
+        var currentTask = 1;
+
+        /* ════════════════════════════════════════════════
+           VIRTUAL FILE SYSTEM
+        ════════════════════════════════════════════════ */
+        var vfs = {};
+
+        function initFS() {
+            /* Directories */
+            var dirs = [
+                '/', '/bin', '/etc', '/home', '/home/student',
+                '/home/student/prompts',
+                '/home/student/results',
+                '/tmp', '/usr', '/usr/bin', '/var', '/var/log'
+            ];
+            dirs.forEach(function (d) {
+                vfs[d] = { type: 'dir', mode: 'drwxr-xr-x' };
+            });
+
+            /* Static files */
+            var files = {
+                '/etc/hostname': {
+                    c: HOST,
+                    m: '-rw-r--r--'
+                },
+                '/etc/hosts': {
+                    c: '127.0.0.1\tlocalhost\n::1\t\tlocalhost\n127.0.1.1\t' + HOST,
+                    m: '-rw-r--r--'
+                },
+                '/var/log/azure-cli.log': {
+                    c: [
+                        '[2026-04-19 08:00:01] INFO  Azure CLI initialized',
+                        '[2026-04-19 08:00:02] INFO  Subscription: ' + SUB_NAME,
+                        '[2026-04-19 08:00:03] INFO  Azure OpenAI endpoint pre-configured',
+                        '[2026-04-19 08:00:04] INFO  Resource group: ' + RG_NAME
+                    ].join('\n'),
+                    m: '-rw-r--r--'
+                },
+
+                /* ── Prompt files ── */
+                '/home/student/prompts/zero-shot.txt': {
+                    c: 'Explain quantum computing in simple terms',
+                    m: '-rw-r--r--'
+                },
+                '/home/student/prompts/few-shot.txt': {
+                    c: "Classify the sentiment of these reviews:\nReview: 'Great product!' Sentiment: positive\nReview: 'Terrible quality.' Sentiment: negative\nReview: 'The battery lasts forever and the screen is beautiful.' Sentiment:",
+                    m: '-rw-r--r--'
+                },
+                '/home/student/prompts/system-message.txt': {
+                    c: 'You are a helpful IT support technician. Answer questions about common computer problems in clear, non-technical language.',
+                    m: '-rw-r--r--'
+                },
+                '/home/student/prompts/code-gen.txt': {
+                    c: 'Write a Python function that takes a list of numbers and returns the average. Include error handling for empty lists.',
+                    m: '-rw-r--r--'
+                }
+            };
+
+            Object.keys(files).forEach(function (p) {
+                vfs[p] = { type: 'file', content: files[p].c, mode: files[p].m };
+            });
+        }
+
+        /* ════════════════════════════════════════════════
+           PATH UTILITIES
+        ════════════════════════════════════════════════ */
+        function resolve(path) {
+            if (!path) return cwd;
+            path = path.replace(/^~/, HOME);
+            if (path[0] !== '/') path = cwd + '/' + path;
+            var parts = path.split('/'), stack = [];
+            for (var i = 0; i < parts.length; i++) {
+                if (parts[i] === '' || parts[i] === '.') continue;
+                if (parts[i] === '..') { stack.pop(); }
+                else { stack.push(parts[i]); }
+            }
+            return '/' + stack.join('/');
+        }
+
+        function parentOf(path) {
+            var i = path.lastIndexOf('/');
+            return i <= 0 ? '/' : path.substring(0, i);
+        }
+
+        function baseName(path) {
+            return path.substring(path.lastIndexOf('/') + 1);
+        }
+
+        function listDir(path) {
+            var prefix = path === '/' ? '/' : path + '/';
+            var names  = {};
+            Object.keys(vfs).forEach(function (p) {
+                if (p === path) return;
+                if (p.indexOf(prefix) === 0) {
+                    var rest = p.substring(prefix.length);
+                    var name = rest.split('/')[0];
+                    if (name && !names[name]) names[name] = true;
+                }
+            });
+            return Object.keys(names).sort();
+        }
+
+        function exists(p) { return Object.prototype.hasOwnProperty.call(vfs, p); }
+        function isDir(p)  { return exists(p) && vfs[p].type === 'dir'; }
+        function isFile(p) { return exists(p) && vfs[p].type === 'file'; }
+
+        function promptPath() {
+            if (cwd === HOME) return '~';
+            if (cwd.indexOf(HOME + '/') === 0) return '~' + cwd.substring(HOME.length);
+            return cwd;
+        }
+
+        /* ════════════════════════════════════════════════
+           TERMINAL UI HELPERS
+        ════════════════════════════════════════════════ */
+        var outputEl, inputEl, ps1PathEl;
+
+        function addLine(text, cls) {
+            var div = document.createElement('div');
+            div.className = 'term-line' + (cls ? ' ' + cls : '');
+            div.textContent = text;
+            outputEl.appendChild(div);
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+
+        function addHTML(html, cls) {
+            var div = document.createElement('div');
+            div.className = 'term-line' + (cls ? ' ' + cls : '');
+            div.innerHTML = html;
+            outputEl.appendChild(div);
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+
+        function addBlank() {
+            addLine('', '');
+        }
+
+        function addPromptLine(cmd) {
+            addHTML(
+                '<span class="term-prompt-span">' + USER + '@' + HOST + '</span>' +
+                '<span class="term-ps1-sep">:</span>' +
+                '<span class="term-path-span">' + escH(promptPath()) + '</span>' +
+                '<span class="term-ps1-sep">$ </span>' + escH(cmd),
+                'term-line-cmd'
+            );
+        }
+
+        function updatePS1() {
+            if (ps1PathEl) ps1PathEl.textContent = promptPath();
+        }
+
+        function escH(s) {
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        /* ── JSON syntax highlighter ──
+           Serializes a JS object to indented JSON then colourises each token type.
+           Returns nothing — writes directly to terminal output. */
+        function printJSON(obj) {
+            var raw = JSON.stringify(obj, null, 2);
+            var html = raw
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                /* keys: "word": */
+                .replace(/"([^"]+)":/g, '<span class="json-key">"$1"</span>:')
+                /* string values */
+                .replace(/: "([^"]*)"/g, ': <span class="json-string">"$1"</span>')
+                /* booleans */
+                .replace(/: (true|false)/g, ': <span class="json-bool">$1</span>')
+                /* null */
+                .replace(/: null/g, ': <span class="json-null">null</span>')
+                /* numbers (integer and float) */
+                .replace(/: (-?\d+\.?\d*)/g, ': <span class="json-number">$1</span>');
+
+            html.split('\n').forEach(function (line) {
+                addHTML(line, 'term-line-out');
+            });
+        }
+
+        /* Write a serialised JSON string to a VFS path (redirect support) */
+        function saveJSON(obj, path) {
+            var rp  = resolve(path);
+            var par = parentOf(rp);
+            if (!exists(par)) {
+                vfs[par] = { type: 'dir', mode: 'drwxr-xr-x' };
+            }
+            vfs[rp] = {
+                type:    'file',
+                content: JSON.stringify(obj, null, 2),
+                mode:    '-rw-r--r--'
+            };
+        }
+
+        /* ════════════════════════════════════════════════
+           ARG PARSING
+           Handles quoted strings and redirect operators (> file).
+           Returns string[] — strips quotes, handles spaces inside quotes.
+        ════════════════════════════════════════════════ */
+        function parseArgs(cmd) {
+            var args = [], buf = '', inQ = false, qC = '';
+            for (var i = 0; i < cmd.length; i++) {
+                var c = cmd[i];
+                if (inQ) {
+                    if (c === qC) { inQ = false; }
+                    else { buf += c; }
+                } else if (c === '"' || c === "'") {
+                    inQ = true; qC = c;
+                } else if (c === ' ' || c === '\t') {
+                    if (buf) { args.push(buf); buf = ''; }
+                } else {
+                    buf += c;
+                }
+            }
+            if (buf) args.push(buf);
+            return args;
+        }
+
+        /* Detect > redirect in raw arg array.
+           Returns { clean: args[], redirect: string|null } */
+        function splitRedirect(args) {
+            var rIdx = args.indexOf('>');
+            if (rIdx < 0) return { clean: args, redirect: null };
+            return {
+                clean:    args.slice(0, rIdx),
+                redirect: args[rIdx + 1] || null
+            };
+        }
+
+        /* Extract a named flag value: --text ~/prompts/foo.txt -> '~/prompts/foo.txt' */
+        function flagVal(args, flag) {
+            var idx = args.indexOf(flag);
+            if (idx < 0) return null;
+            return args[idx + 1] || null;
+        }
+
+        /* ════════════════════════════════════════════════
+           SIMULATED API RESPONSES
+           Each constant/function returns a realistic JSON
+           object matching the Azure OpenAI REST API shape.
+        ════════════════════════════════════════════════ */
+
+        /* ── Model catalog ── */
+        var MODEL_LIST = {
+            requestId: 'req-aoai-models-' + Date.now(),
+            service:   'Azure OpenAI',
+            endpoint:  AOAI_ENDPOINT,
+            models: [
+                {
+                    id:          'gpt-4',
+                    name:        'GPT-4',
+                    version:     '0613',
+                    capabilities: { chat: true, completion: false, embedding: false, imageGeneration: false },
+                    maxTokens:   8192,
+                    status:      'available'
+                },
+                {
+                    id:          'gpt-4o',
+                    name:        'GPT-4o',
+                    version:     '2024-05-13',
+                    capabilities: { chat: true, completion: false, embedding: false, imageGeneration: false },
+                    maxTokens:   128000,
+                    status:      'available'
+                },
+                {
+                    id:          'gpt-35-turbo',
+                    name:        'GPT-3.5 Turbo',
+                    version:     '0125',
+                    capabilities: { chat: true, completion: false, embedding: false, imageGeneration: false },
+                    maxTokens:   16385,
+                    status:      'available'
+                },
+                {
+                    id:          'text-embedding-ada-002',
+                    name:        'text-embedding-ada-002',
+                    version:     '2',
+                    capabilities: { chat: false, completion: false, embedding: true, imageGeneration: false },
+                    maxTokens:   8191,
+                    status:      'available'
+                },
+                {
+                    id:          'dall-e-3',
+                    name:        'DALL-E 3',
+                    version:     '3.0',
+                    capabilities: { chat: false, completion: false, embedding: false, imageGeneration: true },
+                    maxTokens:   null,
+                    status:      'available'
+                }
+            ]
+        };
+
+        /* ── GPT response bodies — realistic, educational completions ── */
+
+        /* Task 4: Zero-shot response — explain quantum computing */
+        var RESP_ZERO_SHOT = {
+            requestId:  'req-aoai-chat-zs-' + Date.now(),
+            service:    'Azure OpenAI',
+            deployment: 'my-gpt',
+            model:      'gpt-4o',
+            usage: {
+                promptTokens:     9,
+                completionTokens: 98,
+                totalTokens:      107
+            },
+            choices: [
+                {
+                    index:        0,
+                    finishReason: 'stop',
+                    message: {
+                        role:    'assistant',
+                        content: "Quantum computing uses the principles of quantum mechanics to process information in a fundamentally different way than classical computers. While a traditional computer stores data as bits that are either 0 or 1, a quantum computer uses quantum bits — called qubits — that can exist as 0, 1, or both simultaneously through a property called superposition. This allows a quantum computer to explore many possible solutions at the same time. Combined with another property called entanglement, where qubits can be linked so that measuring one instantly influences another, quantum computers can solve certain complex problems — like breaking encryption, simulating molecules, or optimising logistics — exponentially faster than any classical machine."
+                    }
+                }
+            ]
+        };
+
+        /* Task 5: Few-shot response — sentiment completion */
+        var RESP_FEW_SHOT = {
+            requestId:  'req-aoai-chat-fs-' + Date.now(),
+            service:    'Azure OpenAI',
+            deployment: 'my-gpt',
+            model:      'gpt-4o',
+            usage: {
+                promptTokens:     62,
+                completionTokens: 1,
+                totalTokens:      63
+            },
+            choices: [
+                {
+                    index:        0,
+                    finishReason: 'stop',
+                    message: {
+                        role:    'assistant',
+                        content: 'positive\n\n---\nNote: The model recognised the pattern from two labelled examples (positive, negative) and correctly classified the third review as positive based on the phrases "lasts forever" and "screen is beautiful". This is few-shot learning — providing in-context examples shifts the model\'s behaviour without any retraining.'
+                    }
+                }
+            ]
+        };
+
+        /* Task 6: System message — IT support response */
+        var RESP_SYSTEM_IT = {
+            requestId:  'req-aoai-chat-sys-' + Date.now(),
+            service:    'Azure OpenAI',
+            deployment: 'my-gpt',
+            model:      'gpt-4o',
+            usage: {
+                promptTokens:     44,
+                completionTokens: 112,
+                totalTokens:      156
+            },
+            choices: [
+                {
+                    index:        0,
+                    finishReason: 'stop',
+                    message: {
+                        role:    'assistant',
+                        content: "No worries — let's work through this step by step.\n\n1. Check the power cable: Make sure it is firmly plugged into both the laptop and the wall outlet. If you are using a power strip, try plugging directly into the wall.\n\n2. Check the charging light: Most laptops have a small LED near the charging port. If it is off, the laptop may not be receiving power at all.\n\n3. Try a hard reset: Hold the power button down for 10-15 seconds, release it, then press it normally. This clears the laptop's memory and can fix a frozen start-up.\n\n4. Remove the battery (if removable): Take the battery out, wait 30 seconds, reinsert it, and try powering on again.\n\nIf none of these work, the issue could be a faulty battery, charging port, or power adapter — at that point I would recommend bringing it to a repair shop."
+                    }
+                }
+            ]
+        };
+
+        /* Task 7: Low temperature haiku — predictable, conventional */
+        var RESP_HAIKU_LOW = {
+            requestId:  'req-aoai-chat-haiku-low-' + Date.now(),
+            service:    'Azure OpenAI',
+            deployment: 'my-gpt',
+            model:      'gpt-4o',
+            temperature: 0.1,
+            maxTokens:   50,
+            usage: {
+                promptTokens:     8,
+                completionTokens: 17,
+                totalTokens:      25
+            },
+            choices: [
+                {
+                    index:        0,
+                    finishReason: 'stop',
+                    message: {
+                        role:    'assistant',
+                        content: 'White clouds drift slowly\nAcross the bright summer sky\nSilence fills the air'
+                    }
+                }
+            ]
+        };
+
+        /* Task 7: High temperature haiku — creative, unexpected */
+        var RESP_HAIKU_HIGH = {
+            requestId:  'req-aoai-chat-haiku-high-' + Date.now(),
+            service:    'Azure OpenAI',
+            deployment: 'my-gpt',
+            model:      'gpt-4o',
+            temperature: 1.8,
+            maxTokens:   50,
+            usage: {
+                promptTokens:     8,
+                completionTokens: 20,
+                totalTokens:      28
+            },
+            choices: [
+                {
+                    index:        0,
+                    finishReason: 'stop',
+                    message: {
+                        role:    'assistant',
+                        content: 'Clouds dissolve like salt\nThunder borrows the sky\'s tongue—\nWet bones remember'
+                    }
+                }
+            ]
+        };
+
+        /* Task 8: Code generation — Python average function */
+        var RESP_CODE_GEN = {
+            requestId:  'req-aoai-chat-code-' + Date.now(),
+            service:    'Azure OpenAI',
+            deployment: 'my-gpt',
+            model:      'gpt-4o',
+            usage: {
+                promptTokens:     22,
+                completionTokens: 148,
+                totalTokens:      170
+            },
+            choices: [
+                {
+                    index:        0,
+                    finishReason: 'stop',
+                    message: {
+                        role:    'assistant',
+                        content: "```python\ndef calculate_average(numbers: list[float]) -> float:\n    \"\"\"\n    Calculate the average (mean) of a list of numbers.\n\n    Args:\n        numbers: A list of numeric values.\n\n    Returns:\n        The arithmetic mean of the list as a float.\n\n    Raises:\n        ValueError: If the input list is empty.\n        TypeError: If any element is not a number.\n    \"\"\"\n    if not numbers:\n        raise ValueError(\n            \"Cannot compute average of an empty list. \"\n            \"Provide at least one numeric value.\"\n        )\n\n    total = sum(numbers)\n    return total / len(numbers)\n\n\n# Example usage\nif __name__ == '__main__':\n    scores = [88, 92, 75, 100, 64]\n    print(f'Average score: {calculate_average(scores):.2f}')  # 83.80\n\n    try:\n        calculate_average([])\n    except ValueError as e:\n        print(f'Error: {e}')\n```"
+                    }
+                }
+            ]
+        };
+
+        /* ── Content filter responses ── */
+
+        /* Task 9a: Safe content — baking a cake */
+        var FILTER_SAFE = {
+            requestId:  'req-aoai-filter-safe-' + Date.now(),
+            service:    'Azure OpenAI',
+            feature:    'ContentFilter',
+            input:      'How do I bake a chocolate cake?',
+            result: {
+                blocked: false,
+                action:  'allowed',
+                categories: {
+                    violence:   { severity: 'safe',   score: 0.001, filtered: false },
+                    self_harm:  { severity: 'safe',   score: 0.000, filtered: false },
+                    sexual:     { severity: 'safe',   score: 0.000, filtered: false },
+                    hate:       { severity: 'safe',   score: 0.001, filtered: false }
+                }
+            }
+        };
+
+        /* Task 9b: Harmful content — account hacking */
+        var FILTER_HARMFUL = {
+            requestId:  'req-aoai-filter-harm-' + Date.now(),
+            service:    'Azure OpenAI',
+            feature:    'ContentFilter',
+            input:      "How do I hack into someone's email account?",
+            result: {
+                blocked:  true,
+                action:   'blocked',
+                categories: {
+                    violence:   { severity: 'medium', score: 0.74, filtered: true  },
+                    self_harm:  { severity: 'safe',   score: 0.01, filtered: false },
+                    sexual:     { severity: 'safe',   score: 0.00, filtered: false },
+                    hate:       { severity: 'safe',   score: 0.02, filtered: false }
+                },
+                message: 'This request was blocked by the content filter. The prompt was classified as potentially harmful (violence, severity: medium). Adjust your prompt and retry.'
+            }
+        };
+
+        /* ── Tokenize responses ── */
+
+        /* Task 10a: Normal sentence — shows tokenization of common words */
+        var TOKENIZE_NORMAL = {
+            requestId:   'req-aoai-tok-norm-' + Date.now(),
+            service:     'Azure OpenAI',
+            feature:     'Tokenization',
+            encoding:    'cl100k_base',
+            inputText:   'Azure AI is transforming how businesses operate',
+            tokenCount:  8,
+            tokens: [
+                { token: 'Azure',          id: 35226 },
+                { token: ' AI',            id: 15592 },
+                { token: ' is',            id: 374   },
+                { token: ' transform',     id: 5276  },
+                { token: 'ing',            id: 287   },
+                { token: ' how',           id: 1268  },
+                { token: ' businesses',    id: 9873  },
+                { token: ' operate',       id: 8532  }
+            ],
+            note: 'Notice that "transforming" is split into "transform" + "ing" — this is Byte-Pair Encoding (BPE). Common word stems are separate tokens. The space before each word is included as part of that token.'
+        };
+
+        /* Task 10b: Long uncommon word — shows heavy sub-word splitting */
+        var TOKENIZE_LONG = {
+            requestId:   'req-aoai-tok-long-' + Date.now(),
+            service:     'Azure OpenAI',
+            feature:     'Tokenization',
+            encoding:    'cl100k_base',
+            inputText:   'Supercalifragilisticexpialidocious',
+            tokenCount:  11,
+            tokens: [
+                { token: 'Super',          id: 13807 },
+                { token: 'cal',            id: 5531  },
+                { token: 'if',             id: 333   },
+                { token: 'rag',            id: 7855  },
+                { token: 'ilist',          id: 3346  },
+                { token: 'ice',            id: 1036  },
+                { token: 'x',             id: 87    },
+                { token: 'pi',             id: 1508  },
+                { token: 'al',             id: 278   },
+                { token: 'id',             id: 307   },
+                { token: 'ocious',         id: 51843 }
+            ],
+            note: 'A single rare word produces 11 tokens. This is why long, uncommon words cost more in API usage — billing is per token, not per word. GPT-4o has a context window of 128,000 tokens.'
+        };
+
+        /* ════════════════════════════════════════════════
+           GENERIC GPT FALLBACK
+           Used when --prompt text doesn't match a known scenario.
+        ════════════════════════════════════════════════ */
+        function buildGenericChat(deployment, prompt, temperature) {
+            var temp = parseFloat(temperature) || 1.0;
+            return {
+                requestId:   'req-aoai-chat-generic-' + Date.now(),
+                service:     'Azure OpenAI',
+                deployment:  deployment,
+                model:       deployments[deployment] || 'gpt-4o',
+                temperature: temp,
+                usage: {
+                    promptTokens:     Math.floor(prompt.length / 4),
+                    completionTokens: 45,
+                    totalTokens:      Math.floor(prompt.length / 4) + 45
+                },
+                choices: [
+                    {
+                        index:        0,
+                        finishReason: 'stop',
+                        message: {
+                            role:    'assistant',
+                            content: 'I processed your prompt and generated a response. In a live environment this would be a real GPT-4o completion. Try one of the lab prompts from ~/prompts/ to see detailed educational outputs.'
+                        }
+                    }
+                ]
+            };
+        }
+
+        /* ════════════════════════════════════════════════
+           PROMPT MATCHING
+           Maps known prompt text (or file content) to the
+           pre-built educational response bodies above.
+        ════════════════════════════════════════════════ */
+        function matchChatResponse(promptText, systemText, temperature, maxTokens, deployment) {
+            var p    = (promptText  || '').toLowerCase().trim();
+            var s    = (systemText  || '').toLowerCase().trim();
+            var temp = parseFloat(temperature);
+
+            /* Few-shot: prompt contains the sentiment classification pattern */
+            if (p.indexOf('classify the sentiment') >= 0 ||
+                p.indexOf('sentiment: positive') >= 0) {
+                return { result: RESP_FEW_SHOT, key: 'few_shot' };
+            }
+
+            /* System message + laptop won't turn on */
+            if (p.indexOf("won't turn on") >= 0 ||
+                p.indexOf('laptop') >= 0 ||
+                s.indexOf('it support') >= 0 ||
+                s.indexOf('support technician') >= 0) {
+                return { result: RESP_SYSTEM_IT, key: 'system_it' };
+            }
+
+            /* Zero-shot: quantum computing */
+            if (p.indexOf('quantum') >= 0) {
+                return { result: RESP_ZERO_SHOT, key: 'zero_shot' };
+            }
+
+            /* Code generation */
+            if (p.indexOf('python function') >= 0 ||
+                p.indexOf('average') >= 0 ||
+                p.indexOf('code-gen') >= 0) {
+                return { result: RESP_CODE_GEN, key: 'code_gen' };
+            }
+
+            /* Temperature comparison: haiku */
+            if (p.indexOf('haiku') >= 0 || p.indexOf('cloud') >= 0) {
+                if (!isNaN(temp) && temp >= 1.0) {
+                    return { result: RESP_HAIKU_HIGH, key: 'haiku_high', temp: temp };
+                }
+                return { result: RESP_HAIKU_LOW, key: 'haiku_low', temp: temp };
+            }
+
+            /* Generic fallback */
+            return { result: buildGenericChat(deployment, promptText, temperature), key: 'generic' };
+        }
+
+        /* ════════════════════════════════════════════════
+           FILESYSTEM COMMANDS
+        ════════════════════════════════════════════════ */
+        function cmd_ls(args) {
+            var sr   = splitRedirect(args);
+            var path = sr.clean[0] ? resolve(sr.clean[0]) : cwd;
+            var long = sr.clean.indexOf('-l') >= 0 || sr.clean.indexOf('-la') >= 0 || sr.clean.indexOf('-al') >= 0;
+
+            if (!exists(path)) {
+                addLine('ls: cannot access \'' + args[0] + '\': No such file or directory', 'term-line-err');
+                return null;
+            }
+
+            if (isFile(path)) {
+                if (long) {
+                    var f = vfs[path];
+                    addLine((f.mode || '-rw-r--r--') + ' 1 ' + USER + ' ' + USER + '  ' + (f.content || '').length + ' Apr 19 08:00 ' + baseName(path), 'term-line-out');
+                } else {
+                    addLine(baseName(path), 'term-line-out');
+                }
+                return 'listed';
+            }
+
+            var items = listDir(path);
+            if (!items.length) {
+                addLine('(empty directory)', 'term-line-dim');
+                return 'listed';
+            }
+
+            if (long) {
+                addLine('total ' + items.length, 'term-line-out');
+                items.forEach(function (name) {
+                    var full = (path === '/' ? '' : path) + '/' + name;
+                    var node = vfs[full];
+                    var mode = node ? node.mode : 'drwxr-xr-x';
+                    var size = (node && node.content) ? node.content.length : 0;
+                    addLine(mode + ' 1 ' + USER + ' ' + USER + '  ' + String(size).padStart(6) + ' Apr 19 08:00 ' + name, 'term-line-out');
+                });
+            } else {
+                var cols = [];
+                items.forEach(function (name) {
+                    var full = (path === '/' ? '' : path) + '/' + name;
+                    cols.push(isDir(full) ? name + '/' : name);
+                });
+                addLine(cols.join('  '), 'term-line-out');
+            }
+            return 'listed';
+        }
+
+        function cmd_cat(args) {
+            if (!args.length) {
+                addLine('cat: missing file operand', 'term-line-err');
+                return null;
+            }
+            var path = resolve(args[0]);
+            if (!exists(path)) {
+                addLine('cat: ' + args[0] + ': No such file or directory', 'term-line-err');
+                return null;
+            }
+            if (isDir(path)) {
+                addLine('cat: ' + args[0] + ': Is a directory', 'term-line-err');
+                return null;
+            }
+            var content = vfs[path].content || '';
+            content.split('\n').forEach(function (line) {
+                addLine(line, 'term-line-out');
+            });
+            return { catted: true, path: path };
+        }
+
+        function cmd_cd(args) {
+            var target = args[0] ? resolve(args[0]) : HOME;
+            if (!exists(target)) {
+                addLine('bash: cd: ' + args[0] + ': No such file or directory', 'term-line-err');
+                return null;
+            }
+            if (!isDir(target)) {
+                addLine('bash: cd: ' + args[0] + ': Not a directory', 'term-line-err');
+                return null;
+            }
+            cwd = target;
+            updatePS1();
+            return 'changed';
+        }
+
+        function cmd_pwd() {
+            addLine(cwd, 'term-line-out');
+            return 'pwd';
+        }
+
+        function cmd_echo(args) {
+            var sr = splitRedirect(args);
+            var text = sr.clean.join(' ').replace(/^\$([A-Z_]+)$/g, function (m, name) {
+                var envMap = {
+                    AOAI_ENDPOINT: AOAI_ENDPOINT,
+                    AOAI_KEY:      AOAI_KEY1,
+                    HOME:          HOME,
+                    USER:          USER
+                };
+                return envMap[name] || m;
+            });
+            if (sr.redirect) {
+                var rp = resolve(sr.redirect);
+                vfs[rp] = { type: 'file', content: text, mode: '-rw-r--r--' };
+                addLine('(output redirected to ' + sr.redirect + ')', 'term-line-info');
+            } else {
+                addLine(text, 'term-line-out');
+            }
+            return 'echoed';
+        }
+
+        function cmd_mkdir(args) {
+            if (!args.length) {
+                addLine('mkdir: missing operand', 'term-line-err');
+                return null;
+            }
+            var target = resolve(args[0]);
+            if (exists(target)) {
+                addLine('mkdir: cannot create directory \'' + args[0] + '\': File exists', 'term-line-err');
+                return null;
+            }
+            vfs[target] = { type: 'dir', mode: 'drwxr-xr-x' };
+            return 'mkdir';
+        }
+
+        function cmd_cp(args) {
+            if (args.length < 2) {
+                addLine('cp: missing destination file operand', 'term-line-err');
+                return null;
+            }
+            var src  = resolve(args[0]);
+            var dest = resolve(args[1]);
+            if (!exists(src)) {
+                addLine('cp: ' + args[0] + ': No such file or directory', 'term-line-err');
+                return null;
+            }
+            vfs[dest] = JSON.parse(JSON.stringify(vfs[src]));
+            addLine('(copied ' + args[0] + ' -> ' + args[1] + ')', 'term-line-info');
+            return 'copied';
+        }
+
+        function cmd_diff(args) {
+            var sr = splitRedirect(args);
+            if (sr.clean.length < 2) {
+                addLine('diff: missing operand', 'term-line-err');
+                return null;
+            }
+            var p1 = resolve(sr.clean[0]);
+            var p2 = resolve(sr.clean[1]);
+            if (!exists(p1)) {
+                addLine('diff: ' + sr.clean[0] + ': No such file or directory', 'term-line-err');
+                return null;
+            }
+            if (!exists(p2)) {
+                addLine('diff: ' + sr.clean[1] + ': No such file or directory', 'term-line-err');
+                return null;
+            }
+            var c1 = (vfs[p1].content || '').split('\n');
+            var c2 = (vfs[p2].content || '').split('\n');
+            var diffLines = 0;
+            var maxLines  = Math.max(c1.length, c2.length);
+            for (var i = 0; i < maxLines; i++) {
+                var l1 = c1[i] || '';
+                var l2 = c2[i] || '';
+                if (l1 !== l2) {
+                    if (diffLines < 30) {
+                        addLine('< ' + l1, 'term-line-warn');
+                        addLine('> ' + l2, 'term-line-info');
+                    }
+                    diffLines++;
+                }
+            }
+            if (!diffLines) {
+                addLine('(files are identical)', 'term-line-info');
+            } else {
+                addLine('--- ' + sr.clean[0], 'term-line-dim');
+                addLine('+++ ' + sr.clean[1], 'term-line-dim');
+                addLine(diffLines + ' line(s) differ between the two files.', 'term-line-info');
+            }
+            return { diffed: true, path1: p1, path2: p2 };
+        }
+
+        function cmd_env() {
+            addLine('AOAI_ENDPOINT=' + AOAI_ENDPOINT, 'term-line-out');
+            addLine('AOAI_KEY=a3b4c5d6e7f8901234567890abcdef01', 'term-line-out');
+            addLine('HOME=' + HOME,  'term-line-out');
+            addLine('USER=' + USER,  'term-line-out');
+            addLine('SHELL=/bin/bash', 'term-line-out');
+            addLine('TERM=xterm-256color', 'term-line-out');
+            return 'env';
+        }
+
+        function cmd_help() {
+            addBlank();
+            addLine('Azure OpenAI Lab — Available Commands', 'term-welcome');
+            addLine('─'.repeat(50), 'term-line-dim');
+            addBlank();
+            addLine('FILESYSTEM', 'term-line-warn');
+            addLine('  ls [path]              List directory contents', 'term-line-out');
+            addLine('  ls -l [path]           Long listing with permissions', 'term-line-out');
+            addLine('  cat <file>             Display file contents', 'term-line-out');
+            addLine('  cd <path>              Change directory', 'term-line-out');
+            addLine('  pwd                    Print working directory', 'term-line-out');
+            addLine('  mkdir <dir>            Create directory', 'term-line-out');
+            addLine('  cp <src> <dst>         Copy file', 'term-line-out');
+            addLine('  echo <text>            Print text (supports > redirect)', 'term-line-out');
+            addLine('  diff <file1> <file2>   Compare two files', 'term-line-out');
+            addLine('  env                    Show environment variables', 'term-line-out');
+            addBlank();
+            addLine('AZURE CLI', 'term-line-warn');
+            addLine('  az account show                    Show subscription', 'term-line-out');
+            addLine('  az cognitiveservices account show  Show OpenAI resource', 'term-line-out');
+            addBlank();
+            addLine('AZURE OPENAI', 'term-line-warn');
+            addLine('  az openai model list               List available models', 'term-line-out');
+            addLine('  az openai deployment create \\      Deploy a model', 'term-line-out');
+            addLine('    --name <name> --model <model>', 'term-line-out');
+            addLine('  az openai deployment list          List deployments', 'term-line-out');
+            addLine('  az openai chat \\                   Send a chat completion', 'term-line-out');
+            addLine('    --deployment <name> \\', 'term-line-out');
+            addLine('    --prompt <text-or-file> \\', 'term-line-out');
+            addLine('    [--system <text>] \\', 'term-line-out');
+            addLine('    [--temperature <0-2>] \\', 'term-line-out');
+            addLine('    [--max-tokens <n>]', 'term-line-out');
+            addLine('  az openai filter check --text <t>  Check content filter', 'term-line-out');
+            addLine('  az openai tokenize --text <t>      Show token breakdown', 'term-line-out');
+            addBlank();
+            addLine('  Supports: > <file> redirect, ~ expansion, history (arrows)', 'term-line-dim');
+            addBlank();
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az
+        ════════════════════════════════════════════════ */
+        function cmd_az(args) {
+            if (!args.length) {
+                addLine('az: command not found. Try "az --help" or just "help".', 'term-line-err');
+                return null;
+            }
+
+            var sub = args[0];
+
+            if (sub === 'cognitiveservices') return cmd_az_cog(args.slice(1));
+            if (sub === 'openai')            return cmd_az_openai(args.slice(1));
+
+            /* az account show */
+            if (sub === 'account' && args[1] === 'show') {
+                printJSON({
+                    id:              SUB_ID,
+                    name:            SUB_NAME,
+                    state:           'Enabled',
+                    tenantId:        TENANT,
+                    isDefault:       true,
+                    environmentName: 'AzureCloud',
+                    homeTenantId:    TENANT
+                });
+                return 'account_shown';
+            }
+
+            addLine('az ' + args.join(' ') + ': unrecognised command. Type "help" for available commands.', 'term-line-err');
+            return null;
+        }
+
+        /* ── az cognitiveservices account show ── */
+        function cmd_az_cog(args) {
+            if (!args.length || args[0] !== 'account') {
+                addLine('az cognitiveservices: usage: az cognitiveservices account <subcommand>', 'term-line-err');
+                return null;
+            }
+            var sub = args[1];
+
+            if (sub === 'show') {
+                var name = flagVal(args, '--name');
+                var rg   = flagVal(args, '--resource-group');
+                if (!name || !rg) {
+                    addLine('az cognitiveservices account show: --name and --resource-group are required.', 'term-line-err');
+                    return null;
+                }
+                if (name !== AOAI_NAME || rg !== RG_NAME) {
+                    addLine('ERROR: Resource "' + name + '" not found in group "' + rg + '".', 'term-line-err');
+                    addLine('Hint: the pre-configured resource is "' + AOAI_NAME + '" in "' + RG_NAME + '".', 'term-line-info');
+                    return null;
+                }
+                printJSON({
+                    id:       '/subscriptions/' + SUB_ID + '/resourceGroups/' + RG_NAME + '/providers/Microsoft.CognitiveServices/accounts/' + AOAI_NAME,
+                    name:     AOAI_NAME,
+                    type:     'Microsoft.CognitiveServices/accounts',
+                    location: LOCATION,
+                    kind:     'OpenAI',
+                    sku:      { name: 'S0', tier: 'Standard' },
+                    properties: {
+                        endpoint:          AOAI_ENDPOINT,
+                        provisioningState: 'Succeeded',
+                        internalId:        'aoai-' + SUB_ID.substring(0, 8),
+                        dateCreated:       '2026-04-19T08:00:00Z',
+                        callRateLimit: {
+                            rules: [
+                                { key: 'chat',      renewalPeriod: 60, count: 60,  dynamicThrottlingEnabled: true },
+                                { key: 'embedding', renewalPeriod: 60, count: 120, dynamicThrottlingEnabled: true }
+                            ]
+                        }
+                    },
+                    tags: {
+                        environment: 'lab',
+                        course:      'AI-900'
+                    }
+                });
+                return { shown: true, name: name };
+            }
+
+            if (sub === 'keys' && args[2] === 'list') {
+                var kname = flagVal(args, '--name');
+                var krg   = flagVal(args, '--resource-group');
+                if (!kname || !krg) {
+                    addLine('az cognitiveservices account keys list: --name and --resource-group are required.', 'term-line-err');
+                    return null;
+                }
+                printJSON({ key1: AOAI_KEY1, key2: AOAI_KEY2 });
+                return { keys_retrieved: true };
+            }
+
+            addLine('az cognitiveservices account ' + (sub || '') + ': unrecognised sub-command.', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az openai (all sub-commands)
+        ════════════════════════════════════════════════ */
+        function cmd_az_openai(args) {
+            if (!args.length) {
+                addLine('az openai: usage: az openai <subcommand>', 'term-line-err');
+                addLine('Subcommands: model, deployment, chat, filter, tokenize', 'term-line-info');
+                return null;
+            }
+
+            var sub = args[0];
+
+            if (sub === 'model')      return cmd_aoai_model(args.slice(1));
+            if (sub === 'deployment') return cmd_aoai_deployment(args.slice(1));
+            if (sub === 'chat')       return cmd_aoai_chat(args.slice(1));
+            if (sub === 'filter')     return cmd_aoai_filter(args.slice(1));
+            if (sub === 'tokenize')   return cmd_aoai_tokenize(args.slice(1));
+
+            addLine('az openai: unrecognised subcommand "' + sub + '". Type "help" for available commands.', 'term-line-err');
+            return null;
+        }
+
+        /* ── az openai model list ── */
+        function cmd_aoai_model(args) {
+            if (!args.length || args[0] !== 'list') {
+                addLine('az openai model: usage: az openai model list', 'term-line-err');
+                return null;
+            }
+            printJSON(MODEL_LIST);
+            return { models_listed: true };
+        }
+
+        /* ── az openai deployment create / list ── */
+        function cmd_aoai_deployment(args) {
+            if (!args.length) {
+                addLine('az openai deployment: usage: az openai deployment <create|list>', 'term-line-err');
+                return null;
+            }
+
+            var sub = args[0];
+
+            if (sub === 'list') {
+                var depNames = Object.keys(deployments);
+                if (!depNames.length) {
+                    printJSON({
+                        requestId:   'req-aoai-dep-list-' + Date.now(),
+                        service:     'Azure OpenAI',
+                        deployments: [],
+                        message:     'No deployments found. Use "az openai deployment create --name <name> --model <model>" to create one.'
+                    });
+                } else {
+                    var depArr = depNames.map(function (n) {
+                        return {
+                            name:              n,
+                            model:             deployments[n],
+                            status:            'succeeded',
+                            provisioningState: 'Succeeded',
+                            createdAt:         '2026-04-19T08:05:00Z',
+                            endpoint:          AOAI_ENDPOINT + 'openai/deployments/' + n
+                        };
+                    });
+                    printJSON({
+                        requestId:   'req-aoai-dep-list-' + Date.now(),
+                        service:     'Azure OpenAI',
+                        deployments: depArr
+                    });
+                }
+                return { deployments_listed: true };
+            }
+
+            if (sub === 'create') {
+                var depName  = flagVal(args, '--name');
+                var model    = flagVal(args, '--model');
+
+                if (!depName) {
+                    addLine('az openai deployment create: --name <deployment-name> is required.', 'term-line-err');
+                    return null;
+                }
+                if (!model) {
+                    addLine('az openai deployment create: --model <model-id> is required.', 'term-line-err');
+                    addLine('Available models: gpt-4, gpt-4o, gpt-35-turbo, text-embedding-ada-002, dall-e-3', 'term-line-info');
+                    return null;
+                }
+
+                var validModels = ['gpt-4', 'gpt-4o', 'gpt-35-turbo', 'text-embedding-ada-002', 'dall-e-3'];
+                if (validModels.indexOf(model) < 0) {
+                    addLine('ERROR: Model "' + model + '" is not available. Run "az openai model list" to see available models.', 'term-line-err');
+                    return null;
+                }
+
+                /* Simulate provisioning */
+                addLine('Creating deployment "' + depName + '" with model "' + model + '"...', 'term-line-info');
+
+                deployments[depName] = model;
+
+                printJSON({
+                    requestId:         'req-aoai-dep-create-' + Date.now(),
+                    service:           'Azure OpenAI',
+                    name:              depName,
+                    model:             model,
+                    status:            'succeeded',
+                    provisioningState: 'Succeeded',
+                    createdAt:         '2026-04-19T08:05:00Z',
+                    endpoint:          AOAI_ENDPOINT + 'openai/deployments/' + depName,
+                    rateLimit: {
+                        requestsPerMinute: 60,
+                        tokensPerMinute:   40000
+                    }
+                });
+                return { deployment_created: true, name: depName, model: model };
+            }
+
+            addLine('az openai deployment: unknown subcommand "' + sub + '". Try "create" or "list".', 'term-line-err');
+            return null;
+        }
+
+        /* ── az openai chat ── */
+        function cmd_aoai_chat(args) {
+            var sr        = splitRedirect(args);
+            var cleanArgs = sr.clean;
+            var redirect  = sr.redirect;
+
+            var deployment  = flagVal(cleanArgs, '--deployment');
+            var promptArg   = flagVal(cleanArgs, '--prompt');
+            var systemArg   = flagVal(cleanArgs, '--system');
+            var tempArg     = flagVal(cleanArgs, '--temperature');
+            var maxTokArg   = flagVal(cleanArgs, '--max-tokens');
+
+            if (!deployment) {
+                addLine('az openai chat: --deployment <name> is required.', 'term-line-err');
+                addLine('First deploy a model: az openai deployment create --name my-gpt --model gpt-4o', 'term-line-info');
+                return null;
+            }
+            if (!promptArg) {
+                addLine('az openai chat: --prompt <text-or-file> is required.', 'term-line-err');
+                return null;
+            }
+
+            /* Validate deployment exists */
+            if (!Object.prototype.hasOwnProperty.call(deployments, deployment)) {
+                addLine('ERROR: Deployment "' + deployment + '" not found.', 'term-line-err');
+                addLine('Run "az openai deployment list" to see available deployments.', 'term-line-info');
+                addLine('Or deploy one: az openai deployment create --name ' + deployment + ' --model gpt-4o', 'term-line-info');
+                return null;
+            }
+
+            /* Resolve prompt: file path or inline string */
+            var promptText = null;
+            var resolvedPath = resolve(promptArg);
+
+            if (isFile(resolvedPath)) {
+                promptText = vfs[resolvedPath].content || '';
+            } else {
+                /* Treat as literal string */
+                if ((promptArg.indexOf('/') >= 0 || promptArg.indexOf('~') >= 0) &&
+                    promptArg.indexOf(' ') < 0) {
+                    addLine('az openai chat: file not found: ' + promptArg, 'term-line-err');
+                    addLine('Available prompts: ls ~/prompts/', 'term-line-info');
+                    return null;
+                }
+                promptText = promptArg;
+            }
+
+            /* Resolve system message: file path or inline string */
+            var systemText = null;
+            if (systemArg) {
+                var sysPath = resolve(systemArg);
+                if (isFile(sysPath)) {
+                    systemText = vfs[sysPath].content || '';
+                } else {
+                    systemText = systemArg;
+                }
+            }
+
+            /* Match to appropriate pre-built response — deep copy to avoid mutating constants */
+            var match  = matchChatResponse(promptText, systemText, tempArg, maxTokArg, deployment);
+            var result = JSON.parse(JSON.stringify(match.result));
+
+            /* Annotate with actual call parameters */
+            result.deployment  = deployment;
+            if (tempArg)    result.temperature = parseFloat(tempArg);
+            if (maxTokArg)  result.maxTokens   = parseInt(maxTokArg, 10);
+            if (systemText) result.systemMessage = systemText;
+
+            if (redirect) {
+                saveJSON(result, redirect);
+                addLine('(output redirected to ' + redirect + ')', 'term-line-info');
+                return {
+                    saved:      true,
+                    path:       redirect,
+                    key:        match.key,
+                    deployment: deployment,
+                    temp:       tempArg ? parseFloat(tempArg) : null,
+                    hasSystem:  !!systemArg,
+                    promptFile: isFile(resolvedPath) ? baseName(resolvedPath) : null
+                };
+            }
+
+            /* Print the JSON response */
+            printJSON(result);
+
+            /* For code-gen, also render the code block distinctly */
+            if (match.key === 'code_gen') {
+                addBlank();
+                addLine('─── Code Output ───────────────────────────────', 'term-line-dim');
+                var codeContent = result.choices[0].message.content;
+                var codeLines   = codeContent.split('\n');
+                codeLines.forEach(function (ln) {
+                    addLine(ln, 'term-line-code');
+                });
+                addLine('───────────────────────────────────────────────', 'term-line-dim');
+            }
+
+            return {
+                saved:      false,
+                key:        match.key,
+                deployment: deployment,
+                temp:       tempArg ? parseFloat(tempArg) : null,
+                hasSystem:  !!systemArg,
+                promptFile: isFile(resolvedPath) ? baseName(resolvedPath) : null
+            };
+        }
+
+        /* ── az openai filter check ── */
+        function cmd_aoai_filter(args) {
+            if (!args.length || args[0] !== 'check') {
+                addLine('az openai filter: usage: az openai filter check --text <text>', 'term-line-err');
+                return null;
+            }
+
+            var textArg = flagVal(args, '--text');
+            if (!textArg) {
+                addLine('az openai filter check: --text <text> is required.', 'term-line-err');
+                return null;
+            }
+
+            /* Detect harmful keywords */
+            var lower = textArg.toLowerCase();
+            var isHarmful = (
+                lower.indexOf('hack') >= 0 ||
+                lower.indexOf('attack') >= 0 ||
+                lower.indexOf('exploit') >= 0 ||
+                lower.indexOf('bomb') >= 0 ||
+                lower.indexOf('weapon') >= 0 ||
+                lower.indexOf('malware') >= 0 ||
+                lower.indexOf('phish') >= 0 ||
+                lower.indexOf('crack') >= 0
+            );
+
+            var result = isHarmful ? FILTER_HARMFUL : FILTER_SAFE;
+            /* Update the input field to reflect actual text */
+            result = JSON.parse(JSON.stringify(result));
+            result.input = textArg;
+            result.requestId = 'req-aoai-filter-' + Date.now();
+
+            printJSON(result);
+            return {
+                filter_checked: true,
+                blocked:        isHarmful,
+                text:           textArg
+            };
+        }
+
+        /* ── az openai tokenize ── */
+        function cmd_aoai_tokenize(args) {
+            var textArg = flagVal(args, '--text');
+            if (!textArg) {
+                addLine('az openai tokenize: --text <text> is required.', 'term-line-err');
+                return null;
+            }
+
+            /* Choose response: "long" = the known compound word demo */
+            var isLong = textArg.toLowerCase().indexOf('supercali') >= 0 ||
+                         (textArg.split(' ').length === 1 && textArg.length > 15);
+
+            var result = JSON.parse(JSON.stringify(isLong ? TOKENIZE_LONG : TOKENIZE_NORMAL));
+            result.inputText  = textArg;
+            result.requestId  = 'req-aoai-tok-' + Date.now();
+
+            printJSON(result);
+
+            /* Print a visual token table */
+            addBlank();
+            addLine('  Token Breakdown:', 'term-line-info');
+            addLine('  ┌──────────────────────────┬────────┐', 'term-line-dim');
+            addLine('  │ Token                    │  ID    │', 'term-line-dim');
+            addLine('  ├──────────────────────────┼────────┤', 'term-line-dim');
+            result.tokens.forEach(function (t) {
+                var tok  = ('  │ ' + escTokenPad(t.token, 24)).substring(0, 28) + '│ ' + String(t.id).padStart(6) + ' │';
+                addLine(tok, 'term-line-out');
+            });
+            addLine('  └──────────────────────────┴────────┘', 'term-line-dim');
+            addLine('  Total tokens: ' + result.tokenCount, 'term-line-info');
+            addBlank();
+            addLine('  ' + result.note, 'term-line-warn');
+
+            return {
+                tokenized: true,
+                isLong:    isLong,
+                text:      textArg,
+                count:     result.tokenCount
+            };
+        }
+
+        /* Pad a string to n characters — no HTML escaping needed here (plain text) */
+        function escTokenPad(s, n) {
+            var out = String(s);
+            while (out.length < n) out += ' ';
+            return out;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND DISPATCH
+           Parses the raw input line, resolves redirect,
+           and routes to the correct handler.
+        ════════════════════════════════════════════════ */
+        function execLine(line) {
+            addPromptLine(line);
+
+            var trimmed = line.trim();
+            if (!trimmed) return;
+
+            var args = parseArgs(trimmed);
+            var cmd  = args[0];
+            var rest = args.slice(1);
+
+            var result = null;
+
+            switch (cmd) {
+                case 'ls':
+                    result = cmd_ls(rest);
+                    break;
+                case 'cat':
+                    result = cmd_cat(rest);
+                    break;
+                case 'cd':
+                    result = cmd_cd(rest);
+                    break;
+                case 'pwd':
+                    result = cmd_pwd();
+                    break;
+                case 'echo':
+                    result = cmd_echo(rest);
+                    break;
+                case 'mkdir':
+                    result = cmd_mkdir(rest);
+                    break;
+                case 'cp':
+                    result = cmd_cp(rest);
+                    break;
+                case 'diff':
+                    result = cmd_diff(rest);
+                    break;
+                case 'env':
+                    result = cmd_env();
+                    break;
+                case 'az':
+                    result = cmd_az(rest);
+                    break;
+                case 'clear':
+                    outputEl.innerHTML = '';
+                    return;
+                case 'help':
+                    cmd_help();
+                    return;
+                case 'history':
+                    if (!cmdHistory.length) {
+                        addLine('(no history)', 'term-line-info');
+                    } else {
+                        cmdHistory.forEach(function (h, i) {
+                            addLine(String(i + 1).padStart(4) + '  ' + h, 'term-line-out');
+                        });
+                    }
+                    return;
+                case 'exit':
+                    addLine('Use "Exit Lab" in the header to leave the lab.', 'term-line-info');
+                    return;
+                case 'sudo':
+                    addLine('student is not in the sudoers file. This incident will be reported.', 'term-line-err');
+                    return;
+                default:
+                    addLine('bash: ' + cmd + ': command not found. Type "help" for available commands.', 'term-line-err');
+                    return;
+            }
+
+            checkTaskCompletion(line, result, args);
+        }
+
+        /* ════════════════════════════════════════════════
+           TASK VERIFICATION
+           Each task checks a specific result signature that
+           can only come from running the correct command(s).
+        ════════════════════════════════════════════════ */
+        function checkTaskCompletion(line, result, args) {
+            var cmd = args[0];
+
+            /* ── Task 1: az cognitiveservices account show --name openai-lab ── */
+            if (!taskDone[1]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.shown === true && result.name === AOAI_NAME) {
+                    completeTask(1);
+                }
+            }
+
+            /* ── Task 2: az openai model list ── */
+            if (!taskDone[2]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.models_listed === true) {
+                    completeTask(2);
+                }
+            }
+
+            /* ── Task 3: az openai deployment create --name my-gpt --model gpt-4o ── */
+            if (!taskDone[3]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.deployment_created === true &&
+                    result.name === 'my-gpt' &&
+                    result.model === 'gpt-4o') {
+                    completeTask(3);
+                }
+            }
+
+            /* ── Task 4: zero-shot chat (quantum computing or zero-shot.txt file) ── */
+            if (!taskDone[4]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.key === 'zero_shot' && !result.saved) {
+                    completeTask(4);
+                }
+            }
+
+            /* ── Task 5: few-shot chat (few-shot.txt or the classification pattern) ── */
+            if (!taskDone[5]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.key === 'few_shot' && !result.saved) {
+                    completeTask(5);
+                }
+            }
+
+            /* ── Task 6: system message chat ── */
+            if (!taskDone[6]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.key === 'system_it' && !result.saved) {
+                    completeTask(6);
+                }
+            }
+
+            /* ── Task 7: haiku at low temp AND high temp (saved or printed — either counts) ── */
+            if (!taskDone[7]) {
+                if (cmd === 'az' && result && typeof result === 'object') {
+                    if (result.key === 'haiku_low')  task7_low  = true;
+                    if (result.key === 'haiku_high') task7_high = true;
+                }
+                if (task7_low && task7_high) completeTask(7);
+            }
+
+            /* ── Task 8: code generation prompt ── */
+            if (!taskDone[8]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.key === 'code_gen' && !result.saved) {
+                    completeTask(8);
+                }
+            }
+
+            /* ── Task 9: safe filter check AND harmful filter check ── */
+            if (!taskDone[9]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.filter_checked === true) {
+                    if (!result.blocked) task9_safe = true;
+                    if (result.blocked)  task9_harm = true;
+                }
+                if (task9_safe && task9_harm) completeTask(9);
+            }
+
+            /* ── Task 10: tokenize a normal phrase AND a long word ── */
+            if (!taskDone[10]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.tokenized === true) {
+                    if (!result.isLong) task10_norm = true;
+                    if (result.isLong)  task10_long = true;
+                }
+                if (task10_norm && task10_long) completeTask(10);
+            }
+        }
+
+        /* ════════════════════════════════════════════════
+           TASK PROGRESS MANAGEMENT
+        ════════════════════════════════════════════════ */
+        function completeTask(num) {
+            if (taskDone[num]) return;
+            taskDone[num] = true;
+
+            var card = document.getElementById('task-card-' + num);
+            if (card) {
+                card.classList.add('completed');
+                card.classList.remove('active');
+            }
+
+            var doneCount = countDone();
+
+            document.getElementById('taskProgress').textContent = doneCount + ' / ' + TOTAL_TASKS + ' Tasks';
+            var fill = document.getElementById('progressBarFill');
+            if (fill) fill.style.width = Math.round((doneCount / TOTAL_TASKS) * 100) + '%';
+
+            addBlank();
+            addHTML(
+                '  <span style="color:#34d399">[Task ' + num + ' complete]</span> ' +
+                '<span style="color:#6b5b7e">' + escH(getTaskName(num)) + '</span>',
+                'term-line-info'
+            );
+            addBlank();
+
+            if (doneCount === TOTAL_TASKS) {
+                setTimeout(function () {
+                    document.getElementById('successOverlay').classList.add('active');
+                }, 700);
+                return;
+            }
+
+            var next = nextIncompleteTask();
+            if (next !== null) selectTask(next);
+        }
+
+        function getTaskName(num) {
+            var names = {
+                1:  'Check Your OpenAI Resource',
+                2:  'List Available Models',
+                3:  'Deploy a GPT Model',
+                4:  'Zero-Shot Prompt',
+                5:  'Few-Shot Prompt',
+                6:  'System Message',
+                7:  'Temperature Comparison',
+                8:  'Code Generation',
+                9:  'Content Filtering',
+                10: 'Tokenization'
+            };
+            return names[num] || 'Task ' + num;
+        }
+
+        function countDone() {
+            var n = 0;
+            for (var k in taskDone) {
+                if (Object.prototype.hasOwnProperty.call(taskDone, k) && taskDone[k]) n++;
+            }
+            return n;
+        }
+
+        function nextIncompleteTask() {
+            for (var i = 1; i <= TOTAL_TASKS; i++) {
+                if (!taskDone[i]) return i;
+            }
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           INSTRUCTIONS PANEL CONTENT
+        ════════════════════════════════════════════════ */
+        var taskInstructions = {
+            1: {
+                step: 'Verify the pre-configured Azure OpenAI resource:\n<code>az cognitiveservices account show --name openai-lab --resource-group ai-fundamentals-rg</code>\n\nNote the <code>kind</code> is "OpenAI" (not "TextAnalytics" — this is a different cognitive service type). Note the <code>endpoint</code> URL, the <code>sku</code> tier, and the per-service rate limits under <code>callRateLimit</code>.',
+                hint: 'Azure OpenAI is provisioned through the CognitiveServices resource provider, just like Azure AI Language — but with kind="OpenAI". The S0 SKU is the standard paid tier. Rate limits (requests per minute, tokens per minute) are critical for production workload planning.',
+                cmd:  'az cognitiveservices account show --name openai-lab --resource-group ai-fundamentals-rg'
+            },
+            2: {
+                step: 'List the models available in your Azure OpenAI resource:\n<code>az openai model list</code>\n\nStudy the <code>capabilities</code> object on each model. Notice: GPT-4 and GPT-4o have <code>chat: true</code>. text-embedding-ada-002 has only <code>embedding: true</code>. DALL-E 3 has only <code>imageGeneration: true</code>. Each model serves a fundamentally different purpose.',
+                hint: 'Key exam point: in Azure OpenAI, you do not call a model directly — you deploy it first and call the deployment. This separation allows organisations to control which models are enabled, set rate limits per deployment, and manage costs. Not all models are available in all Azure regions.',
+                cmd:  'az openai model list'
+            },
+            3: {
+                step: 'Deploy the GPT-4o model with the name "my-gpt":\n<code>az openai deployment create --name my-gpt --model gpt-4o</code>\n\nThis name ("my-gpt") is used in all subsequent chat commands. Note the <code>rateLimit</code> in the response — this is the cap for your deployment, not the model globally. Then verify it was created:\n<code>az openai deployment list</code>',
+                hint: 'Deployments are required because Azure OpenAI supports multiple simultaneous deployments of the same model with different configurations. For example, a production deployment might have 60 RPM while a test deployment has 10 RPM. The deployment name is what you pass to the API, not the model name.',
+                cmd:  'az openai deployment create --name my-gpt --model gpt-4o'
+            },
+            4: {
+                step: 'Send a zero-shot prompt — a direct question with no examples:\n<code>az openai chat --deployment my-gpt --prompt "Explain quantum computing in simple terms"</code>\n\nAlternatively, use the pre-written prompt file:\n<code>az openai chat --deployment my-gpt --prompt ~/prompts/zero-shot.txt</code>\n\nObserve the <code>usage</code> field in the response: <code>promptTokens</code>, <code>completionTokens</code>, and <code>totalTokens</code>.',
+                hint: 'Zero-shot prompting means giving the model only the task description with no worked examples. GPT-4o can answer a wide range of questions this way because of what it learned during pretraining. The model\'s large knowledge base was built from internet-scale text — your prompt just activates the relevant knowledge.',
+                cmd:  'az openai chat --deployment my-gpt --prompt "Explain quantum computing in simple terms"'
+            },
+            5: {
+                step: 'Send a few-shot prompt using the prepared example file:\n<code>az openai chat --deployment my-gpt --prompt ~/prompts/few-shot.txt</code>\n\nFirst run <code>cat ~/prompts/few-shot.txt</code> to read the file. The pattern: two labelled examples (positive, negative) followed by a third review without a label. The model should complete the pattern.',
+                hint: 'Few-shot learning is one of the most powerful patterns in prompt engineering. By including worked examples in the prompt, you shift the model\'s behaviour without any retraining. This is in-context learning: the examples are in the context window, not baked into the model weights. The more consistent your examples, the more reliably the model follows the pattern.',
+                cmd:  'az openai chat --deployment my-gpt --prompt ~/prompts/few-shot.txt'
+            },
+            6: {
+                step: 'Add a system message to give the model a persona and constrain its responses:\n<code>az openai chat --deployment my-gpt --prompt "My laptop won\'t turn on" --system "You are a helpful IT support technician. Answer in clear, non-technical language."</code>\n\nThe system message sets the model\'s role for the entire conversation. Observe how the response differs from a plain question to GPT.',
+                hint: 'The system message is placed at the top of the conversation before any user turn. It is the most reliable way to constrain model behaviour: setting a persona, defining the response format, restricting topics, or adjusting tone. In production apps, the system message is typically hard-coded by the developer — not editable by end users.',
+                cmd:  'az openai chat --deployment my-gpt --prompt "My laptop won\'t turn on" --system "You are a helpful IT support technician. Answer in clear, non-technical language."'
+            },
+            7: {
+                step: 'Run the same haiku prompt twice with very different temperatures — save both outputs:\n1. <code>az openai chat --deployment my-gpt --prompt "Write a haiku about clouds" --temperature 0.1 --max-tokens 50 > ~/results/low-temp.json</code>\n2. <code>az openai chat --deployment my-gpt --prompt "Write a haiku about clouds" --temperature 1.8 --max-tokens 50 > ~/results/high-temp.json</code>\n\nThen compare: <code>diff ~/results/low-temp.json ~/results/high-temp.json</code>',
+                hint: 'Temperature controls randomness in token selection. At 0.1 the model almost always picks the highest-probability next token — output is predictable and conventional. At 1.8 it samples from a much flatter distribution — unusual tokens become likely, producing creative or even incoherent output. Temperature 1.0 is the default balanced setting. For factual Q&A, use low temperature. For creative writing, use high temperature.',
+                cmd:  'az openai chat --deployment my-gpt --prompt "Write a haiku about clouds" --temperature 0.1 --max-tokens 50 > ~/results/low-temp.json\naz openai chat --deployment my-gpt --prompt "Write a haiku about clouds" --temperature 1.8 --max-tokens 50 > ~/results/high-temp.json'
+            },
+            8: {
+                step: 'Use the code generation prompt file to ask GPT for a Python function:\n<code>az openai chat --deployment my-gpt --prompt ~/prompts/code-gen.txt</code>\n\nFirst read the prompt with <code>cat ~/prompts/code-gen.txt</code>. Examine the response: GPT-4o formats code in a fenced block, includes a docstring, uses type hints, and adds error handling for the edge case. These are engineering best practices the model learned from training on GitHub code.',
+                hint: 'GPT-4o is particularly capable at code generation because OpenAI fine-tuned it on billions of lines of public code. Key exam points: (1) Generative AI can produce code, but humans must review it for correctness. (2) The response format (code block, docstring, type hints) is guided by the training data, not explicit instructions — though you can add formatting requirements to your prompt.',
+                cmd:  'az openai chat --deployment my-gpt --prompt ~/prompts/code-gen.txt'
+            },
+            9: {
+                step: 'Two commands required — test both safe and harmful content:\n1. <code>az openai filter check --text "How do I bake a chocolate cake?"</code>\n2. <code>az openai filter check --text "How do I hack into someone\'s email account?"</code>\n\nCompare the <code>categories</code> object in each response. The second request shows a blocked result with severity and filtered fields per category.',
+                hint: 'Azure OpenAI\'s content filter runs on both the input (prompt) and output (completion). It operates across four categories: violence, self-harm, sexual, and hate. Severity has four levels: safe, low, medium, high. The action field tells you what happened: allowed vs blocked. In production, you configure the threshold for each category independently — some use cases (e.g., medical) need different thresholds than consumer apps.',
+                cmd:  'az openai filter check --text "How do I bake a chocolate cake?"\naz openai filter check --text "How do I hack into someone\'s email account?"'
+            },
+            10: {
+                step: 'Two commands required — tokenize different types of text:\n1. <code>az openai tokenize --text "Azure AI is transforming how businesses operate"</code>\n2. <code>az openai tokenize --text "Supercalifragilisticexpialidocious"</code>\n\nCount the tokens in each response. For the long word, count how many tokens one word generates. This is Byte-Pair Encoding (BPE) in action.',
+                hint: 'Tokenization is the first step in how every LLM processes text. GPT-4o uses the cl100k_base tokenizer. Common words are often a single token. Rare or very long words split into multiple sub-word tokens. This matters for: (1) billing (priced per token), (2) context window limits (counted in tokens, not words), and (3) model behaviour (the model never "sees" raw text, only token IDs).',
+                cmd:  'az openai tokenize --text "Azure AI is transforming how businesses operate"\naz openai tokenize --text "Supercalifragilisticexpialidocious"'
+            }
+        };
+
+        function selectTask(num) {
+            currentTask = num;
+
+            /* Highlight active card */
+            for (var i = 1; i <= TOTAL_TASKS; i++) {
+                var card = document.getElementById('task-card-' + i);
+                if (!card) continue;
+                card.classList.remove('active');
+                if (i === num) card.classList.add('active');
+            }
+
+            /* Scroll active card into view */
+            var activeCard = document.getElementById('task-card-' + num);
+            if (activeCard) activeCard.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+
+            /* Update instructions panel */
+            var info = taskInstructions[num];
+            if (!info) return;
+
+            var stepEl  = document.getElementById('instructionsStep');
+            var hintEl  = document.getElementById('instructionsHint');
+            var hintCmd = document.getElementById('hintCommand');
+
+            if (stepEl) stepEl.innerHTML = info.step.replace(/\n/g, '<br>');
+            if (hintEl) {
+                hintEl.innerHTML =
+                    '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block"> ' +
+                    escH(info.hint);
+            }
+            if (hintCmd) {
+                hintCmd.textContent = info.cmd;
+                hintCmd.classList.remove('visible');
+            }
+
+            /* Reset hint button label */
+            var btn = document.getElementById('hintBtn');
+            if (btn) btn.textContent = 'Show command hint';
+
+            /* Re-expand panel if collapsed */
+            var panel = document.getElementById('instructionsPanel');
+            if (panel && panel.classList.contains('collapsed')) {
+                panel.classList.remove('collapsed');
+            }
+        }
+
+        function toggleInstructions() {
+            var panel = document.getElementById('instructionsPanel');
+            if (panel) panel.classList.toggle('collapsed');
+        }
+
+        function revealHint() {
+            var hintCmd = document.getElementById('hintCommand');
+            if (hintCmd) hintCmd.classList.toggle('visible');
+            var btn = document.getElementById('hintBtn');
+            if (btn) btn.textContent = (hintCmd && hintCmd.classList.contains('visible')) ? 'Hide hint' : 'Show command hint';
+        }
+
+        /* Expose for inline HTML handlers */
+        window.selectTask         = selectTask;
+        window.toggleInstructions = toggleInstructions;
+        window.revealHint         = revealHint;
+
+        /* ════════════════════════════════════════════════
+           TAB COMPLETION
+        ════════════════════════════════════════════════ */
+        var AZ_COMPLETIONS = {
+            'az ':                                         ['cognitiveservices', 'openai', 'account'],
+            'az cognitiveservices ':                       ['account'],
+            'az cognitiveservices account ':               ['keys', 'show'],
+            'az cognitiveservices account keys ':          ['list'],
+            'az openai ':                                  ['chat', 'deployment', 'filter', 'model', 'tokenize'],
+            'az openai model ':                            ['list'],
+            'az openai deployment ':                       ['create', 'list'],
+            'az openai deployment create ':                ['--name', '--model'],
+            'az openai chat ':                             ['--deployment', '--prompt', '--system', '--temperature', '--max-tokens'],
+            'az openai filter ':                           ['check'],
+            'az openai filter check ':                     ['--text'],
+            'az openai tokenize ':                         ['--text']
+        };
+
+        function handleTab(value) {
+            var suggestions = [];
+            var matchKey    = '';
+
+            var keys = Object.keys(AZ_COMPLETIONS);
+            for (var i = 0; i < keys.length; i++) {
+                if (value.indexOf(keys[i]) === 0 && keys[i].length > matchKey.length) {
+                    matchKey = keys[i];
+                }
+            }
+
+            if (matchKey) {
+                var partial  = value.substring(matchKey.length);
+                var options  = AZ_COMPLETIONS[matchKey];
+                suggestions  = options.filter(function (o) { return o.indexOf(partial) === 0; });
+            }
+
+            var popup = document.getElementById('tabSuggestions');
+            if (!popup) return;
+
+            if (suggestions.length === 0) {
+                popup.classList.remove('visible');
+                popup.innerHTML = '';
+                return;
+            }
+
+            if (suggestions.length === 1) {
+                inputEl.value = matchKey + suggestions[0] + ' ';
+                popup.classList.remove('visible');
+                popup.innerHTML = '';
+                return;
+            }
+
+            /* Show popup for multiple options */
+            popup.innerHTML = '';
+            suggestions.forEach(function (s) {
+                var div = document.createElement('div');
+                div.className = 'tab-option';
+                div.textContent = s;
+                div.addEventListener('click', function () {
+                    inputEl.value = matchKey + s + ' ';
+                    popup.classList.remove('visible');
+                    popup.innerHTML = '';
+                    inputEl.focus();
+                });
+                popup.appendChild(div);
+            });
+            popup.classList.add('visible');
+        }
+
+        /* ════════════════════════════════════════════════
+           FINISH LAB
+        ════════════════════════════════════════════════ */
+        function finishLab() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('ai', 'ai900-ch04-lab', {
+                    returnUrl: '../index.html'
+                });
+            } else {
+                window.location.href = '../index.html';
+            }
+        }
+
+        window.finishLab = finishLab;
+
+        /* ════════════════════════════════════════════════
+           INIT
+        ════════════════════════════════════════════════ */
+        function init() {
+            initFS();
+
+            outputEl  = document.getElementById('termOutput');
+            inputEl   = document.getElementById('termInput');
+            ps1PathEl = document.getElementById('termPS1Path');
+
+            if (!outputEl || !inputEl) return;
+
+            /* ── Welcome Banner ── */
+            addLine('Azure OpenAI Lab — Hexworth Prime', 'term-welcome');
+            addLine('Azure CLI 2.58.0   Ubuntu 22.04 LTS   AI-900 Chapter 4', 'term-welcome');
+            addBlank();
+            addLine('Resource   : ' + AOAI_NAME + ' (OpenAI / S0)', 'term-line-info');
+            addLine('Endpoint   : ' + AOAI_ENDPOINT, 'term-line-info');
+            addLine('Prompts    : ls ~/prompts/', 'term-line-info');
+            addLine('Results    : ls ~/results/', 'term-line-info');
+            addBlank();
+            addLine('Type "help" for all available commands.', 'term-line-info');
+            addLine('Complete 10 tasks to finish this lab.', 'term-line-info');
+            addBlank();
+            addLine('NOTE: "az openai" commands are simulated for this lab environment. In', 'term-line-warn');
+            addLine('production, use the Azure OpenAI REST API, Python SDK, or Azure AI Foundry.', 'term-line-warn');
+            addBlank();
+
+            /* ── Keyboard Handler ── */
+            inputEl.addEventListener('keydown', function (e) {
+                var tabPopup = document.getElementById('tabSuggestions');
+
+                if (e.key === 'Enter') {
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                    var cmd = inputEl.value;
+                    inputEl.value = '';
+                    if (cmd.trim()) {
+                        cmdHistory.push(cmd);
+                        histIdx = cmdHistory.length;
+                    }
+                    execLine(cmd);
+                } else if (e.key === 'Tab') {
+                    e.preventDefault();
+                    handleTab(inputEl.value);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                    if (histIdx > 0) {
+                        histIdx--;
+                        inputEl.value = cmdHistory[histIdx];
+                    }
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                    if (histIdx < cmdHistory.length - 1) {
+                        histIdx++;
+                        inputEl.value = cmdHistory[histIdx];
+                    } else {
+                        histIdx = cmdHistory.length;
+                        inputEl.value = '';
+                    }
+                } else if (e.key === 'Escape') {
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                }
+            });
+
+            /* Click anywhere in output to refocus input */
+            outputEl.addEventListener('click', function () { inputEl.focus(); });
+
+            /* Auto-focus on load */
+            inputEl.focus();
+
+            /* Show task 1 in instructions panel */
+            selectTask(1);
+        }
+
+        /* Boot after DOM ready */
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+
+    })();
+    </script>
+
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
