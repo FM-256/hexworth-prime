@@ -1,0 +1,2739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control — must be first -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <!-- Progress & Auth -->
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Machine Learning Lab — AI-900 Chapter 5</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            height: 100vh;
+            overflow: hidden;
+            background: #0c0c0c;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #c4b5d4;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header ── */
+        .lab-header {
+            flex-shrink: 0;
+            padding: 15px 30px;
+            background: rgba(10, 10, 15, 0.95);
+            border-bottom: 1px solid rgba(167, 139, 250, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .back-btn {
+            padding: 8px 16px;
+            background: rgba(167, 139, 250, 0.1);
+            border: 1px solid rgba(167, 139, 250, 0.3);
+            border-radius: 6px;
+            color: #a78bfa;
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: rgba(167, 139, 250, 0.2);
+        }
+
+        .lab-title {
+            font-size: 1rem;
+            color: #e8d5f5;
+        }
+
+        .lab-badge {
+            padding: 4px 12px;
+            background: rgba(52, 211, 153, 0.15);
+            border: 1px solid rgba(52, 211, 153, 0.3);
+            border-radius: 12px;
+            font-size: 0.7rem;
+            color: #34d399;
+            letter-spacing: 0.05em;
+        }
+
+        .task-progress {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 0.85rem;
+            color: #8b7a9e;
+        }
+
+        .task-count {
+            color: #a78bfa;
+            font-weight: 500;
+        }
+
+        /* Progress bar */
+        .progress-bar-wrap {
+            width: 140px;
+            height: 6px;
+            background: rgba(167, 139, 250, 0.15);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #a78bfa, #7c3aed);
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.4s ease;
+        }
+
+        /* ── Main Layout ── */
+        .lab-container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* ── Task Panel ── */
+        .task-panel {
+            background: rgba(15, 12, 20, 0.95);
+            border-right: 1px solid rgba(167, 139, 250, 0.15);
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .task-section {
+            margin-bottom: 25px;
+        }
+
+        .task-section-title {
+            font-size: 0.68rem;
+            color: #6b5b7e;
+            letter-spacing: 0.15em;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+        }
+
+        .task-card {
+            background: rgba(25, 20, 35, 0.8);
+            border: 1px solid rgba(167, 139, 250, 0.15);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .task-card:hover {
+            border-color: rgba(167, 139, 250, 0.4);
+        }
+
+        .task-card.active {
+            border-color: #a78bfa;
+            background: rgba(167, 139, 250, 0.1);
+        }
+
+        .task-card.completed {
+            border-color: rgba(52, 211, 153, 0.4);
+            background: rgba(52, 211, 153, 0.04);
+        }
+
+        /* Completed badge — CSS only, no emoji */
+        .task-card.completed .task-name::after {
+            content: ' [done]';
+            font-size: 0.72rem;
+            color: #34d399;
+            font-weight: 400;
+        }
+
+        .task-number {
+            font-size: 0.68rem;
+            color: #a78bfa;
+            margin-bottom: 4px;
+        }
+
+        .task-name {
+            font-size: 0.9rem;
+            color: #e8d5f5;
+            margin-bottom: 4px;
+        }
+
+        .task-desc {
+            font-size: 0.77rem;
+            color: #8b7a9e;
+            line-height: 1.45;
+        }
+
+        /* Inline code in task cards */
+        .task-desc code {
+            background: rgba(167, 139, 250, 0.15);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 0.82em;
+            color: #a78bfa;
+            font-family: 'Consolas', monospace;
+        }
+
+        /* ── Terminal Panel ── */
+        .terminal-panel {
+            display: flex;
+            flex-direction: column;
+            background: #0a0a0a;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Toolbar */
+        .term-toolbar {
+            flex-shrink: 0;
+            padding: 8px 20px;
+            background: rgba(20, 15, 30, 0.9);
+            border-bottom: 1px solid rgba(167, 139, 250, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .term-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .term-dot-red   { background: #ff5f57; }
+        .term-dot-amber { background: #febc2e; }
+        .term-dot-green { background: #28c840; }
+
+        .term-title {
+            flex: 1;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #8b7a9e;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+
+        .term-vm-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            color: #34d399;
+        }
+
+        .term-status-dot {
+            width: 7px;
+            height: 7px;
+            background: #34d399;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.4; }
+        }
+
+        /* ── Terminal scroll area ── */
+        .term-output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 360px 8px 20px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            line-height: 1.6;
+        }
+
+        /* ── Terminal input row ── */
+        .term-input-row {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            padding: 8px 360px 12px 20px;
+            border-top: 1px solid rgba(167, 139, 250, 0.1);
+            gap: 0;
+        }
+
+        .term-prompt-label {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .term-prompt-user   { color: #a78bfa; }
+        .term-prompt-sep    { color: #6b5b7e; }
+        .term-prompt-path   { color: #34d399; }
+        .term-prompt-dollar { color: #e8d5f5; margin-right: 6px; }
+
+        .term-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #e8d5f5;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            caret-color: #a78bfa;
+        }
+
+        /* ── Terminal line classes ── */
+        .term-line {
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .term-line-cmd  { color: #c4b5d4; }
+        .term-line-out  { color: #a0d4a0; }
+        .term-line-err  { color: #f87171; }
+        .term-line-info { color: #60a5fa; }
+        .term-line-warn { color: #fbbf24; }
+        .term-line-dim  { color: #4b3f5e; }
+        .term-welcome   { color: #a78bfa; }
+        .term-line-code { color: #86efac; font-family: 'Consolas', 'Courier New', monospace; }
+
+        /* Prompt echo spans */
+        .term-prompt-span { color: #a78bfa; }
+        .term-path-span   { color: #34d399; }
+        .term-ps1-sep     { color: #6b5b7e; }
+
+        /* JSON syntax highlighting */
+        .json-key    { color: #a78bfa; }
+        .json-string { color: #86efac; }
+        .json-number { color: #fbbf24; }
+        .json-bool   { color: #60a5fa; }
+        .json-null   { color: #f87171; }
+
+        /* ── Instructions Panel — absolute within terminal-panel, no position:fixed ── */
+        .instructions-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 320px;
+            background: rgba(30, 25, 40, 0.97);
+            border: 1px solid rgba(167, 139, 250, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 100;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .instructions-panel.collapsed {
+            width: auto;
+            padding: 10px 14px;
+            cursor: pointer;
+        }
+
+        .instructions-panel.collapsed .instructions-body {
+            display: none;
+        }
+
+        .instructions-panel.collapsed .instructions-toggle {
+            transform: rotate(180deg);
+        }
+
+        .instructions-title {
+            font-size: 1rem;
+            color: #a78bfa;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .instructions-panel.collapsed .instructions-title {
+            margin-bottom: 0;
+            font-size: 0.85rem;
+        }
+
+        .instructions-toggle {
+            margin-left: auto;
+            width: 28px;
+            height: 28px;
+            background: rgba(167, 139, 250, 0.2);
+            border: 1px solid rgba(167, 139, 250, 0.3);
+            border-radius: 6px;
+            color: #a78bfa;
+            font-size: 0.75rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .instructions-toggle:hover {
+            background: rgba(167, 139, 250, 0.4);
+        }
+
+        .instructions-step {
+            font-size: 0.88rem;
+            color: #c4b5d4;
+            line-height: 1.65;
+            margin-bottom: 14px;
+        }
+
+        .instructions-step code {
+            background: rgba(167, 139, 250, 0.2);
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            color: #a78bfa;
+            font-size: 0.85em;
+        }
+
+        .instructions-hint {
+            font-size: 0.78rem;
+            color: #6b5b7e;
+            font-style: italic;
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(167, 139, 250, 0.15);
+            line-height: 1.5;
+        }
+
+        /* Hint reveal button */
+        .hint-btn {
+            margin-top: 12px;
+            padding: 6px 12px;
+            background: rgba(167, 139, 250, 0.12);
+            border: 1px solid rgba(167, 139, 250, 0.25);
+            border-radius: 5px;
+            color: #a78bfa;
+            font-size: 0.75rem;
+            cursor: pointer;
+            font-family: 'Segoe UI', sans-serif;
+            transition: all 0.2s ease;
+            width: 100%;
+            text-align: center;
+        }
+
+        .hint-btn:hover {
+            background: rgba(167, 139, 250, 0.22);
+        }
+
+        .hint-command {
+            display: none;
+            margin-top: 10px;
+            padding: 8px 10px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(167, 139, 250, 0.25);
+            border-radius: 6px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.78rem;
+            color: #86efac;
+            line-height: 1.55;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .hint-command.visible {
+            display: block;
+        }
+
+        /* ── Success Overlay ── */
+        .success-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.82);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .success-overlay.active {
+            display: flex;
+        }
+
+        .success-card {
+            background: rgba(30, 25, 40, 0.97);
+            border: 1px solid rgba(52, 211, 153, 0.35);
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            max-width: 440px;
+            width: 90%;
+        }
+
+        .success-icon {
+            margin-bottom: 20px;
+        }
+
+        .success-title {
+            font-size: 1.5rem;
+            color: #34d399;
+            margin-bottom: 10px;
+        }
+
+        .success-message {
+            color: #c4b5d4;
+            margin-bottom: 25px;
+            line-height: 1.65;
+            font-size: 0.95rem;
+        }
+
+        .success-btn {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #34d399, #10b981);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .success-btn:hover {
+            box-shadow: 0 5px 20px rgba(52, 211, 153, 0.3);
+            transform: translateY(-1px);
+        }
+
+        /* ── Tab completion popup ── */
+        .tab-suggestions {
+            display: none;
+            position: absolute;
+            bottom: 52px;
+            left: 20px;
+            background: rgba(30, 25, 40, 0.97);
+            border: 1px solid rgba(167, 139, 250, 0.3);
+            border-radius: 6px;
+            padding: 4px 0;
+            z-index: 200;
+            font-family: 'Consolas', monospace;
+            font-size: 0.8rem;
+        }
+
+        .tab-suggestions.visible {
+            display: block;
+        }
+
+        .tab-option {
+            padding: 4px 14px;
+            color: #a0d4a0;
+            cursor: pointer;
+        }
+
+        .tab-option:hover, .tab-option.selected {
+            background: rgba(167, 139, 250, 0.15);
+            color: #e8d5f5;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 1024px) {
+            .lab-container {
+                grid-template-columns: 1fr;
+            }
+            .task-panel {
+                display: none;
+            }
+            .term-output,
+            .term-input-row {
+                padding-right: 20px;
+            }
+            .instructions-panel {
+                position: absolute;
+                bottom: 60px;
+                top: auto;
+                right: 10px;
+                left: 10px;
+                width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ── Header ── -->
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Azure Machine Learning Lab</span>
+            <span class="lab-badge">AI-900 CH.5</span>
+        </div>
+        <div class="task-progress">
+            <span>Progress:</span>
+            <div class="progress-bar-wrap">
+                <div class="progress-bar-fill" id="progressBarFill"></div>
+            </div>
+            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
+        </div>
+    </header>
+
+    <!-- ── Main ── -->
+    <div class="lab-container">
+
+        <!-- ── Left: Task Panel ── -->
+        <aside class="task-panel" id="taskPanel">
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 1 — Workspace and Data</div>
+
+                <div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)">
+                    <div class="task-number">Task 1</div>
+                    <div class="task-name">Check Your ML Workspace</div>
+                    <div class="task-desc">Run <code>az ml workspace show</code> to verify the pre-configured Azure ML workspace and its linked resources</div>
+                </div>
+
+                <div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)">
+                    <div class="task-number">Task 2</div>
+                    <div class="task-name">Explore the Datasets</div>
+                    <div class="task-desc">Use <code>az ml data list</code> then <code>cat ~/data/car-prices.csv</code> to see the registered datasets and inspect raw data</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 2 — AutoML Experiments</div>
+
+                <div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)">
+                    <div class="task-number">Task 3</div>
+                    <div class="task-name">Run AutoML — Regression</div>
+                    <div class="task-desc">Use <code>az ml job create --type automl --task regression --data car-prices --target price</code> to train a price predictor</div>
+                </div>
+
+                <div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)">
+                    <div class="task-number">Task 4</div>
+                    <div class="task-name">View Regression Results</div>
+                    <div class="task-desc">Run <code>az ml job show --name automl-regression-001</code> to see the best algorithm, feature importances, and evaluation metrics</div>
+                </div>
+
+                <div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)">
+                    <div class="task-number">Task 5</div>
+                    <div class="task-name">Run AutoML — Classification</div>
+                    <div class="task-desc">Use <code>az ml job create --type automl --task classification --data diabetes-risk --target risk</code> to train a risk classifier</div>
+                </div>
+
+                <div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)">
+                    <div class="task-number">Task 6</div>
+                    <div class="task-name">View Classification Results</div>
+                    <div class="task-desc">Run <code>az ml job show --name automl-classification-001</code> to inspect AUC, F1, and the confusion matrix</div>
+                </div>
+
+                <div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)">
+                    <div class="task-number">Task 7</div>
+                    <div class="task-name">Run AutoML — Clustering</div>
+                    <div class="task-desc">Use <code>az ml job create --type automl --task clustering --data customers --target none</code> to segment customers</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 3 — Models and Deployment</div>
+
+                <div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)">
+                    <div class="task-number">Task 8</div>
+                    <div class="task-name">List and Inspect Models</div>
+                    <div class="task-desc">Run <code>az ml model list</code> then <code>az ml model show --name car-price-predictor</code> to review the full model card</div>
+                </div>
+
+                <div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)">
+                    <div class="task-number">Task 9</div>
+                    <div class="task-name">Deploy a Model</div>
+                    <div class="task-desc">Use <code>az ml endpoint create --name car-price-api --model car-price-predictor</code> to host the model as a REST endpoint</div>
+                </div>
+
+                <div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)">
+                    <div class="task-number">Task 10</div>
+                    <div class="task-name">Make a Prediction</div>
+                    <div class="task-desc">Use <code>az ml endpoint invoke --name car-price-api --input '{"make":"Toyota",...}'</code> to send a real prediction request</div>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- ── Right: Terminal Panel ── -->
+        <main class="terminal-panel" id="terminalPanel">
+
+            <!-- Toolbar -->
+            <div class="term-toolbar">
+                <div class="term-dot term-dot-red"></div>
+                <div class="term-dot term-dot-amber"></div>
+                <div class="term-dot term-dot-green"></div>
+                <div class="term-title">student@ml-lab-vm — bash</div>
+                <div class="term-vm-status">
+                    <div class="term-status-dot"></div>
+                    Azure ML Compute Online
+                </div>
+            </div>
+
+            <!-- Scrollable output -->
+            <div class="term-output" id="termOutput"></div>
+
+            <!-- Input row -->
+            <div class="term-input-row">
+                <span class="term-prompt-label">
+                    <span class="term-prompt-user">student@ml-lab-vm</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span>
+                </span>
+                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
+            </div>
+
+            <!-- Tab completion popup -->
+            <div class="tab-suggestions" id="tabSuggestions"></div>
+
+            <!-- Instructions Panel — absolute within terminal-panel, no position:fixed -->
+            <div class="instructions-panel" id="instructionsPanel">
+                <div class="instructions-title" onclick="toggleInstructions()">
+                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+                    Task Instructions
+                    <button class="instructions-toggle" id="instructionsToggle" title="Collapse instructions">&#9660;</button>
+                </div>
+                <div class="instructions-body" id="instructionsBody">
+                    <div class="instructions-step" id="instructionsStep">
+                        Type the command in the terminal and press Enter.
+                    </div>
+                    <div class="instructions-hint" id="instructionsHint">
+                        <img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block">
+                        Hint text loads when you select a task.
+                    </div>
+                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
+                    <div class="hint-command" id="hintCommand"></div>
+                </div>
+            </div>
+
+            <!-- Success Overlay — absolute within terminal-panel, no position:fixed -->
+            <div class="success-overlay" id="successOverlay">
+                <div class="success-card">
+                    <div class="success-icon">
+                        <img src="/assets/images/icons/icon-star.webp" alt="" style="width:3rem;height:3rem;object-fit:contain">
+                    </div>
+                    <div class="success-title">Lab Complete!</div>
+                    <div class="success-message">
+                        You verified an Azure ML workspace, explored three datasets, ran AutoML experiments
+                        across regression, classification, and clustering, interpreted feature importances and
+                        evaluation metrics including R-squared, AUC, and silhouette score, deployed a trained
+                        model as a REST endpoint, and sent a live prediction request. These are the core skills
+                        for working with predictive machine learning in Azure.
+                    </div>
+                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+    (function () {
+        'use strict';
+
+        /* ════════════════════════════════════════════════
+           CONSTANTS
+        ════════════════════════════════════════════════ */
+        var USER       = 'student';
+        var HOST       = 'ml-lab-vm';
+        var HOME       = '/home/student';
+        var RG_NAME    = 'ai-fundamentals-rg';
+        var LOCATION   = 'eastus';
+        var SUB_ID     = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+        var SUB_NAME   = 'Azure-AI900-Lab-Subscription';
+        var WS_NAME    = 'ai900-ml-workspace';
+        var WS_STORAGE = 'ai900mlstorage42f1';
+        var WS_KV      = 'ai900mlkeyvault42f1';
+        var WS_ACR     = 'ai900mlregistry42f1';
+
+        /* ════════════════════════════════════════════════
+           STATE
+        ════════════════════════════════════════════════ */
+        var cwd        = HOME;
+        var cmdHistory = [];
+        var histIdx    = -1;
+
+        var taskDone = {
+            1: false, 2: false, 3: false, 4: false, 5: false,
+            6: false, 7: false, 8: false, 9: false, 10: false
+        };
+        var TOTAL_TASKS = 10;
+
+        /* Sub-step trackers for multi-step tasks */
+        var task2_listed  = false;   /* az ml data list run */
+        var task2_catted  = false;   /* cat ~/data/car-prices.csv run */
+        var task8_listed  = false;   /* az ml model list run */
+        var task8_shown   = false;   /* az ml model show run */
+
+        /* Track which AutoML jobs exist — keyed by job name */
+        var mlJobs = {};
+
+        /* Track which models are registered — keyed by model name */
+        var mlModels = {};
+
+        /* Track which endpoints are deployed — keyed by endpoint name */
+        var mlEndpoints = {};
+
+        var currentTask = 1;
+
+        /* ════════════════════════════════════════════════
+           VIRTUAL FILE SYSTEM
+        ════════════════════════════════════════════════ */
+        var vfs = {};
+
+        function initFS() {
+            /* Directories */
+            var dirs = [
+                '/', '/bin', '/etc', '/home', '/home/student',
+                '/home/student/data',
+                '/home/student/results',
+                '/home/student/scripts',
+                '/tmp', '/usr', '/usr/bin', '/var', '/var/log'
+            ];
+            dirs.forEach(function (d) {
+                vfs[d] = { type: 'dir', mode: 'drwxr-xr-x' };
+            });
+
+            /* Static files */
+            var files = {
+                '/etc/hostname': {
+                    c: HOST,
+                    m: '-rw-r--r--'
+                },
+                '/etc/hosts': {
+                    c: '127.0.0.1\tlocalhost\n::1\t\tlocalhost\n127.0.1.1\t' + HOST,
+                    m: '-rw-r--r--'
+                },
+                '/var/log/azureml.log': {
+                    c: [
+                        '[2026-04-19 08:00:01] INFO  Azure ML SDK initialized',
+                        '[2026-04-19 08:00:02] INFO  Workspace: ' + WS_NAME,
+                        '[2026-04-19 08:00:03] INFO  Compute target: ml-lab-vm (Standard_DS3_v2)',
+                        '[2026-04-19 08:00:04] INFO  3 datasets registered in workspace'
+                    ].join('\n'),
+                    m: '-rw-r--r--'
+                },
+
+                /* ── Dataset files ── */
+                '/home/student/data/car-prices.csv': {
+                    c: 'make,year,mileage,engine_size,price\nToyota,2018,45000,2.0,18500\nFord,2020,22000,2.5,24900\nHonda,2019,38000,1.5,17200\nBMW,2021,12000,3.0,42000\nChevrolet,2017,68000,3.6,15800\nNissan,2020,28000,2.0,21500\nToyota,2022,8000,2.5,31000\nAudi,2019,34000,2.0,38500\nHyundai,2018,51000,1.6,14200\nFord,2021,18000,3.0,29800',
+                    m: '-rw-r--r--'
+                },
+                '/home/student/data/diabetes-risk.csv': {
+                    c: 'age,bmi,blood_pressure,glucose,risk\n45,28.5,82,105,0\n62,34.2,90,142,1\n38,22.1,70,95,0\n55,31.8,88,128,1\n41,26.3,75,99,0\n70,36.0,95,165,1\n33,19.8,68,88,0\n58,29.4,84,118,1\n49,25.7,78,102,0\n66,38.1,98,155,1',
+                    m: '-rw-r--r--'
+                },
+                '/home/student/data/customers.csv': {
+                    c: 'age,income,spending_score,visits\n25,35000,72,18\n43,82000,28,5\n31,48000,65,14\n55,125000,85,22\n28,29000,55,12\n38,67000,31,7\n22,24000,78,20\n51,95000,42,9\n34,55000,60,15\n47,110000,88,24\n29,31000,67,16\n44,78000,25,4',
+                    m: '-rw-r--r--'
+                },
+
+                /* ── Prediction script ── */
+                '/home/student/scripts/predict.py': {
+                    c: '#!/usr/bin/env python3\n"""Sample prediction script for the car-price-predictor endpoint."""\nimport json\nimport urllib.request\n\nENDPOINT_URL = "https://car-price-api.eastus.inference.ml.azure.com/score"\nAPI_KEY      = "lab-endpoint-key-8f3a2b1c9d4e"\n\ndef predict_car_price(make, year, mileage, engine_size):\n    """Send a prediction request to the deployed endpoint."""\n    payload = json.dumps({\n        "make":        make,\n        "year":        year,\n        "mileage":     mileage,\n        "engine_size": engine_size\n    }).encode("utf-8")\n\n    req = urllib.request.Request(\n        ENDPOINT_URL,\n        data=payload,\n        headers={\n            "Content-Type":  "application/json",\n            "Authorization": "Bearer " + API_KEY\n        }\n    )\n    with urllib.request.urlopen(req) as resp:\n        return json.loads(resp.read())\n\nif __name__ == "__main__":\n    result = predict_car_price("Toyota", 2021, 25000, 2.0)\n    print(json.dumps(result, indent=2))',
+                    m: '-rwxr-xr-x'
+                }
+            };
+
+            Object.keys(files).forEach(function (p) {
+                vfs[p] = { type: 'file', content: files[p].c, mode: files[p].m };
+            });
+        }
+
+        /* ════════════════════════════════════════════════
+           PATH UTILITIES
+        ════════════════════════════════════════════════ */
+        function resolve(path) {
+            if (!path) return cwd;
+            path = path.replace(/^~/, HOME);
+            if (path[0] !== '/') path = cwd + '/' + path;
+            var parts = path.split('/'), stack = [];
+            for (var i = 0; i < parts.length; i++) {
+                if (parts[i] === '' || parts[i] === '.') continue;
+                if (parts[i] === '..') { stack.pop(); }
+                else { stack.push(parts[i]); }
+            }
+            return '/' + stack.join('/');
+        }
+
+        function parentOf(path) {
+            var i = path.lastIndexOf('/');
+            return i <= 0 ? '/' : path.substring(0, i);
+        }
+
+        function baseName(path) {
+            return path.substring(path.lastIndexOf('/') + 1);
+        }
+
+        function listDir(path) {
+            var prefix = path === '/' ? '/' : path + '/';
+            var names  = {};
+            Object.keys(vfs).forEach(function (p) {
+                if (p === path) return;
+                if (p.indexOf(prefix) === 0) {
+                    var rest = p.substring(prefix.length);
+                    var name = rest.split('/')[0];
+                    if (name && !names[name]) names[name] = true;
+                }
+            });
+            return Object.keys(names).sort();
+        }
+
+        function exists(p) { return Object.prototype.hasOwnProperty.call(vfs, p); }
+        function isDir(p)  { return exists(p) && vfs[p].type === 'dir'; }
+        function isFile(p) { return exists(p) && vfs[p].type === 'file'; }
+
+        function promptPath() {
+            if (cwd === HOME) return '~';
+            if (cwd.indexOf(HOME + '/') === 0) return '~' + cwd.substring(HOME.length);
+            return cwd;
+        }
+
+        /* ════════════════════════════════════════════════
+           TERMINAL UI HELPERS
+        ════════════════════════════════════════════════ */
+        var outputEl, inputEl, ps1PathEl;
+
+        function addLine(text, cls) {
+            var div = document.createElement('div');
+            div.className = 'term-line' + (cls ? ' ' + cls : '');
+            div.textContent = text;
+            outputEl.appendChild(div);
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+
+        function addHTML(html, cls) {
+            var div = document.createElement('div');
+            div.className = 'term-line' + (cls ? ' ' + cls : '');
+            div.innerHTML = html;
+            outputEl.appendChild(div);
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+
+        function addBlank() {
+            addLine('', '');
+        }
+
+        function addPromptLine(cmd) {
+            addHTML(
+                '<span class="term-prompt-span">' + USER + '@' + HOST + '</span>' +
+                '<span class="term-ps1-sep">:</span>' +
+                '<span class="term-path-span">' + escH(promptPath()) + '</span>' +
+                '<span class="term-ps1-sep">$ </span>' + escH(cmd),
+                'term-line-cmd'
+            );
+        }
+
+        function updatePS1() {
+            if (ps1PathEl) ps1PathEl.textContent = promptPath();
+        }
+
+        function escH(s) {
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        /* ── JSON syntax highlighter ──
+           Serializes a JS object to indented JSON, colourises each token type.
+           Returns nothing — writes directly to terminal output. */
+        function printJSON(obj) {
+            var raw = JSON.stringify(obj, null, 2);
+            var html = raw
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                /* keys: "word": */
+                .replace(/"([^"]+)":/g, '<span class="json-key">"$1"</span>:')
+                /* string values */
+                .replace(/: "([^"]*)"/g, ': <span class="json-string">"$1"</span>')
+                /* booleans */
+                .replace(/: (true|false)/g, ': <span class="json-bool">$1</span>')
+                /* null */
+                .replace(/: null/g, ': <span class="json-null">null</span>')
+                /* numbers (integer and float) */
+                .replace(/: (-?\d+\.?\d*)/g, ': <span class="json-number">$1</span>');
+
+            html.split('\n').forEach(function (line) {
+                addHTML(line, 'term-line-out');
+            });
+        }
+
+        /* Write a serialised JSON string to a VFS path (redirect support) */
+        function saveJSON(obj, path) {
+            var rp  = resolve(path);
+            var par = parentOf(rp);
+            if (!exists(par)) {
+                vfs[par] = { type: 'dir', mode: 'drwxr-xr-x' };
+            }
+            vfs[rp] = {
+                type:    'file',
+                content: JSON.stringify(obj, null, 2),
+                mode:    '-rw-r--r--'
+            };
+        }
+
+        /* ════════════════════════════════════════════════
+           ARG PARSING
+           Handles quoted strings and redirect operators (> file).
+           Returns string[] — strips quotes, handles spaces inside quotes.
+        ════════════════════════════════════════════════ */
+        function parseArgs(cmd) {
+            var args = [], buf = '', inQ = false, qC = '';
+            for (var i = 0; i < cmd.length; i++) {
+                var c = cmd[i];
+                if (inQ) {
+                    if (c === qC) { inQ = false; }
+                    else { buf += c; }
+                } else if (c === '"' || c === "'") {
+                    inQ = true; qC = c;
+                } else if (c === ' ' || c === '\t') {
+                    if (buf) { args.push(buf); buf = ''; }
+                } else {
+                    buf += c;
+                }
+            }
+            if (buf) args.push(buf);
+            return args;
+        }
+
+        /* Detect > redirect in raw arg array.
+           Returns { clean: args[], redirect: string|null } */
+        function splitRedirect(args) {
+            var rIdx = args.indexOf('>');
+            if (rIdx < 0) return { clean: args, redirect: null };
+            return {
+                clean:    args.slice(0, rIdx),
+                redirect: args[rIdx + 1] || null
+            };
+        }
+
+        /* Extract a named flag value: --name car-price-api -> 'car-price-api' */
+        function flagVal(args, flag) {
+            var idx = args.indexOf(flag);
+            if (idx < 0) return null;
+            return args[idx + 1] || null;
+        }
+
+        /* ════════════════════════════════════════════════
+           SIMULATED API RESPONSES
+           Each constant/function returns a realistic JSON
+           object matching the Azure ML CLI/REST API shape.
+        ════════════════════════════════════════════════ */
+
+        /* ── Workspace detail ── */
+        var WS_DETAIL = {
+            name:          WS_NAME,
+            resourceGroup: RG_NAME,
+            location:      LOCATION,
+            subscriptionId: SUB_ID,
+            id:            '/subscriptions/' + SUB_ID + '/resourceGroups/' + RG_NAME + '/providers/Microsoft.MachineLearningServices/workspaces/' + WS_NAME,
+            type:          'Microsoft.MachineLearningServices/workspaces',
+            sku:           'Basic',
+            provisioningState: 'Succeeded',
+            storageAccount:    '/subscriptions/' + SUB_ID + '/resourceGroups/' + RG_NAME + '/providers/Microsoft.Storage/storageAccounts/' + WS_STORAGE,
+            keyVault:          '/subscriptions/' + SUB_ID + '/resourceGroups/' + RG_NAME + '/providers/Microsoft.KeyVault/vaults/' + WS_KV,
+            containerRegistry: '/subscriptions/' + SUB_ID + '/resourceGroups/' + RG_NAME + '/providers/Microsoft.ContainerRegistry/registries/' + WS_ACR,
+            computeTargets: [
+                { name: 'ml-lab-vm',    type: 'ComputeInstance',  size: 'Standard_DS3_v2', state: 'Running' },
+                { name: 'cpu-cluster',  type: 'AmlCompute',       size: 'Standard_D4s_v3', minNodes: 0, maxNodes: 4, state: 'Idle' }
+            ],
+            tags: { environment: 'lab', course: 'AI-900' }
+        };
+
+        /* ── Dataset registry ── */
+        var DATASET_LIST = [
+            {
+                name:        'car-prices',
+                version:     '1',
+                type:        'uri_file',
+                path:        'azureml://datastores/workspaceblobstore/paths/datasets/car-prices.csv',
+                description: 'Used car price dataset — regression target: price',
+                rows:        10,
+                columns:     ['make', 'year', 'mileage', 'engine_size', 'price'],
+                created:     '2026-04-19T08:00:00Z'
+            },
+            {
+                name:        'diabetes-risk',
+                version:     '1',
+                type:        'uri_file',
+                path:        'azureml://datastores/workspaceblobstore/paths/datasets/diabetes-risk.csv',
+                description: 'Patient health dataset — classification target: risk (0=low, 1=high)',
+                rows:        10,
+                columns:     ['age', 'bmi', 'blood_pressure', 'glucose', 'risk'],
+                created:     '2026-04-19T08:00:00Z'
+            },
+            {
+                name:        'customers',
+                version:     '1',
+                type:        'uri_file',
+                path:        'azureml://datastores/workspaceblobstore/paths/datasets/customers.csv',
+                description: 'Customer behaviour dataset — clustering, no target column',
+                rows:        12,
+                columns:     ['age', 'income', 'spending_score', 'visits'],
+                created:     '2026-04-19T08:00:00Z'
+            }
+        ];
+
+        /* ── AutoML regression job result ── */
+        var JOB_REGRESSION_RUNNING = {
+            name:      'automl-regression-001',
+            type:      'automl',
+            task:      'regression',
+            dataset:   'car-prices',
+            target:    'price',
+            status:    'Running',
+            startTime: '2026-04-19T08:10:00Z'
+        };
+
+        var JOB_REGRESSION_COMPLETE = {
+            name:        'automl-regression-001',
+            type:        'automl',
+            task:        'regression',
+            dataset:     'car-prices',
+            target:      'price',
+            status:      'Completed',
+            startTime:   '2026-04-19T08:10:00Z',
+            endTime:     '2026-04-19T08:17:43Z',
+            durationSeconds: 463,
+            algorithmsTrialed: [
+                { algorithm: 'LinearRegression',   r2: 0.81, rmse: 3820, trainingTimeSeconds: 12 },
+                { algorithm: 'DecisionTreeRegressor', r2: 0.76, rmse: 4210, trainingTimeSeconds: 8 },
+                { algorithm: 'RandomForestRegressor', r2: 0.91, rmse: 2680, trainingTimeSeconds: 38 },
+                { algorithm: 'GradientBoostingRegressor', r2: 0.94, rmse: 2150, trainingTimeSeconds: 52 }
+            ],
+            bestModel: {
+                algorithm: 'GradientBoostingRegressor',
+                r2:        0.94,
+                rmse:      2150,
+                mae:       1620,
+                explainedVariance: 0.943
+            },
+            registeredModelName: 'car-price-predictor',
+            outputsUri: 'azureml://jobs/automl-regression-001/outputs/'
+        };
+
+        /* ── Regression job detail (az ml job show) ── */
+        var JOB_REGRESSION_DETAIL = {
+            name:      'automl-regression-001',
+            type:      'automl',
+            task:      'regression',
+            status:    'Completed',
+            bestModel: {
+                algorithm:         'GradientBoostingRegressor',
+                library:           'scikit-learn',
+                version:           '1.3.2',
+                hyperparameters: {
+                    n_estimators:   200,
+                    max_depth:      5,
+                    learning_rate:  0.1,
+                    subsample:      0.8,
+                    min_samples_split: 4
+                }
+            },
+            evaluationMetrics: {
+                r2_score:           0.94,
+                rmse:               2150,
+                mae:                1620,
+                explained_variance: 0.943,
+                median_abs_error:   1380
+            },
+            featureImportances: {
+                mileage:     0.45,
+                year:        0.30,
+                engine_size: 0.20,
+                make:        0.05
+            },
+            crossValidation: {
+                folds:       5,
+                meanR2:      0.926,
+                stdR2:       0.018
+            },
+            trainingDurationSeconds: 52,
+            registeredModelName:     'car-price-predictor',
+            explainabilityUri:       'azureml://jobs/automl-regression-001/outputs/model_explanations/'
+        };
+
+        /* ── AutoML classification job result ── */
+        var JOB_CLASSIFICATION_RUNNING = {
+            name:      'automl-classification-001',
+            type:      'automl',
+            task:      'classification',
+            dataset:   'diabetes-risk',
+            target:    'risk',
+            status:    'Running',
+            startTime: '2026-04-19T08:25:00Z'
+        };
+
+        var JOB_CLASSIFICATION_COMPLETE = {
+            name:      'automl-classification-001',
+            type:      'automl',
+            task:      'classification',
+            dataset:   'diabetes-risk',
+            target:    'risk',
+            status:    'Completed',
+            startTime: '2026-04-19T08:25:00Z',
+            endTime:   '2026-04-19T08:31:18Z',
+            durationSeconds: 378,
+            algorithmsTrialed: [
+                { algorithm: 'LogisticRegression',  accuracy: 0.82, f1: 0.81, auc: 0.88, trainingTimeSeconds: 6  },
+                { algorithm: 'SVC',                 accuracy: 0.84, f1: 0.83, auc: 0.90, trainingTimeSeconds: 14 },
+                { algorithm: 'RandomForestClassifier', accuracy: 0.89, f1: 0.89, auc: 0.94, trainingTimeSeconds: 42 },
+                { algorithm: 'GradientBoostingClassifier', accuracy: 0.87, f1: 0.87, auc: 0.93, trainingTimeSeconds: 55 }
+            ],
+            bestModel: {
+                algorithm: 'RandomForestClassifier',
+                accuracy:  0.89,
+                precision: 0.87,
+                recall:    0.91,
+                f1:        0.89,
+                auc:       0.94
+            },
+            registeredModelName: 'diabetes-risk-classifier',
+            outputsUri: 'azureml://jobs/automl-classification-001/outputs/'
+        };
+
+        /* ── Classification job detail (az ml job show) ── */
+        var JOB_CLASSIFICATION_DETAIL = {
+            name:      'automl-classification-001',
+            type:      'automl',
+            task:      'classification',
+            status:    'Completed',
+            bestModel: {
+                algorithm:  'RandomForestClassifier',
+                library:    'scikit-learn',
+                version:    '1.3.2',
+                hyperparameters: {
+                    n_estimators:      150,
+                    max_depth:         8,
+                    min_samples_leaf:  2,
+                    class_weight:      'balanced',
+                    max_features:      'sqrt'
+                }
+            },
+            evaluationMetrics: {
+                accuracy:  0.89,
+                precision: 0.87,
+                recall:    0.91,
+                f1_score:  0.89,
+                roc_auc:   0.94,
+                log_loss:  0.312
+            },
+            confusionMatrix: {
+                truePositive:  91,
+                falsePositive: 13,
+                trueNegative:  98,
+                falseNegative: 9,
+                note:          'TP=high-risk correctly identified, FN=high-risk missed (clinical priority)'
+            },
+            featureImportances: {
+                glucose:        0.38,
+                bmi:            0.25,
+                age:            0.20,
+                blood_pressure: 0.17
+            },
+            crossValidation: {
+                folds:        5,
+                meanAccuracy: 0.881,
+                stdAccuracy:  0.024
+            },
+            trainingDurationSeconds: 42,
+            registeredModelName:     'diabetes-risk-classifier'
+        };
+
+        /* ── AutoML clustering job result ── */
+        var JOB_CLUSTERING_RUNNING = {
+            name:      'automl-clustering-001',
+            type:      'automl',
+            task:      'clustering',
+            dataset:   'customers',
+            target:    'none',
+            status:    'Running',
+            startTime: '2026-04-19T08:45:00Z'
+        };
+
+        var JOB_CLUSTERING_COMPLETE = {
+            name:      'automl-clustering-001',
+            type:      'automl',
+            task:      'clustering',
+            dataset:   'customers',
+            target:    'none',
+            status:    'Completed',
+            startTime: '2026-04-19T08:45:00Z',
+            endTime:   '2026-04-19T08:49:55Z',
+            durationSeconds: 295,
+            kEvaluations: [
+                { k: 2, silhouetteScore: 0.58, inertia: 4820 },
+                { k: 3, silhouetteScore: 0.72, inertia: 2940 },
+                { k: 4, silhouetteScore: 0.65, inertia: 2110 },
+                { k: 5, silhouetteScore: 0.61, inertia: 1780 }
+            ],
+            bestModel: {
+                algorithm:        'KMeans',
+                k:                3,
+                silhouetteScore:  0.72,
+                inertia:          2940
+            },
+            clusters: [
+                {
+                    id:          0,
+                    label:       'High Value',
+                    size:        4,
+                    description: 'High income, high spending score, frequent visits',
+                    centroid:    { age: 50, income: 102500, spending_score: 86, visits: 22 }
+                },
+                {
+                    id:          1,
+                    label:       'Budget Conscious',
+                    size:        4,
+                    description: 'Low income, low spending score, infrequent visits',
+                    centroid:    { age: 31, income: 29750, spending_score: 23, visits: 5 }
+                },
+                {
+                    id:          2,
+                    label:       'Occasional Shoppers',
+                    size:        4,
+                    description: 'Mid income, moderate spending, average visit frequency',
+                    centroid:    { age: 36, income: 52000, spending_score: 63, visits: 14 }
+                }
+            ],
+            registeredModelName: 'customer-segmentation',
+            outputsUri: 'azureml://jobs/automl-clustering-001/outputs/'
+        };
+
+        /* ── Model registry entries ── */
+        var MODEL_CAR_PRICE = {
+            name:          'car-price-predictor',
+            version:       '1',
+            type:          'mlflow_model',
+            task:          'regression',
+            algorithm:     'GradientBoostingRegressor',
+            framework:     'scikit-learn 1.3.2',
+            trainingJob:   'automl-regression-001',
+            trainingDate:  '2026-04-19T08:17:43Z',
+            size:          '4.2 MB',
+            evaluationMetrics: {
+                r2_score:  0.94,
+                rmse:      2150,
+                mae:       1620
+            },
+            inputSchema: {
+                make:        { type: 'string',  example: 'Toyota' },
+                year:        { type: 'integer', example: 2021, range: '2010-2026' },
+                mileage:     { type: 'integer', example: 25000, range: '0-300000' },
+                engine_size: { type: 'float',   example: 2.0, range: '1.0-6.0' }
+            },
+            outputSchema: {
+                predicted_price:      { type: 'float',   unit: 'USD' },
+                confidence_interval:  { type: 'array',   items: 'float', length: 2 }
+            },
+            limitations: [
+                'Trained on 10 rows — production models require thousands of samples',
+                'Make encoded as categorical; unseen makes fall back to average',
+                'Price in USD; must be recalibrated for other markets'
+            ],
+            uri: 'azureml://registries/' + WS_NAME + '/models/car-price-predictor/versions/1'
+        };
+
+        var MODEL_DIABETES = {
+            name:          'diabetes-risk-classifier',
+            version:       '1',
+            type:          'mlflow_model',
+            task:          'classification',
+            algorithm:     'RandomForestClassifier',
+            framework:     'scikit-learn 1.3.2',
+            trainingJob:   'automl-classification-001',
+            trainingDate:  '2026-04-19T08:31:18Z',
+            size:          '2.8 MB',
+            evaluationMetrics: {
+                accuracy:  0.89,
+                roc_auc:   0.94,
+                f1_score:  0.89
+            },
+            inputSchema: {
+                age:            { type: 'integer', example: 45 },
+                bmi:            { type: 'float',   example: 28.5 },
+                blood_pressure: { type: 'integer', example: 82 },
+                glucose:        { type: 'integer', example: 105 }
+            },
+            outputSchema: {
+                predicted_risk: { type: 'integer', values: [0, 1] },
+                probability:    { type: 'float',   range: '0.0-1.0' }
+            },
+            uri: 'azureml://registries/' + WS_NAME + '/models/diabetes-risk-classifier/versions/1'
+        };
+
+        var MODEL_CUSTOMERS = {
+            name:          'customer-segmentation',
+            version:       '1',
+            type:          'mlflow_model',
+            task:          'clustering',
+            algorithm:     'KMeans (k=3)',
+            framework:     'scikit-learn 1.3.2',
+            trainingJob:   'automl-clustering-001',
+            trainingDate:  '2026-04-19T08:49:55Z',
+            size:          '1.1 MB',
+            evaluationMetrics: {
+                silhouette_score: 0.72,
+                inertia:          2940
+            },
+            inputSchema: {
+                age:           { type: 'integer', example: 34 },
+                income:        { type: 'integer', example: 55000 },
+                spending_score: { type: 'integer', example: 60 },
+                visits:        { type: 'integer', example: 15 }
+            },
+            outputSchema: {
+                cluster_id:    { type: 'integer', values: [0, 1, 2] },
+                cluster_label: { type: 'string',  values: ['High Value', 'Budget Conscious', 'Occasional Shoppers'] }
+            },
+            uri: 'azureml://registries/' + WS_NAME + '/models/customer-segmentation/versions/1'
+        };
+
+        /* ════════════════════════════════════════════════
+           AUTOML PROGRESS PRINTER
+           Simulates the algorithm trials in terminal output.
+        ════════════════════════════════════════════════ */
+        function printAutoMLProgress(trials, metricKey1, metricLabel1, metricKey2, metricLabel2) {
+            addLine('AutoML trial progress:', 'term-line-info');
+            addLine('─'.repeat(68), 'term-line-dim');
+            var header = padR('Algorithm', 34) + padL(metricLabel1, 14) + padL(metricLabel2, 14) + padL('Time(s)', 8);
+            addLine(header, 'term-line-warn');
+            addLine('─'.repeat(68), 'term-line-dim');
+            trials.forEach(function (t) {
+                var isBest = t === trials[trials.length - 1];
+                /* For the last trial, check if it actually has best metrics */
+                var best = trials.reduce(function (b, x) {
+                    if (metricKey1 === 'r2' || metricKey1 === 'accuracy' || metricKey1 === 'silhouetteScore') {
+                        return x[metricKey1] > b[metricKey1] ? x : b;
+                    }
+                    return x[metricKey1] < b[metricKey1] ? x : b;
+                }, trials[0]);
+                var isActualBest = t.algorithm === best.algorithm;
+                var row = padR(t.algorithm, 34) +
+                          padL(String(t[metricKey1]), 14) +
+                          padL(String(t[metricKey2]), 14) +
+                          padL(String(t.trainingTimeSeconds) + 's', 8);
+                addLine(row + (isActualBest ? '  <-- best' : ''), isActualBest ? 'term-line-out' : 'term-line-dim');
+            });
+            addLine('─'.repeat(68), 'term-line-dim');
+        }
+
+        function padR(s, n) {
+            s = String(s);
+            while (s.length < n) s += ' ';
+            return s.substring(0, n);
+        }
+
+        function padL(s, n) {
+            s = String(s);
+            while (s.length < n) s = ' ' + s;
+            return s;
+        }
+
+        /* ════════════════════════════════════════════════
+           FILESYSTEM COMMANDS
+        ════════════════════════════════════════════════ */
+        function cmd_ls(args) {
+            var sr   = splitRedirect(args);
+            var path = sr.clean[0] ? resolve(sr.clean[0]) : cwd;
+            var long = sr.clean.indexOf('-l') >= 0 || sr.clean.indexOf('-la') >= 0 || sr.clean.indexOf('-al') >= 0;
+
+            if (!exists(path)) {
+                addLine('ls: cannot access \'' + args[0] + '\': No such file or directory', 'term-line-err');
+                return null;
+            }
+
+            if (isFile(path)) {
+                if (long) {
+                    var f = vfs[path];
+                    addLine((f.mode || '-rw-r--r--') + ' 1 ' + USER + ' ' + USER + '  ' + (f.content || '').length + ' Apr 19 08:00 ' + baseName(path), 'term-line-out');
+                } else {
+                    addLine(baseName(path), 'term-line-out');
+                }
+                return 'listed';
+            }
+
+            var items = listDir(path);
+            if (!items.length) {
+                addLine('(empty directory)', 'term-line-dim');
+                return 'listed';
+            }
+
+            if (long) {
+                addLine('total ' + items.length, 'term-line-out');
+                items.forEach(function (name) {
+                    var full = (path === '/' ? '' : path) + '/' + name;
+                    var node = vfs[full];
+                    var mode = node ? node.mode : 'drwxr-xr-x';
+                    var size = (node && node.content) ? node.content.length : 0;
+                    addLine(mode + ' 1 ' + USER + ' ' + USER + '  ' + String(size).padStart(6) + ' Apr 19 08:00 ' + name, 'term-line-out');
+                });
+            } else {
+                var cols = [];
+                items.forEach(function (name) {
+                    var full = (path === '/' ? '' : path) + '/' + name;
+                    cols.push(isDir(full) ? name + '/' : name);
+                });
+                addLine(cols.join('  '), 'term-line-out');
+            }
+            return 'listed';
+        }
+
+        function cmd_cat(args) {
+            if (!args.length) {
+                addLine('cat: missing file operand', 'term-line-err');
+                return null;
+            }
+            var path = resolve(args[0]);
+            if (!exists(path)) {
+                addLine('cat: ' + args[0] + ': No such file or directory', 'term-line-err');
+                return null;
+            }
+            if (isDir(path)) {
+                addLine('cat: ' + args[0] + ': Is a directory', 'term-line-err');
+                return null;
+            }
+            var content = vfs[path].content || '';
+            content.split('\n').forEach(function (line) {
+                addLine(line, 'term-line-out');
+            });
+            return { catted: true, path: path };
+        }
+
+        function cmd_cd(args) {
+            var target = args[0] ? resolve(args[0]) : HOME;
+            if (!exists(target)) {
+                addLine('bash: cd: ' + args[0] + ': No such file or directory', 'term-line-err');
+                return null;
+            }
+            if (!isDir(target)) {
+                addLine('bash: cd: ' + args[0] + ': Not a directory', 'term-line-err');
+                return null;
+            }
+            cwd = target;
+            updatePS1();
+            return 'changed';
+        }
+
+        function cmd_pwd() {
+            addLine(cwd, 'term-line-out');
+            return 'pwd';
+        }
+
+        function cmd_echo(args) {
+            var sr   = splitRedirect(args);
+            var text = sr.clean.join(' ').replace(/^\$([A-Z_]+)$/g, function (m, name) {
+                var envMap = {
+                    HOME:  HOME,
+                    USER:  USER,
+                    WS:    WS_NAME
+                };
+                return envMap[name] || m;
+            });
+            if (sr.redirect) {
+                var rp = resolve(sr.redirect);
+                vfs[rp] = { type: 'file', content: text, mode: '-rw-r--r--' };
+                addLine('(output redirected to ' + sr.redirect + ')', 'term-line-info');
+            } else {
+                addLine(text, 'term-line-out');
+            }
+            return 'echoed';
+        }
+
+        function cmd_mkdir(args) {
+            if (!args.length) {
+                addLine('mkdir: missing operand', 'term-line-err');
+                return null;
+            }
+            var target = resolve(args[0]);
+            if (exists(target)) {
+                addLine('mkdir: cannot create directory \'' + args[0] + '\': File exists', 'term-line-err');
+                return null;
+            }
+            vfs[target] = { type: 'dir', mode: 'drwxr-xr-x' };
+            return 'mkdir';
+        }
+
+        function cmd_cp(args) {
+            if (args.length < 2) {
+                addLine('cp: missing destination file operand', 'term-line-err');
+                return null;
+            }
+            var src  = resolve(args[0]);
+            var dest = resolve(args[1]);
+            if (!exists(src)) {
+                addLine('cp: ' + args[0] + ': No such file or directory', 'term-line-err');
+                return null;
+            }
+            vfs[dest] = JSON.parse(JSON.stringify(vfs[src]));
+            addLine('(copied ' + args[0] + ' -> ' + args[1] + ')', 'term-line-info');
+            return 'copied';
+        }
+
+        function cmd_env() {
+            addLine('HOME=' + HOME,         'term-line-out');
+            addLine('USER=' + USER,         'term-line-out');
+            addLine('SHELL=/bin/bash',       'term-line-out');
+            addLine('TERM=xterm-256color',   'term-line-out');
+            addLine('AZUREML_WORKSPACE=' + WS_NAME,  'term-line-out');
+            addLine('AZUREML_RG=' + RG_NAME,          'term-line-out');
+            return 'env';
+        }
+
+        function cmd_help() {
+            addBlank();
+            addLine('Azure Machine Learning Lab — Available Commands', 'term-welcome');
+            addLine('─'.repeat(55), 'term-line-dim');
+            addBlank();
+            addLine('FILESYSTEM', 'term-line-warn');
+            addLine('  ls [path]              List directory contents', 'term-line-out');
+            addLine('  ls -l [path]           Long listing with permissions', 'term-line-out');
+            addLine('  cat <file>             Display file contents', 'term-line-out');
+            addLine('  cd <path>              Change directory', 'term-line-out');
+            addLine('  pwd                    Print working directory', 'term-line-out');
+            addLine('  mkdir <dir>            Create directory', 'term-line-out');
+            addLine('  cp <src> <dst>         Copy file', 'term-line-out');
+            addLine('  echo <text>            Print text (supports > redirect)', 'term-line-out');
+            addLine('  env                    Show environment variables', 'term-line-out');
+            addBlank();
+            addLine('AZURE ML', 'term-line-warn');
+            addLine('  az ml workspace show                Show workspace details', 'term-line-out');
+            addLine('  az ml data list                     List registered datasets', 'term-line-out');
+            addLine('  az ml data show --name <dataset>    Show dataset details', 'term-line-out');
+            addLine('  az ml job create \\                  Run AutoML experiment', 'term-line-out');
+            addLine('    --type automl \\', 'term-line-out');
+            addLine('    --task <regression|classification|clustering> \\', 'term-line-out');
+            addLine('    --data <dataset> --target <column>', 'term-line-out');
+            addLine('  az ml job show --name <job-id>      Show job results', 'term-line-out');
+            addLine('  az ml model list                    List registered models', 'term-line-out');
+            addLine('  az ml model show --name <model>     Show model card', 'term-line-out');
+            addLine('  az ml endpoint create \\             Deploy model endpoint', 'term-line-out');
+            addLine('    --name <name> --model <model>', 'term-line-out');
+            addLine('  az ml endpoint invoke \\             Send prediction request', 'term-line-out');
+            addLine('    --name <name> --input <json>', 'term-line-out');
+            addBlank();
+            addLine('  Supports: > <file> redirect, ~ expansion, history (arrows)', 'term-line-dim');
+            addBlank();
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az
+        ════════════════════════════════════════════════ */
+        function cmd_az(args) {
+            if (!args.length) {
+                addLine('az: command not found. Try "az --help" or just "help".', 'term-line-err');
+                return null;
+            }
+
+            var sub = args[0];
+
+            if (sub === 'ml') return cmd_az_ml(args.slice(1));
+
+            /* az account show */
+            if (sub === 'account' && args[1] === 'show') {
+                printJSON({
+                    id:              SUB_ID,
+                    name:            SUB_NAME,
+                    state:           'Enabled',
+                    tenantId:        'f9e8d7c6-b5a4-3210-fedc-ba9876543210',
+                    isDefault:       true,
+                    environmentName: 'AzureCloud'
+                });
+                return 'account_shown';
+            }
+
+            addLine('az ' + args.join(' ') + ': unrecognised command. Type "help" for available commands.', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az ml (all sub-commands)
+        ════════════════════════════════════════════════ */
+        function cmd_az_ml(args) {
+            if (!args.length) {
+                addLine('az ml: usage: az ml <workspace|data|job|model|endpoint>', 'term-line-err');
+                return null;
+            }
+
+            var sub = args[0];
+
+            if (sub === 'workspace') return cmd_ml_workspace(args.slice(1));
+            if (sub === 'data')      return cmd_ml_data(args.slice(1));
+            if (sub === 'job')       return cmd_ml_job(args.slice(1));
+            if (sub === 'model')     return cmd_ml_model(args.slice(1));
+            if (sub === 'endpoint')  return cmd_ml_endpoint(args.slice(1));
+
+            addLine('az ml: unrecognised subcommand "' + sub + '". Type "help" for available commands.', 'term-line-err');
+            return null;
+        }
+
+        /* ── az ml workspace show ── */
+        function cmd_ml_workspace(args) {
+            if (!args.length || args[0] !== 'show') {
+                addLine('az ml workspace: usage: az ml workspace show', 'term-line-err');
+                return null;
+            }
+            printJSON(WS_DETAIL);
+            return { workspace_shown: true };
+        }
+
+        /* ── az ml data list | show ── */
+        function cmd_ml_data(args) {
+            if (!args.length) {
+                addLine('az ml data: usage: az ml data <list|show --name <dataset>>', 'term-line-err');
+                return null;
+            }
+
+            var sub = args[0];
+
+            if (sub === 'list') {
+                printJSON({ datasets: DATASET_LIST });
+                return { data_listed: true };
+            }
+
+            if (sub === 'show') {
+                var name = flagVal(args, '--name');
+                if (!name) {
+                    addLine('az ml data show: --name <dataset> is required.', 'term-line-err');
+                    return null;
+                }
+                var ds = DATASET_LIST.filter(function (d) { return d.name === name; })[0];
+                if (!ds) {
+                    addLine('ERROR: Dataset "' + name + '" not found. Run "az ml data list" to see available datasets.', 'term-line-err');
+                    return null;
+                }
+                printJSON(ds);
+                return { data_shown: true, name: name };
+            }
+
+            addLine('az ml data: unknown subcommand "' + sub + '". Try "list" or "show".', 'term-line-err');
+            return null;
+        }
+
+        /* ── az ml job create | show ── */
+        function cmd_ml_job(args) {
+            if (!args.length) {
+                addLine('az ml job: usage: az ml job <create|show>', 'term-line-err');
+                return null;
+            }
+
+            var sub = args[0];
+
+            /* ── az ml job show --name <job-id> ── */
+            if (sub === 'show') {
+                var jobName = flagVal(args, '--name');
+                if (!jobName) {
+                    addLine('az ml job show: --name <job-id> is required.', 'term-line-err');
+                    return null;
+                }
+
+                if (!Object.prototype.hasOwnProperty.call(mlJobs, jobName)) {
+                    addLine('ERROR: Job "' + jobName + '" not found.', 'term-line-err');
+                    addLine('Run a job first with: az ml job create --type automl --task <task> --data <dataset> --target <column>', 'term-line-info');
+                    return null;
+                }
+
+                if (jobName === 'automl-regression-001') {
+                    printJSON(JOB_REGRESSION_DETAIL);
+                    addBlank();
+                    addLine('  Feature Importances (Shapley values):', 'term-line-info');
+                    addLine('  ┌────────────────────┬───────────┬──────────────────────────────────────┐', 'term-line-dim');
+                    addLine('  │ Feature            │ Importance│ Relative weight                      │', 'term-line-dim');
+                    addLine('  ├────────────────────┼───────────┼──────────────────────────────────────┤', 'term-line-dim');
+                    addLine('  │ mileage            │   0.45    │ ==================                   │', 'term-line-out');
+                    addLine('  │ year               │   0.30    │ ============                         │', 'term-line-out');
+                    addLine('  │ engine_size         │   0.20    │ ========                             │', 'term-line-out');
+                    addLine('  │ make               │   0.05    │ ==                                   │', 'term-line-out');
+                    addLine('  └────────────────────┴───────────┴──────────────────────────────────────┘', 'term-line-dim');
+                    return { job_shown: true, jobName: jobName, task: 'regression' };
+                }
+
+                if (jobName === 'automl-classification-001') {
+                    printJSON(JOB_CLASSIFICATION_DETAIL);
+                    addBlank();
+                    addLine('  Confusion Matrix (test set, n=211):', 'term-line-info');
+                    addLine('  ┌─────────────────────┬──────────────┬──────────────┐', 'term-line-dim');
+                    addLine('  │                     │ Pred: Low(0) │ Pred: High(1)│', 'term-line-dim');
+                    addLine('  ├─────────────────────┼──────────────┼──────────────┤', 'term-line-dim');
+                    addLine('  │ Actual: Low(0)       │   TN = 98   │   FP = 13    │', 'term-line-out');
+                    addLine('  │ Actual: High(1)      │   FN =  9   │   TP = 91    │', 'term-line-out');
+                    addLine('  └─────────────────────┴──────────────┴──────────────┘', 'term-line-dim');
+                    addBlank();
+                    addLine('  NOTE: FN=9 (high-risk patients classified as low-risk) is the critical error', 'term-line-warn');
+                    addLine('  in clinical settings. Prioritise recall over precision for health screening.', 'term-line-warn');
+                    return { job_shown: true, jobName: jobName, task: 'classification' };
+                }
+
+                if (jobName === 'automl-clustering-001') {
+                    printJSON(JOB_CLUSTERING_COMPLETE);
+                    return { job_shown: true, jobName: jobName, task: 'clustering' };
+                }
+
+                /* Fallback for any registered job */
+                printJSON(mlJobs[jobName]);
+                return { job_shown: true, jobName: jobName };
+            }
+
+            /* ── az ml job create --type automl ... ── */
+            if (sub === 'create') {
+                var type   = flagVal(args, '--type');
+                var task   = flagVal(args, '--task');
+                var data   = flagVal(args, '--data');
+                var target = flagVal(args, '--target');
+
+                if (type !== 'automl') {
+                    addLine('az ml job create: --type automl is required for this lab.', 'term-line-err');
+                    addLine('Usage: az ml job create --type automl --task <regression|classification|clustering> --data <dataset> --target <column>', 'term-line-info');
+                    return null;
+                }
+                if (!task) {
+                    addLine('az ml job create: --task <regression|classification|clustering> is required.', 'term-line-err');
+                    return null;
+                }
+                if (!data) {
+                    addLine('az ml job create: --data <dataset> is required.', 'term-line-err');
+                    return null;
+                }
+                if (!target) {
+                    addLine('az ml job create: --target <column> is required (use "none" for clustering).', 'term-line-err');
+                    return null;
+                }
+
+                /* Validate dataset exists */
+                var validDatasets = ['car-prices', 'diabetes-risk', 'customers'];
+                if (validDatasets.indexOf(data) < 0) {
+                    addLine('ERROR: Dataset "' + data + '" not found. Run "az ml data list" to see registered datasets.', 'term-line-err');
+                    return null;
+                }
+
+                /* Validate task + dataset pairing */
+                if (task === 'regression' && data !== 'car-prices') {
+                    addLine('NOTE: Regression task with "' + data + '" — expected "car-prices" for the price prediction task.', 'term-line-warn');
+                }
+                if (task === 'classification' && data !== 'diabetes-risk') {
+                    addLine('NOTE: Classification task with "' + data + '" — expected "diabetes-risk" for the risk classification task.', 'term-line-warn');
+                }
+                if (task === 'clustering' && data !== 'customers') {
+                    addLine('NOTE: Clustering task with "' + data + '" — expected "customers" for the segmentation task.', 'term-line-warn');
+                }
+
+                var validTasks = ['regression', 'classification', 'clustering'];
+                if (validTasks.indexOf(task) < 0) {
+                    addLine('ERROR: Invalid task "' + task + '". Valid options: regression, classification, clustering.', 'term-line-err');
+                    return null;
+                }
+
+                /* Dispatch to correct AutoML simulation */
+                if (task === 'regression') {
+                    return runAutoMLRegression(data, target);
+                }
+                if (task === 'classification') {
+                    return runAutoMLClassification(data, target);
+                }
+                if (task === 'clustering') {
+                    return runAutoMLClustering(data, target);
+                }
+            }
+
+            addLine('az ml job: unknown subcommand "' + sub + '". Try "create" or "show".', 'term-line-err');
+            return null;
+        }
+
+        /* ── AutoML regression simulation ── */
+        function runAutoMLRegression(data, target) {
+            addLine('Submitting AutoML regression job...', 'term-line-info');
+            addLine('Job name: automl-regression-001', 'term-line-out');
+            addLine('Dataset:  ' + data + '  Target: ' + target, 'term-line-out');
+            addLine('Compute:  cpu-cluster (Standard_D4s_v3, 0-4 nodes)', 'term-line-out');
+            addBlank();
+            addLine('AutoML is evaluating multiple regression algorithms. This may take several minutes.', 'term-line-info');
+            addBlank();
+            printAutoMLProgress(
+                JOB_REGRESSION_COMPLETE.algorithmsTrialed,
+                'r2', 'R-squared', 'rmse', 'RMSE ($)'
+            );
+            addBlank();
+            addLine('  Best algorithm : GradientBoostingRegressor', 'term-line-out');
+            addLine('  R-squared      : 0.94  (94% of price variance explained)', 'term-line-out');
+            addLine('  RMSE           : $2,150 (average prediction error)', 'term-line-out');
+            addLine('  Training time  : 52 seconds', 'term-line-out');
+            addBlank();
+            addLine('Registering model: car-price-predictor v1', 'term-line-info');
+            addLine('Job status: Completed', 'term-line-out');
+
+            /* Register job and model */
+            mlJobs['automl-regression-001']   = JOB_REGRESSION_COMPLETE;
+            mlModels['car-price-predictor']   = MODEL_CAR_PRICE;
+
+            return { job_created: true, task: 'regression', jobName: 'automl-regression-001', data: data, target: target };
+        }
+
+        /* ── AutoML classification simulation ── */
+        function runAutoMLClassification(data, target) {
+            addLine('Submitting AutoML classification job...', 'term-line-info');
+            addLine('Job name: automl-classification-001', 'term-line-out');
+            addLine('Dataset:  ' + data + '  Target: ' + target, 'term-line-out');
+            addLine('Compute:  cpu-cluster (Standard_D4s_v3, 0-4 nodes)', 'term-line-out');
+            addBlank();
+            addLine('AutoML is evaluating multiple classification algorithms. This may take several minutes.', 'term-line-info');
+            addBlank();
+            printAutoMLProgress(
+                JOB_CLASSIFICATION_COMPLETE.algorithmsTrialed,
+                'accuracy', 'Accuracy', 'auc', 'AUC'
+            );
+            addBlank();
+            addLine('  Best algorithm : RandomForestClassifier', 'term-line-out');
+            addLine('  Accuracy       : 0.89  (89% of patients correctly classified)', 'term-line-out');
+            addLine('  AUC            : 0.94  (strong discriminative power)', 'term-line-out');
+            addLine('  F1 Score       : 0.89  (balanced precision/recall)', 'term-line-out');
+            addLine('  Training time  : 42 seconds', 'term-line-out');
+            addBlank();
+            addLine('Registering model: diabetes-risk-classifier v1', 'term-line-info');
+            addLine('Job status: Completed', 'term-line-out');
+
+            /* Register job and model */
+            mlJobs['automl-classification-001']   = JOB_CLASSIFICATION_COMPLETE;
+            mlModels['diabetes-risk-classifier']  = MODEL_DIABETES;
+
+            return { job_created: true, task: 'classification', jobName: 'automl-classification-001', data: data, target: target };
+        }
+
+        /* ── AutoML clustering simulation ── */
+        function runAutoMLClustering(data, target) {
+            addLine('Submitting AutoML clustering job...', 'term-line-info');
+            addLine('Job name: automl-clustering-001', 'term-line-out');
+            addLine('Dataset:  ' + data + '  Target: none (unsupervised)', 'term-line-out');
+            addLine('Compute:  cpu-cluster (Standard_D4s_v3, 0-4 nodes)', 'term-line-out');
+            addBlank();
+            addLine('AutoML is evaluating K-Means with multiple values of K...', 'term-line-info');
+            addBlank();
+            addLine('  K-Means evaluation:', 'term-line-warn');
+            addLine('  ┌─────┬──────────────────┬──────────────┐', 'term-line-dim');
+            addLine('  │ K   │  Silhouette Score │   Inertia    │', 'term-line-dim');
+            addLine('  ├─────┼──────────────────┼──────────────┤', 'term-line-dim');
+            addLine('  │  2  │      0.58        │    4820      │', 'term-line-dim');
+            addLine('  │  3  │      0.72        │    2940      │  <-- best', 'term-line-out');
+            addLine('  │  4  │      0.65        │    2110      │', 'term-line-dim');
+            addLine('  │  5  │      0.61        │    1780      │', 'term-line-dim');
+            addLine('  └─────┴──────────────────┴──────────────┘', 'term-line-dim');
+            addBlank();
+            addLine('  Best K     : 3', 'term-line-out');
+            addLine('  Silhouette : 0.72  (0=random, 1=perfect separation)', 'term-line-out');
+            addBlank();
+            addLine('  Cluster profiles:', 'term-line-info');
+            addLine('  Cluster 0 — High Value       : high income, high spending, frequent visits', 'term-line-out');
+            addLine('  Cluster 1 — Budget Conscious : low income, low spending, infrequent visits', 'term-line-out');
+            addLine('  Cluster 2 — Occasional       : mid income, moderate spending, avg visits', 'term-line-out');
+            addBlank();
+            addLine('Registering model: customer-segmentation v1', 'term-line-info');
+            addLine('Job status: Completed', 'term-line-out');
+
+            /* Register job and model */
+            mlJobs['automl-clustering-001']    = JOB_CLUSTERING_COMPLETE;
+            mlModels['customer-segmentation']  = MODEL_CUSTOMERS;
+
+            return { job_created: true, task: 'clustering', jobName: 'automl-clustering-001', data: data, target: target };
+        }
+
+        /* ── az ml model list | show ── */
+        function cmd_ml_model(args) {
+            if (!args.length) {
+                addLine('az ml model: usage: az ml model <list|show --name <model>>', 'term-line-err');
+                return null;
+            }
+
+            var sub = args[0];
+
+            if (sub === 'list') {
+                var names = Object.keys(mlModels);
+                if (!names.length) {
+                    printJSON({
+                        models:  [],
+                        message: 'No models registered yet. Run AutoML jobs first with "az ml job create".'
+                    });
+                } else {
+                    var arr = names.map(function (n) {
+                        var m = mlModels[n];
+                        return {
+                            name:          m.name,
+                            version:       m.version,
+                            task:          m.task,
+                            algorithm:     m.algorithm,
+                            framework:     m.framework,
+                            trainingDate:  m.trainingDate,
+                            trainingJob:   m.trainingJob
+                        };
+                    });
+                    printJSON({ models: arr });
+                }
+                return { model_listed: true };
+            }
+
+            if (sub === 'show') {
+                var modelName = flagVal(args, '--name');
+                if (!modelName) {
+                    addLine('az ml model show: --name <model> is required.', 'term-line-err');
+                    return null;
+                }
+                if (!Object.prototype.hasOwnProperty.call(mlModels, modelName)) {
+                    addLine('ERROR: Model "' + modelName + '" not found.', 'term-line-err');
+                    if (Object.keys(mlModels).length) {
+                        addLine('Available models: ' + Object.keys(mlModels).join(', '), 'term-line-info');
+                    } else {
+                        addLine('No models registered yet. Run AutoML jobs first.', 'term-line-info');
+                    }
+                    return null;
+                }
+                printJSON(mlModels[modelName]);
+                return { model_shown: true, modelName: modelName };
+            }
+
+            addLine('az ml model: unknown subcommand "' + sub + '". Try "list" or "show".', 'term-line-err');
+            return null;
+        }
+
+        /* ── az ml endpoint create | invoke ── */
+        function cmd_ml_endpoint(args) {
+            if (!args.length) {
+                addLine('az ml endpoint: usage: az ml endpoint <create|invoke>', 'term-line-err');
+                return null;
+            }
+
+            var sub = args[0];
+
+            /* ── az ml endpoint create --name <name> --model <model> ── */
+            if (sub === 'create') {
+                var epName    = flagVal(args, '--name');
+                var modelName = flagVal(args, '--model');
+
+                if (!epName) {
+                    addLine('az ml endpoint create: --name <endpoint-name> is required.', 'term-line-err');
+                    return null;
+                }
+                if (!modelName) {
+                    addLine('az ml endpoint create: --model <model-name> is required.', 'term-line-err');
+                    return null;
+                }
+                if (!Object.prototype.hasOwnProperty.call(mlModels, modelName)) {
+                    addLine('ERROR: Model "' + modelName + '" not found in registry.', 'term-line-err');
+                    if (Object.keys(mlModels).length) {
+                        addLine('Available models: ' + Object.keys(mlModels).join(', '), 'term-line-info');
+                    } else {
+                        addLine('No models registered yet. Run AutoML jobs first.', 'term-line-info');
+                    }
+                    return null;
+                }
+
+                addLine('Deploying model "' + modelName + '" to endpoint "' + epName + '"...', 'term-line-info');
+                addLine('  Packaging model artifacts...', 'term-line-dim');
+                addLine('  Building container image...', 'term-line-dim');
+                addLine('  Provisioning compute (1x Standard_DS2_v2)...', 'term-line-dim');
+                addLine('  Running health checks...', 'term-line-dim');
+
+                var endpointUrl = 'https://' + epName + '.eastus.inference.ml.azure.com/score';
+                var epObj = {
+                    name:              epName,
+                    model:             modelName,
+                    modelVersion:      '1',
+                    status:            'Healthy',
+                    provisioningState: 'Succeeded',
+                    scoringUri:        endpointUrl,
+                    swaggerUri:        endpointUrl.replace('/score', '/swagger.json'),
+                    authMode:          'key',
+                    primaryKey:        'lab-endpoint-key-' + Math.random().toString(36).substring(2, 10),
+                    compute: {
+                        instanceType: 'Standard_DS2_v2',
+                        instanceCount: 1
+                    },
+                    createdAt: '2026-04-19T09:00:00Z'
+                };
+
+                mlEndpoints[epName] = epObj;
+
+                printJSON(epObj);
+                return { endpoint_created: true, epName: epName, modelName: modelName };
+            }
+
+            /* ── az ml endpoint invoke --name <name> --input <json> ── */
+            if (sub === 'invoke') {
+                var name  = flagVal(args, '--name');
+                var input = flagVal(args, '--input');
+
+                if (!name) {
+                    addLine('az ml endpoint invoke: --name <endpoint-name> is required.', 'term-line-err');
+                    return null;
+                }
+                if (!input) {
+                    addLine('az ml endpoint invoke: --input <json-string> is required.', 'term-line-err');
+                    addLine('Example: --input \'{"make":"Toyota","year":2021,"mileage":25000,"engine_size":2.0}\'', 'term-line-info');
+                    return null;
+                }
+
+                if (!Object.prototype.hasOwnProperty.call(mlEndpoints, name)) {
+                    addLine('ERROR: Endpoint "' + name + '" not found or not healthy.', 'term-line-err');
+                    addLine('Deploy a model first: az ml endpoint create --name ' + name + ' --model <model>', 'term-line-info');
+                    return null;
+                }
+
+                /* Parse input JSON and generate a realistic prediction */
+                var inputObj = null;
+                try {
+                    inputObj = JSON.parse(input);
+                } catch (e) {
+                    addLine('ERROR: --input is not valid JSON: ' + e.message, 'term-line-err');
+                    addLine('Example: --input \'{"make":"Toyota","year":2021,"mileage":25000,"engine_size":2.0}\'', 'term-line-info');
+                    return null;
+                }
+
+                /* Determine which model is backing this endpoint */
+                var ep    = mlEndpoints[name];
+                var mName = ep.model;
+
+                var prediction = buildPrediction(mName, inputObj, name);
+                printJSON(prediction);
+                return { endpoint_invoked: true, epName: name, modelName: mName };
+            }
+
+            addLine('az ml endpoint: unknown subcommand "' + sub + '". Try "create" or "invoke".', 'term-line-err');
+            return null;
+        }
+
+        /* ── Build a realistic prediction response based on the model and input ── */
+        function buildPrediction(modelName, inputObj, endpointName) {
+            if (modelName === 'car-price-predictor') {
+                /* Heuristic price estimate from input fields */
+                var year        = parseInt(inputObj.year, 10)        || 2019;
+                var mileage     = parseInt(inputObj.mileage, 10)     || 50000;
+                var engineSize  = parseFloat(inputObj.engine_size)   || 2.0;
+                var make        = String(inputObj.make || 'Honda');
+
+                /* Base price from year */
+                var basePrice = 5000 + (year - 2010) * 1800;
+                /* Mileage penalty */
+                basePrice -= (mileage / 1000) * 80;
+                /* Engine size premium */
+                basePrice += (engineSize - 1.5) * 3500;
+                /* Make premium */
+                var makePremiums = { BMW: 18000, Audi: 15000, Toyota: 2000, Honda: 1500, Ford: 0, Nissan: 500, Chevrolet: -500, Hyundai: -1000 };
+                basePrice += (makePremiums[make] || 0);
+
+                /* Round and clamp */
+                var price = Math.max(4000, Math.round(basePrice / 50) * 50);
+                var lo    = Math.round(price * 0.94 / 50) * 50;
+                var hi    = Math.round(price * 1.06 / 50) * 50;
+
+                return {
+                    requestId:          'req-score-' + Date.now(),
+                    endpoint:           endpointName,
+                    model:              'car-price-predictor',
+                    algorithm:          'GradientBoostingRegressor',
+                    input:              inputObj,
+                    predicted_price:    price,
+                    confidence_interval: [lo, hi],
+                    currency:           'USD',
+                    response_time_ms:   45
+                };
+            }
+
+            if (modelName === 'diabetes-risk-classifier') {
+                var glucose = parseInt(inputObj.glucose, 10) || 100;
+                var bmi     = parseFloat(inputObj.bmi)       || 25.0;
+                var age     = parseInt(inputObj.age, 10)     || 40;
+
+                /* Simple heuristic: high glucose + high bmi + older age -> higher risk */
+                var riskScore = (glucose - 70) / 120 * 0.5 + (bmi - 18) / 25 * 0.3 + (age - 20) / 60 * 0.2;
+                riskScore = Math.min(0.99, Math.max(0.01, riskScore));
+                var riskClass = riskScore > 0.5 ? 1 : 0;
+
+                return {
+                    requestId:       'req-score-' + Date.now(),
+                    endpoint:        endpointName,
+                    model:           'diabetes-risk-classifier',
+                    algorithm:       'RandomForestClassifier',
+                    input:           inputObj,
+                    predicted_risk:  riskClass,
+                    risk_label:      riskClass === 1 ? 'High Risk' : 'Low Risk',
+                    probability:     parseFloat(riskScore.toFixed(3)),
+                    response_time_ms: 38
+                };
+            }
+
+            if (modelName === 'customer-segmentation') {
+                var income   = parseInt(inputObj.income, 10)        || 50000;
+                var spending = parseInt(inputObj.spending_score, 10) || 50;
+
+                var cluster = 2;
+                if (income > 80000 && spending > 70) cluster = 0;
+                else if (income < 40000 && spending < 40) cluster = 1;
+
+                var labels = ['High Value', 'Budget Conscious', 'Occasional Shoppers'];
+
+                return {
+                    requestId:      'req-score-' + Date.now(),
+                    endpoint:       endpointName,
+                    model:          'customer-segmentation',
+                    algorithm:      'KMeans (k=3)',
+                    input:          inputObj,
+                    cluster_id:     cluster,
+                    cluster_label:  labels[cluster],
+                    response_time_ms: 22
+                };
+            }
+
+            /* Generic fallback */
+            return {
+                requestId:       'req-score-' + Date.now(),
+                model:           modelName,
+                input:           inputObj,
+                prediction:      'Prediction generated (generic fallback)',
+                response_time_ms: 40
+            };
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND DISPATCH
+           Parses the raw input line, resolves redirect,
+           and routes to the correct handler.
+        ════════════════════════════════════════════════ */
+        function execLine(line) {
+            addPromptLine(line);
+
+            var trimmed = line.trim();
+            if (!trimmed) return;
+
+            var args = parseArgs(trimmed);
+            var cmd  = args[0];
+            var rest = args.slice(1);
+
+            var result = null;
+
+            switch (cmd) {
+                case 'ls':
+                    result = cmd_ls(rest);
+                    break;
+                case 'cat':
+                    result = cmd_cat(rest);
+                    break;
+                case 'cd':
+                    result = cmd_cd(rest);
+                    break;
+                case 'pwd':
+                    result = cmd_pwd();
+                    break;
+                case 'echo':
+                    result = cmd_echo(rest);
+                    break;
+                case 'mkdir':
+                    result = cmd_mkdir(rest);
+                    break;
+                case 'cp':
+                    result = cmd_cp(rest);
+                    break;
+                case 'env':
+                    result = cmd_env();
+                    break;
+                case 'az':
+                    result = cmd_az(rest);
+                    break;
+                case 'clear':
+                    outputEl.innerHTML = '';
+                    return;
+                case 'help':
+                    cmd_help();
+                    return;
+                case 'history':
+                    if (!cmdHistory.length) {
+                        addLine('(no history)', 'term-line-info');
+                    } else {
+                        cmdHistory.forEach(function (h, i) {
+                            addLine(String(i + 1).padStart(4) + '  ' + h, 'term-line-out');
+                        });
+                    }
+                    return;
+                case 'exit':
+                    addLine('Use "Exit Lab" in the header to leave the lab.', 'term-line-info');
+                    return;
+                case 'sudo':
+                    addLine('student is not in the sudoers file. This incident will be reported.', 'term-line-err');
+                    return;
+                default:
+                    addLine('bash: ' + cmd + ': command not found. Type "help" for available commands.', 'term-line-err');
+                    return;
+            }
+
+            checkTaskCompletion(line, result, args);
+        }
+
+        /* ════════════════════════════════════════════════
+           TASK VERIFICATION
+           Each task checks a specific result signature that
+           can only come from running the correct command(s).
+        ════════════════════════════════════════════════ */
+        function checkTaskCompletion(line, result, args) {
+            var cmd = args[0];
+
+            /* ── Task 1: az ml workspace show ── */
+            if (!taskDone[1]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.workspace_shown === true) {
+                    completeTask(1);
+                }
+            }
+
+            /* ── Task 2: az ml data list AND cat ~/data/car-prices.csv ── */
+            if (!taskDone[2]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.data_listed === true) {
+                    task2_listed = true;
+                }
+                if (cmd === 'cat' && result && typeof result === 'object' &&
+                    result.catted === true &&
+                    result.path.indexOf('car-prices.csv') >= 0) {
+                    task2_catted = true;
+                }
+                if (task2_listed && task2_catted) completeTask(2);
+            }
+
+            /* ── Task 3: az ml job create --task regression ── */
+            if (!taskDone[3]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.job_created === true && result.task === 'regression') {
+                    completeTask(3);
+                }
+            }
+
+            /* ── Task 4: az ml job show --name automl-regression-001 ── */
+            if (!taskDone[4]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.job_shown === true && result.jobName === 'automl-regression-001' &&
+                    result.task === 'regression') {
+                    completeTask(4);
+                }
+            }
+
+            /* ── Task 5: az ml job create --task classification ── */
+            if (!taskDone[5]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.job_created === true && result.task === 'classification') {
+                    completeTask(5);
+                }
+            }
+
+            /* ── Task 6: az ml job show --name automl-classification-001 ── */
+            if (!taskDone[6]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.job_shown === true && result.jobName === 'automl-classification-001' &&
+                    result.task === 'classification') {
+                    completeTask(6);
+                }
+            }
+
+            /* ── Task 7: az ml job create --task clustering ── */
+            if (!taskDone[7]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.job_created === true && result.task === 'clustering') {
+                    completeTask(7);
+                }
+            }
+
+            /* ── Task 8: az ml model list AND az ml model show ── */
+            if (!taskDone[8]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.model_listed === true) {
+                    task8_listed = true;
+                }
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.model_shown === true) {
+                    task8_shown = true;
+                }
+                if (task8_listed && task8_shown) completeTask(8);
+            }
+
+            /* ── Task 9: az ml endpoint create ── */
+            if (!taskDone[9]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.endpoint_created === true) {
+                    completeTask(9);
+                }
+            }
+
+            /* ── Task 10: az ml endpoint invoke ── */
+            if (!taskDone[10]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.endpoint_invoked === true) {
+                    completeTask(10);
+                }
+            }
+        }
+
+        /* ════════════════════════════════════════════════
+           TASK PROGRESS MANAGEMENT
+        ════════════════════════════════════════════════ */
+        function completeTask(num) {
+            if (taskDone[num]) return;
+            taskDone[num] = true;
+
+            var card = document.getElementById('task-card-' + num);
+            if (card) {
+                card.classList.add('completed');
+                card.classList.remove('active');
+            }
+
+            var doneCount = countDone();
+
+            document.getElementById('taskProgress').textContent = doneCount + ' / ' + TOTAL_TASKS + ' Tasks';
+            var fill = document.getElementById('progressBarFill');
+            if (fill) fill.style.width = Math.round((doneCount / TOTAL_TASKS) * 100) + '%';
+
+            addBlank();
+            addHTML(
+                '  <span style="color:#34d399">[Task ' + num + ' complete]</span> ' +
+                '<span style="color:#6b5b7e">' + escH(getTaskName(num)) + '</span>',
+                'term-line-info'
+            );
+            addBlank();
+
+            if (doneCount === TOTAL_TASKS) {
+                setTimeout(function () {
+                    document.getElementById('successOverlay').classList.add('active');
+                }, 700);
+                return;
+            }
+
+            var next = nextIncompleteTask();
+            if (next !== null) selectTask(next);
+        }
+
+        function getTaskName(num) {
+            var names = {
+                1:  'Check Your ML Workspace',
+                2:  'Explore the Datasets',
+                3:  'Run AutoML — Regression',
+                4:  'View Regression Results',
+                5:  'Run AutoML — Classification',
+                6:  'View Classification Results',
+                7:  'Run AutoML — Clustering',
+                8:  'List and Inspect Models',
+                9:  'Deploy a Model',
+                10: 'Make a Prediction'
+            };
+            return names[num] || 'Task ' + num;
+        }
+
+        function countDone() {
+            var n = 0;
+            for (var k in taskDone) {
+                if (Object.prototype.hasOwnProperty.call(taskDone, k) && taskDone[k]) n++;
+            }
+            return n;
+        }
+
+        function nextIncompleteTask() {
+            for (var i = 1; i <= TOTAL_TASKS; i++) {
+                if (!taskDone[i]) return i;
+            }
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           INSTRUCTIONS PANEL CONTENT
+        ════════════════════════════════════════════════ */
+        var taskInstructions = {
+            1: {
+                step: 'Verify the pre-configured Azure ML workspace:\n<code>az ml workspace show</code>\n\nNote the <code>computeTargets</code> array — two targets exist: a ComputeInstance (your VM) and an AmlCompute cluster used by AutoML. Note the links to <code>storageAccount</code>, <code>keyVault</code>, and <code>containerRegistry</code> — these are automatically provisioned with every ML workspace.',
+                hint: 'An Azure ML workspace is the top-level resource that ties together all ML assets: datasets, experiments, models, and endpoints. The key vault stores secrets like API keys and credentials. The container registry stores Docker images used for training and deployment. The storage account holds datasets, model artifacts, and logs.',
+                cmd:  'az ml workspace show'
+            },
+            2: {
+                step: 'Two commands required:\n1. <code>az ml data list</code> — see all registered datasets, their types, and file paths in the workspace blob store.\n2. <code>cat ~/data/car-prices.csv</code> — read the raw file and identify the feature columns and target column.\n\nNote which column you will use as the <code>--target</code> in the next task.',
+                hint: 'In Azure ML, datasets are registered assets with versioning. "uri_file" means the data lives at a blob storage URI. Registering a dataset decouples the data path from your code — you reference the dataset by name and version, so if the data moves or updates, only the registry needs updating, not every script that uses it.',
+                cmd:  'az ml data list\ncat ~/data/car-prices.csv'
+            },
+            3: {
+                step: 'Submit an AutoML regression job to predict car prices:\n<code>az ml job create --type automl --task regression --data car-prices --target price</code>\n\nAutoML will trial LinearRegression, DecisionTree, RandomForest, and GradientBoosting. Watch the R-squared and RMSE values in the trial table. A higher R-squared (closer to 1.0) means more variance explained. A lower RMSE means smaller average prediction error.',
+                hint: 'Regression predicts a continuous numeric output — in this case, a dollar price. R-squared measures how much of the variance in the target is explained by the model (0 to 1). RMSE (Root Mean Squared Error) is the average prediction error in the same units as the target (dollars). AutoML handles feature encoding, scaling, and hyperparameter search automatically.',
+                cmd:  'az ml job create --type automl --task regression --data car-prices --target price'
+            },
+            4: {
+                step: 'View the detailed results of the regression job:\n<code>az ml job show --name automl-regression-001</code>\n\nStudy the <code>featureImportances</code> object carefully. Mileage (0.45) is the most predictive feature — more miles driven means lower price. Year (0.30) is second — newer cars cost more. Engine size (0.20) adds premium. Make (0.05) has surprisingly low impact after controlling for the other features.',
+                hint: 'Feature importances (via SHAP or permutation importance) tell you how much each input feature contributed to the model\'s predictions. A feature importance of 0.45 means mileage alone explains 45% of the model\'s predictive power. This is critical for model interpretability — an AI-900 exam concept. In regulated industries (e.g., lending), you must be able to explain why a model made a decision.',
+                cmd:  'az ml job show --name automl-regression-001'
+            },
+            5: {
+                step: 'Submit an AutoML classification job to predict diabetes risk:\n<code>az ml job create --type automl --task classification --data diabetes-risk --target risk</code>\n\nAutoML will trial LogisticRegression, SVC, RandomForest, and GradientBoosting. Watch both accuracy and AUC. For medical classification, AUC (Area Under the ROC Curve) is often more informative than accuracy, especially for imbalanced datasets.',
+                hint: 'Classification predicts a discrete class label. Binary classification (risk: 0 or 1) is the simplest case. AUC measures a classifier\'s ability to discriminate between classes across all decision thresholds — 0.5 = random, 1.0 = perfect. F1 score balances precision (when you say high-risk, how often are you right?) and recall (of all high-risk patients, how many did you catch?).',
+                cmd:  'az ml job create --type automl --task classification --data diabetes-risk --target risk'
+            },
+            6: {
+                step: 'View detailed classification results including the confusion matrix:\n<code>az ml job show --name automl-classification-001</code>\n\nThe confusion matrix shows four values: True Positive (91 high-risk correctly flagged), False Positive (13 low-risk flagged as high-risk), True Negative (98 low-risk correctly cleared), False Negative (9 high-risk missed). In clinical screening, FN is the critical failure — missing a sick patient.',
+                hint: 'The confusion matrix is the most important diagnostic for classification models. False Negatives in healthcare = patients with disease who were told they are healthy (dangerous). False Positives = healthy patients sent for unnecessary follow-up (costly but recoverable). This tradeoff is controlled by the decision threshold — lower the threshold to increase recall (catch more true positives) at the cost of more false alarms.',
+                cmd:  'az ml job show --name automl-classification-001'
+            },
+            7: {
+                step: 'Submit an AutoML clustering job to segment customers:\n<code>az ml job create --type automl --task clustering --data customers --target none</code>\n\nClustering is unsupervised — there is no target label. AutoML tries K=2 through K=5. Watch the silhouette score: 0 = clusters overlap completely, 1 = clusters are perfectly separated. K=3 wins. Look at the cluster profiles — each group has a clear business meaning.',
+                hint: 'Clustering is unsupervised learning — the algorithm finds natural groupings without labels. NOTE: In real Azure ML, clustering is done via the Designer (drag-and-drop) or Python SDK — AutoML supports regression, classification, and forecasting, not clustering directly. This lab simulates it for learning purposes. The silhouette score measures cluster separation: higher is better. K-Means is the most common algorithm.',
+                cmd:  'az ml job create --type automl --task clustering --data customers --target none'
+            },
+            8: {
+                step: 'Two commands required:\n1. <code>az ml model list</code> — see all three models registered from the AutoML jobs.\n2. <code>az ml model show --name car-price-predictor</code> — inspect the full model card.\n\nNote the <code>inputSchema</code> (what data the model expects), the <code>limitations</code> array, and the <code>evaluationMetrics</code>. A model card is the documentation artifact that ships with every deployed model.',
+                hint: 'A model card documents what a model does, how it was trained, what data it was trained on, its performance metrics, and its known limitations. This is required for responsible AI deployment — you must disclose to users what the model can and cannot do, where it might fail, and what fairness constraints were applied. Azure ML stores model cards in the model registry.',
+                cmd:  'az ml model list\naz ml model show --name car-price-predictor'
+            },
+            9: {
+                step: 'Deploy the car price predictor as a managed online endpoint:\n<code>az ml endpoint create --name car-price-api --model car-price-predictor</code>\n\nThe endpoint gets a unique HTTPS URL (scoringUri). Note <code>authMode: key</code> — all requests must include an API key in the Authorization header. The endpoint runs on a dedicated VM instance (Standard_DS2_v2) and scales independently of your workspace.',
+                hint: 'A managed online endpoint is a real-time inference service — it accepts HTTP POST requests and returns predictions in milliseconds. Azure ML handles the container runtime, autoscaling, authentication, and monitoring. The scoring URI is the REST endpoint you would call from an app or service. The primary key is the API credential — rotate it regularly in production.',
+                cmd:  'az ml endpoint create --name car-price-api --model car-price-predictor'
+            },
+            10: {
+                step: 'Send a prediction request to your deployed endpoint:\n<code>az ml endpoint invoke --name car-price-api --input \'{"make":"Toyota","year":2021,"mileage":25000,"engine_size":2.0}\'</code>\n\nThe response includes a <code>predicted_price</code> and a <code>confidence_interval</code> — a range the true price is likely to fall within. Try different makes and years to see how the model responds.',
+                hint: 'The confidence interval shows the model\'s uncertainty. A wide interval means the model is less sure — this happens for unusual combinations of features that were rare in the training data. In production you would expose this endpoint to a web app or mobile app via REST calls. The format of the input JSON must match the model\'s inputSchema exactly — any missing or wrong-type fields will cause a scoring error.',
+                cmd:  'az ml endpoint invoke --name car-price-api --input \'{"make":"Toyota","year":2021,"mileage":25000,"engine_size":2.0}\''
+            }
+        };
+
+        function selectTask(num) {
+            currentTask = num;
+
+            /* Highlight active card */
+            for (var i = 1; i <= TOTAL_TASKS; i++) {
+                var card = document.getElementById('task-card-' + i);
+                if (!card) continue;
+                card.classList.remove('active');
+                if (i === num) card.classList.add('active');
+            }
+
+            /* Scroll active card into view */
+            var activeCard = document.getElementById('task-card-' + num);
+            if (activeCard) activeCard.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+
+            /* Update instructions panel */
+            var info = taskInstructions[num];
+            if (!info) return;
+
+            var stepEl  = document.getElementById('instructionsStep');
+            var hintEl  = document.getElementById('instructionsHint');
+            var hintCmd = document.getElementById('hintCommand');
+
+            if (stepEl) stepEl.innerHTML = info.step.replace(/\n/g, '<br>');
+            if (hintEl) {
+                hintEl.innerHTML =
+                    '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block"> ' +
+                    escH(info.hint);
+            }
+            if (hintCmd) {
+                hintCmd.textContent = info.cmd;
+                hintCmd.classList.remove('visible');
+            }
+
+            /* Reset hint button label */
+            var btn = document.getElementById('hintBtn');
+            if (btn) btn.textContent = 'Show command hint';
+
+            /* Re-expand panel if collapsed */
+            var panel = document.getElementById('instructionsPanel');
+            if (panel && panel.classList.contains('collapsed')) {
+                panel.classList.remove('collapsed');
+            }
+        }
+
+        function toggleInstructions() {
+            var panel = document.getElementById('instructionsPanel');
+            if (panel) panel.classList.toggle('collapsed');
+        }
+
+        function revealHint() {
+            var hintCmd = document.getElementById('hintCommand');
+            if (hintCmd) hintCmd.classList.toggle('visible');
+            var btn = document.getElementById('hintBtn');
+            if (btn) btn.textContent = (hintCmd && hintCmd.classList.contains('visible')) ? 'Hide hint' : 'Show command hint';
+        }
+
+        /* Expose for inline HTML handlers */
+        window.selectTask         = selectTask;
+        window.toggleInstructions = toggleInstructions;
+        window.revealHint         = revealHint;
+
+        /* ════════════════════════════════════════════════
+           TAB COMPLETION
+        ════════════════════════════════════════════════ */
+        var AZ_COMPLETIONS = {
+            'az ':                                              ['ml', 'account'],
+            'az ml ':                                           ['workspace', 'data', 'job', 'model', 'endpoint'],
+            'az ml workspace ':                                 ['show'],
+            'az ml data ':                                      ['list', 'show'],
+            'az ml data show ':                                 ['--name'],
+            'az ml job ':                                       ['create', 'show'],
+            'az ml job create ':                                ['--type', '--task', '--data', '--target'],
+            'az ml job show ':                                  ['--name'],
+            'az ml model ':                                     ['list', 'show'],
+            'az ml model show ':                                ['--name'],
+            'az ml endpoint ':                                  ['create', 'invoke'],
+            'az ml endpoint create ':                           ['--name', '--model'],
+            'az ml endpoint invoke ':                           ['--name', '--input']
+        };
+
+        function handleTab(value) {
+            var suggestions = [];
+            var matchKey    = '';
+
+            var keys = Object.keys(AZ_COMPLETIONS);
+            for (var i = 0; i < keys.length; i++) {
+                if (value.indexOf(keys[i]) === 0 && keys[i].length > matchKey.length) {
+                    matchKey = keys[i];
+                }
+            }
+
+            if (matchKey) {
+                var partial  = value.substring(matchKey.length);
+                var options  = AZ_COMPLETIONS[matchKey];
+                suggestions  = options.filter(function (o) { return o.indexOf(partial) === 0; });
+            }
+
+            var popup = document.getElementById('tabSuggestions');
+            if (!popup) return;
+
+            if (suggestions.length === 0) {
+                popup.classList.remove('visible');
+                popup.innerHTML = '';
+                return;
+            }
+
+            if (suggestions.length === 1) {
+                inputEl.value = matchKey + suggestions[0] + ' ';
+                popup.classList.remove('visible');
+                popup.innerHTML = '';
+                return;
+            }
+
+            /* Show popup for multiple options */
+            popup.innerHTML = '';
+            suggestions.forEach(function (s) {
+                var div = document.createElement('div');
+                div.className = 'tab-option';
+                div.textContent = s;
+                div.addEventListener('click', function () {
+                    inputEl.value = matchKey + s + ' ';
+                    popup.classList.remove('visible');
+                    popup.innerHTML = '';
+                    inputEl.focus();
+                });
+                popup.appendChild(div);
+            });
+            popup.classList.add('visible');
+        }
+
+        /* ════════════════════════════════════════════════
+           FINISH LAB
+        ════════════════════════════════════════════════ */
+        function finishLab() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('ai', 'ai900-ch05-lab', {
+                    returnUrl: '../index.html'
+                });
+            } else {
+                window.location.href = '../index.html';
+            }
+        }
+
+        window.finishLab = finishLab;
+
+        /* ════════════════════════════════════════════════
+           INIT
+        ════════════════════════════════════════════════ */
+        function init() {
+            initFS();
+
+            outputEl  = document.getElementById('termOutput');
+            inputEl   = document.getElementById('termInput');
+            ps1PathEl = document.getElementById('termPS1Path');
+
+            if (!outputEl || !inputEl) return;
+
+            /* ── Welcome Banner ── */
+            addLine('Azure Machine Learning Lab — Hexworth Prime', 'term-welcome');
+            addLine('Azure ML CLI 2.22.0   Ubuntu 22.04 LTS   AI-900 Chapter 5', 'term-welcome');
+            addBlank();
+            addLine('Workspace  : ' + WS_NAME + ' (Basic / eastus)', 'term-line-info');
+            addLine('Datasets   : car-prices, diabetes-risk, customers  (ls ~/data/)', 'term-line-info');
+            addLine('Scripts    : ls ~/scripts/', 'term-line-info');
+            addLine('Results    : ls ~/results/', 'term-line-info');
+            addBlank();
+            addLine('Type "help" for all available commands.', 'term-line-info');
+            addLine('Complete 10 tasks to finish this lab.', 'term-line-info');
+            addBlank();
+            addLine('NOTE: "az ml" commands are simulated for this lab environment. In', 'term-line-warn');
+            addLine('production, use the Azure ML Python SDK v2, REST API, or Azure ML Studio.', 'term-line-warn');
+            addBlank();
+
+            /* ── Keyboard Handler ── */
+            inputEl.addEventListener('keydown', function (e) {
+                var tabPopup = document.getElementById('tabSuggestions');
+
+                if (e.key === 'Enter') {
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                    var cmd = inputEl.value;
+                    inputEl.value = '';
+                    if (cmd.trim()) {
+                        cmdHistory.push(cmd);
+                        histIdx = cmdHistory.length;
+                    }
+                    execLine(cmd);
+                } else if (e.key === 'Tab') {
+                    e.preventDefault();
+                    handleTab(inputEl.value);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                    if (histIdx > 0) {
+                        histIdx--;
+                        inputEl.value = cmdHistory[histIdx];
+                    }
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                    if (histIdx < cmdHistory.length - 1) {
+                        histIdx++;
+                        inputEl.value = cmdHistory[histIdx];
+                    } else {
+                        histIdx = cmdHistory.length;
+                        inputEl.value = '';
+                    }
+                } else if (e.key === 'Escape') {
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                }
+            });
+
+            /* Click anywhere in output to refocus input */
+            outputEl.addEventListener('click', function () { inputEl.focus(); });
+
+            /* Auto-focus on load */
+            inputEl.focus();
+
+            /* Show task 1 in instructions panel */
+            selectTask(1);
+        }
+
+        /* Boot after DOM ready */
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+
+    })();
+    </script>
+
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

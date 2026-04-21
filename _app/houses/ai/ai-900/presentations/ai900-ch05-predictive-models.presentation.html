@@ -1,0 +1,1412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Predictive Models with Azure Machine Learning | AI-900 Chapter 5</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container — fixed to viewport, hidden by default */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        /* Max-width wrapper so content does not stretch on wide screens */
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Gold progress bar across the very top */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c9a83a; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.15); color: #c9a83a; border-color: #c9a83a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button — shown only on last slide via JS */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #c9a83a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip for scenario or instructor notes */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.08); border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fef3c7; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids — 3-column and 2-column */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c9a83a;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+
+        /* Section label — small caps divider text */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Numbered summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c9a83a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Inline code span */
+        .ic {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* SVG diagram containers */
+        .diagram-row {
+            display: flex; gap: 16px; align-items: center; justify-content: center;
+        }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        /* Hex grid */
+        .hex-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(201, 168, 58, 0.25);
+            border-radius: 8px; padding: 12px 14px;
+            text-align: center;
+            opacity: 0;
+            animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #c9a83a; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        /* Shared animation keyframes */
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes flow {
+            0%   { stroke-dashoffset: 20; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes boxGrow {
+            from { opacity: 0; transform: scale(0.7); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes labelSlide {
+            from { opacity: 0; transform: translateX(-8px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes entityPop {
+            from { opacity: 0; transform: scale(0.6) translateY(6px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes spokePulse {
+            0%   { stroke-dashoffset: 40; opacity: 0.3; }
+            50%  { opacity: 1; }
+            100% { stroke-dashoffset: 0; opacity: 0.6; }
+        }
+        @keyframes barGrow {
+            from { width: 0; }
+        }
+        @keyframes bubblePop {
+            from { opacity: 0; transform: scale(0.8) translateY(8px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes clusterAssign {
+            0%   { opacity: 0; }
+            30%  { opacity: 0.4; }
+            100% { opacity: 1; }
+        }
+        @keyframes dotDrift {
+            0%   { transform: translate(0, 0); opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+        @keyframes orbitSpin {
+            from { transform-origin: 200px 60px; transform: rotate(0deg); }
+            to   { transform-origin: 200px 60px; transform: rotate(360deg); }
+        }
+        @keyframes shieldPulse {
+            0%, 100% { opacity: 0.5; r: 38; }
+            50%       { opacity: 1; r: 42; }
+        }
+        @keyframes metricReveal {
+            from { opacity: 0; transform: translateX(-10px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Predictive Models with Azure Machine Learning — AI-900 Chapter 5</h1>
+
+<!-- Gold progress bar — width updated by goToSlide() -->
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; AI-900 &nbsp;|&nbsp; Chapter 5 of 6</div>
+        <div class="title-hero">
+            <!-- Data points flowing into model box, predictions flowing out SVG -->
+            <svg width="340" height="112" viewBox="0 0 340 112" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Incoming data points — left side scatter -->
+                <circle cx="18" cy="22" r="4.5" fill="rgba(99,102,241,0.7)" style="animation: entityPop 0.3s ease forwards 0.05s; opacity:0;"/>
+                <circle cx="28" cy="50" r="3.5" fill="rgba(99,102,241,0.5)" style="animation: entityPop 0.3s ease forwards 0.12s; opacity:0;"/>
+                <circle cx="14" cy="72" r="5"   fill="rgba(99,102,241,0.8)" style="animation: entityPop 0.3s ease forwards 0.19s; opacity:0;"/>
+                <circle cx="34" cy="90" r="3"   fill="rgba(99,102,241,0.5)" style="animation: entityPop 0.3s ease forwards 0.26s; opacity:0;"/>
+                <circle cx="10" cy="42" r="3.5" fill="rgba(167,139,250,0.6)" style="animation: entityPop 0.3s ease forwards 0.33s; opacity:0;"/>
+                <circle cx="42" cy="30" r="4"   fill="rgba(167,139,250,0.7)" style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="24" y="106" text-anchor="middle" font-size="7.5" fill="#6366f1" font-family="Segoe UI,sans-serif">Raw Data</text>
+
+                <!-- Animated arrows flowing right into model box -->
+                <line x1="52" y1="56" x2="96" y2="56" stroke="rgba(201,168,58,0.7)" stroke-width="1.7" stroke-dasharray="5,4">
+                    <animate attributeName="stroke-dashoffset" values="18;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="96,52 104,56 96,60" fill="#c9a83a"/>
+
+                <!-- Model box — center -->
+                <rect x="106" y="22" width="128" height="68" rx="12" fill="rgba(201,168,58,0.09)" stroke="#c9a83a" stroke-width="1.8"/>
+                <text x="170" y="48" text-anchor="middle" font-size="10.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">ML Model</text>
+                <text x="170" y="62" text-anchor="middle" font-size="8" fill="#fef3c7" font-family="Segoe UI,sans-serif">Learns patterns</text>
+                <text x="170" y="74" text-anchor="middle" font-size="8" fill="#fef3c7" font-family="Segoe UI,sans-serif">from training data</text>
+                <!-- Internal pulse ring -->
+                <circle cx="170" cy="56" r="32" fill="none" stroke="rgba(201,168,58,0.1)" stroke-width="1.2" style="animation: pulse 2.4s ease-in-out infinite;"/>
+                <text x="170" y="100" text-anchor="middle" font-size="7" fill="#c9a83a" font-family="Segoe UI,sans-serif">Azure ML</text>
+
+                <!-- Arrow from model to predictions -->
+                <line x1="236" y1="56" x2="276" y2="56" stroke="rgba(58,181,119,0.7)" stroke-width="1.7" stroke-dasharray="5,4">
+                    <animate attributeName="stroke-dashoffset" values="18;0" dur="1s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+                <polygon points="276,52 284,56 276,60" fill="#3ab577"/>
+
+                <!-- Predictions — right side -->
+                <rect x="286" y="14" width="50" height="20" rx="6" fill="rgba(58,181,119,0.09)" stroke="#3ab577" stroke-width="1.1"
+                    style="animation: entityPop 0.4s ease forwards 0.6s; opacity:0;"/>
+                <text x="311" y="27" text-anchor="middle" font-size="7.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">$24,500</text>
+
+                <rect x="286" y="42" width="50" height="20" rx="6" fill="rgba(6,182,212,0.09)" stroke="#06b6d4" stroke-width="1.1"
+                    style="animation: entityPop 0.4s ease forwards 0.8s; opacity:0;"/>
+                <text x="311" y="55" text-anchor="middle" font-size="7.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Positive</text>
+
+                <rect x="286" y="70" width="50" height="20" rx="6" fill="rgba(249,115,22,0.09)" stroke="#f97316" stroke-width="1.1"
+                    style="animation: entityPop 0.4s ease forwards 1.0s; opacity:0;"/>
+                <text x="311" y="83" text-anchor="middle" font-size="7.5" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">Cluster B</text>
+
+                <text x="311" y="104" text-anchor="middle" font-size="7" fill="#3ab577" font-family="Segoe UI,sans-serif">Predictions</text>
+            </svg>
+            <div class="big-title">
+                Predictive Models with <span class="accent">Azure ML</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                AutoML &nbsp;&bull;&nbsp; Designer &nbsp;&bull;&nbsp; Regression &nbsp;&bull;&nbsp; Classification &nbsp;&bull;&nbsp; Clustering &nbsp;&bull;&nbsp; Deployment
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Predictive ML learns statistical patterns from historical data and applies them to new inputs — answering questions like "What will this house sell for?", "Is this transaction fraudulent?", and "Which customers behave similarly?" Azure Machine Learning provides the full toolkit to train, evaluate, and deploy these models at scale.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>AI-900 Exam Objectives</span>
+            <span>Chapter 5 of 6</span>
+            <span>Azure AI Fundamentals</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — AZURE ML WORKSPACE ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Azure Machine Learning <span class="accent">Workspace</span></div>
+        <div class="slide-subtitle">The workspace is the central container for every ML artifact — your datasets, experiments, trained models, and deployed endpoints all live here.</div>
+
+        <!-- Workspace hub-and-spoke SVG -->
+        <div class="diagram-center">
+            <svg width="620" height="116" viewBox="0 0 620 116" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central workspace hub -->
+                <rect x="234" y="26" width="152" height="64" rx="12" fill="rgba(201,168,58,0.1)" stroke="#c9a83a" stroke-width="1.8"/>
+                <text x="310" y="50" text-anchor="middle" font-size="10" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">ML Workspace</text>
+                <text x="310" y="64" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Azure Resource</text>
+                <text x="310" y="76" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">studio.ml.azure.com</text>
+                <circle cx="310" cy="58" r="44" fill="none" stroke="rgba(201,168,58,0.07)" stroke-width="1.2" style="animation: pulse 2.8s ease-in-out infinite;"/>
+
+                <!-- Spoke: Datasets -->
+                <line x1="232" y1="44" x2="174" y2="28" stroke="rgba(6,182,212,0.5)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.2s" repeatCount="indefinite"/>
+                </line>
+                <rect x="60" y="10" width="112" height="36" rx="7" fill="rgba(6,182,212,0.07)" stroke="#06b6d4" stroke-width="1.1"
+                    style="animation: boxGrow 0.4s ease forwards 0.15s; opacity:0;"/>
+                <text x="116" y="26" text-anchor="middle" font-size="8.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Datasets</text>
+                <text x="116" y="38" text-anchor="middle" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif">Tabular, Files, Labeling</text>
+
+                <!-- Spoke: Experiments / Jobs -->
+                <line x1="234" y1="58" x2="178" y2="58" stroke="rgba(167,139,250,0.5)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.2s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <rect x="58" y="42" width="118" height="32" rx="7" fill="rgba(167,139,250,0.07)" stroke="#a78bfa" stroke-width="1.1"
+                    style="animation: boxGrow 0.4s ease forwards 0.3s; opacity:0;"/>
+                <text x="117" y="58" text-anchor="middle" font-size="8.5" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Experiments / Jobs</text>
+                <text x="117" y="68" text-anchor="middle" font-size="7" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Training runs + logs</text>
+
+                <!-- Spoke: Compute -->
+                <line x1="234" y1="74" x2="174" y2="90" stroke="rgba(249,115,22,0.5)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.2s" repeatCount="indefinite" begin="0.4s"/>
+                </line>
+                <rect x="58" y="78" width="114" height="32" rx="7" fill="rgba(249,115,22,0.07)" stroke="#f97316" stroke-width="1.1"
+                    style="animation: boxGrow 0.4s ease forwards 0.45s; opacity:0;"/>
+                <text x="115" y="94" text-anchor="middle" font-size="8.5" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">Compute</text>
+                <text x="115" y="104" text-anchor="middle" font-size="7" fill="#fdba74" font-family="Segoe UI,sans-serif">Clusters, Instances, CI</text>
+
+                <!-- Spoke: Models -->
+                <line x1="388" y1="44" x2="448" y2="28" stroke="rgba(58,181,119,0.5)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.2s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <rect x="450" y="10" width="110" height="36" rx="7" fill="rgba(58,181,119,0.07)" stroke="#3ab577" stroke-width="1.1"
+                    style="animation: boxGrow 0.4s ease forwards 0.2s; opacity:0;"/>
+                <text x="505" y="26" text-anchor="middle" font-size="8.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Models</text>
+                <text x="505" y="38" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Versioned artifacts</text>
+
+                <!-- Spoke: Pipelines -->
+                <line x1="388" y1="58" x2="444" y2="58" stroke="rgba(99,102,241,0.5)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.2s" repeatCount="indefinite" begin="0.35s"/>
+                </line>
+                <rect x="446" y="42" width="120" height="32" rx="7" fill="rgba(99,102,241,0.07)" stroke="#6366f1" stroke-width="1.1"
+                    style="animation: boxGrow 0.4s ease forwards 0.5s; opacity:0;"/>
+                <text x="506" y="58" text-anchor="middle" font-size="8.5" fill="#a5b4fc" font-weight="700" font-family="Segoe UI,sans-serif">Pipelines</text>
+                <text x="506" y="68" text-anchor="middle" font-size="7" fill="#818cf8" font-family="Segoe UI,sans-serif">Reusable workflows</text>
+
+                <!-- Spoke: Endpoints -->
+                <line x1="388" y1="74" x2="446" y2="90" stroke="rgba(239,68,68,0.5)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.2s" repeatCount="indefinite" begin="0.55s"/>
+                </line>
+                <rect x="448" y="78" width="118" height="32" rx="7" fill="rgba(239,68,68,0.07)" stroke="#ef4444" stroke-width="1.1"
+                    style="animation: boxGrow 0.4s ease forwards 0.65s; opacity:0;"/>
+                <text x="507" y="94" text-anchor="middle" font-size="8.5" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Endpoints</text>
+                <text x="507" y="104" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">REST APIs for inference</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">What a Workspace Actually Is</div>
+                <div class="card-desc">Think of the workspace as a project folder in the cloud, but with governance. It connects your compute resources, data sources, and code into a single tracked environment. Every training run is logged. Every model version is recorded. You never lose track of what produced what result.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Three Ways to Work Inside It</div>
+                <div class="card-desc"><strong>Azure ML Studio</strong> (studio.ml.azure.com) — browser-based GUI with Designer and AutoML. <strong>Python SDK v2</strong> — programmatic access for data scientists. <strong>Azure CLI extension</strong> — for DevOps automation and CI/CD pipelines. All three operate on the same underlying workspace resources.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Linked Resources</div>
+                <div class="card-desc">When you create a workspace, Azure automatically provisions: a Storage Account (for data and model artifacts), a Key Vault (for secrets), a Container Registry (for Docker images), and an Application Insights instance (for telemetry). These are linked but billed separately from the workspace itself.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Crawl: "A workspace is the top-level Azure resource that organizes everything in your ML project." Walk: Every dataset you register, every training job you run, every model you produce, and every endpoint you deploy — all tracked, versioned, and auditable from one place.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — AUTOMATED ML ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Automated ML <span class="accent">(AutoML)</span></div>
+        <div class="slide-subtitle">You supply the data and name the target column. AutoML runs dozens of algorithm + preprocessing combinations in parallel, then hands you the best model.</div>
+
+        <!-- AutoML pipeline SVG: Data → AutoML tries algorithms → best model selected -->
+        <div class="diagram-center">
+            <svg width="650" height="118" viewBox="0 0 650 118" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Input: Your data -->
+                <rect x="4" y="28" width="96" height="62" rx="9" fill="rgba(99,102,241,0.07)" stroke="#6366f1" stroke-width="1.3"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="52" y="48" text-anchor="middle" font-size="8.5" fill="#a5b4fc" font-weight="700" font-family="Segoe UI,sans-serif">Your Data</text>
+                <text x="52" y="60" text-anchor="middle" font-size="7" fill="#818cf8" font-family="Segoe UI,sans-serif">CSV / Table</text>
+                <text x="52" y="72" text-anchor="middle" font-size="7" fill="#818cf8" font-family="Segoe UI,sans-serif">Target column:</text>
+                <text x="52" y="83" text-anchor="middle" font-size="7" fill="#c9a83a" font-family="Segoe UI,sans-serif" font-weight="700">"price"</text>
+                <text x="52" y="107" text-anchor="middle" font-size="7" fill="#6366f1" font-family="Segoe UI,sans-serif">Step 1: Upload</text>
+
+                <!-- Arrow 1 -->
+                <line x1="102" y1="59" x2="128" y2="59" stroke="rgba(201,168,58,0.6)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="128,55 136,59 128,63" fill="#c9a83a"/>
+
+                <!-- AutoML engine box -->
+                <rect x="138" y="14" width="174" height="90" rx="10" fill="rgba(201,168,58,0.07)" stroke="#c9a83a" stroke-width="1.6"/>
+                <text x="225" y="34" text-anchor="middle" font-size="9.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">AutoML Engine</text>
+
+                <!-- Algorithm attempts inside AutoML box -->
+                <rect x="146" y="40" width="78" height="18" rx="5" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="0.9"
+                    style="animation: boxGrow 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="185" y="52" text-anchor="middle" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif">LightGBM  R²=0.87</text>
+
+                <rect x="234" y="40" width="70" height="18" rx="5" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="0.9"
+                    style="animation: boxGrow 0.3s ease forwards 0.55s; opacity:0;"/>
+                <text x="269" y="52" text-anchor="middle" font-size="7" fill="#c4b5fd" font-family="Segoe UI,sans-serif">XGBoost  R²=0.91</text>
+
+                <rect x="146" y="65" width="70" height="18" rx="5" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="0.9"
+                    style="animation: boxGrow 0.3s ease forwards 0.7s; opacity:0;"/>
+                <text x="181" y="77" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">RandomForest R²=0.83</text>
+
+                <rect x="224" y="65" width="80" height="18" rx="5" fill="rgba(249,115,22,0.08)" stroke="#f97316" stroke-width="0.9"
+                    style="animation: boxGrow 0.3s ease forwards 0.85s; opacity:0;"/>
+                <text x="264" y="77" text-anchor="middle" font-size="7" fill="#fdba74" font-family="Segoe UI,sans-serif">LinearReg  R²=0.74</text>
+
+                <text x="225" y="98" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Step 2: Tries 30+ algorithms + tunes hyperparams</text>
+
+                <!-- Arrow 2 -->
+                <line x1="314" y1="59" x2="340" y2="59" stroke="rgba(201,168,58,0.6)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <polygon points="340,55 348,59 340,63" fill="#c9a83a"/>
+
+                <!-- Leaderboard / ranking box -->
+                <rect x="350" y="18" width="148" height="82" rx="9" fill="rgba(201,168,58,0.06)" stroke="#c9a83a" stroke-width="1.2"
+                    style="animation: boxGrow 0.4s ease forwards 0.6s; opacity:0;"/>
+                <text x="424" y="34" text-anchor="middle" font-size="8.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Leaderboard</text>
+                <!-- Rank rows -->
+                <rect x="358" y="40" width="132" height="15" rx="3" fill="rgba(201,168,58,0.12)" stroke="rgba(201,168,58,0.4)" stroke-width="0.8"/>
+                <text x="366" y="51" font-size="7" fill="#fef3c7" font-weight="700" font-family="Segoe UI,sans-serif">1. XGBoost  R²=0.91</text>
+                <text x="466" y="51" font-size="7" fill="#c9a83a" font-family="Segoe UI,sans-serif">BEST</text>
+                <text x="366" y="66" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">2. LightGBM  R²=0.87</text>
+                <text x="366" y="79" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">3. RandomForest  R²=0.83</text>
+                <text x="366" y="92" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">4. LinearReg  R²=0.74</text>
+                <text x="424" y="110" text-anchor="middle" font-size="7" fill="#6366f1" font-family="Segoe UI,sans-serif">Step 3: Ranked by metric</text>
+
+                <!-- Arrow 3 -->
+                <line x1="500" y1="59" x2="526" y2="59" stroke="rgba(58,181,119,0.6)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.4s"/>
+                </line>
+                <polygon points="526,55 534,59 526,63" fill="#3ab577"/>
+
+                <!-- Best model output -->
+                <rect x="536" y="28" width="108" height="62" rx="9" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.4"
+                    style="animation: boxGrow 0.4s ease forwards 1.0s; opacity:0;"/>
+                <text x="590" y="46" text-anchor="middle" font-size="8.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Best Model</text>
+                <text x="590" y="58" text-anchor="middle" font-size="7.5" fill="#86efac" font-family="Segoe UI,sans-serif">XGBoost</text>
+                <text x="590" y="70" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">R² = 0.91</text>
+                <text x="590" y="82" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Ready to deploy</text>
+                <text x="590" y="102" text-anchor="middle" font-size="7" fill="#3ab577" font-family="Segoe UI,sans-serif">Step 4: Register</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">What You Configure</div>
+                <div class="card-desc">You specify: (1) the dataset, (2) the task type — regression, classification, or time-series forecasting, (3) the target column, (4) the primary metric (e.g., R-squared for regression, AUC for classification), and (5) training time budget. AutoML handles everything else — featurization, algorithm selection, hyperparameter tuning.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">What AutoML Does Automatically</div>
+                <div class="card-desc">Featurization: imputes missing values, encodes categoricals, normalizes numerics. Algorithm sweep: tries LightGBM, XGBoost, RandomForest, ElasticNet, and others. Hyperparameter tuning: grid search + Bayesian optimization. Ensemble stacking: combines the top models for even better accuracy. All tracked in the experiment log.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">When to Use AutoML</div>
+                <div class="card-desc">AutoML is ideal when you need a strong baseline fast, when you do not have deep ML expertise, or when you want to verify whether a dataset has predictive signal before investing in custom modeling. It is not a replacement for domain expertise — the quality of the features and the choice of target column still require human judgment.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — AZURE ML DESIGNER ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Azure ML <span class="accent">Designer</span></div>
+        <div class="slide-subtitle">A visual drag-and-drop pipeline builder — connect component blocks to build complete ML workflows without writing a single line of code.</div>
+
+        <!-- Designer pipeline canvas SVG -->
+        <div class="diagram-center">
+            <svg width="660" height="110" viewBox="0 0 660 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Canvas background -->
+                <rect x="2" y="4" width="656" height="102" rx="10" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+
+                <!-- Component 1: Data Input -->
+                <rect x="14" y="28" width="96" height="54" rx="7" fill="rgba(99,102,241,0.09)" stroke="#6366f1" stroke-width="1.2"
+                    style="animation: entityPop 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="62" y="48" text-anchor="middle" font-size="8.5" fill="#a5b4fc" font-weight="700" font-family="Segoe UI,sans-serif">Data Input</text>
+                <text x="62" y="60" text-anchor="middle" font-size="7" fill="#818cf8" font-family="Segoe UI,sans-serif">Dataset</text>
+                <text x="62" y="71" text-anchor="middle" font-size="7" fill="#818cf8" font-family="Segoe UI,sans-serif">component</text>
+                <!-- Output port -->
+                <circle cx="110" cy="55" r="5" fill="#6366f1" style="animation: pulse 2s ease-in-out infinite 0.1s;"/>
+
+                <!-- Connector 1 -->
+                <line x1="116" y1="55" x2="136" y2="55" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+                <polygon points="136,51 144,55 136,59" fill="#64748b"/>
+
+                <!-- Component 2: Normalize Data -->
+                <rect x="146" y="28" width="108" height="54" rx="7" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.2"
+                    style="animation: entityPop 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="200" y="48" text-anchor="middle" font-size="8.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Normalize</text>
+                <text x="200" y="60" text-anchor="middle" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif">Data</text>
+                <text x="200" y="71" text-anchor="middle" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif">Min-Max scale</text>
+                <circle cx="142" cy="55" r="5" fill="#06b6d4"/>
+                <circle cx="256" cy="55" r="5" fill="#06b6d4" style="animation: pulse 2s ease-in-out infinite 0.2s;"/>
+
+                <!-- Connector 2 -->
+                <line x1="262" y1="55" x2="282" y2="55" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+                <polygon points="282,51 290,55 282,59" fill="#64748b"/>
+
+                <!-- Component 3: Split Data -->
+                <rect x="292" y="28" width="98" height="54" rx="7" fill="rgba(249,115,22,0.08)" stroke="#f97316" stroke-width="1.2"
+                    style="animation: entityPop 0.35s ease forwards 0.4s; opacity:0;"/>
+                <text x="341" y="48" text-anchor="middle" font-size="8.5" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">Split Data</text>
+                <text x="341" y="60" text-anchor="middle" font-size="7" fill="#fdba74" font-family="Segoe UI,sans-serif">80% train</text>
+                <text x="341" y="71" text-anchor="middle" font-size="7" fill="#fdba74" font-family="Segoe UI,sans-serif">20% test</text>
+                <circle cx="288" cy="55" r="5" fill="#f97316"/>
+                <circle cx="392" cy="55" r="5" fill="#f97316" style="animation: pulse 2s ease-in-out infinite 0.3s;"/>
+
+                <!-- Connector 3 -->
+                <line x1="398" y1="55" x2="418" y2="55" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+                <polygon points="418,51 426,55 418,59" fill="#64748b"/>
+
+                <!-- Component 4: Train Model -->
+                <rect x="428" y="28" width="100" height="54" rx="7" fill="rgba(201,168,58,0.09)" stroke="#c9a83a" stroke-width="1.4"
+                    style="animation: entityPop 0.35s ease forwards 0.55s; opacity:0;"/>
+                <text x="478" y="48" text-anchor="middle" font-size="8.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Train Model</text>
+                <text x="478" y="60" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Algorithm:</text>
+                <text x="478" y="71" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Linear Regression</text>
+                <circle cx="424" cy="55" r="5" fill="#c9a83a"/>
+                <circle cx="530" cy="55" r="5" fill="#c9a83a" style="animation: pulse 2s ease-in-out infinite 0.4s;"/>
+
+                <!-- Connector 4 -->
+                <line x1="536" y1="55" x2="556" y2="55" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+                <polygon points="556,51 564,55 556,59" fill="#64748b"/>
+
+                <!-- Component 5: Score + Evaluate -->
+                <rect x="566" y="28" width="84" height="54" rx="7" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: entityPop 0.35s ease forwards 0.7s; opacity:0;"/>
+                <text x="608" y="45" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Score &amp;</text>
+                <text x="608" y="57" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Evaluate</text>
+                <text x="608" y="70" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">RMSE, R²</text>
+                <circle cx="562" cy="55" r="5" fill="#3ab577"/>
+
+                <!-- Step labels below pipeline -->
+                <text x="62"  y="98" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">1. Load</text>
+                <text x="200" y="98" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">2. Preprocess</text>
+                <text x="341" y="98" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">3. Split</text>
+                <text x="478" y="98" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">4. Train</text>
+                <text x="608" y="98" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">5. Evaluate</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">How Designer Works</div>
+                <div class="card-desc">You drag component blocks from the left panel onto a canvas, then draw connectors between their output and input ports. Each component is a pre-built operation — data transformation, algorithm, evaluation metric. The pipeline is a directed acyclic graph (DAG). When you submit it, Azure ML runs each step in dependency order on the compute target you select.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Pre-Built Components Available</div>
+                <div class="card-desc">Data components: Import Data, Select Columns, Clean Missing Data, Split Data, Normalize Data. Algorithm components: Linear Regression, Decision Forest, Boosted Decision Tree, Neural Network, K-Means Clustering, Multiclass Logistic Regression. Evaluation: Score Model, Evaluate Model. You can also add custom Python or R script steps.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Designer vs AutoML</div>
+                <div class="card-desc">Designer gives you explicit control over every pipeline step — you choose the algorithm, preprocessing, and evaluation. AutoML abstracts all of that and picks the best combination automatically. Use Designer when you have domain knowledge you want to encode in the pipeline. Use AutoML for rapid exploration when you want the machine to search the algorithm space for you.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Walk: A typical Designer pipeline runs left to right — load data, clean and normalize it, split into train/test, train with your chosen algorithm, score on the test split, then evaluate metrics. You re-run the whole pipeline whenever data changes.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — REGRESSION IN PRACTICE ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Regression <span class="accent">in Practice</span></div>
+        <div class="slide-subtitle">Regression predicts a continuous numeric value. Classic example: predict a car's sale price from its features — mileage, age, engine size, brand.</div>
+
+        <!-- Feature inputs → regression model → predicted price + scatter plot SVG -->
+        <div class="diagram-center">
+            <svg width="660" height="116" viewBox="0 0 660 116" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Feature input box -->
+                <rect x="4" y="18" width="120" height="80" rx="9" fill="rgba(99,102,241,0.07)" stroke="#6366f1" stroke-width="1.2"
+                    style="animation: boxGrow 0.4s ease forwards 0.1s; opacity:0;"/>
+                <text x="64" y="36" text-anchor="middle" font-size="8.5" fill="#a5b4fc" font-weight="700" font-family="Segoe UI,sans-serif">Features (X)</text>
+                <text x="12" y="52" font-size="7.5" fill="#818cf8" font-family="Segoe UI,sans-serif">Mileage: 45,000 mi</text>
+                <text x="12" y="64" font-size="7.5" fill="#818cf8" font-family="Segoe UI,sans-serif">Age:  3 years</text>
+                <text x="12" y="76" font-size="7.5" fill="#818cf8" font-family="Segoe UI,sans-serif">Engine: 2.0L</text>
+                <text x="12" y="88" font-size="7.5" fill="#818cf8" font-family="Segoe UI,sans-serif">Brand:  Toyota</text>
+
+                <!-- Arrow to model -->
+                <line x1="126" y1="58" x2="152" y2="58" stroke="rgba(201,168,58,0.6)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="152,54 160,58 152,62" fill="#c9a83a"/>
+
+                <!-- Regression model box -->
+                <rect x="162" y="24" width="118" height="68" rx="10" fill="rgba(201,168,58,0.09)" stroke="#c9a83a" stroke-width="1.6"/>
+                <text x="221" y="46" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Regression</text>
+                <text x="221" y="58" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Model</text>
+                <text x="221" y="70" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">y = w1x1 + w2x2 ...</text>
+                <text x="221" y="82" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">+ bias</text>
+
+                <!-- Arrow to output -->
+                <line x1="282" y1="58" x2="308" y2="58" stroke="rgba(58,181,119,0.6)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <polygon points="308,54 316,58 308,62" fill="#3ab577"/>
+
+                <!-- Predicted price output -->
+                <rect x="318" y="32" width="106" height="52" rx="9" fill="rgba(58,181,119,0.09)" stroke="#3ab577" stroke-width="1.4"
+                    style="animation: boxGrow 0.4s ease forwards 0.7s; opacity:0;"/>
+                <text x="371" y="50" text-anchor="middle" font-size="8.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Predicted</text>
+                <text x="371" y="63" text-anchor="middle" font-size="8.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Price</text>
+                <text x="371" y="76" text-anchor="middle" font-size="12" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">$22,400</text>
+
+                <!-- Scatter plot with best-fit line — right side -->
+                <rect x="440" y="8" width="214" height="100" rx="9" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+                <text x="547" y="24" text-anchor="middle" font-size="8" fill="#94a3b8" font-weight="700" font-family="Segoe UI,sans-serif">Actual vs Predicted</text>
+
+                <!-- Axes -->
+                <line x1="454" y1="94" x2="644" y2="94" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+                <line x1="454" y1="30" x2="454" y2="94" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+                <text x="547" y="106" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Actual Price</text>
+                <text x="446" y="62" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif" transform="rotate(-90,446,62)">Predicted</text>
+
+                <!-- Best-fit line (45-degree reference) -->
+                <line x1="458" y1="90" x2="640" y2="34" stroke="rgba(201,168,58,0.6)" stroke-width="1.4" stroke-dasharray="5,4"
+                    style="animation: labelSlide 0.8s ease forwards 0.5s; opacity:0;"/>
+
+                <!-- Scatter points -->
+                <circle cx="468" cy="84" r="3.5" fill="rgba(99,102,241,0.8)" style="animation: entityPop 0.3s ease forwards 0.6s; opacity:0;"/>
+                <circle cx="490" cy="78" r="3.5" fill="rgba(99,102,241,0.8)" style="animation: entityPop 0.3s ease forwards 0.65s; opacity:0;"/>
+                <circle cx="512" cy="68" r="3.5" fill="rgba(99,102,241,0.8)" style="animation: entityPop 0.3s ease forwards 0.7s; opacity:0;"/>
+                <circle cx="536" cy="60" r="3.5" fill="rgba(99,102,241,0.8)" style="animation: entityPop 0.3s ease forwards 0.75s; opacity:0;"/>
+                <circle cx="558" cy="54" r="3.5" fill="rgba(99,102,241,0.8)" style="animation: entityPop 0.3s ease forwards 0.8s; opacity:0;"/>
+                <circle cx="580" cy="46" r="3.5" fill="rgba(99,102,241,0.8)" style="animation: entityPop 0.3s ease forwards 0.85s; opacity:0;"/>
+                <circle cx="602" cy="40" r="3.5" fill="rgba(99,102,241,0.8)" style="animation: entityPop 0.3s ease forwards 0.9s; opacity:0;"/>
+                <circle cx="624" cy="36" r="3.5" fill="rgba(99,102,241,0.8)" style="animation: entityPop 0.3s ease forwards 0.95s; opacity:0;"/>
+                <!-- Prediction point highlighted -->
+                <circle cx="510" cy="64" r="5.5" fill="none" stroke="#c9a83a" stroke-width="1.5" style="animation: pulse 2s ease-in-out infinite;"/>
+                <text x="520" y="60" font-size="6.5" fill="#c9a83a" font-family="Segoe UI,sans-serif">New input</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">What the Model Learns</div>
+                <div class="card-desc">The algorithm finds the coefficients (weights) for each feature that minimize prediction error on the training set. A weight of -0.12 on mileage means each additional 1,000 miles reduces the predicted price by about $120. These weights are learned — not coded by hand — which is why ML beats hand-coded rules for complex relationships.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Key Regression Algorithms in Azure ML</div>
+                <div class="card-desc"><strong>Linear Regression</strong>: assumes a straight-line relationship between features and target. Fast, interpretable, but fails on non-linear patterns. <strong>Decision Forest Regression</strong>: uses many decision trees, handles non-linear data well. <strong>Boosted Decision Tree</strong>: iteratively corrects errors — often best accuracy but harder to interpret.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Reading the Scatter Plot</div>
+                <div class="card-desc">The diagonal line is perfect prediction (actual = predicted). Points close to the line mean accurate predictions. Points far off the line are errors. A model that clusters tightly around the diagonal has high R-squared — meaning it explains most of the variance in the target. This is one of the most direct ways to visualize regression model quality.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — CLASSIFICATION IN PRACTICE ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Classification <span class="accent">in Practice</span></div>
+        <div class="slide-subtitle">Classification predicts a discrete category. Example: given patient health data, does this person have diabetes — positive or negative?</div>
+
+        <!-- Features → classifier → category + decision boundary SVG -->
+        <div class="diagram-center">
+            <svg width="660" height="116" viewBox="0 0 660 116" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Feature input box -->
+                <rect x="4" y="18" width="122" height="80" rx="9" fill="rgba(99,102,241,0.07)" stroke="#6366f1" stroke-width="1.2"
+                    style="animation: boxGrow 0.4s ease forwards 0.1s; opacity:0;"/>
+                <text x="65" y="36" text-anchor="middle" font-size="8.5" fill="#a5b4fc" font-weight="700" font-family="Segoe UI,sans-serif">Features (X)</text>
+                <text x="12" y="52" font-size="7.5" fill="#818cf8" font-family="Segoe UI,sans-serif">Glucose:  148 mg/dL</text>
+                <text x="12" y="64" font-size="7.5" fill="#818cf8" font-family="Segoe UI,sans-serif">BMI:  33.6</text>
+                <text x="12" y="76" font-size="7.5" fill="#818cf8" font-family="Segoe UI,sans-serif">Age:  50</text>
+                <text x="12" y="88" font-size="7.5" fill="#818cf8" font-family="Segoe UI,sans-serif">Blood pressure: 72</text>
+
+                <!-- Arrow to model -->
+                <line x1="128" y1="58" x2="154" y2="58" stroke="rgba(201,168,58,0.6)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="154,54 162,58 154,62" fill="#c9a83a"/>
+
+                <!-- Classifier box -->
+                <rect x="164" y="24" width="118" height="68" rx="10" fill="rgba(201,168,58,0.09)" stroke="#c9a83a" stroke-width="1.6"/>
+                <text x="223" y="46" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Classification</text>
+                <text x="223" y="58" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Model</text>
+                <text x="223" y="70" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Logistic Regression</text>
+                <text x="223" y="82" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">or Decision Forest</text>
+
+                <!-- Arrow to output -->
+                <line x1="284" y1="58" x2="310" y2="58" stroke="rgba(239,68,68,0.6)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <polygon points="310,54 318,58 310,62" fill="#ef4444"/>
+
+                <!-- Category output box -->
+                <rect x="320" y="22" width="110" height="72" rx="9" fill="rgba(239,68,68,0.09)" stroke="#ef4444" stroke-width="1.4"
+                    style="animation: boxGrow 0.4s ease forwards 0.7s; opacity:0;"/>
+                <text x="375" y="42" text-anchor="middle" font-size="8.5" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Prediction</text>
+                <text x="375" y="57" text-anchor="middle" font-size="14" fill="#fca5a5" font-weight="700" font-family="Segoe UI,sans-serif">Positive</text>
+                <text x="375" y="70" text-anchor="middle" font-size="7.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">Confidence:</text>
+                <text x="375" y="82" text-anchor="middle" font-size="10" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">87%</text>
+
+                <!-- Decision boundary scatter plot — right side -->
+                <rect x="450" y="8" width="204" height="100" rx="9" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+                <text x="552" y="24" text-anchor="middle" font-size="8" fill="#94a3b8" font-weight="700" font-family="Segoe UI,sans-serif">Decision Boundary</text>
+
+                <!-- Decision boundary curved line -->
+                <path d="M 460 88 Q 520 50 644 32" fill="none" stroke="rgba(201,168,58,0.7)" stroke-width="1.6" stroke-dasharray="5,4"
+                    style="animation: labelSlide 0.8s ease forwards 0.5s; opacity:0;"/>
+
+                <!-- Negative class points (below boundary) -->
+                <circle cx="468" cy="90" r="3.5" fill="rgba(6,182,212,0.8)" style="animation: entityPop 0.3s ease forwards 0.55s; opacity:0;"/>
+                <circle cx="488" cy="86" r="3.5" fill="rgba(6,182,212,0.8)" style="animation: entityPop 0.3s ease forwards 0.6s; opacity:0;"/>
+                <circle cx="510" cy="78" r="3.5" fill="rgba(6,182,212,0.8)" style="animation: entityPop 0.3s ease forwards 0.65s; opacity:0;"/>
+                <circle cx="475" cy="80" r="3.5" fill="rgba(6,182,212,0.8)" style="animation: entityPop 0.3s ease forwards 0.7s; opacity:0;"/>
+                <circle cx="530" cy="82" r="3.5" fill="rgba(6,182,212,0.8)" style="animation: entityPop 0.3s ease forwards 0.75s; opacity:0;"/>
+
+                <!-- Positive class points (above boundary) -->
+                <circle cx="560" cy="42" r="3.5" fill="rgba(239,68,68,0.8)" style="animation: entityPop 0.3s ease forwards 0.8s; opacity:0;"/>
+                <circle cx="580" cy="36" r="3.5" fill="rgba(239,68,68,0.8)" style="animation: entityPop 0.3s ease forwards 0.85s; opacity:0;"/>
+                <circle cx="600" cy="30" r="3.5" fill="rgba(239,68,68,0.8)" style="animation: entityPop 0.3s ease forwards 0.9s; opacity:0;"/>
+                <circle cx="620" cy="28" r="3.5" fill="rgba(239,68,68,0.8)" style="animation: entityPop 0.3s ease forwards 0.95s; opacity:0;"/>
+                <circle cx="638" cy="26" r="3.5" fill="rgba(239,68,68,0.8)" style="animation: entityPop 0.3s ease forwards 1.0s; opacity:0;"/>
+
+                <!-- Legend -->
+                <circle cx="460" cy="16" r="4" fill="rgba(239,68,68,0.8)"/>
+                <text x="468" y="20" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Positive</text>
+                <circle cx="506" cy="16" r="4" fill="rgba(6,182,212,0.8)"/>
+                <text x="514" y="20" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif">Negative</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Binary vs. Multiclass</div>
+                <div class="card-desc"><strong>Binary</strong>: two possible outcomes — positive/negative, spam/not-spam, fraud/legitimate. The model outputs a probability between 0 and 1, then applies a threshold (default 0.5) to decide the class. <strong>Multiclass</strong>: three or more outcomes — e.g., "low / medium / high risk" or "cat / dog / bird." Azure ML supports both with the same interface.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">What the Confidence Score Means</div>
+                <div class="card-desc">An 87% confidence score does not mean there is a 13% chance the model is broken. It means the model's internal probability estimate for "positive" is 0.87. If you lower the classification threshold to 0.3, you will catch more true positives but also generate more false alarms. Tuning this threshold is part of responsible deployment — especially in healthcare or fraud detection.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Reading the Decision Boundary</div>
+                <div class="card-desc">The curved line separates the two classes in feature space. Points above it are predicted positive; below are predicted negative. A complex boundary (many curves) indicates a model has learned fine-grained patterns but risks overfitting to training data. A straight boundary (logistic regression) is simpler but may misclassify complex cases — the trade-off between bias and variance.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — CLUSTERING IN PRACTICE ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Clustering <span class="accent">in Practice</span></div>
+        <div class="slide-subtitle">Clustering finds natural groups in unlabeled data. No right answer to learn — the algorithm discovers structure on its own. Example: segment customers by purchasing behavior.</div>
+
+        <!-- Unlabeled data → K-means → 3 colored clusters SVG -->
+        <div class="diagram-center">
+            <svg width="660" height="116" viewBox="0 0 660 116" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Unlabeled data cloud — left -->
+                <rect x="4" y="16" width="106" height="84" rx="9" fill="rgba(99,102,241,0.05)" stroke="rgba(255,255,255,0.1)" stroke-width="1.1"/>
+                <text x="57" y="32" text-anchor="middle" font-size="8" fill="#94a3b8" font-weight="700" font-family="Segoe UI,sans-serif">Unlabeled Data</text>
+                <!-- Gray dots (no class) -->
+                <circle cx="22"  cy="48" r="4" fill="rgba(148,163,184,0.6)"/>
+                <circle cx="40"  cy="60" r="3.5" fill="rgba(148,163,184,0.5)"/>
+                <circle cx="60"  cy="44" r="4" fill="rgba(148,163,184,0.6)"/>
+                <circle cx="78"  cy="68" r="3.5" fill="rgba(148,163,184,0.5)"/>
+                <circle cx="35"  cy="78" r="3" fill="rgba(148,163,184,0.4)"/>
+                <circle cx="88"  cy="52" r="3.5" fill="rgba(148,163,184,0.5)"/>
+                <circle cx="50"  cy="88" r="3" fill="rgba(148,163,184,0.4)"/>
+                <circle cx="20"  cy="90" r="3.5" fill="rgba(148,163,184,0.5)"/>
+                <circle cx="98"  cy="80" r="3" fill="rgba(148,163,184,0.4)"/>
+                <text x="57" y="108" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">No labels</text>
+
+                <!-- Arrow to K-means -->
+                <line x1="112" y1="58" x2="138" y2="58" stroke="rgba(201,168,58,0.6)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="138,54 146,58 138,62" fill="#c9a83a"/>
+
+                <!-- K-means algorithm box -->
+                <rect x="148" y="24" width="130" height="68" rx="10" fill="rgba(201,168,58,0.09)" stroke="#c9a83a" stroke-width="1.6"/>
+                <text x="213" y="44" text-anchor="middle" font-size="9.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">K-Means</text>
+                <text x="213" y="56" text-anchor="middle" font-size="9.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Algorithm</text>
+                <text x="213" y="70" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">k = 3 clusters</text>
+                <text x="213" y="82" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Assign → Recenter → Repeat</text>
+                <circle cx="213" cy="58" r="30" fill="none" stroke="rgba(201,168,58,0.07)" stroke-width="1" style="animation: pulse 2.5s ease-in-out infinite;"/>
+
+                <!-- Arrow to clusters -->
+                <line x1="280" y1="58" x2="306" y2="58" stroke="rgba(201,168,58,0.6)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+                <polygon points="306,54 314,58 306,62" fill="#c9a83a"/>
+
+                <!-- Cluster 1 — Cyan (high spenders) -->
+                <circle cx="360" cy="38" r="26" fill="rgba(6,182,212,0.06)" stroke="rgba(6,182,212,0.3)" stroke-width="1.2"
+                    style="animation: clusterAssign 0.6s ease forwards 0.6s; opacity:0;"/>
+                <circle cx="345" cy="32" r="4" fill="rgba(6,182,212,0.8)" style="animation: clusterAssign 0.4s ease forwards 0.7s; opacity:0;"/>
+                <circle cx="368" cy="26" r="3.5" fill="rgba(6,182,212,0.7)" style="animation: clusterAssign 0.4s ease forwards 0.75s; opacity:0;"/>
+                <circle cx="375" cy="44" r="3.5" fill="rgba(6,182,212,0.7)" style="animation: clusterAssign 0.4s ease forwards 0.8s; opacity:0;"/>
+                <!-- Centroid 1 -->
+                <circle cx="360" cy="38" r="5.5" fill="#06b6d4" style="animation: pulse 2s ease-in-out infinite 0.2s;"/>
+                <text x="360" y="70" text-anchor="middle" font-size="7" fill="#06b6d4" font-family="Segoe UI,sans-serif">High Spend</text>
+
+                <!-- Cluster 2 — Green (mid tier) -->
+                <circle cx="470" cy="64" r="28" fill="rgba(58,181,119,0.06)" stroke="rgba(58,181,119,0.3)" stroke-width="1.2"
+                    style="animation: clusterAssign 0.6s ease forwards 0.8s; opacity:0;"/>
+                <circle cx="454" cy="56" r="4" fill="rgba(58,181,119,0.8)" style="animation: clusterAssign 0.4s ease forwards 0.9s; opacity:0;"/>
+                <circle cx="478" cy="50" r="3.5" fill="rgba(58,181,119,0.7)" style="animation: clusterAssign 0.4s ease forwards 0.95s; opacity:0;"/>
+                <circle cx="486" cy="70" r="3.5" fill="rgba(58,181,119,0.7)" style="animation: clusterAssign 0.4s ease forwards 1.0s; opacity:0;"/>
+                <circle cx="460" cy="74" r="3" fill="rgba(58,181,119,0.6)" style="animation: clusterAssign 0.4s ease forwards 1.05s; opacity:0;"/>
+                <!-- Centroid 2 -->
+                <circle cx="470" cy="62" r="5.5" fill="#3ab577" style="animation: pulse 2s ease-in-out infinite 0.4s;"/>
+                <text x="470" y="100" text-anchor="middle" font-size="7" fill="#3ab577" font-family="Segoe UI,sans-serif">Mid Tier</text>
+
+                <!-- Cluster 3 — Orange (low engagement) -->
+                <circle cx="590" cy="46" r="26" fill="rgba(249,115,22,0.06)" stroke="rgba(249,115,22,0.3)" stroke-width="1.2"
+                    style="animation: clusterAssign 0.6s ease forwards 1.0s; opacity:0;"/>
+                <circle cx="574" cy="38" r="4" fill="rgba(249,115,22,0.8)" style="animation: clusterAssign 0.4s ease forwards 1.1s; opacity:0;"/>
+                <circle cx="600" cy="32" r="3.5" fill="rgba(249,115,22,0.7)" style="animation: clusterAssign 0.4s ease forwards 1.15s; opacity:0;"/>
+                <circle cx="608" cy="52" r="3.5" fill="rgba(249,115,22,0.7)" style="animation: clusterAssign 0.4s ease forwards 1.2s; opacity:0;"/>
+                <circle cx="578" cy="56" r="3" fill="rgba(249,115,22,0.6)" style="animation: clusterAssign 0.4s ease forwards 1.25s; opacity:0;"/>
+                <!-- Centroid 3 -->
+                <circle cx="590" cy="46" r="5.5" fill="#f97316" style="animation: pulse 2s ease-in-out infinite 0.6s;"/>
+                <text x="590" y="80" text-anchor="middle" font-size="7" fill="#f97316" font-family="Segoe UI,sans-serif">Low Engage</text>
+
+                <!-- Centroid label annotation -->
+                <text x="330" y="110" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">Large circles = clusters   |   Bright dots = centroids (cluster centers)</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">How K-Means Works — Step by Step</div>
+                <div class="card-desc"><strong>Step 1 — Initialize:</strong> place K centroids randomly in the feature space. <strong>Step 2 — Assign:</strong> each data point is assigned to its nearest centroid (Euclidean distance). <strong>Step 3 — Recenter:</strong> each centroid moves to the mean position of all points assigned to it. <strong>Step 4 — Repeat:</strong> steps 2-3 iterate until assignments stop changing. Convergence is guaranteed but may reach a local minimum.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Choosing K (Number of Clusters)</div>
+                <div class="card-desc">There is no single correct answer — you choose K based on business context and validation. The elbow method plots "within-cluster variance" vs. K; the bend in the curve suggests where adding more clusters stops helping meaningfully. Azure ML Designer includes a K-Means component where you set K as a hyperparameter before training.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Real-World Applications</div>
+                <div class="card-desc"><strong>Customer segmentation:</strong> group customers by purchase patterns to tailor marketing. <strong>Anomaly detection:</strong> points far from any centroid are outliers. <strong>Image compression:</strong> replace each pixel color with its cluster centroid. <strong>Network traffic analysis:</strong> cluster traffic patterns to identify baselines, then flag anomalies. Clustering is unsupervised — no labels required at training time.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — TRAINING AND EVALUATING MODELS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Training and <span class="accent">Evaluating Models</span></div>
+        <div class="slide-subtitle">You cannot evaluate a model on the same data you trained it with — that would be like a student grading their own exam. Train/test split is non-negotiable.</div>
+
+        <!-- Data split → train → predict → metrics SVG -->
+        <div class="diagram-center">
+            <svg width="650" height="108" viewBox="0 0 650 108" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Full dataset -->
+                <rect x="4" y="20" width="80" height="68" rx="8" fill="rgba(99,102,241,0.07)" stroke="#6366f1" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="44" y="38" text-anchor="middle" font-size="8" fill="#a5b4fc" font-weight="700" font-family="Segoe UI,sans-serif">Full</text>
+                <text x="44" y="50" text-anchor="middle" font-size="8" fill="#a5b4fc" font-weight="700" font-family="Segoe UI,sans-serif">Dataset</text>
+                <text x="44" y="63" text-anchor="middle" font-size="7" fill="#818cf8" font-family="Segoe UI,sans-serif">1,000 rows</text>
+                <text x="44" y="98" text-anchor="middle" font-size="7" fill="#6366f1" font-family="Segoe UI,sans-serif">All data</text>
+
+                <!-- Arrow + Split label -->
+                <line x1="86" y1="54" x2="106" y2="54" stroke="rgba(201,168,58,0.5)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="106,50 114,54 106,58" fill="#c9a83a"/>
+                <text x="98" y="44" text-anchor="middle" font-size="7" fill="#c9a83a" font-family="Segoe UI,sans-serif">Split</text>
+
+                <!-- 80% Train block -->
+                <rect x="116" y="14" width="88" height="46" rx="8" fill="rgba(201,168,58,0.09)" stroke="#c9a83a" stroke-width="1.3"
+                    style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="160" y="32" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">80% Train</text>
+                <text x="160" y="44" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">800 rows</text>
+                <text x="160" y="72" text-anchor="middle" font-size="7" fill="#c9a83a" font-family="Segoe UI,sans-serif">Seen by model</text>
+
+                <!-- 20% Test block -->
+                <rect x="116" y="66" width="88" height="38" rx="8" fill="rgba(6,182,212,0.07)" stroke="#06b6d4" stroke-width="1.3"
+                    style="animation: boxGrow 0.35s ease forwards 0.4s; opacity:0;"/>
+                <text x="160" y="82" text-anchor="middle" font-size="9" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">20% Test</text>
+                <text x="160" y="94" text-anchor="middle" font-size="7.5" fill="#cffafe" font-family="Segoe UI,sans-serif">200 rows — hidden</text>
+
+                <!-- Arrow: Train → Model -->
+                <line x1="206" y1="37" x2="230" y2="37" stroke="rgba(201,168,58,0.5)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <polygon points="230,33 238,37 230,41" fill="#c9a83a"/>
+
+                <!-- Trained model box -->
+                <rect x="240" y="18" width="108" height="72" rx="10" fill="rgba(201,168,58,0.09)" stroke="#c9a83a" stroke-width="1.6"
+                    style="animation: boxGrow 0.35s ease forwards 0.5s; opacity:0;"/>
+                <text x="294" y="40" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Trained</text>
+                <text x="294" y="52" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Model</text>
+                <text x="294" y="66" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Has learned weights</text>
+                <text x="294" y="78" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">from 800 rows</text>
+                <circle cx="294" cy="55" r="28" fill="none" stroke="rgba(201,168,58,0.08)" stroke-width="1" style="animation: pulse 2.5s ease-in-out infinite;"/>
+
+                <!-- Arrow: Test → Model (from below) -->
+                <line x1="206" y1="85" x2="238" y2="70" stroke="rgba(6,182,212,0.5)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+
+                <!-- Arrow: Model → Compare -->
+                <line x1="350" y1="54" x2="376" y2="54" stroke="rgba(58,181,119,0.6)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.5s"/>
+                </line>
+                <polygon points="376,50 384,54 376,58" fill="#3ab577"/>
+
+                <!-- Predictions vs Actual box -->
+                <rect x="386" y="20" width="108" height="68" rx="9" fill="rgba(58,181,119,0.07)" stroke="#3ab577" stroke-width="1.3"
+                    style="animation: boxGrow 0.35s ease forwards 0.8s; opacity:0;"/>
+                <text x="440" y="37" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Predictions</text>
+                <text x="440" y="49" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">vs Actual</text>
+                <text x="440" y="62" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Pred: $22,400</text>
+                <text x="440" y="73" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Actual: $23,100</text>
+                <text x="440" y="84" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Error: $700</text>
+                <text x="440" y="100" text-anchor="middle" font-size="7" fill="#3ab577" font-family="Segoe UI,sans-serif">On 200 held-out rows</text>
+
+                <!-- Arrow: Compare → Metrics -->
+                <line x1="496" y1="54" x2="520" y2="54" stroke="rgba(239,68,68,0.6)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.7s"/>
+                </line>
+                <polygon points="520,50 528,54 520,58" fill="#ef4444"/>
+
+                <!-- Metrics output -->
+                <rect x="530" y="12" width="114" height="84" rx="9" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 1.0s; opacity:0;"/>
+                <text x="587" y="30" text-anchor="middle" font-size="8.5" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Metrics</text>
+                <text x="537" y="44" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">RMSE: $1,240</text>
+                <text x="537" y="56" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">MAE:  $980</text>
+                <text x="537" y="68" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">R²:   0.91</text>
+                <line x1="537" y1="73" x2="635" y2="73" stroke="rgba(255,255,255,0.07)" stroke-width="0.8"/>
+                <text x="537" y="84" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Accuracy: 89%</text>
+                <text x="537" y="94" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">AUC-ROC: 0.94</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Regression Metrics</div>
+                <div class="card-desc"><strong>RMSE (Root Mean Squared Error):</strong> average magnitude of prediction errors, in the same units as the target. Lower is better. Penalizes large errors heavily. <strong>MAE (Mean Absolute Error):</strong> average absolute error — more robust to outliers than RMSE. <strong>R-squared (R²):</strong> 0 to 1 — proportion of variance explained. R²=0.91 means the model explains 91% of the price variation. R²=0 means no better than guessing the mean.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Classification Metrics</div>
+                <div class="card-desc"><strong>Accuracy:</strong> fraction of correct predictions — misleading when classes are imbalanced (99% "negative" dataset). <strong>Precision:</strong> of all predicted positives, how many were truly positive? <strong>Recall:</strong> of all actual positives, how many did we catch? <strong>F1:</strong> harmonic mean of precision and recall — best single metric when both matter. <strong>AUC-ROC:</strong> 0.5 = random guessing, 1.0 = perfect. Measures rank-ordering quality across all thresholds.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Why Splitting Matters</div>
+                <div class="card-desc">If you evaluate on training data, the model looks perfect because it has already seen those rows — this is called "data leakage." The test set simulates real-world deployment where the model sees data it has never encountered. Overfitting is when a model memorizes training data but fails on new data — the train/test gap reveals it. Azure ML tracks both training and validation metrics automatically.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — MODEL DEPLOYMENT ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Model <span class="accent">Deployment</span></div>
+        <div class="slide-subtitle">A trained model sitting in a workspace helps nobody. Deployment wraps it in a REST API endpoint so client applications can send data and receive predictions in real time.</div>
+
+        <!-- Model → deploy to endpoint → client → JSON response SVG -->
+        <div class="diagram-center">
+            <svg width="660" height="112" viewBox="0 0 660 112" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Trained model artifact -->
+                <rect x="4" y="24" width="108" height="64" rx="9" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="58" y="44" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Trained</text>
+                <text x="58" y="56" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Model</text>
+                <text x="58" y="70" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">v1.3  — 91% R²</text>
+                <text x="58" y="100" text-anchor="middle" font-size="7" fill="#c9a83a" font-family="Segoe UI,sans-serif">Registered in workspace</text>
+
+                <!-- Arrow: deploy -->
+                <line x1="114" y1="56" x2="140" y2="56" stroke="rgba(201,168,58,0.6)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="140,52 148,56 140,60" fill="#c9a83a"/>
+                <text x="128" y="46" text-anchor="middle" font-size="7" fill="#c9a83a" font-family="Segoe UI,sans-serif">Deploy</text>
+
+                <!-- Azure ML Endpoint box -->
+                <rect x="150" y="14" width="164" height="84" rx="10" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.6"/>
+                <text x="232" y="34" text-anchor="middle" font-size="9.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Azure ML Endpoint</text>
+                <text x="232" y="48" text-anchor="middle" font-size="7.5" fill="#cffafe" font-family="Segoe UI,sans-serif">REST API  —  HTTPS</text>
+                <!-- Endpoint URL -->
+                <rect x="158" y="54" width="148" height="18" rx="5" fill="rgba(6,182,212,0.06)" stroke="rgba(6,182,212,0.3)" stroke-width="0.8"/>
+                <text x="232" y="66" text-anchor="middle" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif">https://ml.azure.com/score</text>
+                <text x="232" y="80" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Real-time inference endpoint</text>
+                <text x="232" y="90" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Auth: API key or managed identity</text>
+                <circle cx="232" cy="56" r="36" fill="none" stroke="rgba(6,182,212,0.05)" stroke-width="1" style="animation: pulse 2.8s ease-in-out infinite;"/>
+
+                <!-- Arrow: client sends request -->
+                <line x1="316" y1="42" x2="352" y2="42" stroke="rgba(167,139,250,0.5)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <polygon points="352,38 360,42 352,46" fill="#a78bfa"/>
+                <text x="336" y="34" text-anchor="middle" font-size="6.5" fill="#a78bfa" font-family="Segoe UI,sans-serif">POST request</text>
+
+                <!-- Client app box -->
+                <rect x="362" y="22" width="122" height="68" rx="9" fill="rgba(167,139,250,0.07)" stroke="#a78bfa" stroke-width="1.3"
+                    style="animation: boxGrow 0.35s ease forwards 0.5s; opacity:0;"/>
+                <text x="423" y="40" text-anchor="middle" font-size="9" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Client App</text>
+                <text x="370" y="54" font-size="7" fill="#c4b5fd" font-family="Segoe UI,sans-serif">POST /score</text>
+                <text x="370" y="65" font-size="7" fill="#c4b5fd" font-family="Segoe UI,sans-serif">{"mileage": 45000,</text>
+                <text x="370" y="76" font-size="7" fill="#c4b5fd" font-family="Segoe UI,sans-serif"> "age": 3,</text>
+                <text x="370" y="84" font-size="7" fill="#c4b5fd" font-family="Segoe UI,sans-serif"> "brand": "Toyota"}</text>
+                <text x="423" y="102" text-anchor="middle" font-size="7" fill="#a78bfa" font-family="Segoe UI,sans-serif">Web app, mobile, or service</text>
+
+                <!-- Arrow: JSON response back -->
+                <line x1="486" y1="56" x2="522" y2="56" stroke="rgba(58,181,119,0.6)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.4s"/>
+                </line>
+                <polygon points="522,52 530,56 522,60" fill="#3ab577"/>
+                <text x="506" y="46" text-anchor="middle" font-size="6.5" fill="#3ab577" font-family="Segoe UI,sans-serif">JSON response</text>
+
+                <!-- JSON prediction response box -->
+                <rect x="532" y="18" width="122" height="76" rx="9" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.3"
+                    style="animation: boxGrow 0.35s ease forwards 0.9s; opacity:0;"/>
+                <text x="593" y="35" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">JSON Response</text>
+                <text x="540" y="48" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">{"predicted_price":</text>
+                <text x="540" y="58" font-size="7" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">   28450,</text>
+                <text x="540" y="68" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif"> "confidence_interval":</text>
+                <text x="540" y="78" font-size="7" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">   [26800, 30100]}</text>
+                <text x="593" y="106" text-anchor="middle" font-size="7" fill="#3ab577" font-family="Segoe UI,sans-serif">~80-200ms latency</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Real-Time vs. Batch Endpoints</div>
+                <div class="card-desc"><strong>Real-time endpoint:</strong> deploys the model as a live HTTPS service on managed compute (AKS or managed inference). Each request gets a response within milliseconds. Use for user-facing apps and automated systems. <strong>Batch endpoint:</strong> processes large files of inputs asynchronously — submit a CSV, get predictions back in minutes or hours. Use for bulk scoring scenarios like nightly report generation.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Under the Hood</div>
+                <div class="card-desc">Azure ML wraps your model and a scoring script in a Docker container. The scoring script defines two functions: <span class="ic">init()</span> loads the model into memory when the container starts, and <span class="ic">run(data)</span> receives the JSON input, calls model.predict(), and returns the result. This containerization means the endpoint is portable, versioned, and independently scalable.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Updating a Deployed Model</div>
+                <div class="card-desc">Azure ML supports traffic splitting between model versions using blue/green deployment. You can route 10% of traffic to a new model version while 90% goes to the production version, compare metrics, then gradually shift traffic. This pattern eliminates downtime during model updates and allows rollback if the new model underperforms in production.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — AZURE AI FOUNDRY ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Azure AI <span class="accent">Foundry</span></div>
+        <div class="slide-subtitle">Microsoft's unified platform for enterprise AI development — Azure ML, Azure OpenAI, Custom Vision, AI Services, and the model catalog all accessible from one project-based portal.</div>
+
+        <!-- Foundry hub with spokes SVG -->
+        <div class="diagram-center">
+            <svg width="640" height="116" viewBox="0 0 640 116" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central Foundry hub -->
+                <circle cx="320" cy="58" r="40" fill="rgba(201,168,58,0.09)" stroke="#c9a83a" stroke-width="2"/>
+                <circle cx="320" cy="58" r="52" fill="none" stroke="rgba(201,168,58,0.08)" stroke-width="1.2" style="animation: pulse 3s ease-in-out infinite;"/>
+                <text x="320" y="52" text-anchor="middle" font-size="10" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Azure AI</text>
+                <text x="320" y="65" text-anchor="middle" font-size="10" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Foundry</text>
+                <text x="320" y="77" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">ai.azure.com</text>
+
+                <!-- Spoke 1: Azure ML (top-left) -->
+                <line x1="286" y1="30" x2="220" y2="10" stroke="rgba(99,102,241,0.5)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.4s" repeatCount="indefinite" begin="0s"/>
+                </line>
+                <rect x="118" y="2" width="100" height="30" rx="7" fill="rgba(99,102,241,0.08)" stroke="#6366f1" stroke-width="1.1"
+                    style="animation: entityPop 0.4s ease forwards 0.2s; opacity:0;"/>
+                <text x="168" y="13" text-anchor="middle" font-size="8" fill="#a5b4fc" font-weight="700" font-family="Segoe UI,sans-serif">Azure ML</text>
+                <text x="168" y="25" text-anchor="middle" font-size="7" fill="#818cf8" font-family="Segoe UI,sans-serif">AutoML, Designer, Pipelines</text>
+
+                <!-- Spoke 2: Azure OpenAI (top-right) -->
+                <line x1="354" y1="30" x2="418" y2="10" stroke="rgba(167,139,250,0.5)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.4s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <rect x="420" y="2" width="110" height="30" rx="7" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.1"
+                    style="animation: entityPop 0.4s ease forwards 0.35s; opacity:0;"/>
+                <text x="475" y="13" text-anchor="middle" font-size="8" fill="#c4b5fd" font-weight="700" font-family="Segoe UI,sans-serif">Azure OpenAI</text>
+                <text x="475" y="25" text-anchor="middle" font-size="7" fill="#a78bfa" font-family="Segoe UI,sans-serif">GPT-4, DALL-E, Whisper</text>
+
+                <!-- Spoke 3: Model Catalog (left) -->
+                <line x1="280" y1="58" x2="196" y2="58" stroke="rgba(6,182,212,0.5)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.4s" repeatCount="indefinite" begin="0.4s"/>
+                </line>
+                <rect x="72" y="44" width="122" height="28" rx="7" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.1"
+                    style="animation: entityPop 0.4s ease forwards 0.5s; opacity:0;"/>
+                <text x="133" y="57" text-anchor="middle" font-size="8" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Model Catalog</text>
+                <text x="133" y="67" text-anchor="middle" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif">Llama, Mistral, Phi, custom</text>
+
+                <!-- Spoke 4: AI Services (right) -->
+                <line x1="360" y1="58" x2="444" y2="58" stroke="rgba(58,181,119,0.5)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.4s" repeatCount="indefinite" begin="0.6s"/>
+                </line>
+                <rect x="446" y="44" width="122" height="28" rx="7" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.1"
+                    style="animation: entityPop 0.4s ease forwards 0.65s; opacity:0;"/>
+                <text x="507" y="57" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Azure AI Services</text>
+                <text x="507" y="67" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Vision, Speech, Language</text>
+
+                <!-- Spoke 5: Prompt Flow (bottom-left) -->
+                <line x1="290" y1="86" x2="226" y2="104" stroke="rgba(249,115,22,0.5)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.4s" repeatCount="indefinite" begin="0.8s"/>
+                </line>
+                <rect x="112" y="86" width="112" height="28" rx="7" fill="rgba(249,115,22,0.08)" stroke="#f97316" stroke-width="1.1"
+                    style="animation: entityPop 0.4s ease forwards 0.8s; opacity:0;"/>
+                <text x="168" y="100" text-anchor="middle" font-size="8" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">Prompt Flow</text>
+                <text x="168" y="110" text-anchor="middle" font-size="7" fill="#fdba74" font-family="Segoe UI,sans-serif">Orchestrate LLM chains</text>
+
+                <!-- Spoke 6: Safety + Evaluation (bottom-right) -->
+                <line x1="350" y1="86" x2="414" y2="104" stroke="rgba(239,68,68,0.5)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.4s" repeatCount="indefinite" begin="1.0s"/>
+                </line>
+                <rect x="416" y="86" width="120" height="28" rx="7" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.1"
+                    style="animation: entityPop 0.4s ease forwards 0.95s; opacity:0;"/>
+                <text x="476" y="100" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Safety &amp; Evaluation</text>
+                <text x="476" y="110" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Content filtering, red-team</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">What Changed: ML Studio → AI Foundry</div>
+                <div class="card-desc">Azure Machine Learning Studio focuses specifically on ML workflows — datasets, pipelines, compute, model registry. Azure AI Foundry (ai.azure.com) is the broader unified portal that includes Azure ML capabilities plus Azure OpenAI, the model catalog (open-source models from Meta, Mistral, Microsoft), Prompt Flow for LLM orchestration, and built-in AI safety evaluation tooling. For the AI-900 exam, know that Foundry is the current umbrella platform.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Project-Based Organization</div>
+                <div class="card-desc">Inside AI Foundry, you work within Projects, which belong to a Hub. The Hub provides shared compute, connections to data sources, and governance policies. Projects let teams work independently while sharing infrastructure. You can have one hub for your entire AI organization with many projects — one for the fraud detection team, one for NLP, one for computer vision — all billing to the same Azure subscription.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">The Model Catalog</div>
+                <div class="card-desc">The model catalog inside Foundry gives you access to hundreds of models beyond GPT-4 — Llama 3 (Meta), Mistral, Phi-3 (Microsoft), Falcon, and fine-tuned vertical models. You can deploy them as managed endpoints directly from the catalog, compare benchmark scores, and use them in Prompt Flow. This is where Microsoft is competing with HuggingFace Hub in the enterprise space.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — RESPONSIBLE ML ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Responsible <span class="accent">ML</span></div>
+        <div class="slide-subtitle">ML models can cause real harm if they are biased, opaque, or privacy-violating. Responsible ML is not a compliance checkbox — it is an engineering discipline built into the Azure ML platform.</div>
+
+        <!-- Model surrounded by guardrails SVG -->
+        <div class="diagram-center">
+            <svg width="620" height="112" viewBox="0 0 620 112" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central model -->
+                <rect x="238" y="30" width="144" height="52" rx="10" fill="rgba(201,168,58,0.09)" stroke="#c9a83a" stroke-width="1.6"/>
+                <text x="310" y="50" text-anchor="middle" font-size="10" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">ML Model</text>
+                <text x="310" y="64" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Trained on historical data</text>
+                <text x="310" y="76" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Making real decisions</text>
+
+                <!-- Guardrail 1: Fairness (top) -->
+                <rect x="196" y="4" width="228" height="26" rx="7" fill="rgba(239,68,68,0.07)" stroke="#ef4444" stroke-width="1.2"
+                    style="animation: entityPop 0.4s ease forwards 0.2s; opacity:0;"/>
+                <line x1="310" y1="30" x2="310" y2="30" stroke="rgba(239,68,68,0.4)" stroke-width="1.2"/>
+                <text x="310" y="15" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Fairness — Check for Bias in Training Data</text>
+                <text x="310" y="25" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Does accuracy differ by gender, race, or age group? Use Fairlearn toolkit.</text>
+                <line x1="310" y1="30" x2="310" y2="32" stroke="rgba(239,68,68,0.4)" stroke-width="1.2" stroke-dasharray="3,2"/>
+
+                <!-- Guardrail 2: Explainability (left) -->
+                <rect x="4" y="30" width="220" height="52" rx="9" fill="rgba(6,182,212,0.07)" stroke="#06b6d4" stroke-width="1.2"
+                    style="animation: entityPop 0.4s ease forwards 0.35s; opacity:0;"/>
+                <text x="114" y="46" text-anchor="middle" font-size="8.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Interpretability</text>
+                <text x="114" y="58" text-anchor="middle" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif">SHAP values: which features drove</text>
+                <text x="114" y="69" text-anchor="middle" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif">this prediction? "Age: +0.34,</text>
+                <text x="114" y="79" text-anchor="middle" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif">Glucose: +0.61, BMI: +0.18"</text>
+                <line x1="226" y1="56" x2="238" y2="56" stroke="rgba(6,182,212,0.4)" stroke-width="1.2" stroke-dasharray="3,2"/>
+
+                <!-- Guardrail 3: Privacy Shield (right) -->
+                <rect x="396" y="30" width="220" height="52" rx="9" fill="rgba(58,181,119,0.07)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: entityPop 0.4s ease forwards 0.5s; opacity:0;"/>
+                <text x="506" y="46" text-anchor="middle" font-size="8.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Data Privacy</text>
+                <text x="506" y="58" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Differential privacy: add calibrated</text>
+                <text x="506" y="69" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">noise so individuals cannot be</text>
+                <text x="506" y="79" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">reconstructed from the model.</text>
+                <line x1="382" y1="56" x2="396" y2="56" stroke="rgba(58,181,119,0.4)" stroke-width="1.2" stroke-dasharray="3,2"/>
+
+                <!-- Guardrail 4: Model Card (bottom) -->
+                <rect x="196" y="84" width="228" height="24" rx="7" fill="rgba(167,139,250,0.07)" stroke="#a78bfa" stroke-width="1.2"
+                    style="animation: entityPop 0.4s ease forwards 0.65s; opacity:0;"/>
+                <line x1="310" y1="82" x2="310" y2="84" stroke="rgba(167,139,250,0.4)" stroke-width="1.2" stroke-dasharray="3,2"/>
+                <text x="310" y="96" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Model Card — Documents capabilities, limitations &amp; intended use</text>
+                <text x="310" y="104" text-anchor="middle" font-size="7" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Required for responsible production deployment</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Fairness — The Real Problem</div>
+                <div class="card-desc">A loan approval model trained on historical data may learn to deny applications from certain zip codes — not because of the zip code itself, but because historical discrimination produced biased outcomes in the training data. The model becomes a statistical proxy for discrimination. Azure ML includes the Fairlearn toolkit to measure accuracy disparities across demographic groups and test mitigation strategies like re-weighting or threshold adjustment by group.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Interpretability with SHAP</div>
+                <div class="card-desc">SHAP (SHapley Additive exPlanations) decomposes each prediction into the contribution of each feature. For a diabetes prediction: "Glucose contributed +0.61 (strong positive), Age contributed +0.34, BMI contributed +0.18." Azure ML's Responsible AI dashboard generates SHAP explanations automatically. This is critical for regulated industries — doctors and loan officers often need to explain why a decision was made.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Model Cards and Accountability</div>
+                <div class="card-desc">A model card documents: what the model was trained to do, what data it was trained on, known limitations and failure modes, demographic performance disparities, and the intended deployment context. Publishing a model card before deploying to production is considered best practice. Azure AI Foundry's evaluation tools generate model card content automatically from your evaluation run results.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — SUMMARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Chapter 5 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Key takeaways from Predictive Models with Azure Machine Learning — what you need to own for the AI-900 exam.</div>
+
+        <!-- Summary node-chain SVG -->
+        <div class="diagram-center">
+            <svg width="590" height="80" viewBox="0 0 590 80" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <line x1="36" y1="40" x2="556" y2="40" stroke="rgba(201,168,58,0.12)" stroke-width="1.5"/>
+
+                <circle cx="36"  cy="40" r="15" fill="rgba(99,102,241,0.1)" stroke="#6366f1" stroke-width="1.4" style="animation: boxGrow 0.3s ease forwards 0.1s; opacity:0;"/>
+                <text x="36"  y="44" text-anchor="middle" font-size="7" fill="#a5b4fc" font-weight="700" font-family="Segoe UI,sans-serif">Workspace</text>
+                <text x="36"  y="64" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Slide 2</text>
+
+                <circle cx="116" cy="40" r="15" fill="rgba(201,168,58,0.1)" stroke="#c9a83a" stroke-width="1.4" style="animation: boxGrow 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="116" y="37" text-anchor="middle" font-size="6.5" fill="#fef3c7" font-weight="700" font-family="Segoe UI,sans-serif">Auto</text>
+                <text x="116" y="47" text-anchor="middle" font-size="6.5" fill="#fef3c7" font-weight="700" font-family="Segoe UI,sans-serif">ML</text>
+                <text x="116" y="64" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Slide 3</text>
+
+                <circle cx="196" cy="40" r="15" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1.4" style="animation: boxGrow 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="196" y="37" text-anchor="middle" font-size="6.5" fill="#67e8f9" font-weight="700" font-family="Segoe UI,sans-serif">Design</text>
+                <text x="196" y="47" text-anchor="middle" font-size="6.5" fill="#67e8f9" font-weight="700" font-family="Segoe UI,sans-serif">-er</text>
+                <text x="196" y="64" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Slide 4</text>
+
+                <circle cx="276" cy="40" r="15" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.4" style="animation: boxGrow 0.3s ease forwards 0.55s; opacity:0;"/>
+                <text x="276" y="37" text-anchor="middle" font-size="6.5" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">Regress</text>
+                <text x="276" y="47" text-anchor="middle" font-size="6.5" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">-ion</text>
+                <text x="276" y="64" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Slide 5</text>
+
+                <circle cx="356" cy="40" r="15" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.4" style="animation: boxGrow 0.3s ease forwards 0.7s; opacity:0;"/>
+                <text x="356" y="37" text-anchor="middle" font-size="6.5" fill="#fca5a5" font-weight="700" font-family="Segoe UI,sans-serif">Classif</text>
+                <text x="356" y="47" text-anchor="middle" font-size="6.5" fill="#fca5a5" font-weight="700" font-family="Segoe UI,sans-serif">-ication</text>
+                <text x="356" y="64" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Slide 6</text>
+
+                <circle cx="436" cy="40" r="15" fill="rgba(249,115,22,0.1)" stroke="#f97316" stroke-width="1.4" style="animation: boxGrow 0.3s ease forwards 0.85s; opacity:0;"/>
+                <text x="436" y="44" text-anchor="middle" font-size="7" fill="#fdba74" font-weight="700" font-family="Segoe UI,sans-serif">Cluster</text>
+                <text x="436" y="64" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Slide 7</text>
+
+                <circle cx="516" cy="40" r="15" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="1.4" style="animation: boxGrow 0.3s ease forwards 1.0s; opacity:0;"/>
+                <text x="516" y="37" text-anchor="middle" font-size="6.5" fill="#c4b5fd" font-weight="700" font-family="Segoe UI,sans-serif">Eval &amp;</text>
+                <text x="516" y="47" text-anchor="middle" font-size="6.5" fill="#c4b5fd" font-weight="700" font-family="Segoe UI,sans-serif">Deploy</text>
+                <text x="516" y="64" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Slides 8-9</text>
+            </svg>
+        </div>
+
+        <div class="summary-facts">
+            <div class="fact-row" style="animation: fadeUp 0.35s ease forwards 0.15s; opacity:0;">
+                <span class="fact-num">01</span>
+                <span class="fact-text">The <strong>Azure ML Workspace</strong> is the top-level resource that organizes datasets, jobs, models, compute, and endpoints — everything tracked and versioned in one place.</span>
+            </div>
+            <div class="fact-row" style="animation: fadeUp 0.35s ease forwards 0.3s; opacity:0;">
+                <span class="fact-num">02</span>
+                <span class="fact-text"><strong>AutoML</strong> automates algorithm selection and hyperparameter tuning — you provide data and a target column; it produces a ranked leaderboard and registers the best model.</span>
+            </div>
+            <div class="fact-row" style="animation: fadeUp 0.35s ease forwards 0.45s; opacity:0;">
+                <span class="fact-num">03</span>
+                <span class="fact-text">Three ML task types: <code>Regression</code> (supervised) predicts numeric values (RMSE, R²), <code>Classification</code> (supervised) predicts categories (accuracy, precision, recall, F1, AUC), <code>Clustering</code> (unsupervised) finds natural groups without labels. Note: AutoML supports regression, classification, and forecasting — clustering is done via the Designer or Python SDK.</span>
+            </div>
+            <div class="fact-row" style="animation: fadeUp 0.35s ease forwards 0.6s; opacity:0;">
+                <span class="fact-num">04</span>
+                <span class="fact-text">Always split data into <strong>train (80%) and test (20%)</strong> — test data must be held out to get an honest accuracy estimate. Evaluating on training data inflates metrics and hides overfitting.</span>
+            </div>
+            <div class="fact-row" style="animation: fadeUp 0.35s ease forwards 0.75s; opacity:0;">
+                <span class="fact-num">05</span>
+                <span class="fact-text">Deployment creates a <strong>REST API endpoint</strong> — your app sends a JSON request with feature values and receives a JSON prediction response. Real-time and batch endpoint types available.</span>
+            </div>
+            <div class="fact-row" style="animation: fadeUp 0.35s ease forwards 0.9s; opacity:0;">
+                <span class="fact-num">06</span>
+                <span class="fact-text">Responsible ML covers <code>fairness</code> (Fairlearn for bias detection), <code>interpretability</code> (SHAP values), and <code>data privacy</code>. Model cards document capabilities and limitations before deployment.</span>
+            </div>
+        </div>
+
+        <div class="box box-cyan" style="font-size:0.83rem; text-align:center;">
+            <strong>Next: Chapter 6 — Azure AI Services</strong> &nbsp;|&nbsp; Vision, Speech, Language, Decision, and Azure AI Services portfolio
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; AI-900</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* ── Slide navigation state ── */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        /* Boundary check */
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        /* Deactivate the currently visible slide */
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        /* Activate the target slide */
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        /* Update the gold progress bar at the top */
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        /* Update the counter label in the nav bar */
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        /* Disable Prev on slide 1, Next on last slide */
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        /* Show Mark Complete button only on the final slide */
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard arrow key navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    /* Initialize to slide 1 on page load */
+    goToSlide(1);
+</script>
+
+<script>
+    /* ── Module completion via ModuleProgress component ── */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('ai', 'ai900-ch05-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
