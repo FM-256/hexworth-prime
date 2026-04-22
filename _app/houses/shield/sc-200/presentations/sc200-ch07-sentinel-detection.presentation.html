@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configure Detections in Microsoft Sentinel | SC-200 Chapter 7</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0608 0%, #140a10 50%, #1a0c14 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #ef4444; transition: width 0.4s ease; z-index: 200;
+        }
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(10, 6, 8, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(239, 68, 68, 0.15); color: #ef4444; border-color: #ef4444;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #ef4444; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ef4444; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip {
+            background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fca5a5; font-style: italic;
+        }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ef4444; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #ef4444;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #ef4444; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #ef4444;
+            background: rgba(239, 68, 68, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+        .ic {
+            font-family: 'Courier New', monospace; color: #ef4444;
+            background: rgba(239, 68, 68, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+        .diagram-row { display: flex; gap: 16px; align-items: center; justify-content: center; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            border-radius: 8px; padding: 12px 14px; text-align: center;
+            opacity: 0; animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #ef4444; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes flow { 0% { stroke-dashoffset: 20; } 100% { stroke-dashoffset: 0; } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes entityPop { from { opacity: 0; transform: scale(0.6) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes arrowMarch { 0% { stroke-dashoffset: 14; } 100% { stroke-dashoffset: 0; } }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.4);
+            color: #ef4444; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+        .code-block {
+            background: rgba(0,0,0,0.35); border: 1px solid rgba(239,68,68,0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #ef4444; line-height: 1.6; white-space: pre;
+        }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Configure Detections in Microsoft Sentinel -- SC-200 Chapter 7</h1>
+<div id="progress-bar" style="width:7.14%"></div>
+
+<!-- SLIDE 1 -- TITLE -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 14 &nbsp;|&nbsp; SC-200 &nbsp;|&nbsp; Chapter 7 &nbsp;|&nbsp; Sentinel Detection</div>
+        <div class="title-hero">
+            <svg width="420" height="130" viewBox="0 0 420 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="150" y="15" width="120" height="100" rx="16" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="2" style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="210" y="42" text-anchor="middle" font-size="11" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">SENTINEL</text>
+                <text x="210" y="58" text-anchor="middle" font-size="11" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">DETECTION</text>
+                <text x="210" y="74" text-anchor="middle" font-size="9" fill="#fca5a5" font-family="Segoe UI,sans-serif">KQL + Analytics Rules</text>
+                <polygon points="210,88 195,108 225,108" fill="none" stroke="#ef4444" stroke-width="1.8" style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <line x1="200" y1="102" x2="220" y2="102" stroke="#ef4444" stroke-width="1" style="animation: entityPop 0.3s ease forwards 0.35s; opacity:0;"/>
+                <rect x="10" y="20" width="110" height="42" rx="9" fill="rgba(239,68,68,0.06)" stroke="#f87171" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="65" y="38" text-anchor="middle" font-size="8" fill="#f87171" font-weight="700" font-family="Segoe UI,sans-serif">KQL Queries</text>
+                <text x="65" y="52" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">where, summarize, join</text>
+                <rect x="10" y="72" width="110" height="42" rx="9" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="65" y="90" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Analytics Rules</text>
+                <text x="65" y="104" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Scheduled, NRT, Fusion</text>
+                <rect x="300" y="20" width="110" height="42" rx="9" fill="rgba(251,191,36,0.06)" stroke="#fbbf24" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="355" y="38" text-anchor="middle" font-size="8" fill="#fbbf24" font-weight="700" font-family="Segoe UI,sans-serif">Threat Intel</text>
+                <text x="355" y="52" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">STIX/TAXII indicators</text>
+                <rect x="300" y="72" width="110" height="42" rx="9" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="355" y="90" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Hunting</text>
+                <text x="355" y="104" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Proactive queries</text>
+                <line x1="120" y1="41" x2="149" y2="55" stroke="rgba(239,68,68,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/></line>
+                <line x1="120" y1="93" x2="149" y2="75" stroke="rgba(59,130,246,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/></line>
+                <line x1="299" y1="41" x2="271" y2="55" stroke="rgba(251,191,36,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.15s"/></line>
+                <line x1="299" y1="93" x2="271" y2="75" stroke="rgba(58,181,119,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/></line>
+            </svg>
+            <div class="big-title">Configure Detections in <span class="accent">Microsoft Sentinel</span></div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                KQL Queries &nbsp;&bull;&nbsp; Analytics Rules &nbsp;&bull;&nbsp; Threat Intelligence &nbsp;&bull;&nbsp; Hunting
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Microsoft Sentinel uses Kusto Query Language (KQL) to analyze log data and analytics rules to automatically generate alerts and incidents. This chapter covers writing KQL queries, configuring scheduled and NRT analytics rules, leveraging fusion detection for multi-stage attacks, integrating threat intelligence indicators, building watchlists, and creating hunting queries for proactive threat detection.
+        </div>
+        <div class="title-meta-row">
+            <span>14 Slides</span>
+            <span>SC-200 Exam Objectives</span>
+            <span>Chapter 7</span>
+            <span>Security Operations</span>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 2 -- KQL FUNDAMENTALS -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 14</div>
+        <div class="slide-title">KQL <span class="accent">Fundamentals</span></div>
+        <div class="slide-subtitle">Kusto Query Language (KQL) is the query language used across Microsoft Sentinel, Defender XDR, and Azure Monitor. Queries read from log tables and pipe data through operators to filter, transform, and aggregate results.</div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">Pipe Model</div><div class="card-desc">KQL queries start with a table name and pipe data through operators using the <span class="ic">|</span> character. Each operator receives the output of the previous step, processes it, and passes results to the next. Data flows left to right, top to bottom.</div></div>
+            <div class="card c-blue"><div class="card-label">Read-Only</div><div class="card-desc">KQL is a read-only query language -- it cannot modify or delete data. Queries run against the Log Analytics workspace backing your Sentinel instance. Results are returned as tabular data you can explore, export, or use in analytics rules.</div></div>
+            <div class="card c-green"><div class="card-label">Time-Scoped</div><div class="card-desc">Always scope queries with a time filter using <span class="ic">where TimeGenerated > ago()</span> as the first filter. Without a time scope, queries scan the entire retention window and run slowly. Sentinel data tables are partitioned by time for performance.</div></div>
+        </div>
+        <div class="code-block">// Basic KQL query structure
+SecurityEvent
+| where TimeGenerated > ago(24h)
+| where EventID == 4625
+| project TimeGenerated, Computer, Account, LogonType
+| sort by TimeGenerated desc
+| take 100</div>
+    </div>
+</section>
+
+<!-- SLIDE 3 -- CORE KQL OPERATORS -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 14</div>
+        <div class="slide-title">Core KQL <span class="accent">Operators</span></div>
+        <div class="slide-subtitle">These operators form the foundation of every KQL query. Master them before moving to advanced analytics.</div>
+        <div class="hex-grid">
+            <div class="hex-cell"><div class="hex-title">where</div><div class="hex-desc">Filters rows based on a condition. Equivalent to SQL WHERE. Supports ==, !=, contains, has, startswith, matches regex, and compound conditions with <span class="ic">and</span> / <span class="ic">or</span>.</div></div>
+            <div class="hex-cell"><div class="hex-title">project</div><div class="hex-desc">Selects specific columns to include in output. Reduces result size and improves readability. Use <span class="ic">project-away</span> to exclude columns or <span class="ic">project-rename</span> to rename them.</div></div>
+            <div class="hex-cell"><div class="hex-title">summarize</div><div class="hex-desc">Aggregates data using functions like <span class="ic">count()</span>, <span class="ic">dcount()</span>, <span class="ic">sum()</span>, <span class="ic">avg()</span>. Groups results with <span class="ic">by</span> clause. Essential for statistical analysis and trend detection.</div></div>
+            <div class="hex-cell"><div class="hex-title">extend</div><div class="hex-desc">Adds calculated columns to the result set without removing existing columns. Use for enrichment: <span class="ic">extend HourOfDay = datetime_part("hour", TimeGenerated)</span> or string parsing.</div></div>
+            <div class="hex-cell"><div class="hex-title">join</div><div class="hex-desc">Combines rows from two tables based on matching column values. Default is <span class="ic">innerunique</span>. Use <span class="ic">kind=inner</span>, <span class="ic">kind=leftouter</span>, or <span class="ic">kind=anti</span> to control join behavior.</div></div>
+            <div class="hex-cell"><div class="hex-title">parse</div><div class="hex-desc">Extracts values from unstructured string fields using pattern matching. Splits free-text log messages into structured columns: <span class="ic">parse Message with "User " Username " logged in from " SourceIP</span>.</div></div>
+        </div>
+        <div class="box box-gold"><div class="box-label">Exam Tip</div>The <span class="ic">has</span> operator is faster than <span class="ic">contains</span> because it matches whole terms using an index. Use <span class="ic">has</span> for single-word lookups and <span class="ic">contains</span> only when you need substring matching.</div>
+    </div>
+</section>
+
+<!-- SLIDE 4 -- KQL FOR SECURITY ANALYSIS -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 14</div>
+        <div class="slide-title">KQL for <span class="accent">Security Analysis</span></div>
+        <div class="slide-subtitle">Combining operators into meaningful security queries. These patterns appear frequently in Sentinel analytics rules and hunting queries.</div>
+        <div class="code-block">// Failed logons followed by success -- potential brute force
+SecurityEvent
+| where TimeGenerated > ago(1h)
+| where EventID in (4625, 4624)
+| summarize FailCount = countif(EventID == 4625),
+            SuccessCount = countif(EventID == 4624)
+            by TargetAccount, IPAddress, bin(TimeGenerated, 5m)
+| where FailCount > 10 and SuccessCount > 0</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">let Statements</div><div class="card-desc">Declare variables and reusable subqueries with <span class="ic">let</span>. Define thresholds (<span class="ic">let threshold = 10;</span>), time windows (<span class="ic">let lookback = 24h;</span>), or entire subqueries that can be referenced by name later in the query.</div></div>
+            <div class="card c-blue"><div class="card-label">bin() for Time Buckets</div><div class="card-desc">The <span class="ic">bin()</span> function groups timestamps into fixed intervals. <span class="ic">bin(TimeGenerated, 1h)</span> creates hourly buckets for trend analysis. Combine with <span class="ic">summarize</span> and <span class="ic">render timechart</span> for visual output.</div></div>
+            <div class="card c-gold"><div class="card-label">arg_max / arg_min</div><div class="card-desc">Returns the row with the maximum (or minimum) value: <span class="ic">summarize arg_max(TimeGenerated, *) by Account</span> returns the most recent event per account. Useful for "last seen" and deduplication patterns.</div></div>
+            <div class="card c-green"><div class="card-label">externaldata / Watchlists</div><div class="card-desc">Reference external data sources or Sentinel watchlists in queries. Use <span class="ic">_GetWatchlist('HighValueAssets')</span> to join log data against curated lists of critical servers, VIP accounts, or known indicators.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 5 -- SCHEDULED ANALYTICS RULES -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 14</div>
+        <div class="slide-title">Scheduled <span class="accent">Analytics Rules</span></div>
+        <div class="slide-subtitle">Scheduled analytics rules run KQL queries on a repeating schedule. When the query returns results, Sentinel creates alerts and groups them into incidents for investigation.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Query Frequency</div><div class="card-desc">How often the rule runs. Options range from every 5 minutes to every 14 days. Higher frequency catches threats faster but consumes more compute. Most rules run every 5 minutes to 1 hour depending on the data volume and urgency of the detection.</div></div>
+            <div class="card c-blue"><div class="card-label">Lookback Period</div><div class="card-desc">How far back the query scans in the data. Must be greater than or equal to the frequency. A 5-minute frequency with a 5-minute lookback has no gap. Set lookback longer than frequency for overlapping windows that catch events spanning boundaries.</div></div>
+            <div class="card c-gold"><div class="card-label">Entity Mapping</div><div class="card-desc">Maps query result columns to Sentinel entities: Account, Host, IP, URL, File, Process. Entity mapping enables entity pages, investigation graphs, and correlation across incidents. Map at least Account and Host for effective investigation.</div></div>
+            <div class="card c-green"><div class="card-label">Alert Grouping</div><div class="card-desc">Controls how alerts are grouped into incidents. Group by entities to combine all alerts affecting the same account or host into one incident. Prevents alert fatigue by reducing hundreds of individual alerts into a single investigable incident.</div></div>
+        </div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>General</strong> -- set rule name, description, severity (Informational through High), MITRE ATT&CK tactics and techniques.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Rule Logic</strong> -- write the KQL query, set frequency and lookback, configure entity mapping and custom details.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Incident Settings</strong> -- enable incident creation, configure alert grouping (group by entities or time window).</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Automated Response</strong> -- attach automation rules or playbooks to trigger on alert creation.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 6 -- NRT RULES -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 14</div>
+        <div class="slide-title">Near-Real-Time <span class="accent">(NRT) Rules</span></div>
+        <div class="slide-subtitle">NRT analytics rules run every minute with a lookback of up to 14 minutes. They provide the fastest detection in Sentinel -- designed for high-priority threats where every second of delay matters.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">How NRT Differs</div><div class="card-desc">NRT rules run on a 1-minute cycle and check the most recent data ingested. They use the same KQL syntax as scheduled rules but you do not configure frequency or lookback -- the system manages both. Detection latency drops from minutes to approximately 1 minute.</div></div>
+            <div class="card c-blue"><div class="card-label">Limitations</div><div class="card-desc">NRT rules have KQL restrictions: no <span class="ic">join</span>, no <span class="ic">union</span>, no cross-workspace or cross-resource queries. They query a single table per rule. These constraints ensure the 1-minute execution cycle is achievable without timeouts.</div></div>
+        </div>
+        <div class="code-block">// NRT rule: detect Mimikatz process creation
+SecurityEvent
+| where EventID == 4688
+| where CommandLine has_any ("mimikatz", "sekurlsa", "lsadump")
+| project TimeGenerated, Computer, Account, CommandLine</div>
+        <div class="box box-red"><div class="box-label">When to Use NRT</div>Use NRT rules for high-confidence, low-complexity detections where speed is critical: known malware hashes, specific command-line patterns, critical service stops, or high-severity IOC matches. Use scheduled rules for complex queries requiring joins, aggregation, or multi-table correlation.</div>
+    </div>
+</section>
+
+<!-- SLIDE 7 -- FUSION RULES -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 14</div>
+        <div class="slide-title">Fusion <span class="accent">Detection</span></div>
+        <div class="slide-subtitle">Fusion is a built-in correlation engine in Sentinel that uses machine learning to detect multi-stage attacks by correlating low-fidelity alerts from different sources into high-confidence incidents.</div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">Multi-Stage Correlation</div><div class="card-desc">Fusion links alerts from different products and data sources that individually might be low severity but together indicate a coordinated attack. Example: a suspicious sign-in from Entra ID Identity Protection + data exfiltration from Defender for Cloud Apps = one high-severity fusion incident.</div></div>
+            <div class="card c-blue"><div class="card-label">Built-In Scenarios</div><div class="card-desc">Microsoft maintains pre-built fusion scenarios covering ransomware, data exfiltration, credential theft followed by lateral movement, and resource hijacking. These scenarios are updated automatically as new attack patterns emerge. You cannot modify fusion logic directly.</div></div>
+            <div class="card c-green"><div class="card-label">Configuration</div><div class="card-desc">Fusion is enabled by default in Sentinel. The only configuration is enabling or disabling it and selecting which source signals to include. More connected data sources = more correlation opportunities. Fusion requires alerts from at least two different sources to trigger.</div></div>
+        </div>
+        <div class="box box-gold"><div class="box-label">Exam Tip</div>Fusion detection is Microsoft-managed. You cannot write custom fusion rules or modify the machine learning models. Your role is to ensure the right data sources are connected so fusion has enough signal to correlate. Fusion incidents always carry a High severity rating.</div>
+    </div>
+</section>
+
+<!-- SLIDE 8 -- THREAT INTELLIGENCE INDICATORS -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 14</div>
+        <div class="slide-title">Threat Intelligence <span class="accent">Indicators</span></div>
+        <div class="slide-subtitle">Threat intelligence (TI) indicators are known malicious artifacts -- IP addresses, domains, URLs, file hashes -- imported into Sentinel and matched against ingested log data to detect known threats.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">STIX/TAXII Integration</div><div class="card-desc">Sentinel connects to TAXII 2.0/2.1 servers to ingest threat intelligence in STIX format. STIX (Structured Threat Information Expression) is the standard format for TI data. TAXII (Trusted Automated Exchange of Intelligence Information) is the transport protocol. Configure a TAXII connector with the server URL, collection ID, and API credentials.</div></div>
+            <div class="card c-blue"><div class="card-label">Microsoft TI Sources</div><div class="card-desc">The Microsoft Defender Threat Intelligence (MDTI) data connector provides curated indicators from Microsoft's own threat research. The Threat Intelligence Platforms connector imports from third-party TI platforms (MISP, Anomali, Recorded Future) via the Graph Security API.</div></div>
+            <div class="card c-gold"><div class="card-label">TI Matching Rules</div><div class="card-desc">Built-in analytics rule templates: <span class="ic">TI map IP entity to...</span> match indicators against log tables (SigninLogs, CommonSecurityLog, AzureActivity, etc.). When a log entry matches a known malicious indicator, Sentinel creates an alert with the matched indicator details.</div></div>
+            <div class="card c-green"><div class="card-label">Indicator Lifecycle</div><div class="card-desc">Indicators have a valid-until date. Expired indicators are no longer matched. Manage indicator quality: too many low-confidence indicators cause false positives, too few miss threats. Tag indicators with confidence levels and source attribution for triage context.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 9 -- WATCHLISTS -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 14</div>
+        <div class="slide-title"><span class="accent">Watchlists</span></div>
+        <div class="slide-subtitle">Watchlists are curated lists of data you upload to Sentinel and reference in KQL queries, analytics rules, and hunting queries. They bring external business context into your detection logic.</div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">Common Use Cases</div><div class="card-desc">VIP user lists, high-value asset inventories, terminated employee accounts, approved IP ranges, known-safe file hashes. Any reference data your detection logic needs that does not exist in log tables.</div></div>
+            <div class="card c-blue"><div class="card-label">Upload and Management</div><div class="card-desc">Upload watchlists from CSV files. Each watchlist has a unique alias used in KQL. Watchlists can be updated by re-uploading the CSV or through the API. Changes propagate to all rules referencing that watchlist within minutes.</div></div>
+            <div class="card c-green"><div class="card-label">KQL Integration</div><div class="card-desc">Reference watchlists in any KQL query: <span class="ic">_GetWatchlist('VIPUsers')</span> returns the watchlist as a table you can join against log data. Use <span class="ic">join kind=inner</span> to enrich alerts or <span class="ic">join kind=anti</span> to exclude known-safe items.</div></div>
+        </div>
+        <div class="code-block">// Alert on sign-ins from non-approved countries for VIP users
+let VIPs = _GetWatchlist('VIPUsers') | project UserPrincipalName;
+SigninLogs
+| where TimeGenerated > ago(1h)
+| where UserPrincipalName in (VIPs)
+| where LocationDetails.countryOrRegion !in ("US", "CA", "GB")
+| project TimeGenerated, UserPrincipalName, IPAddress, LocationDetails</div>
+    </div>
+</section>
+
+<!-- SLIDE 10 -- HUNTING QUERIES -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 14</div>
+        <div class="slide-title">Hunting <span class="accent">Queries</span></div>
+        <div class="slide-subtitle">Threat hunting is the proactive search for threats that evade existing detection rules. Sentinel provides a hunting interface with pre-built and custom KQL queries, bookmarks for evidence collection, and livestream for real-time monitoring.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Hunting Workflow</div><div class="card-desc">Start with a hypothesis (e.g., "a compromised account is exfiltrating data via SharePoint"). Write a KQL query to test it. Run the query against historical data. Bookmark interesting results as evidence. Promote confirmed findings to incidents for formal investigation.</div></div>
+            <div class="card c-blue"><div class="card-label">Built-In Queries</div><div class="card-desc">Sentinel ships with hundreds of community-contributed hunting queries organized by MITRE ATT&CK tactic. Each query includes a description, required data sources, and expected results. Clone and customize queries to fit your environment.</div></div>
+            <div class="card c-gold"><div class="card-label">Bookmarks</div><div class="card-desc">Bookmarks save specific query results as evidence artifacts. Each bookmark captures the query, result row, timestamp, and analyst notes. Bookmarks can be added to existing incidents or used to create new incidents when a hunt confirms a threat.</div></div>
+            <div class="card c-green"><div class="card-label">Livestream</div><div class="card-desc">Livestream runs a hunting query continuously and notifies the analyst when new results appear. Use it to monitor an active hypothesis in near-real-time during an investigation. Functions like a temporary NRT rule without creating formal alerts.</div></div>
+        </div>
+        <div class="box box-cyan"><div class="box-label">Proactive vs. Reactive</div>Analytics rules are reactive -- they trigger on known patterns. Hunting is proactive -- the analyst formulates a hypothesis and searches for evidence. The best SOC teams combine both: analytics rules catch known threats automatically while hunters search for novel attack techniques that no rule covers yet.</div>
+    </div>
+</section>
+
+<!-- SLIDE 11 -- CONTENT HUB AND RULE TEMPLATES -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 14</div>
+        <div class="slide-title">Content Hub and <span class="accent">Rule Templates</span></div>
+        <div class="slide-subtitle">The Sentinel Content Hub provides pre-packaged detection content: analytics rule templates, hunting queries, workbooks, playbooks, and data connectors bundled into solutions organized by product or threat scenario.</div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">Solutions</div><div class="card-desc">Solutions are packages of related content. Example: the "Microsoft Entra ID" solution includes analytics rules for risky sign-ins, hunting queries for token abuse, and workbooks for sign-in trends. Install solutions from the Content Hub to get all content at once.</div></div>
+            <div class="card c-blue"><div class="card-label">Rule Templates</div><div class="card-desc">Analytics rule templates are pre-written detection rules you activate and customize. Templates show the required data sources, expected alert volume, and MITRE mapping. Create a rule from a template, customize the KQL query, frequency, and entity mappings for your environment.</div></div>
+            <div class="card c-green"><div class="card-label">Custom Rules</div><div class="card-desc">When no template fits, create custom analytics rules from scratch. Write the KQL query, set the schedule, map entities, and configure incident creation. Custom rules let you detect organization-specific threats that generic templates cannot cover.</div></div>
+        </div>
+        <div class="box box-gold"><div class="box-label">Exam Tip</div>Content Hub solutions are the primary way to deploy detection content in Sentinel. When connecting a new data source, always check the Content Hub for a matching solution -- it typically includes the analytics rules, hunting queries, and workbooks designed for that data type.</div>
+    </div>
+</section>
+
+<!-- SLIDE 12 -- DETECTION TUNING -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 14</div>
+        <div class="slide-title">Detection <span class="accent">Tuning</span></div>
+        <div class="slide-subtitle">Effective detection requires ongoing tuning to reduce false positives, close coverage gaps, and adapt to changes in the environment. A noisy rule is worse than no rule -- analysts stop investigating if most alerts are false.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Reduce False Positives</div><div class="card-desc">Add exclusions for known-safe activity: service accounts, scheduled tasks, approved tools. Use watchlists to maintain exclusion lists outside the rule logic. Tighten thresholds -- if a brute force rule fires on 5 failures, consider raising to 15 if your environment generates benign lockouts.</div></div>
+            <div class="card c-blue"><div class="card-label">Entity Mapping Quality</div><div class="card-desc">Map as many entity types as the query supports -- Account, Host, IP, URL, FileHash. Accurate entity mapping drives investigation graph quality and cross-incident correlation. Poor mapping produces disconnected incidents that analysts cannot link.</div></div>
+            <div class="card c-gold"><div class="card-label">Custom Details</div><div class="card-desc">Surface key query fields in the alert details pane without requiring the analyst to re-run the query. Map additional columns like CommandLine, UserAgent, or GeoLocation as custom alert details for faster triage directly from the incident queue.</div></div>
+            <div class="card c-green"><div class="card-label">Coverage Assessment</div><div class="card-desc">Map active analytics rules to MITRE ATT&CK. Sentinel provides a MITRE coverage view that shows which tactics and techniques have active detections. Identify gaps and prioritize new rules for uncovered techniques relevant to your threat model.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 13 -- DETECTION ARCHITECTURE -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 14</div>
+        <div class="slide-title">Detection <span class="accent">Architecture</span></div>
+        <div class="slide-subtitle">How all detection components fit together in a Sentinel deployment.</div>
+        <div class="diagram-center">
+            <svg width="560" height="130" viewBox="0 0 560 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="10" y="10" width="100" height="50" rx="8" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="60" y="30" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Log Data</text>
+                <text x="60" y="45" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Tables in workspace</text>
+                <rect x="155" y="10" width="100" height="50" rx="8" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="205" y="30" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Analytics Rules</text>
+                <text x="205" y="45" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">KQL on schedule</text>
+                <rect x="300" y="10" width="100" height="50" rx="8" fill="rgba(251,191,36,0.1)" stroke="#fbbf24" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="350" y="30" text-anchor="middle" font-size="8" fill="#fbbf24" font-weight="700" font-family="Segoe UI,sans-serif">Alerts</text>
+                <text x="350" y="45" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Entity-mapped</text>
+                <rect x="445" y="10" width="100" height="50" rx="8" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.4s; opacity:0;"/>
+                <text x="495" y="30" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Incidents</text>
+                <text x="495" y="45" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Grouped for triage</text>
+                <line x1="110" y1="35" x2="155" y2="35" stroke="rgba(239,68,68,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/></line>
+                <line x1="255" y1="35" x2="300" y2="35" stroke="rgba(59,130,246,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.15s"/></line>
+                <line x1="400" y1="35" x2="445" y2="35" stroke="rgba(251,191,36,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/></line>
+                <rect x="155" y="75" width="100" height="45" rx="8" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1" style="animation: boxGrow 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="205" y="95" text-anchor="middle" font-size="7" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Threat Intel</text>
+                <text x="205" y="110" text-anchor="middle" font-size="6.5" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Indicator matching</text>
+                <rect x="300" y="75" width="100" height="45" rx="8" fill="rgba(249,115,22,0.08)" stroke="#f97316" stroke-width="1" style="animation: boxGrow 0.3s ease forwards 0.45s; opacity:0;"/>
+                <text x="350" y="95" text-anchor="middle" font-size="7" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">Fusion</text>
+                <text x="350" y="110" text-anchor="middle" font-size="6.5" fill="#fdba74" font-family="Segoe UI,sans-serif">ML correlation</text>
+                <line x1="205" y1="75" x2="205" y2="60" stroke="rgba(167,139,250,0.3)" stroke-width="1" stroke-dasharray="3,3"><animate attributeName="stroke-dashoffset" values="10;0" dur="1.2s" repeatCount="indefinite"/></line>
+                <line x1="350" y1="75" x2="350" y2="60" stroke="rgba(249,115,22,0.3)" stroke-width="1" stroke-dasharray="3,3"><animate attributeName="stroke-dashoffset" values="10;0" dur="1.2s" repeatCount="indefinite" begin="0.2s"/></line>
+            </svg>
+        </div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Data Ingestion</strong> -- log data flows into the Log Analytics workspace from connectors. Every table is queryable with KQL.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Analytics Rules</strong> -- scheduled rules run KQL on a timer, NRT rules run every minute, fusion correlates across sources with ML.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>TI Matching</strong> -- threat intelligence rules compare ingested logs against known indicators and create alerts on matches.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Incident Creation</strong> -- alerts are grouped into incidents based on entity mapping and grouping rules for analyst triage.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 14 -- SUMMARY -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 14</div>
+        <div class="slide-title">Chapter 7 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Key concepts you must know for the SC-200 exam.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>KQL Operators</strong> -- <code>where</code> filters rows, <code>project</code> selects columns, <code>summarize</code> aggregates with <code>count()</code>/<code>dcount()</code>, <code>join</code> combines tables, <code>extend</code> adds calculated columns, <code>parse</code> extracts from strings. Use <code>has</code> over <code>contains</code> for performance.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Scheduled Rules</strong> -- configure frequency (how often it runs), lookback (how far back it queries), entity mapping (Account, Host, IP), and alert grouping (combine alerts into incidents). Four configuration tabs: General, Rule Logic, Incident Settings, Automated Response.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>NRT Rules</strong> -- run every minute, no join/union allowed, single table only. Use for high-confidence, low-complexity detections where speed is critical.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Fusion</strong> -- Microsoft-managed ML that correlates low-fidelity alerts from multiple sources into high-severity multi-stage attack incidents. Enabled by default, not customizable.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Threat Intelligence</strong> -- STIX/TAXII integration imports known indicators. TI matching rules compare indicators against log tables. Indicators have confidence levels and expiration dates.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>Watchlists</strong> -- CSV-based reference data queryable via <code>_GetWatchlist()</code>. Use for VIP lists, approved IPs, high-value assets. Join against log data for context-enriched detections.</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text"><strong>Hunting</strong> -- proactive KQL queries to find threats not covered by rules. Bookmarks save evidence. Livestream monitors hypotheses in real-time. Promote findings to incidents.</span></div>
+        </div>
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; SC-200</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 14</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 14;
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) { completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none'; }
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+    goToSlide(1);
+</script>
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'sc200-ch07-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

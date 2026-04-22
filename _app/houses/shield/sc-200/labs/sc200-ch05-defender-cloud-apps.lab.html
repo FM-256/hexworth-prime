@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Defender for Cloud Apps Lab -- SC-200 Chapter 5</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { height: 100vh; overflow: hidden; background: #0c0c0c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #f5b3b3; display: flex; flex-direction: column; }
+        .lab-header { flex-shrink: 0; padding: 15px 30px; background: rgba(10,6,8,0.95); border-bottom: 1px solid rgba(239,68,68,0.2); display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn { padding: 8px 16px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; color: #ef4444; text-decoration: none; font-size: 0.85rem; transition: all 0.3s ease; }
+        .back-btn:hover { background: rgba(239,68,68,0.2); }
+        .lab-title { font-size: 1rem; color: #fde2e2; }
+        .lab-badge { padding: 4px 12px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; font-size: 0.7rem; color: #f87171; letter-spacing: 0.05em; }
+        .lab-badge-ch { padding: 4px 12px; background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.3); border-radius: 12px; font-size: 0.7rem; color: #34d399; letter-spacing: 0.05em; }
+        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #7a4040; }
+        .task-count { color: #ef4444; font-weight: 500; }
+        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(239,68,68,0.15); border-radius: 3px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #ef4444, #991b1b); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
+        .lab-container { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
+        .task-panel { background: rgba(10,6,8,0.95); border-right: 1px solid rgba(239,68,68,0.15); overflow-y: auto; padding: 20px; }
+        .task-section { margin-bottom: 25px; }
+        .task-section-title { font-size: 0.68rem; color: #5a2020; letter-spacing: 0.15em; margin-bottom: 12px; text-transform: uppercase; }
+        .task-card { background: rgba(20,10,16,0.8); border: 1px solid rgba(239,68,68,0.15); border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s ease; }
+        .task-card:hover { border-color: rgba(239,68,68,0.4); }
+        .task-card.active { border-color: #ef4444; background: rgba(239,68,68,0.1); }
+        .task-card.completed { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.04); }
+        .task-card.completed .task-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; font-weight: 400; }
+        .task-number { font-size: 0.68rem; color: #ef4444; margin-bottom: 4px; }
+        .task-name { font-size: 0.9rem; color: #fde2e2; margin-bottom: 4px; }
+        .task-desc { font-size: 0.77rem; color: #7a4040; line-height: 1.45; }
+        .task-desc code { background: rgba(239,68,68,0.15); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; color: #f87171; font-family: 'Consolas', monospace; }
+        .terminal-panel { display: flex; flex-direction: column; background: #0a0a0a; position: relative; overflow: hidden; }
+        .term-toolbar { flex-shrink: 0; padding: 8px 20px; background: rgba(20,10,16,0.9); border-bottom: 1px solid rgba(239,68,68,0.15); display: flex; align-items: center; gap: 12px; }
+        .term-dot { width: 12px; height: 12px; border-radius: 50%; } .term-dot-red { background: #ff5f57; } .term-dot-amber { background: #febc2e; } .term-dot-green { background: #28c840; }
+        .term-title { flex: 1; text-align: center; font-size: 0.8rem; color: #5a3030; font-family: 'Consolas', monospace; }
+        .term-vm-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #34d399; }
+        .term-status-dot { width: 7px; height: 7px; background: #34d399; border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .term-output { flex: 1; overflow-y: auto; padding: 16px 360px 8px 20px; font-family: 'Consolas', monospace; font-size: 0.875rem; line-height: 1.6; }
+        .term-input-row { flex-shrink: 0; display: flex; align-items: center; padding: 8px 360px 12px 20px; border-top: 1px solid rgba(239,68,68,0.1); gap: 0; }
+        .term-prompt-label { font-family: 'Consolas', monospace; font-size: 0.875rem; white-space: nowrap; flex-shrink: 0; }
+        .term-prompt-user { color: #ef4444; } .term-prompt-sep { color: #5a2020; } .term-prompt-path { color: #34d399; } .term-prompt-dollar { color: #fde2e2; margin-right: 6px; }
+        .term-input { flex: 1; background: transparent; border: none; outline: none; color: #fde2e2; font-family: 'Consolas', monospace; font-size: 0.875rem; caret-color: #ef4444; }
+        .term-line { white-space: pre-wrap; word-break: break-all; }
+        .term-line-cmd { color: #f5b3b3; } .term-line-out { color: #a0d4a0; } .term-line-err { color: #f87171; } .term-line-info { color: #f87171; } .term-line-warn { color: #fbbf24; } .term-line-dim { color: #4a2020; } .term-welcome { color: #ef4444; }
+        .term-prompt-span { color: #ef4444; } .term-path-span { color: #34d399; } .term-ps1-sep { color: #5a2020; }
+        .json-key { color: #f87171; } .json-string { color: #86efac; } .json-number { color: #fbbf24; } .json-bool { color: #93c5fd; } .json-null { color: #f87171; }
+        .instructions-panel { position: absolute; top: 20px; right: 20px; width: 320px; background: rgba(10,6,8,0.97); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; padding: 20px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.4); transition: all 0.3s ease; }
+        .instructions-panel.collapsed { width: auto; padding: 10px 14px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-body { display: none; }
+        .instructions-title { font-size: 1rem; color: #ef4444; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-title { margin-bottom: 0; font-size: 0.85rem; }
+        .instructions-toggle { margin-left: auto; width: 28px; height: 28px; background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; color: #ef4444; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .instructions-step { font-size: 0.88rem; color: #f5b3b3; line-height: 1.65; margin-bottom: 14px; }
+        .instructions-step code { background: rgba(239,68,68,0.2); padding: 2px 7px; border-radius: 4px; font-family: 'Consolas', monospace; color: #f87171; font-size: 0.85em; }
+        .instructions-hint { font-size: 0.78rem; color: #5a2020; font-style: italic; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(239,68,68,0.15); line-height: 1.5; }
+        .hint-btn { margin-top: 12px; padding: 6px 12px; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); border-radius: 5px; color: #ef4444; font-size: 0.75rem; cursor: pointer; font-family: 'Segoe UI', sans-serif; width: 100%; text-align: center; }
+        .hint-command { display: none; margin-top: 10px; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(239,68,68,0.25); border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.78rem; color: #86efac; line-height: 1.55; white-space: pre-wrap; }
+        .hint-command.visible { display: block; }
+        .success-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 2000; }
+        .success-overlay.active { display: flex; }
+        .success-card { background: rgba(10,6,8,0.97); border: 1px solid rgba(52,211,153,0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
+        .success-message { color: #f5b3b3; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
+        .success-btn { padding: 12px 30px; background: linear-gradient(135deg, #ef4444, #991b1b); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; }
+        @media (max-width: 1024px) { .lab-container { grid-template-columns: 1fr; } .task-panel { display: none; } .term-output, .term-input-row { padding-right: 20px; } .instructions-panel { position: absolute; bottom: 60px; top: auto; right: 10px; left: 10px; width: auto; } }
+    </style>
+</head>
+<body>
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Defender for Cloud Apps Lab</span>
+            <span class="lab-badge">SC-200</span>
+            <span class="lab-badge-ch">CH.5</span>
+        </div>
+        <div class="task-progress">
+            <span>Progress:</span>
+            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBarFill"></div></div>
+            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
+        </div>
+    </header>
+    <div class="lab-container">
+        <aside class="task-panel" id="taskPanel"><div class="task-section"><div class="task-section-title">Phase 1 -- Cloud Discovery</div><div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)"><div class="task-number">Task 1</div><div class="task-name">Run Cloud Discovery Report</div><div class="task-desc">Run <code>mcas discovery show-report</code> to display the Cloud Discovery dashboard with discovered apps and risk scores.</div></div><div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)"><div class="task-number">Task 2</div><div class="task-name">Tag a Shadow IT App</div><div class="task-desc">Run <code>mcas discovery tag-app --name "WeTransfer" --tag unsanctioned</code> to mark a shadow IT app as unsanctioned.</div></div><div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)"><div class="task-number">Task 3</div><div class="task-name">Block Unsanctioned App</div><div class="task-desc">Run <code>mcas discovery block-app --name "WeTransfer" --method mde</code> to push a block action via Defender for Endpoint network protection.</div></div></div><div class="task-section"><div class="task-section-title">Phase 2 -- App Connectors and Policies</div><div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)"><div class="task-number">Task 4</div><div class="task-name">List App Connectors</div><div class="task-desc">Run <code>mcas connectors list</code> to view all connected apps and their API status.</div></div><div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)"><div class="task-number">Task 5</div><div class="task-name">Review Anomaly Detections</div><div class="task-desc">Run <code>mcas policies list --type anomaly</code> to display all anomaly detection policies and their status.</div></div><div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)"><div class="task-number">Task 6</div><div class="task-name">Investigate a UEBA Alert</div><div class="task-desc">Run <code>mcas ueba show-user --id jsmith@contoso.com</code> to review a user investigation priority score and activity timeline.</div></div></div><div class="task-section"><div class="task-section-title">Phase 3 -- Session Control and OAuth</div><div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)"><div class="task-number">Task 7</div><div class="task-name">View Session Policies</div><div class="task-desc">Run <code>mcas session-policies list</code> to display all Conditional Access App Control session policies.</div></div><div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)"><div class="task-number">Task 8</div><div class="task-name">Audit OAuth Apps</div><div class="task-desc">Run <code>mcas oauth list-apps --permission high</code> to list OAuth apps with high-privilege permissions.</div></div><div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)"><div class="task-number">Task 9</div><div class="task-name">Revoke a Risky OAuth App</div><div class="task-desc">Run <code>mcas oauth revoke --app-id APP-7291</code> to revoke permissions for a suspicious OAuth app.</div></div></div><div class="task-section"><div class="task-section-title">Phase 4 -- File Policies</div><div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)"><div class="task-number">Task 10</div><div class="task-name">Scan for External Sharing</div><div class="task-desc">Run <code>mcas files scan --filter "shared-externally" --app "SharePoint"</code> to find externally shared files containing sensitive data.</div></div></div></aside>
+        <main class="terminal-panel" id="terminalPanel">
+            <div class="term-toolbar">
+                <div class="term-dot term-dot-red"></div><div class="term-dot term-dot-amber"></div><div class="term-dot term-dot-green"></div>
+                <div class="term-title">socanalyst@casb-lab -- bash</div>
+                <div class="term-vm-status"><div class="term-status-dot"></div>CASB Lab Online</div>
+            </div>
+            <div class="term-output" id="termOutput"></div>
+            <div class="term-input-row">
+                <span class="term-prompt-label"><span class="term-prompt-user">socanalyst@casb-lab</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span></span>
+                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
+            </div>
+            <div class="instructions-panel" id="instructionsPanel">
+                <div class="instructions-title" onclick="toggleInstructions()">
+                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+                    Task Instructions
+                    <button class="instructions-toggle" id="instructionsToggle">&#9660;</button>
+                </div>
+                <div class="instructions-body" id="instructionsBody">
+                    <div class="instructions-step" id="instructionsStep">Type the command in the terminal and press Enter.</div>
+                    <div class="instructions-hint" id="instructionsHint">Hint text loads when you select a task.</div>
+                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
+                    <div class="hint-command" id="hintCommand"></div>
+                </div>
+            </div>
+            <div class="success-overlay" id="successOverlay">
+                <div class="success-card">
+                    <div class="success-title">SC-200 Chapter 5 Lab Complete!</div>
+                    <div class="success-message">You explored Cloud Discovery to identify shadow IT, managed app connectors, reviewed anomaly detection and UEBA alerts, configured session controls, audited OAuth app permissions, and scanned for externally shared files. These are the core Defender for Cloud Apps workflows for the SC-200 exam.</div>
+                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script>
+    (function(){
+        'use strict';
+        var TOTAL_TASKS = 10;
+        var taskDone = {}; for(var i=1;i<=TOTAL_TASKS;i++) taskDone[i]=false;
+        var currentTask = 1;
+        var cmdHistory = [], histIdx = -1;
+        var outputEl, inputEl, ps1PathEl;
+
+        var TASK_INSTRUCTIONS = {1:{step:"Run this command to view the Cloud Discovery report:\n<code>mcas discovery show-report</code>\n\nReview the discovered apps, risk scores, and traffic volume.",hint:"Cloud Discovery analyzes firewall/proxy logs and Defender for Endpoint signals to identify all cloud apps in use.",cmd:"mcas discovery show-report"},2:{step:"Tag a shadow IT app as unsanctioned:\n<code>mcas discovery tag-app --name \"WeTransfer\" --tag unsanctioned</code>",hint:"Unsanctioned apps can be blocked via Defender for Endpoint or firewall scripts. Sanctioned apps are approved for use.",cmd:"mcas discovery tag-app --name \"WeTransfer\" --tag unsanctioned"},3:{step:"Block the unsanctioned app via Defender for Endpoint:\n<code>mcas discovery block-app --name \"WeTransfer\" --method mde</code>",hint:"Defender for Endpoint network protection enforces app blocks at the device level, regardless of network location.",cmd:"mcas discovery block-app --name \"WeTransfer\" --method mde"},4:{step:"List all connected app connectors:\n<code>mcas connectors list</code>",hint:"App connectors use provider APIs for out-of-band visibility. The Microsoft 365 connector is built-in.",cmd:"mcas connectors list"},5:{step:"List anomaly detection policies:\n<code>mcas policies list --type anomaly</code>",hint:"Anomaly detection policies are enabled by default and use ML to detect impossible travel, risky sign-ins, and unusual activity.",cmd:"mcas policies list --type anomaly"},6:{step:"Investigate a user with UEBA:\n<code>mcas ueba show-user --id jsmith@contoso.com</code>",hint:"The investigation priority score (0-100) ranks users by behavioral risk. Higher scores indicate more suspicious activity.",cmd:"mcas ueba show-user --id jsmith@contoso.com"},7:{step:"View session policies:\n<code>mcas session-policies list</code>",hint:"Session policies require Conditional Access App Control. Traffic routes through the reverse proxy for inline enforcement.",cmd:"mcas session-policies list"},8:{step:"List high-privilege OAuth apps:\n<code>mcas oauth list-apps --permission high</code>",hint:"OAuth apps with high-privilege permissions (Mail.Read, Files.ReadWrite.All) can access organizational data persistently.",cmd:"mcas oauth list-apps --permission high"},9:{step:"Revoke a risky OAuth app:\n<code>mcas oauth revoke --app-id APP-7291</code>",hint:"Revoking an OAuth app removes its API access. Banned apps cannot be re-consented by users.",cmd:"mcas oauth revoke --app-id APP-7291"},10:{step:"Scan for externally shared files:\n<code>mcas files scan --filter \"shared-externally\" --app \"SharePoint\"</code>",hint:"File policies detect sensitive content shared outside the organization and can auto-apply governance actions.",cmd:"mcas files scan --filter \"shared-externally\" --app \"SharePoint\""}};
+
+        var TASK_NAMES = {};
+        TASK_NAMES[1]="Run Cloud Discovery Report";
+        TASK_NAMES[2]="Tag a Shadow IT App";
+        TASK_NAMES[3]="Block Unsanctioned App";
+        TASK_NAMES[4]="List App Connectors";
+        TASK_NAMES[5]="Review Anomaly Detections";
+        TASK_NAMES[6]="Investigate a UEBA Alert";
+        TASK_NAMES[7]="View Session Policies";
+        TASK_NAMES[8]="Audit OAuth Apps";
+        TASK_NAMES[9]="Revoke a Risky OAuth App";
+        TASK_NAMES[10]="Scan for External Sharing";
+
+        var CMD_RESPONSES = {"mcas discovery show-report":{"lines":[{"text":"=== Cloud Discovery Report ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Discovery Method: Defender for Endpoint integration","cls":"term-line-out"},{"text":"  Period: Last 30 days | Users: 847 | Transactions: 2.4M","cls":"term-line-dim"},{"text":"","cls":"term-line-out"},{"text":"  Top Discovered Apps:","cls":"term-line-warn"},{"text":"    App                  Risk Score   Users   Traffic     Status","cls":"term-line-out"},{"text":"    Microsoft 365         10/10       847     1.8 TB      Sanctioned","cls":"term-line-out"},{"text":"    Salesforce             8/10       234     45 GB       Sanctioned","cls":"term-line-out"},{"text":"    Google Drive           7/10       156     22 GB       Monitored","cls":"term-line-warn"},{"text":"    WeTransfer             4/10        89     12 GB       Unsanctioned","cls":"term-line-err"},{"text":"    Dropbox                6/10        67      8 GB       Monitored","cls":"term-line-warn"},{"text":"    Mega.nz                2/10        12      3 GB       Unsanctioned","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  Total discovered: 312 apps | 6 sanctioned | 41 monitored | 8 unsanctioned","cls":"term-line-dim"}],"completesTask":1},"mcas discovery tag-app --name \"WeTransfer\" --tag unsanctioned":{"lines":[{"text":"=== App Tag Updated ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  App: WeTransfer","cls":"term-line-out"},{"text":"  Previous Tag: Unsanctioned","cls":"term-line-dim"},{"text":"  New Tag: Unsanctioned (confirmed)","cls":"term-line-err"},{"text":"  Risk Score: 4/10","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  Risk Factors:","cls":"term-line-warn"},{"text":"    [-] No SOC 2 certification","cls":"term-line-err"},{"text":"    [-] Data stored outside organization region","cls":"term-line-err"},{"text":"    [-] No admin audit trail","cls":"term-line-err"},{"text":"    [+] HTTPS encryption in transit","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  App marked as unsanctioned. Use block-app to enforce.","cls":"term-line-dim"}],"completesTask":2},"mcas discovery block-app --name \"WeTransfer\" --method mde":{"lines":[{"text":"=== Block App via Defender for Endpoint ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  App: WeTransfer","cls":"term-line-out"},{"text":"  Method: Defender for Endpoint Network Protection","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  [BLOCKING] Pushing custom indicator to MDE...","cls":"term-line-err"},{"text":"  [OK] URL indicators created for wetransfer.com domains","cls":"term-line-out"},{"text":"  [OK] Block enforced on 847 managed endpoints","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Users will see a block page when attempting to access WeTransfer","cls":"term-line-dim"},{"text":"  Block applies regardless of network location (on-prem, VPN, remote)","cls":"term-line-dim"}],"completesTask":3},"mcas connectors list":{"lines":[{"text":"=== App Connectors ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  App                  Status       Type         Last Sync","cls":"term-line-warn"},{"text":"  Microsoft 365        Connected    Built-in     2 min ago","cls":"term-line-out"},{"text":"  Salesforce           Connected    OAuth        15 min ago","cls":"term-line-out"},{"text":"  Google Workspace     Connected    Service Acct 1 hour ago","cls":"term-line-out"},{"text":"  Box                  Connected    OAuth        30 min ago","cls":"term-line-out"},{"text":"  AWS                  Connected    Role-based   45 min ago","cls":"term-line-out"},{"text":"  GitHub               Error        OAuth        3 days ago","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  6 connectors configured | 5 healthy | 1 error","cls":"term-line-dim"},{"text":"  GitHub connector: OAuth token expired. Re-authorize required.","cls":"term-line-err"}],"completesTask":4},"mcas policies list --type anomaly":{"lines":[{"text":"=== Anomaly Detection Policies ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Policy                          Status    Severity   Alerts (30d)","cls":"term-line-warn"},{"text":"  Impossible travel               Enabled   Medium     12","cls":"term-line-out"},{"text":"  Activity from infrequent country Enabled   Medium      8","cls":"term-line-out"},{"text":"  Activity from anonymous IP       Enabled   Medium      3","cls":"term-line-out"},{"text":"  Ransomware activity             Enabled   High        0","cls":"term-line-out"},{"text":"  Unusual file download           Enabled   Low        23","cls":"term-line-warn"},{"text":"  Suspicious inbox forwarding     Enabled   High        2","cls":"term-line-err"},{"text":"  Multiple failed login attempts  Enabled   Medium     45","cls":"term-line-warn"},{"text":"  Unusual admin activity           Enabled   High        1","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  8 anomaly policies active | 94 total alerts in last 30 days","cls":"term-line-dim"}],"completesTask":5},"mcas ueba show-user --id jsmith@contoso.com":{"lines":[{"text":"=== User Investigation -- jsmith@contoso.com ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Investigation Priority Score: 87 / 100 (HIGH RISK)","cls":"term-line-err"},{"text":"  Department: Finance | Manager: kbrown@contoso.com","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Recent Anomalies:","cls":"term-line-warn"},{"text":"    [HIGH]   Impossible travel: New York > Lagos (2 hours apart)","cls":"term-line-err"},{"text":"    [HIGH]   Mass download: 847 files from SharePoint in 20 minutes","cls":"term-line-err"},{"text":"    [MED]    New inbox forwarding rule to external address","cls":"term-line-warn"},{"text":"    [MED]    First-time access to HR-Confidential SharePoint site","cls":"term-line-warn"},{"text":"    [LOW]    Login from new device (Android, Lagos IP)","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Connected Devices: 3 | Locations: 4 (unusual) | Active Alerts: 5","cls":"term-line-warn"},{"text":"  Peer Group Comparison: 340% above normal activity volume","cls":"term-line-err"}],"completesTask":6},"mcas session-policies list":{"lines":[{"text":"=== Conditional Access App Control -- Session Policies ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Policy                                 App              Action            Status","cls":"term-line-warn"},{"text":"  Block download on unmanaged devices    SharePoint       Block download    Enabled","cls":"term-line-out"},{"text":"  Block download on unmanaged devices    Salesforce       Block download    Enabled","cls":"term-line-out"},{"text":"  Protect on download                   OneDrive         Apply label       Enabled","cls":"term-line-out"},{"text":"  Monitor all sessions                  All apps         Monitor only      Enabled","cls":"term-line-dim"},{"text":"  Block copy/paste of sensitive data     Exchange Online  Block clipboard   Enabled","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  5 session policies active","cls":"term-line-dim"},{"text":"  All policies require Microsoft Entra ID Conditional Access integration","cls":"term-line-dim"}],"completesTask":7},"mcas oauth list-apps --permission high":{"lines":[{"text":"=== High-Privilege OAuth Apps ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  App Name               Publisher          Permissions             Users   Status","cls":"term-line-warn"},{"text":"  Contoso CRM Plugin     Contoso Ltd        Mail.Read, Files.RW     234     Approved","cls":"term-line-out"},{"text":"  DataSync Pro            DataSync Inc       Files.ReadWrite.All     12      Under Review","cls":"term-line-warn"},{"text":"  QuickReport Tool        Unknown            Mail.ReadWrite, User.R  3       Suspicious","cls":"term-line-err"},{"text":"  CloudBackup Agent       CloudBak LLC       Sites.FullControl       1       Suspicious","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  4 apps with high-privilege permissions","cls":"term-line-dim"},{"text":"  2 flagged as suspicious -- unverified publisher, excessive permissions","cls":"term-line-err"}],"completesTask":8},"mcas oauth revoke --app-id APP-7291":{"lines":[{"text":"=== OAuth App Revocation ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  App: QuickReport Tool (APP-7291)","cls":"term-line-out"},{"text":"  Publisher: Unknown (unverified)","cls":"term-line-err"},{"text":"  Permissions: Mail.ReadWrite, User.Read","cls":"term-line-warn"},{"text":"  Consented Users: 3","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  [REVOKING] Removing OAuth permissions...","cls":"term-line-err"},{"text":"  [OK] API access revoked for all 3 users","cls":"term-line-out"},{"text":"  [OK] App marked as Banned -- cannot be re-consented","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  App can no longer access organizational data via Graph API","cls":"term-line-dim"}],"completesTask":9},"mcas files scan --filter \"shared-externally\" --app \"SharePoint\"":{"lines":[{"text":"=== File Scan Results -- SharePoint External Sharing ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Filter: Shared externally | App: SharePoint Online","cls":"term-line-dim"},{"text":"  Files scanned: 12,847 | Matches: 23","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  High Risk Files:","cls":"term-line-warn"},{"text":"    Q4-Financial-Report.xlsx    Shared with: partner@external.com    Label: Confidential","cls":"term-line-err"},{"text":"    Employee-SSN-List.csv       Shared with: anyone-with-link        Label: None","cls":"term-line-err"},{"text":"    Client-Contracts-2026.pdf   Shared with: vendor@supplier.com     Label: Internal","cls":"term-line-warn"},{"text":"    IT-Network-Diagram.vsd      Shared with: anyone-with-link        Label: None","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  4 files flagged as high risk | 19 files medium/low risk","cls":"term-line-warn"},{"text":"  Recommended: Apply sensitivity labels and remove public sharing links","cls":"term-line-dim"}],"completesTask":10}};
+
+        function escH(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        function addLine(t,c) { var d=document.createElement('div'); d.className='term-line'+(c?' '+c:''); d.textContent=t; outputEl.appendChild(d); outputEl.scrollTop=outputEl.scrollHeight; }
+        function addHTML(h,c) { var d=document.createElement('div'); d.className='term-line'+(c?' '+c:''); d.innerHTML=h; outputEl.appendChild(d); outputEl.scrollTop=outputEl.scrollHeight; }
+        function addBlank() { addLine('',''); }
+        function addPromptLine(cmd) { addHTML('<span class="term-prompt-span">socanalyst@casb-lab</span><span class="term-ps1-sep">:</span><span class="term-path-span">~</span><span class="term-ps1-sep">$ </span>'+escH(cmd),'term-line-cmd'); }
+
+        function execLine(raw) {
+            var trimmed = raw.trim();
+            addPromptLine(trimmed);
+            if (!trimmed) return;
+            var matched = false;
+            for (var key in CMD_RESPONSES) {
+                if (trimmed === key || trimmed.indexOf(key) === 0) {
+                    var resp = CMD_RESPONSES[key];
+                    resp.lines.forEach(function(l) { addLine(l.text, l.cls); });
+                    addBlank();
+                    if (resp.completesTask) { completeTask(resp.completesTask); }
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                if (trimmed === 'help') { addLine('Type the commands shown in the task instructions.', 'term-line-info'); addLine('Each task provides the exact command to run.', 'term-line-dim'); }
+                else if (trimmed === 'clear') { outputEl.innerHTML = ''; }
+                else { addLine('Command not recognized in this lab simulation. Check the task instructions.', 'term-line-err'); }
+            }
+        }
+
+        function completeTask(num) {
+            if (taskDone[num]) return;
+            taskDone[num] = true;
+            var card = document.getElementById('task-card-' + num);
+            if (card) { card.classList.add('completed'); card.classList.remove('active'); }
+            var doneCount = Object.keys(taskDone).filter(function(k){return taskDone[k];}).length;
+            document.getElementById('taskProgress').textContent = doneCount + ' / ' + TOTAL_TASKS + ' Tasks';
+            document.getElementById('progressBarFill').style.width = Math.round((doneCount/TOTAL_TASKS)*100) + '%';
+            addBlank();
+            addHTML('  <span style="color:#34d399">[Task ' + num + ' complete]</span> <span style="color:#5a2020">' + escH(TASK_NAMES[num]||'') + '</span>', 'term-line-info');
+            addBlank();
+            if (doneCount === TOTAL_TASKS) { setTimeout(function(){ document.getElementById('successOverlay').classList.add('active'); }, 700); return; }
+            var next = null; for (var j=1;j<=TOTAL_TASKS;j++) { if (!taskDone[j]) { next=j; break; } }
+            if (next) selectTask(next);
+        }
+
+        function selectTask(num) {
+            currentTask = num;
+            for (var i=1;i<=TOTAL_TASKS;i++) { var c=document.getElementById('task-card-'+i); if(c){c.classList.remove('active'); if(i===num) c.classList.add('active');} }
+            var info = TASK_INSTRUCTIONS[num]; if (!info) return;
+            var stepEl=document.getElementById('instructionsStep'); var hintEl=document.getElementById('instructionsHint'); var hintCmd=document.getElementById('hintCommand');
+            if (stepEl) stepEl.innerHTML = info.step.replace(/\n/g,'<br>');
+            if (hintEl) hintEl.textContent = info.hint;
+            if (hintCmd) { hintCmd.textContent = info.cmd; hintCmd.classList.remove('visible'); }
+            var panel=document.getElementById('instructionsPanel'); if(panel&&panel.classList.contains('collapsed')) panel.classList.remove('collapsed');
+        }
+
+        window.selectTask = selectTask;
+        window.toggleInstructions = function() { document.getElementById('instructionsPanel').classList.toggle('collapsed'); };
+        window.revealHint = function() { var h=document.getElementById('hintCommand'); if(h) h.classList.toggle('visible'); };
+        window.finishLab = function() { if (typeof ModuleProgress !== 'undefined') { ModuleProgress.complete('shield', 'sc200-ch05-lab', { returnUrl: '../index.html' }); } else { window.location.href = '../index.html'; } };
+
+        function init() {
+            outputEl = document.getElementById('termOutput');
+            inputEl = document.getElementById('termInput');
+            ps1PathEl = document.getElementById('termPS1Path');
+            if (!outputEl || !inputEl) return;
+            addLine("Defender for Cloud Apps Lab -- SC-200 Chapter 5", "term-welcome");
+            addLine("Shield House Security Operations Terminal", "term-welcome");
+            addLine("", "term-line-out");
+            addLine("Explore Cloud Discovery, manage app connectors, investigate UEBA alerts, and control OAuth apps.", "term-line-info");
+            addLine("Type \"help\" for guidance. Complete 10 tasks to finish the lab.", "term-line-info");
+            addBlank();
+            inputEl.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') { var cmd=inputEl.value; inputEl.value=''; if(cmd.trim()){cmdHistory.push(cmd);histIdx=cmdHistory.length;} execLine(cmd); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); if(histIdx>0){histIdx--;inputEl.value=cmdHistory[histIdx];} }
+                else if (e.key === 'ArrowDown') { e.preventDefault(); if(histIdx<cmdHistory.length-1){histIdx++;inputEl.value=cmdHistory[histIdx];}else{histIdx=cmdHistory.length;inputEl.value='';} }
+            });
+            outputEl.addEventListener('click', function(){ inputEl.focus(); });
+            inputEl.focus();
+            selectTask(1);
+        }
+        if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
+    })();
+    </script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

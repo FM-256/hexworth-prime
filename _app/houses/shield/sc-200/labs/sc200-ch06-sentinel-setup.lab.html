@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Microsoft Sentinel Setup Lab -- SC-200 Chapter 6</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { height: 100vh; overflow: hidden; background: #0c0c0c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #f5b3b3; display: flex; flex-direction: column; }
+        .lab-header { flex-shrink: 0; padding: 15px 30px; background: rgba(10,6,8,0.95); border-bottom: 1px solid rgba(239,68,68,0.2); display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn { padding: 8px 16px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; color: #ef4444; text-decoration: none; font-size: 0.85rem; transition: all 0.3s ease; }
+        .back-btn:hover { background: rgba(239,68,68,0.2); }
+        .lab-title { font-size: 1rem; color: #fde2e2; }
+        .lab-badge { padding: 4px 12px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; font-size: 0.7rem; color: #f87171; letter-spacing: 0.05em; }
+        .lab-badge-ch { padding: 4px 12px; background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.3); border-radius: 12px; font-size: 0.7rem; color: #34d399; letter-spacing: 0.05em; }
+        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #7a4040; }
+        .task-count { color: #ef4444; font-weight: 500; }
+        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(239,68,68,0.15); border-radius: 3px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #ef4444, #991b1b); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
+        .lab-container { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
+        .task-panel { background: rgba(10,6,8,0.95); border-right: 1px solid rgba(239,68,68,0.15); overflow-y: auto; padding: 20px; }
+        .task-section { margin-bottom: 25px; }
+        .task-section-title { font-size: 0.68rem; color: #5a2020; letter-spacing: 0.15em; margin-bottom: 12px; text-transform: uppercase; }
+        .task-card { background: rgba(20,10,16,0.8); border: 1px solid rgba(239,68,68,0.15); border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s ease; }
+        .task-card:hover { border-color: rgba(239,68,68,0.4); }
+        .task-card.active { border-color: #ef4444; background: rgba(239,68,68,0.1); }
+        .task-card.completed { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.04); }
+        .task-card.completed .task-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; font-weight: 400; }
+        .task-number { font-size: 0.68rem; color: #ef4444; margin-bottom: 4px; }
+        .task-name { font-size: 0.9rem; color: #fde2e2; margin-bottom: 4px; }
+        .task-desc { font-size: 0.77rem; color: #7a4040; line-height: 1.45; }
+        .task-desc code { background: rgba(239,68,68,0.15); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; color: #f87171; font-family: 'Consolas', monospace; }
+        .terminal-panel { display: flex; flex-direction: column; background: #0a0a0a; position: relative; overflow: hidden; }
+        .term-toolbar { flex-shrink: 0; padding: 8px 20px; background: rgba(20,10,16,0.9); border-bottom: 1px solid rgba(239,68,68,0.15); display: flex; align-items: center; gap: 12px; }
+        .term-dot { width: 12px; height: 12px; border-radius: 50%; } .term-dot-red { background: #ff5f57; } .term-dot-amber { background: #febc2e; } .term-dot-green { background: #28c840; }
+        .term-title { flex: 1; text-align: center; font-size: 0.8rem; color: #5a3030; font-family: 'Consolas', monospace; }
+        .term-vm-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #34d399; }
+        .term-status-dot { width: 7px; height: 7px; background: #34d399; border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .term-output { flex: 1; overflow-y: auto; padding: 16px 360px 8px 20px; font-family: 'Consolas', monospace; font-size: 0.875rem; line-height: 1.6; }
+        .term-input-row { flex-shrink: 0; display: flex; align-items: center; padding: 8px 360px 12px 20px; border-top: 1px solid rgba(239,68,68,0.1); gap: 0; }
+        .term-prompt-label { font-family: 'Consolas', monospace; font-size: 0.875rem; white-space: nowrap; flex-shrink: 0; }
+        .term-prompt-user { color: #ef4444; } .term-prompt-sep { color: #5a2020; } .term-prompt-path { color: #34d399; } .term-prompt-dollar { color: #fde2e2; margin-right: 6px; }
+        .term-input { flex: 1; background: transparent; border: none; outline: none; color: #fde2e2; font-family: 'Consolas', monospace; font-size: 0.875rem; caret-color: #ef4444; }
+        .term-line { white-space: pre-wrap; word-break: break-all; }
+        .term-line-cmd { color: #f5b3b3; } .term-line-out { color: #a0d4a0; } .term-line-err { color: #f87171; } .term-line-info { color: #f87171; } .term-line-warn { color: #fbbf24; } .term-line-dim { color: #4a2020; } .term-welcome { color: #ef4444; }
+        .term-prompt-span { color: #ef4444; } .term-path-span { color: #34d399; } .term-ps1-sep { color: #5a2020; }
+        .json-key { color: #f87171; } .json-string { color: #86efac; } .json-number { color: #fbbf24; } .json-bool { color: #93c5fd; } .json-null { color: #f87171; }
+        .instructions-panel { position: absolute; top: 20px; right: 20px; width: 320px; background: rgba(10,6,8,0.97); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; padding: 20px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.4); transition: all 0.3s ease; }
+        .instructions-panel.collapsed { width: auto; padding: 10px 14px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-body { display: none; }
+        .instructions-title { font-size: 1rem; color: #ef4444; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-title { margin-bottom: 0; font-size: 0.85rem; }
+        .instructions-toggle { margin-left: auto; width: 28px; height: 28px; background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; color: #ef4444; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .instructions-step { font-size: 0.88rem; color: #f5b3b3; line-height: 1.65; margin-bottom: 14px; }
+        .instructions-step code { background: rgba(239,68,68,0.2); padding: 2px 7px; border-radius: 4px; font-family: 'Consolas', monospace; color: #f87171; font-size: 0.85em; }
+        .instructions-hint { font-size: 0.78rem; color: #5a2020; font-style: italic; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(239,68,68,0.15); line-height: 1.5; }
+        .hint-btn { margin-top: 12px; padding: 6px 12px; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); border-radius: 5px; color: #ef4444; font-size: 0.75rem; cursor: pointer; font-family: 'Segoe UI', sans-serif; width: 100%; text-align: center; }
+        .hint-command { display: none; margin-top: 10px; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(239,68,68,0.25); border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.78rem; color: #86efac; line-height: 1.55; white-space: pre-wrap; }
+        .hint-command.visible { display: block; }
+        .success-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 2000; }
+        .success-overlay.active { display: flex; }
+        .success-card { background: rgba(10,6,8,0.97); border: 1px solid rgba(52,211,153,0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
+        .success-message { color: #f5b3b3; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
+        .success-btn { padding: 12px 30px; background: linear-gradient(135deg, #ef4444, #991b1b); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; }
+        @media (max-width: 1024px) { .lab-container { grid-template-columns: 1fr; } .task-panel { display: none; } .term-output, .term-input-row { padding-right: 20px; } .instructions-panel { position: absolute; bottom: 60px; top: auto; right: 10px; left: 10px; width: auto; } }
+    </style>
+</head>
+<body>
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Microsoft Sentinel Setup Lab</span>
+            <span class="lab-badge">SC-200</span>
+            <span class="lab-badge-ch">CH.6</span>
+        </div>
+        <div class="task-progress">
+            <span>Progress:</span>
+            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBarFill"></div></div>
+            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
+        </div>
+    </header>
+    <div class="lab-container">
+        <aside class="task-panel" id="taskPanel"><div class="task-section"><div class="task-section-title">Phase 1 -- Workspace and Onboarding</div><div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)"><div class="task-number">Task 1</div><div class="task-name">Create Log Analytics Workspace</div><div class="task-desc">Run <code>sentinel workspace create --name "soc-workspace" --region eastus</code> to create a new Log Analytics workspace.</div></div><div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)"><div class="task-number">Task 2</div><div class="task-name">Enable Microsoft Sentinel</div><div class="task-desc">Run <code>sentinel enable --workspace "soc-workspace"</code> to add Microsoft Sentinel to the workspace.</div></div><div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)"><div class="task-number">Task 3</div><div class="task-name">Check Workspace Settings</div><div class="task-desc">Run <code>sentinel workspace show --name "soc-workspace"</code> to verify workspace configuration, retention, and pricing tier.</div></div></div><div class="task-section"><div class="task-section-title">Phase 2 -- Data Connectors</div><div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)"><div class="task-number">Task 4</div><div class="task-name">Connect Azure Activity Logs</div><div class="task-desc">Run <code>sentinel connector enable --type "AzureActivity"</code> to stream Azure subscription activity logs into the workspace.</div></div><div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)"><div class="task-number">Task 5</div><div class="task-name">Connect Microsoft 365 Logs</div><div class="task-desc">Run <code>sentinel connector enable --type "Office365" --services Exchange,SharePoint,Teams</code> to enable M365 audit log ingestion.</div></div><div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)"><div class="task-number">Task 6</div><div class="task-name">Configure Syslog Connector</div><div class="task-desc">Run <code>sentinel connector enable --type "Syslog" --facility auth,authpriv --severity warning,error,critical</code> to configure a Syslog data connector.</div></div><div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)"><div class="task-number">Task 7</div><div class="task-name">Verify Data Ingestion</div><div class="task-desc">Run <code>sentinel query "AzureActivity | take 5"</code> to verify data is flowing into the workspace.</div></div></div><div class="task-section"><div class="task-section-title">Phase 3 -- Content Hub and Analytics</div><div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)"><div class="task-number">Task 8</div><div class="task-name">Install Content Hub Solution</div><div class="task-desc">Run <code>sentinel content-hub install --solution "Microsoft 365"</code> to install the M365 solution with analytics rules, workbooks, and hunting queries.</div></div><div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)"><div class="task-number">Task 9</div><div class="task-name">Create a Scheduled Analytics Rule</div><div class="task-desc">Run <code>sentinel analytics create-rule --name "Brute Force Detection" --type scheduled --frequency 5m --lookback 5h</code> to create a scheduled analytics rule.</div></div><div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)"><div class="task-number">Task 10</div><div class="task-name">List All Analytics Rules</div><div class="task-desc">Run <code>sentinel analytics list-rules</code> to display all active and template analytics rules.</div></div></div></aside>
+        <main class="terminal-panel" id="terminalPanel">
+            <div class="term-toolbar">
+                <div class="term-dot term-dot-red"></div><div class="term-dot term-dot-amber"></div><div class="term-dot term-dot-green"></div>
+                <div class="term-title">socanalyst@sentinel-lab -- bash</div>
+                <div class="term-vm-status"><div class="term-status-dot"></div>Sentinel Lab Online</div>
+            </div>
+            <div class="term-output" id="termOutput"></div>
+            <div class="term-input-row">
+                <span class="term-prompt-label"><span class="term-prompt-user">socanalyst@sentinel-lab</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span></span>
+                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
+            </div>
+            <div class="instructions-panel" id="instructionsPanel">
+                <div class="instructions-title" onclick="toggleInstructions()">
+                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+                    Task Instructions
+                    <button class="instructions-toggle" id="instructionsToggle">&#9660;</button>
+                </div>
+                <div class="instructions-body" id="instructionsBody">
+                    <div class="instructions-step" id="instructionsStep">Type the command in the terminal and press Enter.</div>
+                    <div class="instructions-hint" id="instructionsHint">Hint text loads when you select a task.</div>
+                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
+                    <div class="hint-command" id="hintCommand"></div>
+                </div>
+            </div>
+            <div class="success-overlay" id="successOverlay">
+                <div class="success-card">
+                    <div class="success-title">SC-200 Chapter 6 Lab Complete!</div>
+                    <div class="success-message">You created a Log Analytics workspace, enabled Microsoft Sentinel, connected Azure Activity and Microsoft 365 data sources, configured Syslog ingestion, verified data flow with KQL, installed a Content Hub solution, and created a scheduled analytics rule. These are the foundational Sentinel setup workflows for the SC-200 exam.</div>
+                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script>
+    (function(){
+        'use strict';
+        var TOTAL_TASKS = 10;
+        var taskDone = {}; for(var i=1;i<=TOTAL_TASKS;i++) taskDone[i]=false;
+        var currentTask = 1;
+        var cmdHistory = [], histIdx = -1;
+        var outputEl, inputEl, ps1PathEl;
+
+        var TASK_INSTRUCTIONS = {1:{step:"Create a new Log Analytics workspace:\n<code>sentinel workspace create --name \"soc-workspace\" --region eastus</code>\n\nThis is the foundation -- all Sentinel data lives here.",hint:"Log Analytics workspace stores all ingested data. Region selection affects data residency and compliance.",cmd:"sentinel workspace create --name \"soc-workspace\" --region eastus"},2:{step:"Enable Microsoft Sentinel on the workspace:\n<code>sentinel enable --workspace \"soc-workspace\"</code>",hint:"Sentinel layers on top of an existing Log Analytics workspace. The workspace exists independently of Sentinel.",cmd:"sentinel enable --workspace \"soc-workspace\""},3:{step:"Check workspace configuration:\n<code>sentinel workspace show --name \"soc-workspace\"</code>",hint:"Default retention is 90 days (free). Commitment tiers offer discounted rates for predictable ingestion volumes.",cmd:"sentinel workspace show --name \"soc-workspace\""},4:{step:"Connect Azure Activity logs:\n<code>sentinel connector enable --type \"AzureActivity\"</code>",hint:"Azure Activity logs are free to ingest. They capture subscription-level events: resource changes, RBAC, policy.",cmd:"sentinel connector enable --type \"AzureActivity\""},5:{step:"Connect Microsoft 365 audit logs:\n<code>sentinel connector enable --type \"Office365\" --services Exchange,SharePoint,Teams</code>",hint:"Microsoft 365 audit logs are free to ingest. They stream into the OfficeActivity table.",cmd:"sentinel connector enable --type \"Office365\" --services Exchange,SharePoint,Teams"},6:{step:"Configure a Syslog connector:\n<code>sentinel connector enable --type \"Syslog\" --facility auth,authpriv --severity warning,error,critical</code>",hint:"Syslog uses a Linux forwarder agent. Filter by facility and severity to control ingestion volume and cost.",cmd:"sentinel connector enable --type \"Syslog\" --facility auth,authpriv --severity warning,error,critical"},7:{step:"Verify data is flowing with a KQL query:\n<code>sentinel query \"AzureActivity | take 5\"</code>",hint:"Always verify ingestion after connecting a source. Check the target table for recent records.",cmd:"sentinel query \"AzureActivity | take 5\""},8:{step:"Install a Content Hub solution:\n<code>sentinel content-hub install --solution \"Microsoft 365\"</code>",hint:"Solutions bundle connectors, analytics rules, workbooks, hunting queries, and playbooks into one package.",cmd:"sentinel content-hub install --solution \"Microsoft 365\""},9:{step:"Create a scheduled analytics rule:\n<code>sentinel analytics create-rule --name \"Brute Force Detection\" --type scheduled --frequency 5m --lookback 5h</code>",hint:"The lookback period must be >= run frequency. This rule runs every 5 minutes and examines the last 5 hours.",cmd:"sentinel analytics create-rule --name \"Brute Force Detection\" --type scheduled --frequency 5m --lookback 5h"},10:{step:"List all analytics rules:\n<code>sentinel analytics list-rules</code>",hint:"Rules can be Scheduled, NRT (every minute), Fusion (ML correlation), or ML Behavior Analytics.",cmd:"sentinel analytics list-rules"}};
+
+        var TASK_NAMES = {};
+        TASK_NAMES[1]="Create Log Analytics Workspace";
+        TASK_NAMES[2]="Enable Microsoft Sentinel";
+        TASK_NAMES[3]="Check Workspace Settings";
+        TASK_NAMES[4]="Connect Azure Activity Logs";
+        TASK_NAMES[5]="Connect Microsoft 365 Logs";
+        TASK_NAMES[6]="Configure Syslog Connector";
+        TASK_NAMES[7]="Verify Data Ingestion";
+        TASK_NAMES[8]="Install Content Hub Solution";
+        TASK_NAMES[9]="Create a Scheduled Analytics Rule";
+        TASK_NAMES[10]="List All Analytics Rules";
+
+        var CMD_RESPONSES = {"sentinel workspace create --name \"soc-workspace\" --region eastus":{"lines":[{"text":"=== Log Analytics Workspace Creation ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Name: soc-workspace","cls":"term-line-out"},{"text":"  Resource Group: rg-sentinel-prod","cls":"term-line-out"},{"text":"  Region: East US","cls":"term-line-out"},{"text":"  Pricing Tier: Pay-As-You-Go","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  [CREATING] Provisioning Log Analytics workspace...","cls":"term-line-warn"},{"text":"  [OK] Workspace created successfully","cls":"term-line-out"},{"text":"  [OK] Workspace ID: /subscriptions/abc123/resourceGroups/rg-sentinel-prod/providers/Microsoft.OperationalInsights/workspaces/soc-workspace","cls":"term-line-dim"},{"text":"","cls":"term-line-out"},{"text":"  Default retention: 90 days (free tier)","cls":"term-line-dim"},{"text":"  Next step: Enable Microsoft Sentinel on this workspace","cls":"term-line-dim"}],"completesTask":1},"sentinel enable --workspace \"soc-workspace\"":{"lines":[{"text":"=== Microsoft Sentinel Onboarding ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Workspace: soc-workspace","cls":"term-line-out"},{"text":"  Region: East US","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  [ENABLING] Adding Microsoft Sentinel to workspace...","cls":"term-line-warn"},{"text":"  [OK] Sentinel enabled successfully","cls":"term-line-out"},{"text":"  [OK] SecurityInsights solution deployed","cls":"term-line-out"},{"text":"  [OK] Sentinel tables provisioned (SecurityAlert, SecurityIncident, etc.)","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Available features: Data Connectors, Analytics, Hunting, Workbooks, Automation, Notebooks","cls":"term-line-dim"},{"text":"  Next step: Connect data sources","cls":"term-line-dim"}],"completesTask":2},"sentinel workspace show --name \"soc-workspace\"":{"lines":[{"text":"=== Workspace Configuration: soc-workspace ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Region:          East US","cls":"term-line-out"},{"text":"  Pricing:         Pay-As-You-Go (per GB ingested)","cls":"term-line-out"},{"text":"  Retention:       90 days (interactive) | Archive available up to 12 years","cls":"term-line-out"},{"text":"  Daily Cap:       No cap configured","cls":"term-line-warn"},{"text":"  Sentinel:        Enabled","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  RBAC Assignments:","cls":"term-line-warn"},{"text":"    socanalyst@contoso.com    Microsoft Sentinel Contributor","cls":"term-line-out"},{"text":"    soc-team@contoso.com      Microsoft Sentinel Responder","cls":"term-line-out"},{"text":"    auditor@contoso.com       Microsoft Sentinel Reader","cls":"term-line-dim"},{"text":"","cls":"term-line-out"},{"text":"  Free data sources: Azure Activity, Office 365, Microsoft Security alerts","cls":"term-line-dim"}],"completesTask":3},"sentinel connector enable --type \"AzureActivity\"":{"lines":[{"text":"=== Data Connector: Azure Activity ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Type: Azure Activity Logs","cls":"term-line-out"},{"text":"  Target Table: AzureActivity","cls":"term-line-out"},{"text":"  Ingestion Cost: Free","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  [CONNECTING] Enabling diagnostic settings on subscription...","cls":"term-line-warn"},{"text":"  [OK] Subscription linked: Visual-Studio-Enterprise (abc-123-def)","cls":"term-line-out"},{"text":"  [OK] Data flowing to AzureActivity table","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Events captured: Resource creation/deletion, RBAC changes, policy assignments","cls":"term-line-dim"},{"text":"  Expected latency: 2-5 minutes","cls":"term-line-dim"}],"completesTask":4},"sentinel connector enable --type \"Office365\" --services Exchange,SharePoint,Teams":{"lines":[{"text":"=== Data Connector: Microsoft 365 ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Type: Office 365 Audit Logs","cls":"term-line-out"},{"text":"  Target Table: OfficeActivity","cls":"term-line-out"},{"text":"  Ingestion Cost: Free","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Services enabled:","cls":"term-line-warn"},{"text":"    [OK] Exchange Online -- mailbox audit, admin actions","cls":"term-line-out"},{"text":"    [OK] SharePoint Online -- file access, sharing, site admin","cls":"term-line-out"},{"text":"    [OK] Teams -- meeting, messaging, channel operations","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Requires: Global Administrator or Security Administrator role","cls":"term-line-dim"},{"text":"  Expected latency: 5-10 minutes","cls":"term-line-dim"}],"completesTask":5},"sentinel connector enable --type \"Syslog\" --facility auth,authpriv --severity warning,error,critical":{"lines":[{"text":"=== Data Connector: Syslog ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Type: Syslog (Linux agent)","cls":"term-line-out"},{"text":"  Target Table: Syslog","cls":"term-line-out"},{"text":"  Agent: Azure Monitor Agent (AMA)","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Facility Filter:","cls":"term-line-warn"},{"text":"    [OK] auth -- authentication events","cls":"term-line-out"},{"text":"    [OK] authpriv -- privileged authentication","cls":"term-line-out"},{"text":"  Severity Filter:","cls":"term-line-warn"},{"text":"    [OK] warning, error, critical","cls":"term-line-out"},{"text":"    [ ] info, debug, notice -- filtered out to reduce volume","cls":"term-line-dim"},{"text":"","cls":"term-line-out"},{"text":"  Data Collection Rule (DCR) created: dcr-syslog-auth","cls":"term-line-out"},{"text":"  Deploy AMA on Linux VMs and assign this DCR to start collection","cls":"term-line-dim"}],"completesTask":6},"sentinel query \"AzureActivity | take 5\"":{"lines":[{"text":"=== KQL Query Results ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Query: AzureActivity | take 5","cls":"term-line-dim"},{"text":"  Records returned: 5","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  TimeGenerated              Caller                    OperationName                      Level","cls":"term-line-warn"},{"text":"  2026-04-21T14:22:01Z       socanalyst@contoso.com    Create or Update Workspace         Informational","cls":"term-line-out"},{"text":"  2026-04-21T14:21:45Z       socanalyst@contoso.com    Register resource provider         Informational","cls":"term-line-out"},{"text":"  2026-04-21T14:18:30Z       admin@contoso.com         Create role assignment              Warning","cls":"term-line-warn"},{"text":"  2026-04-21T14:15:12Z       pipeline@contoso.com      Delete resource group               Warning","cls":"term-line-warn"},{"text":"  2026-04-21T14:10:05Z       admin@contoso.com         Create or Update Policy            Informational","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Data is flowing. Connector is healthy.","cls":"term-line-dim"}],"completesTask":7},"sentinel content-hub install --solution \"Microsoft 365\"":{"lines":[{"text":"=== Content Hub: Microsoft 365 Solution ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Solution: Microsoft 365","cls":"term-line-out"},{"text":"  Publisher: Microsoft","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Installing components:","cls":"term-line-warn"},{"text":"    [OK] Data connector template: Office 365","cls":"term-line-out"},{"text":"    [OK] Analytics rule templates: 14 rules","cls":"term-line-out"},{"text":"    [OK] Workbook templates: 3 dashboards","cls":"term-line-out"},{"text":"    [OK] Hunting query templates: 22 queries","cls":"term-line-out"},{"text":"    [OK] Parser functions: 2 KQL parsers","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Solution installed successfully","cls":"term-line-out"},{"text":"  Templates are ready -- activate analytics rules from the Analytics blade","cls":"term-line-dim"}],"completesTask":8},"sentinel analytics create-rule --name \"Brute Force Detection\" --type scheduled --frequency 5m --lookback 5h":{"lines":[{"text":"=== Scheduled Analytics Rule Created ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Name: Brute Force Detection","cls":"term-line-out"},{"text":"  Type: Scheduled","cls":"term-line-out"},{"text":"  Severity: High","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  Configuration:","cls":"term-line-warn"},{"text":"    Run frequency:   Every 5 minutes","cls":"term-line-out"},{"text":"    Lookup period:   Last 5 hours","cls":"term-line-out"},{"text":"    KQL query:       SecurityEvent | where EventID == 4625 | summarize count() by TargetAccount | where count_ > 10","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Entity Mapping:","cls":"term-line-warn"},{"text":"    Account -> TargetAccount","cls":"term-line-out"},{"text":"  Alert Grouping: Group by Account entity per 24-hour window","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  [OK] Rule enabled and will run on next schedule interval","cls":"term-line-out"},{"text":"  Lookup period (5h) >= Frequency (5m) -- no detection gaps","cls":"term-line-dim"}],"completesTask":9},"sentinel analytics list-rules":{"lines":[{"text":"=== Analytics Rules ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Rule Name                              Type         Severity   Status","cls":"term-line-warn"},{"text":"  Brute Force Detection                  Scheduled    High       Enabled","cls":"term-line-out"},{"text":"  Suspicious inbox forwarding (M365)     Scheduled    Medium     Enabled","cls":"term-line-out"},{"text":"  Mass download from SharePoint          Scheduled    Medium     Enabled","cls":"term-line-out"},{"text":"  Advanced multi-stage attack            Fusion       High       Enabled","cls":"term-line-out"},{"text":"  Anomalous SSH login                    ML           Medium     Enabled","cls":"term-line-out"},{"text":"  Malware in Office 365                  NRT          High       Enabled","cls":"term-line-out"},{"text":"  Impossible travel to new location      Scheduled    Medium     Template","cls":"term-line-dim"},{"text":"  Data exfiltration to external share    Scheduled    High       Template","cls":"term-line-dim"},{"text":"","cls":"term-line-out"},{"text":"  6 active rules | 8 templates available from Content Hub","cls":"term-line-dim"},{"text":"  Rule types: 3 Scheduled, 1 Fusion, 1 ML, 1 NRT","cls":"term-line-dim"}],"completesTask":10}};
+
+        function escH(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        function addLine(t,c) { var d=document.createElement('div'); d.className='term-line'+(c?' '+c:''); d.textContent=t; outputEl.appendChild(d); outputEl.scrollTop=outputEl.scrollHeight; }
+        function addHTML(h,c) { var d=document.createElement('div'); d.className='term-line'+(c?' '+c:''); d.innerHTML=h; outputEl.appendChild(d); outputEl.scrollTop=outputEl.scrollHeight; }
+        function addBlank() { addLine('',''); }
+        function addPromptLine(cmd) { addHTML('<span class="term-prompt-span">socanalyst@sentinel-lab</span><span class="term-ps1-sep">:</span><span class="term-path-span">~</span><span class="term-ps1-sep">$ </span>'+escH(cmd),'term-line-cmd'); }
+
+        function execLine(raw) {
+            var trimmed = raw.trim();
+            addPromptLine(trimmed);
+            if (!trimmed) return;
+            var matched = false;
+            for (var key in CMD_RESPONSES) {
+                if (trimmed === key || trimmed.indexOf(key) === 0) {
+                    var resp = CMD_RESPONSES[key];
+                    resp.lines.forEach(function(l) { addLine(l.text, l.cls); });
+                    addBlank();
+                    if (resp.completesTask) { completeTask(resp.completesTask); }
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                if (trimmed === 'help') { addLine('Type the commands shown in the task instructions.', 'term-line-info'); addLine('Each task provides the exact command to run.', 'term-line-dim'); }
+                else if (trimmed === 'clear') { outputEl.innerHTML = ''; }
+                else { addLine('Command not recognized in this lab simulation. Check the task instructions.', 'term-line-err'); }
+            }
+        }
+
+        function completeTask(num) {
+            if (taskDone[num]) return;
+            taskDone[num] = true;
+            var card = document.getElementById('task-card-' + num);
+            if (card) { card.classList.add('completed'); card.classList.remove('active'); }
+            var doneCount = Object.keys(taskDone).filter(function(k){return taskDone[k];}).length;
+            document.getElementById('taskProgress').textContent = doneCount + ' / ' + TOTAL_TASKS + ' Tasks';
+            document.getElementById('progressBarFill').style.width = Math.round((doneCount/TOTAL_TASKS)*100) + '%';
+            addBlank();
+            addHTML('  <span style="color:#34d399">[Task ' + num + ' complete]</span> <span style="color:#5a2020">' + escH(TASK_NAMES[num]||'') + '</span>', 'term-line-info');
+            addBlank();
+            if (doneCount === TOTAL_TASKS) { setTimeout(function(){ document.getElementById('successOverlay').classList.add('active'); }, 700); return; }
+            var next = null; for (var j=1;j<=TOTAL_TASKS;j++) { if (!taskDone[j]) { next=j; break; } }
+            if (next) selectTask(next);
+        }
+
+        function selectTask(num) {
+            currentTask = num;
+            for (var i=1;i<=TOTAL_TASKS;i++) { var c=document.getElementById('task-card-'+i); if(c){c.classList.remove('active'); if(i===num) c.classList.add('active');} }
+            var info = TASK_INSTRUCTIONS[num]; if (!info) return;
+            var stepEl=document.getElementById('instructionsStep'); var hintEl=document.getElementById('instructionsHint'); var hintCmd=document.getElementById('hintCommand');
+            if (stepEl) stepEl.innerHTML = info.step.replace(/\n/g,'<br>');
+            if (hintEl) hintEl.textContent = info.hint;
+            if (hintCmd) { hintCmd.textContent = info.cmd; hintCmd.classList.remove('visible'); }
+            var panel=document.getElementById('instructionsPanel'); if(panel&&panel.classList.contains('collapsed')) panel.classList.remove('collapsed');
+        }
+
+        window.selectTask = selectTask;
+        window.toggleInstructions = function() { document.getElementById('instructionsPanel').classList.toggle('collapsed'); };
+        window.revealHint = function() { var h=document.getElementById('hintCommand'); if(h) h.classList.toggle('visible'); };
+        window.finishLab = function() { if (typeof ModuleProgress !== 'undefined') { ModuleProgress.complete('shield', 'sc200-ch06-lab', { returnUrl: '../index.html' }); } else { window.location.href = '../index.html'; } };
+
+        function init() {
+            outputEl = document.getElementById('termOutput');
+            inputEl = document.getElementById('termInput');
+            ps1PathEl = document.getElementById('termPS1Path');
+            if (!outputEl || !inputEl) return;
+            addLine("Microsoft Sentinel Setup Lab -- SC-200 Chapter 6", "term-welcome");
+            addLine("Shield House Security Operations Terminal", "term-welcome");
+            addLine("", "term-line-out");
+            addLine("Create a workspace, connect data sources, install solutions, and configure analytics rules.", "term-line-info");
+            addLine("Type \"help\" for guidance. Complete 10 tasks to finish the lab.", "term-line-info");
+            addBlank();
+            inputEl.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') { var cmd=inputEl.value; inputEl.value=''; if(cmd.trim()){cmdHistory.push(cmd);histIdx=cmdHistory.length;} execLine(cmd); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); if(histIdx>0){histIdx--;inputEl.value=cmdHistory[histIdx];} }
+                else if (e.key === 'ArrowDown') { e.preventDefault(); if(histIdx<cmdHistory.length-1){histIdx++;inputEl.value=cmdHistory[histIdx];}else{histIdx=cmdHistory.length;inputEl.value='';} }
+            });
+            outputEl.addEventListener('click', function(){ inputEl.focus(); });
+            inputEl.focus();
+            selectTask(1);
+        }
+        if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
+    })();
+    </script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
