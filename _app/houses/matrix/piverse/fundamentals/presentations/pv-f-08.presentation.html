@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Introducing C on Linux | PiVerse Fundamentals Ch8</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0d0608 0%, #1a0c10 50%, #0d0608 100%); color: #e2e8f0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #c51a4a; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(13,6,8,0.95); border-top: 1px solid rgba(197,26,74,0.15); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.07); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(197,26,74,0.15); color: #c51a4a; border-color: #c51a4a; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s; }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #c51a4a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ffd700; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip { background: rgba(197,26,74,0.08); border-left: 3px solid #c51a4a; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #d4a0b0; font-style: italic; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ffd700; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #c51a4a; }
+        .card:hover { background: rgba(255,255,255,0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-gold { border-left-color: #ffd700; }
+        .card.c-cyan { border-left-color: #06b6d4; } .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-pink { border-left-color: #c51a4a; } .card.c-orange { border-left-color: #f97316; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #c51a4a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .ic { font-family: 'Courier New', monospace; color: #ffd700; background: rgba(255,215,0,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .code-block { background: rgba(0,0,0,0.35); border: 1px solid rgba(197,26,74,0.2); border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #ffd700; line-height: 1.6; white-space: pre; overflow-x: auto; }
+        .code-block .cm { color: #64748b; } .code-block .kw { color: #93c5fd; } .code-block .st { color: #86efac; } .code-block .nu { color: #fdba74; } .code-block .fn { color: #c51a4a; }
+        .code-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .code-panel-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 5px; }
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell { background: rgba(255,255,255,0.04); border: 1px solid rgba(197,26,74,0.25); border-radius: 8px; padding: 12px 14px; text-align: center; opacity: 0; animation: hexAppear 0.4s ease forwards; }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; } .hex-cell:nth-child(2) { animation-delay: 0.25s; } .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; } .hex-cell:nth-child(5) { animation-delay: 0.7s; } .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #c51a4a; margin-bottom: 4px; }
+        .hex-cell .hex-desc { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+        .box-blue { background: rgba(197,26,74,0.08); border: 1px solid rgba(197,26,74,0.3); color: #f9d0dc; border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .code-compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Introducing C on Linux -- PiVerse Fundamentals Chapter 8</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- SLIDE 1 -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; PiVerse &nbsp;|&nbsp; Fundamentals &nbsp;|&nbsp; Chapter 8</div>
+        <div class="title-hero">
+            <div class="big-title">Introducing <span class="accent">C</span> on Linux</div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                gcc &bull; Variables &bull; printf &bull; Pointers &bull; Structs &bull; Makefiles &bull; C vs Python
+            </div>
+        </div>
+        <div class="scenario-strip">
+            C is the language the Linux kernel, the Raspberry Pi bootloader, and most device drivers are written in. Understanding C gives you direct access to the hardware layer that Python abstracts away.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span><span>PV-F-08</span><span>Chapter 8 of 10</span><span>Pi Fundamentals Track</span>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 2 -- YOUR FIRST C PROGRAM -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Your First <span class="accent">C Program</span></div>
+        <div class="slide-subtitle">Write, compile, run. Three steps every time -- C is a compiled language, not interpreted.</div>
+        <div class="code-block"><span class="cm">/* hello.c -- the classic first program */</span>
+<span class="kw">#include</span> &lt;stdio.h&gt;
+
+<span class="kw">int</span> <span class="fn">main</span>(<span class="kw">void</span>) {
+    <span class="fn">printf</span>(<span class="st">"Hello, Raspberry Pi!\n"</span>);
+    <span class="kw">return</span> <span class="nu">0</span>;
+}</div>
+        <div class="code-block"><span class="cm"># Compile and run</span>
+<span class="fn">gcc</span> hello.c -o hello
+./hello
+<span class="cm"># Output: Hello, Raspberry Pi!</span></div>
+        <div class="card-grid">
+            <div class="card c-pink">
+                <div class="card-label">#include</div>
+                <div class="card-desc">Preprocessor directive. <span class="ic">&lt;stdio.h&gt;</span> is the standard I/O header providing <span class="ic">printf()</span>, <span class="ic">scanf()</span>, file operations. Angle brackets = system header.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">main()</div>
+                <div class="card-desc">Every C program starts here. Returns <span class="ic">int</span> -- 0 means success, non-zero means error. The OS reads this return code.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">gcc</div>
+                <div class="card-desc">GNU C Compiler. Pre-installed on Pi OS. <span class="ic">-o hello</span> names the output binary. Without <span class="ic">-o</span>, output defaults to <span class="ic">a.out</span>.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 3 -- VARIABLES & DATA TYPES -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Variables &amp; <span class="accent">Data Types</span></div>
+        <div class="slide-subtitle">C is statically typed -- every variable must be declared with its type before use.</div>
+        <div class="hex-grid">
+            <div class="hex-cell">
+                <div class="hex-title">int</div>
+                <div class="hex-desc">32-bit signed on Pi (ARM). Range: ~-2.1B to 2.1B. Use for counters, indices, general integers.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">float / double</div>
+                <div class="hex-desc">float: 32-bit, ~7 digits. double: 64-bit, ~15 digits. Use double for precision. float for memory-constrained code.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">char</div>
+                <div class="hex-desc">8-bit signed. Stores a single ASCII character or -128 to 127. Foundation of C strings: <span class="ic">char name[] = "Pi";</span></div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">long</div>
+                <div class="hex-desc">At least 32 bits. On 64-bit Pi OS: 64 bits. Use for timestamps, large counts. <span class="ic">long elapsed = 0;</span></div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">unsigned</div>
+                <div class="hex-desc">No negative values. Doubles the positive range. <span class="ic">unsigned int count = 0;</span> gives 0 to ~4.2 billion.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">sizeof</div>
+                <div class="hex-desc"><span class="ic">sizeof(int)</span> returns the size in bytes. On 32-bit Pi: int=4, char=1, double=8. Always verify -- sizes vary by architecture.</div>
+            </div>
+        </div>
+        <div class="code-block"><span class="kw">int</span> count = <span class="nu">42</span>;
+<span class="kw">double</span> temperature = <span class="nu">22.5</span>;
+<span class="kw">char</span> grade = <span class="st">'A'</span>;
+<span class="kw">unsigned int</span> flags = <span class="nu">0xFF</span>;
+<span class="fn">printf</span>(<span class="st">"int is %zu bytes\n"</span>, <span class="kw">sizeof</span>(<span class="kw">int</span>));</div>
+    </div>
+</section>
+
+<!-- SLIDE 4 -- PRINTF -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">printf: <span class="accent">Formatted Output</span></div>
+        <div class="slide-subtitle">printf uses format specifiers to control how values are printed -- type-safe and precise.</div>
+        <div class="code-block"><span class="kw">int</span> pin = <span class="nu">17</span>;
+<span class="kw">double</span> voltage = <span class="nu">3.3</span>;
+<span class="kw">char</span> status = <span class="st">'H'</span>;
+
+<span class="fn">printf</span>(<span class="st">"Pin %d: %.2f V (status: %c)\n"</span>, pin, voltage, status);
+<span class="cm">// Output: Pin 17: 3.30 V (status: H)</span>
+
+<span class="fn">printf</span>(<span class="st">"Hex: 0x%X  Octal: %o  Binary mask: %08d\n"</span>, <span class="nu">255</span>, <span class="nu">255</span>, <span class="nu">11111111</span>);
+<span class="cm">// Output: Hex: 0xFF  Octal: 377  Binary mask: 11111111</span></div>
+        <div class="card-grid">
+            <div class="card c-pink">
+                <div class="card-label">%d / %i</div>
+                <div class="card-desc">Signed integer. <span class="ic">%05d</span> = zero-padded 5 digits. <span class="ic">%-10d</span> = left-aligned in 10 chars.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">%f / %e / %g</div>
+                <div class="card-desc"><span class="ic">%f</span> = fixed decimal, <span class="ic">%.2f</span> = 2 decimal places. <span class="ic">%e</span> = scientific notation. <span class="ic">%g</span> = auto-select shortest.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">%s / %c</div>
+                <div class="card-desc"><span class="ic">%s</span> prints a C string (char array). <span class="ic">%c</span> prints a single character. <span class="ic">%p</span> prints a pointer address.</div>
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Mismatched format specifiers cause undefined behavior. Passing an int where %f expects a double does not just give wrong output -- it can crash your program. The compiler flag <span class="ic">-Wall</span> catches these errors.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 5 -- CONTROL FLOW -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Control Flow: <span class="accent">if, for, while</span></div>
+        <div class="slide-subtitle">Curly braces define blocks in C. Semicolons end every statement. Parentheses required around conditions.</div>
+        <div class="code-compare">
+            <div>
+                <div class="code-panel-label" style="color:#c51a4a;">Conditions</div>
+                <div class="code-block"><span class="kw">int</span> temp = <span class="nu">75</span>;
+
+<span class="kw">if</span> (temp &gt; <span class="nu">100</span>) {
+    <span class="fn">printf</span>(<span class="st">"CRITICAL\n"</span>);
+} <span class="kw">else if</span> (temp &gt; <span class="nu">50</span>) {
+    <span class="fn">printf</span>(<span class="st">"WARNING\n"</span>);
+} <span class="kw">else</span> {
+    <span class="fn">printf</span>(<span class="st">"Normal\n"</span>);
+}</div>
+            </div>
+            <div>
+                <div class="code-panel-label" style="color:#ffd700;">Loops</div>
+                <div class="code-block"><span class="cm">// for loop</span>
+<span class="kw">for</span> (<span class="kw">int</span> i = <span class="nu">0</span>; i &lt; <span class="nu">10</span>; i++) {
+    <span class="fn">printf</span>(<span class="st">"%d "</span>, i);
+}
+
+<span class="cm">// while loop</span>
+<span class="kw">int</span> count = <span class="nu">0</span>;
+<span class="kw">while</span> (count &lt; <span class="nu">5</span>) {
+    <span class="fn">printf</span>(<span class="st">"%d\n"</span>, count);
+    count++;
+}</div>
+            </div>
+        </div>
+        <div class="card-grid-2">
+            <div class="card c-pink">
+                <div class="card-label">Common Bug: = vs ==</div>
+                <div class="card-desc"><span class="ic">if (x = 5)</span> assigns 5 to x and is always true. <span class="ic">if (x == 5)</span> compares. The single = is a silent logic error that compiles without warning unless you use <span class="ic">-Wall</span>.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">switch/case</div>
+                <div class="card-desc">Tests one variable against constants. Always include <span class="ic">break;</span> -- without it execution falls through to the next case. <span class="ic">default:</span> handles unexpected values.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 6 -- POINTERS -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Pointers: <span class="accent">Memory Addresses</span></div>
+        <div class="slide-subtitle">A pointer stores the memory address of another variable. This is how C gives you direct hardware access.</div>
+        <div class="code-block"><span class="kw">int</span> value = <span class="nu">42</span>;
+<span class="kw">int</span> *ptr = &amp;value;   <span class="cm">// ptr holds the address of value</span>
+
+<span class="fn">printf</span>(<span class="st">"Value: %d\n"</span>, value);    <span class="cm">// 42</span>
+<span class="fn">printf</span>(<span class="st">"Address: %p\n"</span>, ptr);     <span class="cm">// 0x7fff5e8c</span>
+<span class="fn">printf</span>(<span class="st">"Via ptr: %d\n"</span>, *ptr);    <span class="cm">// 42 (dereference)</span>
+
+*ptr = <span class="nu">99</span>;  <span class="cm">// modify value through the pointer</span>
+<span class="fn">printf</span>(<span class="st">"Value: %d\n"</span>, value);    <span class="cm">// 99</span></div>
+        <div class="card-grid">
+            <div class="card c-pink">
+                <div class="card-label">&amp; (address-of)</div>
+                <div class="card-desc"><span class="ic">&amp;value</span> returns the memory address where <span class="ic">value</span> is stored. This is what you assign to a pointer variable.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">* (dereference)</div>
+                <div class="card-desc"><span class="ic">*ptr</span> accesses the value at the address the pointer holds. "Go to this address and read/write what is there."</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Why Pointers Matter</div>
+                <div class="card-desc">Hardware registers are memory addresses. GPIO pins on the Pi are controlled by writing to specific addresses. Pointers are how C talks to hardware directly.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 7 -- ARRAYS & STRINGS -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Arrays &amp; <span class="accent">Strings</span></div>
+        <div class="slide-subtitle">Arrays are contiguous memory blocks. C strings are null-terminated char arrays.</div>
+        <div class="code-block"><span class="cm">// Array declaration</span>
+<span class="kw">int</span> readings[<span class="nu">5</span>] = {<span class="nu">512</span>, <span class="nu">480</span>, <span class="nu">530</span>, <span class="nu">495</span>, <span class="nu">510</span>};
+
+<span class="cm">// Iterate and average</span>
+<span class="kw">int</span> sum = <span class="nu">0</span>;
+<span class="kw">for</span> (<span class="kw">int</span> i = <span class="nu">0</span>; i &lt; <span class="nu">5</span>; i++) {
+    sum += readings[i];
+}
+<span class="kw">double</span> avg = (<span class="kw">double</span>)sum / <span class="nu">5.0</span>;
+
+<span class="cm">// C strings</span>
+<span class="kw">char</span> hostname[] = <span class="st">"raspberrypi"</span>;  <span class="cm">// 12 bytes (11 chars + '\0')</span>
+<span class="fn">printf</span>(<span class="st">"Host: %s, length: %zu\n"</span>, hostname, <span class="fn">strlen</span>(hostname));</div>
+        <div class="card-grid-2">
+            <div class="card c-pink">
+                <div class="card-label">No Bounds Checking</div>
+                <div class="card-desc">C does not check array bounds. <span class="ic">readings[10]</span> in a 5-element array reads random memory. Buffer overflows are a major security vulnerability class.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Null Terminator</div>
+                <div class="card-desc">Every C string ends with <span class="ic">'\0'</span> (byte value 0). String functions like <span class="ic">strlen()</span>, <span class="ic">strcpy()</span>, <span class="ic">strcmp()</span> rely on this terminator to know where the string ends.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 8 -- STRUCTS -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Structs: <span class="accent">Custom Data Types</span></div>
+        <div class="slide-subtitle">Structs group related variables into a single unit -- C's version of a simple object.</div>
+        <div class="code-block"><span class="kw">typedef struct</span> {
+    <span class="kw">int</span> pin;
+    <span class="kw">double</span> temperature;
+    <span class="kw">double</span> humidity;
+    <span class="kw">char</span> label[<span class="nu">32</span>];
+} Sensor;
+
+<span class="cm">// Create and use</span>
+Sensor dht = {<span class="nu">4</span>, <span class="nu">22.5</span>, <span class="nu">45.0</span>, <span class="st">"Living Room"</span>};
+<span class="fn">printf</span>(<span class="st">"%s: %.1fC, %.0f%%\n"</span>, dht.label, dht.temperature, dht.humidity);
+
+<span class="cm">// Pointer to struct</span>
+Sensor *sp = &amp;dht;
+sp-&gt;temperature = <span class="nu">23.1</span>;  <span class="cm">// arrow operator for pointer access</span></div>
+        <div class="card-grid">
+            <div class="card c-pink">
+                <div class="card-label">typedef</div>
+                <div class="card-desc"><span class="ic">typedef struct {...} Name;</span> creates a type alias so you write <span class="ic">Sensor s;</span> instead of <span class="ic">struct Sensor s;</span>. Cleaner code.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Dot vs Arrow</div>
+                <div class="card-desc"><span class="ic">s.field</span> accesses through a variable. <span class="ic">ptr->field</span> accesses through a pointer. The arrow is shorthand for <span class="ic">(*ptr).field</span>.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Real Use</div>
+                <div class="card-desc">Linux kernel code is full of structs. Device configurations, file descriptors, network packets -- all represented as structs in C.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 9 -- MEMORY MANAGEMENT -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Memory <span class="accent">Management</span></div>
+        <div class="slide-subtitle">C gives you manual control over memory. With that power comes responsibility -- every malloc needs a free.</div>
+        <div class="code-block"><span class="kw">#include</span> &lt;stdlib.h&gt;
+
+<span class="cm">// Allocate array of 100 integers on the heap</span>
+<span class="kw">int</span> *data = <span class="fn">malloc</span>(<span class="nu">100</span> * <span class="kw">sizeof</span>(<span class="kw">int</span>));
+<span class="kw">if</span> (data == NULL) {
+    <span class="fn">fprintf</span>(stderr, <span class="st">"Out of memory\n"</span>);
+    <span class="kw">return</span> <span class="nu">1</span>;
+}
+
+<span class="cm">// Use the memory</span>
+<span class="kw">for</span> (<span class="kw">int</span> i = <span class="nu">0</span>; i &lt; <span class="nu">100</span>; i++) {
+    data[i] = i * <span class="nu">2</span>;
+}
+
+<span class="cm">// Free when done -- or you have a memory leak</span>
+<span class="fn">free</span>(data);
+data = NULL;  <span class="cm">// prevent use-after-free</span></div>
+        <div class="card-grid">
+            <div class="card c-pink">
+                <div class="card-label">Stack vs Heap</div>
+                <div class="card-desc">Local variables live on the stack (automatic, fast, limited size). <span class="ic">malloc()</span> allocates on the heap (manual, flexible, must free). Stack is default; heap is for dynamic sizes.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Memory Leaks</div>
+                <div class="card-desc">Forgetting to <span class="ic">free()</span> allocated memory causes leaks. In a long-running Pi program, leaks slowly consume all RAM until the OS kills your process.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">valgrind</div>
+                <div class="card-desc"><span class="ic">valgrind ./myprogram</span> detects memory leaks, use-after-free, and buffer overflows. Essential debugging tool on the Pi.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 10 -- MAKEFILES -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Makefiles: <span class="accent">Build Automation</span></div>
+        <div class="slide-subtitle">When your project has multiple files, Makefiles automate compilation so you just type "make".</div>
+        <div class="code-block"><span class="cm"># Makefile</span>
+CC = gcc
+CFLAGS = -Wall -Wextra -O2
+
+sensor_app: main.o sensor.o display.o
+	$(CC) $(CFLAGS) -o sensor_app main.o sensor.o display.o
+
+main.o: main.c sensor.h display.h
+	$(CC) $(CFLAGS) -c main.c
+
+sensor.o: sensor.c sensor.h
+	$(CC) $(CFLAGS) -c sensor.c
+
+display.o: display.c display.h
+	$(CC) $(CFLAGS) -c display.c
+
+clean:
+	rm -f *.o sensor_app</div>
+        <div class="card-grid">
+            <div class="card c-pink">
+                <div class="card-label">-Wall -Wextra</div>
+                <div class="card-desc">Enable all warnings. Catches type mismatches, unused variables, missing returns. Always compile with warnings on -- they find bugs before you do.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Incremental Builds</div>
+                <div class="card-desc">Make only recompiles files that changed. In a 50-file project, editing one file recompiles one .o instead of all 50. Saves minutes on the Pi.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">make clean</div>
+                <div class="card-desc">Convention: <span class="ic">make clean</span> deletes all compiled files. Useful when switching compiler flags or debugging a broken build.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 11 -- C VS PYTHON -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">C vs <span class="accent">Python</span></div>
+        <div class="slide-subtitle">Different tools for different jobs. Know when to use each on the Pi.</div>
+        <div class="card-grid-2">
+            <div class="card c-pink">
+                <div class="card-label">C Strengths</div>
+                <div class="card-desc">10-100x faster execution. Direct hardware/memory access. No runtime overhead. Predictable timing for real-time tasks. Tiny binaries. Runs without an interpreter.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Python Strengths</div>
+                <div class="card-desc">Faster development time. Huge library ecosystem. No compilation step. Dynamic typing. Easier string/file handling. Built-in data structures (dict, list, set).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Use C When</div>
+                <div class="card-desc">Performance is critical. Real-time requirements. Kernel modules. Device drivers. Bare-metal microcontroller code. Memory-constrained environments.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Use Python When</div>
+                <div class="card-desc">Rapid prototyping. Web servers. Data processing. Automation scripts. GPIO with gpiozero. When development speed matters more than execution speed.</div>
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Many Pi projects use both: Python for the high-level logic and user interface, C for performance-critical routines called via ctypes or compiled as shared libraries.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 12 -- KEY TAKEAWAYS -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Key <span class="accent">Takeaways</span></div>
+        <div class="slide-subtitle">Introducing C on Linux -- the systems language that powers your Pi.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>C is compiled, not interpreted.</strong> Write .c file, compile with gcc, run the binary. The compilation step catches errors before execution.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Static typing prevents bugs.</strong> Every variable has a declared type. The compiler enforces type safety at build time.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Pointers give you hardware access.</strong> Memory addresses are first-class values. This is how you control GPIO registers, DMA, and memory-mapped I/O.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Manual memory management.</strong> malloc/free give you control but require discipline. Every allocation must have a corresponding free.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Always compile with -Wall.</strong> Warnings are bugs waiting to happen. Fix every warning before testing your program.</span></div>
+        </div>
+        <div class="box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Chapter 9 -- The Pico &amp; Pico W</strong> &nbsp;|&nbsp; Microcontrollers &bull; RP2040 &bull; MicroPython &bull; WiFi &bull; BLE
+        </div>
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; PiVerse</button></a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+<script>
+    let currentSlide = 1; const TOTAL_SLIDES = 12;
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide); if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide); if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const cb = document.getElementById('complete-btn'); if (cb) cb.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+    goToSlide(1);
+</script>
+<script>
+    function completeModule() { if (typeof ModuleProgress !== 'undefined') ModuleProgress.complete('matrix', 'pv-f-08-pres', { returnUrl: '../../index.html' }); }
+</script>
+</body>
+</html>

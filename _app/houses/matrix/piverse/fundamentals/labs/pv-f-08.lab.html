@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C Compiler Lab -- PiVerse Fundamentals Ch8</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { height: 100vh; overflow: hidden; background: #0c0c0c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #d4a0b0; display: flex; flex-direction: column; }
+        .lab-header { flex-shrink: 0; padding: 15px 30px; background: rgba(13,6,8,0.95); border-bottom: 1px solid rgba(197,26,74,0.2); display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn { padding: 8px 16px; background: rgba(197,26,74,0.1); border: 1px solid rgba(197,26,74,0.3); border-radius: 6px; color: #c51a4a; text-decoration: none; font-size: 0.85rem; }
+        .back-btn:hover { background: rgba(197,26,74,0.2); }
+        .lab-title { font-size: 1rem; color: #f0d0d8; }
+        .lab-badge { padding: 4px 12px; background: rgba(197,26,74,0.15); border: 1px solid rgba(197,26,74,0.3); border-radius: 12px; font-size: 0.7rem; color: #c51a4a; }
+        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #6b5a60; }
+        .task-count { color: #c51a4a; font-weight: 500; }
+        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(197,26,74,0.15); border-radius: 3px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #c51a4a, #8b1030); border-radius: 3px; width: 0%; transition: width 0.4s; }
+        .lab-container { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
+        .task-panel { background: rgba(13,6,8,0.95); border-right: 1px solid rgba(197,26,74,0.15); overflow-y: auto; padding: 20px; }
+        .task-section-title { font-size: 0.68rem; color: #6b5a60; letter-spacing: 0.15em; margin-bottom: 12px; text-transform: uppercase; }
+        .task-card { background: rgba(13,6,8,0.8); border: 1px solid rgba(197,26,74,0.15); border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s; }
+        .task-card:hover { border-color: rgba(197,26,74,0.4); }
+        .task-card.active { border-color: #c51a4a; background: rgba(197,26,74,0.08); }
+        .task-card.completed { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.04); }
+        .task-card.completed .task-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; }
+        .task-number { font-size: 0.68rem; color: #c51a4a; margin-bottom: 4px; }
+        .task-name { font-size: 0.9rem; color: #f0d0d8; margin-bottom: 4px; }
+        .task-desc { font-size: 0.77rem; color: #6b5a60; line-height: 1.45; }
+        .task-desc code { background: rgba(197,26,74,0.15); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; color: #c51a4a; font-family: 'Consolas', monospace; }
+        .terminal-panel { display: flex; flex-direction: column; background: #0a0a0a; position: relative; }
+        .term-toolbar { flex-shrink: 0; padding: 8px 20px; background: rgba(13,6,8,0.9); border-bottom: 1px solid rgba(197,26,74,0.15); display: flex; align-items: center; gap: 12px; }
+        .term-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .term-dot-red { background: #ff5f57; } .term-dot-amber { background: #febc2e; } .term-dot-green { background: #28c840; }
+        .term-title { flex: 1; text-align: center; font-size: 0.8rem; color: #6b5a60; font-family: 'Consolas', monospace; }
+        .term-output { flex: 1; overflow-y: auto; padding: 16px 20px 8px; font-family: 'Consolas', monospace; font-size: 0.875rem; line-height: 1.6; }
+        .term-input-row { flex-shrink: 0; display: flex; align-items: center; padding: 8px 20px 12px; border-top: 1px solid rgba(197,26,74,0.1); }
+        .term-prompt { color: #c51a4a; font-family: 'Consolas', monospace; font-size: 0.875rem; margin-right: 6px; white-space: nowrap; }
+        .term-input { flex: 1; background: transparent; border: none; outline: none; color: #f0d0d8; font-family: 'Consolas', monospace; font-size: 0.875rem; caret-color: #c51a4a; }
+        .term-line { white-space: pre-wrap; word-break: break-all; }
+        .term-line-cmd { color: #d4a0b0; } .term-line-out { color: #a0d4a0; } .term-line-err { color: #f87171; }
+        .term-line-info { color: #c51a4a; } .term-line-dim { color: #4a3540; } .term-line-warn { color: #ffd700; }
+        .success-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 2000; }
+        .success-overlay.active { display: flex; }
+        .success-card { background: rgba(13,6,8,0.97); border: 1px solid rgba(52,211,153,0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
+        .success-message { color: #d4a0b0; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
+        .success-btn { padding: 12px 30px; background: linear-gradient(135deg, #c51a4a, #8b1030); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; }
+        @media (max-width: 1024px) { .lab-container { grid-template-columns: 1fr; } .task-panel { display: none; } }
+    </style>
+</head>
+<body>
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">C Compiler Lab</span>
+            <span class="lab-badge">PV-F-08</span>
+        </div>
+        <div class="task-progress">
+            <span>Progress:</span>
+            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressFill"></div></div>
+            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
+        </div>
+    </header>
+    <div class="lab-container">
+        <aside class="task-panel" id="taskPanel"></aside>
+        <main class="terminal-panel">
+            <div class="term-toolbar">
+                <div class="term-dot term-dot-red"></div><div class="term-dot term-dot-amber"></div><div class="term-dot term-dot-green"></div>
+                <div class="term-title">pi@raspberrypi -- gcc C Compiler</div>
+            </div>
+            <div class="term-output" id="termOutput"></div>
+            <div class="term-input-row">
+                <span class="term-prompt">pi@rpi:~/c$ </span>
+                <input class="term-input" id="termInput" type="text" autocomplete="off" spellcheck="false" aria-label="Terminal input">
+            </div>
+            <div class="success-overlay" id="successOverlay">
+                <div class="success-card">
+                    <div class="success-title">C Compiler Lab Complete!</div>
+                    <div class="success-message">You compiled and ran C programs covering hello world, variables, printf, conditions, loops, functions, pointers, arrays, structs, and Makefiles -- the foundations of systems programming on the Pi.</div>
+                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script>
+    (function() {
+        'use strict';
+        var TOTAL = 10, done = {}, current = 1, hist = [], histIdx = -1, out, inp;
+        function addLine(t, c) { var d = document.createElement('div'); d.className = 'term-line' + (c ? ' ' + c : ''); d.textContent = t; out.appendChild(d); out.scrollTop = out.scrollHeight; }
+        function addPrompt(cmd) { addLine('pi@rpi:~/c$ ' + cmd, 'term-line-cmd'); }
+
+        var taskData = [
+            { name: 'Hello World', desc: 'Type <code>gcc hello</code> to compile and run hello.c.' },
+            { name: 'Variables & Types', desc: 'Type <code>gcc variables</code> to declare typed variables and print sizeof.' },
+            { name: 'printf Formatting', desc: 'Type <code>gcc printf</code> to test format specifiers.' },
+            { name: 'Conditions', desc: 'Type <code>gcc conditions</code> to compile if/else chains.' },
+            { name: 'Loops', desc: 'Type <code>gcc loops</code> to compile for and while loops.' },
+            { name: 'Functions', desc: 'Type <code>gcc functions</code> to define and call a function.' },
+            { name: 'Pointers', desc: 'Type <code>gcc pointers</code> to work with memory addresses.' },
+            { name: 'Arrays & Strings', desc: 'Type <code>gcc arrays</code> to iterate arrays and use string functions.' },
+            { name: 'Structs', desc: 'Type <code>gcc structs</code> to create and use a struct.' },
+            { name: 'Makefile Build', desc: 'Type <code>gcc makefile</code> to simulate a multi-file build.' }
+        ];
+
+        var responses = {
+            'gcc hello': function() {
+                addLine('[COMPILE] gcc hello.c -o hello -Wall', 'term-line-dim');
+                addLine('[OK] No warnings, no errors.', 'term-line-info');
+                addLine('[RUN] ./hello', 'term-line-dim'); addLine('', '');
+                addLine('Hello, Raspberry Pi!', 'term-line-out');
+                addLine('', ''); addLine('[OK] Program exited with code 0 (success).', 'term-line-info');
+                return 1;
+            },
+            'gcc variables': function() {
+                addLine('[COMPILE] gcc variables.c -o variables -Wall', 'term-line-dim');
+                addLine('[RUN] ./variables', 'term-line-dim'); addLine('', '');
+                addLine('int count = 42         sizeof(int)    = 4 bytes', 'term-line-out');
+                addLine('double temp = 22.5     sizeof(double) = 8 bytes', 'term-line-out');
+                addLine('char grade = A         sizeof(char)   = 1 byte', 'term-line-out');
+                addLine('unsigned flags = 0xFF  sizeof(unsigned int) = 4 bytes', 'term-line-out');
+                addLine('', ''); addLine('[OK] All types declared and sized correctly on ARM.', 'term-line-info');
+                return 2;
+            },
+            'gcc printf': function() {
+                addLine('[COMPILE] gcc printf_demo.c -o printf_demo -Wall', 'term-line-dim');
+                addLine('[RUN] ./printf_demo', 'term-line-dim'); addLine('', '');
+                addLine('Integer: 42', 'term-line-out');
+                addLine('Float (2 dec): 3.14', 'term-line-out');
+                addLine('Char: A', 'term-line-out');
+                addLine('String: Raspberry Pi', 'term-line-out');
+                addLine('Hex: 0xFF   Octal: 377', 'term-line-out');
+                addLine('Padded: 00042', 'term-line-out');
+                addLine('', ''); addLine('[OK] All format specifiers verified: %d, %.2f, %c, %s, %X, %o, %05d.', 'term-line-info');
+                return 3;
+            },
+            'gcc conditions': function() {
+                addLine('[COMPILE] gcc conditions.c -o conditions -Wall', 'term-line-dim');
+                addLine('[RUN] ./conditions', 'term-line-dim'); addLine('', '');
+                addLine('temp = 75', 'term-line-out');
+                addLine('if (temp > 100) => false', 'term-line-dim');
+                addLine('else if (temp > 50) => true', 'term-line-out');
+                addLine('Output: WARNING', 'term-line-out');
+                addLine('', ''); addLine('[OK] if/else if/else chain correct. 3 branches compiled.', 'term-line-info');
+                return 4;
+            },
+            'gcc loops': function() {
+                addLine('[COMPILE] gcc loops.c -o loops -Wall', 'term-line-dim');
+                addLine('[RUN] ./loops', 'term-line-dim'); addLine('', '');
+                addLine('for loop: 0 1 2 3 4 5 6 7 8 9', 'term-line-out');
+                addLine('while loop: 0 1 2 3 4', 'term-line-out');
+                addLine('', ''); addLine('[OK] for (10 iterations) and while (5 iterations) verified.', 'term-line-info');
+                return 5;
+            },
+            'gcc functions': function() {
+                addLine('[COMPILE] gcc functions.c -o functions -Wall', 'term-line-dim');
+                addLine('[RUN] ./functions', 'term-line-dim'); addLine('', '');
+                addLine('float celsiusToFahrenheit(float c) {', 'term-line-out');
+                addLine('    return c * 1.8f + 32.0f;', 'term-line-out');
+                addLine('}', 'term-line-out'); addLine('', '');
+                addLine('celsiusToFahrenheit(0)   = 32.00', 'term-line-out');
+                addLine('celsiusToFahrenheit(100) = 212.00', 'term-line-out');
+                addLine('celsiusToFahrenheit(37)  = 98.60', 'term-line-out');
+                addLine('', ''); addLine('[OK] Function compiled. Return type float. All tests passed.', 'term-line-info');
+                return 6;
+            },
+            'gcc pointers': function() {
+                addLine('[COMPILE] gcc pointers.c -o pointers -Wall', 'term-line-dim');
+                addLine('[RUN] ./pointers', 'term-line-dim'); addLine('', '');
+                addLine('int value = 42;', 'term-line-out');
+                addLine('int *ptr = &value;', 'term-line-out'); addLine('', '');
+                addLine('value:   42', 'term-line-out');
+                addLine('&value:  0x7ffd3e8c (address)', 'term-line-out');
+                addLine('ptr:     0x7ffd3e8c (same address)', 'term-line-out');
+                addLine('*ptr:    42 (dereferenced)', 'term-line-out'); addLine('', '');
+                addLine('*ptr = 99;  // modify via pointer', 'term-line-out');
+                addLine('value:   99 (changed!)', 'term-line-out');
+                addLine('', ''); addLine('[OK] Address-of, dereference, and pointer modification verified.', 'term-line-info');
+                return 7;
+            },
+            'gcc arrays': function() {
+                addLine('[COMPILE] gcc arrays.c -o arrays -Wall', 'term-line-dim');
+                addLine('[RUN] ./arrays', 'term-line-dim'); addLine('', '');
+                addLine('int readings[] = {512, 480, 530, 495, 510};', 'term-line-out');
+                addLine('Sum: 2527  Average: 505.40', 'term-line-out'); addLine('', '');
+                addLine('char hostname[] = "raspberrypi";', 'term-line-out');
+                addLine('strlen: 11  sizeof: 12 (includes \\0)', 'term-line-out');
+                addLine('', ''); addLine('[OK] Array iteration, averaging, and C string operations verified.', 'term-line-info');
+                return 8;
+            },
+            'gcc structs': function() {
+                addLine('[COMPILE] gcc structs.c -o structs -Wall', 'term-line-dim');
+                addLine('[RUN] ./structs', 'term-line-dim'); addLine('', '');
+                addLine('typedef struct {', 'term-line-out');
+                addLine('    int pin; double temp; double hum; char label[32];', 'term-line-out');
+                addLine('} Sensor;', 'term-line-out'); addLine('', '');
+                addLine('Sensor dht = {4, 22.5, 45.0, "Living Room"};', 'term-line-out');
+                addLine('dht.label: Living Room', 'term-line-out');
+                addLine('dht.temp:  22.5C', 'term-line-out');
+                addLine('dht.hum:   45%', 'term-line-out'); addLine('', '');
+                addLine('Sensor *sp = &dht; sp->temp = 23.1;', 'term-line-out');
+                addLine('dht.temp:  23.1C (modified via pointer)', 'term-line-out');
+                addLine('', ''); addLine('[OK] Struct creation, dot access, and arrow operator verified.', 'term-line-info');
+                return 9;
+            },
+            'gcc makefile': function() {
+                addLine('[BUILD] make', 'term-line-dim');
+                addLine('gcc -Wall -Wextra -O2 -c main.c', 'term-line-out');
+                addLine('gcc -Wall -Wextra -O2 -c sensor.c', 'term-line-out');
+                addLine('gcc -Wall -Wextra -O2 -c display.c', 'term-line-out');
+                addLine('gcc -Wall -Wextra -O2 -o sensor_app main.o sensor.o display.o', 'term-line-out');
+                addLine('', ''); addLine('[RUN] ./sensor_app', 'term-line-dim');
+                addLine('Sensor initialized on pin 4', 'term-line-out');
+                addLine('Temperature: 22.5C  Humidity: 45%', 'term-line-out');
+                addLine('Display updated.', 'term-line-out');
+                addLine('', ''); addLine('[OK] Multi-file build: 3 source files compiled, linked, executed.', 'term-line-info');
+                return 10;
+            }
+        };
+
+        function exec(raw) {
+            var cmd = raw.trim(); addPrompt(cmd);
+            if (!cmd) return;
+            if (cmd === 'help') {
+                addLine('C Compiler Lab -- Available Commands', 'term-line-info'); addLine('', '');
+                taskData.forEach(function(t, i) { addLine('  gcc ' + ['hello','variables','printf','conditions','loops','functions','pointers','arrays','structs','makefile'][i] + '  -- Task ' + (i+1) + ': ' + t.name, 'term-line-dim'); });
+                addLine('', ''); addLine('  help / clear', 'term-line-dim');
+            } else if (cmd === 'clear') { out.innerHTML = ''; }
+            else if (responses[cmd]) { var n = responses[cmd](); completeTask(n); }
+            else { addLine('bash: ' + cmd + ': command not found. Type "help".', 'term-line-err'); }
+        }
+
+        function completeTask(n) {
+            if (done[n]) return; done[n] = true;
+            var count = 0; for (var k in done) if (done[k]) count++;
+            document.getElementById('taskProgress').textContent = count + ' / ' + TOTAL + ' Tasks';
+            document.getElementById('progressFill').style.width = Math.round((count / TOTAL) * 100) + '%';
+            var card = document.getElementById('task-' + n);
+            if (card) { card.classList.add('completed'); card.classList.remove('active'); }
+            addLine('', ''); addLine('[Task ' + n + ' complete] ' + taskData[n-1].name, 'term-line-info'); addLine('', '');
+            if (count === TOTAL) { setTimeout(function() { document.getElementById('successOverlay').classList.add('active'); }, 700); return; }
+            for (var i = 1; i <= TOTAL; i++) { if (!done[i]) { selectTask(i); break; } }
+        }
+
+        function selectTask(n) { current = n; for (var i = 1; i <= TOTAL; i++) { var c = document.getElementById('task-' + i); if (c) { c.classList.remove('active'); if (i === n) c.classList.add('active'); } } }
+
+        function buildTasks() {
+            var p = document.getElementById('taskPanel');
+            p.innerHTML = '<div class="task-section-title">C Compiler Tasks</div>';
+            taskData.forEach(function(t, i) {
+                var d = document.createElement('div'); d.className = 'task-card'; d.id = 'task-' + (i+1);
+                d.innerHTML = '<div class="task-number">Task ' + (i+1) + '</div><div class="task-name">' + t.name + '</div><div class="task-desc">' + t.desc + '</div>';
+                d.onclick = function() { selectTask(i+1); }; p.appendChild(d);
+            });
+        }
+
+        window.finishLab = function() {
+            if (typeof ModuleProgress !== 'undefined') ModuleProgress.complete('matrix', 'pv-f-08-lab', { returnUrl: '../../index.html' });
+            else window.location.href = '../../index.html';
+        };
+
+        function init() {
+            out = document.getElementById('termOutput'); inp = document.getElementById('termInput');
+            addLine('gcc (Debian 12.2.0) -- Raspberry Pi C Compiler Lab', 'term-line-info');
+            addLine('Type "help" for available commands. Complete 10 tasks.', 'term-line-info'); addLine('', '');
+            inp.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') { var c = inp.value; inp.value = ''; if (c.trim()) { hist.push(c); histIdx = hist.length; } exec(c); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); if (histIdx > 0) { histIdx--; inp.value = hist[histIdx]; } }
+                else if (e.key === 'ArrowDown') { e.preventDefault(); if (histIdx < hist.length-1) { histIdx++; inp.value = hist[histIdx]; } else { histIdx = hist.length; inp.value = ''; } }
+            });
+            out.addEventListener('click', function() { inp.focus(); }); inp.focus(); buildTasks(); selectTask(1);
+        }
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+    })();
+    </script>
+</body>
+</html>

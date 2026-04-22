@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meet the Raspberry Pi | PiVerse Fundamentals Ch 1</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d0408 0%, #130810 50%, #0d0408 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c51a4a; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(13, 4, 8, 0.95);
+            border-top: 1px solid rgba(197, 26, 74, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(197, 26, 74, 0.15); color: #c51a4a; border-color: #c51a4a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #c51a4a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ffd700; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(197, 26, 74, 0.08); border-left: 3px solid #c51a4a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #d4a0b0; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-red   { background: rgba(197, 26, 74, 0.08); border: 1px solid rgba(197, 26, 74, 0.3); color: #f0c0d0; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-gold  { background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(100, 149, 237, 0.08); border: 1px solid rgba(100, 149, 237, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ffd700; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c51a4a;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #c51a4a; }
+        .card.c-gold   { border-left-color: #ffd700; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c51a4a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #ffd700; background: rgba(255, 215, 0, 0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+
+        .ic { font-family: 'Courier New', monospace; color: #ffd700; background: rgba(255, 215, 0, 0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(197, 26, 74, 0.12); border: 1px solid rgba(197, 26, 74, 0.4);
+            color: #c51a4a; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(197, 26, 74, 0.25);
+            border-radius: 8px; padding: 12px 14px; text-align: center;
+            opacity: 0; animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #c51a4a; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes entityPop { from { opacity: 0; transform: scale(0.6) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Meet the Raspberry Pi -- PiVerse Fundamentals Chapter 1</h1>
+
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; PiVerse &nbsp;|&nbsp; Fundamentals &nbsp;|&nbsp; Chapter 1</div>
+        <div class="title-hero">
+            <svg width="360" height="120" viewBox="0 0 360 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Raspberry Pi board silhouette -->
+                <rect x="80" y="10" width="200" height="100" rx="10" fill="rgba(197,26,74,0.06)" stroke="#c51a4a" stroke-width="2"
+                    style="animation: boxGrow 0.5s ease forwards 0.1s; opacity:0;"/>
+                <!-- GPIO header -->
+                <rect x="90" y="14" width="80" height="8" rx="2" fill="rgba(255,215,0,0.2)" stroke="#ffd700" stroke-width="0.8"
+                    style="animation: boxGrow 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="130" y="21" text-anchor="middle" font-size="5" fill="#ffd700" font-family="Segoe UI,sans-serif">GPIO 40-pin</text>
+                <!-- SoC -->
+                <rect x="145" y="40" width="40" height="40" rx="4" fill="rgba(197,26,74,0.15)" stroke="#c51a4a" stroke-width="1.5"
+                    style="animation: entityPop 0.4s ease forwards 0.4s; opacity:0;"/>
+                <text x="165" y="58" text-anchor="middle" font-size="7" fill="#e8305e" font-weight="700" font-family="Segoe UI,sans-serif">SoC</text>
+                <text x="165" y="70" text-anchor="middle" font-size="5.5" fill="#9e8b91" font-family="Segoe UI,sans-serif">BCM2712</text>
+                <!-- USB ports -->
+                <rect x="248" y="25" width="18" height="30" rx="2" fill="rgba(100,149,237,0.12)" stroke="#6495ed" stroke-width="0.8"
+                    style="animation: boxGrow 0.3s ease forwards 0.5s; opacity:0;"/>
+                <text x="257" y="44" text-anchor="middle" font-size="5" fill="#6495ed" font-family="Segoe UI,sans-serif">USB</text>
+                <!-- Ethernet -->
+                <rect x="248" y="65" width="18" height="22" rx="2" fill="rgba(58,181,119,0.12)" stroke="#3ab577" stroke-width="0.8"
+                    style="animation: boxGrow 0.3s ease forwards 0.6s; opacity:0;"/>
+                <text x="257" y="79" text-anchor="middle" font-size="5" fill="#3ab577" font-family="Segoe UI,sans-serif">ETH</text>
+                <!-- HDMI -->
+                <rect x="120" y="95" width="20" height="10" rx="2" fill="rgba(167,139,250,0.15)" stroke="#a78bfa" stroke-width="0.8"/>
+                <rect x="150" y="95" width="20" height="10" rx="2" fill="rgba(167,139,250,0.15)" stroke="#a78bfa" stroke-width="0.8"/>
+                <text x="155" y="115" text-anchor="middle" font-size="5" fill="#a78bfa" font-family="Segoe UI,sans-serif">HDMI x2</text>
+                <!-- Power -->
+                <rect x="95" y="95" width="15" height="10" rx="2" fill="rgba(255,215,0,0.15)" stroke="#ffd700" stroke-width="0.8"/>
+                <text x="102" y="115" text-anchor="middle" font-size="5" fill="#ffd700" font-family="Segoe UI,sans-serif">USB-C</text>
+            </svg>
+            <div class="big-title">
+                <span class="accent">Meet</span> the Raspberry Pi
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Hardware Tour &nbsp;|&nbsp; SoC Architecture &nbsp;|&nbsp; Models &nbsp;|&nbsp; Use Cases
+            </div>
+        </div>
+        <div class="scenario-strip">
+            A credit-card-sized circuit board that runs a full Linux operating system. It has USB ports, HDMI outputs, Ethernet, Wi-Fi, and 40 general-purpose pins that connect to the physical world. This is not a toy -- it is the foundation of millions of real-world projects.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>PiVerse Fundamentals</span>
+            <span>Chapter 1 of 5</span>
+            <span>Matrix House</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- WHAT IS A RASPBERRY PI ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">What Is a <span class="accent">Raspberry Pi</span>?</div>
+        <div class="slide-subtitle">A single-board computer (SBC) -- a complete computer on one circuit board. Created by the Raspberry Pi Foundation in 2012 to make computing accessible.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Single-Board Computer</div>
+                <div class="card-desc">CPU, GPU, RAM, networking, USB, storage interface, and GPIO are all integrated onto one board the size of a credit card. No separate motherboard, no expansion slots, no removable CPU. Everything is soldered in place.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Full Linux Operating System</div>
+                <div class="card-desc">Unlike a microcontroller (Arduino), the Pi runs a real OS -- Raspberry Pi OS (Debian Linux). It has a file system, multitasking, a desktop environment, a web browser, and package management. It is a real computer.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Why the Pi Matters</div>
+            The combination of low cost ($15--$80), small size, GPIO pins for hardware projects, and a massive community makes the Pi unique. It bridges software and hardware in a way no other platform has achieved at scale. Education, industry, home automation, and embedded systems all use the Pi.
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Origin</div>
+            Created by Eben Upton and the Raspberry Pi Foundation (UK charity) to address declining interest in computer science education. The first Pi (Model B, 2012) sold for $35 and ignited a global maker movement. Over 60 million units sold as of 2024.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- SOC ARCHITECTURE ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">System-on-Chip <span class="accent">Architecture</span></div>
+        <div class="slide-subtitle">Every Pi is powered by a Broadcom SoC -- CPU, GPU, and memory controller on a single chip.</div>
+
+        <div class="diagram-center">
+            <svg width="600" height="140" viewBox="0 0 600 140" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- SoC boundary -->
+                <rect x="100" y="10" width="400" height="120" rx="12" fill="rgba(197,26,74,0.04)" stroke="#c51a4a" stroke-width="2"/>
+                <text x="300" y="30" text-anchor="middle" font-size="11" fill="#c51a4a" font-weight="700" font-family="Segoe UI,sans-serif">BCM2712 System-on-Chip (Pi 5)</text>
+                <!-- CPU block -->
+                <rect x="120" y="45" width="110" height="70" rx="8" fill="rgba(197,26,74,0.12)" stroke="#e8305e" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="175" y="66" text-anchor="middle" font-size="9" fill="#e8305e" font-weight="700">ARM CPU</text>
+                <text x="175" y="80" text-anchor="middle" font-size="7.5" fill="#94a3b8">4x Cortex-A76</text>
+                <text x="175" y="92" text-anchor="middle" font-size="7.5" fill="#94a3b8">@ 2.4 GHz</text>
+                <text x="175" y="104" text-anchor="middle" font-size="7.5" fill="#94a3b8">64-bit ARMv8</text>
+                <!-- GPU block -->
+                <rect x="250" y="45" width="110" height="70" rx="8" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="305" y="66" text-anchor="middle" font-size="9" fill="#a78bfa" font-weight="700">VideoCore VII</text>
+                <text x="305" y="80" text-anchor="middle" font-size="7.5" fill="#94a3b8">GPU + video decode</text>
+                <text x="305" y="92" text-anchor="middle" font-size="7.5" fill="#94a3b8">Dual 4K @ 60fps</text>
+                <text x="305" y="104" text-anchor="middle" font-size="7.5" fill="#94a3b8">OpenGL ES 3.1</text>
+                <!-- I/O block -->
+                <rect x="380" y="45" width="100" height="70" rx="8" fill="rgba(255,215,0,0.08)" stroke="#ffd700" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="430" y="66" text-anchor="middle" font-size="9" fill="#ffd700" font-weight="700">RP1 I/O</text>
+                <text x="430" y="80" text-anchor="middle" font-size="7.5" fill="#94a3b8">USB 3.0, Ethernet</text>
+                <text x="430" y="92" text-anchor="middle" font-size="7.5" fill="#94a3b8">PCIe 2.0 x1</text>
+                <text x="430" y="104" text-anchor="middle" font-size="7.5" fill="#94a3b8">GPIO, SPI, I2C</text>
+                <!-- External RAM -->
+                <rect x="10" y="55" width="70" height="50" rx="6" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="45" y="76" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700">LPDDR4X</text>
+                <text x="45" y="90" text-anchor="middle" font-size="7" fill="#94a3b8">4 / 8 GB RAM</text>
+                <line x1="80" y1="80" x2="100" y2="80" stroke="#3ab577" stroke-width="1" stroke-dasharray="3,2"/>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">ARM Architecture</div>
+                <div class="card-desc">ARM uses RISC (Reduced Instruction Set). Same architecture as smartphones and tablets. Energy efficient -- the Pi 5 draws 5W idle, 12W under load.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">SoC vs. Desktop PC</div>
+                <div class="card-desc">A PC has separate CPU, GPU, RAM, and chipset. An SoC integrates them on one die. Smaller, cheaper, lower power -- but not upgradeable.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Pi 5 -- RP1 Southbridge</div>
+                <div class="card-desc">Pi 5 adds a dedicated RP1 I/O controller chip via PCIe, offloading USB and Ethernet from the SoC. First Pi with a PCIe bus.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- PI MODELS ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Raspberry Pi <span class="accent">Models</span></div>
+        <div class="slide-subtitle">Three current models for different use cases: Pi 5, Pi 4 Model B, and Pi Zero 2 W.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Raspberry Pi 5</div>
+                <div class="card-desc"><strong>BCM2712</strong> -- Quad Cortex-A76 @ 2.4 GHz. 4/8 GB LPDDR4X. 2x USB 3.0, 2x USB 2.0. 2x micro HDMI (4Kp60). Gigabit Ethernet, Wi-Fi 5, BT 5.0. USB-C 5V/5A. PCIe 2.0. <strong>$60/$80</strong></div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Raspberry Pi 4 Model B</div>
+                <div class="card-desc"><strong>BCM2711</strong> -- Quad Cortex-A72 @ 1.8 GHz. 1/2/4/8 GB LPDDR4. 2x USB 3.0, 2x USB 2.0. 2x micro HDMI (4Kp60). Gigabit Ethernet, Wi-Fi 5, BT 5.0. USB-C 5V/3A. <strong>$35--$75</strong></div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Pi Zero 2 W</div>
+                <div class="card-desc"><strong>RP3A0</strong> -- Quad Cortex-A53 @ 1.0 GHz. 512 MB LPDDR2. 1x Micro USB (OTG). 1x Mini HDMI (1080p). Wi-Fi 4, BT 4.2. Micro USB 5V/2.5A. <strong>$15</strong></div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Which Model to Start With?</div>
+            For learning and general projects, the Pi 4 (4 GB) or Pi 5 (4 GB) is the best starting point. The Zero 2 W is for embedded or space-constrained projects where desktop performance is not needed.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- BOARD LAYOUT ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Physical <span class="accent">Board Layout</span></div>
+        <div class="slide-subtitle">Every connector, chip, and pin header on the Raspberry Pi 5.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="200" viewBox="0 0 680 200" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Board outline -->
+                <rect x="140" y="10" width="400" height="180" rx="12" fill="rgba(197,26,74,0.04)" stroke="#c51a4a" stroke-width="2"/>
+                <!-- GPIO Header -->
+                <rect x="160" y="14" width="180" height="12" rx="3" fill="rgba(255,215,0,0.15)" stroke="#ffd700" stroke-width="1"/>
+                <text x="250" y="23" text-anchor="middle" font-size="7" fill="#ffd700" font-weight="700">40-pin GPIO Header</text>
+                <!-- SoC -->
+                <rect x="260" y="60" width="60" height="60" rx="6" fill="rgba(197,26,74,0.15)" stroke="#c51a4a" stroke-width="1.5"/>
+                <text x="290" y="86" text-anchor="middle" font-size="8" fill="#e8305e" font-weight="700">BCM2712</text>
+                <text x="290" y="98" text-anchor="middle" font-size="6" fill="#94a3b8">SoC</text>
+                <!-- RP1 -->
+                <rect x="350" y="70" width="50" height="40" rx="4" fill="rgba(255,215,0,0.1)" stroke="#ffd700" stroke-width="1"/>
+                <text x="375" y="90" text-anchor="middle" font-size="7" fill="#ffd700" font-weight="700">RP1</text>
+                <text x="375" y="100" text-anchor="middle" font-size="5.5" fill="#94a3b8">I/O chip</text>
+                <!-- USB ports -->
+                <rect x="500" y="20" width="28" height="50" rx="3" fill="rgba(100,149,237,0.1)" stroke="#6495ed" stroke-width="1"/>
+                <text x="514" y="50" text-anchor="middle" font-size="6" fill="#6495ed">USB 3</text>
+                <rect x="500" y="80" width="28" height="50" rx="3" fill="rgba(100,149,237,0.08)" stroke="#6495ed" stroke-width="0.8"/>
+                <text x="514" y="110" text-anchor="middle" font-size="6" fill="#6495ed">USB 2</text>
+                <!-- Ethernet -->
+                <rect x="500" y="140" width="28" height="36" rx="3" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1"/>
+                <text x="514" y="162" text-anchor="middle" font-size="6" fill="#3ab577">GbE</text>
+                <!-- HDMI -->
+                <rect x="220" y="170" width="24" height="14" rx="2" fill="rgba(167,139,250,0.12)" stroke="#a78bfa" stroke-width="1"/>
+                <rect x="255" y="170" width="24" height="14" rx="2" fill="rgba(167,139,250,0.12)" stroke="#a78bfa" stroke-width="1"/>
+                <text x="260" y="198" text-anchor="middle" font-size="6" fill="#a78bfa">Micro HDMI x2</text>
+                <!-- Power -->
+                <rect x="160" y="170" width="20" height="14" rx="2" fill="rgba(255,215,0,0.12)" stroke="#ffd700" stroke-width="1"/>
+                <text x="170" y="198" text-anchor="middle" font-size="6" fill="#ffd700">USB-C Power</text>
+                <!-- microSD -->
+                <rect x="140" y="90" width="16" height="24" rx="2" fill="rgba(247,147,22,0.12)" stroke="#f97316" stroke-width="1"/>
+                <text x="120" y="106" text-anchor="middle" font-size="6" fill="#f97316">SD</text>
+                <!-- RAM -->
+                <rect x="200" y="55" width="40" height="25" rx="3" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="0.8"/>
+                <text x="220" y="71" text-anchor="middle" font-size="6" fill="#3ab577">RAM</text>
+                <!-- Labels outside -->
+                <text x="600" y="50" font-size="7" fill="#6495ed">2x USB 3.0 (blue)</text>
+                <text x="600" y="110" font-size="7" fill="#6495ed">2x USB 2.0 (black)</text>
+                <text x="600" y="162" font-size="7" fill="#3ab577">Gigabit Ethernet</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">GPIO (General Purpose I/O)</div>
+                <div class="card-desc">40 pins: power (3.3V, 5V, GND), digital I/O, SPI, I2C, UART, PWM. This is what makes the Pi a hardware platform, not just a small PC. You connect sensors, motors, LEDs, and displays through GPIO.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Storage: microSD</div>
+                <div class="card-desc">The Pi boots from a microSD card. The OS, your files, and all software live on this card. Use A1/A2 rated cards (32 GB minimum) for acceptable random I/O speed. Pi 5 also supports NVMe via PCIe.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- GPIO DEEP DIVE ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title"><span class="accent">GPIO</span> Pin Header</div>
+        <div class="slide-subtitle">40 pins that connect the Pi to the physical world -- the feature that separates it from a regular PC.</div>
+
+        <div class="hex-grid">
+            <div class="hex-cell">
+                <div class="hex-title">Power Pins</div>
+                <div class="hex-desc">2x 5V, 2x 3.3V, 8x GND. These supply power to external circuits. 5V comes directly from the power supply; 3.3V is regulated by the SoC.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Digital I/O</div>
+                <div class="hex-desc">26 GPIO pins can be individually set as input or output. 3.3V logic -- do NOT connect 5V signals directly to GPIO pins or you will damage the SoC.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">I2C (GPIO 2, 3)</div>
+                <div class="hex-desc">Two-wire bus for sensors and displays. SDA (data) and SCL (clock). Connect dozens of I2C devices on the same two wires using different addresses.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">SPI (GPIO 7-11)</div>
+                <div class="hex-desc">High-speed serial for TFT displays, ADCs, and fast sensors. Uses MOSI, MISO, SCLK, and CE pins. Faster than I2C but uses more wires.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">UART (GPIO 14, 15)</div>
+                <div class="hex-desc">Serial TX/RX for GPS modules, Arduino communication, and serial consoles. The simplest communication protocol -- just two wires plus ground.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">PWM (GPIO 12, 13, 18, 19)</div>
+                <div class="hex-desc">Hardware PWM for servo motors, LED dimming, and motor speed control. Two independent PWM channels with configurable frequency and duty cycle.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Critical Warning</div>
+            GPIO pins are 3.3V logic. Connecting a 5V signal to any GPIO pin will permanently damage the SoC. There is no built-in protection. When interfacing with 5V devices, use a level shifter or voltage divider.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- PI vs PC ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Pi vs. <span class="accent">Traditional PC</span></div>
+        <div class="slide-subtitle">Same category (computer), different design philosophy entirely.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Raspberry Pi</div>
+                <div class="card-desc">SoC (all-in-one chip). ARM architecture. 5-15W power. No internal storage -- boots from microSD or NVMe. GPIO for hardware projects. $15-$80. Passive or active cooling optional.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Desktop / Laptop PC</div>
+                <div class="card-desc">Separate CPU, GPU, RAM, chipset. x86 architecture (Intel/AMD). 65-250W power. Internal SSD/HDD. No GPIO. $500-$3000+. Active cooling required.</div>
+            </div>
+        </div>
+
+        <div class="step-list">
+            <div class="step-row">
+                <span class="step-num">1</span>
+                <span class="step-text"><strong>Architecture:</strong> Pi uses ARM (RISC) -- same as phones. PCs use x86 (CISC) -- more powerful per core but far less energy efficient. Software must be compiled for the correct architecture.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">2</span>
+                <span class="step-text"><strong>Power:</strong> Pi 5 draws 5W idle, 12W max. A desktop CPU alone draws 65-125W. This makes the Pi viable for always-on servers, remote sensors, and battery projects.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">3</span>
+                <span class="step-text"><strong>Upgradeability:</strong> A PC lets you swap CPU, GPU, RAM, and storage. A Pi has everything soldered -- nothing is upgradeable after purchase. Choose your RAM tier at buy time.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">4</span>
+                <span class="step-text"><strong>GPIO:</strong> This is the Pi's killer feature for hardware projects. A PC has no general-purpose I/O pins. The Pi can directly read sensors and control motors without additional microcontrollers.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- PI vs MICROCONTROLLER ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Pi vs. <span class="accent">Microcontroller</span></div>
+        <div class="slide-subtitle">A Raspberry Pi is NOT an Arduino. They solve different problems.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Raspberry Pi (Computer)</div>
+                <div class="card-desc">Full OS (Linux). Multitasking. File system. Networking stack. GUI. Python, C, Java, Node.js. Boots in 15-30 seconds. Draws 5-15W. Can be corrupted by power loss during writes.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Arduino (Microcontroller)</div>
+                <div class="card-desc">No OS. One program in an infinite loop. No file system. No multitasking. C/C++ only. Starts instantly on power-up. Draws milliwatts. Cannot be corrupted by power loss.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">When to Use Which</div>
+            Use a <strong>Pi</strong> when you need networking, a GUI, data processing, databases, web servers, or camera/video. Use an <strong>Arduino</strong> for real-time sensor reading, motor control, simple automation, and projects that must survive power loss gracefully. Many projects use both -- the Pi as the brain, the Arduino as the reflexes.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- HISTORY ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">History of the <span class="accent">Raspberry Pi</span></div>
+        <div class="slide-subtitle">From a $35 educational experiment to a global computing platform.</div>
+
+        <div class="step-list">
+            <div class="step-row">
+                <span class="step-num">2012</span>
+                <span class="step-text"><strong>Model B</strong> -- ARM11 @ 700 MHz, 256 MB RAM, 2x USB, 100M Ethernet. $35. Sold 100,000 units on launch day. Originally designed for UK schools.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">2014</span>
+                <span class="step-text"><strong>Model B+</strong> -- Same SoC, but 4x USB ports, 40-pin GPIO (up from 26), microSD instead of full SD, better power regulation. The GPIO standardization that still holds today.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">2015</span>
+                <span class="step-text"><strong>Pi 2</strong> -- Quad-core Cortex-A7 @ 900 MHz, 1 GB RAM. First multi-core Pi. Real performance jump for multitasking and desktop use.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">2016</span>
+                <span class="step-text"><strong>Pi 3</strong> -- Cortex-A53, 64-bit for the first time. Built-in Wi-Fi and Bluetooth. No more USB dongles for wireless. The model that pushed IoT adoption.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">2019</span>
+                <span class="step-text"><strong>Pi 4</strong> -- Cortex-A72 @ 1.8 GHz, up to 8 GB RAM, USB 3.0, Gigabit Ethernet, dual 4K HDMI. Desktop replacement territory. USB-C power.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">2023</span>
+                <span class="step-text"><strong>Pi 5</strong> -- Cortex-A76 @ 2.4 GHz, RP1 southbridge, PCIe 2.0, dedicated power button. 2-3x faster than Pi 4. The current flagship.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- USE CASES ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Real-World <span class="accent">Use Cases</span></div>
+        <div class="slide-subtitle">Millions of Pis deployed across education, industry, and home projects.</div>
+
+        <div class="hex-grid">
+            <div class="hex-cell">
+                <div class="hex-title">Education</div>
+                <div class="hex-desc">Computer science classrooms. Programming (Python, Scratch). Affordable lab computers. The original mission -- and still the largest use case.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Home Server</div>
+                <div class="hex-desc">Pi-hole (network ad blocker), NAS (file server), Home Assistant (smart home hub), Nextcloud (personal cloud). Always-on, silent, low-power.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">IoT / Sensors</div>
+                <div class="hex-desc">Weather stations, environmental monitoring, security cameras (MotionEye), irrigation controllers. GPIO + networking + Linux = infinite possibility.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Retro Gaming</div>
+                <div class="hex-desc">RetroPie and Recalbox turn a Pi into a retro game console emulating NES, SNES, Genesis, N64, PlayStation, and more. Dedicated community.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Industrial</div>
+                <div class="hex-desc">Raspberry Pi Compute Module in commercial products. Digital signage, kiosks, POS systems, factory automation HMIs. The Compute Module is designed for embedding.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Cybersecurity</div>
+                <div class="hex-desc">Kali Linux on Pi for penetration testing. Network monitoring. Honeypots. Portable hacking lab. Low cost makes it disposable for field operations.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- WHAT YOU NEED ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">What You <span class="accent">Need</span> to Get Started</div>
+        <div class="slide-subtitle">The minimum hardware to power up a Raspberry Pi.</div>
+
+        <div class="step-list">
+            <div class="step-row">
+                <span class="step-num">1</span>
+                <span class="step-text"><strong>Raspberry Pi board</strong> -- Pi 4 (4 GB) or Pi 5 (4 GB) recommended for this course. Budget: $60-$80.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">2</span>
+                <span class="step-text"><strong>microSD card</strong> -- 32 GB minimum, A1 or A2 rated for random I/O performance. The Pi's "hard drive." Budget: $8-$15.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">3</span>
+                <span class="step-text"><strong>USB-C power supply</strong> -- 5V/3A for Pi 4, 5V/5A for Pi 5. Use the official Raspberry Pi PSU for guaranteed compatibility. Budget: $8-$12.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">4</span>
+                <span class="step-text"><strong>micro HDMI to HDMI cable</strong> -- to connect a monitor or TV. Both Pi 4 and Pi 5 use micro HDMI (not standard HDMI). Budget: $5-$10.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">5</span>
+                <span class="step-text"><strong>USB keyboard and mouse</strong> -- any standard USB keyboard and mouse will work. Wireless USB dongles work too. Budget: use what you have.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">6</span>
+                <span class="step-text"><strong>A separate computer</strong> -- to flash the OS image to the microSD card using Raspberry Pi Imager. Windows, macOS, or Linux.</span>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Optional but Recommended</div>
+            A case with cooling (heatsink or fan) for the Pi. A Pi 5 Active Cooler or Pi 4 aluminum case keeps thermals under control during sustained load. Without cooling, the Pi will thermal-throttle under heavy use.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- SUMMARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Chapter 1 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Everything you need to know before powering on.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>The Raspberry Pi is a single-board computer.</strong> A complete Linux system on a credit-card-sized board. It is NOT a microcontroller -- it runs a full OS with multitasking, a file system, and networking.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Every Pi is powered by a Broadcom SoC.</strong> CPU, GPU, and I/O controller integrated on one chip. ARM architecture, same as smartphones. The Pi 5 uses BCM2712 with quad Cortex-A76 at 2.4 GHz.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>The 40-pin GPIO header is the Pi's killer feature.</strong> 26 programmable I/O pins plus I2C, SPI, UART, and PWM. 3.3V logic only -- 5V will destroy the SoC.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Three models matter today.</strong> Pi 5 (flagship, $60-$80), Pi 4 (workhorse, $35-$75), Pi Zero 2 W (embedded, $15). All share the 40-pin GPIO standard.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>The Pi bridges software and hardware.</strong> Unlike a PC (no GPIO) or an Arduino (no OS), the Pi gives you a full Linux environment with direct hardware control. Education, IoT, servers, and industry all benefit.</span></div>
+        </div>
+
+        <div class="box box-red" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Chapter 2 -- First Boot</strong> &nbsp;|&nbsp; Pi Imager, SD Flashing, Peripherals, First Boot Wizard, Headless Setup
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; PiVerse</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pv-f-01-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>

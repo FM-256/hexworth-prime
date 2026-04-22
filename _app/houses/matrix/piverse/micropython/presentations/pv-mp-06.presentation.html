@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reaction Game | PiVerse MicroPython Ch 6</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; } html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0d0a0c 0%, #140f12 50%, #0d0a0c 100%); color: #e0e0e0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #c51a4a; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(13,10,12,0.95); border-top: 1px solid rgba(197,26,74,0.15); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.07); color: #a0909a; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(197,26,74,0.15); color: #c51a4a; border-color: #c51a4a; } .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #6a5a64; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #c51a4a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; } .slide-title .accent { color: #c51a4a; }
+        .slide-subtitle { font-size: 0.95rem; color: #a0909a; text-align: center; }
+        .scenario-strip { background: rgba(197,26,74,0.08); border-left: 3px solid #c51a4a; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #d4b0c0; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; } .box-red { background: rgba(197,26,74,0.08); border: 1px solid rgba(197,26,74,0.3); color: #e8c0d0; } .box-green { background: rgba(58,181,119,0.08); border: 1px solid rgba(58,181,119,0.35); color: #d1fae5; } .box-gold { background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; } .title-hero .big-title .accent { color: #c51a4a; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #6a5a64; } .title-meta-row span { border-left: 2px solid #2a2024; padding-left: 28px; } .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; } .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #c51a4a; } .card:hover { background: rgba(255,255,255,0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; } .card .card-desc { font-size: 0.82rem; color: #a0909a; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-gold { border-left-color: #ffd700; } .card.c-cyan { border-left-color: #06b6d4; } .card.c-orange { border-left-color: #f97316; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; } .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #c51a4a; min-width: 22px; text-align: right; flex-shrink: 0; } .fact-text { color: #d0c0ca; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #c51a4a; background: rgba(197,26,74,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .ic { font-family: 'Courier New', monospace; color: #c51a4a; background: rgba(197,26,74,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; } .step-row { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num { background: rgba(197,26,74,0.12); border: 1px solid rgba(197,26,74,0.4); color: #c51a4a; font-weight: 700; font-size: 0.78rem; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px; }
+        .step-text { color: #d0c0ca; line-height: 1.4; } .step-text strong { color: #f1f5f9; }
+        .code-block { background: rgba(0,0,0,0.35); border: 1px solid rgba(197,26,74,0.2); border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #c51a4a; line-height: 1.6; white-space: pre; }
+        .code-block .cm { color: #6a5a64; } .code-block .kw { color: #c792ea; } .code-block .fn { color: #c51a4a; } .code-block .st { color: #c3e88d; } .code-block .nu { color: #f0883e; }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Reaction Game -- PiVerse MicroPython Chapter 6</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<section class="slide active" id="slide-1"><div class="slide-inner"><div class="slide-meta">Slide 1 of 12 | PiVerse | MicroPython | Chapter 6</div>
+<div class="title-hero">
+    <svg width="300" height="100" viewBox="0 0 300 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <circle cx="80" cy="50" r="25" fill="rgba(197,26,74,0.06)" stroke="#c51a4a" stroke-width="2"><animate attributeName="r" values="25;28;25" dur="1s" repeatCount="indefinite"/></circle>
+        <text x="80" y="54" text-anchor="middle" font-size="10" fill="#c51a4a" font-weight="700">LED</text>
+        <text x="150" y="54" text-anchor="middle" font-size="20" fill="#a0909a">?</text>
+        <rect x="190" y="30" width="60" height="40" rx="8" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="2" style="animation: boxGrow 0.4s ease forwards 0.3s; opacity:0;"/>
+        <text x="220" y="54" text-anchor="middle" font-size="10" fill="#3ab577" font-weight="700">PRESS</text>
+    </svg>
+    <div class="big-title"><span class="accent">Reaction</span> Game</div>
+    <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">Random Timing | Millisecond Measurement | Scoring | Cheat Detection</div>
+</div>
+<div class="scenario-strip">LED lights up after a random delay. You press the button as fast as possible. The Pico measures your reaction time in milliseconds. This project combines everything: GPIO, timing, randomness, input, output, and game logic.</div>
+<div class="title-meta-row"><span>12 Slides</span><span>PiVerse MicroPython</span><span>Chapter 6 of 6</span><span>Matrix House</span></div>
+</div></section>
+
+<section class="slide" id="slide-2"><div class="slide-inner"><div class="slide-meta">Slide 2 of 12</div><div class="slide-title">Game <span class="accent">Flow</span></div><div class="slide-subtitle">Five phases in each round of the reaction game.</div>
+<div class="step-list">
+<div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>WAIT</strong> -- All LEDs off. Player waits. Random delay (2-5 seconds) to prevent anticipation.</span></div>
+<div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>SIGNAL</strong> -- LED turns on. Timer starts. The clock is running from this exact millisecond.</span></div>
+<div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>REACT</strong> -- Player presses button. Timer stops. Reaction time = press time - signal time.</span></div>
+<div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>RESULT</strong> -- Display reaction time in milliseconds via serial. Show rating (fast/medium/slow).</span></div>
+<div class="step-row"><span class="step-num">5</span><span class="step-text"><strong>RESET</strong> -- Wait for button release, brief pause, then start next round.</span></div>
+</div>
+</div></section>
+
+<section class="slide" id="slide-3"><div class="slide-inner"><div class="slide-meta">Slide 3 of 12</div><div class="slide-title"><span class="accent">Random</span> Delays</div><div class="slide-subtitle">urandom provides randomness. Without it, players learn the timing and anticipate the signal.</div>
+<div class="code-block"><span class="kw">import</span> urandom
+<span class="kw">import</span> utime
+
+<span class="cm"># Random integer between 2000 and 5000 (milliseconds)</span>
+delay = urandom.randint(<span class="nu">2000</span>, <span class="nu">5000</span>)
+utime.sleep_ms(delay)
+
+<span class="cm"># Alternative: using getrandbits</span>
+<span class="cm"># Generate a random 10-bit number (0-1023)</span>
+<span class="cm"># Scale to 2000-5000 range</span>
+raw = urandom.getrandbits(<span class="nu">10</span>)
+delay = <span class="nu">2000</span> + (raw * <span class="nu">3000</span>) // <span class="nu">1024</span></div>
+<div class="box box-gold"><div class="box-label">True Randomness</div>The RP2040 has a hardware random number generator (ROSC-based). <span class="ic">urandom</span> uses this hardware source, not a pseudo-random algorithm. The delay is genuinely unpredictable.</div>
+</div></section>
+
+<section class="slide" id="slide-4"><div class="slide-inner"><div class="slide-meta">Slide 4 of 12</div><div class="slide-title">Measuring <span class="accent">Reaction Time</span></div><div class="slide-subtitle">Record the exact millisecond when the LED turns on. Record the exact millisecond when the button is pressed. Subtract.</div>
+<div class="code-block"><span class="cm"># Core measurement logic</span>
+led.value(<span class="nu">1</span>)
+start = utime.ticks_ms()          <span class="cm"># LED on -- clock starts</span>
+
+<span class="kw">while</span> button.value() == <span class="nu">1</span>:        <span class="cm"># Wait for press</span>
+    <span class="kw">pass</span>
+
+end = utime.ticks_ms()            <span class="cm"># Button pressed -- clock stops</span>
+reaction = utime.ticks_diff(end, start)
+
+<span class="fn">print</span>(f<span class="st">"Reaction time: {reaction} ms"</span>)
+led.value(<span class="nu">0</span>)</div>
+<div class="box box-red"><div class="box-label">Precision</div><code>ticks_ms()</code> has 1-millisecond resolution. For most human reaction tests (150-400 ms), this is more than adequate. For sub-millisecond precision, use <code>ticks_us()</code> (microseconds).</div>
+</div></section>
+
+<section class="slide" id="slide-5"><div class="slide-inner"><div class="slide-meta">Slide 5 of 12</div><div class="slide-title">Cheat <span class="accent">Detection</span></div><div class="slide-subtitle">If the player presses the button before the LED turns on, they are cheating. Detect and penalize.</div>
+<div class="code-block"><span class="cm"># During the random wait period, check for early press</span>
+<span class="kw">def</span> <span class="fn">wait_random</span>():
+    delay = urandom.randint(<span class="nu">2000</span>, <span class="nu">5000</span>)
+    start = utime.ticks_ms()
+    <span class="kw">while</span> utime.ticks_diff(utime.ticks_ms(), start) < delay:
+        <span class="kw">if</span> button.value() == <span class="nu">0</span>:
+            <span class="fn">print</span>(<span class="st">"Too early! Cheater detected."</span>)
+            <span class="cm"># Blink LED rapidly as penalty</span>
+            <span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(<span class="nu">6</span>):
+                led.toggle()
+                utime.sleep_ms(<span class="nu">100</span>)
+            led.value(<span class="nu">0</span>)
+            <span class="kw">return</span> <span class="kw">False</span>
+    <span class="kw">return</span> <span class="kw">True</span></div>
+</div></section>
+
+<section class="slide" id="slide-6"><div class="slide-inner"><div class="slide-meta">Slide 6 of 12</div><div class="slide-title">Scoring <span class="accent">System</span></div><div class="slide-subtitle">Categorize reaction times and track the best score across multiple rounds.</div>
+<div class="code-block"><span class="kw">def</span> <span class="fn">rate_reaction</span>(ms):
+    <span class="kw">if</span> ms < <span class="nu">200</span>:
+        <span class="kw">return</span> <span class="st">"LIGHTNING"</span>
+    <span class="kw">elif</span> ms < <span class="nu">300</span>:
+        <span class="kw">return</span> <span class="st">"FAST"</span>
+    <span class="kw">elif</span> ms < <span class="nu">400</span>:
+        <span class="kw">return</span> <span class="st">"AVERAGE"</span>
+    <span class="kw">else</span>:
+        <span class="kw">return</span> <span class="st">"SLOW"</span>
+
+<span class="cm"># Track best score</span>
+best = <span class="nu">9999</span>
+scores = []
+
+<span class="cm"># After each round:</span>
+scores.append(reaction)
+<span class="kw">if</span> reaction < best:
+    best = reaction
+    <span class="fn">print</span>(f<span class="st">"New best: {best} ms!"</span>)
+
+<span class="cm"># After all rounds:</span>
+avg = <span class="fn">sum</span>(scores) // <span class="fn">len</span>(scores)
+<span class="fn">print</span>(f<span class="st">"Average: {avg} ms  Best: {best} ms"</span>)</div>
+</div></section>
+
+<section class="slide" id="slide-7"><div class="slide-inner"><div class="slide-meta">Slide 7 of 12</div><div class="slide-title">Multi-Round <span class="accent">Game Loop</span></div><div class="slide-subtitle">Run 5 rounds, track scores, show final results.</div>
+<div class="code-block">ROUNDS = <span class="nu">5</span>
+scores = []
+
+<span class="fn">print</span>(<span class="st">"=== REACTION GAME ==="</span>)
+<span class="fn">print</span>(f<span class="st">"Press button when LED lights up. {ROUNDS} rounds."</span>)
+
+<span class="kw">for</span> rnd <span class="kw">in</span> <span class="fn">range</span>(<span class="nu">1</span>, ROUNDS + <span class="nu">1</span>):
+    <span class="fn">print</span>(f<span class="st">"\nRound {rnd}/{ROUNDS} -- Get ready..."</span>)
+    <span class="kw">if</span> <span class="kw">not</span> wait_random():
+        scores.append(<span class="nu">-1</span>)  <span class="cm"># Foul</span>
+        <span class="kw">continue</span>
+
+    reaction = measure_reaction()
+    scores.append(reaction)
+    rating = rate_reaction(reaction)
+    <span class="fn">print</span>(f<span class="st">"  {reaction} ms -- {rating}"</span>)
+    utime.sleep(<span class="nu">1</span>)
+
+<span class="cm"># Final results</span>
+valid = [s <span class="kw">for</span> s <span class="kw">in</span> scores <span class="kw">if</span> s > <span class="nu">0</span>]
+<span class="fn">print</span>(f<span class="st">"\nBest: {min(valid)} ms"</span>)
+<span class="fn">print</span>(f<span class="st">"Average: {sum(valid)//len(valid)} ms"</span>)</div>
+</div></section>
+
+<section class="slide" id="slide-8"><div class="slide-inner"><div class="slide-meta">Slide 8 of 12</div><div class="slide-title">LED Feedback <span class="accent">Patterns</span></div><div class="slide-subtitle">Use visual feedback to communicate game state without the serial console.</div>
+<div class="card-grid-2">
+<div class="card"><div class="card-label">Waiting</div><div class="card-desc">LED off. Player is waiting. The suspense is the random delay.</div></div>
+<div class="card c-green"><div class="card-label">Signal</div><div class="card-desc">LED on solid. React now. The clock is running.</div></div>
+<div class="card c-gold"><div class="card-label">Good Result</div><div class="card-desc">LED blinks slowly 3 times. Under 300 ms. Well done.</div></div>
+<div class="card c-orange"><div class="card-label">Foul</div><div class="card-desc">LED blinks rapidly 6 times. Player pressed too early. Round does not count.</div></div>
+</div>
+</div></section>
+
+<section class="slide" id="slide-9"><div class="slide-inner"><div class="slide-meta">Slide 9 of 12</div><div class="slide-title">Adding a <span class="accent">Countdown</span></div><div class="slide-subtitle">Three quick blinks before the random wait begins. Tells the player the round is starting.</div>
+<div class="code-block"><span class="kw">def</span> <span class="fn">countdown</span>():
+    <span class="cm"># Three blinks: "ready... set..."</span>
+    <span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(<span class="nu">3</span>):
+        led.value(<span class="nu">1</span>)
+        utime.sleep_ms(<span class="nu">150</span>)
+        led.value(<span class="nu">0</span>)
+        utime.sleep_ms(<span class="nu">300</span>)
+    <span class="cm"># Now begin the random wait</span>
+    <span class="cm"># Player knows: after the last blink,</span>
+    <span class="cm"># the LED will turn on ONCE -- that is the signal</span></div>
+<div class="box box-green"><div class="box-label">User Experience</div>Without the countdown, players do not know when the round starts. The three blinks serve as a "ready, set..." cue. The LED staying off after the blinks means "wait for the signal." Simple but effective feedback design.</div>
+</div></section>
+
+<section class="slide" id="slide-10"><div class="slide-inner"><div class="slide-meta">Slide 10 of 12</div><div class="slide-title"><span class="accent">Timeout</span> Handling</div><div class="slide-subtitle">If the player does not press the button within a reasonable time, end the round.</div>
+<div class="code-block"><span class="kw">def</span> <span class="fn">measure_reaction</span>():
+    led.value(<span class="nu">1</span>)
+    start = utime.ticks_ms()
+
+    <span class="kw">while</span> button.value() == <span class="nu">1</span>:
+        <span class="kw">if</span> utime.ticks_diff(utime.ticks_ms(), start) > <span class="nu">3000</span>:
+            led.value(<span class="nu">0</span>)
+            <span class="fn">print</span>(<span class="st">"Timeout! Too slow."</span>)
+            <span class="kw">return</span> <span class="nu">-1</span>
+
+    end = utime.ticks_ms()
+    led.value(<span class="nu">0</span>)
+    <span class="kw">return</span> utime.ticks_diff(end, start)</div>
+<div class="box box-gold"><div class="box-label">Why Timeout?</div>Without a timeout, the program hangs forever if the player walks away. A 3-second timeout is generous -- average human reaction is 200-300 ms. Anything over 1 second is clearly a missed round.</div>
+</div></section>
+
+<section class="slide" id="slide-11"><div class="slide-inner"><div class="slide-meta">Slide 11 of 12</div><div class="slide-title">Complete <span class="accent">Architecture</span></div><div class="slide-subtitle">All the pieces assembled into a clean program structure.</div>
+<div class="card-grid-2">
+<div class="card"><div class="card-label">Functions</div><div class="card-desc"><span class="ic">countdown()</span>, <span class="ic">wait_random()</span>, <span class="ic">measure_reaction()</span>, <span class="ic">rate_reaction()</span>, <span class="ic">show_results()</span>. Each function does one thing. The main loop calls them in sequence.</div></div>
+<div class="card c-green"><div class="card-label">Data</div><div class="card-desc">Scores list, round counter, best score, configuration constants (ROUNDS, TIMEOUT_MS, MIN_DELAY, MAX_DELAY). Separate data from logic for easy tuning.</div></div>
+<div class="card c-gold"><div class="card-label">Error Handling</div><div class="card-desc">Cheat detection returns False. Timeout returns -1. Score filtering excludes invalid rounds. The game handles every edge case gracefully.</div></div>
+<div class="card c-cyan"><div class="card-label">Modularity</div><div class="card-desc">Each function is testable independently in the REPL. Call <span class="ic">measure_reaction()</span> alone to test timing. Call <span class="ic">rate_reaction(250)</span> to test scoring.</div></div>
+</div>
+</div></section>
+
+<section class="slide" id="slide-12"><div class="slide-inner"><div class="slide-meta">Slide 12 of 12</div><div class="slide-title">Key Takeaways: <span class="accent">Reaction Game</span></div><div class="slide-subtitle">Everything you have learned, combined into one project.</div>
+<div class="summary-facts">
+<div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong><code>urandom.randint()</code> for unpredictable delays.</strong> Hardware RNG on the RP2040 provides genuine randomness. Prevents players from anticipating the signal.</span></div>
+<div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong><code>ticks_ms()</code> + <code>ticks_diff()</code> for precision timing.</strong> 1-millisecond resolution. Record start, record end, subtract. Handles wraparound correctly.</span></div>
+<div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Cheat detection during the wait period.</strong> Poll the button while the random delay runs. Early press = foul. Teaches defensive input handling.</span></div>
+<div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Timeout prevents hangs.</strong> If no press within 3 seconds, end the round. Never let user input block the program indefinitely.</span></div>
+<div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Functions + data = clean architecture.</strong> Each function does one thing. Configuration is separate from logic. The entire game is testable piece by piece in the REPL.</span></div>
+</div>
+<div class="box box-red" style="font-size:0.85rem; text-align:center;"><strong>Track 2 Complete</strong> | You have covered hardware, software, digital I/O, PWM, analog, state machines, and game logic.</div>
+<div style="text-align:center; margin-top:6px;"><button id="complete-btn" onclick="completeModule()">Mark Complete</button></div>
+</div></section>
+
+<nav id="nav-bar"><a href="../../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; PiVerse</button></a><button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button><span id="slide-counter">Slide 1 of 12</span><button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button></nav>
+<script>let currentSlide=1;const TOTAL_SLIDES=12;function goToSlide(n){if(n<1||n>TOTAL_SLIDES)return;const p=document.getElementById('slide-'+currentSlide);if(p)p.classList.remove('active');currentSlide=n;const nx=document.getElementById('slide-'+currentSlide);if(nx)nx.classList.add('active');document.getElementById('progress-bar').style.width=(currentSlide/TOTAL_SLIDES)*100+'%';document.getElementById('slide-counter').textContent='Slide '+currentSlide+' of '+TOTAL_SLIDES;document.getElementById('prev-btn').disabled=(currentSlide===1);document.getElementById('next-btn').disabled=(currentSlide===TOTAL_SLIDES);const cb=document.getElementById('complete-btn');if(cb)cb.style.display=(currentSlide===TOTAL_SLIDES)?'inline-block':'none';}document.addEventListener('keydown',function(e){if(e.key==='ArrowRight'){e.preventDefault();goToSlide(currentSlide+1);}else if(e.key==='ArrowLeft'){e.preventDefault();goToSlide(currentSlide-1);}});goToSlide(1);</script>
+<script>function completeModule(){if(typeof ModuleProgress!=='undefined')ModuleProgress.complete('matrix','pv-mp-06-pres',{returnUrl:'../../index.html'});}</script>
+</body>
+</html>

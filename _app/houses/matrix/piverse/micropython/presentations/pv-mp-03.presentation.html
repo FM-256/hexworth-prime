@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital I/O | PiVerse MicroPython Ch 3</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0d0a0c 0%, #140f12 50%, #0d0a0c 100%); color: #e0e0e0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #c51a4a; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(13,10,12,0.95); border-top: 1px solid rgba(197,26,74,0.15); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.07); color: #a0909a; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(197,26,74,0.15); color: #c51a4a; border-color: #c51a4a; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #6a5a64; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #c51a4a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c51a4a; }
+        .slide-subtitle { font-size: 0.95rem; color: #a0909a; text-align: center; }
+        .scenario-strip { background: rgba(197,26,74,0.08); border-left: 3px solid #c51a4a; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #d4b0c0; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-red { background: rgba(197,26,74,0.08); border: 1px solid rgba(197,26,74,0.3); color: #e8c0d0; }
+        .box-green { background: rgba(58,181,119,0.08); border: 1px solid rgba(58,181,119,0.35); color: #d1fae5; }
+        .box-gold { background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c51a4a; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #6a5a64; }
+        .title-meta-row span { border-left: 2px solid #2a2024; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #c51a4a; }
+        .card:hover { background: rgba(255,255,255,0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc { font-size: 0.82rem; color: #a0909a; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-gold { border-left-color: #ffd700; } .card.c-cyan { border-left-color: #06b6d4; } .card.c-orange { border-left-color: #f97316; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #c51a4a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #d0c0ca; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #c51a4a; background: rgba(197,26,74,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .ic { font-family: 'Courier New', monospace; color: #c51a4a; background: rgba(197,26,74,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num { background: rgba(197,26,74,0.12); border: 1px solid rgba(197,26,74,0.4); color: #c51a4a; font-weight: 700; font-size: 0.78rem; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px; }
+        .step-text { color: #d0c0ca; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+        .code-block { background: rgba(0,0,0,0.35); border: 1px solid rgba(197,26,74,0.2); border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #c51a4a; line-height: 1.6; white-space: pre; }
+        .code-block .cm { color: #6a5a64; } .code-block .kw { color: #c792ea; } .code-block .fn { color: #c51a4a; } .code-block .st { color: #c3e88d; } .code-block .nu { color: #f0883e; }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes glowPulse { 0%, 100% { filter: drop-shadow(0 0 4px rgba(197,26,74,0.3)); } 50% { filter: drop-shadow(0 0 14px rgba(197,26,74,0.9)); } }
+        @keyframes ledBlink { 0%, 49% { fill: #ef4444; filter: drop-shadow(0 0 8px #ef4444); } 50%, 100% { fill: #3a1010; filter: none; } }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Digital I/O -- PiVerse MicroPython Chapter 3</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 | PiVerse | MicroPython | Chapter 3</div>
+        <div class="title-hero">
+            <svg width="340" height="110" viewBox="0 0 340 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- LED symbol -->
+                <circle cx="110" cy="55" r="18" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="2" style="animation: ledBlink 1s ease infinite;"/>
+                <text x="110" y="59" text-anchor="middle" font-size="9" fill="#ef4444" font-weight="700">LED</text>
+                <!-- Arrow -->
+                <line x1="135" y1="55" x2="165" y2="55" stroke="#c51a4a" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <!-- Button symbol -->
+                <rect x="170" y="37" width="60" height="36" rx="6" fill="rgba(197,26,74,0.06)" stroke="#c51a4a" stroke-width="1.5"/>
+                <text x="200" y="59" text-anchor="middle" font-size="9" fill="#c51a4a" font-weight="700">BUTTON</text>
+            </svg>
+            <div class="big-title"><span class="accent">Digital I/O:</span> LEDs and Buttons</div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">GPIO Output | Input | Pull-Up/Down | Debouncing</div>
+        </div>
+        <div class="scenario-strip">Your first physical interaction with the world. Set a pin HIGH to light an LED. Read a pin to detect a button press. Two operations that form the foundation of every embedded system.</div>
+        <div class="title-meta-row">
+            <span>12 Slides</span><span>PiVerse MicroPython</span><span>Chapter 3 of 6</span><span>Matrix House</span>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">GPIO <span class="accent">Output</span>: Controlling an LED</div>
+        <div class="slide-subtitle">Pin(pin_number, Pin.OUT) configures a pin to send voltage. value(1) = HIGH, value(0) = LOW.</div>
+        <div class="code-block"><span class="kw">from</span> machine <span class="kw">import</span> Pin
+<span class="kw">import</span> utime
+
+<span class="cm"># On-board LED: GP25 (Pico) or "LED" (Pico W)</span>
+led = Pin(<span class="nu">25</span>, Pin.OUT)
+
+<span class="cm"># Turn on</span>
+led.value(<span class="nu">1</span>)
+
+<span class="cm"># Turn off</span>
+led.value(<span class="nu">0</span>)
+
+<span class="cm"># Toggle shortcut</span>
+led.toggle()</div>
+        <div class="box box-red">
+            <div class="box-label">Pin.OUT</div>
+            When a pin is configured as OUTPUT, the RP2040 drives it to 3.3V (HIGH) or 0V (LOW). The pin actively pushes current. Never connect two output pins together -- they will fight and potentially damage the chip.
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Blink: The <span class="accent">Hello World</span> of Hardware</div>
+        <div class="slide-subtitle">Turn the LED on, wait, turn it off, wait, repeat. The fundamental pattern of embedded programming.</div>
+        <div class="code-block"><span class="kw">from</span> machine <span class="kw">import</span> Pin
+<span class="kw">import</span> utime
+
+led = Pin(<span class="nu">25</span>, Pin.OUT)
+
+<span class="kw">while</span> <span class="kw">True</span>:
+    led.value(<span class="nu">1</span>)         <span class="cm"># LED on</span>
+    utime.sleep(<span class="nu">0.5</span>)    <span class="cm"># Wait 500ms</span>
+    led.value(<span class="nu">0</span>)         <span class="cm"># LED off</span>
+    utime.sleep(<span class="nu">0.5</span>)    <span class="cm"># Wait 500ms</span></div>
+        <div class="card-grid-2">
+            <div class="card"><div class="card-label">utime.sleep(seconds)</div><div class="card-desc">Blocks execution for the specified number of seconds. Accepts floats: 0.5 = 500ms, 0.1 = 100ms.</div></div>
+            <div class="card c-gold"><div class="card-label">utime.sleep_ms(ms)</div><div class="card-desc">Blocks for milliseconds. More readable for short delays. <span class="ic">sleep_ms(500)</span> = half second.</div></div>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">External LED <span class="accent">Circuit</span></div>
+        <div class="slide-subtitle">GPIO pin to resistor to LED to ground. The first circuit you build outside the board.</div>
+        <div class="diagram-center">
+            <svg width="500" height="120" viewBox="0 0 500 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="10" y="30" width="80" height="60" rx="6" fill="rgba(197,26,74,0.06)" stroke="#c51a4a" stroke-width="1.5"/>
+                <text x="50" y="55" text-anchor="middle" font-size="9" fill="#c51a4a" font-weight="700">GP15</text>
+                <text x="50" y="70" text-anchor="middle" font-size="7" fill="#a0909a">OUTPUT</text>
+                <line x1="90" y1="60" x2="160" y2="60" stroke="#c51a4a" stroke-width="1.5"/>
+                <!-- Resistor -->
+                <rect x="160" y="50" width="60" height="20" rx="4" fill="rgba(240,136,62,0.1)" stroke="#f0883e" stroke-width="1.5"/>
+                <text x="190" y="64" text-anchor="middle" font-size="8" fill="#f0883e" font-weight="700">330R</text>
+                <line x1="220" y1="60" x2="280" y2="60" stroke="#c51a4a" stroke-width="1.5"/>
+                <!-- LED -->
+                <circle cx="310" cy="60" r="16" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5" style="animation: ledBlink 1s ease infinite;"/>
+                <text x="310" y="64" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700">LED</text>
+                <line x1="326" y1="60" x2="400" y2="60" stroke="#777" stroke-width="1.5"/>
+                <!-- GND -->
+                <rect x="400" y="45" width="50" height="30" rx="4" fill="rgba(100,100,100,0.1)" stroke="#777" stroke-width="1.5"/>
+                <text x="425" y="64" text-anchor="middle" font-size="9" fill="#777" font-weight="700">GND</text>
+            </svg>
+        </div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>GP15</strong> drives HIGH (3.3V) or LOW (0V) based on your code.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>330-ohm resistor</strong> limits current to ~10 mA. Without it, the LED draws too much current and may damage the GPIO.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>LED</strong> -- long leg (anode, +) faces the resistor side. Short leg (cathode, -) faces ground. Polarity matters.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>GND</strong> completes the circuit. Current flows from GP15, through the resistor, through the LED, to ground.</span></div>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">GPIO <span class="accent">Input</span>: Reading a Button</div>
+        <div class="slide-subtitle">Pin(pin_number, Pin.IN) configures a pin to read voltage. value() returns 0 or 1.</div>
+        <div class="code-block"><span class="kw">from</span> machine <span class="kw">import</span> Pin
+
+<span class="cm"># Button on GP14, internal pull-up enabled</span>
+button = Pin(<span class="nu">14</span>, Pin.IN, Pin.PULL_UP)
+
+<span class="cm"># Read the button state</span>
+state = button.value()
+<span class="cm"># Returns 1 when NOT pressed (pulled up)</span>
+<span class="cm"># Returns 0 when pressed (connected to GND)</span>
+
+<span class="fn">print</span>(f<span class="st">"Button: {state}"</span>)</div>
+        <div class="card-grid-2">
+            <div class="card"><div class="card-label">Pin.PULL_UP</div><div class="card-desc">Internal resistor pulls the pin to 3.3V when nothing is connected. Button wired to GND pulls it LOW when pressed. Default state = 1 (not pressed).</div></div>
+            <div class="card c-green"><div class="card-label">Pin.PULL_DOWN</div><div class="card-desc">Internal resistor pulls the pin to 0V. Button wired to 3.3V pulls it HIGH when pressed. Default state = 0 (not pressed).</div></div>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Why Pull <span class="accent">Resistors</span> Matter</div>
+        <div class="slide-subtitle">Without a pull-up or pull-down, an unconnected input pin floats between HIGH and LOW randomly.</div>
+        <div class="card-grid">
+            <div class="card">
+                <div class="card-label">Floating Pin</div>
+                <div class="card-desc">No pull resistor. The pin picks up electrical noise and reads random values. Completely unreliable. Never leave an input pin floating.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Pull-Up</div>
+                <div class="card-desc">Pin sits at 3.3V (reads 1) until the button connects it to GND (reads 0). Active-LOW logic. Most common pattern for buttons.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Pull-Down</div>
+                <div class="card-desc">Pin sits at 0V (reads 0) until the button connects it to 3.3V (reads 1). Active-HIGH logic. Less common but more intuitive.</div>
+            </div>
+        </div>
+        <div class="box box-red">
+            <div class="box-label">Rule</div>
+            Every input pin must have a defined state when nothing is pressing/connecting to it. Use Pin.PULL_UP or Pin.PULL_DOWN in the Pin constructor. The RP2040's internal pull resistors are approximately 50K ohm.
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Button-Controlled <span class="accent">LED</span></div>
+        <div class="slide-subtitle">Read the button, control the LED. The simplest input-to-output program.</div>
+        <div class="code-block"><span class="kw">from</span> machine <span class="kw">import</span> Pin
+
+led = Pin(<span class="nu">15</span>, Pin.OUT)
+button = Pin(<span class="nu">14</span>, Pin.IN, Pin.PULL_UP)
+
+<span class="kw">while</span> <span class="kw">True</span>:
+    <span class="kw">if</span> button.value() == <span class="nu">0</span>:   <span class="cm"># Pressed (active LOW)</span>
+        led.value(<span class="nu">1</span>)            <span class="cm"># LED on</span>
+    <span class="kw">else</span>:
+        led.value(<span class="nu">0</span>)            <span class="cm"># LED off</span></div>
+        <div class="box box-green">
+            <div class="box-label">Polling Loop</div>
+            This is a polling approach -- the program continuously checks the button state in a tight loop. It works but uses 100% CPU. Later you will learn interrupt-driven approaches that are more efficient.
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">The <span class="accent">Debouncing</span> Problem</div>
+        <div class="slide-subtitle">Mechanical buttons bounce. One press can register as dozens of rapid on/off transitions.</div>
+        <div class="card-grid-2">
+            <div class="card">
+                <div class="card-label">What Happens</div>
+                <div class="card-desc">When you press a button, the metal contacts physically bounce for 5-50 milliseconds. Each bounce creates a rising and falling edge that the microcontroller reads as a separate press/release event.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Why It Matters</div>
+                <div class="card-desc">A toggle program (press to turn on, press again to turn off) will appear to randomly work or not work. A counter will increment by 3-10 instead of 1. Bouncing makes raw button reads unreliable.</div>
+            </div>
+        </div>
+        <div class="code-block"><span class="cm"># Software debounce: wait after detecting a change</span>
+<span class="kw">from</span> machine <span class="kw">import</span> Pin
+<span class="kw">import</span> utime
+
+button = Pin(<span class="nu">14</span>, Pin.IN, Pin.PULL_UP)
+led = Pin(<span class="nu">15</span>, Pin.OUT)
+led_state = <span class="nu">0</span>
+
+<span class="kw">while</span> <span class="kw">True</span>:
+    <span class="kw">if</span> button.value() == <span class="nu">0</span>:        <span class="cm"># Press detected</span>
+        utime.sleep_ms(<span class="nu">50</span>)         <span class="cm"># Wait for bounce to settle</span>
+        <span class="kw">if</span> button.value() == <span class="nu">0</span>:    <span class="cm"># Still pressed? Real press.</span>
+            led_state = <span class="nu">1</span> - led_state
+            led.value(led_state)
+            <span class="kw">while</span> button.value() == <span class="nu">0</span>: <span class="cm"># Wait for release</span>
+                <span class="kw">pass</span></div>
+    </div>
+</section>
+
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Hardware <span class="accent">Interrupts</span></div>
+        <div class="slide-subtitle">Instead of polling in a loop, let the hardware notify your code when a pin changes state.</div>
+        <div class="code-block"><span class="kw">from</span> machine <span class="kw">import</span> Pin
+<span class="kw">import</span> utime
+
+led = Pin(<span class="nu">15</span>, Pin.OUT)
+button = Pin(<span class="nu">14</span>, Pin.IN, Pin.PULL_UP)
+last_press = <span class="nu">0</span>
+
+<span class="kw">def</span> <span class="fn">button_handler</span>(pin):
+    <span class="kw">global</span> last_press
+    now = utime.ticks_ms()
+    <span class="kw">if</span> utime.ticks_diff(now, last_press) > <span class="nu">200</span>:
+        led.toggle()
+        last_press = now
+
+button.irq(trigger=Pin.IRQ_FALLING, handler=button_handler)</div>
+        <div class="card-grid-2">
+            <div class="card"><div class="card-label">IRQ_FALLING</div><div class="card-desc">Triggers when pin transitions from HIGH to LOW (button pressed with pull-up). This is the falling edge.</div></div>
+            <div class="card c-green"><div class="card-label">IRQ_RISING</div><div class="card-desc">Triggers when pin transitions from LOW to HIGH (button released with pull-up). This is the rising edge.</div></div>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Multiple <span class="accent">LEDs</span></div>
+        <div class="slide-subtitle">Control several LEDs independently or create patterns by managing multiple output pins.</div>
+        <div class="code-block"><span class="kw">from</span> machine <span class="kw">import</span> Pin
+<span class="kw">import</span> utime
+
+<span class="cm"># Three LEDs on GP15, GP16, GP17</span>
+leds = [Pin(i, Pin.OUT) <span class="kw">for</span> i <span class="kw">in</span> (<span class="nu">15</span>, <span class="nu">16</span>, <span class="nu">17</span>)]
+
+<span class="cm"># Chase pattern: one LED at a time</span>
+<span class="kw">while</span> <span class="kw">True</span>:
+    <span class="kw">for</span> i <span class="kw">in</span> <span class="fn">range</span>(<span class="fn">len</span>(leds)):
+        <span class="kw">for</span> j <span class="kw">in</span> <span class="fn">range</span>(<span class="fn">len</span>(leds)):
+            leds[j].value(<span class="nu">1</span> <span class="kw">if</span> j == i <span class="kw">else</span> <span class="nu">0</span>)
+        utime.sleep_ms(<span class="nu">200</span>)</div>
+        <div class="box box-gold">
+            <div class="box-label">List Comprehension</div>
+            <code>[Pin(i, Pin.OUT) for i in (15, 16, 17)]</code> creates three Pin objects in one line. Standard Python list comprehension works in MicroPython. This pattern scales to any number of pins.
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title"><span class="accent">toggle()</span> vs <span class="accent">value()</span></div>
+        <div class="slide-subtitle">Two ways to control an output pin. Choose based on whether you know the desired state.</div>
+        <div class="card-grid-2">
+            <div class="card">
+                <div class="card-label">value(n) -- Set Explicitly</div>
+                <div class="card-desc">Use when you know exactly what state you want. <span class="ic">led.value(1)</span> always turns it on. <span class="ic">led.value(0)</span> always turns it off. Deterministic. No ambiguity.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">toggle() -- Flip Current State</div>
+                <div class="card-desc">Use when you want the opposite of the current state. If on, turn off. If off, turn on. Perfect for blink loops and button toggles. Shorter code.</div>
+            </div>
+        </div>
+        <div class="code-block"><span class="cm"># Blink with toggle -- cleaner</span>
+<span class="kw">while</span> <span class="kw">True</span>:
+    led.toggle()
+    utime.sleep_ms(<span class="nu">500</span>)
+
+<span class="cm"># Blink with value -- explicit</span>
+<span class="kw">while</span> <span class="kw">True</span>:
+    led.value(<span class="nu">1</span>)
+    utime.sleep_ms(<span class="nu">500</span>)
+    led.value(<span class="nu">0</span>)
+    utime.sleep_ms(<span class="nu">500</span>)</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Key Takeaways: <span class="accent">Digital I/O</span></div>
+        <div class="slide-subtitle">Outputs drive LEDs. Inputs read buttons. Debouncing makes it reliable.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong><code>Pin(n, Pin.OUT)</code> for outputs.</strong> <code>value(1)</code> = 3.3V (HIGH). <code>value(0)</code> = 0V (LOW). <code>toggle()</code> flips current state.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong><code>Pin(n, Pin.IN, Pin.PULL_UP)</code> for inputs.</strong> Internal pull-up keeps the pin at 3.3V when nothing is connected. Button to GND pulls it LOW.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Always use a current-limiting resistor</strong> (220-330 ohm) with external LEDs. The resistor protects both the LED and the GPIO pin.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Debounce mechanical buttons.</strong> Wait 50ms after detecting a press, then re-read. Or use interrupts with a ticks-based cooldown.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Interrupts beat polling.</strong> <code>pin.irq(trigger=Pin.IRQ_FALLING, handler=fn)</code> lets the hardware notify your code instead of burning CPU in a tight loop.</span></div>
+        </div>
+        <div class="box box-red" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Chapter 4 -- PWM &amp; Analog</strong> | Duty Cycle | LED Dimming | Buzzer | ADC
+        </div>
+        <div style="text-align:center; margin-top:6px;"><button id="complete-btn" onclick="completeModule()">Mark Complete</button></div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; PiVerse</button></a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+<script>
+    let currentSlide = 1; const TOTAL_SLIDES = 12;
+    function goToSlide(n) { if (n < 1 || n > TOTAL_SLIDES) return; const p = document.getElementById('slide-' + currentSlide); if (p) p.classList.remove('active'); currentSlide = n; const nx = document.getElementById('slide-' + currentSlide); if (nx) nx.classList.add('active'); document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%'; document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES; document.getElementById('prev-btn').disabled = (currentSlide === 1); document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES); const cb = document.getElementById('complete-btn'); if (cb) cb.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none'; }
+    document.addEventListener('keydown', function(e) { if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); } else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); } });
+    goToSlide(1);
+</script>
+<script>function completeModule() { if (typeof ModuleProgress !== 'undefined') ModuleProgress.complete('matrix', 'pv-mp-03-pres', { returnUrl: '../../index.html' }); }</script>
+</body>
+</html>

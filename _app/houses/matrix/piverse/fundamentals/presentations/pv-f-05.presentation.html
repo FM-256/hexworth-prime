@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Configuration | PiVerse Fundamentals Ch 5</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0d0408 0%, #130810 50%, #0d0408 100%); color: #e2e8f0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #c51a4a; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(13,4,8,0.95); border-top: 1px solid rgba(197,26,74,0.15); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.07); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(197,26,74,0.15); color: #c51a4a; border-color: #c51a4a; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s; }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #c51a4a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ffd700; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip { background: rgba(197,26,74,0.08); border-left: 3px solid #c51a4a; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #d4a0b0; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-red { background: rgba(197,26,74,0.08); border: 1px solid rgba(197,26,74,0.3); color: #f0c0d0; }
+        .box-green { background: rgba(58,181,119,0.08); border: 1px solid rgba(58,181,119,0.35); color: #d1fae5; }
+        .box-gold { background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ffd700; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #c51a4a; }
+        .card:hover { background: rgba(255,255,255,0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-red { border-left-color: #c51a4a; } .card.c-gold { border-left-color: #ffd700; } .card.c-cyan { border-left-color: #06b6d4; } .card.c-purple { border-left-color: #a78bfa; } .card.c-orange { border-left-color: #f97316; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #c51a4a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #ffd700; background: rgba(255,215,0,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .ic { font-family: 'Courier New', monospace; color: #ffd700; background: rgba(255,215,0,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num { background: rgba(197,26,74,0.12); border: 1px solid rgba(197,26,74,0.4); color: #c51a4a; font-weight: 700; font-size: 0.78rem; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px; }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+        .code-block { background: rgba(0,0,0,0.35); border: 1px solid rgba(197,26,74,0.2); border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #e8305e; line-height: 1.6; white-space: pre; overflow-x: auto; }
+        .code-block .cm { color: #64748b; }
+        .code-block .val { color: #f0883e; }
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell { background: rgba(255,255,255,0.04); border: 1px solid rgba(197,26,74,0.25); border-radius: 8px; padding: 12px 14px; text-align: center; }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #c51a4a; margin-bottom: 4px; }
+        .hex-cell .hex-desc { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">System Configuration -- PiVerse Fundamentals Chapter 5</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- SLIDE 1 -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; PiVerse &nbsp;|&nbsp; Fundamentals &nbsp;|&nbsp; Chapter 5</div>
+        <div class="title-hero">
+            <div class="big-title"><span class="accent">System</span> Configuration</div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">raspi-config &nbsp;|&nbsp; Interfaces &nbsp;|&nbsp; Locale &nbsp;|&nbsp; Boot Options &nbsp;|&nbsp; GPU Split &nbsp;|&nbsp; systemd &nbsp;|&nbsp; Networking</div>
+        </div>
+        <div class="scenario-strip">Your Pi is booted and the desktop works. Now you need to configure hardware interfaces, set the correct timezone, tune performance, manage services, and set up networking. This chapter covers raspi-config and systemd -- the two tools that control everything under the hood.</div>
+        <div class="title-meta-row"><span>12 Slides</span><span>PiVerse Fundamentals</span><span>Chapter 5 of 5</span><span>Matrix House</span></div>
+    </div>
+</section>
+
+<!-- SLIDE 2 -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">The <span class="accent">raspi-config</span> Tool</div>
+        <div class="slide-subtitle">Central configuration utility for the Raspberry Pi. Text-based menu interface. Run with sudo.</div>
+        <div class="code-block"><span class="cm"># Launch interactive menu</span>
+$ sudo raspi-config
+
+<span class="cm"># Non-interactive (scripting-friendly)</span>
+$ sudo raspi-config nonint do_ssh 0       <span class="cm"># Enable SSH</span>
+$ sudo raspi-config nonint do_vnc 0       <span class="cm"># Enable VNC</span>
+$ sudo raspi-config nonint do_spi 0       <span class="cm"># Enable SPI</span>
+$ sudo raspi-config nonint do_i2c 0       <span class="cm"># Enable I2C</span>
+$ sudo raspi-config nonint do_hostname piverse
+$ sudo raspi-config nonint do_change_timezone America/New_York</div>
+        <div class="box box-gold">
+            <div class="box-label">Two Paths</div>
+            Most settings can also be configured through the GUI "Raspberry Pi Configuration" tool in the Preferences menu. The terminal approach is preferred because it works over SSH and is scriptable.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 3 -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">raspi-config <span class="accent">Menu Structure</span></div>
+        <div class="slide-subtitle">Six main categories organize all Pi-specific settings.</div>
+        <div class="hex-grid">
+            <div class="hex-cell"><div class="hex-title">1. System Options</div><div class="hex-desc">Hostname, password, boot behavior (desktop vs. CLI), audio output, network at boot.</div></div>
+            <div class="hex-cell"><div class="hex-title">2. Display Options</div><div class="hex-desc">Resolution, overscan, screen blanking, compositor settings.</div></div>
+            <div class="hex-cell"><div class="hex-title">3. Interface Options</div><div class="hex-desc">SSH, VNC, SPI, I2C, Serial, 1-Wire, Remote GPIO. Hardware communication.</div></div>
+            <div class="hex-cell"><div class="hex-title">4. Performance</div><div class="hex-desc">GPU memory split, overclock, fan control (Pi 5).</div></div>
+            <div class="hex-cell"><div class="hex-title">5. Localisation</div><div class="hex-desc">Locale, timezone, keyboard layout, WLAN country code.</div></div>
+            <div class="hex-cell"><div class="hex-title">6. Advanced</div><div class="hex-desc">Expand filesystem, network config, boot order (SD/USB/Network).</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 4 -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title"><span class="accent">Interface</span> Options</div>
+        <div class="slide-subtitle">Enable and disable hardware communication protocols and remote access services.</div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">SSH</div><div class="card-desc">Secure Shell remote terminal. Always enable. Required for headless access. <span class="ic">ssh user@hostname.local</span></div></div>
+            <div class="card c-gold"><div class="card-label">VNC</div><div class="card-desc">Remote desktop access. Enable when you need the GUI remotely. RealVNC is built in.</div></div>
+            <div class="card c-green"><div class="card-label">SPI</div><div class="card-desc">Serial Peripheral Interface. High-speed, short-distance. For TFT displays, ADCs, fast sensors.</div></div>
+            <div class="card c-cyan"><div class="card-label">I2C</div><div class="card-desc">Inter-Integrated Circuit. Two-wire bus. For sensors, OLEDs, PWM controllers. Multiple devices share SDA/SCL.</div></div>
+            <div class="card c-purple"><div class="card-label">Serial Port</div><div class="card-desc">UART communication. GPIO 14 (TX), GPIO 15 (RX). For GPS, Arduino, serial consoles.</div></div>
+            <div class="card c-orange"><div class="card-label">1-Wire</div><div class="card-desc">One-wire protocol. Primarily DS18B20 temperature sensors. Single data wire plus ground.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 5 -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title"><span class="accent">Localisation</span> Settings</div>
+        <div class="slide-subtitle">Timezone, locale, keyboard layout, and WLAN country -- get these right or face daily annoyances.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Timezone:</strong> <span class="ic">sudo raspi-config nonint do_change_timezone America/New_York</span> -- critical for cron jobs, log timestamps, and any time-sensitive application.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Locale:</strong> <span class="ic">sudo raspi-config nonint do_change_locale en_US.UTF-8</span> -- sets language, number formats, and character encoding. UTF-8 handles international characters.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Keyboard layout:</strong> If your @ key produces " or your | key does not work, the keyboard layout is wrong. Set it in raspi-config or via <span class="ic">sudo dpkg-reconfigure keyboard-configuration</span>.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>WLAN country:</strong> Required by law. Wi-Fi uses different channels and power levels in different countries. Setting the wrong country may prevent Wi-Fi from connecting or violate radio regulations.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 6 -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Boot <span class="accent">Options</span></div>
+        <div class="slide-subtitle">Control what happens when the Pi starts up.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Desktop vs. CLI</div><div class="card-desc">Boot to desktop (default) or boot to command line only. Servers and headless Pis should boot to CLI to save RAM. Change in System Options > Boot / Auto Login.</div></div>
+            <div class="card c-gold"><div class="card-label">Auto Login</div><div class="card-desc">Desktop auto-login boots straight to the desktop without a login screen. CLI auto-login drops to a terminal prompt already logged in. Disable auto-login for shared or security-sensitive Pis.</div></div>
+            <div class="card c-green"><div class="card-label">Boot Order (Pi 4/5)</div><div class="card-desc">In Advanced Options, set boot order: SD Card first, USB boot, or network boot (PXE). USB boot lets you boot from a fast SSD instead of a slow SD card.</div></div>
+            <div class="card c-cyan"><div class="card-label">Splash Screen</div><div class="card-desc">Enable or disable the rainbow splash screen and boot messages. Disable splash for kiosk displays where you want a clean visual transition from power-on to application.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 7 -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title"><span class="accent">GPU Memory</span> Split</div>
+        <div class="slide-subtitle">The Pi's RAM is shared between the CPU and GPU. You control the allocation.</div>
+        <div class="code-block"><span class="cm"># Set GPU memory (in MB)</span>
+$ sudo raspi-config nonint do_memory_split <span class="val">128</span>
+
+<span class="cm"># Or edit config.txt directly</span>
+$ sudo nano /boot/firmware/config.txt
+<span class="cm"># Add or change: gpu_mem=128</span></div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Desktop / GUI Use</div><div class="card-desc">128 MB or 256 MB for the GPU. Desktop rendering, video playback, and camera processing need GPU memory. 128 MB is the default and works for most desktop use.</div></div>
+            <div class="card c-gold"><div class="card-label">Headless / Server Use</div><div class="card-desc">16 MB minimum. If you run no desktop and no camera, give the GPU the minimum and dedicate the rest to the CPU. A server does not need GPU resources.</div></div>
+        </div>
+        <div class="box box-red">
+            <div class="box-label">config.txt is the Pi's BIOS</div>
+            The Pi has no BIOS/UEFI firmware menu. Instead, <span class="ic">/boot/firmware/config.txt</span> controls low-level hardware settings: GPU memory, overclocking, display rotation, HAT overlays, and more. Changes require a reboot to take effect.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 8 -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title"><span class="accent">systemd</span> Service Management</div>
+        <div class="slide-subtitle">systemd manages every service on the Pi -- from SSH to networking to your own custom services.</div>
+        <div class="code-block"><span class="cm"># Check service status</span>
+$ sudo systemctl status ssh
+$ sudo systemctl status nginx
+
+<span class="cm"># Start / stop / restart</span>
+$ sudo systemctl start ssh
+$ sudo systemctl stop ssh
+$ sudo systemctl restart ssh
+
+<span class="cm"># Enable at boot / disable</span>
+$ sudo systemctl enable ssh   <span class="cm"># starts on every boot</span>
+$ sudo systemctl disable ssh  <span class="cm"># no longer starts on boot</span>
+
+<span class="cm"># List all running services</span>
+$ sudo systemctl list-units --type=service --state=running</div>
+    </div>
+</section>
+
+<!-- SLIDE 9 -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title"><span class="accent">Networking</span> Configuration</div>
+        <div class="slide-subtitle">Wi-Fi, Ethernet, static IPs, and hostname resolution.</div>
+        <div class="code-block"><span class="cm"># Check network interfaces</span>
+$ ip addr show
+
+<span class="cm"># Check Wi-Fi connection</span>
+$ iwconfig wlan0
+
+<span class="cm"># Scan for Wi-Fi networks</span>
+$ sudo iwlist wlan0 scan | grep ESSID
+
+<span class="cm"># Connect to Wi-Fi via nmcli (NetworkManager)</span>
+$ sudo nmcli device wifi connect "MyNetwork" password "MyPassword"
+
+<span class="cm"># Set a static IP via nmcli</span>
+$ sudo nmcli con mod "MyNetwork" ipv4.addresses 192.168.1.100/24
+$ sudo nmcli con mod "MyNetwork" ipv4.gateway 192.168.1.1
+$ sudo nmcli con mod "MyNetwork" ipv4.dns "8.8.8.8"
+$ sudo nmcli con mod "MyNetwork" ipv4.method manual
+$ sudo nmcli con up "MyNetwork"</div>
+    </div>
+</section>
+
+<!-- SLIDE 10 -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Static IP vs. <span class="accent">DHCP</span></div>
+        <div class="slide-subtitle">When to use each and why it matters for Pi servers.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">DHCP (Default)</div><div class="card-desc">The router assigns an IP address automatically. Easy, no configuration needed. But the address can change between reboots, breaking SSH connections and bookmarks. Fine for desktop use.</div></div>
+            <div class="card c-gold"><div class="card-label">Static IP</div><div class="card-desc">You assign a fixed IP address that never changes. Required for servers (Pi-hole, web servers, Home Assistant) so clients can always find the Pi at the same address. Configure via nmcli or your router's DHCP reservation.</div></div>
+        </div>
+        <div class="box box-green">
+            <div class="box-label">DHCP Reservation -- The Easy Path</div>
+            Instead of configuring a static IP on the Pi, you can set a "DHCP reservation" on your router. The router always assigns the same IP to the Pi based on its MAC address. Same result, no Pi-side configuration needed.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 11 -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Overclocking &amp; <span class="accent">Cooling</span></div>
+        <div class="slide-subtitle">Push the Pi beyond stock speeds -- but manage the heat.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Overclocking</div><div class="card-desc">Pi 5 runs at 2.4 GHz stock. Overclock to 2.8-3.0 GHz via <span class="ic">/boot/firmware/config.txt</span>: <span class="ic">arm_freq=2800</span>. Requires active cooling and a good power supply. Voids the warranty concern is minimal -- the Pi has over-temperature protection.</div></div>
+            <div class="card c-gold"><div class="card-label">Thermal Throttling</div><div class="card-desc">At 80 degrees C, the Pi starts reducing clock speed to prevent damage. At 85 degrees C, aggressive throttling kicks in. Check temperature: <span class="ic">vcgencmd measure_temp</span>. The Pi will not destroy itself -- it will just slow down.</div></div>
+        </div>
+        <div class="box box-red">
+            <div class="box-label">Cooling Options</div>
+            Passive heatsink (no noise, moderate cooling), active fan (best cooling, some noise), Pi 5 Active Cooler (official, designed to fit perfectly). For 24/7 servers or overclocked Pis, active cooling is strongly recommended.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 12 -- SUMMARY -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Chapter 5 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Your Pi is now fully configured and ready for real projects.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>raspi-config</strong> is the central configuration tool. Six categories: System, Display, Interfaces, Performance, Localisation, Advanced. Works interactively or non-interactively for scripting.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Interface Options</strong> enable hardware protocols: SSH (remote terminal), VNC (remote desktop), SPI, I2C, Serial, 1-Wire. Enable only what you need.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Localisation</strong> sets timezone, locale, keyboard, and WLAN country. Get these right first -- wrong settings cause daily frustration.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>systemd</strong> manages services. <code>systemctl start/stop/restart/enable/disable</code> controls every daemon on the system. Boot to CLI for servers, desktop for development.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Networking:</strong> DHCP is default, static IP for servers. <code>/boot/firmware/config.txt</code> is the Pi's BIOS equivalent -- GPU memory, overclocking, display settings, HAT overlays.</span></div>
+        </div>
+        <div class="box box-red" style="font-size:0.85rem; text-align:center;"><strong>Track 1 Complete</strong> &nbsp;|&nbsp; You now understand the Pi's hardware, first boot, desktop, command line, and system configuration.</div>
+        <div style="text-align:center; margin-top:6px;"><button id="complete-btn" onclick="completeModule()">Mark Complete</button></div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; PiVerse</button></a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+<script>
+    let currentSlide = 1; const TOTAL_SLIDES = 12;
+    function goToSlide(n) { if (n < 1 || n > TOTAL_SLIDES) return; const prev = document.getElementById('slide-' + currentSlide); if (prev) prev.classList.remove('active'); currentSlide = n; const next = document.getElementById('slide-' + currentSlide); if (next) next.classList.add('active'); document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%'; document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES; document.getElementById('prev-btn').disabled = (currentSlide === 1); document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES); const completeBtn = document.getElementById('complete-btn'); if (completeBtn) completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none'; }
+    document.addEventListener('keydown', function(e) { if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); } else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); } });
+    goToSlide(1);
+</script>
+<script>function completeModule() { if (typeof ModuleProgress !== 'undefined') { ModuleProgress.complete('matrix', 'pv-f-05-pres', { returnUrl: '../../index.html' }); } }</script>
+</body>
+</html>

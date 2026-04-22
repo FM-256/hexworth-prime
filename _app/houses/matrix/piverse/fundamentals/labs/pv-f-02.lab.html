@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab: Pi Imager Simulator | PiVerse Fundamentals Ch 2</title>
+    <style>
+        :root { --accent: #c51a4a; --accent-dim: rgba(197,26,74,0.15); --accent-border: rgba(197,26,74,0.3); --green: #34d399; --green-dim: rgba(52,211,153,0.1); --green-border: rgba(52,211,153,0.3); --gold: #ffd700; --bg: #0d0408; --bg2: #130810; --bg3: #1a0d12; --text: #e0e0e0; --text2: #9e8b91; --border: rgba(197,26,74,0.12); }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        .topbar { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .topbar-left { display: flex; align-items: center; gap: 14px; }
+        .back-btn { padding: 6px 14px; background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: 6px; color: var(--accent); text-decoration: none; font-size: 0.82rem; }
+        .back-btn:hover { background: rgba(197,26,74,0.25); }
+        .lab-title { font-size: 0.95rem; }
+        .badge { padding: 3px 10px; border-radius: 10px; font-size: 0.68rem; letter-spacing: 0.06em; background: var(--accent-dim); border: 1px solid var(--accent-border); color: var(--accent); }
+        .topbar-right { display: flex; align-items: center; gap: 14px; font-size: 0.82rem; color: var(--text2); }
+        .prog-wrap { width: 130px; height: 5px; background: rgba(197,26,74,0.12); border-radius: 3px; overflow: hidden; }
+        .prog-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #8b0a2a); border-radius: 3px; transition: width 0.4s ease; }
+        .prog-label { color: var(--accent); font-weight: 500; }
+        .workspace { display: grid; grid-template-columns: 1fr 320px; flex: 1; min-height: 0; }
+        .imager-panel { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; gap: 20px; }
+        .imager-title { font-size: 1.3rem; color: var(--accent); font-weight: 700; }
+        .imager-subtitle { font-size: 0.85rem; color: var(--text2); }
+        .imager-buttons { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+        .imager-btn { padding: 16px 28px; background: var(--bg2); border: 2px solid var(--accent-border); border-radius: 10px; color: var(--text); font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.2s; min-width: 160px; text-align: center; }
+        .imager-btn:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-dim); }
+        .imager-btn:disabled { opacity: 0.35; cursor: default; }
+        .imager-btn.selected { border-color: var(--green); background: var(--green-dim); color: var(--green); }
+        .imager-btn .btn-label { font-size: 0.72rem; color: var(--text2); display: block; margin-top: 4px; font-weight: 400; }
+        .imager-btn.selected .btn-label { color: var(--green); }
+        .imager-write { padding: 14px 40px; background: var(--accent); border: none; border-radius: 8px; color: #fff; font-size: 1rem; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+        .imager-write:hover:not(:disabled) { opacity: 0.88; }
+        .imager-write:disabled { opacity: 0.3; cursor: default; }
+        .progress-bar-wrap { width: 80%; max-width: 400px; height: 10px; background: rgba(197,26,74,0.12); border-radius: 5px; overflow: hidden; display: none; }
+        .progress-bar-inner { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--green)); border-radius: 5px; transition: width 0.3s ease; }
+        .status-text { font-size: 0.85rem; color: var(--text2); min-height: 1.2em; }
+        .dropdown-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
+        .dropdown-overlay.active { display: flex; }
+        .dropdown-menu { background: var(--bg2); border: 1px solid var(--accent-border); border-radius: 10px; padding: 20px; max-width: 400px; width: 90%; }
+        .dropdown-menu h3 { color: var(--accent); margin-bottom: 12px; font-size: 1rem; }
+        .dropdown-item { padding: 10px 14px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 6px; cursor: pointer; transition: all 0.2s; }
+        .dropdown-item:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .dropdown-item .di-title { font-size: 0.9rem; color: var(--text); font-weight: 600; }
+        .dropdown-item .di-desc { font-size: 0.78rem; color: var(--text2); }
+        .task-panel { background: var(--bg2); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+        .panel-header { padding: 12px 16px; font-size: 0.7rem; color: var(--text2); letter-spacing: 0.12em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+        .task-list { flex: 1; overflow-y: auto; padding: 12px; }
+        .task-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 9px; padding: 12px 14px; margin-bottom: 8px; }
+        .task-card.active { border-color: var(--accent); background: rgba(197,26,74,0.06); }
+        .task-card.done { border-color: var(--green-border); background: var(--green-dim); }
+        .task-num { font-size: 0.67rem; color: var(--accent); margin-bottom: 3px; }
+        .task-name { font-size: 0.88rem; margin-bottom: 3px; display: flex; align-items: center; gap: 6px; }
+        .task-name .chk { font-size: 0.75rem; color: var(--green); margin-left: auto; display: none; }
+        .task-desc { font-size: 0.77rem; color: var(--text2); line-height: 1.45; }
+        .finish-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 9000; }
+        .finish-overlay.active { display: flex; }
+        .finish-card { background: var(--bg2); border: 1px solid var(--green-border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .finish-title { font-size: 1.5rem; color: var(--gold); margin-bottom: 10px; }
+        .finish-msg { color: var(--text2); font-size: 0.95rem; margin-bottom: 24px; line-height: 1.6; }
+        .finish-btn { padding: 11px 28px; background: linear-gradient(135deg, var(--accent), #8b0a2a); border: none; border-radius: 8px; color: #fff; font-size: 0.95rem; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <div class="topbar-left">
+            <a href="../../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Pi Imager Simulator</span>
+            <span class="badge">PiVerse Ch 2</span>
+        </div>
+        <div class="topbar-right">
+            <span>Tasks:</span>
+            <div class="prog-wrap"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+            <span class="prog-label" id="progLabel">0 / 6</span>
+        </div>
+    </header>
+    <div class="workspace">
+        <div class="imager-panel">
+            <div class="imager-title">Raspberry Pi Imager</div>
+            <div class="imager-subtitle">Select an OS, choose storage, configure, and write.</div>
+            <div class="imager-buttons">
+                <button class="imager-btn" id="btnOS" onclick="openOSMenu()">Choose OS<span class="btn-label" id="osLabel">No OS selected</span></button>
+                <button class="imager-btn" id="btnSD" onclick="openSDMenu()" disabled>Choose Storage<span class="btn-label" id="sdLabel">No card selected</span></button>
+                <button class="imager-btn" id="btnConfig" onclick="openConfigMenu()" disabled>Configure<span class="btn-label" id="cfgLabel">Advanced settings</span></button>
+            </div>
+            <button class="imager-write" id="btnWrite" onclick="startWrite()" disabled>Write</button>
+            <div class="progress-bar-wrap" id="writeProgress"><div class="progress-bar-inner" id="writeBar"></div></div>
+            <div class="status-text" id="statusText"></div>
+        </div>
+        <aside class="task-panel">
+            <div class="panel-header">Lab Tasks</div>
+            <div class="task-list" id="taskList"></div>
+        </aside>
+    </div>
+    <!-- OS dropdown -->
+    <div class="dropdown-overlay" id="osOverlay">
+        <div class="dropdown-menu">
+            <h3>Choose Operating System</h3>
+            <div class="dropdown-item" onclick="selectOS('desktop-full')"><div class="di-title">Raspberry Pi OS (64-bit) with desktop and recommended software</div><div class="di-desc">~2.5 GB -- Full desktop, LibreOffice, Thonny, Scratch, Chromium, VLC</div></div>
+            <div class="dropdown-item" onclick="selectOS('desktop')"><div class="di-title">Raspberry Pi OS (64-bit) with desktop</div><div class="di-desc">~1.1 GB -- Desktop environment, minimal pre-installed apps</div></div>
+            <div class="dropdown-item" onclick="selectOS('lite')"><div class="di-title">Raspberry Pi OS Lite (64-bit)</div><div class="di-desc">~450 MB -- Command line only, no desktop. For servers and IoT.</div></div>
+        </div>
+    </div>
+    <!-- SD dropdown -->
+    <div class="dropdown-overlay" id="sdOverlay">
+        <div class="dropdown-menu">
+            <h3>Choose Storage</h3>
+            <div class="dropdown-item" onclick="selectSD('sandisk32')"><div class="di-title">SanDisk Extreme 32 GB (A2)</div><div class="di-desc">/dev/sdb -- 32 GB microSDHC, Class 10, UHS-I</div></div>
+            <div class="dropdown-item" onclick="selectSD('samsung64')"><div class="di-title">Samsung EVO Select 64 GB (A2)</div><div class="di-desc">/dev/sdc -- 64 GB microSDXC, Class 10, UHS-I</div></div>
+        </div>
+    </div>
+    <!-- Config dropdown -->
+    <div class="dropdown-overlay" id="cfgOverlay">
+        <div class="dropdown-menu">
+            <h3>Advanced Configuration</h3>
+            <div class="dropdown-item" onclick="toggleCfg('hostname')"><div class="di-title" id="cfgHostname">Set hostname: piverse</div><div class="di-desc">Network name for your Pi</div></div>
+            <div class="dropdown-item" onclick="toggleCfg('ssh')"><div class="di-title" id="cfgSSH">Enable SSH: ON</div><div class="di-desc">Remote terminal access</div></div>
+            <div class="dropdown-item" onclick="toggleCfg('wifi')"><div class="di-title" id="cfgWifi">Configure Wi-Fi: MyNetwork</div><div class="di-desc">SSID and password pre-set</div></div>
+            <div class="dropdown-item" onclick="closeConfig()"><div class="di-title" style="color: var(--green);">Done -- Apply Settings</div><div class="di-desc">Save and return to main screen</div></div>
+        </div>
+    </div>
+    <div class="finish-overlay" id="finishOverlay">
+        <div class="finish-card">
+            <div class="finish-title">Image Written Successfully</div>
+            <div class="finish-msg">You selected an OS, chose a storage device, configured advanced settings, and flashed the image. The simulated boot sequence completed. Your Pi is ready.</div>
+            <button class="finish-btn" onclick="finishLab()">Return to PiVerse Hub</button>
+        </div>
+    </div>
+<script>
+(function() {
+    'use strict';
+    var TASKS = [
+        { id: 1, name: 'Choose an operating system', desc: 'Click "Choose OS" and select Raspberry Pi OS (64-bit) with desktop and recommended software.' },
+        { id: 2, name: 'Choose a storage device', desc: 'Click "Choose Storage" and select one of the available microSD cards.' },
+        { id: 3, name: 'Configure advanced settings', desc: 'Click "Configure" and review the hostname, SSH, and Wi-Fi settings. Click Done.' },
+        { id: 4, name: 'Write the image', desc: 'Click the Write button to flash the OS to the SD card.' },
+        { id: 5, name: 'Wait for verification', desc: 'Watch the progress bar. The write and verify process takes a few seconds in this simulation.' },
+        { id: 6, name: 'Boot sequence', desc: 'After writing, the simulated boot sequence runs -- bootloader, kernel, systemd, desktop.' }
+    ];
+    var completed = {};
+    var osSelected = false, sdSelected = false, configured = false;
+
+    function init() {
+        var list = document.getElementById('taskList');
+        TASKS.forEach(function(t) {
+            var card = document.createElement('div');
+            card.className = 'task-card' + (t.id === 1 ? ' active' : '');
+            card.id = 'tc-' + t.id;
+            card.innerHTML = '<div class="task-num">Task ' + t.id + '</div><div class="task-name">' + t.name + '<span class="chk" id="ck-' + t.id + '">Done</span></div><div class="task-desc">' + t.desc + '</div>';
+            list.appendChild(card);
+        });
+    }
+
+    function completeTask(id) {
+        if (completed[id]) return;
+        completed[id] = true;
+        var card = document.getElementById('tc-' + id);
+        if (card) card.className = 'task-card done';
+        var chk = document.getElementById('ck-' + id);
+        if (chk) chk.style.display = 'inline';
+        var count = Object.keys(completed).length;
+        document.getElementById('progFill').style.width = (count / TASKS.length * 100) + '%';
+        document.getElementById('progLabel').textContent = count + ' / ' + TASKS.length;
+        var next = TASKS.find(function(t) { return !completed[t.id]; });
+        if (next) {
+            var nc = document.getElementById('tc-' + next.id);
+            if (nc && !completed[next.id]) nc.className = 'task-card active';
+        }
+        if (count === TASKS.length) {
+            setTimeout(function() { document.getElementById('finishOverlay').classList.add('active'); }, 800);
+        }
+    }
+
+    window.openOSMenu = function() { document.getElementById('osOverlay').classList.add('active'); };
+    window.openSDMenu = function() { if (osSelected) document.getElementById('sdOverlay').classList.add('active'); };
+    window.openConfigMenu = function() { if (sdSelected) document.getElementById('cfgOverlay').classList.add('active'); };
+
+    window.selectOS = function(os) {
+        document.getElementById('osOverlay').classList.remove('active');
+        var names = { 'desktop-full': 'Pi OS (Desktop + Software)', 'desktop': 'Pi OS (Desktop)', 'lite': 'Pi OS Lite' };
+        document.getElementById('osLabel').textContent = names[os] || os;
+        document.getElementById('btnOS').classList.add('selected');
+        document.getElementById('btnSD').disabled = false;
+        osSelected = true;
+        document.getElementById('statusText').textContent = 'OS selected. Now choose storage.';
+        completeTask(1);
+    };
+
+    window.selectSD = function(sd) {
+        document.getElementById('sdOverlay').classList.remove('active');
+        var names = { 'sandisk32': 'SanDisk 32 GB', 'samsung64': 'Samsung 64 GB' };
+        document.getElementById('sdLabel').textContent = names[sd] || sd;
+        document.getElementById('btnSD').classList.add('selected');
+        document.getElementById('btnConfig').disabled = false;
+        sdSelected = true;
+        document.getElementById('statusText').textContent = 'Storage selected. Configure advanced settings.';
+        completeTask(2);
+    };
+
+    window.toggleCfg = function() {};
+
+    window.closeConfig = function() {
+        document.getElementById('cfgOverlay').classList.remove('active');
+        document.getElementById('cfgLabel').textContent = 'Configured';
+        document.getElementById('btnConfig').classList.add('selected');
+        document.getElementById('btnWrite').disabled = false;
+        configured = true;
+        document.getElementById('statusText').textContent = 'Settings configured. Ready to write.';
+        completeTask(3);
+    };
+
+    window.startWrite = function() {
+        if (!configured) return;
+        document.getElementById('btnWrite').disabled = true;
+        document.getElementById('writeProgress').style.display = 'block';
+        var bar = document.getElementById('writeBar');
+        var status = document.getElementById('statusText');
+        var pct = 0;
+        completeTask(4);
+        status.textContent = 'Writing image to SD card...';
+        var writeInterval = setInterval(function() {
+            pct += 2;
+            bar.style.width = Math.min(pct, 60) + '%';
+            if (pct === 30) status.textContent = 'Writing: 50% complete...';
+            if (pct >= 60) {
+                clearInterval(writeInterval);
+                status.textContent = 'Verifying write...';
+                completeTask(5);
+                var verifyInterval = setInterval(function() {
+                    pct += 3;
+                    bar.style.width = Math.min(pct, 100) + '%';
+                    if (pct >= 100) {
+                        clearInterval(verifyInterval);
+                        bar.style.width = '100%';
+                        status.textContent = 'Write successful! Simulating boot sequence...';
+                        setTimeout(function() { status.textContent = 'Bootloader loaded... Kernel starting...'; }, 800);
+                        setTimeout(function() { status.textContent = 'systemd initializing services...'; }, 1600);
+                        setTimeout(function() { status.textContent = 'Desktop loaded. First boot complete.'; completeTask(6); }, 2400);
+                    }
+                }, 80);
+            }
+        }, 60);
+    };
+
+    window.finishLab = function() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pv-f-02-lab', { returnUrl: '../../index.html' });
+        } else {
+            window.location.href = '../../index.html';
+        }
+    };
+
+    document.addEventListener('DOMContentLoaded', init);
+    document.querySelectorAll('.dropdown-overlay').forEach(function(el) {
+        el.addEventListener('click', function(e) { if (e.target === el) el.classList.remove('active'); });
+    });
+})();
+</script>
+</body>
+</html>

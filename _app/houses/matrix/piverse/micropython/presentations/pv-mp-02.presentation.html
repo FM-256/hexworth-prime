@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MicroPython &amp; Thonny | PiVerse MicroPython Ch 2</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0d0a0c 0%, #140f12 50%, #0d0a0c 100%); color: #e0e0e0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #c51a4a; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(13, 10, 12, 0.95); border-top: 1px solid rgba(197, 26, 74, 0.15); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.07); color: #a0909a; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(197,26,74,0.15); color: #c51a4a; border-color: #c51a4a; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #6a5a64; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s; }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #c51a4a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c51a4a; }
+        .slide-subtitle { font-size: 0.95rem; color: #a0909a; text-align: center; }
+        .scenario-strip { background: rgba(197,26,74,0.08); border-left: 3px solid #c51a4a; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #d4b0c0; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-red { background: rgba(197,26,74,0.08); border: 1px solid rgba(197,26,74,0.3); color: #e8c0d0; }
+        .box-green { background: rgba(58,181,119,0.08); border: 1px solid rgba(58,181,119,0.35); color: #d1fae5; }
+        .box-gold { background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.3); color: #fef3c7; }
+        .box-cyan { background: rgba(6,182,212,0.08); border: 1px solid rgba(6,182,212,0.3); color: #cffafe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c51a4a; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #6a5a64; }
+        .title-meta-row span { border-left: 2px solid #2a2024; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #c51a4a; }
+        .card:hover { background: rgba(255,255,255,0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc { font-size: 0.82rem; color: #a0909a; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-gold { border-left-color: #ffd700; } .card.c-cyan { border-left-color: #06b6d4; } .card.c-purple { border-left-color: #a78bfa; } .card.c-orange { border-left-color: #f97316; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #c51a4a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #d0c0ca; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #c51a4a; background: rgba(197,26,74,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .ic { font-family: 'Courier New', monospace; color: #c51a4a; background: rgba(197,26,74,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num { background: rgba(197,26,74,0.12); border: 1px solid rgba(197,26,74,0.4); color: #c51a4a; font-weight: 700; font-size: 0.78rem; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px; }
+        .step-text { color: #d0c0ca; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+        .code-block { background: rgba(0,0,0,0.35); border: 1px solid rgba(197,26,74,0.2); border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #c51a4a; line-height: 1.6; white-space: pre; }
+        .code-block .cm { color: #6a5a64; } .code-block .kw { color: #c792ea; } .code-block .fn { color: #c51a4a; } .code-block .st { color: #c3e88d; } .code-block .nu { color: #f0883e; }
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell { background: rgba(255,255,255,0.04); border: 1px solid rgba(197,26,74,0.25); border-radius: 8px; padding: 12px 14px; text-align: center; opacity: 0; animation: hexAppear 0.4s ease forwards; }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; } .hex-cell:nth-child(2) { animation-delay: 0.25s; } .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #c51a4a; margin-bottom: 4px; }
+        .hex-cell .hex-desc { font-size: 0.78rem; color: #a0909a; line-height: 1.4; }
+        @keyframes hexAppear { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes glowPulse { 0%, 100% { filter: drop-shadow(0 0 4px rgba(197,26,74,0.3)); } 50% { filter: drop-shadow(0 0 14px rgba(197,26,74,0.9)); } }
+        @keyframes dataFlow { 0% { stroke-dashoffset: 14; } 100% { stroke-dashoffset: 0; } }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">MicroPython &amp; Thonny -- PiVerse MicroPython Chapter 2</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- SLIDE 1 -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 | PiVerse | MicroPython | Chapter 2</div>
+        <div class="title-hero">
+            <svg width="340" height="120" viewBox="0 0 340 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="60" y="15" width="100" height="90" rx="8" fill="rgba(197,26,74,0.06)" stroke="#c51a4a" stroke-width="1.5" style="animation: boxGrow 0.4s ease forwards 0.2s; opacity:0;"/>
+                <text x="110" y="45" text-anchor="middle" font-size="9" fill="#c51a4a" font-weight="700">MicroPython</text>
+                <text x="110" y="62" text-anchor="middle" font-size="8" fill="#a0909a">Python 3 for</text>
+                <text x="110" y="76" text-anchor="middle" font-size="8" fill="#a0909a">Microcontrollers</text>
+                <line x1="165" y1="60" x2="175" y2="60" stroke="#c51a4a" stroke-width="1.5" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="12;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <rect x="180" y="15" width="100" height="90" rx="8" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="1.5" style="animation: boxGrow 0.4s ease forwards 0.3s; opacity:0;"/>
+                <text x="230" y="45" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700">Thonny IDE</text>
+                <text x="230" y="62" text-anchor="middle" font-size="8" fill="#a0909a">Editor + REPL</text>
+                <text x="230" y="76" text-anchor="middle" font-size="8" fill="#a0909a">+ File Manager</text>
+            </svg>
+            <div class="big-title"><span class="accent">MicroPython</span> &amp; Thonny</div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">Firmware | REPL | Thonny IDE | First Programs</div>
+        </div>
+        <div class="scenario-strip">The hardware is ready. Now you install the software that turns the RP2040 from a blank chip into a Python-programmable device. Flash firmware, connect Thonny, and type your first command.</div>
+        <div class="title-meta-row">
+            <span>12 Slides</span><span>PiVerse MicroPython</span><span>Chapter 2 of 6</span><span>Matrix House</span>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 2 -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">What Is <span class="accent">MicroPython</span>?</div>
+        <div class="slide-subtitle">A lean Python 3 implementation designed for microcontrollers with kilobytes of RAM.</div>
+        <div class="card-grid-2">
+            <div class="card">
+                <div class="card-label">What It Has</div>
+                <div class="card-desc">Core Python 3 syntax: variables, functions, classes, loops, list comprehensions, exceptions. Plus hardware modules: <span class="ic">machine</span>, <span class="ic">uos</span>, <span class="ic">utime</span>, <span class="ic">network</span> (Pico W).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">What It Lacks</div>
+                <div class="card-desc">No pip, no threading (has <span class="ic">_thread</span>), most of the standard library, no GUI, limited memory for large data structures. It runs on 264 KB of RAM, not gigabytes.</div>
+            </div>
+        </div>
+        <div class="box box-red">
+            <div class="box-label">Key Distinction</div>
+            MicroPython is not CPython. It is a separate interpreter written from scratch to fit in under 300 KB of flash. Core syntax is identical, but the ecosystem (pip, packages, OS integration) does not exist on a microcontroller.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 3 -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Flashing <span class="accent">Firmware</span></div>
+        <div class="slide-subtitle">Download the .uf2 file, enter BOOTSEL mode, drag and drop. Done.</div>
+        <div class="diagram-center">
+            <svg width="600" height="90" viewBox="0 0 600 90" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <defs><marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-end"><path d="M 0 0 L 10 5 L 0 10 z" fill="#c51a4a"/></marker></defs>
+                <rect x="10" y="10" width="130" height="70" rx="8" fill="rgba(197,26,74,0.06)" stroke="#c51a4a" stroke-width="1.5" style="animation: boxGrow 0.3s ease forwards 0.1s; opacity:0;"/>
+                <text x="75" y="35" text-anchor="middle" font-size="9" fill="#c51a4a" font-weight="700">micropython.org</text>
+                <text x="75" y="52" text-anchor="middle" font-size="8" fill="#a0909a">Download .uf2</text>
+                <line x1="145" y1="45" x2="170" y2="45" stroke="#c51a4a" stroke-width="1.5" marker-end="url(#arr2)"/>
+                <rect x="175" y="10" width="120" height="70" rx="8" fill="rgba(197,26,74,0.06)" stroke="#c51a4a" stroke-width="1.5" style="animation: boxGrow 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="235" y="35" text-anchor="middle" font-size="9" fill="#c51a4a" font-weight="700">BOOTSEL + USB</text>
+                <text x="235" y="52" text-anchor="middle" font-size="8" fill="#a0909a">RPI-RP2 drive</text>
+                <line x1="300" y1="45" x2="325" y2="45" stroke="#c51a4a" stroke-width="1.5" marker-end="url(#arr2)"/>
+                <rect x="330" y="10" width="120" height="70" rx="8" fill="rgba(197,26,74,0.06)" stroke="#c51a4a" stroke-width="1.5" style="animation: boxGrow 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="390" y="35" text-anchor="middle" font-size="9" fill="#c51a4a" font-weight="700">Drag .uf2</text>
+                <text x="390" y="52" text-anchor="middle" font-size="8" fill="#a0909a">to RPI-RP2</text>
+                <line x1="455" y1="45" x2="480" y2="45" stroke="#c51a4a" stroke-width="1.5" marker-end="url(#arr2)"/>
+                <rect x="485" y="10" width="100" height="70" rx="8" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="1.5" style="animation: boxGrow 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="535" y="35" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700">REPL Ready</text>
+                <text x="535" y="52" text-anchor="middle" font-size="8" fill="#a0909a">Auto-reboot</text>
+            </svg>
+        </div>
+        <div class="box box-gold">
+            <div class="box-label">Separate Firmware Builds</div>
+            Pico and Pico W use different .uf2 files. The Pico W build includes the CYW43 wireless driver. Using the wrong firmware means no wireless or a broken boot.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 4 -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Installing <span class="accent">Thonny</span></div>
+        <div class="slide-subtitle">A beginner-friendly Python IDE with built-in MicroPython support.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Download</strong> from thonny.org. Available for Windows, macOS, and Linux. Free and open-source.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Open Thonny</strong> and go to Tools > Options > Interpreter.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Select</strong> "MicroPython (Raspberry Pi Pico)" from the interpreter dropdown.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Select the port</strong> -- COM port on Windows, <span class="ic">/dev/ttyACM0</span> on Linux/macOS.</span></div>
+            <div class="step-row"><span class="step-num">5</span><span class="step-text"><strong>Click OK.</strong> The Shell panel should display the MicroPython version and <span class="ic">>>></span> prompt.</span></div>
+        </div>
+        <div class="card-grid">
+            <div class="card"><div class="card-label">Code Editor</div><div class="card-desc">Write Python scripts with syntax highlighting and auto-indent. Save to Pico or local filesystem.</div></div>
+            <div class="card c-green"><div class="card-label">Shell / REPL</div><div class="card-desc">Interactive console connected to the Pico. Type commands, see results instantly.</div></div>
+            <div class="card c-cyan"><div class="card-label">File Manager</div><div class="card-desc">Browse and manage files on both your computer and the Pico's internal filesystem.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 5 -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">The <span class="accent">REPL</span>: Interactive MicroPython</div>
+        <div class="slide-subtitle">Read-Eval-Print Loop. Type a command, see the result, repeat. Runs directly on the Pico.</div>
+        <div class="code-block"><span class="cm"># The REPL prompt -- running on the Pico</span>
+<span class="fn">>>></span> <span class="fn">print</span>(<span class="st">"Hello from Pico!"</span>)
+Hello from Pico!
+
+<span class="fn">>>></span> 2 + 2
+4
+
+<span class="fn">>>></span> <span class="kw">import</span> machine
+<span class="fn">>>></span> machine.freq()
+125000000
+
+<span class="fn">>>></span> <span class="kw">import</span> gc
+<span class="fn">>>></span> gc.mem_free()
+192848</div>
+        <div class="card-grid-2">
+            <div class="card"><div class="card-label">Tab Completion</div><div class="card-desc">Press Tab to auto-complete module names, functions, and methods. Explore the API without documentation.</div></div>
+            <div class="card c-gold"><div class="card-label">Ctrl+C / Ctrl+D</div><div class="card-desc">Ctrl+C interrupts a running program. Ctrl+D performs a soft reset (restarts MicroPython without power cycling).</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 6 -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">First Program: <span class="accent">Hello Pico</span></div>
+        <div class="slide-subtitle">Write a script, save it to the Pico, and run it.</div>
+        <div class="code-block"><span class="cm"># hello.py -- Save to Pico via Thonny</span>
+<span class="fn">print</span>(<span class="st">"Hello from Raspberry Pi Pico!"</span>)
+<span class="fn">print</span>(<span class="st">"MicroPython is running."</span>)
+
+<span class="cm"># Variables and types work like standard Python</span>
+board_name = <span class="st">"Pico"</span>
+ram_kb = <span class="nu">264</span>
+cores = <span class="nu">2</span>
+
+<span class="fn">print</span>(f<span class="st">"Board: {board_name}"</span>)
+<span class="fn">print</span>(f<span class="st">"RAM: {ram_kb} KB"</span>)
+<span class="fn">print</span>(f<span class="st">"Cores: {cores}"</span>)</div>
+        <div class="box box-green">
+            <div class="box-label">File Saving</div>
+            In Thonny, File > Save As gives you two options: "This Computer" or "Raspberry Pi Pico". Save to the Pico to run the script on the hardware. Save as <span class="ic">main.py</span> to run automatically on every boot.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 7 -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Reading <span class="accent">Temperature</span></div>
+        <div class="slide-subtitle">The RP2040 has a built-in temperature sensor on ADC channel 4. No external wiring needed.</div>
+        <div class="code-block"><span class="cm"># temperature.py -- Internal temperature sensor</span>
+<span class="kw">import</span> machine
+
+<span class="cm"># ADC channel 4 = internal temp sensor</span>
+sensor = machine.ADC(<span class="nu">4</span>)
+
+raw = sensor.read_u16()
+voltage = raw * <span class="nu">3.3</span> / <span class="nu">65535</span>
+temperature = <span class="nu">27</span> - (voltage - <span class="nu">0.706</span>) / <span class="nu">0.001721</span>
+
+<span class="fn">print</span>(f<span class="st">"Raw ADC: {raw}"</span>)
+<span class="fn">print</span>(f<span class="st">"Voltage: {voltage:.3f} V"</span>)
+<span class="fn">print</span>(f<span class="st">"Temperature: {temperature:.1f} C"</span>)</div>
+        <div class="box box-red">
+            <div class="box-label">Conversion Formula</div>
+            The datasheet formula converts voltage to Celsius: T = 27 - (V - 0.706) / 0.001721. The sensor is approximate (not calibrated) but useful for monitoring the chip's operating temperature.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 8 -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title"><span class="accent">print()</span> and <span class="accent">input()</span></div>
+        <div class="slide-subtitle">Text output and user input over the USB serial connection.</div>
+        <div class="code-block"><span class="cm"># interactive.py -- Serial I/O</span>
+name = <span class="fn">input</span>(<span class="st">"Enter your name: "</span>)
+<span class="fn">print</span>(f<span class="st">"Welcome to Pico, {name}!"</span>)
+
+blinks = <span class="fn">int</span>(<span class="fn">input</span>(<span class="st">"Blink count: "</span>))
+<span class="fn">print</span>(f<span class="st">"Will blink {blinks} times."</span>)
+
+<span class="cm"># Separator and end parameters</span>
+<span class="fn">print</span>(<span class="st">"Pico"</span>, <span class="st">"RP2040"</span>, <span class="st">"MicroPython"</span>, sep=<span class="st">" | "</span>)</div>
+        <div class="box box-gold">
+            <div class="box-label">Limitation</div>
+            <span class="ic">input()</span> only works when the Pico is connected to a computer via USB serial. Standalone battery-powered projects must use physical interfaces (buttons, displays, LEDs) instead.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 9 -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">File System and <span class="accent">boot.py / main.py</span></div>
+        <div class="slide-subtitle">The Pico's 2 MB flash is partitioned between firmware and a small filesystem for your scripts.</div>
+        <div class="card-grid-2">
+            <div class="card">
+                <div class="card-label">boot.py</div>
+                <div class="card-desc">Runs first on every power-up. Used for low-level configuration: setting CPU frequency, initializing hardware before the main program. Most beginners leave this alone.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">main.py</div>
+                <div class="card-desc">Runs after boot.py on every power-up. This is your main program. Save your project code here for standalone operation without Thonny.</div>
+            </div>
+        </div>
+        <div class="code-block"><span class="cm"># File management via REPL</span>
+<span class="fn">>>></span> <span class="kw">import</span> os
+<span class="fn">>>></span> os.listdir()         <span class="cm"># List files on Pico</span>
+[<span class="st">'main.py'</span>]
+
+<span class="fn">>>></span> os.stat(<span class="st">'main.py'</span>)   <span class="cm"># File size and metadata</span>
+<span class="fn">>>></span> os.remove(<span class="st">'old.py'</span>) <span class="cm"># Delete a file</span>
+<span class="fn">>>></span> os.mkdir(<span class="st">'lib'</span>)     <span class="cm"># Create a directory</span></div>
+    </div>
+</section>
+
+<!-- SLIDE 10 -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">The <span class="accent">machine</span> Module</div>
+        <div class="slide-subtitle">MicroPython's hardware abstraction layer. Every hardware interaction starts here.</div>
+        <div class="hex-grid">
+            <div class="hex-cell"><div class="hex-title">machine.Pin</div><div class="hex-desc">Digital GPIO control. Input/output, pull-up/down, interrupts.</div></div>
+            <div class="hex-cell"><div class="hex-title">machine.PWM</div><div class="hex-desc">Pulse Width Modulation for LED dimming, motor speed, buzzer tones.</div></div>
+            <div class="hex-cell"><div class="hex-title">machine.ADC</div><div class="hex-desc">Analog-to-digital conversion. Read voltages from sensors.</div></div>
+        </div>
+        <div class="box box-red">
+            <div class="box-label">Import Convention</div>
+            Two styles: <code>import machine</code> then <code>machine.Pin(25)</code>, or <code>from machine import Pin</code> then <code>Pin(25)</code>. The second is shorter but the first makes it clear where the class comes from.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 11 -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Debugging <span class="accent">Techniques</span></div>
+        <div class="slide-subtitle">No debugger, no breakpoints. Print statements and the REPL are your tools.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Print debugging.</strong> Add <span class="ic">print()</span> calls to trace execution flow and variable values. The output appears in Thonny's Shell.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>REPL exploration.</strong> Import modules and call functions interactively to test behavior before writing it into a script.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>try/except blocks.</strong> Catch and print exceptions to understand what went wrong without crashing the program.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>help() function.</strong> Call <span class="ic">help(module)</span> to list available methods. Call <span class="ic">dir(object)</span> to see all attributes.</span></div>
+            <div class="step-row"><span class="step-num">5</span><span class="step-text"><strong>Soft reset.</strong> Ctrl+D restarts MicroPython without unplugging. Faster iteration than power cycling.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 12 -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Key Takeaways: <span class="accent">Software Ready</span></div>
+        <div class="slide-subtitle">The Pico is now a Python-programmable device.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>MicroPython is Python 3 for microcontrollers.</strong> Core syntax identical to CPython. Fits in 300 KB of flash. Runs on 264 KB of RAM.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Flash firmware via BOOTSEL + .uf2.</strong> Hold BOOTSEL, plug USB, drag the .uf2 file to the RPI-RP2 drive. Different builds for Pico and Pico W.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Thonny = editor + REPL + file manager.</strong> Set interpreter to "MicroPython (Raspberry Pi Pico)" and select the serial port.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>REPL is your interactive console.</strong> Tab completion, Ctrl+C to interrupt, Ctrl+D to soft reset. Test code before committing to scripts.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong><code>main.py</code> runs on boot.</strong> Save your program as main.py on the Pico for standalone operation without a computer.</span></div>
+        </div>
+        <div class="box box-red" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Chapter 3 -- Digital I/O</strong> | GPIO Output | Input | LEDs | Buttons | Debouncing
+        </div>
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; PiVerse</button></a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+<script>
+    let currentSlide = 1; const TOTAL_SLIDES = 12;
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide); if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide); if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+    goToSlide(1);
+</script>
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') { ModuleProgress.complete('matrix', 'pv-mp-02-pres', { returnUrl: '../../index.html' }); }
+    }
+</script>
+</body>
+</html>

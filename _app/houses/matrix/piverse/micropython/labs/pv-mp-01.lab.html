@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab: Know Your Pico | PiVerse MicroPython Ch 1</title>
+    <style>
+        :root { --accent: #c51a4a; --accent-dim: rgba(197,26,74,0.15); --accent-border: rgba(197,26,74,0.3); --green: #34d399; --green-dim: rgba(52,211,153,0.1); --green-border: rgba(52,211,153,0.3); --gold: #ffd700; --gold-dim: rgba(255,215,0,0.1); --gold-border: rgba(255,215,0,0.3); --red: #ef4444; --bg: #0d0a0c; --bg2: #140f12; --bg3: #1a1520; --text: #e0e0e0; --text2: #a0909a; --border: rgba(197,26,74,0.12); }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        .topbar { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .topbar-left { display: flex; align-items: center; gap: 14px; }
+        .back-btn { padding: 6px 14px; background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: 6px; color: var(--accent); text-decoration: none; font-size: 0.82rem; transition: background 0.2s; }
+        .back-btn:hover { background: rgba(197,26,74,0.25); }
+        .lab-title { font-size: 0.95rem; color: var(--text); }
+        .badge { padding: 3px 10px; border-radius: 10px; font-size: 0.68rem; letter-spacing: 0.06em; }
+        .badge-accent { background: var(--accent-dim); border: 1px solid var(--accent-border); color: var(--accent); }
+        .badge-gold { background: var(--gold-dim); border: 1px solid var(--gold-border); color: var(--gold); }
+        .topbar-right { display: flex; align-items: center; gap: 14px; font-size: 0.82rem; color: var(--text2); }
+        .prog-wrap { width: 130px; height: 5px; background: rgba(197,26,74,0.12); border-radius: 3px; overflow: hidden; }
+        .prog-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #8b1030); border-radius: 3px; transition: width 0.4s ease; }
+        .prog-label { color: var(--accent); font-weight: 500; }
+        .workspace { display: grid; grid-template-columns: 1fr 320px; flex: 1; min-height: 0; }
+        .ide-panel { display: flex; flex-direction: column; overflow: hidden; }
+        .ide-toolbar { flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: var(--bg2); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+        .tb-btn { padding: 5px 14px; background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: 5px; color: var(--accent); font-size: 0.82rem; cursor: pointer; transition: background 0.2s; white-space: nowrap; font-weight: 600; }
+        .tb-btn:hover:not(:disabled) { background: rgba(197,26,74,0.25); }
+        .tb-btn:disabled { opacity: 0.35; cursor: default; }
+        .tb-btn.run { background: rgba(52,211,153,0.12); border-color: var(--green-border); color: var(--green); }
+        .tb-btn.run:hover:not(:disabled) { background: rgba(52,211,153,0.22); }
+        .toolbar-sep { width: 1px; height: 18px; background: var(--border); }
+        .code-area { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+        .code-editor-wrap { flex: 1; display: flex; overflow: hidden; }
+        .line-numbers { background: var(--bg2); color: #5a4a54; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.82rem; padding: 12px 8px 12px 12px; text-align: right; line-height: 1.7; user-select: none; overflow: hidden; min-width: 38px; border-right: 1px solid var(--border); }
+        .code-editor { flex: 1; background: var(--bg3); color: #e2e8f0; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.82rem; padding: 12px 14px; border: none; outline: none; resize: none; line-height: 1.7; tab-size: 2; overflow: auto; white-space: pre; }
+        .code-editor::placeholder { color: #4a3a44; }
+        .output-panel { flex-shrink: 0; height: 120px; background: rgba(0,0,0,0.4); border-top: 1px solid var(--border); overflow-y: auto; padding: 8px 14px; font-family: 'Consolas', monospace; font-size: 0.75rem; color: var(--text2); line-height: 1.5; }
+        .output-panel .out-ok { color: var(--green); } .output-panel .out-err { color: #f87171; } .output-panel .out-info { color: var(--accent); }
+        .task-panel { background: var(--bg2); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+        .panel-header { padding: 12px 16px; font-size: 0.7rem; color: var(--text2); letter-spacing: 0.12em; text-transform: uppercase; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .task-list { flex: 1; overflow-y: auto; padding: 12px; }
+        .task-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 9px; padding: 12px 14px; margin-bottom: 8px; transition: all 0.2s; }
+        .task-card.active { border-color: var(--accent); background: rgba(197,26,74,0.06); }
+        .task-card.done { border-color: var(--green-border); background: var(--green-dim); }
+        .task-num { font-size: 0.67rem; color: var(--accent); margin-bottom: 3px; }
+        .task-name { font-size: 0.88rem; color: var(--text); margin-bottom: 3px; display: flex; align-items: center; gap: 6px; }
+        .task-name .chk { font-size: 0.75rem; color: var(--green); margin-left: auto; display: none; }
+        .task-desc { font-size: 0.77rem; color: var(--text2); line-height: 1.45; }
+        .finish-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 9000; }
+        .finish-overlay.active { display: flex; }
+        .finish-card { background: var(--bg2); border: 1px solid var(--green-border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .finish-title { font-size: 1.5rem; color: var(--gold); margin-bottom: 10px; }
+        .finish-msg { color: var(--text2); font-size: 0.95rem; margin-bottom: 24px; line-height: 1.6; }
+        .finish-btn { padding: 11px 28px; background: linear-gradient(135deg, var(--accent), #8b1030); border: none; border-radius: 8px; color: #fff; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; }
+        .finish-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <div class="topbar-left">
+            <a href="../../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Lab: Know Your Pico</span>
+            <span class="badge badge-accent">PiVerse</span>
+            <span class="badge badge-gold">Ch 1</span>
+        </div>
+        <div class="topbar-right">
+            <span>Tasks:</span>
+            <div class="prog-wrap"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+            <span class="prog-label" id="progLabel">0 / 8</span>
+        </div>
+    </header>
+    <div class="workspace">
+        <div class="ide-panel">
+            <div class="ide-toolbar">
+                <button class="tb-btn run" id="btnRun" onclick="doRun()">Run</button>
+                <button class="tb-btn" onclick="doClear()">Clear Output</button>
+                <div class="toolbar-sep"></div>
+                <span style="font-size:0.72rem; color:var(--text2);">MicroPython REPL Simulator</span>
+            </div>
+            <div class="code-area">
+                <div class="code-editor-wrap">
+                    <div class="line-numbers" id="lineNums">1
+2
+3
+4
+5
+6
+7
+8
+9
+10</div>
+                    <textarea class="code-editor" id="codeEditor" spellcheck="false" placeholder="# Type your MicroPython code here..."></textarea>
+                </div>
+            </div>
+            <div class="output-panel" id="outputPanel">
+                <div class="out-info">MicroPython v1.23.0 on RP2040 -- REPL Simulator Ready</div>
+            </div>
+        </div>
+        <aside class="task-panel">
+            <div class="panel-header">Lab Tasks</div>
+            <div class="task-list" id="taskList"></div>
+        </aside>
+    </div>
+    <div class="finish-overlay" id="finishOverlay">
+        <div class="finish-card">
+            <div class="finish-title">Hardware Mapped</div>
+            <div class="finish-msg">You have explored the RP2040 specs, identified pin types, understood BOOTSEL mode, and compared Pico variants. The hardware foundation is solid.</div>
+            <button class="finish-btn" onclick="finishLab()">Return to PiVerse Hub</button>
+        </div>
+    </div>
+<script>
+(function () {
+    'use strict';
+    var TASKS = [
+        { id: 1, name: 'Print the RP2040 CPU frequency', desc: 'Use machine.freq() to print the clock speed. Verify it shows 125000000 (125 MHz default).' },
+        { id: 2, name: 'Print the platform name', desc: 'Use sys.platform to print the platform identifier. It should be "rp2".' },
+        { id: 3, name: 'Check available memory', desc: 'Use gc.mem_free() to print the available SRAM. Should be approximately 192000 bytes.' },
+        { id: 4, name: 'List files on the Pico', desc: 'Use os.listdir() to show the filesystem contents.' },
+        { id: 5, name: 'Create a Pin object for GP25', desc: 'Import Pin from machine and create Pin(25, Pin.OUT). Print the pin object.' },
+        { id: 6, name: 'Print board info string', desc: 'Print a formatted string with board name, RAM (264 KB), and cores (2).' },
+        { id: 7, name: 'Read the internal temperature', desc: 'Use ADC(4) to read the internal temp sensor and convert to Celsius.' },
+        { id: 8, name: 'Print a pin map summary', desc: 'Print a summary showing GPIO count (26), ADC channels (3), ground pins (8).' }
+    ];
+    var completedTasks = {};
+    function init() { buildTaskList(); updateProgress(); highlightTask(1); var ed = document.getElementById('codeEditor'); ed.addEventListener('input', updateLineNumbers); ed.addEventListener('scroll', syncScroll); updateLineNumbers(); }
+    function buildTaskList() { var list = document.getElementById('taskList'); TASKS.forEach(function(t) { var card = document.createElement('div'); card.className = 'task-card'; card.id = 'tc-' + t.id; card.innerHTML = '<div class="task-num">Task ' + t.id + '</div><div class="task-name">' + t.name + '<span class="chk" id="ck-' + t.id + '">Done</span></div><div class="task-desc">' + t.desc + '</div>'; list.appendChild(card); }); }
+    function updateProgress() { var c = Object.keys(completedTasks).length; document.getElementById('progFill').style.width = (c / TASKS.length) * 100 + '%'; document.getElementById('progLabel').textContent = c + ' / ' + TASKS.length; }
+    function completeTask(id) { if (completedTasks[id]) return; completedTasks[id] = true; var card = document.getElementById('tc-' + id); if (card) card.className = 'task-card done'; var chk = document.getElementById('ck-' + id); if (chk) chk.style.display = 'inline'; updateProgress(); var next = TASKS.find(function(t) { return !completedTasks[t.id]; }); if (next) highlightTask(next.id); if (Object.keys(completedTasks).length === TASKS.length) setTimeout(function() { document.getElementById('finishOverlay').classList.add('active'); }, 600); }
+    function highlightTask(id) { TASKS.forEach(function(t) { var card = document.getElementById('tc-' + t.id); if (card && !completedTasks[t.id]) card.className = (t.id === id) ? 'task-card active' : 'task-card'; }); }
+    function updateLineNumbers() { var ed = document.getElementById('codeEditor'); var lines = Math.max(ed.value.split('\n').length, 10); var nums = ''; for (var i = 1; i <= lines; i++) nums += i + '\n'; document.getElementById('lineNums').textContent = nums; }
+    function syncScroll() { document.getElementById('lineNums').scrollTop = document.getElementById('codeEditor').scrollTop; }
+    function addOutput(msg, cls) { var p = document.getElementById('outputPanel'); var d = document.createElement('div'); d.className = cls || ''; d.textContent = msg; p.appendChild(d); p.scrollTop = p.scrollHeight; }
+    window.doClear = function() { document.getElementById('outputPanel').innerHTML = ''; };
+    window.doRun = function() {
+        var code = document.getElementById('codeEditor').value.trim();
+        if (!code) { addOutput('Error: No code to run.', 'out-err'); return; }
+        addOutput('>>> Running...', 'out-info');
+        var cl = code.toLowerCase();
+        if (cl.indexOf('machine.freq') !== -1 || cl.indexOf('machine.freq()') !== -1) { addOutput('125000000', 'out-ok'); completeTask(1); }
+        if (cl.indexOf('sys.platform') !== -1) { addOutput("'rp2'", 'out-ok'); completeTask(2); }
+        if (cl.indexOf('gc.mem_free') !== -1) { addOutput('192848', 'out-ok'); completeTask(3); }
+        if (cl.indexOf('os.listdir') !== -1) { addOutput("['main.py']", 'out-ok'); completeTask(4); }
+        if (cl.indexOf('pin(25') !== -1 || cl.indexOf('pin( 25') !== -1) { addOutput("Pin(25, mode=OUT)", 'out-ok'); completeTask(5); }
+        if ((cl.indexOf('264') !== -1 || cl.indexOf('ram') !== -1) && cl.indexOf('print') !== -1 && (cl.indexOf('pico') !== -1 || cl.indexOf('board') !== -1)) { addOutput('Board: Pico | RAM: 264 KB | Cores: 2', 'out-ok'); completeTask(6); }
+        if (cl.indexOf('adc(4') !== -1 || cl.indexOf('adc( 4') !== -1) { addOutput('Raw ADC: 39800\nVoltage: 2.002 V\nTemperature: 25.3 C', 'out-ok'); completeTask(7); }
+        if ((cl.indexOf('26') !== -1 || cl.indexOf('gpio') !== -1) && (cl.indexOf('adc') !== -1 || cl.indexOf('3') !== -1) && cl.indexOf('print') !== -1 && (cl.indexOf('gnd') !== -1 || cl.indexOf('ground') !== -1 || cl.indexOf('8') !== -1)) { addOutput('GPIO: 26 | ADC Channels: 3 | Ground Pins: 8', 'out-ok'); completeTask(8); }
+        if (cl.indexOf('print') !== -1 && !completedTasks[6] && !completedTasks[8]) { addOutput('(Output displayed)', 'out-ok'); }
+    };
+    window.finishLab = function() { if (typeof ModuleProgress !== 'undefined') ModuleProgress.complete('matrix', 'pv-mp-01-lab', { returnUrl: '../../index.html' }); else window.location.href = '../../index.html'; };
+    document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>

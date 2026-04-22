@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python on the Pi | PiVerse Fundamentals Ch7</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d0608 0%, #1a0c10 50%, #0d0608 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #c51a4a; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(13, 6, 8, 0.95); border-top: 1px solid rgba(197, 26, 74, 0.15); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.07); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(197,26,74,0.15); color: #c51a4a; border-color: #c51a4a; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s; }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #c51a4a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ffd700; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip { background: rgba(197,26,74,0.08); border-left: 3px solid #c51a4a; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #d4a0b0; font-style: italic; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ffd700; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #c51a4a; }
+        .card:hover { background: rgba(255,255,255,0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-gold { border-left-color: #ffd700; }
+        .card.c-cyan { border-left-color: #06b6d4; } .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-pink { border-left-color: #c51a4a; } .card.c-orange { border-left-color: #f97316; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #c51a4a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .ic { font-family: 'Courier New', monospace; color: #ffd700; background: rgba(255,215,0,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .code-block { background: rgba(0,0,0,0.35); border: 1px solid rgba(197,26,74,0.2); border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #ffd700; line-height: 1.6; white-space: pre; overflow-x: auto; }
+        .code-block .cm { color: #64748b; } .code-block .kw { color: #93c5fd; } .code-block .st { color: #86efac; } .code-block .nu { color: #fdba74; } .code-block .fn { color: #c51a4a; }
+        .code-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .code-panel-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 5px; }
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell { background: rgba(255,255,255,0.04); border: 1px solid rgba(197,26,74,0.25); border-radius: 8px; padding: 12px 14px; text-align: center; opacity: 0; animation: hexAppear 0.4s ease forwards; }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; } .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; } .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; } .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #c51a4a; margin-bottom: 4px; }
+        .hex-cell .hex-desc { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+        .box-blue { background: rgba(197,26,74,0.08); border: 1px solid rgba(197,26,74,0.3); color: #f9d0dc; border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .code-compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Python on the Pi -- PiVerse Fundamentals Chapter 7</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- SLIDE 1 -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; PiVerse &nbsp;|&nbsp; Fundamentals &nbsp;|&nbsp; Chapter 7</div>
+        <div class="title-hero">
+            <div class="big-title">Python on the <span class="accent">Pi</span></div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Thonny IDE &bull; Variables &bull; Types &bull; Conditions &bull; Loops &bull; Functions &bull; Lists &bull; File I/O
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Python is the primary programming language of the Raspberry Pi ecosystem. Pre-installed on every Pi, it powers everything from simple scripts to GPIO control, web servers, and machine learning.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span><span>PV-F-07</span><span>Chapter 7 of 10</span><span>Pi Fundamentals Track</span>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 2 -- THONNY IDE -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Thonny: The <span class="accent">Beginner IDE</span></div>
+        <div class="slide-subtitle">Pre-installed on Raspberry Pi OS. Launch from Menu > Programming > Thonny Python IDE.</div>
+        <div class="card-grid-2">
+            <div class="card c-pink">
+                <div class="card-label">Editor Pane</div>
+                <div class="card-desc">Write multi-line scripts here. Save as <span class="ic">.py</span> files. Syntax highlighting, line numbers, and auto-indent help you write clean code.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Shell / REPL</div>
+                <div class="card-desc">Bottom pane. Type Python expressions and see results immediately. The <span class="ic">>>></span> prompt is the Python REPL -- Read, Evaluate, Print, Loop. Perfect for testing.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Variable Inspector</div>
+                <div class="card-desc">View > Variables shows all current variables and their values in real time as your program runs. Essential for debugging.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Run Button</div>
+                <div class="card-desc">F5 or the green play button runs the current script. Output appears in the shell pane. Errors show with line numbers and descriptions.</div>
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Thonny is specifically designed for learning. It can step through code line by line (Debug mode), showing exactly what Python does at each step. Use this when confused about control flow.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 3 -- VARIABLES & TYPES -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Variables &amp; <span class="accent">Data Types</span></div>
+        <div class="slide-subtitle">Python is dynamically typed -- you do not declare types. The interpreter infers them from the value assigned.</div>
+        <div class="hex-grid">
+            <div class="hex-cell">
+                <div class="hex-title">int</div>
+                <div class="hex-desc">Whole numbers. Arbitrary precision -- no overflow. <span class="ic">count = 42</span></div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">float</div>
+                <div class="hex-desc">Decimal numbers. 64-bit IEEE 754. <span class="ic">temp = 22.5</span></div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">str</div>
+                <div class="hex-desc">Text strings. Single or double quotes. <span class="ic">name = "Pi"</span></div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">bool</div>
+                <div class="hex-desc"><span class="ic">True</span> or <span class="ic">False</span>. Capital first letter. <span class="ic">ready = True</span></div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">list</div>
+                <div class="hex-desc">Ordered, mutable collection. <span class="ic">pins = [2, 3, 5]</span></div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">dict</div>
+                <div class="hex-desc">Key-value pairs. <span class="ic">config = {"baud": 9600}</span></div>
+            </div>
+        </div>
+        <div class="code-block"><span class="cm"># Python infers types from values</span>
+<span class="kw">count</span> = <span class="nu">42</span>              <span class="cm"># int</span>
+<span class="kw">temperature</span> = <span class="nu">22.5</span>      <span class="cm"># float</span>
+<span class="kw">hostname</span> = <span class="st">"raspberrypi"</span> <span class="cm"># str</span>
+<span class="kw">active</span> = <span class="nu">True</span>           <span class="cm"># bool</span>
+
+<span class="cm"># Check type at runtime</span>
+<span class="fn">print</span>(<span class="fn">type</span>(count))      <span class="cm"># &lt;class 'int'&gt;</span></div>
+    </div>
+</section>
+
+<!-- SLIDE 4 -- CONDITIONS -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Conditions: <span class="accent">if / elif / else</span></div>
+        <div class="slide-subtitle">Indentation defines code blocks in Python -- not curly braces. The colon and indent are mandatory.</div>
+        <div class="code-block"><span class="kw">temp</span> = <span class="nu">75</span>
+
+<span class="kw">if</span> temp &gt; <span class="nu">100</span>:
+    <span class="fn">print</span>(<span class="st">"CRITICAL: Overheating!"</span>)
+<span class="kw">elif</span> temp &gt; <span class="nu">50</span>:
+    <span class="fn">print</span>(<span class="st">"WARNING: High temperature"</span>)
+<span class="kw">else</span>:
+    <span class="fn">print</span>(<span class="st">"Normal range"</span>)
+
+<span class="cm"># Output: WARNING: High temperature</span></div>
+        <div class="card-grid">
+            <div class="card c-pink">
+                <div class="card-label">Comparison</div>
+                <div class="card-desc"><span class="ic">==</span> equal, <span class="ic">!=</span> not equal, <span class="ic">&lt;</span> <span class="ic">&gt;</span> <span class="ic">&lt;=</span> <span class="ic">&gt;=</span>. Python allows chaining: <span class="ic">0 &lt; x &lt; 100</span> works directly.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Logical</div>
+                <div class="card-desc"><span class="ic">and</span>, <span class="ic">or</span>, <span class="ic">not</span> -- English words, not symbols. <span class="ic">if temp &gt; 50 and humidity &lt; 30:</span></div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Truthiness</div>
+                <div class="card-desc">Empty strings, zero, None, empty lists are <span class="ic">False</span>. Everything else is <span class="ic">True</span>. <span class="ic">if my_list:</span> checks if list is non-empty.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 5 -- LOOPS -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Loops: <span class="accent">for and while</span></div>
+        <div class="slide-subtitle">Python's for loop iterates over sequences. The while loop repeats until a condition is false.</div>
+        <div class="code-compare">
+            <div>
+                <div class="code-panel-label" style="color:#c51a4a;">for Loop</div>
+                <div class="code-block"><span class="cm"># Iterate over a range</span>
+<span class="kw">for</span> i <span class="kw">in</span> <span class="fn">range</span>(<span class="nu">10</span>):
+    <span class="fn">print</span>(i)  <span class="cm"># 0 through 9</span>
+
+<span class="cm"># Iterate over a list</span>
+pins = [<span class="nu">2</span>, <span class="nu">3</span>, <span class="nu">5</span>, <span class="nu">8</span>]
+<span class="kw">for</span> pin <span class="kw">in</span> pins:
+    <span class="fn">print</span>(<span class="st">f"Pin {pin}"</span>)
+
+<span class="cm"># enumerate for index + value</span>
+<span class="kw">for</span> i, pin <span class="kw">in</span> <span class="fn">enumerate</span>(pins):
+    <span class="fn">print</span>(<span class="st">f"{i}: Pin {pin}"</span>)</div>
+            </div>
+            <div>
+                <div class="code-panel-label" style="color:#ffd700;">while Loop</div>
+                <div class="code-block"><span class="cm"># Wait for condition</span>
+<span class="kw">count</span> = <span class="nu">0</span>
+<span class="kw">while</span> count &lt; <span class="nu">5</span>:
+    <span class="fn">print</span>(count)
+    count += <span class="nu">1</span>
+
+<span class="cm"># Infinite loop with break</span>
+<span class="kw">while</span> <span class="nu">True</span>:
+    data = <span class="fn">input</span>(<span class="st">"Enter: "</span>)
+    <span class="kw">if</span> data == <span class="st">"quit"</span>:
+        <span class="kw">break</span>
+    <span class="fn">print</span>(<span class="st">f"Got: {data}"</span>)</div>
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Python's for loop does not count by default -- it iterates over items. <span class="ic">range(10)</span> creates a sequence 0-9. <span class="ic">range(2, 10, 2)</span> gives 2, 4, 6, 8. Think of for as "for each item in this collection."
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 6 -- FUNCTIONS -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Functions: <span class="accent">Reusable Logic</span></div>
+        <div class="slide-subtitle">Functions group code into named, reusable blocks. Define once, call many times.</div>
+        <div class="code-block"><span class="kw">def</span> <span class="fn">celsius_to_fahrenheit</span>(celsius):
+    <span class="st">"""Convert Celsius to Fahrenheit."""</span>
+    <span class="kw">return</span> celsius * <span class="nu">1.8</span> + <span class="nu">32</span>
+
+<span class="cm"># Call the function</span>
+temp_f = <span class="fn">celsius_to_fahrenheit</span>(<span class="nu">100</span>)
+<span class="fn">print</span>(temp_f)  <span class="cm"># 212.0</span>
+
+<span class="cm"># Default parameters</span>
+<span class="kw">def</span> <span class="fn">greet</span>(name, greeting=<span class="st">"Hello"</span>):
+    <span class="kw">return</span> <span class="st">f"{greeting}, {name}!"</span>
+
+<span class="fn">print</span>(<span class="fn">greet</span>(<span class="st">"Pi"</span>))            <span class="cm"># Hello, Pi!</span>
+<span class="fn">print</span>(<span class="fn">greet</span>(<span class="st">"Pi"</span>, <span class="st">"Welcome"</span>))  <span class="cm"># Welcome, Pi!</span></div>
+        <div class="card-grid">
+            <div class="card c-pink">
+                <div class="card-label">def Keyword</div>
+                <div class="card-desc"><span class="ic">def</span> defines a function. The colon and indent are mandatory. The function body is everything at the indented level below.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Return Values</div>
+                <div class="card-desc"><span class="ic">return</span> sends a value back to the caller. Without return, the function returns <span class="ic">None</span>. Functions can return multiple values as tuples.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Docstrings</div>
+                <div class="card-desc">Triple-quoted strings immediately after <span class="ic">def</span> document the function. Access with <span class="ic">help(function_name)</span> or <span class="ic">function_name.__doc__</span>.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 7 -- LISTS -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Lists: <span class="accent">Ordered Collections</span></div>
+        <div class="slide-subtitle">Lists are Python's most versatile data structure -- mutable, ordered, and indexed starting at 0.</div>
+        <div class="code-block">readings = [<span class="nu">512</span>, <span class="nu">480</span>, <span class="nu">530</span>, <span class="nu">495</span>, <span class="nu">510</span>]
+
+<span class="cm"># Indexing and slicing</span>
+<span class="fn">print</span>(readings[<span class="nu">0</span>])      <span class="cm"># 512 (first)</span>
+<span class="fn">print</span>(readings[-<span class="nu">1</span>])     <span class="cm"># 510 (last)</span>
+<span class="fn">print</span>(readings[<span class="nu">1</span>:<span class="nu">3</span>])    <span class="cm"># [480, 530]</span>
+
+<span class="cm"># Modification</span>
+readings.<span class="fn">append</span>(<span class="nu">525</span>)     <span class="cm"># add to end</span>
+readings.<span class="fn">insert</span>(<span class="nu">0</span>, <span class="nu">500</span>)  <span class="cm"># insert at index 0</span>
+readings.<span class="fn">pop</span>()            <span class="cm"># remove last</span>
+
+<span class="cm"># Useful built-ins</span>
+avg = <span class="fn">sum</span>(readings) / <span class="fn">len</span>(readings)
+highest = <span class="fn">max</span>(readings)
+lowest = <span class="fn">min</span>(readings)</div>
+        <div class="card-grid-2">
+            <div class="card c-pink">
+                <div class="card-label">List Comprehensions</div>
+                <div class="card-desc"><span class="ic">squares = [x**2 for x in range(10)]</span> -- build lists in one line. Filter with conditions: <span class="ic">[x for x in data if x > 0]</span>.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Sensor Buffer Pattern</div>
+                <div class="card-desc">Collect N readings, then average: <span class="ic">readings = [read_sensor() for _ in range(10)]</span> then <span class="ic">avg = sum(readings) / len(readings)</span>.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 8 -- STRINGS -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Strings &amp; <span class="accent">f-Strings</span></div>
+        <div class="slide-subtitle">Strings in Python are immutable sequences of characters. f-strings (Python 3.6+) are the modern way to format text.</div>
+        <div class="code-block">name = <span class="st">"Raspberry Pi"</span>
+temp = <span class="nu">42.7</span>
+
+<span class="cm"># f-string formatting</span>
+msg = <span class="st">f"The {name} is at {temp:.1f}C"</span>
+<span class="cm"># "The Raspberry Pi is at 42.7C"</span>
+
+<span class="cm"># String methods</span>
+<span class="fn">print</span>(name.<span class="fn">upper</span>())       <span class="cm"># RASPBERRY PI</span>
+<span class="fn">print</span>(name.<span class="fn">split</span>())       <span class="cm"># ['Raspberry', 'Pi']</span>
+<span class="fn">print</span>(name.<span class="fn">startswith</span>(<span class="st">"Rasp"</span>))  <span class="cm"># True</span>
+<span class="fn">print</span>(name.<span class="fn">replace</span>(<span class="st">"Pi"</span>, <span class="st">"Pi 5"</span>))  <span class="cm"># Raspberry Pi 5</span>
+
+<span class="cm"># Slicing</span>
+<span class="fn">print</span>(name[:<span class="nu">9</span>])          <span class="cm"># Raspberry</span>
+<span class="fn">print</span>(name[::-<span class="nu">1</span>])        <span class="cm"># iP yrrebpsaR (reversed)</span></div>
+        <div class="card-grid">
+            <div class="card c-pink">
+                <div class="card-label">Immutable</div>
+                <div class="card-desc">Strings cannot be changed in place. <span class="ic">name[0] = "r"</span> raises TypeError. Methods like <span class="ic">upper()</span> return a new string.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Format Specifiers</div>
+                <div class="card-desc"><span class="ic">{val:.2f}</span> two decimals, <span class="ic">{val:>10}</span> right-align in 10 chars, <span class="ic">{val:04d}</span> zero-padded 4-digit integer.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Multi-line</div>
+                <div class="card-desc">Triple quotes for multi-line strings: <span class="ic">"""Line 1\nLine 2"""</span>. Used for docstrings and templates.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 9 -- FILE I/O -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">File <span class="accent">I/O</span></div>
+        <div class="slide-subtitle">Read sensor logs, write configuration files, save data -- file operations are essential on the Pi.</div>
+        <div class="code-compare">
+            <div>
+                <div class="code-panel-label" style="color:#c51a4a;">Writing Files</div>
+                <div class="code-block"><span class="cm"># Write to a file</span>
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">"log.txt"</span>, <span class="st">"w"</span>) <span class="kw">as</span> f:
+    f.<span class="fn">write</span>(<span class="st">"Temperature: 22.5\n"</span>)
+    f.<span class="fn">write</span>(<span class="st">"Humidity: 45%\n"</span>)
+
+<span class="cm"># Append mode</span>
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">"log.txt"</span>, <span class="st">"a"</span>) <span class="kw">as</span> f:
+    f.<span class="fn">write</span>(<span class="st">"Pressure: 1013\n"</span>)</div>
+            </div>
+            <div>
+                <div class="code-panel-label" style="color:#ffd700;">Reading Files</div>
+                <div class="code-block"><span class="cm"># Read entire file</span>
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">"log.txt"</span>, <span class="st">"r"</span>) <span class="kw">as</span> f:
+    content = f.<span class="fn">read</span>()
+
+<span class="cm"># Read line by line</span>
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">"log.txt"</span>) <span class="kw">as</span> f:
+    <span class="kw">for</span> line <span class="kw">in</span> f:
+        <span class="fn">print</span>(line.<span class="fn">strip</span>())</div>
+            </div>
+        </div>
+        <div class="card-grid-2">
+            <div class="card c-pink">
+                <div class="card-label">with Statement</div>
+                <div class="card-desc">Always use <span class="ic">with open()</span> -- it automatically closes the file when the block exits, even if an error occurs. Never leave files open.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">CSV Data Logging</div>
+                <div class="card-desc">Import the csv module for structured data. <span class="ic">csv.writer(f).writerow([timestamp, temp, humidity])</span> creates sensor logs you can open in spreadsheets.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 10 -- ERROR HANDLING -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Error <span class="accent">Handling</span></div>
+        <div class="slide-subtitle">Programs fail. try/except lets you handle errors gracefully instead of crashing.</div>
+        <div class="code-block"><span class="kw">try</span>:
+    value = <span class="fn">int</span>(<span class="fn">input</span>(<span class="st">"Enter a number: "</span>))
+    result = <span class="nu">100</span> / value
+    <span class="fn">print</span>(<span class="st">f"Result: {result}"</span>)
+<span class="kw">except</span> ValueError:
+    <span class="fn">print</span>(<span class="st">"That was not a valid number."</span>)
+<span class="kw">except</span> ZeroDivisionError:
+    <span class="fn">print</span>(<span class="st">"Cannot divide by zero."</span>)
+<span class="kw">finally</span>:
+    <span class="fn">print</span>(<span class="st">"Done."</span>)  <span class="cm"># always runs</span></div>
+        <div class="card-grid">
+            <div class="card c-pink">
+                <div class="card-label">Common Exceptions</div>
+                <div class="card-desc"><span class="ic">ValueError</span> (bad conversion), <span class="ic">TypeError</span> (wrong type), <span class="ic">FileNotFoundError</span> (missing file), <span class="ic">KeyError</span> (missing dict key), <span class="ic">IndexError</span> (list out of range).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Pi Hardware Errors</div>
+                <div class="card-desc">GPIO and sensor code often raises <span class="ic">IOError</span> or <span class="ic">OSError</span> when hardware is disconnected. Wrapping hardware calls in try/except prevents your program from crashing.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">finally Block</div>
+                <div class="card-desc">Code in <span class="ic">finally</span> runs whether or not an exception occurred. Use it to clean up resources: close files, release GPIO pins, disconnect from sensors.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 11 -- RUNNING PYTHON -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Running Python on the <span class="accent">Pi</span></div>
+        <div class="slide-subtitle">Multiple ways to execute Python -- choose the right tool for the job.</div>
+        <div class="card-grid">
+            <div class="card c-pink">
+                <div class="card-label">Thonny IDE</div>
+                <div class="card-desc">Best for beginners. Visual debugging, variable inspector, built-in REPL. Use for learning, prototyping, and small scripts.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Terminal REPL</div>
+                <div class="card-desc">Type <span class="ic">python3</span> in the terminal for an interactive session. Test expressions, import modules, quick calculations. Exit with <span class="ic">exit()</span> or Ctrl+D.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Script Execution</div>
+                <div class="card-desc"><span class="ic">python3 script.py</span> runs a saved file. Add <span class="ic">#!/usr/bin/env python3</span> as the first line and <span class="ic">chmod +x script.py</span> to make it directly executable.</div>
+            </div>
+        </div>
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">pip for Packages</div>
+                <div class="card-desc"><span class="ic">pip3 install package_name</span> installs third-party libraries. GPIO libraries, sensor drivers, web frameworks -- the Python ecosystem has packages for everything.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Virtual Environments</div>
+                <div class="card-desc"><span class="ic">python3 -m venv myenv</span> creates an isolated environment. <span class="ic">source myenv/bin/activate</span> activates it. Best practice for project dependencies.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 12 -- KEY TAKEAWAYS -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Key <span class="accent">Takeaways</span></div>
+        <div class="slide-subtitle">Python on the Pi -- the foundation for everything you will build.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Python is dynamically typed.</strong> No type declarations. The interpreter infers types from values. Use <span class="ic">type()</span> to check.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Indentation is syntax.</strong> Colons start blocks. Indent with 4 spaces (not tabs). Mismatched indentation causes IndentationError.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>for iterates over sequences.</strong> <span class="ic">range()</span> for numbers, lists for items, <span class="ic">enumerate()</span> for index + item. while repeats until a condition is false.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Functions with def.</strong> Parameters, return values, default arguments, docstrings. Break your code into small, testable functions.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Files use with/open.</strong> Always use the <span class="ic">with</span> statement. It guarantees the file is closed. Modes: r (read), w (write), a (append).</span></div>
+        </div>
+        <div class="box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Chapter 8 -- Introducing C on Linux</strong> &nbsp;|&nbsp; gcc &bull; Variables &bull; printf &bull; Pointers &bull; Structs &bull; Makefiles
+        </div>
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; PiVerse</button></a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+    goToSlide(1);
+</script>
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pv-f-07-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>

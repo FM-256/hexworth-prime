@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Know Your Pico | PiVerse MicroPython Ch 1</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d0a0c 0%, #140f12 50%, #0d0a0c 100%);
+            color: #e0e0e0; font-size: 15px; line-height: 1.5;
+        }
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c51a4a; transition: width 0.4s ease; z-index: 200;
+        }
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(13, 10, 12, 0.95);
+            border-top: 1px solid rgba(197, 26, 74, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #a0909a;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(197, 26, 74, 0.15); color: #c51a4a; border-color: #c51a4a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #6a5a64; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #c51a4a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c51a4a; }
+        .slide-subtitle { font-size: 0.95rem; color: #a0909a; text-align: center; }
+        .scenario-strip {
+            background: rgba(197, 26, 74, 0.08); border-left: 3px solid #c51a4a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #d4b0c0; font-style: italic;
+        }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-red   { background: rgba(197, 26, 74, 0.08); border: 1px solid rgba(197, 26, 74, 0.3); color: #e8c0d0; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-gold  { background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); color: #fef3c7; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c51a4a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #6a5a64;
+        }
+        .title-meta-row span { border-left: 2px solid #2a2024; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c51a4a;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #a0909a; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-gold   { border-left-color: #ffd700; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #6a5a64; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c51a4a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #d0c0ca; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #c51a4a;
+            background: rgba(197, 26, 74, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+        .ic {
+            font-family: 'Courier New', monospace; color: #c51a4a;
+            background: rgba(197, 26, 74, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+        .diagram-row { display: flex; gap: 16px; align-items: center; justify-content: center; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(197, 26, 74, 0.12); border: 1px solid rgba(197, 26, 74, 0.4);
+            color: #c51a4a; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #d0c0ca; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+        .code-block {
+            background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(197, 26, 74, 0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #c51a4a; line-height: 1.6; white-space: pre;
+        }
+        .code-block .cm { color: #6a5a64; }
+        .code-block .kw { color: #c792ea; }
+        .code-block .fn { color: #c51a4a; }
+        .code-block .st { color: #c3e88d; }
+        .code-block .nu { color: #f0883e; }
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(197, 26, 74, 0.25);
+            border-radius: 8px; padding: 12px 14px; text-align: center;
+            opacity: 0; animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #c51a4a; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #a0909a; line-height: 1.4; }
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes boxGrow {
+            from { opacity: 0; transform: scale(0.7); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes glowPulse {
+            0%, 100% { filter: drop-shadow(0 0 4px rgba(197,26,74,0.3)); }
+            50%       { filter: drop-shadow(0 0 14px rgba(197,26,74,0.9)); }
+        }
+        @keyframes dataFlow {
+            0%   { stroke-dashoffset: 14; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Know Your Pico -- PiVerse MicroPython Chapter 1</h1>
+
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- SLIDE 1 -- TITLE -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 | PiVerse | MicroPython | Chapter 1</div>
+        <div class="title-hero">
+            <svg width="360" height="130" viewBox="0 0 360 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Pico board silhouette -->
+                <rect x="120" y="15" width="120" height="100" rx="10" fill="rgba(197,26,74,0.06)" stroke="#c51a4a" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.2s; opacity:0;"/>
+                <text x="180" y="48" text-anchor="middle" font-size="11" fill="#c51a4a" font-weight="700" font-family="Segoe UI,sans-serif">Raspberry Pi</text>
+                <text x="180" y="65" text-anchor="middle" font-size="13" fill="#c51a4a" font-weight="800" font-family="Segoe UI,sans-serif">PICO</text>
+                <text x="180" y="82" text-anchor="middle" font-size="8" fill="#a0909a" font-family="Segoe UI,sans-serif">RP2040 -- Dual Core</text>
+                <text x="180" y="96" text-anchor="middle" font-size="8" fill="#a0909a" font-family="Segoe UI,sans-serif">264KB SRAM -- 2MB Flash</text>
+                <!-- Pin rows -->
+                <rect x="108" y="30" width="8" height="6" rx="1" fill="#c51a4a" opacity="0.5"/>
+                <rect x="108" y="45" width="8" height="6" rx="1" fill="#c51a4a" opacity="0.5"/>
+                <rect x="108" y="60" width="8" height="6" rx="1" fill="#c51a4a" opacity="0.5"/>
+                <rect x="108" y="75" width="8" height="6" rx="1" fill="#c51a4a" opacity="0.5"/>
+                <rect x="108" y="90" width="8" height="6" rx="1" fill="#c51a4a" opacity="0.5"/>
+                <rect x="244" y="30" width="8" height="6" rx="1" fill="#c51a4a" opacity="0.5"/>
+                <rect x="244" y="45" width="8" height="6" rx="1" fill="#c51a4a" opacity="0.5"/>
+                <rect x="244" y="60" width="8" height="6" rx="1" fill="#c51a4a" opacity="0.5"/>
+                <rect x="244" y="75" width="8" height="6" rx="1" fill="#c51a4a" opacity="0.5"/>
+                <rect x="244" y="90" width="8" height="6" rx="1" fill="#c51a4a" opacity="0.5"/>
+                <!-- Glow -->
+                <ellipse cx="180" cy="65" rx="70" ry="50" fill="none" stroke="rgba(197,26,74,0.08)" stroke-width="1.5" style="animation: pulse 2.5s ease-in-out infinite;"/>
+            </svg>
+            <div class="big-title">
+                <span class="accent">Know Your Pico:</span> The Hardware Foundation
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                RP2040 | Pin Headers | BOOTSEL | USB | Pico vs Pico W
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Before writing a single line of code, you need to understand the silicon you are programming. Every pin, every bus, every register has a purpose. This is where it starts.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>PiVerse MicroPython</span>
+            <span>Chapter 1 of 6</span>
+            <span>Matrix House</span>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 2 -- RP2040 OVERVIEW -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">The <span class="accent">RP2040</span> Microcontroller</div>
+        <div class="slide-subtitle">Custom silicon designed by Raspberry Pi Ltd. Dual ARM Cortex-M0+ cores at 133 MHz.</div>
+        <div class="diagram-center">
+            <svg width="600" height="110" viewBox="0 0 600 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="20" y="10" width="160" height="90" rx="10" fill="rgba(197,26,74,0.08)" stroke="#c51a4a" stroke-width="1.5" style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="100" y="32" text-anchor="middle" font-size="10" fill="#c51a4a" font-weight="700" font-family="Segoe UI,sans-serif">Processor</text>
+                <text x="100" y="48" text-anchor="middle" font-size="7.5" fill="#a0909a" font-family="Segoe UI,sans-serif">Dual Cortex-M0+ @ 133MHz</text>
+                <text x="100" y="60" text-anchor="middle" font-size="7.5" fill="#a0909a" font-family="Segoe UI,sans-serif">32-bit ARM, Thumb ISA</text>
+                <text x="100" y="72" text-anchor="middle" font-size="7.5" fill="#a0909a" font-family="Segoe UI,sans-serif">2-stage pipeline</text>
+                <text x="100" y="84" text-anchor="middle" font-size="7.5" fill="#a0909a" font-family="Segoe UI,sans-serif">Single-cycle execution</text>
+
+                <rect x="220" y="10" width="160" height="90" rx="10" fill="rgba(240,136,62,0.08)" stroke="#f0883e" stroke-width="1.5" style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="300" y="32" text-anchor="middle" font-size="10" fill="#f0883e" font-weight="700" font-family="Segoe UI,sans-serif">Memory</text>
+                <text x="300" y="48" text-anchor="middle" font-size="7.5" fill="#a0909a" font-family="Segoe UI,sans-serif">264 KB SRAM (6 banks)</text>
+                <text x="300" y="60" text-anchor="middle" font-size="7.5" fill="#a0909a" font-family="Segoe UI,sans-serif">2 MB external QSPI flash</text>
+                <text x="300" y="72" text-anchor="middle" font-size="7.5" fill="#a0909a" font-family="Segoe UI,sans-serif">No bus contention</text>
+                <text x="300" y="84" text-anchor="middle" font-size="7.5" fill="#a0909a" font-family="Segoe UI,sans-serif">DMA-friendly banks</text>
+
+                <rect x="420" y="10" width="160" height="90" rx="10" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5" style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="500" y="32" text-anchor="middle" font-size="10" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Peripherals</text>
+                <text x="500" y="48" text-anchor="middle" font-size="7.5" fill="#a0909a" font-family="Segoe UI,sans-serif">30 GPIO pins</text>
+                <text x="500" y="60" text-anchor="middle" font-size="7.5" fill="#a0909a" font-family="Segoe UI,sans-serif">4-ch 12-bit ADC</text>
+                <text x="500" y="72" text-anchor="middle" font-size="7.5" fill="#a0909a" font-family="Segoe UI,sans-serif">16 PWM channels</text>
+                <text x="500" y="84" text-anchor="middle" font-size="7.5" fill="#a0909a" font-family="Segoe UI,sans-serif">2 PIO blocks (8 SMs)</text>
+            </svg>
+        </div>
+        <div class="card-grid-2">
+            <div class="card">
+                <div class="card-label">Not an Arduino</div>
+                <div class="card-desc">The RP2040 is a 32-bit ARM chip, not an 8-bit AVR. Dual cores provide genuine hardware parallelism. The second core is accessible via MicroPython's <span class="ic">_thread</span> module.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Programmable I/O</div>
+                <div class="card-desc">Two PIO blocks with 8 state machines can implement custom hardware protocols in software -- NeoPixel, WS2812, custom serial -- without using CPU time.</div>
+            </div>
+        </div>
+        <div class="box box-red">
+            <div class="box-label">Key Difference</div>
+            The RP2040 runs code from external flash via QSPI, not from internal flash like AVR chips. The 264 KB SRAM across 6 banks allows both cores and DMA to access different banks simultaneously.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 3 -- PICO BOARD LAYOUT -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Pico <span class="accent">Board Layout</span></div>
+        <div class="slide-subtitle">40-pin DIP form factor. 51mm x 21mm. Breadboard-compatible.</div>
+        <div class="diagram-center">
+            <svg width="600" height="200" viewBox="0 0 600 200" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="150" y="10" width="300" height="180" rx="10" fill="rgba(197,26,74,0.04)" stroke="#c51a4a" stroke-width="2"/>
+                <!-- USB -->
+                <rect x="270" y="2" width="60" height="18" rx="3" fill="#2a2024" stroke="#c51a4a" stroke-width="1.5"/>
+                <text x="300" y="14" text-anchor="middle" font-size="8" fill="#c51a4a" font-weight="700" font-family="Segoe UI,sans-serif">USB</text>
+                <!-- BOOTSEL -->
+                <circle cx="300" cy="50" r="10" fill="#1a1520" stroke="#c51a4a" stroke-width="1.5"/>
+                <text x="300" y="53" text-anchor="middle" font-size="6" fill="#c51a4a" font-weight="700" font-family="Segoe UI,sans-serif">BOOT</text>
+                <!-- RP2040 -->
+                <rect x="260" y="80" width="80" height="50" rx="4" fill="rgba(197,26,74,0.06)" stroke="#c51a4a" stroke-width="1"/>
+                <text x="300" y="103" text-anchor="middle" font-size="10" fill="#c51a4a" font-weight="700" font-family="Segoe UI,sans-serif">RP2040</text>
+                <text x="300" y="118" text-anchor="middle" font-size="7" fill="#a0909a" font-family="Segoe UI,sans-serif">Dual M0+</text>
+                <!-- Left pins -->
+                <rect x="140" y="30" width="14" height="6" rx="1" fill="#c51a4a" opacity="0.5"/>
+                <text x="134" y="35" text-anchor="end" font-size="7" fill="#c51a4a" font-family="Segoe UI,sans-serif">GP0</text>
+                <rect x="140" y="50" width="14" height="6" rx="1" fill="#c51a4a" opacity="0.5"/>
+                <text x="134" y="55" text-anchor="end" font-size="7" fill="#c51a4a" font-family="Segoe UI,sans-serif">GP1</text>
+                <rect x="140" y="70" width="14" height="6" rx="1" fill="#555"/>
+                <text x="134" y="75" text-anchor="end" font-size="7" fill="#777" font-family="Segoe UI,sans-serif">GND</text>
+                <rect x="140" y="90" width="14" height="6" rx="1" fill="#c51a4a" opacity="0.5"/>
+                <rect x="140" y="110" width="14" height="6" rx="1" fill="#c51a4a" opacity="0.5"/>
+                <rect x="140" y="130" width="14" height="6" rx="1" fill="#c51a4a" opacity="0.5"/>
+                <rect x="140" y="150" width="14" height="6" rx="1" fill="#c51a4a" opacity="0.5"/>
+                <rect x="140" y="170" width="14" height="6" rx="1" fill="#555"/>
+                <!-- Right pins -->
+                <rect x="446" y="30" width="14" height="6" rx="1" fill="#f0883e" opacity="0.5"/>
+                <text x="466" y="35" text-anchor="start" font-size="7" fill="#f0883e" font-family="Segoe UI,sans-serif">VBUS</text>
+                <rect x="446" y="50" width="14" height="6" rx="1" fill="#f0883e" opacity="0.5"/>
+                <text x="466" y="55" text-anchor="start" font-size="7" fill="#f0883e" font-family="Segoe UI,sans-serif">VSYS</text>
+                <rect x="446" y="70" width="14" height="6" rx="1" fill="#555"/>
+                <text x="466" y="75" text-anchor="start" font-size="7" fill="#777" font-family="Segoe UI,sans-serif">GND</text>
+                <rect x="446" y="90" width="14" height="6" rx="1" fill="#f0883e" opacity="0.5"/>
+                <rect x="446" y="110" width="14" height="6" rx="1" fill="#f0883e" opacity="0.5"/>
+                <rect x="446" y="130" width="14" height="6" rx="1" fill="#c51a4a" opacity="0.5"/>
+                <rect x="446" y="150" width="14" height="6" rx="1" fill="#c51a4a" opacity="0.5"/>
+                <rect x="446" y="170" width="14" height="6" rx="1" fill="#555"/>
+                <!-- Legend -->
+                <rect x="180" y="190" width="10" height="6" rx="1" fill="#c51a4a" opacity="0.6"/>
+                <text x="195" y="196" font-size="7" fill="#a0909a" font-family="Segoe UI,sans-serif">GPIO</text>
+                <rect x="240" y="190" width="10" height="6" rx="1" fill="#f0883e" opacity="0.6"/>
+                <text x="255" y="196" font-size="7" fill="#a0909a" font-family="Segoe UI,sans-serif">Power</text>
+                <rect x="300" y="190" width="10" height="6" rx="1" fill="#555"/>
+                <text x="315" y="196" font-size="7" fill="#a0909a" font-family="Segoe UI,sans-serif">Ground</text>
+            </svg>
+        </div>
+        <div class="card-grid">
+            <div class="card">
+                <div class="card-label">26 GPIO</div>
+                <div class="card-desc">GP0-GP28 (not all exposed). Each configurable as input/output with pull-up/pull-down.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Power Pins</div>
+                <div class="card-desc">VBUS (USB 5V), VSYS (1.8-5.5V input), 3V3 (regulated output), 3V3_EN (regulator enable).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">8 Ground</div>
+                <div class="card-desc">Common ground pins. Always connect GND between Pico and external circuits.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 4 -- PIN TYPES -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Pin Types and <span class="accent">Functions</span></div>
+        <div class="slide-subtitle">Every GPIO pin can serve multiple roles. Only one function is active at a time.</div>
+        <div class="hex-grid">
+            <div class="hex-cell">
+                <div class="hex-title">Digital I/O</div>
+                <div class="hex-desc">GP0-GP28. Input or output. Configurable pull-up/pull-down resistors.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">ADC</div>
+                <div class="hex-desc">GP26, GP27, GP28 (ADC0-2). 12-bit resolution. GP29/ADC3 reads VSYS/3.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">PWM</div>
+                <div class="hex-desc">All GPIO pins. 16 channels (8 slices x 2 outputs). Hardware-driven duty cycle.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">I2C</div>
+                <div class="hex-desc">Two controllers (I2C0, I2C1). Mappable to GP0/1, GP4/5, GP8/9, etc.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">SPI</div>
+                <div class="hex-desc">Two controllers (SPI0, SPI1). High-speed serial for displays and SD cards.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">UART</div>
+                <div class="hex-desc">Two interfaces (UART0, UART1). Serial communication for GPS, Bluetooth, etc.</div>
+            </div>
+        </div>
+        <div class="box box-red">
+            <div class="box-label">Pin Multiplexing</div>
+            A single GPIO pin can be digital I/O, PWM, UART, SPI, or I2C -- but only one at a time. In MicroPython, the function is selected automatically when you create a Pin, PWM, I2C, or SPI object.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 5 -- BOOTSEL -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">The <span class="accent">BOOTSEL</span> Button</div>
+        <div class="slide-subtitle">How firmware gets onto the Pico. Hold it, plug USB, drag and drop.</div>
+        <div class="diagram-center">
+            <svg width="600" height="100" viewBox="0 0 600 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <defs>
+                    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-end">
+                        <path d="M 0 0 L 10 5 L 0 10 z" fill="#c51a4a"/>
+                    </marker>
+                </defs>
+                <rect x="10" y="15" width="120" height="70" rx="8" fill="rgba(197,26,74,0.06)" stroke="#c51a4a" stroke-width="1.5" style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="70" y="40" text-anchor="middle" font-size="9" fill="#c51a4a" font-weight="700">1. Hold BOOTSEL</text>
+                <text x="70" y="56" text-anchor="middle" font-size="8" fill="#a0909a">Plug USB cable</text>
+                <line x1="135" y1="50" x2="165" y2="50" stroke="#c51a4a" stroke-width="1.5" marker-end="url(#arr)"/>
+
+                <rect x="170" y="15" width="120" height="70" rx="8" fill="rgba(197,26,74,0.06)" stroke="#c51a4a" stroke-width="1.5" style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="230" y="40" text-anchor="middle" font-size="9" fill="#c51a4a" font-weight="700">2. RPI-RP2 Drive</text>
+                <text x="230" y="56" text-anchor="middle" font-size="8" fill="#a0909a">Appears on PC</text>
+                <line x1="295" y1="50" x2="325" y2="50" stroke="#c51a4a" stroke-width="1.5" marker-end="url(#arr)"/>
+
+                <rect x="330" y="15" width="120" height="70" rx="8" fill="rgba(197,26,74,0.06)" stroke="#c51a4a" stroke-width="1.5" style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="390" y="40" text-anchor="middle" font-size="9" fill="#c51a4a" font-weight="700">3. Drag .uf2</text>
+                <text x="390" y="56" text-anchor="middle" font-size="8" fill="#a0909a">Copy firmware file</text>
+                <line x1="455" y1="50" x2="485" y2="50" stroke="#c51a4a" stroke-width="1.5" marker-end="url(#arr)"/>
+
+                <rect x="490" y="15" width="100" height="70" rx="8" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5" style="animation: boxGrow 0.35s ease forwards 0.4s; opacity:0;"/>
+                <text x="540" y="40" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700">4. Ready</text>
+                <text x="540" y="56" text-anchor="middle" font-size="8" fill="#a0909a">Auto-reboots</text>
+            </svg>
+        </div>
+        <div class="step-list">
+            <div class="step-row">
+                <span class="step-num">1</span>
+                <span class="step-text"><strong>Hold BOOTSEL</strong> while plugging the USB cable. The RP2040 enters USB mass storage mode instead of running its current firmware.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">2</span>
+                <span class="step-text"><strong>RPI-RP2</strong> appears as a removable drive on your computer. This is the RP2040's ROM bootloader presenting the flash as a USB disk.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">3</span>
+                <span class="step-text"><strong>Drag the .uf2 file</strong> (MicroPython firmware) onto the drive. UF2 (USB Flashing Format) is designed for safe, simple firmware deployment.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">4</span>
+                <span class="step-text"><strong>Auto-reboot.</strong> The Pico writes firmware to flash, reboots, and the MicroPython REPL becomes available over USB serial.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 6 -- USB CONNECTION -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title"><span class="accent">USB</span> Connection Roles</div>
+        <div class="slide-subtitle">The Micro-USB port on the Pico serves three distinct purposes depending on context.</div>
+        <div class="card-grid">
+            <div class="card">
+                <div class="card-label">Power Supply</div>
+                <div class="card-desc">USB provides 5V on the VBUS pin. The on-board regulator converts this to 3.3V for the RP2040 and all GPIO pins. No external power supply needed for basic projects.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Firmware Flashing</div>
+                <div class="card-desc">In BOOTSEL mode, the RP2040's ROM bootloader presents flash as a USB mass storage device. Copy .uf2 files to install or update firmware.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Serial Console</div>
+                <div class="card-desc">During normal operation, USB provides a CDC (Communications Device Class) serial port. This is the REPL -- your interactive MicroPython terminal.</div>
+            </div>
+        </div>
+        <div class="box box-gold">
+            <div class="box-label">VBUS vs VSYS</div>
+            VBUS is the raw USB 5V. VSYS is the system power input (1.8V-5.5V) that feeds the voltage regulator. You can power the Pico via VSYS from batteries or external supplies, bypassing USB entirely. Never drive both VBUS and VSYS simultaneously with unregulated sources.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 7 -- MEMORY ARCHITECTURE -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Memory <span class="accent">Architecture</span></div>
+        <div class="slide-subtitle">264 KB SRAM in 6 banks. 2 MB external QSPI flash. No internal flash on the RP2040 die.</div>
+        <div class="diagram-center">
+            <svg width="560" height="130" viewBox="0 0 560 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- SRAM blocks -->
+                <rect x="20" y="10" width="60" height="60" rx="6" fill="rgba(197,26,74,0.08)" stroke="#c51a4a" stroke-width="1" style="animation: boxGrow 0.3s ease forwards 0.1s; opacity:0;"/>
+                <text x="50" y="35" text-anchor="middle" font-size="8" fill="#c51a4a" font-weight="700">Bank 0</text>
+                <text x="50" y="50" text-anchor="middle" font-size="7" fill="#a0909a">64KB</text>
+                <rect x="90" y="10" width="60" height="60" rx="6" fill="rgba(197,26,74,0.08)" stroke="#c51a4a" stroke-width="1" style="animation: boxGrow 0.3s ease forwards 0.15s; opacity:0;"/>
+                <text x="120" y="35" text-anchor="middle" font-size="8" fill="#c51a4a" font-weight="700">Bank 1</text>
+                <text x="120" y="50" text-anchor="middle" font-size="7" fill="#a0909a">64KB</text>
+                <rect x="160" y="10" width="60" height="60" rx="6" fill="rgba(197,26,74,0.08)" stroke="#c51a4a" stroke-width="1" style="animation: boxGrow 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="190" y="35" text-anchor="middle" font-size="8" fill="#c51a4a" font-weight="700">Bank 2</text>
+                <text x="190" y="50" text-anchor="middle" font-size="7" fill="#a0909a">64KB</text>
+                <rect x="230" y="10" width="60" height="60" rx="6" fill="rgba(197,26,74,0.08)" stroke="#c51a4a" stroke-width="1" style="animation: boxGrow 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="260" y="35" text-anchor="middle" font-size="8" fill="#c51a4a" font-weight="700">Bank 3</text>
+                <text x="260" y="50" text-anchor="middle" font-size="7" fill="#a0909a">64KB</text>
+                <rect x="300" y="10" width="60" height="60" rx="6" fill="rgba(197,26,74,0.06)" stroke="#c51a4a" stroke-width="1" style="animation: boxGrow 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="330" y="35" text-anchor="middle" font-size="8" fill="#c51a4a" font-weight="700">Bank 4</text>
+                <text x="330" y="50" text-anchor="middle" font-size="7" fill="#a0909a">4KB</text>
+                <rect x="370" y="10" width="60" height="60" rx="6" fill="rgba(197,26,74,0.06)" stroke="#c51a4a" stroke-width="1" style="animation: boxGrow 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="400" y="35" text-anchor="middle" font-size="8" fill="#c51a4a" font-weight="700">Bank 5</text>
+                <text x="400" y="50" text-anchor="middle" font-size="7" fill="#a0909a">4KB</text>
+                <!-- Flash -->
+                <rect x="460" y="10" width="80" height="60" rx="6" fill="rgba(240,136,62,0.08)" stroke="#f0883e" stroke-width="1.5" style="animation: boxGrow 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="500" y="30" text-anchor="middle" font-size="8" fill="#f0883e" font-weight="700">QSPI Flash</text>
+                <text x="500" y="45" text-anchor="middle" font-size="7" fill="#a0909a">2 MB</text>
+                <text x="500" y="58" text-anchor="middle" font-size="7" fill="#a0909a">External</text>
+                <!-- Labels -->
+                <text x="210" y="95" text-anchor="middle" font-size="9" fill="#c51a4a" font-weight="700">264 KB SRAM (on die)</text>
+                <text x="500" y="95" text-anchor="middle" font-size="9" fill="#f0883e" font-weight="700">Flash (off die)</text>
+                <text x="300" y="120" text-anchor="middle" font-size="8" fill="#a0909a">Both cores + DMA can access different banks simultaneously</text>
+            </svg>
+        </div>
+        <div class="card-grid-2">
+            <div class="card">
+                <div class="card-label">SRAM -- Runtime Memory</div>
+                <div class="card-desc">Variables, stack, heap, MicroPython interpreter state. 264 KB across 6 independent banks. About 192 KB available after MicroPython boots.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Flash -- Persistent Storage</div>
+                <div class="card-desc">Firmware, user scripts (<span class="ic">main.py</span>), data files. Survives power cycles. MicroPython creates a small filesystem here for your .py files.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 8 -- GPIO ELECTRICAL -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">GPIO <span class="accent">Electrical Characteristics</span></div>
+        <div class="slide-subtitle">3.3V logic. Not 5V tolerant. Know your limits before connecting anything.</div>
+        <div class="card-grid-2">
+            <div class="card">
+                <div class="card-label">Logic Levels</div>
+                <div class="card-desc">HIGH = 3.3V, LOW = 0V. This is NOT 5V logic. Connecting a 5V signal directly to a GPIO pin will damage the RP2040 permanently. Use a level shifter or voltage divider for 5V devices.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Current Limits</div>
+                <div class="card-desc">Each GPIO can source or sink up to 12 mA by default (configurable 2/4/8/12 mA via drive strength registers). Total current across all pins should not exceed 50 mA.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Pull-Up / Pull-Down</div>
+                <div class="card-desc">Each GPIO has internal pull-up and pull-down resistors (approximately 50K ohm). Configurable in software. Essential for button inputs to avoid floating pins.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Slew Rate</div>
+                <div class="card-desc">Configurable fast/slow slew rate per pin. Fast slew produces sharper edges but more electromagnetic noise. Slow slew reduces noise for non-timing-critical signals.</div>
+            </div>
+        </div>
+        <div class="box box-red">
+            <div class="box-label">Critical Warning</div>
+            The RP2040 GPIO pins are 3.3V only and NOT 5V tolerant. Applying 5V to any GPIO pin will permanently damage the chip. Always check the voltage levels of sensors and modules before connecting.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 9 -- ADC SYSTEM -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Analog-to-Digital <span class="accent">Converter</span></div>
+        <div class="slide-subtitle">4-channel, 12-bit ADC. Reads analog voltages and converts them to numbers.</div>
+        <div class="step-list">
+            <div class="step-row">
+                <span class="step-num">CH0</span>
+                <span class="step-text"><strong>GP26 (ADC0)</strong> -- General-purpose analog input. Connect potentiometers, light sensors, or any 0-3.3V analog signal.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">CH1</span>
+                <span class="step-text"><strong>GP27 (ADC1)</strong> -- Second analog input. Same 12-bit resolution as all channels.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">CH2</span>
+                <span class="step-text"><strong>GP28 (ADC2)</strong> -- Third analog input. Note: this pin shares the header with other functions.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">CH3</span>
+                <span class="step-text"><strong>GP29 (ADC3)</strong> -- Connected internally to VSYS/3 on the Pico board. Reads the system supply voltage. Not on the header.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">CH4</span>
+                <span class="step-text"><strong>Internal temp sensor</strong> -- Built-in temperature sensor accessible via ADC channel 4. No external wiring needed.</span>
+            </div>
+        </div>
+        <div class="box box-gold">
+            <div class="box-label">Resolution</div>
+            12-bit ADC means 4096 discrete values (0-4095). MicroPython's <code>read_u16()</code> scales this to 0-65535 (16-bit) for compatibility. The actual hardware resolution remains 12 bits.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 10 -- PICO vs PICO W -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Pico vs <span class="accent">Pico W</span></div>
+        <div class="slide-subtitle">Same RP2040 chip. The W adds wireless connectivity.</div>
+        <div class="card-grid-2">
+            <div class="card">
+                <div class="card-label">Raspberry Pi Pico</div>
+                <div class="card-desc">RP2040 only. No wireless. Lower cost. On-board LED connected directly to GP25. All 26 GPIO pins fully available. Ideal for wired projects and learning fundamentals.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Raspberry Pi Pico W</div>
+                <div class="card-desc">RP2040 + Infineon CYW43439 wireless chip. WiFi 802.11n and Bluetooth 5.2 (BLE). On-board LED connected through the wireless chip (not GP25). GPIO 23 reserved for wireless power control.</div>
+            </div>
+        </div>
+        <div class="box box-red">
+            <div class="box-label">LED Difference</div>
+            On Pico, the on-board LED is on GP25: <code>Pin(25, Pin.OUT)</code>. On Pico W, the LED is on the wireless chip: <code>Pin("LED", Pin.OUT)</code>. Code that works on one may not work on the other without this change.
+        </div>
+        <div class="box box-cyan">
+            <div class="box-label">Firmware Difference</div>
+            Pico and Pico W use different MicroPython firmware builds. The Pico W build includes the network module and CYW43 driver. Using the wrong firmware means no wireless (Pico firmware on Pico W) or a failed boot (Pico W firmware on Pico).
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 11 -- DEBUG AND SWD -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Debug Pins and <span class="accent">SWD</span></div>
+        <div class="slide-subtitle">Three pads at the bottom of the board for hardware debugging.</div>
+        <div class="card-grid">
+            <div class="card">
+                <div class="card-label">SWCLK</div>
+                <div class="card-desc">Serial Wire Clock. The clock signal for the SWD debug interface. Used by debug probes to step through code, set breakpoints, and inspect memory.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">SWDIO</div>
+                <div class="card-desc">Serial Wire Data I/O. Bidirectional data line for the SWD protocol. Carries commands from the debug probe and responses from the RP2040.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">GND</div>
+                <div class="card-desc">Ground reference for the debug connection. Must be connected for reliable communication between probe and target.</div>
+            </div>
+        </div>
+        <div class="box box-red">
+            <div class="box-label">When You Need SWD</div>
+            For MicroPython development, you rarely need SWD -- the REPL and Thonny provide sufficient debugging. SWD becomes essential when working with C/C++ SDK, diagnosing hard faults, or recovering a Pico that won't enter BOOTSEL mode.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 12 -- KEY TAKEAWAYS -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Key Takeaways: <span class="accent">Know Your Pico</span></div>
+        <div class="slide-subtitle">Five facts that define the hardware you will program.</div>
+        <div class="diagram-center">
+            <svg width="300" height="70" viewBox="0 0 300 70" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="80" y="5" width="140" height="60" rx="10" fill="rgba(197,26,74,0.06)" stroke="#c51a4a" stroke-width="2" style="animation: glowPulse 2s ease-in-out infinite;"/>
+                <text x="150" y="30" text-anchor="middle" font-size="12" fill="#c51a4a" font-weight="800">RP2040</text>
+                <text x="150" y="48" text-anchor="middle" font-size="8" fill="#a0909a">Your silicon. Your rules.</text>
+            </svg>
+        </div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>RP2040 = dual ARM Cortex-M0+ at 133 MHz.</strong> 32-bit processor, two cores, genuine hardware parallelism. Not an 8-bit AVR.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>264 KB SRAM + 2 MB flash.</strong> Six independent SRAM banks. Flash is external via QSPI. About 192 KB free after MicroPython boots.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>40 pins, 26 GPIO, 3 ADC, 8 GND.</strong> Every GPIO supports PWM. Pin multiplexing lets each pin serve as digital, analog, I2C, SPI, or UART.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>BOOTSEL + USB = firmware flashing.</strong> Hold BOOTSEL, plug USB, drag .uf2. No special programmer needed. The ROM bootloader handles everything.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>3.3V logic, NOT 5V tolerant.</strong> Applying 5V to any GPIO damages the chip permanently. Know your voltage levels before connecting any external component.</span></div>
+        </div>
+        <div class="box box-red" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Chapter 2 -- MicroPython &amp; Thonny</strong> | Firmware Flashing | REPL | First Programs
+        </div>
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; PiVerse</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pv-mp-01-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>

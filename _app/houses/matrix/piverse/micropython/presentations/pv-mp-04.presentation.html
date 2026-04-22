@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PWM &amp; Analog | PiVerse MicroPython Ch 4</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; } html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0d0a0c 0%, #140f12 50%, #0d0a0c 100%); color: #e0e0e0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #c51a4a; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(13,10,12,0.95); border-top: 1px solid rgba(197,26,74,0.15); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.07); color: #a0909a; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(197,26,74,0.15); color: #c51a4a; border-color: #c51a4a; } .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #6a5a64; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #c51a4a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; } .slide-title .accent { color: #c51a4a; }
+        .slide-subtitle { font-size: 0.95rem; color: #a0909a; text-align: center; }
+        .scenario-strip { background: rgba(197,26,74,0.08); border-left: 3px solid #c51a4a; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #d4b0c0; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; } .box-red { background: rgba(197,26,74,0.08); border: 1px solid rgba(197,26,74,0.3); color: #e8c0d0; } .box-green { background: rgba(58,181,119,0.08); border: 1px solid rgba(58,181,119,0.35); color: #d1fae5; } .box-gold { background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; } .title-hero .big-title .accent { color: #c51a4a; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #6a5a64; } .title-meta-row span { border-left: 2px solid #2a2024; padding-left: 28px; } .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; } .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #c51a4a; } .card:hover { background: rgba(255,255,255,0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; } .card .card-desc { font-size: 0.82rem; color: #a0909a; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-gold { border-left-color: #ffd700; } .card.c-cyan { border-left-color: #06b6d4; } .card.c-orange { border-left-color: #f97316; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; } .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #c51a4a; min-width: 22px; text-align: right; flex-shrink: 0; } .fact-text { color: #d0c0ca; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #c51a4a; background: rgba(197,26,74,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .ic { font-family: 'Courier New', monospace; color: #c51a4a; background: rgba(197,26,74,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; } .step-row { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num { background: rgba(197,26,74,0.12); border: 1px solid rgba(197,26,74,0.4); color: #c51a4a; font-weight: 700; font-size: 0.78rem; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px; }
+        .step-text { color: #d0c0ca; line-height: 1.4; } .step-text strong { color: #f1f5f9; }
+        .code-block { background: rgba(0,0,0,0.35); border: 1px solid rgba(197,26,74,0.2); border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #c51a4a; line-height: 1.6; white-space: pre; }
+        .code-block .cm { color: #6a5a64; } .code-block .kw { color: #c792ea; } .code-block .fn { color: #c51a4a; } .code-block .st { color: #c3e88d; } .code-block .nu { color: #f0883e; }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes pwmWave { 0% { d: path("M0,40 L10,40 L10,10 L30,10 L30,40 L50,40 L50,10 L70,10 L70,40 L80,40"); } }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">PWM &amp; Analog -- PiVerse MicroPython Chapter 4</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 | PiVerse | MicroPython | Chapter 4</div>
+        <div class="title-hero">
+            <svg width="400" height="100" viewBox="0 0 400 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- PWM wave -->
+                <path d="M30,70 L30,30 L80,30 L80,70 L130,70 L130,30 L180,30 L180,70 L230,70 L230,30 L280,30 L280,70 L330,70 L330,30 L370,30" stroke="#c51a4a" stroke-width="2" fill="none" style="animation: boxGrow 0.5s ease forwards; opacity:0;"/>
+                <text x="200" y="92" text-anchor="middle" font-size="9" fill="#a0909a">Pulse Width Modulation -- duty cycle controls perceived brightness</text>
+            </svg>
+            <div class="big-title"><span class="accent">PWM</span> &amp; Analog</div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">Duty Cycle | LED Dimming | Buzzer Tones | ADC Reading</div>
+        </div>
+        <div class="scenario-strip">Digital is binary -- on or off. But the real world is analog. PWM fakes analog output by switching so fast the LED appears dim. ADC reads real analog voltages and converts them to numbers.</div>
+        <div class="title-meta-row"><span>12 Slides</span><span>PiVerse MicroPython</span><span>Chapter 4 of 6</span><span>Matrix House</span></div>
+    </div>
+</section>
+
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">What Is <span class="accent">PWM</span>?</div>
+        <div class="slide-subtitle">Pulse Width Modulation rapidly switches a pin between HIGH and LOW. The ratio of on-time to off-time is the duty cycle.</div>
+        <div class="card-grid">
+            <div class="card"><div class="card-label">0% Duty Cycle</div><div class="card-desc">Always LOW. Pin stays at 0V. LED is completely off. No current flows.</div></div>
+            <div class="card c-gold"><div class="card-label">50% Duty Cycle</div><div class="card-desc">HIGH half the time, LOW half the time. LED appears at half brightness. Motor runs at half speed.</div></div>
+            <div class="card c-green"><div class="card-label">100% Duty Cycle</div><div class="card-desc">Always HIGH. Pin stays at 3.3V. LED at full brightness. Equivalent to a simple digital HIGH.</div></div>
+        </div>
+        <div class="box box-red">
+            <div class="box-label">Not True Analog</div>
+            PWM does not produce a real analog voltage. It produces a square wave that switches between 0V and 3.3V. Devices like LEDs and motors respond to the average power, which creates the illusion of variable voltage.
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">PWM in <span class="accent">MicroPython</span></div>
+        <div class="slide-subtitle">Create a PWM object, set frequency and duty cycle.</div>
+        <div class="code-block"><span class="kw">from</span> machine <span class="kw">import</span> Pin, PWM
+
+<span class="cm"># Create PWM on GP15</span>
+pwm = PWM(Pin(<span class="nu">15</span>))
+
+<span class="cm"># Set frequency (Hz) -- how fast the signal switches</span>
+pwm.freq(<span class="nu">1000</span>)       <span class="cm"># 1000 Hz = 1 KHz</span>
+
+<span class="cm"># Set duty cycle (0-65535 for 16-bit resolution)</span>
+pwm.duty_u16(<span class="nu">32768</span>)  <span class="cm"># 50% duty cycle</span>
+pwm.duty_u16(<span class="nu">0</span>)      <span class="cm"># 0% -- off</span>
+pwm.duty_u16(<span class="nu">65535</span>)  <span class="cm"># 100% -- full on</span>
+
+<span class="cm"># Clean up when done</span>
+pwm.deinit()</div>
+        <div class="card-grid-2">
+            <div class="card"><div class="card-label">freq(Hz)</div><div class="card-desc">How many times per second the signal cycles. 1000 Hz is typical for LEDs. Higher frequencies reduce visible flicker.</div></div>
+            <div class="card c-gold"><div class="card-label">duty_u16(n)</div><div class="card-desc">16-bit duty cycle: 0 = 0%, 32768 = 50%, 65535 = 100%. The RP2040 hardware supports up to 16-bit resolution.</div></div>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">LED <span class="accent">Dimming</span></div>
+        <div class="slide-subtitle">Fade an LED in and out by gradually changing the duty cycle.</div>
+        <div class="code-block"><span class="kw">from</span> machine <span class="kw">import</span> Pin, PWM
+<span class="kw">import</span> utime
+
+pwm = PWM(Pin(<span class="nu">15</span>))
+pwm.freq(<span class="nu">1000</span>)
+
+<span class="cm"># Breathe effect: fade in then fade out</span>
+<span class="kw">while</span> <span class="kw">True</span>:
+    <span class="cm"># Fade in</span>
+    <span class="kw">for</span> duty <span class="kw">in</span> <span class="fn">range</span>(<span class="nu">0</span>, <span class="nu">65536</span>, <span class="nu">256</span>):
+        pwm.duty_u16(duty)
+        utime.sleep_ms(<span class="nu">2</span>)
+    <span class="cm"># Fade out</span>
+    <span class="kw">for</span> duty <span class="kw">in</span> <span class="fn">range</span>(<span class="nu">65535</span>, <span class="nu">-1</span>, <span class="nu">-256</span>):
+        pwm.duty_u16(duty)
+        utime.sleep_ms(<span class="nu">2</span>)</div>
+        <div class="box box-green"><div class="box-label">Step Size</div>256 steps from 0 to 65535 gives a smooth fade. Smaller steps = smoother but slower. Larger steps = faster but visible stepping. 2ms per step = ~0.5 second fade.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Buzzer <span class="accent">Tones</span></div>
+        <div class="slide-subtitle">A passive buzzer converts a PWM signal into sound. The frequency determines the pitch.</div>
+        <div class="code-block"><span class="kw">from</span> machine <span class="kw">import</span> Pin, PWM
+<span class="kw">import</span> utime
+
+buzzer = PWM(Pin(<span class="nu">15</span>))
+
+<span class="cm"># Play a note: set frequency and 50% duty</span>
+buzzer.freq(<span class="nu">440</span>)           <span class="cm"># A4 note = 440 Hz</span>
+buzzer.duty_u16(<span class="nu">32768</span>)     <span class="cm"># 50% duty for loudest</span>
+utime.sleep(<span class="nu">1</span>)
+
+<span class="cm"># Play C major scale</span>
+notes = [<span class="nu">262</span>, <span class="nu">294</span>, <span class="nu">330</span>, <span class="nu">349</span>, <span class="nu">392</span>, <span class="nu">440</span>, <span class="nu">494</span>, <span class="nu">523</span>]
+<span class="kw">for</span> freq <span class="kw">in</span> notes:
+    buzzer.freq(freq)
+    buzzer.duty_u16(<span class="nu">32768</span>)
+    utime.sleep_ms(<span class="nu">300</span>)
+
+buzzer.duty_u16(<span class="nu">0</span>)  <span class="cm"># Silence</span>
+buzzer.deinit()</div>
+        <div class="box box-gold"><div class="box-label">Passive vs Active Buzzer</div>A passive buzzer needs a PWM signal -- you control the frequency. An active buzzer has a built-in oscillator and just needs power (digital HIGH). Use passive buzzers for tones and melodies.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">RP2040 <span class="accent">PWM Architecture</span></div>
+        <div class="slide-subtitle">8 slices with 2 channels each = 16 PWM outputs. Every GPIO pin supports PWM.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">S0</span><span class="step-text"><strong>Slice 0:</strong> GP0 (A) and GP1 (B). Both channels share the same frequency but can have independent duty cycles.</span></div>
+            <div class="step-row"><span class="step-num">S1</span><span class="step-text"><strong>Slice 1:</strong> GP2 (A) and GP3 (B). Same frequency constraint applies -- one freq per slice.</span></div>
+            <div class="step-row"><span class="step-num">S2</span><span class="step-text"><strong>Slice 2:</strong> GP4 (A) and GP5 (B). And so on for slices 3-7.</span></div>
+        </div>
+        <div class="box box-red"><div class="box-label">Frequency Constraint</div>Both channels (A and B) within a PWM slice share the same frequency. If you need two different frequencies, use pins on different slices. Same slice = same freq, independent duty cycles.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Analog Input: <span class="accent">ADC</span></div>
+        <div class="slide-subtitle">The ADC converts a continuous voltage (0-3.3V) into a discrete number (0-65535).</div>
+        <div class="code-block"><span class="kw">from</span> machine <span class="kw">import</span> ADC
+
+<span class="cm"># Read analog voltage on GP26 (ADC0)</span>
+adc = ADC(Pin(<span class="nu">26</span>))
+
+<span class="cm"># Read raw value (0-65535, 16-bit scaled)</span>
+raw = adc.read_u16()
+
+<span class="cm"># Convert to voltage</span>
+voltage = raw * <span class="nu">3.3</span> / <span class="nu">65535</span>
+
+<span class="fn">print</span>(f<span class="st">"Raw: {raw}  Voltage: {voltage:.2f}V"</span>)</div>
+        <div class="card-grid-2">
+            <div class="card"><div class="card-label">12-bit Hardware</div><div class="card-desc">The RP2040 ADC is 12-bit (0-4095). MicroPython's <span class="ic">read_u16()</span> scales this to 16-bit (0-65535) for cross-platform compatibility.</div></div>
+            <div class="card c-orange"><div class="card-label">3 External Channels</div><div class="card-desc">GP26 (ADC0), GP27 (ADC1), GP28 (ADC2). Plus ADC3 (VSYS/3) and ADC4 (internal temperature). Only 3 on the header.</div></div>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title"><span class="accent">Potentiometer</span> Reading</div>
+        <div class="slide-subtitle">A potentiometer is a variable resistor. Turn the knob, change the voltage, read it with ADC.</div>
+        <div class="code-block"><span class="kw">from</span> machine <span class="kw">import</span> Pin, ADC, PWM
+<span class="kw">import</span> utime
+
+pot = ADC(Pin(<span class="nu">26</span>))    <span class="cm"># Potentiometer on GP26</span>
+led = PWM(Pin(<span class="nu">15</span>))    <span class="cm"># LED on GP15</span>
+led.freq(<span class="nu">1000</span>)
+
+<span class="cm"># Pot controls LED brightness</span>
+<span class="kw">while</span> <span class="kw">True</span>:
+    val = pot.read_u16()
+    led.duty_u16(val)   <span class="cm"># Direct mapping: ADC -> PWM</span>
+    utime.sleep_ms(<span class="nu">10</span>)</div>
+        <div class="box box-green"><div class="box-label">Wiring</div>Potentiometer has 3 pins: left to 3.3V, right to GND, middle (wiper) to GP26. Turning the knob sweeps the wiper between 0V and 3.3V. The ADC reads the wiper voltage.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">ADC <span class="accent">Noise</span> and Averaging</div>
+        <div class="slide-subtitle">Raw ADC readings fluctuate. Averaging multiple samples reduces noise.</div>
+        <div class="code-block"><span class="kw">from</span> machine <span class="kw">import</span> ADC, Pin
+
+adc = ADC(Pin(<span class="nu">26</span>))
+
+<span class="kw">def</span> <span class="fn">read_averaged</span>(channel, samples=<span class="nu">10</span>):
+    total = <span class="nu">0</span>
+    <span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(samples):
+        total += channel.read_u16()
+    <span class="kw">return</span> total // samples
+
+<span class="cm"># Smooth reading</span>
+value = read_averaged(adc, <span class="nu">20</span>)
+voltage = value * <span class="nu">3.3</span> / <span class="nu">65535</span>
+<span class="fn">print</span>(f<span class="st">"Averaged: {value}  ({voltage:.3f}V)"</span>)</div>
+        <div class="box box-gold"><div class="box-label">How Many Samples?</div>10-20 samples is typical. More = smoother but slower. The RP2040 ADC can sample at up to 500 ksps, so 20 samples takes only 40 microseconds -- effectively instant.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title"><span class="accent">Servo</span> Motor Control</div>
+        <div class="slide-subtitle">Servos use PWM at 50 Hz. The pulse width (1-2 ms) determines the angle (0-180 degrees).</div>
+        <div class="code-block"><span class="kw">from</span> machine <span class="kw">import</span> Pin, PWM
+
+servo = PWM(Pin(<span class="nu">15</span>))
+servo.freq(<span class="nu">50</span>)  <span class="cm"># Servos require 50 Hz</span>
+
+<span class="cm"># Duty cycle for servo positions:</span>
+<span class="cm"># 1ms pulse = ~0 degrees  = duty ~3277</span>
+<span class="cm"># 1.5ms pulse = ~90 degrees = duty ~4916</span>
+<span class="cm"># 2ms pulse = ~180 degrees = duty ~6554</span>
+
+<span class="kw">def</span> <span class="fn">set_angle</span>(angle):
+    duty = <span class="fn">int</span>(<span class="nu">1638</span> + (angle / <span class="nu">180</span>) * <span class="nu">6554</span>)
+    servo.duty_u16(duty)
+
+set_angle(<span class="nu">0</span>)    <span class="cm"># Move to 0 degrees</span>
+set_angle(<span class="nu">90</span>)   <span class="cm"># Move to 90 degrees</span>
+set_angle(<span class="nu">180</span>)  <span class="cm"># Move to 180 degrees</span></div>
+    </div>
+</section>
+
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title"><span class="accent">deinit()</span> -- Cleanup</div>
+        <div class="slide-subtitle">Always release PWM resources when done. A pin cannot be used for digital I/O while PWM is active.</div>
+        <div class="code-block"><span class="cm"># PWM active on GP15</span>
+pwm = PWM(Pin(<span class="nu">15</span>))
+pwm.freq(<span class="nu">1000</span>)
+pwm.duty_u16(<span class="nu">32768</span>)
+
+<span class="cm"># ... use it ...</span>
+
+<span class="cm"># Release the pin</span>
+pwm.deinit()
+
+<span class="cm"># Now GP15 can be used as regular digital I/O again</span>
+led = Pin(<span class="nu">15</span>, Pin.OUT)
+led.value(<span class="nu">1</span>)</div>
+        <div class="box box-red"><div class="box-label">Resource Management</div>MicroPython does not automatically release hardware resources when variables go out of scope. Always call <code>deinit()</code> on PWM, I2C, SPI, and UART objects when you are done with them.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Key Takeaways: <span class="accent">PWM &amp; Analog</span></div>
+        <div class="slide-subtitle">PWM fakes analog output. ADC reads real analog input.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>PWM = rapid switching to simulate analog.</strong> <code>freq()</code> sets speed, <code>duty_u16()</code> sets on/off ratio. 0 = off, 65535 = full on.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>LED dimming uses PWM at ~1000 Hz.</strong> Vary duty cycle to fade. Loop through values for breathe effects.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Buzzer tones use PWM frequency.</strong> 440 Hz = A4 note. 50% duty for maximum volume. <code>duty_u16(0)</code> for silence.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>ADC converts 0-3.3V to 0-65535.</strong> Hardware is 12-bit (4096 levels). <code>read_u16()</code> scales to 16-bit. Average multiple samples to reduce noise.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Always call <code>deinit()</code></strong> to release PWM resources. The pin cannot serve dual purposes while PWM is active.</span></div>
+        </div>
+        <div class="box box-red" style="font-size:0.85rem; text-align:center;"><strong>Next: Chapter 5 -- Traffic Light Controller</strong> | State Machines | Timing | Multi-LED Coordination</div>
+        <div style="text-align:center; margin-top:6px;"><button id="complete-btn" onclick="completeModule()">Mark Complete</button></div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; PiVerse</button></a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+<script>
+    let currentSlide = 1; const TOTAL_SLIDES = 12;
+    function goToSlide(n) { if (n < 1 || n > TOTAL_SLIDES) return; const p = document.getElementById('slide-' + currentSlide); if (p) p.classList.remove('active'); currentSlide = n; const nx = document.getElementById('slide-' + currentSlide); if (nx) nx.classList.add('active'); document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%'; document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES; document.getElementById('prev-btn').disabled = (currentSlide === 1); document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES); const cb = document.getElementById('complete-btn'); if (cb) cb.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none'; }
+    document.addEventListener('keydown', function(e) { if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); } else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); } });
+    goToSlide(1);
+</script>
+<script>function completeModule() { if (typeof ModuleProgress !== 'undefined') ModuleProgress.complete('matrix', 'pv-mp-04-pres', { returnUrl: '../../index.html' }); }</script>
+</body>
+</html>

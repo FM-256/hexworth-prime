@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pi Model Comparison Lab -- PiVerse Fundamentals Ch10</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { min-height: 100vh; background: #0d0608; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #e0e0e0; display: flex; flex-direction: column; }
+        .lab-header { flex-shrink: 0; padding: 15px 30px; background: rgba(13,6,8,0.95); border-bottom: 1px solid rgba(197,26,74,0.2); display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn { padding: 8px 16px; background: rgba(197,26,74,0.1); border: 1px solid rgba(197,26,74,0.3); border-radius: 6px; color: #c51a4a; text-decoration: none; font-size: 0.85rem; }
+        .back-btn:hover { background: rgba(197,26,74,0.2); }
+        .lab-title { font-size: 1rem; color: #f0d0d8; }
+        .lab-badge { padding: 4px 12px; background: rgba(197,26,74,0.15); border: 1px solid rgba(197,26,74,0.3); border-radius: 12px; font-size: 0.7rem; color: #c51a4a; }
+        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #6b5a60; }
+        .task-count { color: #c51a4a; font-weight: 500; }
+        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(197,26,74,0.15); border-radius: 3px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #c51a4a, #8b1030); border-radius: 3px; width: 0%; transition: width 0.4s; }
+
+        .lab-content { flex: 1; max-width: 1200px; margin: 0 auto; padding: 25px; width: 100%; }
+
+        .section-title { font-size: 1.1rem; color: #c51a4a; margin-bottom: 15px; font-weight: 600; }
+        .section-desc { font-size: 0.88rem; color: #9e8b8f; margin-bottom: 20px; }
+
+        /* Model selector */
+        .model-selector { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 25px; }
+        .model-chip { padding: 8px 16px; background: rgba(197,26,74,0.06); border: 1px solid rgba(197,26,74,0.2); border-radius: 20px; font-size: 0.82rem; color: #9e8b8f; cursor: pointer; transition: all 0.2s; user-select: none; }
+        .model-chip:hover { border-color: rgba(197,26,74,0.5); color: #f0d0d8; }
+        .model-chip.selected { background: rgba(197,26,74,0.15); border-color: #c51a4a; color: #c51a4a; font-weight: 600; }
+
+        /* Comparison table */
+        .compare-table { width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 0.82rem; }
+        .compare-table th { background: rgba(197,26,74,0.08); color: #c51a4a; padding: 10px 14px; text-align: left; border: 1px solid rgba(197,26,74,0.12); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .compare-table td { padding: 10px 14px; border: 1px solid rgba(197,26,74,0.08); color: #9e8b8f; }
+        .compare-table tr:hover td { background: rgba(197,26,74,0.04); }
+        .compare-table .spec-label { color: #f0d0d8; font-weight: 500; width: 140px; }
+        .compare-table .highlight { color: #3ab577; font-weight: 600; }
+
+        /* Task cards */
+        .task-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-bottom: 25px; }
+        .scenario-card { background: rgba(13,6,8,0.8); border: 1px solid rgba(197,26,74,0.15); border-radius: 10px; padding: 16px; cursor: pointer; transition: all 0.2s; }
+        .scenario-card:hover { border-color: rgba(197,26,74,0.4); }
+        .scenario-card.answered { border-color: rgba(52,211,153,0.4); }
+        .scenario-card.answered .sc-status { color: #34d399; }
+        .sc-title { font-size: 0.9rem; color: #f0d0d8; margin-bottom: 6px; font-weight: 600; }
+        .sc-desc { font-size: 0.78rem; color: #6b5a60; line-height: 1.4; margin-bottom: 10px; }
+        .sc-options { display: flex; flex-wrap: wrap; gap: 6px; }
+        .sc-option { padding: 5px 12px; background: rgba(197,26,74,0.06); border: 1px solid rgba(197,26,74,0.2); border-radius: 5px; font-size: 0.75rem; color: #9e8b8f; cursor: pointer; transition: all 0.2s; }
+        .sc-option:hover { border-color: #c51a4a; color: #c51a4a; }
+        .sc-option.correct { background: rgba(52,211,153,0.12); border-color: #34d399; color: #34d399; }
+        .sc-option.wrong { background: rgba(239,68,68,0.08); border-color: #ef4444; color: #ef4444; }
+        .sc-status { font-size: 0.72rem; margin-top: 8px; min-height: 16px; }
+
+        .complete-section { text-align: center; padding: 20px 0; }
+        .complete-btn { padding: 12px 30px; background: linear-gradient(135deg, #c51a4a, #8b1030); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; display: none; }
+        .complete-btn:hover { opacity: 0.9; }
+        .complete-btn.visible { display: inline-block; }
+
+        @media (max-width: 768px) { .task-grid { grid-template-columns: 1fr; } .model-selector { gap: 5px; } }
+    </style>
+</head>
+<body>
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Pi Model Comparison Lab</span>
+            <span class="lab-badge">PV-F-10</span>
+        </div>
+        <div class="task-progress">
+            <span>Progress:</span>
+            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressFill"></div></div>
+            <span class="task-count" id="taskProgress">0 / 6 Scenarios</span>
+        </div>
+    </header>
+
+    <div class="lab-content">
+        <div class="section-title">Step 1: Compare Pi Models</div>
+        <div class="section-desc">Select 2 or more models to see their specifications side by side. Then complete the scenarios below.</div>
+
+        <div class="model-selector" id="modelSelector"></div>
+        <div id="compareTableWrap"></div>
+
+        <div class="section-title" style="margin-top:30px;">Step 2: Choose the Right Pi</div>
+        <div class="section-desc">For each scenario, select the best Pi model. All 6 correct answers complete the lab.</div>
+
+        <div class="task-grid" id="scenarioGrid"></div>
+
+        <div class="complete-section">
+            <button class="complete-btn" id="completeBtn" onclick="finishLab()">Complete Lab</button>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        'use strict';
+
+        var models = {
+            'Pi 5 (8GB)':    { cpu: 'Cortex-A76 x4 @ 2.4 GHz', ram: '8 GB', storage: 'microSD / NVMe', wifi: 'WiFi 5 + BLE 5.0', usb: '2x USB 3.0, 2x USB 2.0', gpio: '40-pin', video: '2x micro-HDMI 4Kp60', pcie: 'PCIe 2.0 x1', power: '27W USB-C PD', price: '$80', type: 'SBC' },
+            'Pi 4 (4GB)':    { cpu: 'Cortex-A72 x4 @ 1.8 GHz', ram: '4 GB', storage: 'microSD', wifi: 'WiFi 5 + BLE 5.0', usb: '2x USB 3.0, 2x USB 2.0', gpio: '40-pin', video: '2x micro-HDMI 4Kp60', pcie: 'None', power: '15W USB-C', price: '$55', type: 'SBC' },
+            'Pi 400':        { cpu: 'Cortex-A72 x4 @ 1.8 GHz', ram: '4 GB', storage: 'microSD', wifi: 'WiFi 5 + BLE 5.0', usb: '1x USB 3.0, 2x USB 2.0', gpio: '40-pin (side)', video: '2x micro-HDMI 4Kp60', pcie: 'None', power: '15W USB-C', price: '$70', type: 'Keyboard SBC' },
+            'Pi 3B+':        { cpu: 'Cortex-A53 x4 @ 1.4 GHz', ram: '1 GB', storage: 'microSD', wifi: 'WiFi 4 + BLE 4.2', usb: '4x USB 2.0', gpio: '40-pin', video: '1x HDMI 1080p', pcie: 'None', power: '12.5W micro-USB', price: '$35', type: 'SBC' },
+            'Zero 2 W':      { cpu: 'Cortex-A53 x4 @ 1.0 GHz', ram: '512 MB', storage: 'microSD', wifi: 'WiFi 4 + BLE 4.2', usb: '1x micro-USB OTG', gpio: '40-pin (unpopulated)', video: '1x mini-HDMI 1080p', pcie: 'None', power: '5W micro-USB', price: '$15', type: 'Compact SBC' },
+            'Pico W':        { cpu: 'Cortex-M0+ x2 @ 133 MHz', ram: '264 KB', storage: '2 MB flash', wifi: 'WiFi 4 + BLE 5.2', usb: '1x micro-USB', gpio: '26 GPIO', video: 'None', pcie: 'None', power: 'USB (milliwatts)', price: '$6', type: 'Microcontroller' },
+            'Pico 2':        { cpu: 'Cortex-M33 / RISC-V x2 @ 150 MHz', ram: '520 KB', storage: '4 MB flash', wifi: 'None', usb: '1x micro-USB', gpio: '26 GPIO', video: 'None', pcie: 'None', power: 'USB (milliwatts)', price: '$5', type: 'Microcontroller' }
+        };
+
+        var specLabels = ['Type','CPU','RAM','Storage','WiFi','USB','GPIO','Video','PCIe','Power','Price'];
+        var specKeys   = ['type','cpu','ram','storage','wifi','usb','gpio','video','pcie','power','price'];
+
+        var selected = ['Pi 5 (8GB)', 'Pico W'];
+
+        var scenarios = [
+            { title: 'Desktop Replacement', desc: 'You need a low-cost desktop computer with NVMe SSD, dual monitors, and web browsing.', answer: 'Pi 5 (8GB)', options: ['Pi 5 (8GB)', 'Pi 400', 'Pico W', 'Zero 2 W'] },
+            { title: 'Battery IoT Sensor', desc: 'A remote weather station that sends temperature data over WiFi every 10 minutes. Must run on batteries for weeks.', answer: 'Pico W', options: ['Pi 5 (8GB)', 'Pi 4 (4GB)', 'Pico W', 'Pi 3B+'] },
+            { title: 'Classroom Setup', desc: 'A teacher needs 20 all-in-one computers for a coding lab. Budget is tight, setup must be simple.', answer: 'Pi 400', options: ['Pi 5 (8GB)', 'Pi 400', 'Pico 2', 'Zero 2 W'] },
+            { title: 'Network Ad Blocker', desc: 'Run Pi-hole as a headless DNS server. No monitor, no keyboard. Low power 24/7.', answer: 'Zero 2 W', options: ['Pi 5 (8GB)', 'Pi 400', 'Pico W', 'Zero 2 W'] },
+            { title: 'Real-Time Motor Control', desc: 'A robot arm that needs microsecond-precision timing for stepper motor pulses. No OS overhead allowed.', answer: 'Pico 2', options: ['Pi 4 (4GB)', 'Pi 3B+', 'Pico 2', 'Zero 2 W'] },
+            { title: 'Home Media Center', desc: '4K HDR video playback on your TV with remote control and streaming services.', answer: 'Pi 4 (4GB)', options: ['Pi 4 (4GB)', 'Pi 400', 'Pico W', 'Pi 3B+'] }
+        ];
+
+        var answeredCount = 0;
+
+        function renderSelector() {
+            var el = document.getElementById('modelSelector');
+            el.innerHTML = '';
+            Object.keys(models).forEach(function(name) {
+                var chip = document.createElement('span');
+                chip.className = 'model-chip' + (selected.indexOf(name) !== -1 ? ' selected' : '');
+                chip.textContent = name;
+                chip.onclick = function() { toggleModel(name); };
+                el.appendChild(chip);
+            });
+        }
+
+        function toggleModel(name) {
+            var idx = selected.indexOf(name);
+            if (idx !== -1) { if (selected.length > 1) selected.splice(idx, 1); }
+            else { selected.push(name); }
+            renderSelector();
+            renderTable();
+        }
+
+        function renderTable() {
+            var wrap = document.getElementById('compareTableWrap');
+            if (selected.length < 2) { wrap.innerHTML = '<div style="color:#6b5a60;font-size:0.82rem;font-style:italic;">Select at least 2 models to compare.</div>'; return; }
+            var html = '<table class="compare-table"><thead><tr><th>Spec</th>';
+            selected.forEach(function(n) { html += '<th>' + n + '</th>'; });
+            html += '</tr></thead><tbody>';
+            specLabels.forEach(function(label, i) {
+                html += '<tr><td class="spec-label">' + label + '</td>';
+                var vals = selected.map(function(n) { return models[n][specKeys[i]]; });
+                var best = null;
+                if (['ram','cpu','storage'].indexOf(specKeys[i]) !== -1) {
+                    var maxLen = Math.max.apply(null, vals.map(function(v) { return v.length; }));
+                    best = vals.indexOf(vals.reduce(function(a, b) { return a.length >= b.length ? a : b; }));
+                }
+                selected.forEach(function(n, j) {
+                    var cls = (best === j && selected.length > 1) ? ' class="highlight"' : '';
+                    html += '<td' + cls + '>' + models[n][specKeys[i]] + '</td>';
+                });
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            wrap.innerHTML = html;
+        }
+
+        function renderScenarios() {
+            var grid = document.getElementById('scenarioGrid');
+            grid.innerHTML = '';
+            scenarios.forEach(function(sc, i) {
+                var card = document.createElement('div');
+                card.className = 'scenario-card';
+                card.id = 'scenario-' + i;
+                var optHtml = sc.options.map(function(opt) {
+                    return '<span class="sc-option" data-sc="' + i + '" data-opt="' + opt + '">' + opt + '</span>';
+                }).join('');
+                card.innerHTML = '<div class="sc-title">' + sc.title + '</div><div class="sc-desc">' + sc.desc + '</div><div class="sc-options">' + optHtml + '</div><div class="sc-status" id="sc-status-' + i + '"></div>';
+                grid.appendChild(card);
+            });
+
+            grid.addEventListener('click', function(e) {
+                if (!e.target.classList.contains('sc-option')) return;
+                var scIdx = parseInt(e.target.dataset.sc);
+                var opt = e.target.dataset.opt;
+                var sc = scenarios[scIdx];
+                var card = document.getElementById('scenario-' + scIdx);
+                if (card.classList.contains('answered')) return;
+
+                var status = document.getElementById('sc-status-' + scIdx);
+                if (opt === sc.answer) {
+                    e.target.classList.add('correct');
+                    card.classList.add('answered');
+                    status.textContent = 'Correct! ' + opt + ' is the best fit.';
+                    status.style.color = '#34d399';
+                    answeredCount++;
+                    updateProgress();
+                } else {
+                    e.target.classList.add('wrong');
+                    status.textContent = 'Not quite. Think about the requirements.';
+                    status.style.color = '#f87171';
+                    setTimeout(function() { e.target.classList.remove('wrong'); status.textContent = ''; }, 1500);
+                }
+            });
+        }
+
+        function updateProgress() {
+            document.getElementById('taskProgress').textContent = answeredCount + ' / 6 Scenarios';
+            document.getElementById('progressFill').style.width = Math.round((answeredCount / 6) * 100) + '%';
+            if (answeredCount === 6) {
+                document.getElementById('completeBtn').classList.add('visible');
+            }
+        }
+
+        window.finishLab = function() {
+            if (typeof ModuleProgress !== 'undefined') ModuleProgress.complete('matrix', 'pv-f-10-lab', { returnUrl: '../../index.html' });
+            else window.location.href = '../../index.html';
+        };
+
+        renderSelector();
+        renderTable();
+        renderScenarios();
+    })();
+    </script>
+</body>
+</html>

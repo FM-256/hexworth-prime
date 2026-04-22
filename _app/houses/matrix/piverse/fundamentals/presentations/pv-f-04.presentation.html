@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Command Line | PiVerse Fundamentals Ch 4</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0d0408 0%, #130810 50%, #0d0408 100%); color: #e2e8f0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #c51a4a; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(13,4,8,0.95); border-top: 1px solid rgba(197,26,74,0.15); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.07); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(197,26,74,0.15); color: #c51a4a; border-color: #c51a4a; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s; }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #c51a4a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ffd700; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip { background: rgba(197,26,74,0.08); border-left: 3px solid #c51a4a; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #d4a0b0; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-red { background: rgba(197,26,74,0.08); border: 1px solid rgba(197,26,74,0.3); color: #f0c0d0; }
+        .box-green { background: rgba(58,181,119,0.08); border: 1px solid rgba(58,181,119,0.35); color: #d1fae5; }
+        .box-gold { background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ffd700; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #c51a4a; }
+        .card:hover { background: rgba(255,255,255,0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-red { border-left-color: #c51a4a; } .card.c-gold { border-left-color: #ffd700; } .card.c-cyan { border-left-color: #06b6d4; } .card.c-purple { border-left-color: #a78bfa; } .card.c-orange { border-left-color: #f97316; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #c51a4a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #ffd700; background: rgba(255,215,0,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .ic { font-family: 'Courier New', monospace; color: #ffd700; background: rgba(255,215,0,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num { background: rgba(197,26,74,0.12); border: 1px solid rgba(197,26,74,0.4); color: #c51a4a; font-weight: 700; font-size: 0.78rem; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px; }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+        .code-block { background: rgba(0,0,0,0.35); border: 1px solid rgba(197,26,74,0.2); border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #e8305e; line-height: 1.6; white-space: pre; overflow-x: auto; }
+        .code-block .cm { color: #64748b; }
+        .code-block .val { color: #f0883e; }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Linux Command Line -- PiVerse Fundamentals Chapter 4</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- SLIDE 1 -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; PiVerse &nbsp;|&nbsp; Fundamentals &nbsp;|&nbsp; Chapter 4</div>
+        <div class="title-hero">
+            <div class="big-title">The Linux <span class="accent">Command Line</span></div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">pwd, ls, cd &nbsp;|&nbsp; mkdir, cp, mv, rm &nbsp;|&nbsp; chmod &nbsp;|&nbsp; apt &nbsp;|&nbsp; pipes &nbsp;|&nbsp; nano &nbsp;|&nbsp; sudo &nbsp;|&nbsp; SSH</div>
+        </div>
+        <div class="scenario-strip">The desktop is convenient. The command line is powerful. Every professional Linux workflow -- server administration, scripting, automation, and remote management -- runs through the terminal. These commands are not optional for Pi work beyond basic desktop use.</div>
+        <div class="title-meta-row"><span>12 Slides</span><span>PiVerse Fundamentals</span><span>Chapter 4 of 5</span><span>Matrix House</span></div>
+    </div>
+</section>
+
+<!-- SLIDE 2 -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">The Terminal <span class="accent">Prompt</span></div>
+        <div class="slide-subtitle">Understanding what the prompt tells you before you type a single command.</div>
+        <div class="code-block"><span class="cm"># Anatomy of the terminal prompt</span>
+<span class="val">pi</span>@piverse:<span class="val">~</span>$
+
+<span class="cm"># pi       = your username</span>
+<span class="cm"># piverse  = hostname (the machine name)</span>
+<span class="cm"># ~        = current directory (~ means home)</span>
+<span class="cm"># $        = regular user (# means root)</span></div>
+        <div class="box box-red">
+            <div class="box-label">Command Pattern</div>
+            Commands follow: <span class="ic">command [options] [arguments]</span>. Options start with <span class="ic">-</span> (short) or <span class="ic">--</span> (long). Example: <span class="ic">ls -la /home/pi</span> -- command is <span class="ic">ls</span>, options are <span class="ic">-la</span>, argument is <span class="ic">/home/pi</span>.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 3 -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Navigation: <span class="accent">pwd, ls, cd</span></div>
+        <div class="slide-subtitle">Find where you are, see what is here, and move somewhere else.</div>
+        <div class="code-block"><span class="cm"># Where am I?</span>
+$ pwd
+<span class="val">/home/pi</span>
+
+<span class="cm"># What is here?</span>
+$ ls
+<span class="val">Desktop  Documents  Downloads  Music  Pictures  Videos</span>
+
+<span class="cm"># Detailed listing with permissions, size, date</span>
+$ ls -l
+
+<span class="cm"># Show hidden files too</span>
+$ ls -la
+
+<span class="cm"># Move into a directory</span>
+$ cd Documents
+
+<span class="cm"># Go up one level</span>
+$ cd ..
+
+<span class="cm"># Go home from anywhere</span>
+$ cd ~</div>
+        <div class="box box-gold">
+            <div class="box-label">Absolute vs. Relative Paths</div>
+            Absolute paths start with <span class="ic">/</span>: <span class="ic">/home/pi/Documents</span>. Relative paths start from where you are: <span class="ic">Documents</span>. Use <span class="ic">..</span> for parent, <span class="ic">.</span> for current, <span class="ic">~</span> for home.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 4 -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">File Operations: <span class="accent">mkdir, cp, mv, rm</span></div>
+        <div class="slide-subtitle">Create, copy, move, rename, and delete.</div>
+        <div class="code-block"><span class="cm"># Create a directory</span>
+$ mkdir projects
+$ mkdir -p projects/python/sensors  <span class="cm"># nested dirs</span>
+
+<span class="cm"># Create an empty file</span>
+$ touch notes.txt
+
+<span class="cm"># Copy a file</span>
+$ cp notes.txt backup.txt
+
+<span class="cm"># Copy a directory recursively</span>
+$ cp -r projects projects-backup
+
+<span class="cm"># Move or rename</span>
+$ mv notes.txt Documents/notes.txt
+$ mv old-name.txt new-name.txt
+
+<span class="cm"># Delete a file</span>
+$ rm unwanted.txt
+
+<span class="cm"># Delete a directory and contents</span>
+$ rm -r old-project/</div>
+        <div class="box box-red">
+            <div class="box-label">rm Has No Undo</div>
+            <span class="ic">rm</span> permanently deletes files. There is no trash can in the terminal. <span class="ic">rm -rf /</span> will destroy your entire system if run as root. Always double-check before pressing Enter.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 5 -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Permissions: <span class="accent">chmod, chown</span></div>
+        <div class="slide-subtitle">Linux file permissions control who can read, write, and execute each file.</div>
+        <div class="code-block"><span class="cm"># Read the permission string</span>
+$ ls -l script.py
+<span class="val">-rw-r--r-- 1 pi pi 1024 Apr 21 10:00 script.py</span>
+
+<span class="cm"># -rw-r--r-- breakdown:</span>
+<span class="cm"># -    = file (d = directory)</span>
+<span class="cm"># rw-  = owner: read + write</span>
+<span class="cm"># r--  = group: read only</span>
+<span class="cm"># r--  = others: read only</span>
+
+<span class="cm"># Make a script executable</span>
+$ chmod +x script.py
+
+<span class="cm"># Numeric permissions: 7=rwx, 5=r-x, 4=r--</span>
+$ chmod 755 script.py  <span class="cm"># owner:rwx group:r-x others:r-x</span>
+
+<span class="cm"># Change file owner</span>
+$ sudo chown root:root /etc/config.conf</div>
+    </div>
+</section>
+
+<!-- SLIDE 6 -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Package Management: <span class="accent">apt</span></div>
+        <div class="slide-subtitle">Install, update, and remove software from the Debian repositories.</div>
+        <div class="code-block"><span class="cm"># Update package lists (what is available)</span>
+$ sudo apt update
+
+<span class="cm"># Upgrade all installed packages</span>
+$ sudo apt full-upgrade -y
+
+<span class="cm"># Install a new package</span>
+$ sudo apt install htop
+
+<span class="cm"># Remove a package</span>
+$ sudo apt remove htop
+
+<span class="cm"># Remove package + config files</span>
+$ sudo apt purge htop
+
+<span class="cm"># Search for a package</span>
+$ apt search "web server"
+
+<span class="cm"># Clean up unused packages</span>
+$ sudo apt autoremove</div>
+        <div class="box box-green">
+            <div class="box-label">Always Update First</div>
+            Run <span class="ic">sudo apt update</span> before installing anything. This refreshes the local package index so apt knows about the latest versions. Without it, you might install outdated software or get "package not found" errors.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 7 -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Reading Files: <span class="accent">cat, less, head, tail</span></div>
+        <div class="slide-subtitle">View file contents without opening an editor.</div>
+        <div class="code-block"><span class="cm"># Print entire file to terminal</span>
+$ cat /etc/hostname
+
+<span class="cm"># Page through a large file (q to quit)</span>
+$ less /var/log/syslog
+
+<span class="cm"># First 10 lines</span>
+$ head /var/log/syslog
+
+<span class="cm"># Last 20 lines</span>
+$ tail -n 20 /var/log/syslog
+
+<span class="cm"># Follow a log file in real-time (Ctrl+C to stop)</span>
+$ tail -f /var/log/syslog
+
+<span class="cm"># Search inside a file</span>
+$ grep "error" /var/log/syslog</div>
+    </div>
+</section>
+
+<!-- SLIDE 8 -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Pipes &amp; <span class="accent">Redirection</span></div>
+        <div class="slide-subtitle">Chain commands together. Send output to files. Build data pipelines.</div>
+        <div class="code-block"><span class="cm"># Pipe: send output of one command to another</span>
+$ ls -la | grep ".txt"   <span class="cm"># list files, filter for .txt</span>
+$ cat log.txt | wc -l    <span class="cm"># count lines in a file</span>
+$ history | grep "apt"   <span class="cm"># find past apt commands</span>
+
+<span class="cm"># Redirect output to a file (overwrite)</span>
+$ echo "Hello Pi" > greeting.txt
+
+<span class="cm"># Append to a file</span>
+$ echo "Line 2" >> greeting.txt
+
+<span class="cm"># Redirect errors to a file</span>
+$ command 2> errors.log
+
+<span class="cm"># Redirect both stdout and stderr</span>
+$ command > output.txt 2>&1</div>
+        <div class="box box-red">
+            <div class="box-label">The Pipe Philosophy</div>
+            Unix commands do one thing well. Pipes (<span class="ic">|</span>) connect them. <span class="ic">cat file | sort | uniq | wc -l</span> reads a file, sorts lines, removes duplicates, and counts what remains. Four simple tools, one powerful pipeline.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 9 -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Text Editor: <span class="accent">nano</span></div>
+        <div class="slide-subtitle">The beginner-friendly terminal text editor. Edit config files, write scripts, modify system settings.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Open a file:</strong> <span class="ic">nano filename.txt</span> -- creates the file if it does not exist.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Edit:</strong> Just type. Nano shows the file content with a cursor. No modes like vim -- what you type goes directly into the file.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Save:</strong> Press <span class="ic">Ctrl+O</span> (Write Out), then Enter to confirm the filename.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Exit:</strong> Press <span class="ic">Ctrl+X</span>. If you have unsaved changes, nano asks if you want to save.</span></div>
+            <div class="step-row"><span class="step-num">5</span><span class="step-text"><strong>Search:</strong> <span class="ic">Ctrl+W</span> to search, <span class="ic">Ctrl+\\</span> to find and replace. The bottom bar shows all available shortcuts.</span></div>
+        </div>
+        <div class="box box-gold">
+            <div class="box-label">nano vs. vim</div>
+            nano is intuitive -- shortcuts are shown at the bottom of the screen. vim is more powerful but has a steep learning curve (modes, commands). For beginners, nano is the right choice. Learn vim later if you want speed.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 10 -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title"><span class="accent">sudo</span> -- Superuser Do</div>
+        <div class="slide-subtitle">Run commands with root (administrator) privileges. Required for system changes.</div>
+        <div class="code-block"><span class="cm"># Install software (requires root)</span>
+$ sudo apt install nginx
+
+<span class="cm"># Edit a system config file</span>
+$ sudo nano /etc/hosts
+
+<span class="cm"># Restart a service</span>
+$ sudo systemctl restart ssh
+
+<span class="cm"># Become root shell (use sparingly)</span>
+$ sudo -i
+root@piverse:~# exit  <span class="cm"># back to normal user</span></div>
+        <div class="box box-red">
+            <div class="box-label">The Principle of Least Privilege</div>
+            Use sudo only when necessary. Running as root full-time is dangerous -- one typo can destroy the system. Normal tasks (editing your own files, running programs) should be done as your regular user. sudo elevates only the specific command that needs it.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 11 -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title"><span class="accent">SSH</span> -- Secure Shell</div>
+        <div class="slide-subtitle">Access your Pi's command line from any computer on the network. No monitor needed.</div>
+        <div class="code-block"><span class="cm"># Connect to your Pi from another computer</span>
+$ ssh pi@piverse.local
+
+<span class="cm"># Or use the IP address</span>
+$ ssh pi@192.168.1.42
+
+<span class="cm"># Copy files to the Pi</span>
+$ scp report.pdf pi@piverse.local:~/Documents/
+
+<span class="cm"># Copy files from the Pi</span>
+$ scp pi@piverse.local:~/data.csv ./
+
+<span class="cm"># Generate SSH keys (passwordless login)</span>
+$ ssh-keygen -t ed25519
+$ ssh-copy-id pi@piverse.local</div>
+        <div class="box box-green">
+            <div class="box-label">SSH Keys vs. Passwords</div>
+            SSH keys are more secure and convenient than passwords. Generate a key pair on your laptop, copy the public key to the Pi, and you can log in without typing a password. Production servers should disable password authentication entirely.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 12 -- SUMMARY -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Chapter 4 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">The essential commands for navigating and managing a Linux system.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Navigation:</strong> <code>pwd</code> (where am I), <code>ls</code> (what is here), <code>cd</code> (go there). Absolute paths start with /. Relative paths start from your current location.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>File operations:</strong> <code>mkdir</code> (create dir), <code>cp</code> (copy), <code>mv</code> (move/rename), <code>rm</code> (delete permanently -- no undo). Use <code>-r</code> for directories.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Permissions:</strong> <code>chmod</code> sets read/write/execute. <code>chown</code> changes ownership. <code>ls -l</code> shows the permission string. 755 = owner rwx, group r-x, others r-x.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Package management:</strong> <code>sudo apt update</code> refreshes the index. <code>sudo apt install</code> adds software. <code>sudo apt full-upgrade</code> updates everything.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Pipes, sudo, SSH:</strong> Pipes (<code>|</code>) chain commands. <code>sudo</code> elevates privileges. <code>ssh</code> gives remote terminal access. These three concepts underpin all professional Linux work.</span></div>
+        </div>
+        <div class="box box-red" style="font-size:0.85rem; text-align:center;"><strong>Next: Chapter 5 -- System Configuration</strong> &nbsp;|&nbsp; raspi-config, Interfaces, Locale, Boot, GPU Split, systemd, Networking</div>
+        <div style="text-align:center; margin-top:6px;"><button id="complete-btn" onclick="completeModule()">Mark Complete</button></div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; PiVerse</button></a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+<script>
+    let currentSlide = 1; const TOTAL_SLIDES = 12;
+    function goToSlide(n) { if (n < 1 || n > TOTAL_SLIDES) return; const prev = document.getElementById('slide-' + currentSlide); if (prev) prev.classList.remove('active'); currentSlide = n; const next = document.getElementById('slide-' + currentSlide); if (next) next.classList.add('active'); document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%'; document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES; document.getElementById('prev-btn').disabled = (currentSlide === 1); document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES); const completeBtn = document.getElementById('complete-btn'); if (completeBtn) completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none'; }
+    document.addEventListener('keydown', function(e) { if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); } else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); } });
+    goToSlide(1);
+</script>
+<script>function completeModule() { if (typeof ModuleProgress !== 'undefined') { ModuleProgress.complete('matrix', 'pv-f-04-pres', { returnUrl: '../../index.html' }); } }</script>
+</body>
+</html>

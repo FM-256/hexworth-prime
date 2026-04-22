@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab: Pi Board Explorer | PiVerse Fundamentals Ch 1</title>
+    <style>
+        :root { --accent: #c51a4a; --accent-dim: rgba(197,26,74,0.15); --accent-border: rgba(197,26,74,0.3); --green: #34d399; --green-dim: rgba(52,211,153,0.1); --green-border: rgba(52,211,153,0.3); --gold: #ffd700; --gold-dim: rgba(255,215,0,0.1); --gold-border: rgba(255,215,0,0.3); --bg: #0d0408; --bg2: #130810; --bg3: #1a0d12; --text: #e0e0e0; --text2: #9e8b91; --border: rgba(197,26,74,0.12); }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        .topbar { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .topbar-left { display: flex; align-items: center; gap: 14px; }
+        .back-btn { padding: 6px 14px; background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: 6px; color: var(--accent); text-decoration: none; font-size: 0.82rem; transition: background 0.2s; }
+        .back-btn:hover { background: rgba(197,26,74,0.25); }
+        .lab-title { font-size: 0.95rem; color: var(--text); }
+        .badge { padding: 3px 10px; border-radius: 10px; font-size: 0.68rem; letter-spacing: 0.06em; }
+        .badge-red { background: var(--accent-dim); border: 1px solid var(--accent-border); color: var(--accent); }
+        .badge-gold { background: var(--gold-dim); border: 1px solid var(--gold-border); color: var(--gold); }
+        .topbar-right { display: flex; align-items: center; gap: 14px; font-size: 0.82rem; color: var(--text2); }
+        .prog-wrap { width: 130px; height: 5px; background: rgba(197,26,74,0.12); border-radius: 3px; overflow: hidden; }
+        .prog-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #8b0a2a); border-radius: 3px; transition: width 0.4s ease; }
+        .prog-label { color: var(--accent); font-weight: 500; }
+        .workspace { display: grid; grid-template-columns: 1fr 320px; flex: 1; min-height: 0; }
+        .board-panel { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; overflow: auto; }
+        .board-svg-wrap { position: relative; }
+        .board-svg-wrap svg { max-width: 100%; height: auto; }
+        .component-zone { cursor: pointer; transition: opacity 0.2s; }
+        .component-zone:hover { opacity: 0.8; }
+        .component-zone.discovered rect, .component-zone.discovered circle { stroke-width: 2.5; }
+        .info-panel { background: var(--bg2); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+        .info-header { padding: 12px 16px; font-size: 0.7rem; color: var(--text2); letter-spacing: 0.12em; text-transform: uppercase; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .info-content { flex: 1; overflow-y: auto; padding: 16px; }
+        .info-title { font-size: 1.1rem; color: var(--accent); font-weight: 700; margin-bottom: 8px; }
+        .info-desc { font-size: 0.85rem; color: var(--text2); line-height: 1.6; margin-bottom: 12px; }
+        .info-specs { font-size: 0.8rem; color: var(--text2); }
+        .info-specs dt { color: var(--accent); font-weight: 600; margin-top: 8px; }
+        .info-specs dd { margin-left: 0; padding-left: 12px; }
+        .task-list { border-top: 1px solid var(--border); padding: 12px 16px; flex-shrink: 0; max-height: 200px; overflow-y: auto; }
+        .task-item { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 0.78rem; color: var(--text2); }
+        .task-item.done { color: var(--green); }
+        .task-check { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; }
+        .task-item.done .task-check { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+        .finish-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 9000; }
+        .finish-overlay.active { display: flex; }
+        .finish-card { background: var(--bg2); border: 1px solid var(--green-border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .finish-title { font-size: 1.5rem; color: var(--gold); margin-bottom: 10px; }
+        .finish-msg { color: var(--text2); font-size: 0.95rem; margin-bottom: 24px; line-height: 1.6; }
+        .finish-btn { padding: 11px 28px; background: linear-gradient(135deg, var(--accent), #8b0a2a); border: none; border-radius: 8px; color: #fff; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; }
+        .finish-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+        .hint-text { text-align: center; font-size: 0.82rem; color: var(--text2); padding: 8px; font-style: italic; }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <div class="topbar-left">
+            <a href="../../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Pi Board Explorer</span>
+            <span class="badge badge-red">PiVerse</span>
+            <span class="badge badge-gold">Ch 1</span>
+        </div>
+        <div class="topbar-right">
+            <span>Discovered:</span>
+            <div class="prog-wrap"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+            <span class="prog-label" id="progLabel">0 / 8</span>
+        </div>
+    </header>
+    <div class="workspace">
+        <div class="board-panel">
+            <p class="hint-text">Click on each component to learn about it. Discover all 8 to complete the lab.</p>
+            <div class="board-svg-wrap">
+                <svg width="600" height="380" viewBox="0 0 600 380" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Board outline -->
+                    <rect x="50" y="20" width="500" height="340" rx="14" fill="rgba(197,26,74,0.03)" stroke="#c51a4a" stroke-width="2"/>
+                    <!-- GPIO -->
+                    <g class="component-zone" id="zone-gpio" onclick="discover('gpio')">
+                        <rect x="70" y="24" width="220" height="18" rx="4" fill="rgba(255,215,0,0.12)" stroke="#ffd700" stroke-width="1.5"/>
+                        <text x="180" y="37" text-anchor="middle" font-size="9" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">40-pin GPIO Header</text>
+                    </g>
+                    <!-- SoC -->
+                    <g class="component-zone" id="zone-soc" onclick="discover('soc')">
+                        <rect x="220" y="100" width="100" height="100" rx="8" fill="rgba(197,26,74,0.12)" stroke="#c51a4a" stroke-width="1.5"/>
+                        <text x="270" y="145" text-anchor="middle" font-size="12" fill="#e8305e" font-weight="700" font-family="Segoe UI,sans-serif">BCM2712</text>
+                        <text x="270" y="162" text-anchor="middle" font-size="8" fill="#9e8b91" font-family="Segoe UI,sans-serif">System-on-Chip</text>
+                    </g>
+                    <!-- RP1 -->
+                    <g class="component-zone" id="zone-rp1" onclick="discover('rp1')">
+                        <rect x="360" y="120" width="70" height="60" rx="6" fill="rgba(255,215,0,0.08)" stroke="#ffd700" stroke-width="1.5"/>
+                        <text x="395" y="150" text-anchor="middle" font-size="10" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">RP1</text>
+                        <text x="395" y="164" text-anchor="middle" font-size="7" fill="#9e8b91" font-family="Segoe UI,sans-serif">I/O Controller</text>
+                    </g>
+                    <!-- USB -->
+                    <g class="component-zone" id="zone-usb" onclick="discover('usb')">
+                        <rect x="480" y="40" width="50" height="90" rx="4" fill="rgba(100,149,237,0.1)" stroke="#6495ed" stroke-width="1.5"/>
+                        <text x="505" y="75" text-anchor="middle" font-size="8" fill="#6495ed" font-weight="700" font-family="Segoe UI,sans-serif">USB 3.0</text>
+                        <text x="505" y="88" text-anchor="middle" font-size="7" fill="#9e8b91" font-family="Segoe UI,sans-serif">x2</text>
+                        <rect x="480" y="140" width="50" height="60" rx="4" fill="rgba(100,149,237,0.06)" stroke="#6495ed" stroke-width="1"/>
+                        <text x="505" y="168" text-anchor="middle" font-size="8" fill="#6495ed" font-family="Segoe UI,sans-serif">USB 2.0</text>
+                        <text x="505" y="181" text-anchor="middle" font-size="7" fill="#9e8b91" font-family="Segoe UI,sans-serif">x2</text>
+                    </g>
+                    <!-- Ethernet -->
+                    <g class="component-zone" id="zone-eth" onclick="discover('eth')">
+                        <rect x="480" y="220" width="50" height="60" rx="4" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.5"/>
+                        <text x="505" y="250" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">GbE</text>
+                        <text x="505" y="263" text-anchor="middle" font-size="7" fill="#9e8b91" font-family="Segoe UI,sans-serif">Ethernet</text>
+                    </g>
+                    <!-- HDMI -->
+                    <g class="component-zone" id="zone-hdmi" onclick="discover('hdmi')">
+                        <rect x="180" y="330" width="40" height="22" rx="3" fill="rgba(167,139,250,0.12)" stroke="#a78bfa" stroke-width="1.5"/>
+                        <rect x="240" y="330" width="40" height="22" rx="3" fill="rgba(167,139,250,0.12)" stroke="#a78bfa" stroke-width="1.5"/>
+                        <text x="230" y="370" text-anchor="middle" font-size="8" fill="#a78bfa" font-family="Segoe UI,sans-serif">Micro HDMI x2</text>
+                    </g>
+                    <!-- Power -->
+                    <g class="component-zone" id="zone-power" onclick="discover('power')">
+                        <rect x="90" y="330" width="40" height="22" rx="3" fill="rgba(255,215,0,0.12)" stroke="#ffd700" stroke-width="1.5"/>
+                        <text x="110" y="370" text-anchor="middle" font-size="8" fill="#ffd700" font-family="Segoe UI,sans-serif">USB-C Power</text>
+                    </g>
+                    <!-- microSD -->
+                    <g class="component-zone" id="zone-sd" onclick="discover('sd')">
+                        <rect x="50" y="160" width="22" height="40" rx="3" fill="rgba(247,147,22,0.12)" stroke="#f97316" stroke-width="1.5"/>
+                        <text x="61" y="200" text-anchor="middle" font-size="7" fill="#f97316" font-family="Segoe UI,sans-serif" transform="rotate(-90 61 200)">microSD</text>
+                    </g>
+                    <!-- RAM label -->
+                    <rect x="140" y="110" width="60" height="35" rx="4" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="0.8"/>
+                    <text x="170" y="132" text-anchor="middle" font-size="8" fill="#3ab577" font-family="Segoe UI,sans-serif">RAM</text>
+                </svg>
+            </div>
+        </div>
+        <aside class="info-panel">
+            <div class="info-header">Component Info</div>
+            <div class="info-content" id="infoContent">
+                <div class="info-title">Welcome to the Pi Board Explorer</div>
+                <div class="info-desc">Click on any highlighted component on the board diagram to learn what it does, its specifications, and why it matters. Discover all 8 components to complete this lab.</div>
+            </div>
+            <div class="task-list" id="taskList"></div>
+        </aside>
+    </div>
+    <div class="finish-overlay" id="finishOverlay">
+        <div class="finish-card">
+            <div class="finish-title">Board Mapped</div>
+            <div class="finish-msg">You have explored every major component on the Raspberry Pi 5 board. You now know the SoC, GPIO, USB, Ethernet, HDMI, power, storage, and the RP1 I/O controller.</div>
+            <button class="finish-btn" onclick="finishLab()">Return to PiVerse Hub</button>
+        </div>
+    </div>
+<script>
+(function() {
+    'use strict';
+    var COMPONENTS = {
+        gpio: { name: '40-pin GPIO Header', desc: 'The General Purpose Input/Output header connects the Pi to the physical world. 40 pins total: power (3.3V, 5V, GND), 26 programmable I/O pins, plus dedicated pins for I2C (SDA/SCL), SPI (MOSI/MISO/SCLK/CE), UART (TX/RX), and PWM.', specs: { 'Logic Level': '3.3V (5V will damage the SoC)', 'I2C': 'GPIO 2 (SDA), GPIO 3 (SCL)', 'SPI': 'GPIO 7-11 (CE0, CE1, MISO, MOSI, SCLK)', 'UART': 'GPIO 14 (TX), GPIO 15 (RX)', 'PWM': 'GPIO 12, 13, 18, 19' } },
+        soc: { name: 'BCM2712 System-on-Chip', desc: 'The brain of the Pi 5. A Broadcom SoC integrating the CPU (quad-core ARM Cortex-A76 at 2.4 GHz), GPU (VideoCore VII), and memory controller on a single chip. ARM architecture -- same as smartphones. 64-bit, energy efficient.', specs: { 'CPU': 'Quad Cortex-A76 @ 2.4 GHz', 'GPU': 'VideoCore VII', 'Architecture': 'ARMv8.2-A (64-bit)', 'Process': '16nm', 'Video': 'Dual 4Kp60 HDMI, H.265 decode' } },
+        rp1: { name: 'RP1 I/O Controller', desc: 'A dedicated southbridge chip designed by Raspberry Pi. Connected to the SoC via PCIe 2.0 x4. Offloads USB and Ethernet from the main SoC, providing dedicated bandwidth for peripherals. First Pi with a PCIe bus.', specs: { 'Connection': 'PCIe 2.0 x4 to BCM2712', 'Manages': 'USB 3.0, USB 2.0, Gigabit Ethernet, GPIO', 'Purpose': 'Dedicated I/O bandwidth, no SoC bottleneck' } },
+        usb: { name: 'USB Ports', desc: 'Four USB ports: 2x USB 3.0 (blue, up to 5 Gbps) and 2x USB 2.0 (black, up to 480 Mbps). Use USB 3.0 for storage devices (SSDs, flash drives) and USB 2.0 for keyboards and mice. Managed by the RP1 controller.', specs: { 'USB 3.0': '2 ports, 5 Gbps each', 'USB 2.0': '2 ports, 480 Mbps each', 'Controller': 'RP1 via PCIe' } },
+        eth: { name: 'Gigabit Ethernet', desc: 'Full-throughput Gigabit Ethernet (1000 Mbps). Unlike older Pis where Ethernet shared bandwidth with USB, the Pi 4/5 has a dedicated Ethernet path. Essential for servers, NAS, and any application requiring reliable high-speed networking.', specs: { 'Speed': '10/100/1000 Mbps', 'Controller': 'RP1 (dedicated bandwidth)', 'Also available': 'Wi-Fi 5 (802.11ac), Bluetooth 5.0' } },
+        hdmi: { name: 'Micro HDMI Outputs', desc: 'Two micro HDMI ports supporting dual 4K displays at 60 Hz. Use the HDMI 0 port (closest to power) for single-monitor setups. Requires a micro HDMI to standard HDMI cable or adapter -- the Pi does NOT use full-size HDMI.', specs: { 'Ports': '2x micro HDMI', 'Resolution': 'Up to 4Kp60 per port', 'HDR': 'Supported (Pi 5)', 'Audio': 'HDMI audio output supported' } },
+        power: { name: 'USB-C Power Input', desc: 'The Pi 5 requires a 5V / 5A (27W) USB-C power supply. This is more than the Pi 4 (5V/3A) because the faster CPU, RP1 chip, and PCIe peripherals draw more power. Use the official Raspberry Pi 27W PSU for guaranteed compatibility.', specs: { 'Connector': 'USB-C', 'Voltage': '5V', 'Current': '5A (Pi 5), 3A (Pi 4)', 'Power Button': 'Yes (Pi 5 only)' } },
+        sd: { name: 'microSD Card Slot', desc: 'The Pi boots from a microSD card inserted here. The OS, files, and all software live on this card. Use 32 GB minimum, A1/A2 rated for random I/O performance. Located on the underside of the board. Pi 5 also supports NVMe boot via PCIe.', specs: { 'Card Type': 'microSD (microSDHC/microSDXC)', 'Min Size': '32 GB recommended', 'Rating': 'A1 or A2 for random IOPS', 'Alternative': 'USB boot (Pi 4/5), NVMe (Pi 5)' } }
+    };
+
+    var TASK_ORDER = ['gpio', 'soc', 'rp1', 'usb', 'eth', 'hdmi', 'power', 'sd'];
+    var discovered = {};
+
+    function init() {
+        var list = document.getElementById('taskList');
+        TASK_ORDER.forEach(function(id) {
+            var div = document.createElement('div');
+            div.className = 'task-item';
+            div.id = 'task-' + id;
+            div.innerHTML = '<span class="task-check" id="check-' + id + '"></span>' + COMPONENTS[id].name;
+            list.appendChild(div);
+        });
+        updateProgress();
+    }
+
+    window.discover = function(id) {
+        var comp = COMPONENTS[id];
+        if (!comp) return;
+        var html = '<div class="info-title">' + comp.name + '</div><div class="info-desc">' + comp.desc + '</div>';
+        if (comp.specs) {
+            html += '<dl class="info-specs">';
+            for (var key in comp.specs) {
+                html += '<dt>' + key + '</dt><dd>' + comp.specs[key] + '</dd>';
+            }
+            html += '</dl>';
+        }
+        document.getElementById('infoContent').innerHTML = html;
+        var zone = document.getElementById('zone-' + id);
+        if (zone) zone.classList.add('discovered');
+        if (!discovered[id]) {
+            discovered[id] = true;
+            var task = document.getElementById('task-' + id);
+            if (task) task.classList.add('done');
+            var check = document.getElementById('check-' + id);
+            if (check) check.textContent = 'OK';
+            updateProgress();
+        }
+    };
+
+    function updateProgress() {
+        var count = Object.keys(discovered).length;
+        var total = TASK_ORDER.length;
+        document.getElementById('progFill').style.width = (count / total * 100) + '%';
+        document.getElementById('progLabel').textContent = count + ' / ' + total;
+        if (count === total) {
+            setTimeout(function() { document.getElementById('finishOverlay').classList.add('active'); }, 600);
+        }
+    }
+
+    window.finishLab = function() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pv-f-01-lab', { returnUrl: '../../index.html' });
+        } else {
+            window.location.href = '../../index.html';
+        }
+    };
+
+    document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>

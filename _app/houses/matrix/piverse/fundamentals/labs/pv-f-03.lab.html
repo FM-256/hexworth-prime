@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab: Pi Desktop Explorer | PiVerse Fundamentals Ch 3</title>
+    <style>
+        :root { --accent: #c51a4a; --accent-dim: rgba(197,26,74,0.15); --accent-border: rgba(197,26,74,0.3); --green: #34d399; --green-dim: rgba(52,211,153,0.1); --green-border: rgba(52,211,153,0.3); --gold: #ffd700; --bg: #0d0408; --bg2: #130810; --bg3: #1a0d12; --text: #e0e0e0; --text2: #9e8b91; --border: rgba(197,26,74,0.12); }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        .topbar { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .topbar-left { display: flex; align-items: center; gap: 14px; }
+        .back-btn { padding: 6px 14px; background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: 6px; color: var(--accent); text-decoration: none; font-size: 0.82rem; }
+        .lab-title { font-size: 0.95rem; }
+        .badge { padding: 3px 10px; border-radius: 10px; font-size: 0.68rem; background: var(--accent-dim); border: 1px solid var(--accent-border); color: var(--accent); }
+        .topbar-right { display: flex; align-items: center; gap: 14px; font-size: 0.82rem; color: var(--text2); }
+        .prog-wrap { width: 130px; height: 5px; background: rgba(197,26,74,0.12); border-radius: 3px; overflow: hidden; }
+        .prog-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #8b0a2a); border-radius: 3px; transition: width 0.4s; }
+        .prog-label { color: var(--accent); font-weight: 500; }
+        .workspace { display: grid; grid-template-columns: 1fr 300px; flex: 1; min-height: 0; }
+        /* Simulated desktop */
+        .desktop-sim { position: relative; background: #1a0d12; overflow: hidden; }
+        .taskbar { position: absolute; top: 0; left: 0; right: 0; height: 34px; background: rgba(197,26,74,0.12); border-bottom: 1px solid var(--accent-border); display: flex; align-items: center; padding: 0 8px; gap: 4px; z-index: 10; }
+        .tb-item { padding: 4px 12px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; transition: all 0.15s; color: var(--text2); }
+        .tb-item:hover { background: var(--accent-dim); color: var(--accent); }
+        .tb-item.pi-menu { background: var(--accent); color: #fff; font-weight: 700; }
+        .tb-item.pi-menu:hover { opacity: 0.9; }
+        .tb-spacer { flex: 1; }
+        .tb-tray { font-size: 0.72rem; color: var(--text2); padding: 4px 8px; }
+        .desktop-area { position: absolute; top: 34px; bottom: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: center; }
+        .desktop-hint { font-size: 0.9rem; color: var(--text2); text-align: center; }
+        /* Simulated app windows */
+        .app-window { position: absolute; top: 60px; left: 40px; width: 80%; max-width: 500px; background: var(--bg2); border: 1px solid var(--accent-border); border-radius: 8px; display: none; z-index: 20; }
+        .app-window.active { display: block; }
+        .app-titlebar { display: flex; align-items: center; padding: 6px 10px; background: rgba(197,26,74,0.1); border-bottom: 1px solid var(--border); border-radius: 8px 8px 0 0; }
+        .app-titlebar span { font-size: 0.82rem; color: var(--accent); font-weight: 600; flex: 1; }
+        .app-close { width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--accent-border); background: none; color: var(--accent); font-size: 0.7rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .app-body { padding: 16px; font-size: 0.82rem; color: var(--text2); line-height: 1.6; min-height: 120px; }
+        .app-body .file-list { list-style: none; }
+        .app-body .file-list li { padding: 4px 8px; border-bottom: 1px solid var(--border); cursor: pointer; }
+        .app-body .file-list li:hover { background: var(--accent-dim); }
+        /* App menu dropdown */
+        .app-menu-drop { position: absolute; top: 34px; left: 0; width: 200px; background: var(--bg2); border: 1px solid var(--accent-border); border-radius: 0 0 8px 8px; z-index: 30; display: none; }
+        .app-menu-drop.active { display: block; }
+        .menu-cat { padding: 6px 12px; font-size: 0.72rem; color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 1px solid var(--border); }
+        .menu-item { padding: 8px 16px; font-size: 0.82rem; color: var(--text); cursor: pointer; }
+        .menu-item:hover { background: var(--accent-dim); }
+        /* Task panel */
+        .task-panel { background: var(--bg2); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+        .panel-header { padding: 12px 16px; font-size: 0.7rem; color: var(--text2); letter-spacing: 0.12em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+        .task-list { flex: 1; overflow-y: auto; padding: 12px; }
+        .task-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 9px; padding: 10px 12px; margin-bottom: 6px; font-size: 0.8rem; }
+        .task-card.active { border-color: var(--accent); background: rgba(197,26,74,0.06); }
+        .task-card.done { border-color: var(--green-border); background: var(--green-dim); color: var(--green); }
+        .finish-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 9000; }
+        .finish-overlay.active { display: flex; }
+        .finish-card { background: var(--bg2); border: 1px solid var(--green-border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .finish-title { font-size: 1.5rem; color: var(--gold); margin-bottom: 10px; }
+        .finish-msg { color: var(--text2); font-size: 0.95rem; margin-bottom: 24px; line-height: 1.6; }
+        .finish-btn { padding: 11px 28px; background: linear-gradient(135deg, var(--accent), #8b0a2a); border: none; border-radius: 8px; color: #fff; font-size: 0.95rem; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <div class="topbar-left">
+            <a href="../../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Pi Desktop Explorer</span>
+            <span class="badge">PiVerse Ch 3</span>
+        </div>
+        <div class="topbar-right">
+            <span>Tasks:</span>
+            <div class="prog-wrap"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+            <span class="prog-label" id="progLabel">0 / 7</span>
+        </div>
+    </header>
+    <div class="workspace">
+        <div class="desktop-sim">
+            <!-- Taskbar -->
+            <div class="taskbar">
+                <div class="tb-item pi-menu" onclick="toggleAppMenu()">Pi</div>
+                <div class="tb-item" onclick="openApp('files')">Files</div>
+                <div class="tb-item" onclick="openApp('web')">Web</div>
+                <div class="tb-item" onclick="openApp('terminal')">Terminal</div>
+                <div class="tb-spacer"></div>
+                <div class="tb-tray" id="trayContent">Wi-Fi: Connected | 14:32</div>
+            </div>
+            <!-- App menu -->
+            <div class="app-menu-drop" id="appMenu">
+                <div class="menu-cat">Programming</div>
+                <div class="menu-item" onclick="openApp('thonny')">Thonny Python IDE</div>
+                <div class="menu-cat">Internet</div>
+                <div class="menu-item" onclick="openApp('web')">Chromium Web Browser</div>
+                <div class="menu-cat">Office</div>
+                <div class="menu-item" onclick="openApp('office')">LibreOffice Writer</div>
+                <div class="menu-cat">Preferences</div>
+                <div class="menu-item" onclick="openApp('prefs')">Raspberry Pi Configuration</div>
+            </div>
+            <!-- Desktop area -->
+            <div class="desktop-area">
+                <div class="desktop-hint" id="desktopHint">Click taskbar items and the Pi menu to explore the desktop.<br>Complete all 7 tasks to finish the lab.</div>
+            </div>
+            <!-- App windows -->
+            <div class="app-window" id="win-files">
+                <div class="app-titlebar"><span>File Manager - /home/pi</span><button class="app-close" onclick="closeApp('files')">X</button></div>
+                <div class="app-body">
+                    <ul class="file-list">
+                        <li onclick="openFolder()">Desktop/</li>
+                        <li onclick="openFolder()">Documents/</li>
+                        <li onclick="openFolder()">Downloads/</li>
+                        <li onclick="openFolder()">Music/</li>
+                        <li onclick="openFolder()">Pictures/</li>
+                        <li onclick="openFolder()">Videos/</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="app-window" id="win-web" style="left: 60px; top: 80px;">
+                <div class="app-titlebar"><span>Chromium - New Tab</span><button class="app-close" onclick="closeApp('web')">X</button></div>
+                <div class="app-body">Chromium web browser loaded. Same engine as Google Chrome. Supports HTML5, CSS3, JavaScript, and Chrome extensions. Hardware video acceleration enabled for the Pi's VideoCore GPU.</div>
+            </div>
+            <div class="app-window" id="win-terminal" style="left: 30px; top: 100px;">
+                <div class="app-titlebar"><span>Terminal</span><button class="app-close" onclick="closeApp('terminal')">X</button></div>
+                <div class="app-body" style="background: #000; color: #34d399; font-family: 'Courier New', monospace; font-size: 0.8rem;">pi@piverse:~ $ <span style="animation: blink 1s infinite;">_</span></div>
+            </div>
+            <div class="app-window" id="win-thonny" style="left: 50px; top: 70px;">
+                <div class="app-titlebar"><span>Thonny - Python IDE</span><button class="app-close" onclick="closeApp('thonny')">X</button></div>
+                <div class="app-body">Thonny Python IDE loaded. Syntax highlighting, auto-complete, integrated debugger with step-through, variable inspector, and built-in Python 3.11 shell. Pre-installed gpiozero library for hardware control.</div>
+            </div>
+            <div class="app-window" id="win-office" style="left: 70px; top: 90px;">
+                <div class="app-titlebar"><span>LibreOffice Writer</span><button class="app-close" onclick="closeApp('office')">X</button></div>
+                <div class="app-body">LibreOffice Writer loaded. Full word processor compatible with .docx format. Part of the LibreOffice suite: Writer (Word), Calc (Excel), Impress (PowerPoint), Draw (vector graphics).</div>
+            </div>
+            <div class="app-window" id="win-prefs" style="left: 80px; top: 60px;">
+                <div class="app-titlebar"><span>Raspberry Pi Configuration</span><button class="app-close" onclick="closeApp('prefs')">X</button></div>
+                <div class="app-body">GUI configuration tool. Tabs: System (hostname, password, boot), Display (resolution, overscan), Interfaces (SSH, VNC, SPI, I2C), Performance (GPU memory, overclock), Localisation (timezone, locale, keyboard).</div>
+            </div>
+        </div>
+        <aside class="task-panel">
+            <div class="panel-header">Lab Tasks</div>
+            <div class="task-list" id="taskList"></div>
+        </aside>
+    </div>
+    <div class="finish-overlay" id="finishOverlay">
+        <div class="finish-card">
+            <div class="finish-title">Desktop Explored</div>
+            <div class="finish-msg">You navigated the taskbar, opened the application menu, launched File Manager, Chromium, Terminal, Thonny, and explored system preferences. You know the Raspberry Pi OS desktop.</div>
+            <button class="finish-btn" onclick="finishLab()">Return to PiVerse Hub</button>
+        </div>
+    </div>
+    <style>@keyframes blink { 0%,49% { opacity: 1; } 50%,100% { opacity: 0; } }</style>
+<script>
+(function() {
+    'use strict';
+    var TASKS = [
+        { id: 'menu', name: 'Open the Application Menu', done: false },
+        { id: 'files', name: 'Open File Manager', done: false },
+        { id: 'folder', name: 'Click a folder in File Manager', done: false },
+        { id: 'web', name: 'Open Chromium Web Browser', done: false },
+        { id: 'terminal', name: 'Open the Terminal', done: false },
+        { id: 'thonny', name: 'Open Thonny from the App Menu', done: false },
+        { id: 'prefs', name: 'Open Raspberry Pi Configuration', done: false }
+    ];
+    var completed = {};
+    var menuOpen = false;
+
+    function init() {
+        var list = document.getElementById('taskList');
+        TASKS.forEach(function(t, i) {
+            var card = document.createElement('div');
+            card.className = 'task-card' + (i === 0 ? ' active' : '');
+            card.id = 'tc-' + t.id;
+            card.textContent = (i + 1) + '. ' + t.name;
+            list.appendChild(card);
+        });
+    }
+
+    function complete(id) {
+        if (completed[id]) return;
+        completed[id] = true;
+        var card = document.getElementById('tc-' + id);
+        if (card) card.className = 'task-card done';
+        var count = Object.keys(completed).length;
+        document.getElementById('progFill').style.width = (count / TASKS.length * 100) + '%';
+        document.getElementById('progLabel').textContent = count + ' / ' + TASKS.length;
+        var next = TASKS.find(function(t) { return !completed[t.id]; });
+        if (next) {
+            var nc = document.getElementById('tc-' + next.id);
+            if (nc) nc.className = 'task-card active';
+        }
+        if (count === TASKS.length) {
+            setTimeout(function() { document.getElementById('finishOverlay').classList.add('active'); }, 800);
+        }
+    }
+
+    window.toggleAppMenu = function() {
+        menuOpen = !menuOpen;
+        document.getElementById('appMenu').className = menuOpen ? 'app-menu-drop active' : 'app-menu-drop';
+        if (menuOpen) complete('menu');
+    };
+
+    window.openApp = function(app) {
+        document.getElementById('appMenu').className = 'app-menu-drop';
+        menuOpen = false;
+        document.querySelectorAll('.app-window').forEach(function(w) { w.classList.remove('active'); });
+        var win = document.getElementById('win-' + app);
+        if (win) win.classList.add('active');
+        document.getElementById('desktopHint').style.display = 'none';
+        complete(app);
+    };
+
+    window.closeApp = function(app) {
+        var win = document.getElementById('win-' + app);
+        if (win) win.classList.remove('active');
+    };
+
+    window.openFolder = function() { complete('folder'); };
+
+    window.finishLab = function() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pv-f-03-lab', { returnUrl: '../../index.html' });
+        } else {
+            window.location.href = '../../index.html';
+        }
+    };
+
+    document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>

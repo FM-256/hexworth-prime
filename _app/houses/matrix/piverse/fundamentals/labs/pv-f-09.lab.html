@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pico Thonny Lab -- PiVerse Fundamentals Ch9</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { height: 100vh; overflow: hidden; background: #0d0608; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #e0e0e0; display: flex; flex-direction: column; }
+        .lab-header { flex-shrink: 0; padding: 15px 30px; background: rgba(13,6,8,0.95); border-bottom: 1px solid rgba(197,26,74,0.2); display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn { padding: 8px 16px; background: rgba(197,26,74,0.1); border: 1px solid rgba(197,26,74,0.3); border-radius: 6px; color: #c51a4a; text-decoration: none; font-size: 0.85rem; }
+        .back-btn:hover { background: rgba(197,26,74,0.2); }
+        .lab-title { font-size: 1rem; color: #f0d0d8; }
+        .lab-badge { padding: 4px 12px; background: rgba(197,26,74,0.15); border: 1px solid rgba(197,26,74,0.3); border-radius: 12px; font-size: 0.7rem; color: #c51a4a; }
+        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #6b5a60; }
+        .task-count { color: #c51a4a; font-weight: 500; }
+        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(197,26,74,0.15); border-radius: 3px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #c51a4a, #8b1030); border-radius: 3px; width: 0%; transition: width 0.4s; }
+
+        .lab-main { flex: 1; display: grid; grid-template-columns: 280px 1fr 1fr; min-height: 0; }
+
+        /* Task list */
+        .task-panel { background: rgba(13,6,8,0.95); border-right: 1px solid rgba(197,26,74,0.15); overflow-y: auto; padding: 15px; }
+        .task-section-title { font-size: 0.68rem; color: #6b5a60; letter-spacing: 0.12em; margin-bottom: 10px; text-transform: uppercase; }
+        .task-card { background: rgba(13,6,8,0.8); border: 1px solid rgba(197,26,74,0.15); border-radius: 10px; padding: 12px; margin-bottom: 6px; cursor: pointer; transition: all 0.2s; }
+        .task-card:hover { border-color: rgba(197,26,74,0.4); }
+        .task-card.active { border-color: #c51a4a; background: rgba(197,26,74,0.08); }
+        .task-card.completed { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.04); }
+        .task-card.completed .t-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; }
+        .t-num { font-size: 0.68rem; color: #c51a4a; margin-bottom: 3px; }
+        .t-name { font-size: 0.85rem; color: #f0d0d8; margin-bottom: 3px; }
+        .t-desc { font-size: 0.72rem; color: #6b5a60; line-height: 1.4; }
+
+        /* Editor pane */
+        .editor-pane { display: flex; flex-direction: column; background: #0a0506; border-right: 1px solid rgba(197,26,74,0.15); }
+        .pane-toolbar { padding: 8px 16px; background: rgba(13,6,8,0.9); border-bottom: 1px solid rgba(197,26,74,0.15); display: flex; align-items: center; gap: 10px; font-size: 0.8rem; color: #6b5a60; }
+        .pane-toolbar .pane-label { flex: 1; }
+        .run-btn { padding: 5px 16px; background: rgba(58,181,119,0.15); border: 1px solid rgba(58,181,119,0.4); border-radius: 5px; color: #3ab577; font-size: 0.78rem; cursor: pointer; }
+        .run-btn:hover { background: rgba(58,181,119,0.25); }
+        .editor-area { flex: 1; padding: 12px 16px; font-family: 'Consolas', monospace; font-size: 0.82rem; color: #ffd700; line-height: 1.7; overflow-y: auto; white-space: pre-wrap; background: rgba(0,0,0,0.2); }
+        .editor-area .line-num { color: #4a3540; margin-right: 12px; display: inline-block; width: 24px; text-align: right; }
+        .editor-area .kw { color: #93c5fd; } .editor-area .st { color: #86efac; } .editor-area .cm { color: #4a3540; } .editor-area .fn { color: #c51a4a; }
+
+        /* Shell pane */
+        .shell-pane { display: flex; flex-direction: column; background: #0a0a0a; }
+        .shell-output { flex: 1; padding: 12px 16px; font-family: 'Consolas', monospace; font-size: 0.82rem; line-height: 1.6; overflow-y: auto; }
+        .s-info { color: #c51a4a; } .s-out { color: #a0d4a0; } .s-dim { color: #4a3540; } .s-err { color: #f87171; } .s-warn { color: #ffd700; }
+        .shell-status { padding: 8px 16px; background: rgba(13,6,8,0.9); border-top: 1px solid rgba(197,26,74,0.15); font-size: 0.75rem; display: flex; gap: 15px; }
+        .status-item { color: #6b5a60; }
+        .status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; }
+        .status-dot.online { background: #3ab577; } .status-dot.offline { background: #6b5a60; }
+
+        .success-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 2000; }
+        .success-overlay.active { display: flex; }
+        .success-card { background: rgba(13,6,8,0.97); border: 1px solid rgba(52,211,153,0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
+        .success-message { color: #d4a0b0; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
+        .success-btn { padding: 12px 30px; background: linear-gradient(135deg, #c51a4a, #8b1030); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; }
+
+        @media (max-width: 1024px) { .lab-main { grid-template-columns: 1fr; } .task-panel { display: none; } .editor-pane { display: none; } }
+    </style>
+</head>
+<body>
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Pico MicroPython Lab</span>
+            <span class="lab-badge">PV-F-09</span>
+        </div>
+        <div class="task-progress">
+            <span>Progress:</span>
+            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressFill"></div></div>
+            <span class="task-count" id="taskProgress">0 / 8 Tasks</span>
+        </div>
+    </header>
+    <div class="lab-main">
+        <aside class="task-panel" id="taskPanel"></aside>
+        <div class="editor-pane">
+            <div class="pane-toolbar"><span class="pane-label">Editor -- main.py</span><button class="run-btn" onclick="runCode()">Run</button></div>
+            <div class="editor-area" id="editorArea"></div>
+        </div>
+        <div class="shell-pane">
+            <div class="pane-toolbar"><span class="pane-label">MicroPython Shell</span></div>
+            <div class="shell-output" id="shellOutput"></div>
+            <div class="shell-status">
+                <span class="status-item"><span class="status-dot online" id="statusDot"></span><span id="statusText">Pico Connected</span></span>
+                <span class="status-item">MicroPython v1.23</span>
+                <span class="status-item">RP2040 @ 133 MHz</span>
+            </div>
+        </div>
+    </div>
+    <div class="success-overlay" id="successOverlay">
+        <div class="success-card">
+            <div class="success-title">Pico Lab Complete!</div>
+            <div class="success-message">You connected to a Pico, flashed MicroPython, blinked an LED, read analog sensors, controlled PWM, used I2C, connected WiFi, and deployed a standalone program. These skills cover the core of Pico development.</div>
+            <button class="success-btn" onclick="finishLab()">Complete Lab</button>
+        </div>
+    </div>
+    <script>
+    (function() {
+        'use strict';
+        var TOTAL = 8, done = {}, current = 1;
+        var tasks = [
+            { name: 'Flash MicroPython', desc: 'Connect Pico in BOOTSEL mode and flash the UF2 firmware.' },
+            { name: 'Blink LED', desc: 'Toggle the onboard LED using Pin(25, Pin.OUT).' },
+            { name: 'Digital Input', desc: 'Read a button on GPIO 14 with internal pull-up.' },
+            { name: 'Analog Read', desc: 'Read a potentiometer on ADC(26).' },
+            { name: 'PWM Output', desc: 'Control LED brightness with PWM on GPIO 15.' },
+            { name: 'Temperature Sensor', desc: 'Read the RP2040 internal temperature sensor.' },
+            { name: 'WiFi Connect (Pico W)', desc: 'Connect to a WiFi network and get an IP address.' },
+            { name: 'Deploy main.py', desc: 'Save as main.py for auto-run on power-up.' }
+        ];
+
+        var codeSnippets = [
+            '# Task 1: Flash MicroPython\n# Hold BOOTSEL, plug USB\n# Drag rp2-pico-20240105-v1.23.uf2\n# to the RPI-RP2 drive',
+            'from machine import Pin\nimport time\n\nled = Pin(25, Pin.OUT)\n\nwhile True:\n    led.toggle()\n    time.sleep(0.5)',
+            'from machine import Pin\n\nbtn = Pin(14, Pin.IN, Pin.PULL_UP)\nled = Pin(25, Pin.OUT)\n\nwhile True:\n    if btn.value() == 0:\n        led.toggle()\n        time.sleep(0.3)',
+            'from machine import ADC\nimport time\n\npot = ADC(26)\n\nwhile True:\n    raw = pot.read_u16()\n    voltage = raw * 3.3 / 65535\n    print(f"Raw: {raw}  V: {voltage:.2f}")\n    time.sleep(0.5)',
+            'from machine import Pin, PWM\nimport time\n\npwm = PWM(Pin(15))\npwm.freq(1000)\n\nfor duty in range(0, 65536, 1024):\n    pwm.duty_u16(duty)\n    time.sleep(0.05)',
+            'from machine import ADC\nimport time\n\nsensor = ADC(4)  # Internal temp\n\nwhile True:\n    raw = sensor.read_u16()\n    voltage = raw * 3.3 / 65535\n    temp_c = 27 - (voltage - 0.706) / 0.001721\n    print(f"Temp: {temp_c:.1f}C")\n    time.sleep(1)',
+            'import network\nimport time\n\nwlan = network.WLAN(network.STA_IF)\nwlan.active(True)\nwlan.connect("MyNetwork", "MyPassword")\n\nwhile not wlan.isconnected():\n    time.sleep(0.5)\n\nprint(f"IP: {wlan.ifconfig()[0]}")',
+            '# main.py -- auto-runs on boot\nfrom machine import Pin\nimport time\n\nled = Pin("LED", Pin.OUT)\n\nwhile True:\n    led.toggle()\n    time.sleep(1)\n    # Pico runs this on power-up'
+        ];
+
+        var shellOutputs = [
+            ['[BOOTSEL] RPI-RP2 drive detected', '[FLASH] Copying rp2-pico-20240105-v1.23.uf2...', '[FLASH] 1.5 MB written', '[REBOOT] Pico rebooting with MicroPython...', '', 'MicroPython v1.23.0 on 2024-01-05; Raspberry Pi Pico with RP2040', '>>> ', '[OK] MicroPython flashed successfully.'],
+            ['[RUN] main.py', 'LED ON  (GPIO 25 = HIGH)', 'LED OFF (GPIO 25 = LOW)', 'LED ON  (GPIO 25 = HIGH)', 'LED OFF (GPIO 25 = LOW)', '...blink loop running...', '', '[OK] Onboard LED toggling at 0.5s intervals.'],
+            ['[RUN] main.py', 'Waiting for button press on GPIO 14...', '[INPUT] Button pressed (GPIO 14 = LOW)', 'LED toggled!', '[INPUT] Button pressed (GPIO 14 = LOW)', 'LED toggled!', '', '[OK] Digital input with PULL_UP verified.'],
+            ['[RUN] main.py', 'Raw: 32768  V: 1.65', 'Raw: 16384  V: 0.82', 'Raw: 49152  V: 2.47', 'Raw: 65535  V: 3.30', '', '[OK] ADC(26) reading 12-bit values scaled to 16-bit.'],
+            ['[RUN] main.py', 'PWM duty: 0 (0%)', 'PWM duty: 16384 (25%)', 'PWM duty: 32768 (50%)', 'PWM duty: 49152 (75%)', 'PWM duty: 65535 (100%)', '', '[OK] PWM fade complete. 1000 Hz, 16-bit resolution.'],
+            ['[RUN] main.py', 'ADC4 raw: 27512  V: 1.385', 'Temp: 26.3C', 'Temp: 26.4C', 'Temp: 26.3C', '', '[OK] Internal temperature sensor reading verified.'],
+            ['[RUN] main.py', 'WLAN active', 'Connecting to "MyNetwork"...', 'Connected!', 'IP: 192.168.1.42', 'Subnet: 255.255.255.0', 'Gateway: 192.168.1.1', '', '[OK] Pico W WiFi connected. IP assigned.'],
+            ['[SAVE] Writing main.py to Pico filesystem...', '[SAVE] 186 bytes written', '[REBOOT] Simulating power cycle...', '', 'MicroPython v1.23.0; Raspberry Pi Pico W with RP2040', 'Running main.py...', 'LED ON', 'LED OFF', '', '[OK] main.py auto-runs on boot. Deployment complete.']
+        ];
+
+        function renderEditor(idx) {
+            var el = document.getElementById('editorArea');
+            var lines = codeSnippets[idx].split('\n');
+            el.innerHTML = lines.map(function(line, i) {
+                var num = '<span class="line-num">' + (i + 1) + '</span>';
+                var highlighted = line
+                    .replace(/(from|import|while|True|if|for|in|def|return|not|as)/g, '<span class="kw">$1</span>')
+                    .replace(/(#.*)/g, '<span class="cm">$1</span>')
+                    .replace(/(".*?")/g, '<span class="st">$1</span>')
+                    .replace(/(Pin|ADC|PWM|WLAN|print|range|sleep|time)/g, '<span class="fn">$1</span>');
+                return num + highlighted;
+            }).join('\n');
+        }
+
+        function renderShell(idx) {
+            var el = document.getElementById('shellOutput');
+            el.innerHTML = '';
+            shellOutputs[idx].forEach(function(line) {
+                var d = document.createElement('div');
+                if (line.indexOf('[OK]') === 0) d.className = 's-info';
+                else if (line.indexOf('[RUN]') === 0 || line.indexOf('[SAVE]') === 0 || line.indexOf('[BOOTSEL]') === 0 || line.indexOf('[FLASH]') === 0 || line.indexOf('[REBOOT]') === 0) d.className = 's-dim';
+                else if (line.indexOf('[INPUT]') === 0) d.className = 's-warn';
+                else if (line.indexOf('[ERROR]') === 0) d.className = 's-err';
+                else d.className = 's-out';
+                d.textContent = line;
+                el.appendChild(d);
+            });
+        }
+
+        function selectTask(n) {
+            current = n;
+            renderEditor(n - 1);
+            document.getElementById('shellOutput').innerHTML = '<div class="s-dim">Click "Run" to execute the code.</div>';
+            for (var i = 1; i <= TOTAL; i++) {
+                var c = document.getElementById('task-' + i);
+                if (c) { c.classList.remove('active'); if (i === n && !done[n]) c.classList.add('active'); }
+            }
+        }
+
+        window.runCode = function() {
+            renderShell(current - 1);
+            completeTask(current);
+        };
+
+        function completeTask(n) {
+            if (done[n]) return; done[n] = true;
+            var count = 0; for (var k in done) if (done[k]) count++;
+            document.getElementById('taskProgress').textContent = count + ' / ' + TOTAL + ' Tasks';
+            document.getElementById('progressFill').style.width = Math.round((count / TOTAL) * 100) + '%';
+            var card = document.getElementById('task-' + n);
+            if (card) { card.classList.add('completed'); card.classList.remove('active'); }
+            if (count === TOTAL) { setTimeout(function() { document.getElementById('successOverlay').classList.add('active'); }, 700); return; }
+            for (var i = 1; i <= TOTAL; i++) { if (!done[i]) { selectTask(i); break; } }
+        }
+
+        function buildTasks() {
+            var p = document.getElementById('taskPanel');
+            p.innerHTML = '<div class="task-section-title">Pico MicroPython Tasks</div>';
+            tasks.forEach(function(t, i) {
+                var d = document.createElement('div'); d.className = 'task-card'; d.id = 'task-' + (i+1);
+                d.innerHTML = '<div class="t-num">Task ' + (i+1) + '</div><div class="t-name">' + t.name + '</div><div class="t-desc">' + t.desc + '</div>';
+                d.onclick = function() { if (!done[i+1]) selectTask(i+1); };
+                p.appendChild(d);
+            });
+        }
+
+        window.finishLab = function() {
+            if (typeof ModuleProgress !== 'undefined') ModuleProgress.complete('matrix', 'pv-f-09-lab', { returnUrl: '../../index.html' });
+            else window.location.href = '../../index.html';
+        };
+
+        buildTasks(); selectTask(1);
+    })();
+    </script>
+</body>
+</html>

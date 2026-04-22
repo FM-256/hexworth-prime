@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab: PWM &amp; Analog | PiVerse MicroPython Ch 4</title>
+    <style>
+        :root { --accent: #c51a4a; --accent-dim: rgba(197,26,74,0.15); --accent-border: rgba(197,26,74,0.3); --green: #34d399; --green-dim: rgba(52,211,153,0.1); --green-border: rgba(52,211,153,0.3); --gold: #ffd700; --gold-dim: rgba(255,215,0,0.1); --gold-border: rgba(255,215,0,0.3); --bg: #0d0a0c; --bg2: #140f12; --bg3: #1a1520; --text: #e0e0e0; --text2: #a0909a; --border: rgba(197,26,74,0.12); }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        .topbar { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .topbar-left { display: flex; align-items: center; gap: 14px; }
+        .back-btn { padding: 6px 14px; background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: 6px; color: var(--accent); text-decoration: none; font-size: 0.82rem; }
+        .lab-title { font-size: 0.95rem; } .badge { padding: 3px 10px; border-radius: 10px; font-size: 0.68rem; } .badge-accent { background: var(--accent-dim); border: 1px solid var(--accent-border); color: var(--accent); } .badge-gold { background: var(--gold-dim); border: 1px solid var(--gold-border); color: var(--gold); }
+        .topbar-right { display: flex; align-items: center; gap: 14px; font-size: 0.82rem; color: var(--text2); }
+        .prog-wrap { width: 130px; height: 5px; background: rgba(197,26,74,0.12); border-radius: 3px; overflow: hidden; } .prog-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #8b1030); border-radius: 3px; transition: width 0.4s; } .prog-label { color: var(--accent); font-weight: 500; }
+        .workspace { display: grid; grid-template-columns: 1fr 320px; flex: 1; min-height: 0; }
+        .ide-panel { display: flex; flex-direction: column; overflow: hidden; }
+        .ide-toolbar { flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .tb-btn { padding: 5px 14px; background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: 5px; color: var(--accent); font-size: 0.82rem; cursor: pointer; font-weight: 600; }
+        .tb-btn.run { background: rgba(52,211,153,0.12); border-color: var(--green-border); color: var(--green); }
+        .code-area { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+        .code-editor-wrap { flex: 1; display: flex; overflow: hidden; }
+        .line-numbers { background: var(--bg2); color: #5a4a54; font-family: 'Consolas', monospace; font-size: 0.82rem; padding: 12px 8px 12px 12px; text-align: right; line-height: 1.7; user-select: none; min-width: 38px; border-right: 1px solid var(--border); }
+        .code-editor { flex: 1; background: var(--bg3); color: #e2e8f0; font-family: 'Consolas', monospace; font-size: 0.82rem; padding: 12px 14px; border: none; outline: none; resize: none; line-height: 1.7; tab-size: 2; overflow: auto; white-space: pre; }
+        .output-panel { flex-shrink: 0; height: 100px; background: rgba(0,0,0,0.4); border-top: 1px solid var(--border); overflow-y: auto; padding: 8px 14px; font-family: 'Consolas', monospace; font-size: 0.75rem; color: var(--text2); line-height: 1.5; }
+        .output-panel .out-ok { color: var(--green); } .output-panel .out-err { color: #f87171; } .output-panel .out-info { color: var(--accent); }
+        .board-display { flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding: 10px; background: var(--bg2); border-top: 1px solid var(--border); min-height: 60px; }
+        .task-panel { background: var(--bg2); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+        .panel-header { padding: 12px 16px; font-size: 0.7rem; color: var(--text2); letter-spacing: 0.12em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+        .task-list { flex: 1; overflow-y: auto; padding: 12px; }
+        .task-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 9px; padding: 12px 14px; margin-bottom: 8px; }
+        .task-card.active { border-color: var(--accent); background: rgba(197,26,74,0.06); } .task-card.done { border-color: var(--green-border); background: var(--green-dim); }
+        .task-num { font-size: 0.67rem; color: var(--accent); margin-bottom: 3px; } .task-name { font-size: 0.88rem; margin-bottom: 3px; display: flex; align-items: center; gap: 6px; } .task-name .chk { font-size: 0.75rem; color: var(--green); margin-left: auto; display: none; } .task-desc { font-size: 0.77rem; color: var(--text2); line-height: 1.45; }
+        .finish-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 9000; } .finish-overlay.active { display: flex; }
+        .finish-card { background: var(--bg2); border: 1px solid var(--green-border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .finish-title { font-size: 1.5rem; color: var(--gold); margin-bottom: 10px; } .finish-msg { color: var(--text2); font-size: 0.95rem; margin-bottom: 24px; line-height: 1.6; }
+        .finish-btn { padding: 11px 28px; background: linear-gradient(135deg, var(--accent), #8b1030); border: none; border-radius: 8px; color: #fff; font-size: 0.95rem; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <header class="topbar"><div class="topbar-left"><a href="../../index.html" class="back-btn">Exit Lab</a><span class="lab-title">Lab: PWM &amp; Analog</span><span class="badge badge-accent">PiVerse</span><span class="badge badge-gold">Ch 4</span></div><div class="topbar-right"><span>Tasks:</span><div class="prog-wrap"><div class="prog-fill" id="progFill" style="width:0%"></div></div><span class="prog-label" id="progLabel">0 / 8</span></div></header>
+    <div class="workspace">
+        <div class="ide-panel">
+            <div class="ide-toolbar"><button class="tb-btn run" onclick="doRun()">Run</button><button class="tb-btn" onclick="doClear()">Clear</button></div>
+            <div class="code-area"><div class="code-editor-wrap"><div class="line-numbers" id="lineNums">1
+2
+3
+4
+5
+6
+7
+8
+9
+10</div><textarea class="code-editor" id="codeEditor" spellcheck="false" placeholder="# PWM & Analog code here..."></textarea></div></div>
+            <div class="output-panel" id="outputPanel"><div class="out-info">PWM &amp; Analog Lab -- Ready</div></div>
+            <div class="board-display">
+                <svg width="300" height="50" viewBox="0 0 300 50" aria-hidden="true">
+                    <rect x="5" y="5" width="290" height="40" rx="8" fill="rgba(197,26,74,0.04)" stroke="rgba(197,26,74,0.3)" stroke-width="1.5"/>
+                    <text x="50" y="28" font-size="8" fill="#c51a4a" font-weight="700">Pico RP2040</text>
+                    <circle cx="200" cy="25" r="10" id="pwmLed" fill="#3a1010" stroke="#ef4444" stroke-width="1"/>
+                    <text x="200" y="28" text-anchor="middle" font-size="6" fill="#000" font-weight="700">PWM</text>
+                    <text x="200" y="44" text-anchor="middle" font-size="6" fill="#a0909a">GP15</text>
+                    <text x="260" y="28" text-anchor="middle" font-size="7" fill="#a0909a" id="adcVal">ADC: --</text>
+                </svg>
+            </div>
+        </div>
+        <aside class="task-panel"><div class="panel-header">Lab Tasks</div><div class="task-list" id="taskList"></div></aside>
+    </div>
+    <div class="finish-overlay" id="finishOverlay"><div class="finish-card"><div class="finish-title">PWM &amp; Analog Complete</div><div class="finish-msg">You have controlled LED brightness with PWM, played buzzer tones, read analog voltages, and connected a potentiometer to control output. The analog world is open.</div><button class="finish-btn" onclick="finishLab()">Return to PiVerse Hub</button></div></div>
+<script>
+(function(){
+    'use strict';
+    var TASKS=[
+        {id:1,name:'Create a PWM object on GP15',desc:'Import PWM from machine. Create PWM(Pin(15)) and set freq(1000).'},
+        {id:2,name:'Set 50% duty cycle',desc:'Use duty_u16(32768) to set 50% brightness.'},
+        {id:3,name:'Fade LED in',desc:'Write a for loop from 0 to 65535 with duty_u16() and sleep_ms(2).'},
+        {id:4,name:'Play a buzzer tone at 440 Hz',desc:'Set freq(440) and duty_u16(32768). This is the A4 note.'},
+        {id:5,name:'Play a C major scale',desc:'Define notes [262,294,330,349,392,440,494,523] and play each for 300ms.'},
+        {id:6,name:'Read ADC on GP26',desc:'Create ADC(Pin(26)) and read with read_u16(). Print the raw value.'},
+        {id:7,name:'Convert ADC to voltage',desc:'Multiply raw by 3.3/65535 and print the voltage.'},
+        {id:8,name:'Potentiometer controls LED',desc:'Read ADC value and pass directly to PWM duty_u16() in a loop.'}
+    ];
+    var done={};
+    function init(){var list=document.getElementById('taskList');TASKS.forEach(function(t){var c=document.createElement('div');c.className='task-card';c.id='tc-'+t.id;c.innerHTML='<div class="task-num">Task '+t.id+'</div><div class="task-name">'+t.name+'<span class="chk" id="ck-'+t.id+'">Done</span></div><div class="task-desc">'+t.desc+'</div>';list.appendChild(c);});upd();hl(1);var ed=document.getElementById('codeEditor');ed.addEventListener('input',uln);uln();}
+    function upd(){var c=Object.keys(done).length;document.getElementById('progFill').style.width=(c/TASKS.length)*100+'%';document.getElementById('progLabel').textContent=c+' / '+TASKS.length;}
+    function comp(id){if(done[id])return;done[id]=true;var card=document.getElementById('tc-'+id);if(card)card.className='task-card done';var chk=document.getElementById('ck-'+id);if(chk)chk.style.display='inline';upd();var nx=TASKS.find(function(t){return !done[t.id];});if(nx)hl(nx.id);if(Object.keys(done).length===TASKS.length)setTimeout(function(){document.getElementById('finishOverlay').classList.add('active');},600);}
+    function hl(id){TASKS.forEach(function(t){var c=document.getElementById('tc-'+t.id);if(c&&!done[t.id])c.className=(t.id===id)?'task-card active':'task-card';});}
+    function uln(){var ed=document.getElementById('codeEditor');var n=Math.max(ed.value.split('\n').length,10);var s='';for(var i=1;i<=n;i++)s+=i+'\n';document.getElementById('lineNums').textContent=s;}
+    function ao(m,c){var p=document.getElementById('outputPanel');var d=document.createElement('div');d.className=c||'';d.textContent=m;p.appendChild(d);p.scrollTop=p.scrollHeight;}
+    window.doClear=function(){document.getElementById('outputPanel').innerHTML='';};
+    window.doRun=function(){
+        var code=document.getElementById('codeEditor').value.trim();if(!code){ao('Error: Empty.','out-err');return;}
+        ao('>>> Running...','out-info');var cl=code.toLowerCase();
+        if(cl.indexOf('pwm(pin(15')!==-1||cl.indexOf('pwm( pin(15')!==-1||cl.indexOf('pwm(pin( 15')!==-1){if(cl.indexOf('freq')!==-1){ao('PWM on GP15 @ 1000 Hz','out-ok');comp(1);}}
+        if(cl.indexOf('duty_u16(32768')!==-1||cl.indexOf('duty_u16( 32768')!==-1){document.getElementById('pwmLed').setAttribute('fill','rgba(239,68,68,0.5)');ao('Duty: 50% -- LED at half brightness','out-ok');comp(2);}
+        if(cl.indexOf('for')!==-1&&cl.indexOf('duty_u16')!==-1&&cl.indexOf('range')!==-1){ao('Fading LED in... 0% -> 100%','out-ok');document.getElementById('pwmLed').setAttribute('fill','#ef4444');comp(3);}
+        if(cl.indexOf('freq(440')!==-1||cl.indexOf('freq( 440')!==-1){ao('Playing A4 (440 Hz)...','out-ok');comp(4);}
+        if(cl.indexOf('262')!==-1&&cl.indexOf('294')!==-1&&cl.indexOf('330')!==-1){ao('Playing C major scale: C D E F G A B C','out-ok');comp(5);}
+        if(cl.indexOf('adc(pin(26')!==-1||cl.indexOf('adc( pin(26')!==-1||cl.indexOf('adc(26')!==-1){document.getElementById('adcVal').textContent='ADC: 32450';ao('ADC raw: 32450','out-ok');comp(6);}
+        if(cl.indexOf('3.3')!==-1&&cl.indexOf('65535')!==-1){ao('Voltage: 1.633 V','out-ok');comp(7);}
+        if(cl.indexOf('while')!==-1&&cl.indexOf('read_u16')!==-1&&cl.indexOf('duty_u16')!==-1){ao('Pot -> LED brightness link active.','out-ok');comp(8);}
+    };
+    window.finishLab=function(){if(typeof ModuleProgress!=='undefined')ModuleProgress.complete('matrix','pv-mp-04-lab',{returnUrl:'../../index.html'});else window.location.href='../../index.html';};
+    document.addEventListener('DOMContentLoaded',init);
+})();
+</script>
+</body>
+</html>
