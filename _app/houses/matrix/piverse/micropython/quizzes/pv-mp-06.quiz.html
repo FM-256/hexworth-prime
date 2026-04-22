@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz: Reaction Game | PiVerse MicroPython Ch 6</title>
+    <link rel="stylesheet" href="../../../../../styles/quiz-engine.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { min-height: 100vh; background: linear-gradient(135deg, #0d0a0c 0%, #140f12 50%, #0d0a0c 100%); display: flex; flex-direction: column; font-family: 'Segoe UI', system-ui, sans-serif; }
+        .page-header { padding: 15px 30px; background: rgba(0,0,0,0.4); border-bottom: 1px solid rgba(197,26,74,0.2); display: flex; justify-content: space-between; align-items: center; }
+        .page-header a { color: #c51a4a; text-decoration: none; font-size: 0.9rem; }
+        .brand { font-weight: 600; color: #e0e0e0; }
+        .quiz-wrapper { flex: 1; display: flex; align-items: center; justify-content: center; padding: 30px 20px; }
+        #quiz-container { width: 100%; max-width: 800px; }
+    </style>
+</head>
+<body>
+    <header class="page-header"><a href="../../index.html">&larr; Back to PiVerse Hub</a><span class="brand"><img src="/assets/images/icons/icon-brain.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Hexworth Prime</span></header>
+    <main class="quiz-wrapper"><div id="quiz-container"></div></main>
+    <script src="../../../../../components/ProgressSystem.js"></script>
+    <script src="../../../../../components/QuizEngine.js"></script>
+    <script>
+        const quiz = new QuizEngine({
+            containerId: 'quiz-container', title: 'Chapter 6: Reaction Game',
+            description: 'Test your understanding of random timing, millisecond measurement, cheat detection, scoring systems, and program architecture.',
+            passingScore: 80, showFeedback: true, randomize: true, theme: 'matrix',
+            achievement: 'pv-mp-06-quiz', moduleId: 'pv-mp-06-quiz', serverGrading: true, houseId: 'matrix', trackProgress: true,
+            questions: [
+                { question: 'Why does the reaction game use a random delay before the signal?', options: ['To save power', 'To prevent players from anticipating the signal and reacting prematurely', 'To test the random number generator', 'To calibrate the timer'], explanation: 'A fixed delay would let players memorize the timing and press at the expected moment without actually reacting. Random delays between 2-5 seconds ensure the player must genuinely react to the visual signal.' },
+                { question: 'What MicroPython module provides random numbers?', options: ['random', 'urandom', 'math', 'machine'], explanation: 'The urandom module provides random number generation in MicroPython. urandom.randint(a, b) generates a random integer between a and b inclusive. The RP2040 has a hardware random number generator (ROSC-based) for genuine randomness.' },
+                { question: 'How is reaction time measured?', options: ['By counting loop iterations', 'By recording ticks_ms() when the LED turns on and when the button is pressed, then computing the difference', 'By using a hardware timer peripheral', 'By measuring the voltage on the button pin'], explanation: 'Record start = ticks_ms() when the LED turns on. Record end = ticks_ms() when the button is pressed. Reaction time = ticks_diff(end, start). This gives millisecond resolution, which is more than adequate for human reaction testing (150-400 ms typical).' },
+                { question: 'What is a typical human visual reaction time?', options: ['10-50 ms', '50-100 ms', '200-300 ms', '500-1000 ms'], explanation: 'Average human visual reaction time is 200-300 milliseconds. Under 200 ms is exceptional (or anticipated). Over 400 ms is slow. These ranges are useful for categorizing player performance in the game.' },
+                { question: 'How does the game detect cheating (pressing too early)?', options: ['It checks the button state after the LED turns on', 'It polls the button during the random wait period and flags early presses', 'It uses a hardware watchdog timer', 'It cannot detect cheating'], explanation: 'During the random wait period (before the LED turns on), the game polls the button. If the button is pressed during this waiting phase, the player pressed before seeing the signal -- this is a foul. The game flags it and penalizes the round.' },
+                { question: 'What should happen if the player does not press the button within 3 seconds?', options: ['The game crashes', 'The program waits forever', 'The round times out and is marked as failed', 'The LED turns off and a new round starts'], explanation: 'A timeout prevents the program from hanging if the player walks away or misses the signal. After 3 seconds with no button press, the function returns -1 (failure), the LED turns off, and the game moves to the next round.' },
+                { question: 'Why is the timeout important for embedded systems?', options: ['To save battery', 'To prevent the program from blocking indefinitely on user input', 'To increase game difficulty', 'To reduce memory usage'], explanation: 'In embedded systems, blocking indefinitely on input is a critical flaw. If the user walks away, the system is stuck forever. Timeouts ensure the program always makes progress. This is a fundamental defensive programming pattern.' },
+                { question: 'How does the scoring system categorize a 250 ms reaction time?', options: ['LIGHTNING (under 200 ms)', 'FAST (200-299 ms)', 'AVERAGE (300-399 ms)', 'SLOW (400+ ms)'], explanation: '250 ms falls in the FAST category (200-299 ms). LIGHTNING is under 200 ms, AVERAGE is 300-399 ms, and SLOW is 400+ ms. These categories give the player meaningful feedback beyond just a number.' },
+                { question: 'What does the list comprehension [s for s in scores if s > 0] do?', options: ['Sorts the scores list', 'Filters out invalid rounds (fouls and timeouts marked as -1)', 'Doubles all scores', 'Reverses the list'], explanation: 'This list comprehension creates a new list containing only positive scores, filtering out -1 values that represent fouls (early press) or timeouts. This ensures the average and best calculations only use valid reaction times.' },
+                { question: 'What is the purpose of the three-blink countdown before each round?', options: ['To test the LED', 'To tell the player the round is starting and the next solid LED is the signal', 'To calibrate the timer', 'To drain the capacitor'], explanation: 'The three quick blinks serve as a "ready, set..." cue. After the blinks stop, the LED goes dark during the random wait. The player knows that the next time the LED turns on and stays on, that is the signal to react. Without this, players do not know when the round begins.' },
+                { question: 'Why does the game use separate functions like wait_random(), measure_reaction(), and rate_reaction()?', options: ['To make the code longer', 'Each function does one thing, making the code testable and maintainable', 'Functions run faster than inline code', 'MicroPython requires it'], explanation: 'Separating responsibilities into single-purpose functions is a fundamental software design principle. Each function can be tested independently in the REPL. The main loop becomes a clear sequence of high-level calls. Bugs are isolated to specific functions.' },
+                { question: 'What does urandom.getrandbits(10) return?', options: ['A 10-digit number', 'A random integer between 0 and 1023 (2^10 - 1)', 'A 10-byte string', 'The last 10 bits of the system clock'], explanation: 'getrandbits(n) returns a random integer with n random bits. For 10 bits, the range is 0 to 1023 (2^10 - 1 = 1023). This can be scaled to any desired range with arithmetic.' },
+                { question: 'What is the difference between ticks_ms() and ticks_us()?', options: ['ticks_ms() measures minutes, ticks_us() measures microseconds', 'ticks_ms() has millisecond resolution, ticks_us() has microsecond resolution', 'They are identical', 'ticks_us() only works on Pico W'], explanation: 'ticks_ms() returns a counter in milliseconds (1 ms resolution). ticks_us() returns a counter in microseconds (1 us resolution, 1000x more precise). For human reaction timing, ticks_ms() is sufficient. ticks_us() is useful for high-speed measurements.' },
+                { question: 'How does the game handle LED feedback for different results?', options: ['Always the same blink pattern', 'Different patterns: slow blinks for good, rapid blinks for foul, no blink for timeout', 'No visual feedback, serial only', 'Color changes based on score'], explanation: 'Visual feedback communicates game state without requiring a serial console: LED off = waiting, LED solid = react now, slow blinks = good result, rapid blinks = foul/cheat. This makes the game playable even without a computer connected.' },
+                { question: 'What design principle does the reaction game demonstrate by separating ROUNDS and TIMEOUT_MS as constants?', options: ['Object-oriented programming', 'Separation of configuration from logic', 'Polymorphism', 'Inheritance'], explanation: 'Defining ROUNDS = 5 and TIMEOUT_MS = 3000 as constants at the top separates configuration from logic. To change the game rules, you edit these values without touching any function code. This is a core principle of data-driven design and makes the code maintainable.' }
+            ]
+        });
+        quiz.start();
+    </script>
+</body>
+</html>
