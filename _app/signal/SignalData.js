@@ -124,7 +124,12 @@ const SignalData = {
         'mikrobus': 'mikroBUS Expansion',
         'arm-bare-metal': 'ARM Bare-Metal',
         'iot-mesh': 'IoT Mesh Networking',
-        'greybus': 'Greybus Protocol'
+        'greybus': 'Greybus Protocol',
+        'micropython': 'MicroPython',
+        'interrupts': 'Hardware Interrupts',
+        'i2c-spi': 'I2C / SPI Protocols',
+        'data-logging': 'Data Logging',
+        'web-server': 'Web Server / Dashboard'
     },
 
     // -------------------------------------------------------------------------
@@ -314,6 +319,16 @@ const SignalData = {
             color: '#a855f7',
             colorDim: 'rgba(168, 85, 247, 0.15)',
             sections: ['esp32-s3-arsenal']
+        },
+        {
+            id: 'pico-builds',
+            name: 'Pico Builds',
+            tagline: 'Program the smallest Pi.',
+            description: 'Raspberry Pi Pico physical computing projects — MicroPython, GPIO, sensors, and wireless. Companion builds to PiVerse educational content.',
+            icon: '../../assets/images/icons/icon-memory.webp',
+            color: '#c51a4a',
+            colorDim: 'rgba(197, 26, 74, 0.15)',
+            sections: ['pico-builds']
         }
     ],
 
@@ -1780,6 +1795,25 @@ const SignalData = {
                 { id: 'sg-110', title: 'Marauder Firmware Deep-Dive', type: 'build', difficulty: 'specialist', platform: 'esp32-devkit', buildTime: '2h', cost: '$0', status: 'ready', href: 'sg-110-marauder-firmware.html', skills: ['firmware-dev', 'wifi-scanning', 'bluetooth', 'packet-capture'], prerequisites: ['sg-105', 'sg-106'], parts: [{ component: 'LILYGO T-Display-S3 (from SG-103)', qty: 1, inKit: false }], outcomes: ['Flash ESP32 Marauder firmware', 'Understand Marauder modules (scan, sniff, deauth detect)', 'Analyze captured packets and probe requests', 'Compare Marauder capabilities to custom firmware'] },
                 { id: 'sg-111', title: 'Custom Army Knife: Multi-Tool Build', type: 'build', difficulty: 'field_agent', platform: 'esp32-devkit', buildTime: '4h', cost: '$5', status: 'ready', href: 'sg-111-custom-army-knife.html', skills: ['usb-protocol', 'wifi-scanning', 'bluetooth', 'firmware-dev', 'display-programming'], prerequisites: ['sg-104', 'sg-105', 'sg-106', 'sg-107'], parts: [{ component: 'LILYGO T-Display-S3 (from SG-103)', qty: 1, inKit: false }, { component: 'MicroSD Card', qty: 1, inKit: false }], outcomes: ['Combine HID injection + WiFi scan + BLE scan + mass storage into one firmware', 'Build a TFT menu system for tool selection', 'Implement payload management from SD card', 'Create a field-deployable multi-function security tool'] },
                 { id: 'sg-112', title: 'Defense Lab: Detect & Block USB Attacks', type: 'build', difficulty: 'field_agent', platform: 'esp32-devkit', buildTime: '3h', cost: '$0', status: 'ready', href: 'sg-112-defense-lab.html', skills: ['usb-protocol', 'python', 'ids-ips', 'physical-security'], prerequisites: ['sg-111'], parts: [{ component: 'LILYGO T-Display-S3 (from SG-103)', qty: 1, inKit: false }, { component: 'Any PC for defense testing', qty: 1, inKit: false }], outcomes: ['Build a Python USB device monitor that detects new HID devices', 'Create USB device allowlists and alerting', 'Write Group Policy rules to block unauthorized USB devices', 'Understand the full attack-defend cycle for USB threats'] }
+            ]
+        },
+
+        // =================================================================
+        // PICO BUILDS — Raspberry Pi Pico MicroPython companion builds
+        // =================================================================
+        {
+            id: 'pico-builds',
+            name: 'Pico Builds',
+            track: 'pico-builds',
+            icon: '../../assets/images/icons/icon-memory.webp',
+            description: 'Raspberry Pi Pico physical builds — companion to PiVerse MicroPython track.',
+            color: '#c51a4a',
+            projects: [
+                { id: 'sg-113', title: 'Traffic Light Controller', type: 'build', difficulty: 'recruit', platform: 'rp2040-pico', buildTime: '45m', cost: '$5', status: 'ready', href: 'sg-113-traffic-light.html', skills: ['micropython', 'gpio', 'breadboarding'], prerequisites: [], parts: [{ component: 'Raspberry Pi Pico', qty: 1, inKit: false }, { component: 'Micro-USB Cable', qty: 1, inKit: false }, { component: 'Breadboard', qty: 1, inKit: false }, { component: 'Red LED', qty: 1, inKit: false }, { component: 'Yellow LED', qty: 1, inKit: false }, { component: 'Green LED', qty: 1, inKit: false }, { component: '220\u03A9 Resistors', qty: 3, inKit: false }, { component: 'Jumper Wires', qty: 6, inKit: false }], outcomes: ['Wire a three-LED traffic light circuit on a breadboard', 'Write a MicroPython state machine with timed transitions', 'Understand GPIO output and Pin class configuration', 'Deploy and run .py files on a Pico via Thonny'] },
+                { id: 'sg-114', title: 'Reaction Time Game', type: 'build', difficulty: 'recruit', platform: 'rp2040-pico', buildTime: '45m', cost: '$5', status: 'ready', href: 'sg-114-reaction-game.html', skills: ['micropython', 'gpio', 'breadboarding'], prerequisites: [], parts: [{ component: 'Raspberry Pi Pico', qty: 1, inKit: false }, { component: 'Micro-USB Cable', qty: 1, inKit: false }, { component: 'Breadboard', qty: 1, inKit: false }, { component: 'LED (any color)', qty: 1, inKit: false }, { component: '220\u03A9 Resistor', qty: 1, inKit: false }, { component: 'Tactile Push Buttons', qty: 2, inKit: false }, { component: '10K\u03A9 Resistors (pull-down)', qty: 2, inKit: false }, { component: 'Jumper Wires', qty: 8, inKit: false }], outcomes: ['Read digital inputs from tactile buttons with pull-down resistors', 'Measure elapsed time with utime.ticks_ms()', 'Build a two-player reaction game with serial scoreboard', 'Understand debouncing and input timing'] },
+                { id: 'sg-115', title: 'PIR Motion Alarm', type: 'build', difficulty: 'operative', platform: 'rp2040-pico', buildTime: '60m', cost: '$8', status: 'ready', href: 'sg-115-pir-alarm.html', skills: ['micropython', 'gpio', 'interrupts', 'sensor-integration'], prerequisites: ['sg-113'], parts: [{ component: 'Raspberry Pi Pico', qty: 1, inKit: false }, { component: 'Micro-USB Cable', qty: 1, inKit: false }, { component: 'Breadboard', qty: 1, inKit: false }, { component: 'HC-SR501 PIR Motion Sensor', qty: 1, inKit: false }, { component: 'Active Buzzer (3.3V)', qty: 1, inKit: false }, { component: 'Red LED', qty: 1, inKit: false }, { component: '220\u03A9 Resistor', qty: 1, inKit: false }, { component: 'Jumper Wires', qty: 8, inKit: false }], outcomes: ['Wire a PIR sensor and read its digital trigger output', 'Use hardware interrupts (IRQ) instead of polling', 'Drive a buzzer alarm with configurable on/off timing', 'Build an arm/disarm state machine with cooldown logic'] },
+                { id: 'sg-116', title: 'Temperature Data Logger', type: 'build', difficulty: 'operative', platform: 'rp2040-pico', buildTime: '90m', cost: '$10', status: 'ready', href: 'sg-116-temp-logger.html', skills: ['micropython', 'sensor-integration', 'i2c-spi', 'data-logging'], prerequisites: ['sg-113'], parts: [{ component: 'Raspberry Pi Pico', qty: 1, inKit: false }, { component: 'Micro-USB Cable', qty: 1, inKit: false }, { component: 'Breadboard', qty: 1, inKit: false }, { component: 'DS18B20 Temperature Sensor (waterproof)', qty: 1, inKit: false }, { component: '4.7K\u03A9 Resistor (pull-up for 1-Wire)', qty: 1, inKit: false }, { component: 'MicroSD Card Breakout (SPI)', qty: 1, inKit: false }, { component: 'MicroSD Card (any size)', qty: 1, inKit: false }, { component: 'Jumper Wires', qty: 10, inKit: false }], outcomes: ['Read the Pico built-in temperature sensor via ADC', 'Interface a DS18B20 over the 1-Wire protocol', 'Write CSV data to an SD card using SPI and the sdcard module', 'Build a timestamped logging loop with configurable intervals'] },
+                { id: 'sg-117', title: 'WiFi Weather Station', type: 'build', difficulty: 'specialist', platform: 'rp2040-pico', buildTime: '2h', cost: '$15', status: 'ready', href: 'sg-117-wifi-weather.html', skills: ['micropython', 'i2c-spi', 'sensor-integration', 'web-server'], prerequisites: ['sg-116'], parts: [{ component: 'Raspberry Pi Pico W', qty: 1, inKit: false }, { component: 'Micro-USB Cable', qty: 1, inKit: false }, { component: 'Breadboard', qty: 1, inKit: false }, { component: 'BME280 Sensor Breakout (I2C)', qty: 1, inKit: false }, { component: 'SSD1306 0.96" OLED Display (I2C)', qty: 1, inKit: false }, { component: 'Jumper Wires', qty: 8, inKit: false }], outcomes: ['Read temperature, humidity, and pressure from a BME280 via I2C', 'Display live readings on an SSD1306 OLED', 'Connect Pico W to WiFi and serve a live dashboard over HTTP', 'Build a self-contained weather station with local and remote display'] }
             ]
         }
 
