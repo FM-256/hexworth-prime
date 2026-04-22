@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPIO Architecture | PiVerse Electronics 1</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d0408 0%, #1a0a10 50%, #0d0408 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c51a4a; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(13, 4, 8, 0.95);
+            border-top: 1px solid rgba(197, 26, 74, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(197, 26, 74, 0.15); color: #c51a4a; border-color: #c51a4a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #c51a4a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c51a4a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(197, 26, 74, 0.08); border-left: 3px solid #c51a4a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #d4a0b0; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-red    { background: rgba(197, 26, 74, 0.08); border: 1px solid rgba(197, 26, 74, 0.3); color: #f0c0d0; }
+        .box-green  { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-gold   { background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); color: #fef3c7; }
+        .box-blue   { background: rgba(100, 160, 255, 0.08); border: 1px solid rgba(100, 160, 255, 0.3); color: #bfdbfe; }
+        .box-warn   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-label  { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c51a4a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c51a4a;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #ffd700; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-pink   { border-left-color: #c51a4a; }
+        .card.c-blue   { border-left-color: #60a5fa; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c51a4a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .diagram-row { display: flex; gap: 16px; align-items: center; justify-content: center; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(197, 26, 74, 0.12); border: 1px solid rgba(197, 26, 74, 0.4);
+            color: #c51a4a; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(197, 26, 74, 0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #ffd700; line-height: 1.6; white-space: pre;
+        }
+        .code-block .cm { color: #64748b; }
+        .code-block .kw { color: #c51a4a; }
+        .code-block .fn { color: #ffd700; }
+        .code-block .st { color: #86efac; }
+        .code-block .nu { color: #fdba74; }
+
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(197, 26, 74, 0.25);
+            border-radius: 8px; padding: 12px 14px; text-align: center;
+            opacity: 0; animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #c51a4a; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes flow { 0% { stroke-dashoffset: 20; } 100% { stroke-dashoffset: 0; } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes glowPulse { 0%, 100% { filter: drop-shadow(0 0 4px rgba(197,26,74,0.3)); } 50% { filter: drop-shadow(0 0 14px rgba(197,26,74,0.9)); } }
+        @keyframes dataFlow { 0% { stroke-dashoffset: 14; } 100% { stroke-dashoffset: 0; } }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">GPIO Architecture -- PiVerse Electronics 1</h1>
+
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- SLIDE 1 -- TITLE -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 | PiVerse | Electronics | Chapter 1</div>
+        <div class="title-hero">
+            <svg width="480" height="120" viewBox="0 0 480 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Pi chip -->
+                <rect x="190" y="20" width="100" height="80" rx="8" fill="rgba(197,26,74,0.1)" stroke="#c51a4a" stroke-width="1.5" style="animation: boxGrow 0.4s ease forwards;"/>
+                <text x="240" y="55" text-anchor="middle" font-size="11" fill="#c51a4a" font-weight="700" font-family="Segoe UI,sans-serif">BCM2711</text>
+                <text x="240" y="70" text-anchor="middle" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">SoC</text>
+                <!-- Left pins -->
+                <line x1="150" y1="35" x2="190" y2="35" stroke="#c51a4a" stroke-width="1.5"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/></line>
+                <line x1="150" y1="50" x2="190" y2="50" stroke="#3ab577" stroke-width="1.5"/>
+                <line x1="150" y1="65" x2="190" y2="65" stroke="#ffd700" stroke-width="1.5"/>
+                <line x1="150" y1="80" x2="190" y2="80" stroke="#60a5fa" stroke-width="1.5"/>
+                <!-- Right pins -->
+                <line x1="290" y1="35" x2="330" y2="35" stroke="#c51a4a" stroke-width="1.5"/>
+                <line x1="290" y1="50" x2="330" y2="50" stroke="#3ab577" stroke-width="1.5"/>
+                <line x1="290" y1="65" x2="330" y2="65" stroke="#ffd700" stroke-width="1.5"/>
+                <line x1="290" y1="80" x2="330" y2="80" stroke="#60a5fa" stroke-width="1.5"/>
+                <!-- Pin labels -->
+                <text x="115" y="38" text-anchor="middle" font-size="7" fill="#c51a4a" font-family="Segoe UI,sans-serif">3V3</text>
+                <text x="115" y="53" text-anchor="middle" font-size="7" fill="#3ab577" font-family="Segoe UI,sans-serif">GPIO</text>
+                <text x="115" y="68" text-anchor="middle" font-size="7" fill="#ffd700" font-family="Segoe UI,sans-serif">I2C</text>
+                <text x="115" y="83" text-anchor="middle" font-size="7" fill="#60a5fa" font-family="Segoe UI,sans-serif">SPI</text>
+                <text x="365" y="38" text-anchor="middle" font-size="7" fill="#c51a4a" font-family="Segoe UI,sans-serif">5V</text>
+                <text x="365" y="53" text-anchor="middle" font-size="7" fill="#3ab577" font-family="Segoe UI,sans-serif">GPIO</text>
+                <text x="365" y="68" text-anchor="middle" font-size="7" fill="#ffd700" font-family="Segoe UI,sans-serif">UART</text>
+                <text x="365" y="83" text-anchor="middle" font-size="7" fill="#60a5fa" font-family="Segoe UI,sans-serif">GND</text>
+                <!-- 40 pin label -->
+                <text x="240" y="115" text-anchor="middle" font-size="10" fill="#94a3b8" font-family="Segoe UI,sans-serif">40-Pin GPIO Header</text>
+            </svg>
+            <div class="big-title"><span class="accent">GPIO</span> Architecture</div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                40-Pin Header | BCM Numbering | Voltage Rails | Current Limits | Protection
+            </div>
+        </div>
+        <div class="scenario-strip">
+            The 40-pin GPIO header transforms the Raspberry Pi from a small computer into a physical computing platform. Understanding pin functions, numbering schemes, voltage constraints, and current limits is the foundation for every electronics project in this track.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>PiVerse Electronics</span>
+            <span>Chapter 1 of 10</span>
+            <span>Matrix House</span>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 2 -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">The <span class="accent">40-Pin Header</span></div>
+        <div class="slide-subtitle">Every Pi since the Model B+ (2014) exposes a standard 2x20 pin header. Pin 1 is nearest the board corner.</div>
+        <div class="hex-grid">
+            <div class="hex-cell">
+                <div class="hex-title">Power Pins</div>
+                <div class="hex-desc">Two 5V pins (pins 2, 4), two 3.3V pins (pins 1, 17), and eight GND pins. Power comes from the USB-C supply through the header.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">GPIO Pins</div>
+                <div class="hex-desc">26 general-purpose I/O pins. Each can be configured as input or output. All operate at 3.3V logic -- never apply 5V to a GPIO pin.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">I2C Bus</div>
+                <div class="hex-desc">GPIO2 (SDA) and GPIO3 (SCL) on pins 3 and 5. Used for sensors, displays, and HATs. Has built-in 1.8k pull-up resistors.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">SPI Bus</div>
+                <div class="hex-desc">SPI0: MOSI (GPIO10), MISO (GPIO9), SCLK (GPIO11), CE0 (GPIO8), CE1 (GPIO7). High-speed peripheral communication.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">UART</div>
+                <div class="hex-desc">TX (GPIO14) and RX (GPIO15) on pins 8 and 10. Serial console or device communication at configurable baud rates.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">PWM</div>
+                <div class="hex-desc">Hardware PWM on GPIO12, GPIO13, GPIO18, GPIO19. Software PWM available on any GPIO pin via gpiozero or pigpio.</div>
+            </div>
+        </div>
+        <div class="box box-red">
+            <div class="box-label">Critical Rule</div>
+            The Pi GPIO is 3.3V ONLY. Connecting a 5V signal directly to any GPIO pin will damage the SoC permanently. Use a level shifter or voltage divider when interfacing with 5V devices.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 3 -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">BCM vs <span class="accent">BOARD Numbering</span></div>
+        <div class="slide-subtitle">Two numbering systems exist. Use BCM -- it matches the SoC datasheet and is the default in gpiozero.</div>
+        <div class="card-grid-2">
+            <div class="card c-pink">
+                <div class="card-label">BCM (Broadcom) Numbering</div>
+                <div class="card-desc">Refers to the GPIO number as labeled on the Broadcom SoC. GPIO17 is always GPIO17 regardless of physical position. This is the standard used by gpiozero, lgpio, and pigpio. Use <span class="ic">pinout</span> at the terminal to see the full map.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">BOARD (Physical) Numbering</div>
+                <div class="card-desc">Refers to the physical pin position on the header, numbered 1-40 from top-left. Pin 11 in BOARD mode is GPIO17 in BCM. The legacy RPi.GPIO library defaults to BOARD mode. This scheme can confuse beginners because the numbers do not match documentation.</div>
+            </div>
+        </div>
+        <div class="diagram-center">
+            <svg width="500" height="100" viewBox="0 0 500 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="50" y="15" width="160" height="70" rx="8" fill="rgba(197,26,74,0.08)" stroke="#c51a4a" stroke-width="1"/>
+                <text x="130" y="40" text-anchor="middle" font-size="10" fill="#c51a4a" font-weight="700" font-family="Segoe UI,sans-serif">BCM Mode</text>
+                <text x="130" y="58" text-anchor="middle" font-size="9" fill="#94a3b8" font-family="Segoe UI,sans-serif">LED = LED(17)</text>
+                <text x="130" y="72" text-anchor="middle" font-size="8" fill="#64748b" font-family="Segoe UI,sans-serif">GPIO17 = Board pin 11</text>
+                <text x="250" y="55" text-anchor="middle" font-size="14" fill="#475569" font-family="Segoe UI,sans-serif">vs</text>
+                <rect x="290" y="15" width="160" height="70" rx="8" fill="rgba(255,215,0,0.08)" stroke="#ffd700" stroke-width="1"/>
+                <text x="370" y="40" text-anchor="middle" font-size="10" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">BOARD Mode</text>
+                <text x="370" y="58" text-anchor="middle" font-size="9" fill="#94a3b8" font-family="Segoe UI,sans-serif">LED = LED("BOARD11")</text>
+                <text x="370" y="72" text-anchor="middle" font-size="8" fill="#64748b" font-family="Segoe UI,sans-serif">Physical pin 11 = GPIO17</text>
+            </svg>
+        </div>
+        <div class="box box-green">
+            <div class="box-label">Best Practice</div>
+            Always use BCM numbering. Run <span class="ic">pinout</span> to display the header map in your terminal. The gpiozero library defaults to BCM. If you see a tutorial using <span class="ic">GPIO.setmode(GPIO.BOARD)</span>, mentally translate pin numbers to BCM equivalents.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 4 -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Voltage Rails: <span class="accent">3.3V and 5V</span></div>
+        <div class="slide-subtitle">The header provides two voltage rails. Understanding which to use and why is essential for safe wiring.</div>
+        <div class="diagram-center">
+            <svg width="520" height="130" viewBox="0 0 520 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="20" y="20" width="120" height="90" rx="6" fill="rgba(197,26,74,0.08)" stroke="#c51a4a" stroke-width="1.5" style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="80" y="48" text-anchor="middle" font-size="16" fill="#c51a4a" font-weight="700" font-family="Segoe UI,sans-serif">3.3V</text>
+                <text x="80" y="65" text-anchor="middle" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">GPIO Logic Level</text>
+                <text x="80" y="80" text-anchor="middle" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">Max ~50mA total</text>
+                <text x="80" y="100" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">Pins 1, 17</text>
+                <rect x="200" y="20" width="120" height="90" rx="6" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.5" style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="260" y="48" text-anchor="middle" font-size="16" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">5V</text>
+                <text x="260" y="65" text-anchor="middle" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">USB Input Rail</text>
+                <text x="260" y="80" text-anchor="middle" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">~1.5A available</text>
+                <text x="260" y="100" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">Pins 2, 4</text>
+                <rect x="380" y="20" width="120" height="90" rx="6" fill="rgba(100,100,100,0.08)" stroke="#888" stroke-width="1.5" style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="440" y="48" text-anchor="middle" font-size="16" fill="#888" font-weight="700" font-family="Segoe UI,sans-serif">GND</text>
+                <text x="440" y="65" text-anchor="middle" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">Common Return</text>
+                <text x="440" y="80" text-anchor="middle" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">8 pins available</text>
+                <text x="440" y="100" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">Pins 6,9,14,20,25,30,34,39</text>
+            </svg>
+        </div>
+        <div class="card-grid">
+            <div class="card c-pink">
+                <div class="card-label">3.3V for Logic</div>
+                <div class="card-desc">All GPIO pins output 3.3V when HIGH and 0V when LOW. Input pins expect 3.3V signals. The 3.3V rail is regulated by the Pi's onboard regulator and has limited current capacity.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">5V for Power</div>
+                <div class="card-desc">The 5V pins connect directly to the USB-C power input. Use them to power 5V peripherals like servos, relay modules, or Neopixel strips. Never connect 5V to a GPIO input pin.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">GND is Shared</div>
+                <div class="card-desc">All GND pins are internally connected. Every circuit must have a return path to GND. When connecting external devices, always share a common ground with the Pi.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 5 -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Current Limits: <span class="accent">Per-Pin and Total</span></div>
+        <div class="slide-subtitle">Each GPIO pin can source or sink a limited amount of current. Exceeding these limits damages the SoC.</div>
+        <div class="card-grid-2">
+            <div class="card c-pink">
+                <div class="card-label">Per-Pin Maximum</div>
+                <div class="card-desc">Each GPIO pin can safely source or sink up to <strong>16mA</strong>. The absolute maximum is 18mA -- do not design for this. A standard LED with a 330-ohm resistor draws about 5mA at 3.3V, well within limits.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Total GPIO Current</div>
+                <div class="card-desc">The combined current across ALL GPIO pins must not exceed <strong>50mA</strong>. If you drive 10 LEDs at 5mA each, you hit the limit. For more current, use transistors, MOSFETs, or driver ICs.</div>
+            </div>
+        </div>
+        <div class="code-block"><span class="cm">Ohm's Law applied to LED circuit:</span>
+
+V_supply = <span class="nu">3.3</span>V
+V_led    = <span class="nu">~2.0</span>V (typical red LED forward voltage)
+I_target = <span class="nu">5</span>mA (safe, visible brightness)
+
+R = (V_supply - V_led) / I_target
+R = (<span class="nu">3.3</span> - <span class="nu">2.0</span>) / <span class="nu">0.005</span>
+R = <span class="nu">260</span> ohms  -->  use <span class="nu">330</span> ohm (nearest standard value)</div>
+        <div class="box box-warn">
+            <div class="box-label">Damage Warning</div>
+            There is no overcurrent protection on GPIO pins. If you short a GPIO pin to 5V or draw too much current, the BCM SoC is permanently damaged. There is no fuse, no recovery. Always calculate current draw before wiring.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 6 -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Pull-Up and <span class="accent">Pull-Down Resistors</span></div>
+        <div class="slide-subtitle">Floating inputs are undefined. Pull resistors ensure a pin reads a known state when nothing is actively driving it.</div>
+        <div class="diagram-center">
+            <svg width="500" height="140" viewBox="0 0 500 140" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Pull-up -->
+                <rect x="30" y="10" width="190" height="120" rx="8" fill="rgba(197,26,74,0.06)" stroke="rgba(197,26,74,0.3)" stroke-width="1"/>
+                <text x="125" y="30" text-anchor="middle" font-size="10" fill="#c51a4a" font-weight="700" font-family="Segoe UI,sans-serif">Pull-Up</text>
+                <text x="125" y="50" text-anchor="middle" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">3.3V ---[R]--- GPIO</text>
+                <text x="125" y="68" text-anchor="middle" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">Default: HIGH</text>
+                <text x="125" y="86" text-anchor="middle" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">Button press: LOW</text>
+                <text x="125" y="115" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">GPIO2, GPIO3 have built-in 1.8k</text>
+                <!-- Pull-down -->
+                <rect x="280" y="10" width="190" height="120" rx="8" fill="rgba(58,181,119,0.06)" stroke="rgba(58,181,119,0.3)" stroke-width="1"/>
+                <text x="375" y="30" text-anchor="middle" font-size="10" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Pull-Down</text>
+                <text x="375" y="50" text-anchor="middle" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">GPIO ---[R]--- GND</text>
+                <text x="375" y="68" text-anchor="middle" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">Default: LOW</text>
+                <text x="375" y="86" text-anchor="middle" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">Button press: HIGH</text>
+                <text x="375" y="115" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">All GPIO pins have internal pulls</text>
+            </svg>
+        </div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Internal pull-ups/downs:</strong> The BCM SoC has configurable internal pull resistors (~50k ohms) on every GPIO pin. gpiozero enables pull-up by default on Button inputs.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>External pull resistors:</strong> Use 10k ohm external resistors when the internal pulls are too weak for your circuit or when you need guaranteed behavior on noisy lines.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Why it matters:</strong> A floating input oscillates between HIGH and LOW randomly, causing phantom button presses, false sensor triggers, and unpredictable behavior.</span></div>
+        </div>
+        <div class="box box-green">
+            <div class="box-label">gpiozero Default</div>
+            <span class="ic">Button(4)</span> enables the internal pull-up automatically. The button connects GPIO4 to GND when pressed. No external resistor needed for basic button circuits with gpiozero.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 7 -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Level Shifting: <span class="accent">3.3V to 5V</span></div>
+        <div class="slide-subtitle">Many sensors and modules operate at 5V. You need level shifting to safely interface them with the Pi's 3.3V GPIO.</div>
+        <div class="card-grid">
+            <div class="card c-pink">
+                <div class="card-label">Voltage Divider</div>
+                <div class="card-desc">Two resistors divide a 5V signal down to 3.3V. Use 1k and 2k (or 1k and 1.8k) for a 2:1 ratio. Simple, cheap, unidirectional. Good for slow signals like button inputs from 5V logic.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Bidirectional Level Shifter</div>
+                <div class="card-desc">A MOSFET-based module (like the BSS138) shifts signals in both directions. Required for I2C and SPI when the peripheral is 5V. Handles high-speed signals cleanly.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Buffer IC (74LVC245)</div>
+                <div class="card-desc">An 8-channel buffer that translates voltage levels. Good for parallel buses or when you need to shift many signals at once. Unidirectional per channel but fast and reliable.</div>
+            </div>
+        </div>
+        <div class="box box-warn">
+            <div class="box-label">Never Do This</div>
+            Never connect a 5V output directly to a Pi GPIO pin. The internal clamping diodes will try to absorb the excess voltage, but sustained exposure destroys the SoC input circuitry. There is no software fix for hardware damage.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 8 -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">The <span class="accent">pinout</span> Command</div>
+        <div class="slide-subtitle">The pinout command-line tool shows a visual map of every pin on your Pi model.</div>
+        <div class="code-block"><span class="cm"># Run in the terminal:</span>
+<span class="fn">pinout</span>
+
+<span class="cm"># Output shows:</span>
+<span class="cm"># - Board model and revision</span>
+<span class="cm"># - 40-pin header diagram with color-coded functions</span>
+<span class="cm"># - BCM numbers, BOARD numbers, and function labels</span>
+<span class="cm"># - Which pins are power, ground, I2C, SPI, UART, PWM</span>
+
+<span class="cm"># Check a specific GPIO pin state:</span>
+<span class="fn">raspi-gpio</span> get <span class="nu">17</span>
+<span class="cm"># GPIO 17: level=0 fsel=0 func=INPUT pull=DOWN</span>
+
+<span class="cm"># List all pin states:</span>
+<span class="fn">raspi-gpio</span> get</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">pinout (gpiozero)</div>
+                <div class="card-desc">Installed with gpiozero. Shows a full-color ASCII diagram of the header for your specific Pi model. The most user-friendly way to identify pin functions.</div>
+            </div>
+            <div class="card c-pink">
+                <div class="card-label">raspi-gpio</div>
+                <div class="card-desc">Low-level tool that reads the actual hardware state of each GPIO pin. Shows current level (0/1), function select (input/output/alt), and pull configuration. Essential for debugging.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 9 -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Alt Functions and <span class="accent">Pin Multiplexing</span></div>
+        <div class="slide-subtitle">Most GPIO pins have alternate functions. The SoC multiplexes multiple peripherals onto the same physical pins.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>GPIO4 (Pin 7):</strong> Default GPIO, but can be configured as GPCLK0 (general-purpose clock output) for timing-critical applications.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>GPIO14/15 (Pins 8/10):</strong> Default GPIO, but Alt0 = UART0 TX/RX. When you enable the serial console, these pins become UART and cannot be used as general GPIO.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>GPIO2/3 (Pins 3/5):</strong> Default is I2C1 SDA/SCL with built-in pull-ups. These are consumed by the I2C bus and should not be used as general GPIO.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>GPIO7-11 (Pins 26,24,21,19,23):</strong> Default GPIO, but Alt0 = SPI0 (CE1, CE0, MISO, MOSI, SCLK). Enabling SPI claims these five pins.</span></div>
+            <div class="step-row"><span class="step-num">5</span><span class="step-text"><strong>Device Tree Overlays:</strong> The Pi uses device tree overlays (<span class="ic">dtoverlay</span> in <span class="ic">/boot/config.txt</span>) to assign alternate functions to pins at boot time.</span></div>
+        </div>
+        <div class="box box-gold">
+            <div class="box-label">Practical Impact</div>
+            If you enable I2C, SPI, and UART, those pins are claimed by the kernel drivers. You have 26 GPIO pins total, minus 2 for I2C, minus 5 for SPI, minus 2 for UART = 17 remaining free GPIO pins for your project.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 10 -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">ESD and <span class="accent">Protection Strategies</span></div>
+        <div class="slide-subtitle">Electrostatic discharge can kill GPIO pins instantly. Apply these protections in every project.</div>
+        <div class="card-grid-2">
+            <div class="card c-pink">
+                <div class="card-label">ESD Protection</div>
+                <div class="card-desc">Touch a grounded metal surface before handling the Pi. Use an anti-static wrist strap for extended work. Store the Pi in an anti-static bag. ESD damage is cumulative and invisible until the pin fails completely.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Series Resistors</div>
+                <div class="card-desc">Place a 330-ohm to 1k-ohm resistor in series with every GPIO connection. This limits fault current if wiring errors occur. It adds negligible resistance for digital signals but provides a safety margin.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Clamping Diodes</div>
+                <div class="card-desc">External Schottky diodes clamp voltage spikes. Connect the anode to the GPIO pin and the cathode to 3.3V. Any voltage above 3.6V is diverted through the diode instead of the SoC.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Optocouplers</div>
+                <div class="card-desc">For complete electrical isolation, use an optocoupler (e.g., PC817). The LED side and phototransistor side share no electrical connection. Essential when interfacing with mains-powered equipment.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 11 -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">GPIO Across <span class="accent">Pi Models</span></div>
+        <div class="slide-subtitle">The 40-pin header is standard since the B+, but capabilities vary across models.</div>
+        <div class="card-grid">
+            <div class="card c-pink">
+                <div class="card-label">Pi 4 / Pi 400</div>
+                <div class="card-desc">BCM2711 SoC. Full 40-pin header. Two SPI buses, six I2C buses (via dt-overlay), four UART interfaces. USB 3.0 and Gigabit Ethernet. The most capable model for GPIO projects.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Pi 5</div>
+                <div class="card-desc">BCM2712 SoC with new RP1 I/O controller. Same 40-pin header but GPIO is managed by the RP1 chip, not the main SoC. The lgpio library replaces the deprecated RPi.GPIO.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Pi Zero 2 W</div>
+                <div class="card-desc">Same 40-pin header (unpopulated -- solder your own). BCM2710 quad-core. Full GPIO compatibility but lower current capacity from the smaller power regulator. Ideal for compact projects.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">Library Compatibility</div>
+            gpiozero works across all Pi models because it auto-detects the underlying pin factory (lgpio on Pi 5, RPi.GPIO or pigpio on older models). Write code once with gpiozero and it runs everywhere.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 12 -- TAKEAWAYS -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Key Takeaways: <span class="accent">GPIO Architecture</span></div>
+        <div class="slide-subtitle">Five facts that form the foundation for every electronics project on the Pi.</div>
+        <div class="diagram-center">
+            <svg width="400" height="80" viewBox="0 0 400 80" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <circle cx="200" cy="40" r="18" fill="rgba(197,26,74,0.12)" stroke="#c51a4a" stroke-width="1.5" style="animation: glowPulse 2s ease-in-out infinite;"/>
+                <text x="200" y="44" text-anchor="middle" font-size="10" fill="#c51a4a" font-weight="700" font-family="Segoe UI,sans-serif">GPIO</text>
+                <circle cx="200" cy="40" r="30" fill="none" stroke="rgba(197,26,74,0.1)" stroke-width="1" style="animation: pulse 2s ease-in-out infinite;"/>
+            </svg>
+        </div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>40 pins, 26 GPIO.</strong> The standard header provides power (3.3V, 5V), ground (8 pins), and 26 configurable I/O pins. Every Pi since the B+ uses this layout.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>BCM numbering is the standard.</strong> Use <code>pinout</code> to see the map. gpiozero, lgpio, and pigpio all default to BCM. Ignore BOARD numbering.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>3.3V logic, 16mA per pin, 50mA total.</strong> Never exceed these limits. Use transistors or driver ICs for high-current loads. A single LED with a 330-ohm resistor is safe.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>5V kills GPIO pins.</strong> Use level shifters or voltage dividers when interfacing with 5V devices. There is no overcurrent protection and no recovery from damage.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Pull resistors prevent floating inputs.</strong> gpiozero enables internal pull-ups on Button() by default. For noisy environments, add external 10k pull resistors.</span></div>
+        </div>
+        <div class="box box-red" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Chapter 2 -- GPIO with Scratch</strong> | Visual wiring, LED control, button input
+        </div>
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; PiVerse</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pv-e-01-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>

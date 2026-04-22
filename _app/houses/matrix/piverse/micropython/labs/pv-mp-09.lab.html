@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab: Data Logging | PiVerse MicroPython Ch 9</title>
+    <style>
+        :root { --accent: #c51a4a; --accent-dim: rgba(197,26,74,0.15); --accent-border: rgba(197,26,74,0.3); --green: #34d399; --green-dim: rgba(52,211,153,0.1); --green-border: rgba(52,211,153,0.3); --gold: #ffd700; --gold-dim: rgba(255,215,0,0.1); --gold-border: rgba(255,215,0,0.3); --bg: #0d0a0c; --bg2: #140f12; --bg3: #1a1520; --text: #e0e0e0; --text2: #a0909a; --border: rgba(197,26,74,0.12); }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        .topbar { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .topbar-left { display: flex; align-items: center; gap: 14px; }
+        .back-btn { padding: 6px 14px; background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: 6px; color: var(--accent); text-decoration: none; font-size: 0.82rem; }
+        .lab-title { font-size: 0.95rem; } .badge { padding: 3px 10px; border-radius: 10px; font-size: 0.68rem; } .badge-accent { background: var(--accent-dim); border: 1px solid var(--accent-border); color: var(--accent); } .badge-gold { background: var(--gold-dim); border: 1px solid var(--gold-border); color: var(--gold); }
+        .topbar-right { display: flex; align-items: center; gap: 14px; font-size: 0.82rem; color: var(--text2); }
+        .prog-wrap { width: 130px; height: 5px; background: rgba(197,26,74,0.12); border-radius: 3px; overflow: hidden; } .prog-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #8b1030); border-radius: 3px; transition: width 0.4s; } .prog-label { color: var(--accent); font-weight: 500; }
+        .workspace { display: grid; grid-template-columns: 1fr 320px; flex: 1; min-height: 0; }
+        .sim-panel { display: flex; flex-direction: column; gap: 10px; padding: 16px 24px; overflow: hidden; }
+        .sim-top { display: flex; gap: 16px; align-items: center; }
+        .stat-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; text-align: center; flex: 1; }
+        .stat-card .sl { font-size: 0.65rem; color: var(--text2); text-transform: uppercase; } .stat-card .sv { font-size: 1.1rem; color: var(--accent); font-weight: 700; font-family: 'Consolas', monospace; }
+        .csv-view { flex: 1; background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 8px; overflow-y: auto; font-family: 'Consolas', monospace; font-size: 0.72rem; line-height: 1.6; }
+        .csv-header { position: sticky; top: 0; background: var(--bg2); padding: 6px 12px; color: var(--accent); font-weight: 700; border-bottom: 1px solid var(--border); }
+        .csv-rows { padding: 4px 12px; } .csv-row { color: var(--text2); padding: 1px 0; } .csv-row.new { color: var(--green); }
+        .storage-bar { height: 8px; background: var(--bg3); border-radius: 4px; border: 1px solid var(--border); overflow: hidden; }
+        .storage-fill { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.3s; }
+        .storage-label { font-size: 0.7rem; color: var(--text2); display: flex; justify-content: space-between; }
+        .controls { display: flex; gap: 10px; flex-wrap: wrap; }
+        .ctrl-btn { padding: 7px 18px; border-radius: 6px; border: 1px solid var(--accent-border); background: var(--accent-dim); color: var(--accent); font-size: 0.82rem; cursor: pointer; }
+        .ctrl-btn:hover { background: rgba(197,26,74,0.25); }
+        .ctrl-btn.rec { border-color: var(--green-border); background: var(--green-dim); color: var(--green); }
+        .task-panel { background: var(--bg2); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+        .panel-header { padding: 12px 16px; font-size: 0.7rem; color: var(--text2); letter-spacing: 0.12em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+        .task-list { flex: 1; overflow-y: auto; padding: 12px; }
+        .task-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 9px; padding: 12px 14px; margin-bottom: 8px; }
+        .task-card.active { border-color: var(--accent); background: rgba(197,26,74,0.06); } .task-card.done { border-color: var(--green-border); background: var(--green-dim); }
+        .task-num { font-size: 0.67rem; color: var(--accent); margin-bottom: 3px; } .task-name { font-size: 0.88rem; margin-bottom: 3px; display: flex; align-items: center; gap: 6px; } .task-name .chk { font-size: 0.75rem; color: var(--green); margin-left: auto; display: none; } .task-desc { font-size: 0.77rem; color: var(--text2); line-height: 1.45; }
+        .finish-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 9000; } .finish-overlay.active { display: flex; }
+        .finish-card { background: var(--bg2); border: 1px solid var(--green-border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .finish-title { font-size: 1.5rem; color: var(--gold); margin-bottom: 10px; } .finish-msg { color: var(--text2); font-size: 0.95rem; margin-bottom: 24px; line-height: 1.6; }
+        .finish-btn { padding: 11px 28px; background: linear-gradient(135deg, var(--accent), #8b1030); border: none; border-radius: 8px; color: #fff; font-size: 0.95rem; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <header class="topbar"><div class="topbar-left"><a href="../../index.html" class="back-btn">Exit Lab</a><span class="lab-title">Lab: Data Logging</span><span class="badge badge-accent">PiVerse</span><span class="badge badge-gold">Ch 9</span></div><div class="topbar-right"><span>Tasks:</span><div class="prog-wrap"><div class="prog-fill" id="progFill" style="width:0%"></div></div><span class="prog-label" id="progLabel">0 / 8</span></div></header>
+    <div class="workspace">
+        <div class="sim-panel">
+            <div class="sim-top">
+                <div class="stat-card"><div class="sl">Entries</div><div class="sv" id="sEntries">0</div></div>
+                <div class="stat-card"><div class="sl">File Size</div><div class="sv" id="sSize">0 B</div></div>
+                <div class="stat-card"><div class="sl">Elapsed</div><div class="sv" id="sTime">0s</div></div>
+                <div class="stat-card"><div class="sl">Temp</div><div class="sv" id="sTemp">--</div></div>
+            </div>
+            <div class="storage-label"><span>Flash Storage</span><span id="storageText">0 / 1,400 KB</span></div>
+            <div class="storage-bar"><div class="storage-fill" id="storageFill" style="width:0%"></div></div>
+            <div class="csv-view" id="csvView">
+                <div class="csv-header">data.csv</div>
+                <div class="csv-rows" id="csvRows"><div class="csv-row">timestamp,temp_c,temp_f,raw_adc</div></div>
+            </div>
+            <div class="controls">
+                <button class="ctrl-btn" onclick="logEntry()">Log Entry</button>
+                <button class="ctrl-btn" onclick="toggleAutoLog()" id="autoLogBtn">Start Auto-Log</button>
+                <button class="ctrl-btn" onclick="downloadCSV()">Download CSV</button>
+                <button class="ctrl-btn" onclick="deleteFile()">Delete File</button>
+                <button class="ctrl-btn" onclick="checkSpace()">Check Space</button>
+            </div>
+        </div>
+        <aside class="task-panel"><div class="panel-header">Lab Tasks</div><div class="task-list" id="taskList"></div></aside>
+    </div>
+    <div class="finish-overlay" id="finishOverlay"><div class="finish-card"><div class="finish-title">Data Logging Complete</div><div class="finish-msg">You have written CSV data to the simulated filesystem, managed storage space, auto-logged sensor readings at intervals, and downloaded the data. These are the core skills for embedded data collection.</div><button class="finish-btn" onclick="finishLab()">Return to PiVerse Hub</button></div></div>
+<script>
+(function(){
+    'use strict';
+    var TASKS=[
+        {id:1,name:'Log your first entry',desc:'Click "Log Entry" to write one temperature reading to the CSV file.'},
+        {id:2,name:'Log 5 entries',desc:'Manually log 5 entries. Watch the CSV file grow line by line.'},
+        {id:3,name:'Check storage space',desc:'Click "Check Space" to see how much flash storage remains.'},
+        {id:4,name:'Start auto-logging',desc:'Click "Start Auto-Log" to record an entry every 2 seconds automatically.'},
+        {id:5,name:'Accumulate 15 entries',desc:'Let the auto-logger run until you have at least 15 total entries.'},
+        {id:6,name:'Download the CSV',desc:'Click "Download CSV" to save the data file (opens in a new window).'},
+        {id:7,name:'Delete the file',desc:'Click "Delete File" to clear the log. This simulates cleaning up old data.'},
+        {id:8,name:'Log 20 new entries after deletion',desc:'Start fresh and accumulate 20 new entries to complete the lab.'}
+    ];
+    var done={},entries=0,startTime=Date.now(),csvData=[],autoIv=null,autoRunning=false,deleted=false,postDeleteEntries=0;
+    function init(){var list=document.getElementById('taskList');TASKS.forEach(function(t){var c=document.createElement('div');c.className='task-card';c.id='tc-'+t.id;c.innerHTML='<div class="task-num">Task '+t.id+'</div><div class="task-name">'+t.name+'<span class="chk" id="ck-'+t.id+'">Done</span></div><div class="task-desc">'+t.desc+'</div>';list.appendChild(c);});upd();hl(1);}
+    function upd(){var c=Object.keys(done).length;document.getElementById('progFill').style.width=(c/TASKS.length)*100+'%';document.getElementById('progLabel').textContent=c+' / '+TASKS.length;}
+    function comp(id){if(done[id])return;done[id]=true;var card=document.getElementById('tc-'+id);if(card)card.className='task-card done';var chk=document.getElementById('ck-'+id);if(chk)chk.style.display='inline';upd();var nx=TASKS.find(function(t){return !done[t.id];});if(nx)hl(nx.id);if(Object.keys(done).length===TASKS.length)setTimeout(function(){document.getElementById('finishOverlay').classList.add('active');},600);}
+    function hl(id){TASKS.forEach(function(t){var c=document.getElementById('tc-'+t.id);if(c&&!done[t.id])c.className=(t.id===id)?'task-card active':'task-card';});}
+    function simTemp(){return 25+Math.random()*6;}
+    window.logEntry=function(){var ts=Math.floor((Date.now()-startTime)/1000);var tc=simTemp();var tf=tc*9/5+32;var raw=Math.round((0.706-(tc-27)*0.001721)/3.3*65535)+Math.floor(Math.random()*60-30);var line=ts+','+tc.toFixed(1)+','+tf.toFixed(1)+','+raw;csvData.push(line);entries++;if(deleted)postDeleteEntries++;
+        var rows=document.getElementById('csvRows');var d=document.createElement('div');d.className='csv-row new';d.textContent=line;rows.appendChild(d);setTimeout(function(){d.className='csv-row';},1000);
+        var view=document.getElementById('csvView');view.scrollTop=view.scrollHeight;
+        var size=csvData.join('\n').length+30;document.getElementById('sEntries').textContent=entries;document.getElementById('sSize').textContent=size<1024?size+' B':(size/1024).toFixed(1)+' KB';document.getElementById('sTime').textContent=ts+'s';document.getElementById('sTemp').textContent=tc.toFixed(1)+'C';
+        var pct=size/1433600*100;document.getElementById('storageFill').style.width=Math.min(pct,100)+'%';document.getElementById('storageText').textContent=(size/1024).toFixed(1)+' / 1,400 KB';
+        comp(1);if(entries>=5)comp(2);if(entries>=15)comp(5);if(postDeleteEntries>=20)comp(8);
+    };
+    window.toggleAutoLog=function(){if(autoRunning){clearInterval(autoIv);autoRunning=false;document.getElementById('autoLogBtn').textContent='Start Auto-Log';}else{autoRunning=true;document.getElementById('autoLogBtn').textContent='Stop Auto-Log';comp(4);autoIv=setInterval(function(){logEntry();},2000);}};
+    window.downloadCSV=function(){var content='timestamp,temp_c,temp_f,raw_adc\n'+csvData.join('\n');var blob=new Blob([content],{type:'text/csv'});var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download='pico_data.csv';a.click();URL.revokeObjectURL(url);comp(6);};
+    window.deleteFile=function(){if(autoRunning)toggleAutoLog();csvData=[];entries=0;postDeleteEntries=0;deleted=true;document.getElementById('csvRows').innerHTML='<div class="csv-row">timestamp,temp_c,temp_f,raw_adc</div>';document.getElementById('sEntries').textContent='0';document.getElementById('sSize').textContent='0 B';document.getElementById('storageFill').style.width='0%';document.getElementById('storageText').textContent='0 / 1,400 KB';comp(7);};
+    window.checkSpace=function(){var used=csvData.join('\n').length+30;var free=1433600-used;alert('Flash Storage Report:\n\nTotal: 1,400 KB\nUsed: '+(used/1024).toFixed(1)+' KB\nFree: '+(free/1024).toFixed(1)+' KB\n\nAt current rate: '+(entries>0?Math.floor(free/(used/entries))+' entries remaining':'no data yet'));comp(3);};
+    window.finishLab=function(){if(typeof ModuleProgress!=='undefined')ModuleProgress.complete('matrix','pv-mp-09-lab',{returnUrl:'../../index.html'});else window.location.href='../../index.html';};
+    document.addEventListener('DOMContentLoaded',init);
+})();
+</script>
+</body>
+</html>

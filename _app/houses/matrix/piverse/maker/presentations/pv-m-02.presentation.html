@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Design: Boing! (Pygame) | PiVerse Maker's Workshop</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d0408 0%, #1a0810 50%, #0d0408 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c51a4a; transition: width 0.4s ease; z-index: 200;
+        }
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(13, 4, 8, 0.95);
+            border-top: 1px solid rgba(197, 26, 74, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(197, 26, 74, 0.15); color: #c51a4a; border-color: #c51a4a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #c51a4a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #e8305e; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip {
+            background: rgba(197, 26, 74, 0.08); border-left: 3px solid #c51a4a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #d4a0b0; font-style: italic;
+        }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-red   { background: rgba(197, 26, 74, 0.08); border: 1px solid rgba(197, 26, 74, 0.3); color: #f0c0d0; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-gold  { background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.2rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #e8305e; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c51a4a;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #c51a4a; }
+        .card.c-gold   { border-left-color: #ffd700; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c51a4a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #e8305e; background: rgba(197, 26, 74, 0.1); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .ic { font-family: 'Courier New', monospace; color: #e8305e; background: rgba(197, 26, 74, 0.1); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  { background: rgba(197, 26, 74, 0.12); border: 1px solid rgba(197, 26, 74, 0.4); color: #c51a4a; font-weight: 700; font-size: 0.78rem; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px; }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+        .code-block { background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(197, 26, 74, 0.2); border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #e8305e; line-height: 1.6; white-space: pre; overflow-x: auto; }
+        .code-block .cm { color: #64748b; }
+        .code-block .kw { color: #a78bfa; }
+        .code-block .fn { color: #e8305e; }
+        .code-block .st { color: #86efac; }
+        .code-block .nu { color: #fdba74; }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Game Design: Boing! (Pygame) -- PiVerse Maker's Workshop</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; PiVerse &nbsp;|&nbsp; Maker's Workshop &nbsp;|&nbsp; PV-M-02</div>
+        <div class="title-hero">
+            <div class="big-title"><span class="accent">Boing!</span> Game Design with Pygame</div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">Game Loop &nbsp;|&nbsp; Pygame Setup &nbsp;|&nbsp; Ball Physics &nbsp;|&nbsp; Collision Detection &nbsp;|&nbsp; Scoring</div>
+        </div>
+        <div class="scenario-strip">A black screen. A white ball. Two paddles. The rules are simple but the engineering is not. You are about to build a complete game from scratch -- and in doing so, learn the architecture that powers every real-time game ever made.</div>
+        <div class="title-meta-row"><span>12 Slides</span><span>PiVerse Maker's Workshop</span><span>Chapter 2 of 10</span><span>Matrix House</span></div>
+    </div>
+</section>
+
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">The <span class="accent">Game Loop</span></div>
+        <div class="slide-subtitle">Every real-time game runs on the same three-phase infinite loop.</div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">1. Process Input</div><div class="card-desc">Read keyboard, mouse, or controller state. Determine which keys are held and which events fired this frame. This must happen first -- stale input means laggy controls.</div></div>
+            <div class="card c-gold"><div class="card-label">2. Update State</div><div class="card-desc">Move objects, apply physics, check collisions, update scores. All game logic happens here. No drawing -- just math and decisions.</div></div>
+            <div class="card c-green"><div class="card-label">3. Render Frame</div><div class="card-desc">Clear the screen, draw every object at its new position, flip the buffer to the display. At 60 FPS, this entire cycle runs in under 16.67 milliseconds.</div></div>
+        </div>
+        <div class="box box-red"><div class="box-label">Why This Order Matters</div>Input before update ensures the current frame reacts to the latest button press. Update before render ensures the screen shows the result of this frame's logic, not the previous frame's.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title"><span class="accent">Pygame</span> Fundamentals</div>
+        <div class="slide-subtitle">A Python library for multimedia applications -- games, visualizations, simulations.</div>
+        <div class="card-grid-2">
+            <div class="card"><div class="card-label">pygame.init()</div><div class="card-desc">Initializes all Pygame subsystems: display, audio, font, events, timers. Must be called before any other Pygame function. Returns a tuple of (successes, failures).</div></div>
+            <div class="card c-green"><div class="card-label">pygame.display.set_mode()</div><div class="card-desc">Creates the game window. Takes a (width, height) tuple. Returns a Surface object -- your drawing canvas. All rendering targets this surface.</div></div>
+            <div class="card c-gold"><div class="card-label">pygame.event.get()</div><div class="card-desc">Returns all events since last call: QUIT, KEYDOWN, KEYUP, MOUSEMOTION. Must be called every frame or the OS considers the window unresponsive.</div></div>
+            <div class="card c-cyan"><div class="card-label">pygame.time.Clock()</div><div class="card-desc">Frame rate controller. clock.tick(60) sleeps enough to maintain 60 FPS. Returns milliseconds since last call -- useful for delta-time calculations.</div></div>
+        </div>
+        <div class="box box-green"><div class="box-label">Pre-installed</div>Pygame ships with Raspberry Pi OS. Verify with: python3 -c "import pygame; print(pygame.ver)" -- upgrade with pip3 install --upgrade pygame.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">The Pygame <span class="accent">Coordinate System</span></div>
+        <div class="slide-subtitle">(0, 0) is the top-left corner. X increases right, Y increases down.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Screen vs. Math Coordinates</div><div class="card-desc">In math class, Y increases upward. In Pygame (and nearly all 2D graphics systems), Y increases downward. A paddle at y=0 is at the top of the screen. This is a common source of bugs for beginners.</div></div>
+            <div class="card c-green"><div class="card-label">pygame.Rect</div><div class="card-desc">A rectangle defined by (x, y, width, height). Provides .top, .bottom, .left, .right, .centerx, .centery properties. Rect is the workhorse of 2D collision detection in Pygame.</div></div>
+        </div>
+        <div class="code-block"><span class="cm"># Game constants for Boing!</span>
+WIDTH, HEIGHT = <span class="nu">800</span>, <span class="nu">600</span>
+PADDLE_W, PADDLE_H = <span class="nu">12</span>, <span class="nu">100</span>
+BALL_SIZE = <span class="nu">12</span>
+
+<span class="cm"># Paddle rects</span>
+paddle_left = pygame.Rect(<span class="nu">30</span>, HEIGHT // <span class="nu">2</span> - PADDLE_H // <span class="nu">2</span>, PADDLE_W, PADDLE_H)
+paddle_right = pygame.Rect(WIDTH - <span class="nu">30</span> - PADDLE_W, HEIGHT // <span class="nu">2</span> - PADDLE_H // <span class="nu">2</span>, PADDLE_W, PADDLE_H)</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title"><span class="accent">Input</span> Handling</div>
+        <div class="slide-subtitle">Two approaches: event-based (fires once) vs. state-based (checks every frame).</div>
+        <div class="card-grid-2">
+            <div class="card c-gold"><div class="card-label">Event-Based</div><div class="card-desc">pygame.event.get() returns KEYDOWN/KEYUP events. Good for discrete actions: jump, pause, quit. Fires exactly once per press/release.</div></div>
+            <div class="card c-cyan"><div class="card-label">State-Based</div><div class="card-desc">pygame.key.get_pressed() returns a dict of all keys and their current state (True/False). Good for continuous movement: paddles, steering. Reads every frame.</div></div>
+        </div>
+        <div class="code-block">keys = pygame.key.get_pressed()
+
+<span class="cm"># Left paddle: W/S keys</span>
+<span class="kw">if</span> keys[pygame.K_w] <span class="kw">and</span> paddle_left.top > <span class="nu">0</span>:
+    paddle_left.y -= PADDLE_SPEED
+<span class="kw">if</span> keys[pygame.K_s] <span class="kw">and</span> paddle_left.bottom &lt; HEIGHT:
+    paddle_left.y += PADDLE_SPEED
+
+<span class="cm"># Right paddle: Up/Down arrow keys</span>
+<span class="kw">if</span> keys[pygame.K_UP] <span class="kw">and</span> paddle_right.top > <span class="nu">0</span>:
+    paddle_right.y -= PADDLE_SPEED</div>
+        <div class="box box-red"><div class="box-label">Boundary Checks</div>Without paddle_left.top > 0 the paddle scrolls off the top of the screen. Always clamp movement to the play area.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Ball <span class="accent">Physics</span></div>
+        <div class="slide-subtitle">The ball moves at constant velocity. Collisions reverse the appropriate axis.</div>
+        <div class="code-block"><span class="cm"># Ball state</span>
+ball = pygame.Rect(WIDTH // <span class="nu">2</span>, HEIGHT // <span class="nu">2</span>, BALL_SIZE, BALL_SIZE)
+ball_dx = <span class="nu">5</span>   <span class="cm"># Horizontal velocity (pixels/frame)</span>
+ball_dy = <span class="nu">5</span>   <span class="cm"># Vertical velocity (pixels/frame)</span>
+
+<span class="cm"># Update position</span>
+ball.x += ball_dx
+ball.y += ball_dy
+
+<span class="cm"># Wall bounce (top and bottom)</span>
+<span class="kw">if</span> ball.top &lt;= <span class="nu">0</span> <span class="kw">or</span> ball.bottom >= HEIGHT:
+    ball_dy = -ball_dy  <span class="cm"># Reverse vertical direction</span></div>
+        <div class="box box-gold"><div class="box-label">Velocity vs. Speed</div>Speed is how fast (always positive). Velocity is speed with direction. ball_dx = -5 means the ball moves left at speed 5. Reversing velocity (-ball_dx) reverses direction without changing speed.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title"><span class="accent">Collision</span> Detection</div>
+        <div class="slide-subtitle">AABB collision: do two axis-aligned rectangles overlap?</div>
+        <div class="card-grid-2">
+            <div class="card"><div class="card-label">colliderect()</div><div class="card-desc">Pygame's Rect.colliderect(other_rect) returns True if two rectangles overlap. This is Axis-Aligned Bounding Box (AABB) detection -- fast, simple, and sufficient for rectangular objects.</div></div>
+            <div class="card c-green"><div class="card-label">Direction Guard</div><div class="card-desc">Only bounce when the ball is moving toward the paddle (ball_dx &lt; 0 for left paddle). Without this guard, the ball can get "stuck" inside the paddle, bouncing every frame.</div></div>
+        </div>
+        <div class="code-block"><span class="cm"># Paddle collision</span>
+<span class="kw">if</span> ball.colliderect(paddle_left) <span class="kw">and</span> ball_dx &lt; <span class="nu">0</span>:
+    ball_dx = -ball_dx
+<span class="kw">if</span> ball.colliderect(paddle_right) <span class="kw">and</span> ball_dx > <span class="nu">0</span>:
+    ball_dx = -ball_dx
+
+<span class="cm"># Angle variation based on hit position</span>
+offset = (ball.centery - paddle_left.centery) / (PADDLE_H / <span class="nu">2</span>)
+ball_dy = offset * MAX_BOUNCE_ANGLE</div>
+        <div class="box box-blue"><div class="box-label">Hit Position Matters</div>The offset calculation maps where the ball hits the paddle (-1.0 top to +1.0 bottom) to a bounce angle. Hitting the edge sends the ball at a steep angle. Hitting center returns it flat. This is how real Pong works.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title"><span class="accent">Scoring</span> and Reset</div>
+        <div class="slide-subtitle">A point is scored when the ball exits the left or right edge of the screen.</div>
+        <div class="code-block"><span class="cm"># Scoring</span>
+<span class="kw">if</span> ball.left &lt;= <span class="nu">0</span>:
+    score_right += <span class="nu">1</span>
+    reset_ball()
+<span class="kw">elif</span> ball.right >= WIDTH:
+    score_left += <span class="nu">1</span>
+    reset_ball()
+
+<span class="kw">def</span> <span class="fn">reset_ball</span>():
+    ball.center = (WIDTH // <span class="nu">2</span>, HEIGHT // <span class="nu">2</span>)
+    ball_dx = BALL_SPEED * random.choice([<span class="nu">-1</span>, <span class="nu">1</span>])
+    ball_dy = BALL_SPEED * random.choice([<span class="nu">-1</span>, <span class="nu">1</span>])</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Rendering Text</div><div class="card-desc">font = pygame.font.Font(None, 72) creates a default font at size 72. text_surface = font.render(str(score), True, WHITE) creates a drawable surface. Blit it to the screen at the desired position.</div></div>
+            <div class="card c-green"><div class="card-label">Center Line</div><div class="card-desc">Draw a dashed center line with multiple small rectangles in a loop. This visual element completes the classic Pong aesthetic and helps players orient on the field.</div></div>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Frame Rate and <span class="accent">Delta Time</span></div>
+        <div class="slide-subtitle">Why clock.tick(60) is not enough for professional game physics.</div>
+        <div class="card-grid-2">
+            <div class="card c-gold"><div class="card-label">Fixed Timestep</div><div class="card-desc">clock.tick(60) caps at 60 FPS but does not guarantee it. If a frame takes 20ms (50 FPS), the ball moves the same distance per frame as at 60 FPS -- making the game run slower on weak hardware.</div></div>
+            <div class="card c-cyan"><div class="card-label">Delta-Time Scaling</div><div class="card-desc">dt = clock.tick(60) / 1000.0 gives seconds since last frame. Multiply all velocities by dt: ball.x += ball_dx * dt. Now the ball moves the same distance per second regardless of frame rate.</div></div>
+        </div>
+        <div class="code-block"><span class="cm"># Delta-time independent movement</span>
+dt = clock.tick(<span class="nu">60</span>) / <span class="nu">1000.0</span>  <span class="cm"># Seconds since last frame</span>
+
+ball.x += ball_dx * dt * <span class="nu">60</span>  <span class="cm"># Normalize to 60fps baseline</span>
+ball.y += ball_dy * dt * <span class="nu">60</span>
+
+<span class="cm"># At 60fps: dt = 0.0167, movement = speed * 1.0</span>
+<span class="cm"># At 30fps: dt = 0.0333, movement = speed * 2.0</span>
+<span class="cm"># Result: same distance per second either way</span></div>
+    </div>
+</section>
+
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">The <span class="accent">Rendering</span> Pipeline</div>
+        <div class="slide-subtitle">Clear, draw, flip -- in that order, every frame.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>screen.fill((0, 0, 0))</strong> -- Clear the entire screen to black. Without this, previous frames leave trails.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Draw center line</strong> -- Loop to draw dashed vertical rectangles down the middle of the field.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>pygame.draw.rect(screen, WHITE, paddle_left)</strong> -- Draw both paddles as solid white rectangles.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>pygame.draw.rect(screen, WHITE, ball)</strong> -- Draw the ball (square Rect drawn as a filled rectangle).</span></div>
+            <div class="step-row"><span class="step-num">5</span><span class="step-text"><strong>screen.blit(score_surface, position)</strong> -- Render score text surfaces onto the screen.</span></div>
+            <div class="step-row"><span class="step-num">6</span><span class="step-text"><strong>pygame.display.flip()</strong> -- Push the completed frame to the actual display. Until flip() is called, the player sees the old frame.</span></div>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Polish: <span class="accent">Sound and State</span></div>
+        <div class="slide-subtitle">Sound effects and game states transform a prototype into a game.</div>
+        <div class="card-grid-2">
+            <div class="card"><div class="card-label">Sound Effects</div><div class="card-desc">pygame.mixer.Sound("bounce.wav").play() triggers immediately. Use short .wav files for low latency. Load sounds once at startup, play on collision events. Volume: sound.set_volume(0.5).</div></div>
+            <div class="card c-green"><div class="card-label">Game States</div><div class="card-desc">A state variable (MENU, PLAYING, PAUSED, GAME_OVER) controls which code runs in the game loop. Each state has its own input handling, update logic, and rendering. State transitions happen on events (press ENTER to start).</div></div>
+        </div>
+        <div class="box box-gold"><div class="box-label">Progressive Difficulty</div>Increase ball speed slightly after each paddle hit: ball_dx *= 1.05. This creates natural difficulty scaling. Cap the maximum speed to prevent the ball from tunneling through paddles when moving faster than paddle width per frame.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Key Takeaways: <span class="accent">Boing!</span></div>
+        <div class="slide-subtitle">The five facts that matter.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>The game loop is Input -> Update -> Render</strong>, running 60 times per second. This three-phase structure is universal to all real-time games.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Pygame's Rect is the foundation of 2D positioning.</strong> Properties like .top, .bottom, .centerx and methods like .colliderect() handle geometry without manual math.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Collision detection needs direction guards.</strong> Only bounce when the ball moves toward the paddle, not away from it, or the ball gets stuck.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Delta-time scaling makes physics frame-rate independent.</strong> Multiply velocities by dt so the game runs at the same speed on fast and slow hardware.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Rendering is always clear-draw-flip.</strong> Fill black, draw all objects, then pygame.display.flip(). No flip = invisible frame.</span></div>
+        </div>
+        <div style="text-align:center; margin-top:6px;"><button id="complete-btn" onclick="completeModule()">Mark Complete</button></div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; PiVerse</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        var prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        var next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        var cb = document.getElementById('complete-btn');
+        if (cb) cb.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+    goToSlide(1);
+</script>
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pv-m-02-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>

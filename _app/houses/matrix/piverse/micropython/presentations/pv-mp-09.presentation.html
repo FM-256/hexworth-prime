@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Logging | PiVerse MicroPython Ch 9</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; } html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0d0a0c 0%, #140f12 50%, #0d0a0c 100%); color: #e0e0e0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #c51a4a; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(13,10,12,0.95); border-top: 1px solid rgba(197,26,74,0.15); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.07); color: #a0909a; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(197,26,74,0.15); color: #c51a4a; border-color: #c51a4a; } .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #6a5a64; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #c51a4a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; } .slide-title .accent { color: #c51a4a; }
+        .slide-subtitle { font-size: 0.95rem; color: #a0909a; text-align: center; }
+        .scenario-strip { background: rgba(197,26,74,0.08); border-left: 3px solid #c51a4a; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #d4b0c0; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; } .box-red { background: rgba(197,26,74,0.08); border: 1px solid rgba(197,26,74,0.3); color: #e8c0d0; } .box-green { background: rgba(58,181,119,0.08); border: 1px solid rgba(58,181,119,0.35); color: #d1fae5; } .box-gold { background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; } .title-hero .big-title .accent { color: #c51a4a; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #6a5a64; } .title-meta-row span { border-left: 2px solid #2a2024; padding-left: 28px; } .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; } .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #c51a4a; } .card:hover { background: rgba(255,255,255,0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; } .card .card-desc { font-size: 0.82rem; color: #a0909a; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-gold { border-left-color: #ffd700; } .card.c-cyan { border-left-color: #06b6d4; } .card.c-orange { border-left-color: #f97316; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; } .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #c51a4a; min-width: 22px; text-align: right; flex-shrink: 0; } .fact-text { color: #d0c0ca; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #c51a4a; background: rgba(197,26,74,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .ic { font-family: 'Courier New', monospace; color: #c51a4a; background: rgba(197,26,74,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; } .step-row { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num { background: rgba(197,26,74,0.12); border: 1px solid rgba(197,26,74,0.4); color: #c51a4a; font-weight: 700; font-size: 0.78rem; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px; }
+        .step-text { color: #d0c0ca; line-height: 1.4; } .step-text strong { color: #f1f5f9; }
+        .code-block { background: rgba(0,0,0,0.35); border: 1px solid rgba(197,26,74,0.2); border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #c51a4a; line-height: 1.6; white-space: pre; overflow-x: auto; }
+        .code-block .cm { color: #6a5a64; } .code-block .kw { color: #c792ea; } .code-block .fn { color: #c51a4a; } .code-block .st { color: #c3e88d; } .code-block .nu { color: #f0883e; }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Data Logging -- PiVerse MicroPython Chapter 9</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<section class="slide active" id="slide-1"><div class="slide-inner"><div class="slide-meta">Slide 1 of 12 | PiVerse | MicroPython | Chapter 9</div>
+<div class="title-hero">
+    <svg width="300" height="100" viewBox="0 0 300 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <rect x="60" y="25" width="60" height="50" rx="6" fill="rgba(197,26,74,0.06)" stroke="#c51a4a" stroke-width="1.5"/>
+        <text x="90" y="54" text-anchor="middle" font-size="9" fill="#c51a4a" font-weight="700">SENSOR</text>
+        <line x1="120" y1="50" x2="160" y2="50" stroke="#a0909a" stroke-width="1.5" marker-end="url(#arr9)"/>
+        <rect x="160" y="25" width="80" height="50" rx="6" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="1.5"/>
+        <text x="200" y="48" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700">data.csv</text>
+        <text x="200" y="62" text-anchor="middle" font-size="7" fill="#a0909a">Flash FS</text>
+        <defs><marker id="arr9" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10z" fill="#a0909a"/></marker></defs>
+    </svg>
+    <div class="big-title"><span class="accent">Data</span> Logging</div>
+    <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">File I/O | CSV Format | Timestamps | Storage Management</div>
+</div>
+<div class="scenario-strip">Collecting sensor data without recording it is like running an experiment without a lab notebook. Data logging writes readings to the Pico's flash filesystem as CSV files. Leave the Pico running overnight, collect the data in the morning, open it in a spreadsheet. This is how real environmental monitoring, industrial telemetry, and field research work.</div>
+<div class="title-meta-row"><span>12 Slides</span><span>PiVerse MicroPython</span><span>Chapter 9 of 12</span><span>Matrix House</span></div>
+</div></section>
+
+<section class="slide" id="slide-2"><div class="slide-inner"><div class="slide-meta">Slide 2 of 12</div><div class="slide-title">File I/O <span class="accent">on the Pico</span></div><div class="slide-subtitle">Standard Python file operations work on the Pico's 1.4 MB flash filesystem.</div>
+<div class="code-block"><span class="kw">import</span> os
+
+<span class="cm"># List files</span>
+<span class="fn">print</span>(os.listdir())
+
+<span class="cm"># Write a file</span>
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">"test.txt"</span>, <span class="st">"w"</span>) <span class="kw">as</span> f:
+    f.write(<span class="st">"Hello from Pico\n"</span>)
+
+<span class="cm"># Append to a file</span>
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">"test.txt"</span>, <span class="st">"a"</span>) <span class="kw">as</span> f:
+    f.write(<span class="st">"Second line\n"</span>)
+
+<span class="cm"># Read a file</span>
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">"test.txt"</span>, <span class="st">"r"</span>) <span class="kw">as</span> f:
+    <span class="fn">print</span>(f.read())</div>
+<div class="box box-gold"><div class="box-label">File Modes</div><span class="ic">"w"</span> = write (overwrites). <span class="ic">"a"</span> = append (adds to end). <span class="ic">"r"</span> = read. Always use <span class="ic">with</span> blocks -- they automatically close the file, even if an error occurs. Unclosed files can corrupt data on power loss.</div>
+</div></section>
+
+<section class="slide" id="slide-3"><div class="slide-inner"><div class="slide-meta">Slide 3 of 12</div><div class="slide-title"><span class="accent">CSV</span> Format</div><div class="slide-subtitle">Comma-Separated Values: the universal data exchange format.</div>
+<div class="code-block"><span class="cm"># CSV header + data rows</span>
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">"data.csv"</span>, <span class="st">"w"</span>) <span class="kw">as</span> f:
+    f.write(<span class="st">"timestamp,temp_c,temp_f,raw_adc\n"</span>)
+    f.write(<span class="st">"0,26.3,79.3,27845\n"</span>)
+    f.write(<span class="st">"10,26.5,79.7,27812\n"</span>)
+    f.write(<span class="st">"20,26.4,79.5,27830\n"</span>)</div>
+<div class="card-grid-2">
+<div class="card"><div class="card-label">Why CSV?</div><div class="card-desc">Opens directly in Excel, Google Sheets, LibreOffice, Python Pandas, and every data analysis tool. Plain text, human-readable, no special libraries needed to write.</div></div>
+<div class="card c-green"><div class="card-label">Header Row</div><div class="card-desc">The first row names each column. Write it once when creating the file. All subsequent rows are data. Tools auto-detect this as the column label row.</div></div>
+</div>
+</div></section>
+
+<section class="slide" id="slide-4"><div class="slide-inner"><div class="slide-meta">Slide 4 of 12</div><div class="slide-title"><span class="accent">Timestamps</span></div><div class="slide-subtitle">The Pico has no real-time clock. Use elapsed seconds from boot as your timestamp.</div>
+<div class="code-block"><span class="kw">import</span> time
+
+start = time.ticks_ms()
+
+<span class="kw">def</span> <span class="fn">elapsed_seconds</span>():
+    <span class="kw">return</span> time.ticks_diff(time.ticks_ms(), start) // <span class="nu">1000</span>
+
+<span class="cm"># Log entry with timestamp</span>
+ts = elapsed_seconds()
+line = <span class="st">f"{ts},{temp_c:.1f},{temp_f:.1f},{raw}\n"</span></div>
+<div class="box box-red"><div class="box-label">No RTC on Pico</div>The Pico does not have a battery-backed real-time clock. It cannot know the actual date and time. Timestamps are relative -- "seconds since boot." If you need calendar timestamps, add an RTC module (DS3231, ~$2) via I2C (covered in Chapter 10).</div>
+</div></section>
+
+<section class="slide" id="slide-5"><div class="slide-inner"><div class="slide-meta">Slide 5 of 12</div><div class="slide-title">Robust <span class="accent">Logging</span></div><div class="slide-subtitle">Open, write one line, close. Every time. Do not hold files open.</div>
+<div class="code-block"><span class="kw">def</span> <span class="fn">log_reading</span>(filename, ts, temp_c, temp_f, raw):
+    <span class="kw">with</span> <span class="fn">open</span>(filename, <span class="st">"a"</span>) <span class="kw">as</span> f:
+        f.write(<span class="st">f"{ts},{temp_c:.1f},{temp_f:.1f},{raw}\n"</span>)
+
+<span class="cm"># Main loop: log every 10 seconds</span>
+<span class="kw">while</span> <span class="kw">True</span>:
+    raw = read_avg(sensor, <span class="nu">16</span>)
+    voltage = raw * <span class="nu">3.3</span> / <span class="nu">65535</span>
+    tc = <span class="nu">27</span> - (voltage - <span class="nu">0.706</span>) / <span class="nu">0.001721</span>
+    tf = tc * <span class="nu">9</span>/<span class="nu">5</span> + <span class="nu">32</span>
+    log_reading(<span class="st">"data.csv"</span>, elapsed_seconds(), tc, tf, raw)
+    time.sleep(<span class="nu">10</span>)</div>
+<div class="box box-green"><div class="box-label">Why Open/Close Each Time?</div>If the Pico loses power while a file is open, all buffered writes are lost and the file may corrupt. Opening with append mode, writing one line, and closing ensures each reading is safely flushed to flash. The overhead is negligible at 10-second intervals.</div>
+</div></section>
+
+<section class="slide" id="slide-6"><div class="slide-inner"><div class="slide-meta">Slide 6 of 12</div><div class="slide-title">Storage <span class="accent">Management</span></div><div class="slide-subtitle">The Pico has ~1.4 MB of flash. Know how much you are using.</div>
+<div class="code-block"><span class="kw">import</span> os
+
+<span class="kw">def</span> <span class="fn">disk_usage</span>():
+    s = os.statvfs(<span class="st">"/"</span>)
+    block_size = s[<span class="nu">0</span>]
+    total = s[<span class="nu">2</span>] * block_size
+    free = s[<span class="nu">3</span>] * block_size
+    used = total - free
+    <span class="fn">print</span>(<span class="st">f"Total: {total//1024} KB"</span>)
+    <span class="fn">print</span>(<span class="st">f"Used:  {used//1024} KB"</span>)
+    <span class="fn">print</span>(<span class="st">f"Free:  {free//1024} KB"</span>)
+    <span class="kw">return</span> free
+
+<span class="cm"># Check before logging</span>
+<span class="kw">if</span> disk_usage() < <span class="nu">10240</span>:  <span class="cm"># Less than 10 KB free</span>
+    <span class="fn">print</span>(<span class="st">"WARNING: Low storage!"</span>)</div>
+</div></section>
+
+<section class="slide" id="slide-7"><div class="slide-inner"><div class="slide-meta">Slide 7 of 12</div><div class="slide-title">File <span class="accent">Rotation</span></div><div class="slide-subtitle">When the current log file gets too large, start a new one.</div>
+<div class="code-block">MAX_FILE_SIZE = <span class="nu">50000</span>  <span class="cm"># 50 KB per file</span>
+file_num = <span class="nu">0</span>
+
+<span class="kw">def</span> <span class="fn">get_log_name</span>():
+    <span class="kw">return</span> <span class="st">f"log_{file_num:03d}.csv"</span>
+
+<span class="kw">def</span> <span class="fn">rotate_if_needed</span>():
+    <span class="kw">global</span> file_num
+    <span class="kw">try</span>:
+        size = os.stat(get_log_name())[<span class="nu">6</span>]
+        <span class="kw">if</span> size >= MAX_FILE_SIZE:
+            file_num += <span class="nu">1</span>
+            <span class="cm"># Write header to new file</span>
+            <span class="kw">with</span> <span class="fn">open</span>(get_log_name(), <span class="st">"w"</span>) <span class="kw">as</span> f:
+                f.write(<span class="st">"timestamp,temp_c,raw\n"</span>)
+    <span class="kw">except</span> OSError:
+        <span class="cm"># File does not exist yet</span>
+        <span class="kw">with</span> <span class="fn">open</span>(get_log_name(), <span class="st">"w"</span>) <span class="kw">as</span> f:
+            f.write(<span class="st">"timestamp,temp_c,raw\n"</span>)</div>
+</div></section>
+
+<section class="slide" id="slide-8"><div class="slide-inner"><div class="slide-meta">Slide 8 of 12</div><div class="slide-title">Reading <span class="accent">Logged Data</span></div><div class="slide-subtitle">Retrieve data via Thonny, mpremote, or serial console.</div>
+<div class="card-grid-2">
+<div class="card"><div class="card-label">Thonny File Browser</div><div class="card-desc">Open Thonny, connect to Pico, use the file browser panel to download CSV files to your computer. Drag and drop.</div></div>
+<div class="card c-green"><div class="card-label">mpremote cp</div><div class="card-desc"><span class="ic">mpremote cp :data.csv data.csv</span> copies the file from Pico to your computer via command line. Fast and scriptable.</div></div>
+<div class="card c-gold"><div class="card-label">Serial Dump</div><div class="card-desc">Write a script that reads the file and prints it to serial. Copy from the terminal. Works with any serial monitor.</div></div>
+<div class="card c-cyan"><div class="card-label">Self-Delete</div><div class="card-desc"><span class="ic">os.remove("data.csv")</span> deletes the file after download. Keeps storage clean for the next logging session.</div></div>
+</div>
+</div></section>
+
+<section class="slide" id="slide-9"><div class="slide-inner"><div class="slide-meta">Slide 9 of 12</div><div class="slide-title">Error <span class="accent">Handling</span></div><div class="slide-subtitle">Flash writes can fail. Wrap file operations in try/except.</div>
+<div class="code-block"><span class="kw">def</span> <span class="fn">safe_log</span>(filename, line):
+    <span class="kw">try</span>:
+        <span class="kw">with</span> <span class="fn">open</span>(filename, <span class="st">"a"</span>) <span class="kw">as</span> f:
+            f.write(line)
+        <span class="kw">return</span> <span class="kw">True</span>
+    <span class="kw">except</span> OSError <span class="kw">as</span> e:
+        <span class="fn">print</span>(<span class="st">f"Write failed: {e}"</span>)
+        <span class="cm"># Flash full? Try deleting old logs</span>
+        <span class="kw">return</span> <span class="kw">False</span></div>
+<div class="box box-red"><div class="box-label">OSError Causes</div>Filesystem full (ENOSPC), file not found (ENOENT), or flash wear (rare but possible after millions of writes). Always check the return value or catch exceptions. A data logger that silently fails is worse than useless.</div>
+</div></section>
+
+<section class="slide" id="slide-10"><div class="slide-inner"><div class="slide-meta">Slide 10 of 12</div><div class="slide-title">Logging <span class="accent">Frequency</span> Tradeoffs</div><div class="slide-subtitle">How often you log determines storage life and data resolution.</div>
+<div class="card-grid">
+<div class="card"><div class="card-label">Every 1 Second</div><div class="card-desc">~30 bytes/line. 30 bytes x 86,400/day = ~2.5 MB/day. Fills 1.4 MB flash in ~13 hours. High resolution, short life.</div></div>
+<div class="card c-green"><div class="card-label">Every 10 Seconds</div><div class="card-desc">~250 KB/day. Fills flash in ~5 days. Good balance for temperature monitoring. Detects trends without wasting space.</div></div>
+<div class="card c-gold"><div class="card-label">Every 60 Seconds</div><div class="card-desc">~42 KB/day. Fills flash in ~33 days. Month-long deployment with no intervention. Sufficient for slow-changing environments.</div></div>
+</div>
+</div></section>
+
+<section class="slide" id="slide-11"><div class="slide-inner"><div class="slide-meta">Slide 11 of 12</div><div class="slide-title">Complete <span class="accent">Data Logger</span></div><div class="slide-subtitle">All pieces assembled into a deployable logging system.</div>
+<div class="code-block"><span class="kw">from</span> machine <span class="kw">import</span> ADC, Pin
+<span class="kw">import</span> time, os
+
+sensor = ADC(<span class="nu">4</span>)
+led = Pin(<span class="nu">25</span>, Pin.OUT)
+LOG = <span class="st">"data.csv"</span>
+INTERVAL = <span class="nu">10</span>  <span class="cm"># seconds</span>
+
+<span class="cm"># Initialize log file with header</span>
+<span class="kw">if</span> LOG <span class="kw">not</span> <span class="kw">in</span> os.listdir():
+    <span class="kw">with</span> <span class="fn">open</span>(LOG, <span class="st">"w"</span>) <span class="kw">as</span> f:
+        f.write(<span class="st">"elapsed_s,temp_c,raw\n"</span>)
+
+start = time.ticks_ms()
+<span class="kw">while</span> <span class="kw">True</span>:
+    raw = read_avg(sensor, <span class="nu">16</span>)
+    v = raw * <span class="nu">3.3</span> / <span class="nu">65535</span>
+    tc = <span class="nu">27</span> - (v - <span class="nu">0.706</span>) / <span class="nu">0.001721</span>
+    ts = time.ticks_diff(time.ticks_ms(), start) // <span class="nu">1000</span>
+    safe_log(LOG, <span class="st">f"{ts},{tc:.1f},{raw}\n"</span>)
+    led.toggle()  <span class="cm"># Blink = still running</span>
+    time.sleep(INTERVAL)</div>
+</div></section>
+
+<section class="slide" id="slide-12"><div class="slide-inner"><div class="slide-meta">Slide 12 of 12</div><div class="slide-title">Key Takeaways: <span class="accent">Data Logging</span></div><div class="slide-subtitle">From transient readings to permanent records.</div>
+<div class="summary-facts">
+<div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Standard Python file I/O works on the Pico.</strong> <code>open()</code>, <code>read()</code>, <code>write()</code>, <code>with</code> blocks. Files persist across power cycles on the flash filesystem.</span></div>
+<div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>CSV is the universal data format.</strong> Header row + comma-separated values. Opens in every spreadsheet and data analysis tool.</span></div>
+<div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Open, write, close for every entry.</strong> Never hold files open. Power loss during an open write corrupts data. Append mode + close = safety.</span></div>
+<div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Monitor storage space.</strong> <code>os.statvfs("/")</code> reports free space. Implement file rotation or cleanup when space runs low.</span></div>
+<div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Logging frequency is a tradeoff.</strong> Faster = more detail but fills flash sooner. 10-second intervals balance resolution and storage for most applications.</span></div>
+</div>
+<div style="text-align:center; margin-top:6px;"><button id="complete-btn" onclick="completeModule()">Mark Complete</button></div>
+</div></section>
+
+<nav id="nav-bar"><a href="../../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; PiVerse</button></a><button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button><span id="slide-counter">Slide 1 of 12</span><button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button></nav>
+<script>let currentSlide=1;const TOTAL_SLIDES=12;function goToSlide(n){if(n<1||n>TOTAL_SLIDES)return;const p=document.getElementById('slide-'+currentSlide);if(p)p.classList.remove('active');currentSlide=n;const nx=document.getElementById('slide-'+currentSlide);if(nx)nx.classList.add('active');document.getElementById('progress-bar').style.width=(currentSlide/TOTAL_SLIDES)*100+'%';document.getElementById('slide-counter').textContent='Slide '+currentSlide+' of '+TOTAL_SLIDES;document.getElementById('prev-btn').disabled=(currentSlide===1);document.getElementById('next-btn').disabled=(currentSlide===TOTAL_SLIDES);const cb=document.getElementById('complete-btn');if(cb)cb.style.display=(currentSlide===TOTAL_SLIDES)?'inline-block':'none';}document.addEventListener('keydown',function(e){if(e.key==='ArrowRight'){e.preventDefault();goToSlide(currentSlide+1);}else if(e.key==='ArrowLeft'){e.preventDefault();goToSlide(currentSlide-1);}});goToSlide(1);</script>
+<script>function completeModule(){if(typeof ModuleProgress!=='undefined')ModuleProgress.complete('matrix','pv-mp-09-pres',{returnUrl:'../../index.html'});}</script>
+</body>
+</html>

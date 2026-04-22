@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inside the RP2040 | PiVerse Board Engineering</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d0408 0%, #1a0812 50%, #0d0408 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c51a4a; transition: width 0.4s ease; z-index: 200;
+        }
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(13, 4, 8, 0.95);
+            border-top: 1px solid rgba(197, 26, 74, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(197, 26, 74, 0.15); color: #c51a4a; border-color: #c51a4a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #c51a4a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #e8305e; }
+        .slide-subtitle { font-size: 0.95rem; color: #9e8b91; text-align: center; }
+        .scenario-strip {
+            background: rgba(197, 26, 74, 0.08); border-left: 3px solid #c51a4a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #d4a0ad; font-style: italic;
+        }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-red   { background: rgba(197, 26, 74, 0.08); border: 1px solid rgba(197, 26, 74, 0.3); color: #f0c0cc; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-gold  { background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(96, 165, 250, 0.08); border: 1px solid rgba(96, 165, 250, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #e8305e; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c51a4a;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #9e8b91; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #c51a4a; }
+        .card.c-gold   { border-left-color: #ffd700; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #60a5fa; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c51a4a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #e8305e;
+            background: rgba(197, 26, 74, 0.12); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+        .ic {
+            font-family: 'Courier New', monospace; color: #e8305e;
+            background: rgba(197, 26, 74, 0.12); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+        .code-block {
+            background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(197, 26, 74, 0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #e8305e; line-height: 1.6; white-space: pre;
+        }
+        .code-block .cm { color: #64748b; }
+        .code-block .kw { color: #60a5fa; }
+        .code-block .fn { color: #e8305e; }
+        .code-block .st { color: #86efac; }
+        .code-block .nu { color: #fdba74; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(197, 26, 74, 0.12); border: 1px solid rgba(197, 26, 74, 0.4);
+            color: #c51a4a; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Inside the RP2040 -- PiVerse Board Engineering</h1>
+
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- SLIDE 1 -- TITLE -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 | PiVerse | Board Engineering | Chapter 1</div>
+        <div class="title-hero">
+            <div class="big-title">
+                <span class="accent">Inside the RP2040:</span> ARM, PIO, Memory, Boot
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Cortex-M0+ | PIO State Machines | Memory Map | Boot Sequence | Schematic On-Ramp
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Before you design a PCB, you must understand the chip at its center. The RP2040 is a $0.80 dual-core microcontroller with capabilities that rival chips costing ten times more. This chapter dissects the silicon so you know exactly what your board needs to support.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>PiVerse Board Engineering</span>
+            <span>Chapter 1 of 8</span>
+            <span>Matrix House</span>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 2 -- Pi vs Pico -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">From Pi to <span class="accent">Pico</span>: Why the RP2040?</div>
+        <div class="slide-subtitle">The Raspberry Pi runs Linux on a Cortex-A application processor. The RP2040 is a microcontroller -- no OS, bare metal, real-time.</div>
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Cortex-A (Pi 5)</div>
+                <div class="card-desc">Application processor. Runs Linux. 2.4 GHz quad-core. 4-8 GB external RAM. Full OS with file system, networking, multitasking. Power: 2-5W.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Cortex-M0+ (RP2040)</div>
+                <div class="card-desc">Microcontroller. Bare metal or RTOS. 133 MHz dual-core. 264 KB on-chip SRAM. No OS -- your code runs directly on hardware. Power: ~25mA at 48 MHz.</div>
+            </div>
+        </div>
+        <div class="box box-red">
+            <div class="box-label">Why This Matters for Board Design</div>
+            A microcontroller needs fewer external components than an application processor. No external RAM, no display pipeline, no complex power management IC. The RP2040 needs: one crystal, one flash chip, a few capacitors, and a voltage regulator. That simplicity makes it the perfect chip for learning PCB design.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 3 -- ARM Cortex-M0+ -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">ARM <span class="accent">Cortex-M0+</span> Architecture</div>
+        <div class="slide-subtitle">The smallest, lowest-power ARM core. Two of them on one chip.</div>
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Dual Core</div>
+                <div class="card-desc">Two independent M0+ cores with separate stack pointers and program counters. Core 0 boots first, can wake Core 1.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">ARMv6-M ISA</div>
+                <div class="card-desc">56 base instructions. 2-stage pipeline. Most instructions execute in one cycle. Thumb-2 encoding for code density.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">133 MHz Max</div>
+                <div class="card-desc">Default 125 MHz from 12 MHz crystal via PLL. Overclockable beyond 250 MHz in many cases (no guarantees).</div>
+            </div>
+        </div>
+        <div class="box box-gold">
+            <div class="box-label">Dual-Core Pattern</div>
+            Core 0 handles communication (USB, UART, I2C). Core 1 runs a tight real-time control loop. They share 264 KB SRAM via a striped bus arbiter -- both cores can access memory simultaneously without bus contention on different banks.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 4 -- PIO State Machines -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title"><span class="accent">PIO</span> State Machines</div>
+        <div class="slide-subtitle">Programmable I/O: the RP2040's secret weapon. Eight tiny processors that manipulate GPIO pins at clock speed.</div>
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">2 PIO Blocks, 4 State Machines Each</div>
+                <div class="card-desc">Each state machine runs a program of up to 32 instructions. Programs execute at up to 133 MHz independently of the CPU cores. Zero jitter.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">9-Instruction ISA</div>
+                <div class="card-desc">JMP, WAIT, IN, OUT, PUSH, PULL, MOV, IRQ, SET. That is the entire PIO instruction set. Each instruction takes exactly one cycle plus configurable delays.</div>
+            </div>
+        </div>
+        <div class="code-block"><span class="cm">; PIO program: drive WS2812B NeoPixel LEDs</span>
+.program ws2812
+.side_set 1
+
+.wrap_target
+bitloop:
+    <span class="kw">out</span> x, 1       side 0 [T3-1]  <span class="cm">; Shift 1 bit from OSR to X</span>
+    <span class="kw">jmp</span> !x do_zero side 1 [T1-1]  <span class="cm">; Drive high, branch on value</span>
+do_one:
+    <span class="kw">jmp</span> bitloop    side 1 [T2-1]  <span class="cm">; Bit=1: stay high longer</span>
+do_zero:
+    <span class="kw">nop</span>            side 0 [T2-1]  <span class="cm">; Bit=0: go low earlier</span>
+.wrap</div>
+        <div class="box box-blue">
+            <div class="box-label">Board Design Impact</div>
+            PIO means the RP2040 can bit-bang nearly any digital protocol: WS2812B, VGA, DPI, custom serial, even DVI/HDMI. This affects your PCB because you can route almost any GPIO to almost any function -- the pin assignment is extremely flexible.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 5 -- Memory Map -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">RP2040 <span class="accent">Memory Map</span></div>
+        <div class="slide-subtitle">A flat 32-bit address space. Everything -- flash, RAM, peripherals, boot ROM -- lives in one contiguous map.</div>
+        <div class="code-block"><span class="cm">RP2040 Memory Map</span>
+
+<span class="nu">0x00000000</span> - <span class="nu">0x00003FFF</span>  Boot ROM (16 KB, read-only)
+                          <span class="cm">USB bootloader, flash routines</span>
+
+<span class="nu">0x10000000</span> - <span class="nu">0x10FFFFFF</span>  External Flash via XIP (up to 16 MB)
+                          <span class="cm">Execute-in-place: code runs from flash</span>
+                          <span class="cm">Pico has 2 MB (W25Q16JV)</span>
+
+<span class="nu">0x20000000</span> - <span class="nu">0x20041FFF</span>  SRAM (264 KB total)
+                          <span class="cm">6 banks: 4x 64 KB + 2x 4 KB</span>
+
+<span class="nu">0x40000000</span> - <span class="nu">0x40FFFFFF</span>  APB Peripherals
+                          <span class="cm">UART, SPI, I2C, PWM, ADC, timers</span>
+
+<span class="nu">0x50000000</span> - <span class="nu">0x50FFFFFF</span>  AHB Peripherals
+                          <span class="cm">DMA, USB, PIO, SIO</span>
+
+<span class="nu">0xD0000000</span>                SIO (Single-cycle I/O)
+                          <span class="cm">GPIO, spinlocks, divider</span>
+
+<span class="nu">0xE0000000</span>                ARM Core Peripherals
+                          <span class="cm">SysTick, NVIC, debug</span></div>
+    </div>
+</section>
+
+<!-- SLIDE 6 -- Flash and XIP -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">External <span class="accent">Flash</span> and XIP</div>
+        <div class="slide-subtitle">The RP2040 has zero internal flash. All code lives on an external QSPI flash chip.</div>
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">QSPI Interface</div>
+                <div class="card-desc">Four data lines (QSPI) instead of one (SPI). 4x bandwidth. The RP2040 dedicates 6 pins to flash: SCLK, SS, SD0-SD3. These are NOT general-purpose GPIO.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Execute-in-Place (XIP)</div>
+                <div class="card-desc">The XIP cache makes flash look like internal memory. Code executes directly from flash addresses (0x10000000+). A 16 KB cache reduces flash access latency.</div>
+            </div>
+        </div>
+        <div class="box box-red">
+            <div class="box-label">PCB Design Implication</div>
+            The flash chip must be placed close to the RP2040 with short, matched-length traces. QSPI runs at high speed -- long traces or poor routing will cause read errors. The Pico uses a Winbond W25Q16JV (2 MB). For custom boards, you can use up to 16 MB.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 7 -- SRAM Architecture -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title"><span class="accent">SRAM</span> Architecture</div>
+        <div class="slide-subtitle">264 KB of on-chip SRAM split across 6 banks for concurrent access.</div>
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Bank 0-3 (64 KB each)</div>
+                <div class="card-desc">Main SRAM. Striped across 4 banks so both cores can access different banks simultaneously without contention.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Bank 4-5 (4 KB each)</div>
+                <div class="card-desc">Small banks typically used for stack or critical data. Can also be assigned to USB or other peripherals.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">No External RAM</div>
+                <div class="card-desc">Unlike the Pi with gigabytes of LPDDR4X, the RP2040 has only on-chip SRAM. This simplifies PCB design -- no DDR routing, no impedance matching for RAM.</div>
+            </div>
+        </div>
+        <div class="box box-gold">
+            <div class="box-label">Why Striped Banks Matter</div>
+            The bus arbiter stripes consecutive 32-bit words across banks. Word at 0x20000000 is in bank 0, word at 0x20000004 is in bank 1, and so on. This means Core 0 and Core 1 accessing sequential memory rarely collide. It is hardware-level concurrency without software effort.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 8 -- Boot Sequence -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title"><span class="accent">Boot</span> Sequence</div>
+        <div class="slide-subtitle">From power-on to your code running: a deterministic four-step process.</div>
+        <div class="step-list">
+            <div class="step-row">
+                <span class="step-num">1</span>
+                <span class="step-text"><strong>Boot ROM executes.</strong> Core 0 starts at address 0x00000000. Core 1 is held in sleep (WFE). The boot ROM is mask-programmed at the factory -- it cannot be modified.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">2</span>
+                <span class="step-text"><strong>Check external flash.</strong> Boot ROM reads the first 256 bytes of flash. It verifies a CRC32 checksum to confirm the second-stage bootloader is valid.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">3</span>
+                <span class="step-text"><strong>Second-stage boot.</strong> This 256-byte program configures the QSPI flash for XIP mode. It is chip-specific -- different flash chips need different configuration sequences.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">4</span>
+                <span class="step-text"><strong>User code runs.</strong> Execution jumps to the main application. If using the Pico SDK, this enters the C runtime init (crt0) before calling main(). Your program takes over.</span>
+            </div>
+        </div>
+        <div class="box box-red">
+            <div class="box-label">BOOTSEL Mode</div>
+            If the BOOTSEL button is held during power-on, the boot ROM skips flash and presents the RP2040 as a USB mass storage device. Drag-and-drop a UF2 file to program it. No special programmer hardware needed. This is why you need a button connected to the QSPI_SS pin on your custom board.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 9 -- Pin Multiplexing -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title"><span class="accent">GPIO</span> and Pin Multiplexing</div>
+        <div class="slide-subtitle">30 general-purpose GPIO pins, each configurable for multiple functions.</div>
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">30 GPIO Pins (GP0-GP29)</div>
+                <div class="card-desc">Each pin can be: SPI, UART, I2C, PWM, PIO, ADC (GP26-GP29 only), or plain digital I/O. Function is selected via peripheral mux registers.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">6 Dedicated Pins</div>
+                <div class="card-desc">QSPI_SCLK, QSPI_SS, QSPI_SD0-SD3 are permanently assigned to the external flash interface. They are not available as GPIO.</div>
+            </div>
+        </div>
+        <div class="box box-gold">
+            <div class="box-label">Design Flexibility</div>
+            Unlike many microcontrollers with rigid pin assignments, the RP2040 lets you put UART, SPI, or I2C on almost any pin combination. PIO makes it even more flexible. When designing your PCB, you choose pin assignments based on routing convenience, not chip limitations.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 10 -- Schematic On-Ramp -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">On-Ramp: <span class="accent">Schematics</span> and PCBs</div>
+        <div class="slide-subtitle">Bridging from breadboards to board engineering.</div>
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Schematic</div>
+                <div class="card-desc">A diagram of electrical connections using standardized symbols. Shows WHAT connects to WHAT. Does not show physical layout, size, or shape. It is the blueprint.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">PCB (Printed Circuit Board)</div>
+                <div class="card-desc">The physical board with copper traces replacing jumper wires. Shows WHERE components sit and HOW traces route between them. It is the building.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">The Workflow</div>
+            Design the schematic first (logical connections), then lay out the PCB (physical arrangement). The schematic drives the PCB -- every connection in the schematic becomes a trace or via on the board. You cannot skip the schematic and go straight to PCB layout.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 11 -- Why Not Breadboard -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Why Not Just Use a <span class="accent">Breadboard</span>?</div>
+        <div class="slide-subtitle">Breadboards work for prototypes but fail for production. Here is why.</div>
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Unreliable Connections</div>
+                <div class="card-desc">Spring contacts corrode, loosen, and intermittently disconnect. A production device cannot use push-fit connections.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Parasitic Capacitance</div>
+                <div class="card-desc">Breadboard rows act as tiny capacitors. Above 10-20 MHz, signals degrade. USB, SPI at speed, and anything RF is impossible on a breadboard.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">No Shielding</div>
+                <div class="card-desc">Open wires radiate electromagnetic interference. A PCB with ground planes contains EMI and passes regulatory certification.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Size and Weight</div>
+                <div class="card-desc">A breadboard prototype is 10x the size of the equivalent PCB. For any embedded product, size matters.</div>
+            </div>
+        </div>
+        <div class="box box-red">
+            <div class="box-label">Bottom Line</div>
+            A breadboard is a sketch. A PCB is the finished painting. This track teaches you to create the painting.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 12 -- Key Takeaways -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Key Takeaways: <span class="accent">Inside the RP2040</span></div>
+        <div class="slide-subtitle">The chip is understood. Now you are ready to read the schematic that surrounds it.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Dual-core Cortex-M0+ at 133 MHz.</strong> No OS, bare metal, 264 KB on-chip SRAM, external QSPI flash. The simplicity makes PCB design approachable.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>PIO state machines</strong> execute tiny programs at clock speed, driving any digital protocol without CPU involvement. 8 state machines across 2 PIO blocks.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Flat 32-bit memory map.</strong> Flash at <code>0x10000000</code>, SRAM at <code>0x20000000</code>, peripherals at <code>0x40000000</code>+. Everything is memory-mapped.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Boot sequence:</strong> ROM checks flash CRC, runs second-stage bootloader, jumps to user code. BOOTSEL mode enables drag-and-drop programming.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Schematic = logical blueprint. PCB = physical board.</strong> This track covers both, starting with reading schematics in the next chapter.</span></div>
+        </div>
+
+        <div class="box box-red" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Chapter 2 -- Schematic Reading</strong> | Symbols, Nets, Power Rails, Reference Designators
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; PiVerse</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pv-b-01-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>

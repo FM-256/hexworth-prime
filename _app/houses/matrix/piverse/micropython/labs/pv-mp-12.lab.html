@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab: Bluetooth BLE | PiVerse MicroPython Ch 12</title>
+    <style>
+        :root { --accent: #c51a4a; --accent-dim: rgba(197,26,74,0.15); --accent-border: rgba(197,26,74,0.3); --green: #34d399; --green-dim: rgba(52,211,153,0.1); --green-border: rgba(52,211,153,0.3); --gold: #ffd700; --gold-dim: rgba(255,215,0,0.1); --gold-border: rgba(255,215,0,0.3); --cyan: #06b6d4; --cyan-dim: rgba(6,182,212,0.1); --cyan-border: rgba(6,182,212,0.3); --bg: #0d0a0c; --bg2: #140f12; --bg3: #1a1520; --text: #e0e0e0; --text2: #a0909a; --border: rgba(197,26,74,0.12); }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        .topbar { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .topbar-left { display: flex; align-items: center; gap: 14px; }
+        .back-btn { padding: 6px 14px; background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: 6px; color: var(--accent); text-decoration: none; font-size: 0.82rem; }
+        .lab-title { font-size: 0.95rem; } .badge { padding: 3px 10px; border-radius: 10px; font-size: 0.68rem; } .badge-accent { background: var(--accent-dim); border: 1px solid var(--accent-border); color: var(--accent); } .badge-gold { background: var(--gold-dim); border: 1px solid var(--gold-border); color: var(--gold); }
+        .topbar-right { display: flex; align-items: center; gap: 14px; font-size: 0.82rem; color: var(--text2); }
+        .prog-wrap { width: 130px; height: 5px; background: rgba(197,26,74,0.12); border-radius: 3px; overflow: hidden; } .prog-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #8b1030); border-radius: 3px; transition: width 0.4s; } .prog-label { color: var(--accent); font-weight: 500; }
+        .workspace { display: grid; grid-template-columns: 1fr 320px; flex: 1; min-height: 0; }
+        .sim-panel { display: flex; flex-direction: column; gap: 12px; padding: 16px 24px; overflow-y: auto; }
+        .ble-devices { display: flex; gap: 16px; justify-content: center; }
+        .device-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 16px; width: 180px; text-align: center; }
+        .device-card .d-icon { font-size: 1.8rem; margin-bottom: 6px; }
+        .device-card .d-name { font-size: 0.9rem; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+        .device-card .d-sub { font-size: 0.72rem; color: var(--text2); }
+        .device-card .d-status { font-size: 0.72rem; color: var(--text2); margin-top: 6px; padding: 3px 8px; border-radius: 4px; display: inline-block; }
+        .device-card .d-status.adv { background: var(--cyan-dim); border: 1px solid var(--cyan-border); color: var(--cyan); }
+        .device-card .d-status.conn { background: var(--green-dim); border: 1px solid var(--green-border); color: var(--green); }
+        .gatt-view { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; font-size: 0.78rem; }
+        .gatt-service { margin-bottom: 8px; }
+        .gatt-service .gs-name { color: var(--accent); font-weight: 700; font-size: 0.8rem; margin-bottom: 4px; }
+        .gatt-char { padding: 4px 0 4px 16px; display: flex; justify-content: space-between; align-items: center; color: var(--text2); border-left: 2px solid var(--border); margin-left: 8px; }
+        .gatt-char .gc-val { font-family: 'Consolas', monospace; color: var(--green); font-weight: 600; }
+        .gatt-char .gc-flags { font-size: 0.65rem; color: var(--text2); }
+        .terminal { min-height: 120px; background: rgba(0,0,0,0.5); border: 1px solid var(--border); border-radius: 8px; overflow-y: auto; padding: 8px 12px; font-family: 'Consolas', monospace; font-size: 0.72rem; color: var(--text2); line-height: 1.5; }
+        .terminal .t-ok { color: var(--green); } .terminal .t-err { color: #ef4444; } .terminal .t-info { color: var(--accent); } .terminal .t-ble { color: var(--cyan); }
+        .controls { display: flex; gap: 10px; flex-wrap: wrap; }
+        .ctrl-btn { padding: 7px 18px; border-radius: 6px; border: 1px solid var(--accent-border); background: var(--accent-dim); color: var(--accent); font-size: 0.82rem; cursor: pointer; }
+        .ctrl-btn:hover { background: rgba(197,26,74,0.25); }
+        .task-panel { background: var(--bg2); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+        .panel-header { padding: 12px 16px; font-size: 0.7rem; color: var(--text2); letter-spacing: 0.12em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+        .task-list { flex: 1; overflow-y: auto; padding: 12px; }
+        .task-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 9px; padding: 12px 14px; margin-bottom: 8px; }
+        .task-card.active { border-color: var(--accent); background: rgba(197,26,74,0.06); } .task-card.done { border-color: var(--green-border); background: var(--green-dim); }
+        .task-num { font-size: 0.67rem; color: var(--accent); margin-bottom: 3px; } .task-name { font-size: 0.88rem; margin-bottom: 3px; display: flex; align-items: center; gap: 6px; } .task-name .chk { font-size: 0.75rem; color: var(--green); margin-left: auto; display: none; } .task-desc { font-size: 0.77rem; color: var(--text2); line-height: 1.45; }
+        .finish-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 9000; } .finish-overlay.active { display: flex; }
+        .finish-card { background: var(--bg2); border: 1px solid var(--green-border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .finish-title { font-size: 1.5rem; color: var(--gold); margin-bottom: 10px; } .finish-msg { color: var(--text2); font-size: 0.95rem; margin-bottom: 24px; line-height: 1.6; }
+        .finish-btn { padding: 11px 28px; background: linear-gradient(135deg, var(--accent), #8b1030); border: none; border-radius: 8px; color: #fff; font-size: 0.95rem; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <header class="topbar"><div class="topbar-left"><a href="../../index.html" class="back-btn">Exit Lab</a><span class="lab-title">Lab: Bluetooth BLE</span><span class="badge badge-accent">PiVerse</span><span class="badge badge-gold">Ch 12</span></div><div class="topbar-right"><span>Tasks:</span><div class="prog-wrap"><div class="prog-fill" id="progFill" style="width:0%"></div></div><span class="prog-label" id="progLabel">0 / 8</span></div></header>
+    <div class="workspace">
+        <div class="sim-panel">
+            <div class="ble-devices">
+                <div class="device-card" id="picoCard">
+                    <div class="d-name">PicoSensor</div>
+                    <div class="d-sub">Pico W (Peripheral)</div>
+                    <div class="d-status" id="picoStatus">Inactive</div>
+                </div>
+                <div class="device-card" id="phoneCard">
+                    <div class="d-name">nRF Connect</div>
+                    <div class="d-sub">Phone (Central)</div>
+                    <div class="d-status" id="phoneStatus">Scanning...</div>
+                </div>
+            </div>
+            <div class="gatt-view" id="gattView" style="display:none;">
+                <div class="gatt-service">
+                    <div class="gs-name">Environmental Sensing (0x181A)</div>
+                    <div class="gatt-char"><span>Temperature (0x2A6E) <span class="gc-flags">[READ, NOTIFY]</span></span><span class="gc-val" id="gcTemp">--</span></div>
+                </div>
+                <div class="gatt-service">
+                    <div class="gs-name">Custom Control (UUID...def0)</div>
+                    <div class="gatt-char"><span>LED Control (UUID...def1) <span class="gc-flags">[WRITE]</span></span><span class="gc-val" id="gcLed">OFF</span></div>
+                </div>
+            </div>
+            <div class="terminal" id="terminal"></div>
+            <div class="controls">
+                <button class="ctrl-btn" onclick="startAdv()">Start Advertising</button>
+                <button class="ctrl-btn" onclick="phoneConnect()">Phone Connect</button>
+                <button class="ctrl-btn" onclick="readTemp()">Read Temp</button>
+                <button class="ctrl-btn" onclick="enableNotify()">Enable Notify</button>
+                <button class="ctrl-btn" onclick="writeLed()">Write LED</button>
+                <button class="ctrl-btn" onclick="phoneDisconnect()">Disconnect</button>
+                <button class="ctrl-btn" onclick="toggleNotifyLoop()" id="notifyBtn">Auto-Notify</button>
+                <button class="ctrl-btn" onclick="stopAdv()">Stop Advertising</button>
+            </div>
+        </div>
+        <aside class="task-panel"><div class="panel-header">Lab Tasks</div><div class="task-list" id="taskList"></div></aside>
+    </div>
+    <div class="finish-overlay" id="finishOverlay"><div class="finish-card"><div class="finish-title">Bluetooth BLE Complete</div><div class="finish-msg">You have configured BLE advertising, connected a simulated phone, registered GATT services, read and written characteristics, enabled notifications, and managed the connection lifecycle. These are the building blocks of every BLE IoT device.</div><button class="finish-btn" onclick="finishLab()">Return to PiVerse Hub</button></div></div>
+<script>
+(function(){
+    'use strict';
+    var TASKS=[
+        {id:1,name:'Start BLE advertising',desc:'Click "Start Advertising" to make the Pico visible to nearby BLE scanners.'},
+        {id:2,name:'Connect from phone',desc:'Click "Phone Connect" to simulate a BLE connection from nRF Connect.'},
+        {id:3,name:'Read temperature characteristic',desc:'Click "Read Temp" to read the current value from the temperature characteristic.'},
+        {id:4,name:'Enable notifications',desc:'Click "Enable Notify" to subscribe to temperature updates.'},
+        {id:5,name:'Write to LED characteristic',desc:'Click "Write LED" to toggle the LED on the Pico via BLE.'},
+        {id:6,name:'Receive 3 notifications',desc:'Click "Auto-Notify" and let 3 temperature notifications push to the phone.'},
+        {id:7,name:'Disconnect the phone',desc:'Click "Disconnect" to end the BLE connection.'},
+        {id:8,name:'Verify re-advertising after disconnect',desc:'After disconnect, confirm the Pico resumes advertising automatically.'}
+    ];
+    var done={},advertising=false,connected=false,notifyEnabled=false,notifyIv=null,notifyRunning=false,notifyCount=0,ledOn=false;
+    function init(){var list=document.getElementById('taskList');TASKS.forEach(function(t){var c=document.createElement('div');c.className='task-card';c.id='tc-'+t.id;c.innerHTML='<div class="task-num">Task '+t.id+'</div><div class="task-name">'+t.name+'<span class="chk" id="ck-'+t.id+'">Done</span></div><div class="task-desc">'+t.desc+'</div>';list.appendChild(c);});upd();hl(1);tlog('BLE module initialized','t-info');}
+    function upd(){var c=Object.keys(done).length;document.getElementById('progFill').style.width=(c/TASKS.length)*100+'%';document.getElementById('progLabel').textContent=c+' / '+TASKS.length;}
+    function comp(id){if(done[id])return;done[id]=true;var card=document.getElementById('tc-'+id);if(card)card.className='task-card done';var chk=document.getElementById('ck-'+id);if(chk)chk.style.display='inline';upd();var nx=TASKS.find(function(t){return !done[t.id];});if(nx)hl(nx.id);if(Object.keys(done).length===TASKS.length)setTimeout(function(){document.getElementById('finishOverlay').classList.add('active');},600);}
+    function hl(id){TASKS.forEach(function(t){var c=document.getElementById('tc-'+t.id);if(c&&!done[t.id])c.className=(t.id===id)?'task-card active':'task-card';});}
+    function tlog(m,c){var t=document.getElementById('terminal');var d=document.createElement('div');d.className=c||'';d.textContent=m;t.appendChild(d);t.scrollTop=t.scrollHeight;}
+    function getTemp(){return(25+Math.random()*5).toFixed(1);}
+    window.startAdv=function(){advertising=true;document.getElementById('picoStatus').textContent='Advertising';document.getElementById('picoStatus').className='d-status adv';tlog('gap_advertise(100000) -- Broadcasting "PicoSensor"','t-ble');comp(1);};
+    window.stopAdv=function(){if(connected){tlog('Cannot stop -- device connected','t-err');return;}advertising=false;document.getElementById('picoStatus').textContent='Inactive';document.getElementById('picoStatus').className='d-status';tlog('Advertising stopped','t-info');};
+    window.phoneConnect=function(){if(!advertising){tlog('Pico not advertising -- start advertising first','t-err');return;}if(connected){tlog('Already connected','');return;}connected=true;document.getElementById('picoStatus').textContent='Connected';document.getElementById('picoStatus').className='d-status conn';document.getElementById('phoneStatus').textContent='Connected';document.getElementById('phoneStatus').className='d-status conn';document.getElementById('gattView').style.display='block';tlog('_IRQ_CENTRAL_CONNECT -- Phone connected','t-ok');comp(2);};
+    window.readTemp=function(){if(!connected){tlog('No device connected','t-err');return;}var tc=getTemp();var raw=parseInt(parseFloat(tc)*100);document.getElementById('gcTemp').textContent=tc+' C';tlog('Read temp characteristic: '+tc+'C (raw: 0x'+raw.toString(16)+')','t-ok');comp(3);};
+    window.enableNotify=function(){if(!connected){tlog('No device connected','t-err');return;}notifyEnabled=true;tlog('Notifications enabled on Temperature characteristic','t-ok');comp(4);};
+    window.writeLed=function(){if(!connected){tlog('No device connected','t-err');return;}ledOn=!ledOn;document.getElementById('gcLed').textContent=ledOn?'ON':'OFF';tlog('_IRQ_GATTS_WRITE: LED = '+(ledOn?'0x01 (ON)':'0x00 (OFF)'),'t-ble');comp(5);};
+    window.toggleNotifyLoop=function(){if(!connected||!notifyEnabled){tlog(connected?'Enable notifications first':'Not connected','t-err');return;}if(notifyRunning){clearInterval(notifyIv);notifyRunning=false;document.getElementById('notifyBtn').textContent='Auto-Notify';}else{notifyRunning=true;document.getElementById('notifyBtn').textContent='Stop Notify';notifyIv=setInterval(function(){var tc=getTemp();var raw=parseInt(parseFloat(tc)*100);document.getElementById('gcTemp').textContent=tc+' C';notifyCount++;tlog('NOTIFY #'+notifyCount+': '+tc+'C (0x'+raw.toString(16)+')','t-ble');if(notifyCount>=3)comp(6);},2000);}};
+    window.phoneDisconnect=function(){if(!connected){tlog('Not connected','');return;}connected=false;if(notifyRunning){clearInterval(notifyIv);notifyRunning=false;document.getElementById('notifyBtn').textContent='Auto-Notify';}notifyEnabled=false;document.getElementById('picoStatus').textContent='Advertising';document.getElementById('picoStatus').className='d-status adv';document.getElementById('phoneStatus').textContent='Scanning...';document.getElementById('phoneStatus').className='d-status';document.getElementById('gattView').style.display='none';tlog('_IRQ_CENTRAL_DISCONNECT -- Phone disconnected','t-err');tlog('Re-advertising automatically...','t-ble');comp(7);comp(8);};
+    window.finishLab=function(){if(typeof ModuleProgress!=='undefined')ModuleProgress.complete('matrix','pv-mp-12-lab',{returnUrl:'../../index.html'});else window.location.href='../../index.html';};
+    document.addEventListener('DOMContentLoaded',init);
+})();
+</script>
+</body>
+</html>

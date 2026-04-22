@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab: WiFi Networking | PiVerse MicroPython Ch 11</title>
+    <style>
+        :root { --accent: #c51a4a; --accent-dim: rgba(197,26,74,0.15); --accent-border: rgba(197,26,74,0.3); --green: #34d399; --green-dim: rgba(52,211,153,0.1); --green-border: rgba(52,211,153,0.3); --gold: #ffd700; --gold-dim: rgba(255,215,0,0.1); --gold-border: rgba(255,215,0,0.3); --bg: #0d0a0c; --bg2: #140f12; --bg3: #1a1520; --text: #e0e0e0; --text2: #a0909a; --border: rgba(197,26,74,0.12); }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        .topbar { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .topbar-left { display: flex; align-items: center; gap: 14px; }
+        .back-btn { padding: 6px 14px; background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: 6px; color: var(--accent); text-decoration: none; font-size: 0.82rem; }
+        .lab-title { font-size: 0.95rem; } .badge { padding: 3px 10px; border-radius: 10px; font-size: 0.68rem; } .badge-accent { background: var(--accent-dim); border: 1px solid var(--accent-border); color: var(--accent); } .badge-gold { background: var(--gold-dim); border: 1px solid var(--gold-border); color: var(--gold); }
+        .topbar-right { display: flex; align-items: center; gap: 14px; font-size: 0.82rem; color: var(--text2); }
+        .prog-wrap { width: 130px; height: 5px; background: rgba(197,26,74,0.12); border-radius: 3px; overflow: hidden; } .prog-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #8b1030); border-radius: 3px; transition: width 0.4s; } .prog-label { color: var(--accent); font-weight: 500; }
+        .workspace { display: grid; grid-template-columns: 1fr 320px; flex: 1; min-height: 0; }
+        .sim-panel { display: flex; flex-direction: column; gap: 12px; padding: 16px 24px; overflow-y: auto; }
+        .net-status { display: flex; gap: 16px; align-items: center; }
+        .status-dot { width: 12px; height: 12px; border-radius: 50%; background: #555; border: 1px solid #777; } .status-dot.connected { background: var(--green); border-color: var(--green); box-shadow: 0 0 8px rgba(52,211,153,0.5); }
+        .net-info { font-size: 0.82rem; color: var(--text2); }
+        .net-info .val { color: var(--accent); font-weight: 600; font-family: 'Consolas', monospace; }
+        .terminal { flex: 1; min-height: 200px; background: rgba(0,0,0,0.5); border: 1px solid var(--border); border-radius: 8px; overflow-y: auto; padding: 10px 14px; font-family: 'Consolas', monospace; font-size: 0.75rem; color: var(--text2); line-height: 1.6; }
+        .terminal .t-ok { color: var(--green); } .terminal .t-err { color: #ef4444; } .terminal .t-info { color: var(--accent); } .terminal .t-data { color: var(--gold); }
+        .browser-frame { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+        .browser-bar { background: var(--bg2); padding: 6px 10px; font-size: 0.72rem; color: var(--text2); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+        .browser-bar .url { background: rgba(0,0,0,0.3); padding: 3px 8px; border-radius: 4px; flex: 1; color: var(--accent); font-family: 'Consolas', monospace; }
+        .browser-body { padding: 16px; text-align: center; min-height: 80px; font-size: 0.85rem; }
+        .browser-body .big-temp { font-size: 2rem; color: var(--accent); font-weight: 800; }
+        .controls { display: flex; gap: 10px; flex-wrap: wrap; }
+        .ctrl-btn { padding: 7px 18px; border-radius: 6px; border: 1px solid var(--accent-border); background: var(--accent-dim); color: var(--accent); font-size: 0.82rem; cursor: pointer; }
+        .ctrl-btn:hover { background: rgba(197,26,74,0.25); }
+        .task-panel { background: var(--bg2); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+        .panel-header { padding: 12px 16px; font-size: 0.7rem; color: var(--text2); letter-spacing: 0.12em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+        .task-list { flex: 1; overflow-y: auto; padding: 12px; }
+        .task-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 9px; padding: 12px 14px; margin-bottom: 8px; }
+        .task-card.active { border-color: var(--accent); background: rgba(197,26,74,0.06); } .task-card.done { border-color: var(--green-border); background: var(--green-dim); }
+        .task-num { font-size: 0.67rem; color: var(--accent); margin-bottom: 3px; } .task-name { font-size: 0.88rem; margin-bottom: 3px; display: flex; align-items: center; gap: 6px; } .task-name .chk { font-size: 0.75rem; color: var(--green); margin-left: auto; display: none; } .task-desc { font-size: 0.77rem; color: var(--text2); line-height: 1.45; }
+        .finish-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 9000; } .finish-overlay.active { display: flex; }
+        .finish-card { background: var(--bg2); border: 1px solid var(--green-border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .finish-title { font-size: 1.5rem; color: var(--gold); margin-bottom: 10px; } .finish-msg { color: var(--text2); font-size: 0.95rem; margin-bottom: 24px; line-height: 1.6; }
+        .finish-btn { padding: 11px 28px; background: linear-gradient(135deg, var(--accent), #8b1030); border: none; border-radius: 8px; color: #fff; font-size: 0.95rem; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <header class="topbar"><div class="topbar-left"><a href="../../index.html" class="back-btn">Exit Lab</a><span class="lab-title">Lab: WiFi Networking</span><span class="badge badge-accent">PiVerse</span><span class="badge badge-gold">Ch 11</span></div><div class="topbar-right"><span>Tasks:</span><div class="prog-wrap"><div class="prog-fill" id="progFill" style="width:0%"></div></div><span class="prog-label" id="progLabel">0 / 8</span></div></header>
+    <div class="workspace">
+        <div class="sim-panel">
+            <div class="net-status">
+                <div class="status-dot" id="statusDot"></div>
+                <div class="net-info">Status: <span class="val" id="netStatus">Disconnected</span> | IP: <span class="val" id="netIP">--</span></div>
+            </div>
+            <div class="terminal" id="terminal"></div>
+            <div class="browser-frame" id="browserFrame" style="display:none;">
+                <div class="browser-bar"><span>Browser</span><div class="url" id="browserUrl">http://--</div></div>
+                <div class="browser-body" id="browserBody"><span style="color:#555">Server not started</span></div>
+            </div>
+            <div class="controls">
+                <button class="ctrl-btn" onclick="connectWifi()">Connect WiFi</button>
+                <button class="ctrl-btn" onclick="httpGet()">HTTP GET</button>
+                <button class="ctrl-btn" onclick="ntpSync()">NTP Sync</button>
+                <button class="ctrl-btn" onclick="startServer()">Start Server</button>
+                <button class="ctrl-btn" onclick="refreshBrowser()">Refresh Page</button>
+                <button class="ctrl-btn" onclick="disconnectWifi()">Disconnect</button>
+                <button class="ctrl-btn" onclick="reconnect()">Reconnect</button>
+                <button class="ctrl-btn" onclick="postData()">POST Data</button>
+            </div>
+        </div>
+        <aside class="task-panel"><div class="panel-header">Lab Tasks</div><div class="task-list" id="taskList"></div></aside>
+    </div>
+    <div class="finish-overlay" id="finishOverlay"><div class="finish-card"><div class="finish-title">WiFi Networking Complete</div><div class="finish-msg">You have connected to WiFi, made HTTP requests, synced time via NTP, served sensor data on a web page, handled disconnections, and posted data to an API. Your Pico is now an IoT device.</div><button class="finish-btn" onclick="finishLab()">Return to PiVerse Hub</button></div></div>
+<script>
+(function(){
+    'use strict';
+    var TASKS=[
+        {id:1,name:'Connect to WiFi',desc:'Click "Connect WiFi" to join the simulated network and obtain an IP address.'},
+        {id:2,name:'Make an HTTP GET request',desc:'Click "HTTP GET" to fetch data from a simulated time API.'},
+        {id:3,name:'Sync time via NTP',desc:'Click "NTP Sync" to set the Pico clock from a network time server.'},
+        {id:4,name:'Start the web server',desc:'Click "Start Server" to begin serving sensor data on port 80.'},
+        {id:5,name:'View the web page',desc:'Click "Refresh Page" to load the temperature dashboard in the simulated browser.'},
+        {id:6,name:'Disconnect from WiFi',desc:'Click "Disconnect" to simulate a WiFi dropout.'},
+        {id:7,name:'Reconnect automatically',desc:'Click "Reconnect" to re-establish the WiFi connection.'},
+        {id:8,name:'POST sensor data',desc:'Click "POST Data" to send a temperature reading to a simulated API endpoint.'}
+    ];
+    var done={},wifiConnected=false,serverRunning=false,ip='192.168.1.'+Math.floor(Math.random()*200+10);
+    function init(){var list=document.getElementById('taskList');TASKS.forEach(function(t){var c=document.createElement('div');c.className='task-card';c.id='tc-'+t.id;c.innerHTML='<div class="task-num">Task '+t.id+'</div><div class="task-name">'+t.name+'<span class="chk" id="ck-'+t.id+'">Done</span></div><div class="task-desc">'+t.desc+'</div>';list.appendChild(c);});upd();hl(1);tlog('MicroPython v1.22.0 on Pico W','t-info');tlog('Type "help()" for more information.','');}
+    function upd(){var c=Object.keys(done).length;document.getElementById('progFill').style.width=(c/TASKS.length)*100+'%';document.getElementById('progLabel').textContent=c+' / '+TASKS.length;}
+    function comp(id){if(done[id])return;done[id]=true;var card=document.getElementById('tc-'+id);if(card)card.className='task-card done';var chk=document.getElementById('ck-'+id);if(chk)chk.style.display='inline';upd();var nx=TASKS.find(function(t){return !done[t.id];});if(nx)hl(nx.id);if(Object.keys(done).length===TASKS.length)setTimeout(function(){document.getElementById('finishOverlay').classList.add('active');},600);}
+    function hl(id){TASKS.forEach(function(t){var c=document.getElementById('tc-'+t.id);if(c&&!done[t.id])c.className=(t.id===id)?'task-card active':'task-card';});}
+    function tlog(m,c){var t=document.getElementById('terminal');var d=document.createElement('div');d.className=c||'';d.textContent='>>> '+m;t.appendChild(d);t.scrollTop=t.scrollHeight;}
+    function setNet(conn){wifiConnected=conn;document.getElementById('statusDot').className='status-dot'+(conn?' connected':'');document.getElementById('netStatus').textContent=conn?'Connected':'Disconnected';document.getElementById('netIP').textContent=conn?ip:'--';}
+    window.connectWifi=function(){if(wifiConnected){tlog('Already connected.','');return;}tlog('wlan.connect("PiVerseLab", "********")','t-info');tlog('Connecting...','');setTimeout(function(){setNet(true);tlog('Connected! IP: '+ip,'t-ok');tlog('ifconfig: ('+ip+', 255.255.255.0, 192.168.1.1, 8.8.8.8)','t-data');comp(1);},1200);};
+    window.httpGet=function(){if(!wifiConnected){tlog('Error: not connected to WiFi','t-err');return;}tlog('urequests.get("http://worldtimeapi.org/api/ip")','t-info');setTimeout(function(){var now=new Date();tlog('Status: 200 OK','t-ok');tlog('{"datetime": "'+now.toISOString()+'", "timezone": "America/New_York"}','t-data');tlog('response.close()','');comp(2);},800);};
+    window.ntpSync=function(){if(!wifiConnected){tlog('Error: not connected','t-err');return;}tlog('ntptime.settime()','t-info');setTimeout(function(){var now=new Date();var ts=now.getFullYear()+'-'+(now.getMonth()+1).toString().padStart(2,'0')+'-'+now.getDate().toString().padStart(2,'0')+' '+now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0')+':'+now.getSeconds().toString().padStart(2,'0');tlog('NTP sync complete: '+ts,'t-ok');comp(3);},600);};
+    window.startServer=function(){if(!wifiConnected){tlog('Error: not connected','t-err');return;}serverRunning=true;document.getElementById('browserFrame').style.display='block';document.getElementById('browserUrl').textContent='http://'+ip+':80';tlog('Server listening on '+ip+':80','t-ok');tlog('Waiting for connections...','');comp(4);};
+    window.refreshBrowser=function(){if(!serverRunning){tlog('Server not running','t-err');return;}var tc=(25+Math.random()*5).toFixed(1);var tf=(tc*9/5+32).toFixed(1);document.getElementById('browserBody').innerHTML='<div style="color:var(--text)">Pico W Temperature</div><div class="big-temp">'+tc+' C / '+tf+' F</div><div style="color:var(--text2);font-size:0.75rem;margin-top:8px">Auto-refreshes every 5 seconds</div>';tlog('GET / from browser -- 200 OK (temp='+tc+'C)','t-ok');comp(5);};
+    window.disconnectWifi=function(){if(!wifiConnected){tlog('Already disconnected','');return;}setNet(false);serverRunning=false;tlog('WiFi disconnected','t-err');document.getElementById('browserBody').innerHTML='<span style="color:#ef4444">Connection lost</span>';comp(6);};
+    window.reconnect=function(){if(wifiConnected){tlog('Already connected','');return;}tlog('Reconnecting...','t-info');setTimeout(function(){setNet(true);tlog('Reconnected! IP: '+ip,'t-ok');comp(7);},1000);};
+    window.postData=function(){if(!wifiConnected){tlog('Error: not connected','t-err');return;}var tc=(25+Math.random()*5).toFixed(1);tlog('POST /api/data {"temp":'+tc+',"device":"pico-01"}','t-info');setTimeout(function(){tlog('Status: 201 Created','t-ok');tlog('Server response: {"id":'+Math.floor(Math.random()*9000+1000)+',"status":"stored"}','t-data');comp(8);},700);};
+    window.finishLab=function(){if(typeof ModuleProgress!=='undefined')ModuleProgress.complete('matrix','pv-mp-11-lab',{returnUrl:'../../index.html'});else window.location.href='../../index.html';};
+    document.addEventListener('DOMContentLoaded',init);
+})();
+</script>
+</body>
+</html>

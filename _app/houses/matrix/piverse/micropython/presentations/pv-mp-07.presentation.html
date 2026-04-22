@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Motion Detection (PIR) | PiVerse MicroPython Ch 7</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; } html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0d0a0c 0%, #140f12 50%, #0d0a0c 100%); color: #e0e0e0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #c51a4a; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(13,10,12,0.95); border-top: 1px solid rgba(197,26,74,0.15); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.07); color: #a0909a; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(197,26,74,0.15); color: #c51a4a; border-color: #c51a4a; } .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #6a5a64; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #c51a4a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; } .slide-title .accent { color: #c51a4a; }
+        .slide-subtitle { font-size: 0.95rem; color: #a0909a; text-align: center; }
+        .scenario-strip { background: rgba(197,26,74,0.08); border-left: 3px solid #c51a4a; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #d4b0c0; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; } .box-red { background: rgba(197,26,74,0.08); border: 1px solid rgba(197,26,74,0.3); color: #e8c0d0; } .box-green { background: rgba(58,181,119,0.08); border: 1px solid rgba(58,181,119,0.35); color: #d1fae5; } .box-gold { background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; } .title-hero .big-title .accent { color: #c51a4a; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #6a5a64; } .title-meta-row span { border-left: 2px solid #2a2024; padding-left: 28px; } .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; } .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #c51a4a; } .card:hover { background: rgba(255,255,255,0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; } .card .card-desc { font-size: 0.82rem; color: #a0909a; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-gold { border-left-color: #ffd700; } .card.c-cyan { border-left-color: #06b6d4; } .card.c-orange { border-left-color: #f97316; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; } .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #c51a4a; min-width: 22px; text-align: right; flex-shrink: 0; } .fact-text { color: #d0c0ca; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #c51a4a; background: rgba(197,26,74,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .ic { font-family: 'Courier New', monospace; color: #c51a4a; background: rgba(197,26,74,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; } .step-row { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num { background: rgba(197,26,74,0.12); border: 1px solid rgba(197,26,74,0.4); color: #c51a4a; font-weight: 700; font-size: 0.78rem; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px; }
+        .step-text { color: #d0c0ca; line-height: 1.4; } .step-text strong { color: #f1f5f9; }
+        .code-block { background: rgba(0,0,0,0.35); border: 1px solid rgba(197,26,74,0.2); border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #c51a4a; line-height: 1.6; white-space: pre; overflow-x: auto; }
+        .code-block .cm { color: #6a5a64; } .code-block .kw { color: #c792ea; } .code-block .fn { color: #c51a4a; } .code-block .st { color: #c3e88d; } .code-block .nu { color: #f0883e; }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Motion Detection (PIR) -- PiVerse MicroPython Chapter 7</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<section class="slide active" id="slide-1"><div class="slide-inner"><div class="slide-meta">Slide 1 of 12 | PiVerse | MicroPython | Chapter 7</div>
+<div class="title-hero">
+    <svg width="300" height="100" viewBox="0 0 300 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <circle cx="150" cy="50" r="35" fill="rgba(197,26,74,0.06)" stroke="#c51a4a" stroke-width="2" stroke-dasharray="6,4"/>
+        <circle cx="150" cy="50" r="18" fill="rgba(197,26,74,0.12)" stroke="#c51a4a" stroke-width="1.5"/>
+        <text x="150" y="54" text-anchor="middle" font-size="10" fill="#c51a4a" font-weight="700">PIR</text>
+        <line x1="190" y1="35" x2="240" y2="20" stroke="#3ab577" stroke-width="1.5" stroke-dasharray="3,3"><animate attributeName="opacity" values="0;1;0" dur="2s" repeatCount="indefinite"/></line>
+        <text x="255" y="24" font-size="9" fill="#3ab577">IRQ</text>
+        <line x1="190" y1="65" x2="240" y2="80" stroke="#ffd700" stroke-width="1.5" stroke-dasharray="3,3"><animate attributeName="opacity" values="0;1;0" dur="2s" begin="0.5s" repeatCount="indefinite"/></line>
+        <text x="255" y="84" font-size="9" fill="#ffd700">EVENT</text>
+    </svg>
+    <div class="big-title"><span class="accent">Motion</span> Detection</div>
+    <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">PIR Sensor | Hardware Interrupts | Event-Driven Programming</div>
+</div>
+<div class="scenario-strip">A PIR sensor detects infrared radiation changes when a person moves through its field of view. Instead of polling in a loop, you register an interrupt -- the hardware notifies your code the instant motion is detected. This is how real security systems and motion-activated devices work.</div>
+<div class="title-meta-row"><span>12 Slides</span><span>PiVerse MicroPython</span><span>Chapter 7 of 12</span><span>Matrix House</span></div>
+</div></section>
+
+<section class="slide" id="slide-2"><div class="slide-inner"><div class="slide-meta">Slide 2 of 12</div><div class="slide-title">PIR Sensor <span class="accent">Basics</span></div><div class="slide-subtitle">HC-SR501: three pins, one digital output, adjustable sensitivity and timeout.</div>
+<div class="card-grid">
+<div class="card"><div class="card-label">VCC</div><div class="card-desc">Power supply: 5V to 20V. Connect to VBUS (5V) on the Pico.</div></div>
+<div class="card c-green"><div class="card-label">OUT</div><div class="card-desc">Digital signal: HIGH when motion detected, LOW when idle. Connect to any GP pin.</div></div>
+<div class="card c-gold"><div class="card-label">GND</div><div class="card-desc">Ground reference. Connect to any GND pin on the Pico.</div></div>
+</div>
+<div class="box box-gold"><div class="box-label">Two Potentiometers</div>The HC-SR501 has two adjustment screws. The <strong>sensitivity</strong> pot adjusts detection range (3-7 meters). The <strong>time delay</strong> pot adjusts how long OUT stays HIGH after detection (3 seconds to 5 minutes). For this project, set both to minimum for fast response.</div>
+</div></section>
+
+<section class="slide" id="slide-3"><div class="slide-inner"><div class="slide-meta">Slide 3 of 12</div><div class="slide-title">Polling vs. <span class="accent">Interrupts</span></div><div class="slide-subtitle">Two fundamentally different approaches to reading input.</div>
+<div class="card-grid-2">
+<div class="card"><div class="card-label">Polling (What You Know)</div><div class="card-desc">Check the pin value inside a loop. Simple but wastes CPU cycles. If the loop is doing something else (sleeping, computing), you miss events. Like checking the door every 5 seconds.</div></div>
+<div class="card c-green"><div class="card-label">Interrupts (What Pros Use)</div><div class="card-desc">Register a callback function. The hardware fires it the instant the pin changes state. Zero CPU waste. Zero missed events. Like a doorbell -- you hear it no matter what you are doing.</div></div>
+</div>
+<div class="code-block"><span class="cm"># POLLING -- wastes CPU, can miss events</span>
+<span class="kw">while</span> <span class="kw">True</span>:
+    <span class="kw">if</span> pir.value() == <span class="nu">1</span>:
+        <span class="fn">print</span>(<span class="st">"Motion!"</span>)
+    time.sleep(<span class="nu">0.1</span>)  <span class="cm"># 100ms gap = potential miss</span>
+
+<span class="cm"># INTERRUPT -- instant, efficient</span>
+<span class="kw">def</span> <span class="fn">on_motion</span>(pin):
+    <span class="fn">print</span>(<span class="st">"Motion!"</span>)
+pir.irq(trigger=Pin.IRQ_RISING, handler=on_motion)</div>
+</div></section>
+
+<section class="slide" id="slide-4"><div class="slide-inner"><div class="slide-meta">Slide 4 of 12</div><div class="slide-title">Setting Up the <span class="accent">IRQ</span></div><div class="slide-subtitle">irq() registers a callback. The trigger defines when it fires.</div>
+<div class="code-block"><span class="kw">from</span> machine <span class="kw">import</span> Pin
+<span class="kw">import</span> time
+
+pir = Pin(<span class="nu">16</span>, Pin.IN, Pin.PULL_DOWN)
+
+<span class="kw">def</span> <span class="fn">motion_handler</span>(pin):
+    <span class="kw">global</span> motion_flag
+    motion_flag = <span class="kw">True</span>
+
+motion_flag = <span class="kw">False</span>
+pir.irq(trigger=Pin.IRQ_RISING, handler=motion_handler)</div>
+<div class="step-list">
+<div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Pin.IRQ_RISING</strong> -- fires when signal goes LOW to HIGH (motion starts).</span></div>
+<div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Pin.IRQ_FALLING</strong> -- fires when signal goes HIGH to LOW (motion ends).</span></div>
+<div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Pin.IRQ_RISING | Pin.IRQ_FALLING</strong> -- fires on both edges.</span></div>
+</div>
+<div class="box box-red"><div class="box-label">Rule</div>Interrupt handlers must be short and fast. Set a flag, return immediately. Never use <code>print()</code>, <code>sleep()</code>, or allocate memory inside a handler. The main loop checks the flag and does the heavy work.</div>
+</div></section>
+
+<section class="slide" id="slide-5"><div class="slide-inner"><div class="slide-meta">Slide 5 of 12</div><div class="slide-title">The <span class="accent">Flag Pattern</span></div><div class="slide-subtitle">Interrupt sets a flag. Main loop reads and clears it. Clean separation of concerns.</div>
+<div class="code-block">motion_flag = <span class="kw">False</span>
+
+<span class="kw">def</span> <span class="fn">motion_handler</span>(pin):
+    <span class="kw">global</span> motion_flag
+    motion_flag = <span class="kw">True</span>
+
+pir.irq(trigger=Pin.IRQ_RISING, handler=motion_handler)
+
+<span class="kw">while</span> <span class="kw">True</span>:
+    <span class="kw">if</span> motion_flag:
+        motion_flag = <span class="kw">False</span>  <span class="cm"># Clear immediately</span>
+        <span class="fn">print</span>(<span class="st">"Motion detected!"</span>)
+        led.value(<span class="nu">1</span>)
+        time.sleep(<span class="nu">2</span>)
+        led.value(<span class="nu">0</span>)
+    time.sleep(<span class="nu">0.01</span>)  <span class="cm"># Light sleep, flag wakes us</span></div>
+<div class="box box-green"><div class="box-label">Why This Works</div>The handler runs in microseconds -- just sets a boolean. The main loop can take its time responding (turning on LEDs, printing, logging). Even if the main loop is in a <code>sleep()</code>, the next iteration will catch the flag.</div>
+</div></section>
+
+<section class="slide" id="slide-6"><div class="slide-inner"><div class="slide-meta">Slide 6 of 12</div><div class="slide-title"><span class="accent">Cooldown</span> Timer</div><div class="slide-subtitle">Prevent rapid re-triggering. One detection per cooldown window.</div>
+<div class="code-block">COOLDOWN_MS = <span class="nu">5000</span>
+last_trigger = <span class="nu">0</span>
+
+<span class="kw">def</span> <span class="fn">motion_handler</span>(pin):
+    <span class="kw">global</span> motion_flag, last_trigger
+    now = time.ticks_ms()
+    <span class="kw">if</span> time.ticks_diff(now, last_trigger) > COOLDOWN_MS:
+        motion_flag = <span class="kw">True</span>
+        last_trigger = now</div>
+<div class="box box-gold"><div class="box-label">Why Cooldown?</div>PIR sensors can re-trigger rapidly as a person moves through the detection zone. Without a cooldown, you get dozens of "motion detected" events for a single pass. The cooldown ensures one clean detection per event. Adjust COOLDOWN_MS based on your application.</div>
+</div></section>
+
+<section class="slide" id="slide-7"><div class="slide-inner"><div class="slide-meta">Slide 7 of 12</div><div class="slide-title">Event <span class="accent">Logging</span></div><div class="slide-subtitle">Record each detection with a timestamp for later analysis.</div>
+<div class="code-block">event_log = []
+start_time = time.ticks_ms()
+
+<span class="kw">def</span> <span class="fn">log_event</span>():
+    elapsed = time.ticks_diff(time.ticks_ms(), start_time)
+    secs = elapsed // <span class="nu">1000</span>
+    entry = <span class="st">f"[{secs:>6d}s] Motion detected"</span>
+    event_log.append(entry)
+    <span class="fn">print</span>(entry)
+    <span class="fn">print</span>(<span class="st">f"  Total events: {len(event_log)}"</span>)</div>
+<div class="box box-green"><div class="box-label">Building Toward Data Logging</div>This event list is stored in RAM and lost on power cycle. In Chapter 9 (Data Logging), you will write events to the filesystem as CSV. For now, the serial console is your log viewer.</div>
+</div></section>
+
+<section class="slide" id="slide-8"><div class="slide-inner"><div class="slide-meta">Slide 8 of 12</div><div class="slide-title">Motion-Activated <span class="accent">Alarm</span></div><div class="slide-subtitle">LED blinks and buzzer sounds when motion is detected. Configurable alert duration.</div>
+<div class="code-block"><span class="kw">from</span> machine <span class="kw">import</span> Pin, PWM
+
+led = Pin(<span class="nu">25</span>, Pin.OUT)
+buzzer = PWM(Pin(<span class="nu">15</span>))
+
+<span class="kw">def</span> <span class="fn">alarm_sequence</span>():
+    buzzer.freq(<span class="nu">2000</span>)
+    <span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(<span class="nu">5</span>):
+        led.value(<span class="nu">1</span>)
+        buzzer.duty_u16(<span class="nu">32768</span>)
+        time.sleep_ms(<span class="nu">200</span>)
+        led.value(<span class="nu">0</span>)
+        buzzer.duty_u16(<span class="nu">0</span>)
+        time.sleep_ms(<span class="nu">200</span>)
+    buzzer.deinit()</div>
+<div class="box box-red"><div class="box-label">Practical Application</div>This is the core of every motion-activated security light, doorway chime, and intruder alert. The PIR handles detection. The interrupt handles timing. Your code handles the response -- LED, buzzer, logging, or sending a network alert.</div>
+</div></section>
+
+<section class="slide" id="slide-9"><div class="slide-inner"><div class="slide-meta">Slide 9 of 12</div><div class="slide-title">Disabling and <span class="accent">Re-enabling</span> IRQs</div><div class="slide-subtitle">Sometimes you need to temporarily stop listening for interrupts.</div>
+<div class="code-block"><span class="cm"># Disable the interrupt</span>
+pir.irq(handler=<span class="kw">None</span>)
+<span class="fn">print</span>(<span class="st">"Alarm disarmed"</span>)
+
+<span class="cm"># Re-enable later</span>
+pir.irq(trigger=Pin.IRQ_RISING, handler=motion_handler)
+<span class="fn">print</span>(<span class="st">"Alarm armed"</span>)
+
+<span class="cm"># Use case: arm/disarm with a button</span>
+armed = <span class="kw">True</span>
+<span class="kw">def</span> <span class="fn">toggle_arm</span>(pin):
+    <span class="kw">global</span> armed
+    armed = <span class="kw">not</span> armed
+    <span class="kw">if</span> armed:
+        pir.irq(trigger=Pin.IRQ_RISING, handler=motion_handler)
+    <span class="kw">else</span>:
+        pir.irq(handler=<span class="kw">None</span>)
+
+btn = Pin(<span class="nu">14</span>, Pin.IN, Pin.PULL_UP)
+btn.irq(trigger=Pin.IRQ_FALLING, handler=toggle_arm)</div>
+</div></section>
+
+<section class="slide" id="slide-10"><div class="slide-inner"><div class="slide-meta">Slide 10 of 12</div><div class="slide-title">PIR <span class="accent">Quirks</span></div><div class="slide-subtitle">Real-world sensor behavior you need to account for.</div>
+<div class="card-grid-2">
+<div class="card"><div class="card-label">Warm-Up Period</div><div class="card-desc">PIR sensors need 30-60 seconds after power-on to stabilize. During warm-up, they produce false triggers. Add a startup delay before arming.</div></div>
+<div class="card c-green"><div class="card-label">False Triggers</div><div class="card-desc">Drafts, pets, and sudden temperature changes can trigger false positives. Use the cooldown timer and sensitivity potentiometer to reduce them.</div></div>
+<div class="card c-gold"><div class="card-label">Detection Angle</div><div class="card-desc">HC-SR501 has a ~110-degree field of view and 3-7 meter range. Mounting height and angle affect coverage area significantly.</div></div>
+<div class="card c-cyan"><div class="card-label">Retriggering Mode</div><div class="card-desc">A jumper on the HC-SR501 selects between single trigger (one pulse per event) and repeating trigger (stays HIGH while motion continues). Use repeating for alarm systems.</div></div>
+</div>
+</div></section>
+
+<section class="slide" id="slide-11"><div class="slide-inner"><div class="slide-meta">Slide 11 of 12</div><div class="slide-title">Complete <span class="accent">System</span></div><div class="slide-subtitle">All pieces assembled: interrupt-driven detection with cooldown, logging, and alarm.</div>
+<div class="card-grid-2">
+<div class="card"><div class="card-label">Detection Layer</div><div class="card-desc">PIR on GP16, IRQ_RISING trigger, cooldown timer. Sets flag on valid detection. No CPU wasted on polling.</div></div>
+<div class="card c-green"><div class="card-label">Response Layer</div><div class="card-desc">Main loop checks flag, runs alarm sequence (LED + buzzer), logs event with timestamp, updates event counter.</div></div>
+<div class="card c-gold"><div class="card-label">Control Layer</div><div class="card-desc">Button on GP14 toggles armed/disarmed state. Disarming removes the IRQ handler. Re-arming restores it.</div></div>
+<div class="card c-cyan"><div class="card-label">Startup Sequence</div><div class="card-desc">30-second warm-up delay. LED blinks during warm-up. Solid LED means armed. Then main loop begins.</div></div>
+</div>
+</div></section>
+
+<section class="slide" id="slide-12"><div class="slide-inner"><div class="slide-meta">Slide 12 of 12</div><div class="slide-title">Key Takeaways: <span class="accent">Motion Detection</span></div><div class="slide-subtitle">Interrupts change how you think about input handling.</div>
+<div class="summary-facts">
+<div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>PIR sensors output digital HIGH on motion.</strong> HC-SR501 has adjustable sensitivity and timeout. Three wires: VCC, OUT, GND.</span></div>
+<div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong><code>pin.irq()</code> registers a hardware interrupt.</strong> IRQ_RISING fires on LOW-to-HIGH. IRQ_FALLING fires on HIGH-to-LOW. The callback runs instantly when the event occurs.</span></div>
+<div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Handlers must be short.</strong> Set a flag, return. Never print, sleep, or allocate memory inside an interrupt handler. The main loop does the heavy lifting.</span></div>
+<div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Cooldown prevents rapid re-triggering.</strong> Use <code>ticks_diff()</code> to enforce a minimum gap between valid detections.</span></div>
+<div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Real sensors have quirks.</strong> Warm-up time, false triggers, detection angle, and retriggering mode all affect system design. Account for them in your code.</span></div>
+</div>
+<div style="text-align:center; margin-top:6px;"><button id="complete-btn" onclick="completeModule()">Mark Complete</button></div>
+</div></section>
+
+<nav id="nav-bar"><a href="../../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; PiVerse</button></a><button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button><span id="slide-counter">Slide 1 of 12</span><button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button></nav>
+<script>let currentSlide=1;const TOTAL_SLIDES=12;function goToSlide(n){if(n<1||n>TOTAL_SLIDES)return;const p=document.getElementById('slide-'+currentSlide);if(p)p.classList.remove('active');currentSlide=n;const nx=document.getElementById('slide-'+currentSlide);if(nx)nx.classList.add('active');document.getElementById('progress-bar').style.width=(currentSlide/TOTAL_SLIDES)*100+'%';document.getElementById('slide-counter').textContent='Slide '+currentSlide+' of '+TOTAL_SLIDES;document.getElementById('prev-btn').disabled=(currentSlide===1);document.getElementById('next-btn').disabled=(currentSlide===TOTAL_SLIDES);const cb=document.getElementById('complete-btn');if(cb)cb.style.display=(currentSlide===TOTAL_SLIDES)?'inline-block':'none';}document.addEventListener('keydown',function(e){if(e.key==='ArrowRight'){e.preventDefault();goToSlide(currentSlide+1);}else if(e.key==='ArrowLeft'){e.preventDefault();goToSlide(currentSlide-1);}});goToSlide(1);</script>
+<script>function completeModule(){if(typeof ModuleProgress!=='undefined')ModuleProgress.complete('matrix','pv-mp-07-pres',{returnUrl:'../../index.html'});}</script>
+</body>
+</html>
