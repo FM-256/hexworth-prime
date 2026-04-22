@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PV-MP-04: PWM &amp; Analog | MicroPython on Pico</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #0d0a0c;
+            --bg-card: #140f12;
+            --accent: #c51a4a;
+            --accent-dim: rgba(197, 26, 74, 0.12);
+            --accent-glow: rgba(197, 26, 74, 0.25);
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0909a;
+            --border: rgba(197, 26, 74, 0.18);
+        }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.7; }
+        .ne-header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 14px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .ne-header-left { display: flex; align-items: center; gap: 15px; }
+        .ne-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+        .ne-header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .ne-breadcrumb { font-size: 0.8rem; color: var(--text-secondary); }
+        .ne-breadcrumb a { color: var(--text-secondary); text-decoration: none; }
+        .ne-breadcrumb a:hover { color: var(--accent); }
+        .ne-back { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .ne-back:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .ne-content { max-width: 1100px; margin: 0 auto; padding: 30px 25px 60px; }
+        .ne-objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 30px; }
+        .ne-objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 1rem; }
+        .ne-objectives ul { list-style: none; }
+        .ne-objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.92rem; }
+        .ne-objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .ne-section { margin-bottom: 35px; }
+        .ne-section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .ne-section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .ne-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+        .ne-code { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; overflow-x: auto; color: var(--text-secondary); white-space: pre-wrap; }
+        .ne-code .prompt { color: var(--accent); }
+        .ne-code .comment { color: #6a5060; }
+        .ne-code .highlight { color: var(--accent); }
+        .ne-code .value { color: #f0883e; }
+        .ne-code .keyword { color: #c792ea; }
+        .ne-code .string { color: #c3e88d; }
+        .ne-code .function { color: #82aaff; }
+        .ne-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.88rem; }
+        .ne-table th { background: var(--bg-card); color: var(--accent); padding: 10px 14px; text-align: left; border: 1px solid var(--border); font-weight: 600; }
+        .ne-table td { padding: 10px 14px; border: 1px solid var(--border); color: var(--text-secondary); }
+        .ne-table tr:hover td { background: var(--accent-dim); }
+        .ne-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0; }
+        .ne-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: border-color 0.2s; }
+        .ne-card:hover { border-color: var(--accent); }
+        .ne-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+        .ne-card span { color: var(--text-secondary); font-size: 0.85rem; }
+        .ne-callout { background: rgba(197, 26, 74, 0.06); border: 1px solid var(--accent-glow); border-radius: 8px; padding: 16px 20px; margin: 18px 0; }
+        .ne-callout strong { color: var(--accent); }
+        .ne-callout p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; }
+        .ne-takeaways { background: linear-gradient(135deg, rgba(197, 26, 74, 0.08), rgba(197, 26, 74, 0.03)); border: 1px solid var(--accent); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .ne-takeaways h3 { color: var(--accent); margin-bottom: 12px; font-size: 1rem; }
+        .ne-takeaways ul { list-style: none; }
+        .ne-takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .ne-takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--accent); font-weight: bold; }
+        .ne-nav { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .ne-nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .ne-nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .ne-nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .ne-nav-btn.primary:hover { opacity: 0.88; }
+        .ne-nav-btn.disabled { opacity: 0.4; pointer-events: none; }
+        .ne-inline-code { background: #0d1117; padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--accent); }
+        .ne-diagram { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin: 14px 0; text-align: center; }
+        .ne-diagram svg { max-width: 100%; height: auto; }
+        .ne-complete { text-align: center; padding: 28px 0 8px; }
+        #completeBtn { background: transparent; border: 2px solid var(--accent); color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; padding: 12px 36px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        #completeBtn:hover:not(:disabled) { background: var(--accent-dim); }
+        #completeBtn:disabled { cursor: default; opacity: 0.85; }
+        @media (max-width: 700px) { .ne-card-grid { grid-template-columns: 1fr; } .ne-content { padding: 20px 15px 40px; } }
+    </style>
+</head>
+<body>
+
+    <header class="ne-header">
+        <div class="ne-header-left">
+            <span class="ne-badge">PV-MP-04</span>
+            <h1>PWM &amp; Analog</h1>
+        </div>
+        <div class="ne-breadcrumb">
+            <a href="../index.html">PiVerse</a> / <a href="index.html">MicroPython</a> / PV-MP-04
+        </div>
+        <a href="../index.html" class="ne-back">&lt; Back</a>
+    </header>
+
+    <div class="ne-content">
+
+        <div class="ne-objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Explain how PWM creates analog-like output from digital pins using duty cycle</li>
+                <li>Dim an LED smoothly using PWM duty cycle control</li>
+                <li>Generate audible tones on a passive buzzer with PWM frequency control</li>
+                <li>Read analog voltage from a potentiometer using the ADC</li>
+                <li>Combine ADC input with PWM output for real-time analog control</li>
+            </ul>
+        </div>
+
+        <div class="ne-callout">
+            <strong>Track Context:</strong>
+            <p>Digital I/O gives you on/off control. The real world is analog -- brightness, speed, volume, and temperature are continuous values. PWM and ADC bridge the gap between the digital microcontroller and the analog world.</p>
+        </div>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Pulse Width Modulation (PWM)</h2>
+            <p class="ne-text">PWM is a technique that creates an analog-like signal from a digital pin by rapidly switching it on and off. The key parameter is the duty cycle -- the percentage of time the signal is HIGH during each period. A 50% duty cycle means the pin is HIGH half the time and LOW half the time. At frequencies above ~50 Hz, the human eye perceives this as half brightness for an LED.</p>
+
+            <div class="ne-diagram">
+                <svg viewBox="0 0 550 200" xmlns="http://www.w3.org/2000/svg">
+                    <text x="275" y="18" fill="#c51a4a" font-size="11" font-family="JetBrains Mono" text-anchor="middle" font-weight="bold">PWM Duty Cycle Comparison</text>
+                    <!-- 25% duty -->
+                    <text x="30" y="55" fill="#a0909a" font-size="9" font-family="Inter" text-anchor="end">25%</text>
+                    <line x1="40" y1="50" x2="40" y2="35" stroke="#c51a4a" stroke-width="2"/>
+                    <line x1="40" y1="35" x2="75" y2="35" stroke="#c51a4a" stroke-width="2"/>
+                    <line x1="75" y1="35" x2="75" y2="55" stroke="#c51a4a" stroke-width="2"/>
+                    <line x1="75" y1="55" x2="180" y2="55" stroke="#c51a4a" stroke-width="2"/>
+                    <line x1="180" y1="55" x2="180" y2="35" stroke="#c51a4a" stroke-width="2"/>
+                    <line x1="180" y1="35" x2="215" y2="35" stroke="#c51a4a" stroke-width="2"/>
+                    <line x1="215" y1="35" x2="215" y2="55" stroke="#c51a4a" stroke-width="2"/>
+                    <line x1="215" y1="55" x2="320" y2="55" stroke="#c51a4a" stroke-width="2"/>
+                    <rect x="40" y="35" width="35" height="20" fill="rgba(197,26,74,0.2)"/>
+                    <rect x="180" y="35" width="35" height="20" fill="rgba(197,26,74,0.2)"/>
+                    <text x="400" y="50" fill="#a0909a" font-size="9" font-family="Inter">Dim LED</text>
+
+                    <!-- 50% duty -->
+                    <text x="30" y="105" fill="#a0909a" font-size="9" font-family="Inter" text-anchor="end">50%</text>
+                    <line x1="40" y1="100" x2="40" y2="85" stroke="#c51a4a" stroke-width="2"/>
+                    <line x1="40" y1="85" x2="110" y2="85" stroke="#c51a4a" stroke-width="2"/>
+                    <line x1="110" y1="85" x2="110" y2="105" stroke="#c51a4a" stroke-width="2"/>
+                    <line x1="110" y1="105" x2="180" y2="105" stroke="#c51a4a" stroke-width="2"/>
+                    <line x1="180" y1="105" x2="180" y2="85" stroke="#c51a4a" stroke-width="2"/>
+                    <line x1="180" y1="85" x2="250" y2="85" stroke="#c51a4a" stroke-width="2"/>
+                    <line x1="250" y1="85" x2="250" y2="105" stroke="#c51a4a" stroke-width="2"/>
+                    <line x1="250" y1="105" x2="320" y2="105" stroke="#c51a4a" stroke-width="2"/>
+                    <rect x="40" y="85" width="70" height="20" fill="rgba(197,26,74,0.2)"/>
+                    <rect x="180" y="85" width="70" height="20" fill="rgba(197,26,74,0.2)"/>
+                    <text x="400" y="100" fill="#a0909a" font-size="9" font-family="Inter">Half brightness</text>
+
+                    <!-- 100% duty -->
+                    <text x="30" y="155" fill="#a0909a" font-size="9" font-family="Inter" text-anchor="end">100%</text>
+                    <line x1="40" y1="140" x2="40" y2="135" stroke="#c51a4a" stroke-width="2"/>
+                    <line x1="40" y1="135" x2="320" y2="135" stroke="#c51a4a" stroke-width="2"/>
+                    <rect x="40" y="135" width="280" height="20" fill="rgba(197,26,74,0.2)"/>
+                    <text x="400" y="150" fill="#a0909a" font-size="9" font-family="Inter">Full brightness</text>
+                </svg>
+            </div>
+
+            <p class="ne-text">The RP2040 has 16 PWM channels organized as 8 slices with 2 outputs each. Every GPIO pin supports hardware PWM. The PWM resolution is 16-bit (0-65535), meaning you have 65,536 levels of control between fully off and fully on.</p>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">LED Dimming with PWM</h2>
+            <p class="ne-text">To dim an LED, you create a <span class="ne-inline-code">PWM</span> object on the GPIO pin, set the frequency (typically 1000 Hz for smooth dimming), and adjust the duty cycle. A duty cycle of 0 means always off; 65535 means always on.</p>
+
+            <div class="ne-code"><span class="comment"># led_dim.py -- Smooth LED dimming with PWM</span>
+<span class="keyword">from</span> machine <span class="keyword">import</span> Pin, PWM
+<span class="keyword">import</span> time
+
+<span class="comment"># Create PWM on GP15 at 1000 Hz</span>
+led_pwm = PWM(Pin(<span class="value">15</span>))
+led_pwm.freq(<span class="value">1000</span>)
+
+<span class="comment"># Set to 50% brightness</span>
+led_pwm.duty_u16(<span class="value">32768</span>)   <span class="comment"># 65535 / 2 = ~50%</span>
+
+<span class="comment"># Breathing effect: fade in and out</span>
+<span class="keyword">while</span> <span class="keyword">True</span>:
+    <span class="comment"># Fade in</span>
+    <span class="keyword">for</span> duty <span class="keyword">in</span> <span class="function">range</span>(<span class="value">0</span>, <span class="value">65536</span>, <span class="value">256</span>):
+        led_pwm.duty_u16(duty)
+        time.sleep_ms(<span class="value">2</span>)
+    <span class="comment"># Fade out</span>
+    <span class="keyword">for</span> duty <span class="keyword">in</span> <span class="function">range</span>(<span class="value">65535</span>, <span class="value">-1</span>, <span class="value">-256</span>):
+        led_pwm.duty_u16(duty)
+        time.sleep_ms(<span class="value">2</span>)</div>
+
+            <div class="ne-code"><span class="comment"># led_gamma.py -- Gamma-corrected dimming (perceptually linear)</span>
+<span class="keyword">from</span> machine <span class="keyword">import</span> Pin, PWM
+<span class="keyword">import</span> math, time
+
+led_pwm = PWM(Pin(<span class="value">15</span>))
+led_pwm.freq(<span class="value">1000</span>)
+
+<span class="comment"># Human eye perceives brightness logarithmically, not linearly.</span>
+<span class="comment"># Gamma correction makes the fade look smooth.</span>
+GAMMA = <span class="value">2.2</span>
+
+<span class="keyword">def</span> <span class="function">gamma_duty</span>(percent):
+    <span class="string">"""Convert 0-100 brightness to gamma-corrected duty cycle."""</span>
+    normalized = percent / <span class="value">100.0</span>
+    corrected = math.pow(normalized, GAMMA)
+    <span class="keyword">return</span> <span class="function">int</span>(corrected * <span class="value">65535</span>)
+
+<span class="comment"># Perceptually smooth breathing</span>
+<span class="keyword">while</span> <span class="keyword">True</span>:
+    <span class="keyword">for</span> pct <span class="keyword">in</span> <span class="function">range</span>(<span class="value">0</span>, <span class="value">101</span>):
+        led_pwm.duty_u16(gamma_duty(pct))
+        time.sleep_ms(<span class="value">10</span>)
+    <span class="keyword">for</span> pct <span class="keyword">in</span> <span class="function">range</span>(<span class="value">100</span>, <span class="value">-1</span>, <span class="value">-1</span>):
+        led_pwm.duty_u16(gamma_duty(pct))
+        time.sleep_ms(<span class="value">10</span>)</div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Buzzer Tones with PWM</h2>
+            <p class="ne-text">A passive buzzer produces sound by vibrating a membrane at whatever frequency you drive it. By changing the PWM frequency, you change the pitch. By changing the duty cycle, you change the volume (50% duty is loudest). Setting duty to 0 silences the buzzer.</p>
+
+            <div class="ne-code"><span class="comment"># buzzer_tones.py -- Play musical notes on a passive buzzer</span>
+<span class="keyword">from</span> machine <span class="keyword">import</span> Pin, PWM
+<span class="keyword">import</span> time
+
+buzzer = PWM(Pin(<span class="value">15</span>))
+
+<span class="comment"># Musical note frequencies (Hz)</span>
+NOTES = {
+    <span class="string">'C4'</span>: <span class="value">262</span>, <span class="string">'D4'</span>: <span class="value">294</span>, <span class="string">'E4'</span>: <span class="value">330</span>, <span class="string">'F4'</span>: <span class="value">349</span>,
+    <span class="string">'G4'</span>: <span class="value">392</span>, <span class="string">'A4'</span>: <span class="value">440</span>, <span class="string">'B4'</span>: <span class="value">494</span>, <span class="string">'C5'</span>: <span class="value">523</span>,
+    <span class="string">'REST'</span>: <span class="value">0</span>
+}
+
+<span class="keyword">def</span> <span class="function">play_note</span>(note, duration_ms):
+    <span class="keyword">if</span> note == <span class="string">'REST'</span> <span class="keyword">or</span> NOTES.get(note, <span class="value">0</span>) == <span class="value">0</span>:
+        buzzer.duty_u16(<span class="value">0</span>)
+    <span class="keyword">else</span>:
+        buzzer.freq(NOTES[note])
+        buzzer.duty_u16(<span class="value">32768</span>)   <span class="comment"># 50% duty for max volume</span>
+    time.sleep_ms(duration_ms)
+    buzzer.duty_u16(<span class="value">0</span>)          <span class="comment"># Brief silence between notes</span>
+    time.sleep_ms(<span class="value">30</span>)
+
+<span class="comment"># Play a scale</span>
+<span class="keyword">for</span> note <span class="keyword">in</span> [<span class="string">'C4'</span>, <span class="string">'D4'</span>, <span class="string">'E4'</span>, <span class="string">'F4'</span>, <span class="string">'G4'</span>, <span class="string">'A4'</span>, <span class="string">'B4'</span>, <span class="string">'C5'</span>]:
+    play_note(note, <span class="value">300</span>)
+
+<span class="comment"># Simple melody</span>
+melody = [
+    (<span class="string">'E4'</span>, <span class="value">300</span>), (<span class="string">'E4'</span>, <span class="value">300</span>), (<span class="string">'F4'</span>, <span class="value">300</span>), (<span class="string">'G4'</span>, <span class="value">300</span>),
+    (<span class="string">'G4'</span>, <span class="value">300</span>), (<span class="string">'F4'</span>, <span class="value">300</span>), (<span class="string">'E4'</span>, <span class="value">300</span>), (<span class="string">'D4'</span>, <span class="value">300</span>),
+    (<span class="string">'C4'</span>, <span class="value">300</span>), (<span class="string">'C4'</span>, <span class="value">300</span>), (<span class="string">'D4'</span>, <span class="value">300</span>), (<span class="string">'E4'</span>, <span class="value">300</span>),
+    (<span class="string">'E4'</span>, <span class="value">450</span>), (<span class="string">'D4'</span>, <span class="value">150</span>), (<span class="string">'D4'</span>, <span class="value">600</span>),
+]
+
+<span class="keyword">for</span> note, dur <span class="keyword">in</span> melody:
+    play_note(note, dur)
+
+buzzer.deinit()  <span class="comment"># Release PWM when done</span></div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Analog-to-Digital Conversion (ADC)</h2>
+            <p class="ne-text">The RP2040 has a 12-bit ADC (Analog-to-Digital Converter) with 4 input channels. Three channels are on external pins (GP26=ADC0, GP27=ADC1, GP28=ADC2) and one reads the internal temperature sensor (ADC4). MicroPython scales the 12-bit range (0-4095) to 16-bit (0-65535) for consistency across platforms.</p>
+
+            <div class="ne-diagram">
+                <svg viewBox="0 0 500 140" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <marker id="arrow4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-end">
+                            <path d="M 0 0 L 10 5 L 0 10 z" fill="#c51a4a"/>
+                        </marker>
+                    </defs>
+                    <text x="250" y="18" fill="#c51a4a" font-size="11" font-family="JetBrains Mono" text-anchor="middle" font-weight="bold">ADC Signal Flow</text>
+                    <!-- Analog world -->
+                    <rect x="20" y="40" width="120" height="70" rx="8" fill="#1a1520" stroke="#f0883e" stroke-width="1.5"/>
+                    <text x="80" y="65" fill="#f0883e" font-size="10" font-family="JetBrains Mono" text-anchor="middle" font-weight="bold">Analog Input</text>
+                    <text x="80" y="82" fill="#a0909a" font-size="9" font-family="Inter" text-anchor="middle">0V - 3.3V</text>
+                    <text x="80" y="97" fill="#a0909a" font-size="9" font-family="Inter" text-anchor="middle">continuous</text>
+                    <line x1="145" y1="75" x2="185" y2="75" stroke="#c51a4a" stroke-width="1.5" marker-end="url(#arrow4)"/>
+                    <!-- ADC -->
+                    <rect x="190" y="40" width="120" height="70" rx="8" fill="#1a1520" stroke="#c51a4a" stroke-width="1.5"/>
+                    <text x="250" y="65" fill="#c51a4a" font-size="10" font-family="JetBrains Mono" text-anchor="middle" font-weight="bold">12-bit ADC</text>
+                    <text x="250" y="82" fill="#a0909a" font-size="9" font-family="Inter" text-anchor="middle">Sample + Hold</text>
+                    <text x="250" y="97" fill="#a0909a" font-size="9" font-family="Inter" text-anchor="middle">500 ksps</text>
+                    <line x1="315" y1="75" x2="355" y2="75" stroke="#c51a4a" stroke-width="1.5" marker-end="url(#arrow4)"/>
+                    <!-- Digital value -->
+                    <rect x="360" y="40" width="120" height="70" rx="8" fill="#1a1520" stroke="#c51a4a" stroke-width="1.5"/>
+                    <text x="420" y="65" fill="#c51a4a" font-size="10" font-family="JetBrains Mono" text-anchor="middle" font-weight="bold">Digital Value</text>
+                    <text x="420" y="82" fill="#a0909a" font-size="9" font-family="Inter" text-anchor="middle">0 - 65535</text>
+                    <text x="420" y="97" fill="#a0909a" font-size="9" font-family="Inter" text-anchor="middle">(16-bit scaled)</text>
+                </svg>
+            </div>
+
+            <div class="ne-code"><span class="comment"># adc_read.py -- Read a potentiometer on GP26 (ADC0)</span>
+<span class="keyword">from</span> machine <span class="keyword">import</span> ADC, Pin
+<span class="keyword">import</span> time
+
+<span class="comment"># Potentiometer wiring:</span>
+<span class="comment">#   One outer leg  -> 3V3</span>
+<span class="comment">#   Other outer leg -> GND</span>
+<span class="comment">#   Middle leg (wiper) -> GP26</span>
+pot = ADC(Pin(<span class="value">26</span>))
+
+<span class="keyword">while</span> <span class="keyword">True</span>:
+    raw = pot.read_u16()                  <span class="comment"># 0-65535</span>
+    voltage = raw * <span class="value">3.3</span> / <span class="value">65535</span>           <span class="comment"># Convert to volts</span>
+    percent = raw * <span class="value">100</span> / <span class="value">65535</span>           <span class="comment"># Convert to percentage</span>
+    <span class="function">print</span>(<span class="string">f"Raw: </span>{raw:<span class="value">5d</span>}<span class="string">  Voltage: </span>{voltage:<span class="value">.2f</span>}<span class="string">V  Position: </span>{percent:<span class="value">.1f</span>}<span class="string">%"</span>)
+    time.sleep(<span class="value">0.2</span>)</div>
+
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>ADC Channel</th>
+                        <th>Pin</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>ADC0</td>
+                        <td>GP26</td>
+                        <td>External analog input</td>
+                    </tr>
+                    <tr>
+                        <td>ADC1</td>
+                        <td>GP27</td>
+                        <td>External analog input</td>
+                    </tr>
+                    <tr>
+                        <td>ADC2</td>
+                        <td>GP28</td>
+                        <td>External analog input</td>
+                    </tr>
+                    <tr>
+                        <td>ADC3</td>
+                        <td>GP29 (internal)</td>
+                        <td>Reads VSYS/3 for supply monitoring</td>
+                    </tr>
+                    <tr>
+                        <td>ADC4</td>
+                        <td>Internal</td>
+                        <td>Built-in temperature sensor</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Combining ADC and PWM</h2>
+            <p class="ne-text">The most satisfying demonstration of ADC and PWM is real-time analog control: turn a potentiometer knob and watch an LED brightness change instantly, or sweep a buzzer's pitch from low to high. This is the foundation of every volume knob, dimmer switch, and motor speed controller.</p>
+
+            <div class="ne-code"><span class="comment"># pot_led.py -- Potentiometer controls LED brightness</span>
+<span class="keyword">from</span> machine <span class="keyword">import</span> Pin, PWM, ADC
+<span class="keyword">import</span> time
+
+pot = ADC(Pin(<span class="value">26</span>))         <span class="comment"># Potentiometer on GP26</span>
+led = PWM(Pin(<span class="value">15</span>))         <span class="comment"># LED on GP15</span>
+led.freq(<span class="value">1000</span>)
+
+<span class="keyword">while</span> <span class="keyword">True</span>:
+    reading = pot.read_u16()
+    led.duty_u16(reading)    <span class="comment"># ADC and PWM both use 0-65535 range</span>
+    time.sleep(<span class="value">0.01</span>)</div>
+
+            <div class="ne-code"><span class="comment"># pot_buzzer.py -- Potentiometer controls buzzer pitch</span>
+<span class="keyword">from</span> machine <span class="keyword">import</span> Pin, PWM, ADC
+<span class="keyword">import</span> time
+
+pot = ADC(Pin(<span class="value">26</span>))
+buzzer = PWM(Pin(<span class="value">15</span>))
+buzzer.duty_u16(<span class="value">32768</span>)     <span class="comment"># 50% duty = max volume</span>
+
+<span class="comment"># Map potentiometer to audible frequency range (200-2000 Hz)</span>
+<span class="keyword">while</span> <span class="keyword">True</span>:
+    reading = pot.read_u16()
+    freq = <span class="value">200</span> + (reading * <span class="value">1800</span>) // <span class="value">65535</span>   <span class="comment"># Scale to 200-2000</span>
+    buzzer.freq(freq)
+    <span class="function">print</span>(<span class="string">f"Frequency: </span>{freq}<span class="string"> Hz"</span>)
+    time.sleep(<span class="value">0.02</span>)</div>
+
+            <div class="ne-code"><span class="comment"># pot_rgb.py -- Potentiometer controls RGB LED color</span>
+<span class="keyword">from</span> machine <span class="keyword">import</span> Pin, PWM, ADC
+<span class="keyword">import</span> time
+
+pot = ADC(Pin(<span class="value">26</span>))
+red   = PWM(Pin(<span class="value">15</span>)); red.freq(<span class="value">1000</span>)
+green = PWM(Pin(<span class="value">14</span>)); green.freq(<span class="value">1000</span>)
+blue  = PWM(Pin(<span class="value">13</span>)); blue.freq(<span class="value">1000</span>)
+
+<span class="keyword">def</span> <span class="function">map_color</span>(position):
+    <span class="string">"""Map 0-65535 position to RGB values for a color wheel."""</span>
+    third = <span class="value">65535</span> // <span class="value">3</span>
+    <span class="keyword">if</span> position < third:
+        r = third - position
+        g = position
+        b = <span class="value">0</span>
+    <span class="keyword">elif</span> position < <span class="value">2</span> * third:
+        r = <span class="value">0</span>
+        g = <span class="value">2</span> * third - position
+        b = position - third
+    <span class="keyword">else</span>:
+        r = position - <span class="value">2</span> * third
+        g = <span class="value">0</span>
+        b = <span class="value">65535</span> - position
+    <span class="keyword">return</span> r * <span class="value">3</span>, g * <span class="value">3</span>, b * <span class="value">3</span>
+
+<span class="keyword">while</span> <span class="keyword">True</span>:
+    pos = pot.read_u16()
+    r, g, b = map_color(pos)
+    red.duty_u16(<span class="function">min</span>(r, <span class="value">65535</span>))
+    green.duty_u16(<span class="function">min</span>(g, <span class="value">65535</span>))
+    blue.duty_u16(<span class="function">min</span>(b, <span class="value">65535</span>))
+    time.sleep(<span class="value">0.02</span>)</div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">PWM and ADC Reference</h2>
+
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Method</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="ne-inline-code">PWM(Pin(n))</span></td>
+                        <td>Create PWM on any GPIO pin</td>
+                    </tr>
+                    <tr>
+                        <td><span class="ne-inline-code">.freq(hz)</span></td>
+                        <td>Set frequency (7 Hz to 125 MHz)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="ne-inline-code">.duty_u16(val)</span></td>
+                        <td>Set duty cycle: 0 (off) to 65535 (full on)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="ne-inline-code">.deinit()</span></td>
+                        <td>Release PWM hardware (pin returns to GPIO mode)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="ne-inline-code">ADC(Pin(n))</span></td>
+                        <td>Create ADC on GP26, GP27, or GP28</td>
+                    </tr>
+                    <tr>
+                        <td><span class="ne-inline-code">.read_u16()</span></td>
+                        <td>Read analog value scaled to 0-65535</td>
+                    </tr>
+                    <tr>
+                        <td><span class="ne-inline-code">ADC(4)</span></td>
+                        <td>Read internal temperature sensor</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="ne-callout">
+                <strong>ADC Noise:</strong>
+                <p>Raw ADC readings fluctuate by several counts due to electrical noise. For stable readings, average multiple samples: <span class="ne-inline-code">avg = sum(pot.read_u16() for _ in range(10)) // 10</span>. This is called oversampling and is standard practice in embedded systems.</p>
+            </div>
+        </section>
+
+        <div class="ne-takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>PWM creates analog-like output by switching a digital pin on/off rapidly -- duty cycle controls intensity</li>
+                <li>The RP2040 has 16 PWM channels with 16-bit resolution (0-65535) on every GPIO pin</li>
+                <li>Changing PWM frequency changes buzzer pitch; changing duty cycle changes LED brightness or buzzer volume</li>
+                <li>The ADC converts analog voltage (0-3.3V) to a digital number -- 3 external channels plus internal temp sensor</li>
+                <li>ADC and PWM share the same 0-65535 range in MicroPython, making direct mapping trivial</li>
+                <li>Average multiple ADC samples to reduce noise in analog readings</li>
+            </ul>
+        </div>
+
+        <div class="ne-complete">
+            <button id="completeBtn">Mark Complete</button>
+        </div>
+
+        <nav class="ne-nav">
+            <a href="pv-mp-03.html" class="ne-nav-btn">&lt; Previous: Digital I/O</a>
+            <a href="pv-mp-05.html" class="ne-nav-btn primary">Next: Traffic Light Controller &gt;</a>
+        </nav>
+
+    </div>
+
+    <script src="../../../../components/TenantShell.js"></script>
+    <script>
+        const MODULE_HOUSE = 'matrix';
+        const MODULE_ID = 'pv-mp-04';
+
+        function markComplete() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete(MODULE_HOUSE, MODULE_ID);
+            }
+            var btn = document.getElementById('completeBtn');
+            btn.textContent = 'Completed';
+            btn.disabled = true;
+            btn.style.background = '#c51a4a';
+            btn.style.color = '#fff';
+        }
+
+        document.getElementById('completeBtn').addEventListener('click', markComplete);
+
+        (function() {
+            if (typeof ModuleProgress !== 'undefined' && ModuleProgress.isCompleted(MODULE_HOUSE, MODULE_ID)) {
+                var btn = document.getElementById('completeBtn');
+                btn.textContent = 'Completed';
+                btn.disabled = true;
+                btn.style.background = '#c51a4a';
+                btn.style.color = '#fff';
+            }
+        })();
+    </script>
+</body>
+</html>

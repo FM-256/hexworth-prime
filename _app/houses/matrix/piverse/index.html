@@ -1,0 +1,1824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- Security / Auth: must run first; blocks unauthorized users immediately -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../components/TenantRouter.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PiVerse // The Raspberry Pi Learning Ecosystem</title>
+
+    <style>
+        /* ── CSS Custom Properties: PiVerse palette ── */
+        :root {
+            --pi-primary:    #c51a4a;
+            --pi-secondary:  #e8365d;
+            --pi-dark:       #8b1133;
+            --pi-glow:       rgba(197, 26, 74, 0.3);
+            --pi-bright-glow: rgba(232, 54, 93, 0.4);
+            --pi-bg:         rgba(197, 26, 74, 0.05);
+            --pi-border:     rgba(197, 26, 74, 0.25);
+
+            /* Track accent colors */
+            --track-fundamentals: #c51a4a;
+            --track-micropython:  #22d3ee;
+            --track-electronics:  #f59e0b;
+            --track-maker:        #ec4899;
+            --track-engineering:  #a78bfa;
+
+            --bg-main:       #060a08;
+            --bg-deep:       #030604;
+            --bg-card:       #090f0c;
+            --bg-card-hover: #0e1710;
+            --text-primary:  #e8f0ec;
+            --text-secondary: #8aab96;
+            --text-muted:    #2d4a38;
+            --border-color:  rgba(197, 26, 74, 0.12);
+            --border-hover:  rgba(197, 26, 74, 0.35);
+            --shadow-md:     0 4px 6px -1px rgba(0, 0, 0, 0.60);
+            --shadow-lg:     0 10px 18px -3px rgba(0, 0, 0, 0.70);
+            --shadow-glow:   0 0 28px rgba(197, 26, 74, 0.10);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background: linear-gradient(160deg, var(--bg-main) 0%, var(--bg-deep) 100%);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* Visually hidden: accessibility + SEO anchor */
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        /* ── Top navigation bar ── */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 10px 0;
+        }
+
+        .course-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* Single exit point back to Matrix house hub */
+        .dashboard-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.82rem;
+            font-weight: 500;
+            font-family: 'Courier New', Courier, monospace;
+            padding: 7px 16px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background: var(--pi-bg);
+            transition: all 0.2s ease;
+            letter-spacing: 0.5px;
+        }
+
+        .dashboard-btn:hover {
+            color: var(--pi-secondary);
+            border-color: var(--border-hover);
+            background: rgba(197, 26, 74, 0.10);
+        }
+
+        .dashboard-btn-icon {
+            width: 14px;
+            height: 14px;
+            opacity: 0.7;
+        }
+
+        /* ── Hero Header ── */
+        .header {
+            text-align: center;
+            margin-bottom: 28px;
+            padding: 48px 24px 40px;
+            background: linear-gradient(135deg, #0d0305 0%, #1a0510 50%, #0d0305 100%);
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg), var(--shadow-glow);
+            border: 1px solid var(--pi-border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* PCB trace background pattern — very low opacity SVG data URI */
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Crect width='80' height='80' fill='none'/%3E%3Cpath d='M0 40 H20 M60 40 H80 M40 0 V20 M40 60 V80 M20 40 H60 M0 20 H10 M0 60 H10 M70 20 H80 M70 60 H80 M10 20 V10 H20 M10 60 V70 H20 M70 20 V10 H60 M70 60 V70 H60' stroke='%23c51a4a' stroke-width='0.6' fill='none' opacity='0.35'/%3E%3Ccircle cx='20' cy='40' r='2' fill='none' stroke='%23c51a4a' stroke-width='0.6' opacity='0.4'/%3E%3Ccircle cx='60' cy='40' r='2' fill='none' stroke='%23c51a4a' stroke-width='0.6' opacity='0.4'/%3E%3Ccircle cx='40' cy='20' r='2' fill='none' stroke='%23c51a4a' stroke-width='0.6' opacity='0.4'/%3E%3Ccircle cx='40' cy='60' r='2' fill='none' stroke='%23c51a4a' stroke-width='0.6' opacity='0.4'/%3E%3C/svg%3E");
+            background-size: 80px 80px;
+            opacity: 0.08;
+            pointer-events: none;
+        }
+
+        /* Diagonal stripe overlay: subtle red bands */
+        .header::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 18px,
+                rgba(197, 26, 74, 0.018) 18px,
+                rgba(197, 26, 74, 0.018) 20px
+            );
+            pointer-events: none;
+        }
+
+        /* Hero badge pill */
+        .course-badge {
+            display: inline-block;
+            background: rgba(197, 26, 74, 0.15);
+            border: 1px solid rgba(197, 26, 74, 0.40);
+            color: var(--pi-secondary);
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 4px 18px;
+            border-radius: 20px;
+            margin-bottom: 18px;
+            position: relative;
+            z-index: 1;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* PiVerse wordmark: gradient red-to-pink */
+        .header h2 {
+            font-size: 3rem;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: 700;
+            letter-spacing: 4px;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+            background: linear-gradient(135deg, var(--pi-primary), var(--pi-secondary), #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header .subtitle {
+            font-size: 0.95rem;
+            color: var(--pi-secondary);
+            opacity: 0.80;
+            position: relative;
+            z-index: 1;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin-bottom: 28px;
+        }
+
+        /* ── Pi SVG board + blinking LED ── */
+        .pi-board-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto 28px;
+            position: relative;
+            z-index: 1;
+            width: 220px;
+        }
+
+        /* Blinking green LED pulse animation */
+        @keyframes led-blink {
+            0%, 100% {
+                opacity: 1;
+                filter: drop-shadow(0 0 6px #22c55e) drop-shadow(0 0 12px #22c55e);
+            }
+            50% {
+                opacity: 0.2;
+                filter: none;
+            }
+        }
+
+        .pi-led-blink {
+            animation: led-blink 1.5s ease-in-out infinite;
+        }
+
+        /* Course stat chips */
+        .course-stats {
+            display: flex;
+            justify-content: center;
+            gap: 14px;
+            flex-wrap: wrap;
+            position: relative;
+            z-index: 1;
+        }
+
+        .course-stat {
+            background: rgba(197, 26, 74, 0.08);
+            border: 1px solid rgba(197, 26, 74, 0.22);
+            padding: 10px 22px;
+            border-radius: 10px;
+            text-align: center;
+            min-width: 80px;
+        }
+
+        .course-stat .value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--pi-secondary);
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .course-stat .label {
+            font-size: 0.68rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-top: 2px;
+        }
+
+        /* ── Overall progress bar ── */
+        .progress-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 18px 22px;
+            margin-bottom: 28px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .progress-section h3 {
+            color: var(--pi-secondary);
+            font-size: 0.82rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .progress-bar-container {
+            background: rgba(197, 26, 74, 0.08);
+            border-radius: 10px;
+            height: 14px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--pi-dark), var(--pi-secondary), var(--pi-primary));
+            width: 0%;
+            transition: width 0.6s ease;
+            border-radius: 10px;
+            box-shadow: 0 0 8px rgba(197, 26, 74, 0.4);
+        }
+
+        .progress-text {
+            text-align: right;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 6px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* ── Section heading label ── */
+        .section-heading {
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            padding-left: 4px;
+        }
+
+        /* ── Track Cards (collapsible) ── */
+        .week-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            margin-bottom: 10px;
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+            transition: border-color 0.2s ease;
+        }
+
+        .week-card:hover {
+            border-color: var(--border-hover);
+        }
+
+        /* Per-track left border accent */
+        .week-card.track-fundamentals { border-left: 3px solid var(--track-fundamentals); }
+        .week-card.track-micropython  { border-left: 3px solid var(--track-micropython); }
+        .week-card.track-electronics  { border-left: 3px solid var(--track-electronics); }
+        .week-card.track-maker        { border-left: 3px solid var(--track-maker); }
+        .week-card.track-engineering  { border-left: 3px solid var(--track-engineering); }
+
+        /* Always-visible clickable header */
+        .week-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 22px;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s ease;
+        }
+
+        .week-header:hover {
+            background: rgba(197, 26, 74, 0.04);
+        }
+
+        .week-header-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        /* Track number badge — inherits track color via inline style */
+        .week-num {
+            color: #000;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.95rem;
+            flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .week-title-group .week-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1.25;
+            font-family: 'Courier New', Courier, monospace;
+            letter-spacing: 0.5px;
+        }
+
+        .week-title-group .week-sub {
+            font-size: 0.83rem;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        /* Objective and item count tags */
+        .week-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 5px;
+            flex-wrap: wrap;
+        }
+
+        .obj-tag {
+            font-size: 0.68rem;
+            font-weight: 700;
+            color: var(--pi-secondary);
+            background: rgba(197, 26, 74, 0.08);
+            border: 1px solid rgba(197, 26, 74, 0.18);
+            padding: 2px 8px;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+        }
+
+        /* Per-track obj-tag color overrides */
+        .track-micropython  .obj-tag { color: #22d3ee; background: rgba(34, 211, 238, 0.08); border-color: rgba(34, 211, 238, 0.22); }
+        .track-electronics  .obj-tag { color: #f59e0b; background: rgba(245, 158, 11, 0.08); border-color: rgba(245, 158, 11, 0.22); }
+        .track-maker        .obj-tag { color: #ec4899; background: rgba(236, 72, 153, 0.08); border-color: rgba(236, 72, 153, 0.22); }
+        .track-engineering  .obj-tag { color: #a78bfa; background: rgba(167, 139, 250, 0.08); border-color: rgba(167, 139, 250, 0.22); }
+
+        .item-count-tag {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            background: rgba(197, 26, 74, 0.04);
+            border: 1px solid rgba(197, 26, 74, 0.10);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        /* Chevron: rotates 180deg when track is open */
+        .week-toggle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            transition: transform 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .week-card.open .week-toggle {
+            transform: rotate(180deg);
+        }
+
+        /* Expand/collapse via max-height transition */
+        .week-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .week-card.open .week-body {
+            max-height: 6000px;
+        }
+
+        .week-inner {
+            padding: 4px 22px 24px;
+            border-top: 1px solid rgba(197, 26, 74, 0.06);
+        }
+
+        /* ── Per-track progress bar ── */
+        .week-progress {
+            margin: 14px 0 8px;
+        }
+
+        .week-progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.70rem;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .week-progress-bar-container {
+            background: rgba(197, 26, 74, 0.06);
+            border-radius: 6px;
+            height: 5px;
+            overflow: hidden;
+        }
+
+        .week-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--pi-dark), var(--pi-primary));
+            width: 0%;
+            transition: width 0.5s ease;
+            border-radius: 6px;
+        }
+
+        /* Per-track progress bar color overrides */
+        .track-micropython .week-progress-bar { background: linear-gradient(90deg, #0e7490, #22d3ee); }
+        .track-electronics .week-progress-bar { background: linear-gradient(90deg, #92400e, #f59e0b); }
+        .track-maker        .week-progress-bar { background: linear-gradient(90deg, #9d174d, #ec4899); }
+        .track-engineering  .week-progress-bar { background: linear-gradient(90deg, #5b21b6, #a78bfa); }
+
+        /* ── Track Overview Card ── */
+        .week-overview {
+            background: linear-gradient(135deg, rgba(197, 26, 74, 0.04), rgba(197, 26, 74, 0.01));
+            border: 1px solid rgba(197, 26, 74, 0.15);
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+            margin-top: 14px;
+        }
+
+        .week-overview-title {
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--pi-secondary);
+            margin-bottom: 8px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .week-overview-desc {
+            font-size: 0.86rem;
+            color: var(--text-secondary);
+            line-height: 1.65;
+        }
+
+        /* Track overview border color per track */
+        .track-micropython .week-overview { border-color: rgba(34, 211, 238, 0.15); background: linear-gradient(135deg, rgba(34, 211, 238, 0.04), rgba(34, 211, 238, 0.01)); }
+        .track-micropython .week-overview-title { color: #22d3ee; }
+        .track-electronics .week-overview { border-color: rgba(245, 158, 11, 0.15); background: linear-gradient(135deg, rgba(245, 158, 11, 0.04), rgba(245, 158, 11, 0.01)); }
+        .track-electronics .week-overview-title { color: #f59e0b; }
+        .track-maker        .week-overview { border-color: rgba(236, 72, 153, 0.15); background: linear-gradient(135deg, rgba(236, 72, 153, 0.04), rgba(236, 72, 153, 0.01)); }
+        .track-maker        .week-overview-title { color: #ec4899; }
+        .track-engineering  .week-overview { border-color: rgba(167, 139, 250, 0.15); background: linear-gradient(135deg, rgba(167, 139, 250, 0.04), rgba(167, 139, 250, 0.01)); }
+        .track-engineering  .week-overview-title { color: #a78bfa; }
+
+        /* ── Module grid ── */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 6px;
+        }
+
+        /* ── Module link cards ── */
+        .content-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 14px;
+            background: rgba(197, 26, 74, 0.02);
+            border: 1px solid rgba(197, 26, 74, 0.07);
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+        }
+
+        .content-card:hover {
+            background: rgba(197, 26, 74, 0.07);
+            border-color: rgba(197, 26, 74, 0.22);
+            transform: translateX(3px);
+        }
+
+        /* Completed module state */
+        .content-card.is-complete {
+            border-color: rgba(197, 26, 74, 0.30);
+            background: rgba(197, 26, 74, 0.04);
+        }
+
+        /* Per-track card hover overrides */
+        .track-micropython .content-card:hover { background: rgba(34, 211, 238, 0.07); border-color: rgba(34, 211, 238, 0.22); }
+        .track-electronics .content-card:hover { background: rgba(245, 158, 11, 0.07); border-color: rgba(245, 158, 11, 0.22); }
+        .track-maker        .content-card:hover { background: rgba(236, 72, 153, 0.07); border-color: rgba(236, 72, 153, 0.22); }
+        .track-engineering  .content-card:hover { background: rgba(167, 139, 250, 0.07); border-color: rgba(167, 139, 250, 0.22); }
+
+        /* Module ID badge */
+        .card-id-badge {
+            font-size: 0.60rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: var(--pi-secondary);
+            background: rgba(197, 26, 74, 0.08);
+            border: 1px solid rgba(197, 26, 74, 0.18);
+            padding: 2px 7px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: nowrap;
+        }
+
+        /* Per-track badge color */
+        .track-micropython .card-id-badge { color: #22d3ee; background: rgba(34, 211, 238, 0.08); border-color: rgba(34, 211, 238, 0.20); }
+        .track-electronics .card-id-badge { color: #f59e0b; background: rgba(245, 158, 11, 0.08); border-color: rgba(245, 158, 11, 0.20); }
+        .track-maker        .card-id-badge { color: #ec4899; background: rgba(236, 72, 153, 0.08); border-color: rgba(236, 72, 153, 0.20); }
+        .track-engineering  .card-id-badge { color: #a78bfa; background: rgba(167, 139, 250, 0.08); border-color: rgba(167, 139, 250, 0.20); }
+
+        .card-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            opacity: 0.75;
+        }
+
+        .card-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .card-info .card-title {
+            font-size: 0.86rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .card-info .card-sub {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-top: 1px;
+        }
+
+        /* Green checkmark: hidden until is-complete */
+        .card-check {
+            width: 16px;
+            height: 16px;
+            opacity: 0;
+            flex-shrink: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .content-card.is-complete .card-check {
+            opacity: 1;
+        }
+
+        /* ── Cross-Reference Panel ── */
+        .signal-panel {
+            background: var(--bg-card);
+            border: 1px solid rgba(197, 26, 74, 0.18);
+            border-radius: 12px;
+            padding: 26px 28px;
+            margin-top: 36px;
+            margin-bottom: 10px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .signal-panel-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 6px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .signal-panel-header h3 {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--pi-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .signal-panel-icon {
+            width: 18px;
+            height: 18px;
+            opacity: 0.80;
+        }
+
+        .signal-panel-note {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            font-style: italic;
+            margin-bottom: 16px;
+            margin-top: 12px;
+            padding: 8px 14px;
+            border-left: 2px solid rgba(197, 26, 74, 0.3);
+        }
+
+        .signal-links {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 8px;
+        }
+
+        .signal-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            background: rgba(197, 26, 74, 0.03);
+            border: 1px solid rgba(197, 26, 74, 0.10);
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+            transition: all 0.2s ease;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .signal-link:hover {
+            background: rgba(197, 26, 74, 0.08);
+            border-color: rgba(197, 26, 74, 0.25);
+            color: var(--text-primary);
+            transform: translateX(2px);
+        }
+
+        .signal-link-id {
+            font-size: 0.60rem;
+            font-weight: 700;
+            color: var(--pi-secondary);
+            background: rgba(197, 26, 74, 0.10);
+            border: 1px solid rgba(197, 26, 74, 0.20);
+            padding: 2px 7px;
+            border-radius: 3px;
+            white-space: nowrap;
+            letter-spacing: 0.5px;
+            flex-shrink: 0;
+        }
+
+        /* ── Attribution footer ── */
+        .attribution-block {
+            background: rgba(197, 26, 74, 0.03);
+            border: 1px solid rgba(197, 26, 74, 0.10);
+            border-radius: 8px;
+            padding: 14px 20px;
+            margin-top: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.76rem;
+            color: var(--text-muted);
+        }
+
+        .attribution-block-icon {
+            width: 16px;
+            height: 16px;
+            opacity: 0.6;
+            flex-shrink: 0;
+        }
+
+        /* ── Page footer ── */
+        .page-footer {
+            text-align: center;
+            padding: 28px 0 10px;
+            color: var(--text-muted);
+            font-size: 0.72rem;
+            font-family: 'Courier New', Courier, monospace;
+            letter-spacing: 0.5px;
+        }
+
+        .page-footer .footer-sub {
+            margin-top: 4px;
+            font-size: 0.65rem;
+            opacity: 0.7;
+        }
+
+        /* ── Mobile responsive ── */
+        @media (max-width: 768px) {
+            body { padding: 12px; }
+            .header { padding: 32px 16px 28px; }
+            .header h2 { font-size: 2.2rem; }
+            .header .subtitle { font-size: 0.82rem; }
+            .course-stats { gap: 10px; }
+            .course-stat { padding: 8px 14px; }
+            .course-stat .value { font-size: 1.15rem; }
+            .week-header { padding: 14px 16px; }
+            .week-inner { padding: 4px 16px 18px; }
+            .signal-links { grid-template-columns: 1fr; }
+            .pi-board-wrapper { width: 160px; }
+        }
+
+        @media (max-width: 480px) {
+            .header h2 { font-size: 1.7rem; }
+            .course-stat { padding: 6px 10px; }
+            .course-stat .value { font-size: 1rem; }
+            .course-stat .label { font-size: 0.60rem; }
+            .week-num { width: 34px; height: 34px; font-size: 0.82rem; }
+            .week-title-group .week-title { font-size: 0.92rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Hidden H1 for screen readers and SEO -->
+    <h1 class="visually-hidden">PiVerse — The Raspberry Pi Learning Ecosystem — Matrix House, Hexworth Prime</h1>
+
+    <div class="container">
+
+        <!-- ── Top Bar ── -->
+        <div class="top-bar">
+            <span class="course-label">PiVerse // Matrix House</span>
+            <a href="../index.html" class="dashboard-btn" id="dashboardBtn">
+                <img src="../../../../assets/images/icons/icon-matrix.webp"
+                     alt="" class="dashboard-btn-icon" aria-hidden="true">
+                Matrix Hub
+            </a>
+        </div>
+
+        <!-- ── Hero Header ── -->
+        <div class="header">
+            <span class="course-badge">MATRIX HOUSE // HARDWARE TRACK</span>
+
+            <!-- Raspberry Pi SVG board with blinking LED -->
+            <div class="pi-board-wrapper" aria-hidden="true">
+                <svg viewBox="0 0 220 150" xmlns="http://www.w3.org/2000/svg" width="220" height="150">
+                    <!-- Board body -->
+                    <rect x="10" y="10" width="200" height="130" rx="8" ry="8"
+                          fill="#1a2e1a" stroke="#3a5a3a" stroke-width="1.5"/>
+                    <!-- PCB trace lines -->
+                    <line x1="30" y1="40" x2="80" y2="40" stroke="#2d6b2d" stroke-width="0.8"/>
+                    <line x1="80" y1="40" x2="80" y2="70" stroke="#2d6b2d" stroke-width="0.8"/>
+                    <line x1="80" y1="70" x2="140" y2="70" stroke="#2d6b2d" stroke-width="0.8"/>
+                    <line x1="140" y1="40" x2="140" y2="70" stroke="#2d6b2d" stroke-width="0.8"/>
+                    <line x1="140" y1="40" x2="185" y2="40" stroke="#2d6b2d" stroke-width="0.8"/>
+                    <line x1="50" y1="100" x2="50" y2="120" stroke="#2d6b2d" stroke-width="0.8"/>
+                    <line x1="50" y1="120" x2="170" y2="120" stroke="#2d6b2d" stroke-width="0.8"/>
+                    <line x1="170" y1="100" x2="170" y2="120" stroke="#2d6b2d" stroke-width="0.8"/>
+                    <line x1="110" y1="70" x2="110" y2="100" stroke="#2d6b2d" stroke-width="0.8"/>
+                    <!-- SoC chip (main processor) -->
+                    <rect x="88" y="75" width="44" height="32" rx="3" ry="3"
+                          fill="#111" stroke="#444" stroke-width="1"/>
+                    <text x="110" y="95" text-anchor="middle" font-family="'Courier New', monospace"
+                          font-size="6" fill="#888">BCM2712</text>
+                    <!-- RAM chip -->
+                    <rect x="50" y="45" width="26" height="18" rx="2" ry="2"
+                          fill="#111" stroke="#333" stroke-width="0.8"/>
+                    <text x="63" y="57" text-anchor="middle" font-family="'Courier New', monospace"
+                          font-size="5" fill="#666">RAM</text>
+                    <!-- USB ports -->
+                    <rect x="15" y="55" width="12" height="8" rx="1"
+                          fill="#222" stroke="#555" stroke-width="0.8"/>
+                    <rect x="15" y="67" width="12" height="8" rx="1"
+                          fill="#222" stroke="#555" stroke-width="0.8"/>
+                    <text x="21" y="84" text-anchor="middle" font-family="'Courier New', monospace"
+                          font-size="4" fill="#555">USB</text>
+                    <!-- GPIO header pins -->
+                    <rect x="155" y="20" width="40" height="6" rx="1"
+                          fill="#1a1a1a" stroke="#444" stroke-width="0.8"/>
+                    <!-- GPIO pin dots -->
+                    <circle cx="159" cy="23" r="1.2" fill="#888"/>
+                    <circle cx="164" cy="23" r="1.2" fill="#888"/>
+                    <circle cx="169" cy="23" r="1.2" fill="#888"/>
+                    <circle cx="174" cy="23" r="1.2" fill="#888"/>
+                    <circle cx="179" cy="23" r="1.2" fill="#888"/>
+                    <circle cx="184" cy="23" r="1.2" fill="#888"/>
+                    <circle cx="189" cy="23" r="1.2" fill="#888"/>
+                    <text x="175" y="33" text-anchor="middle" font-family="'Courier New', monospace"
+                          font-size="4" fill="#555">GPIO</text>
+                    <!-- microSD slot -->
+                    <rect x="88" y="128" width="28" height="10" rx="1"
+                          fill="#333" stroke="#555" stroke-width="0.8"/>
+                    <text x="102" y="136" text-anchor="middle" font-family="'Courier New', monospace"
+                          font-size="4" fill="#666">SD</text>
+                    <!-- Power LED (red) -->
+                    <circle cx="185" cy="115" r="4" fill="#c51a4a" opacity="0.9"/>
+                    <text x="185" y="128" text-anchor="middle" font-family="'Courier New', monospace"
+                          font-size="4" fill="#8b1133">PWR</text>
+                    <!-- Activity LED (green) — this one blinks -->
+                    <circle cx="172" cy="115" r="4" fill="#22c55e" class="pi-led-blink"/>
+                    <text x="172" y="128" text-anchor="middle" font-family="'Courier New', monospace"
+                          font-size="4" fill="#15803d">ACT</text>
+                    <!-- Mounting holes -->
+                    <circle cx="22" cy="18" r="3" fill="none" stroke="#2a3a2a" stroke-width="1"/>
+                    <circle cx="198" cy="18" r="3" fill="none" stroke="#2a3a2a" stroke-width="1"/>
+                    <circle cx="22" cy="132" r="3" fill="none" stroke="#2a3a2a" stroke-width="1"/>
+                    <circle cx="198" cy="132" r="3" fill="none" stroke="#2a3a2a" stroke-width="1"/>
+                </svg>
+            </div>
+
+            <h2>PiVerse</h2>
+            <p class="subtitle">The Raspberry Pi Learning Ecosystem</p>
+
+            <!-- Hero stat chips -->
+            <div class="course-stats">
+                <div class="course-stat">
+                    <div class="value">5</div>
+                    <div class="label">Tracks</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">50</div>
+                    <div class="label">Modules</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">Pi Press</div>
+                    <div class="label">Partnership</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Overall Progress ── -->
+        <div class="progress-section">
+            <h3>Board Status: Overall Progress</h3>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <div class="progress-text" id="progressText">Loading...</div>
+        </div>
+
+        <!-- ── Learning Tracks ── -->
+        <div class="section-heading">PiVerse Learning Tracks</div>
+
+
+        <!-- ════════════════════════════════════════════
+             TRACK 1: Pi Fundamentals
+             10 modules — pv-f-01 through pv-f-10
+             Color: #c51a4a (red)
+        ════════════════════════════════════════════ -->
+        <div class="week-card track-fundamentals" id="tr01">
+            <div class="week-header" onclick="toggleWeek('tr01')">
+                <div class="week-header-left">
+                    <div class="week-num" style="background: linear-gradient(135deg, #8b1133, #c51a4a);">1</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Pi Fundamentals</div>
+                        <div class="week-sub">TRACK 1 // HARDWARE FOUNDATIONS</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Raspberry Pi</span>
+                            <span class="obj-tag">Linux</span>
+                            <span class="obj-tag">GPIO</span>
+                            <span class="item-count-tag">10 modules</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Track 1 Progress</span>
+                            <span id="tr01-progress-text">0 / 10</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="tr01-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <div class="week-overview">
+                        <div class="week-overview-title">HARDWARE FOUNDATIONS // GETTING STARTED WITH PI</div>
+                        <div class="week-overview-desc">
+                            Start from zero. Understand the Raspberry Pi hardware family, set up your first Pi from scratch, and navigate Raspberry Pi OS. Learn the Linux command line, filesystem structure, user management, and package management. Establish the foundational skills every Pi project depends on — from first boot to a fully configured, network-connected system ready for real work.
+                        </div>
+                    </div>
+
+                    <div class="content-grid">
+
+                        <a href="fundamentals/pv-f-01.html" class="content-card" data-module="pv-f-01">
+                            <img src="../../../../assets/images/icons/icon-circuit.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-F-01</span>
+                            <div class="card-info">
+                                <div class="card-title">The Raspberry Pi Family</div>
+                                <div class="card-sub">Pi 4, Pi 5, Pi Zero, Pico — hardware specs, use cases, choosing the right board</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="fundamentals/pv-f-02.html" class="content-card" data-module="pv-f-02">
+                            <img src="../../../../assets/images/icons/icon-circuit.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-F-02</span>
+                            <div class="card-info">
+                                <div class="card-title">First Boot and OS Setup</div>
+                                <div class="card-sub">Raspberry Pi Imager, SD card prep, initial config, first login, raspi-config walkthrough</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="fundamentals/pv-f-03.html" class="content-card" data-module="pv-f-03">
+                            <img src="../../../../assets/images/icons/icon-terminal.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-F-03</span>
+                            <div class="card-info">
+                                <div class="card-title">Linux Command Line Basics</div>
+                                <div class="card-sub">Navigation, file operations, permissions, redirection, pipes, and essential CLI tools</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="fundamentals/pv-f-04.html" class="content-card" data-module="pv-f-04">
+                            <img src="../../../../assets/images/icons/icon-terminal.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-F-04</span>
+                            <div class="card-info">
+                                <div class="card-title">Filesystem and Storage</div>
+                                <div class="card-sub">Linux filesystem hierarchy, mounting USB drives, df/du, partition management, storage best practices</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="fundamentals/pv-f-05.html" class="content-card" data-module="pv-f-05">
+                            <img src="../../../../assets/images/icons/icon-users.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-F-05</span>
+                            <div class="card-info">
+                                <div class="card-title">Users, Groups, and Permissions</div>
+                                <div class="card-sub">useradd, passwd, chmod, chown, sudo configuration, principle of least privilege on Pi OS</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="fundamentals/pv-f-06.html" class="content-card" data-module="pv-f-06">
+                            <img src="../../../../assets/images/icons/icon-package.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-F-06</span>
+                            <div class="card-info">
+                                <div class="card-title">Package Management with apt</div>
+                                <div class="card-sub">apt update, upgrade, install, remove; PPAs, dpkg, keeping Pi OS clean and current</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="fundamentals/pv-f-07.html" class="content-card" data-module="pv-f-07">
+                            <img src="../../../../assets/images/icons/icon-globe.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-F-07</span>
+                            <div class="card-info">
+                                <div class="card-title">Networking on the Pi</div>
+                                <div class="card-sub">WiFi config, static IP, SSH setup, hostname resolution, nmcli, network troubleshooting</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="fundamentals/pv-f-08.html" class="content-card" data-module="pv-f-08">
+                            <img src="../../../../assets/images/icons/icon-shell.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-F-08</span>
+                            <div class="card-info">
+                                <div class="card-title">Bash Scripting for Pi Automation</div>
+                                <div class="card-sub">Variables, conditionals, loops, functions, cron jobs, writing real automation scripts for Pi projects</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="fundamentals/pv-f-09.html" class="content-card" data-module="pv-f-09">
+                            <img src="../../../../assets/images/icons/icon-circuit.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-F-09</span>
+                            <div class="card-info">
+                                <div class="card-title">GPIO Architecture and Pinout</div>
+                                <div class="card-sub">40-pin header, BCM vs BOARD numbering, power rails, GPIO voltage levels, reading the pinout</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="fundamentals/pv-f-10.html" class="content-card" data-module="pv-f-10">
+                            <img src="../../../../assets/images/icons/icon-gear.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-F-10</span>
+                            <div class="card-info">
+                                <div class="card-title">System Monitoring and Maintenance</div>
+                                <div class="card-sub">htop, systemctl, journalctl, log rotation, temperature monitoring, keeping Pi healthy long-term</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                    </div>
+                </div>
+            </div>
+        </div><!-- /tr01 -->
+
+
+        <!-- ════════════════════════════════════════════
+             TRACK 2: MicroPython on Pico
+             12 modules — pv-mp-01 through pv-mp-12
+             Color: #22d3ee (cyan)
+        ════════════════════════════════════════════ -->
+        <div class="week-card track-micropython" id="tr02">
+            <div class="week-header" onclick="toggleWeek('tr02')">
+                <div class="week-header-left">
+                    <div class="week-num" style="background: linear-gradient(135deg, #0e7490, #22d3ee);">2</div>
+                    <div class="week-title-group">
+                        <div class="week-title">MicroPython on Pico</div>
+                        <div class="week-sub">TRACK 2 // EMBEDDED PROGRAMMING</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">MicroPython</span>
+                            <span class="obj-tag">Pico</span>
+                            <span class="obj-tag">Embedded</span>
+                            <span class="item-count-tag">12 modules</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Track 2 Progress</span>
+                            <span id="tr02-progress-text">0 / 12</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="tr02-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <div class="week-overview">
+                        <div class="week-overview-title">EMBEDDED PROGRAMMING // MICROPYTHON ON PICO</div>
+                        <div class="week-overview-desc">
+                            The Raspberry Pi Pico is a microcontroller — no operating system, bare hardware, direct control. This track takes you from flashing MicroPython firmware to writing production-quality embedded code. Control LEDs, read sensors, build state machines, drive displays, and communicate over I2C and SPI. By the end, you will have a complete toolkit for embedded systems work.
+                        </div>
+                    </div>
+
+                    <div class="content-grid">
+
+                        <a href="micropython/pv-mp-01.html" class="content-card" data-module="pv-mp-01">
+                            <img src="../../../../assets/images/icons/icon-circuit.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-MP-01</span>
+                            <div class="card-info">
+                                <div class="card-title">The Pico Platform</div>
+                                <div class="card-sub">RP2040 architecture, Pico vs Pico W, pinout, power options, flashing MicroPython firmware</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="micropython/pv-mp-02.html" class="content-card" data-module="pv-mp-02">
+                            <img src="../../../../assets/images/icons/icon-code.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-MP-02</span>
+                            <div class="card-info">
+                                <div class="card-title">MicroPython Foundations</div>
+                                <div class="card-sub">REPL workflow, variables, types, functions, modules, memory model differences from CPython</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="micropython/pv-mp-03.html" class="content-card" data-module="pv-mp-03">
+                            <img src="../../../../assets/images/icons/icon-plug.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-MP-03</span>
+                            <div class="card-info">
+                                <div class="card-title">Digital I/O and LED Control</div>
+                                <div class="card-sub">machine.Pin, output/input modes, blink patterns, button debounce, internal LED, external circuits</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="micropython/pv-mp-04.html" class="content-card" data-module="pv-mp-04">
+                            <img src="../../../../assets/images/icons/icon-controls.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-MP-04</span>
+                            <div class="card-info">
+                                <div class="card-title">PWM and Analog Output</div>
+                                <div class="card-sub">PWM frequency and duty cycle, LED dimming, servo motor control, buzzer tones with machine.PWM</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="micropython/pv-mp-05.html" class="content-card" data-module="pv-mp-05">
+                            <img src="../../../../assets/images/icons/icon-chart.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-MP-05</span>
+                            <div class="card-info">
+                                <div class="card-title">ADC and Analog Sensors</div>
+                                <div class="card-sub">machine.ADC, potentiometers, temperature sensor (internal), light-dependent resistors, sensor scaling</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="micropython/pv-mp-06.html" class="content-card" data-module="pv-mp-06">
+                            <img src="../../../../assets/images/icons/icon-branch.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-MP-06</span>
+                            <div class="card-info">
+                                <div class="card-title">I2C Communication</div>
+                                <div class="card-sub">I2C protocol, machine.I2C, scanning for devices, OLED displays (SSD1306), sensor modules</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="micropython/pv-mp-07.html" class="content-card" data-module="pv-mp-07">
+                            <img src="../../../../assets/images/icons/icon-branch.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-MP-07</span>
+                            <div class="card-info">
+                                <div class="card-title">SPI Communication</div>
+                                <div class="card-sub">SPI protocol, machine.SPI, SD card interfacing, TFT display drivers, chip select management</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="micropython/pv-mp-08.html" class="content-card" data-module="pv-mp-08">
+                            <img src="../../../../assets/images/icons/icon-stopwatch.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-MP-08</span>
+                            <div class="card-info">
+                                <div class="card-title">Timers and Interrupts</div>
+                                <div class="card-sub">machine.Timer, machine.Pin IRQ, interrupt service routines, time-critical tasks, avoiding race conditions</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="micropython/pv-mp-09.html" class="content-card" data-module="pv-mp-09">
+                            <img src="../../../../assets/images/icons/icon-antenna.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-MP-09</span>
+                            <div class="card-info">
+                                <div class="card-title">Pico W Wireless Connectivity</div>
+                                <div class="card-sub">network module, WiFi connection, HTTP requests with urequests, simple REST API integration on Pico W</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="micropython/pv-mp-10.html" class="content-card" data-module="pv-mp-10">
+                            <img src="../../../../assets/images/icons/icon-database.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-MP-10</span>
+                            <div class="card-info">
+                                <div class="card-title">File I/O and Flash Storage</div>
+                                <div class="card-sub">uos module, reading and writing files on flash, data logging patterns, config files, wear considerations</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="micropython/pv-mp-11.html" class="content-card" data-module="pv-mp-11">
+                            <img src="../../../../assets/images/icons/icon-gear.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-MP-11</span>
+                            <div class="card-info">
+                                <div class="card-title">State Machines and Event Loops</div>
+                                <div class="card-sub">Designing embedded state machines, uasyncio basics, cooperative multitasking, non-blocking patterns</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="micropython/pv-mp-12.html" class="content-card" data-module="pv-mp-12">
+                            <img src="../../../../assets/images/icons/icon-tools.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-MP-12</span>
+                            <div class="card-info">
+                                <div class="card-title">Capstone: Sensor Data Logger</div>
+                                <div class="card-sub">End-to-end project: read multiple sensors, log to flash, display on OLED, transmit over WiFi via Pico W</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                    </div>
+                </div>
+            </div>
+        </div><!-- /tr02 -->
+
+
+        <!-- ════════════════════════════════════════════
+             TRACK 3: Electronics and GPIO
+             10 modules — pv-e-01 through pv-e-10
+             Color: #f59e0b (amber)
+        ════════════════════════════════════════════ -->
+        <div class="week-card track-electronics" id="tr03">
+            <div class="week-header" onclick="toggleWeek('tr03')">
+                <div class="week-header-left">
+                    <div class="week-num" style="background: linear-gradient(135deg, #92400e, #f59e0b);">3</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Electronics and GPIO</div>
+                        <div class="week-sub">TRACK 3 // CIRCUITS AND INTERFACES</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Electronics</span>
+                            <span class="obj-tag">GPIO</span>
+                            <span class="obj-tag">Sensors</span>
+                            <span class="item-count-tag">10 modules</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Track 3 Progress</span>
+                            <span id="tr03-progress-text">0 / 10</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="tr03-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <div class="week-overview">
+                        <div class="week-overview-title">CIRCUITS AND INTERFACES // REAL HARDWARE CONTROL</div>
+                        <div class="week-overview-desc">
+                            Software is only half the story. This track grounds you in the electronics principles that underpin every Pi project. Read schematics, calculate resistor values, understand voltage and current, and wire real circuits on a breadboard. Interface sensors, motor drivers, relays, and displays directly to GPIO. By the end you will be comfortable reading a datasheet and building reliable hardware-software systems.
+                        </div>
+                    </div>
+
+                    <div class="content-grid">
+
+                        <a href="electronics/pv-e-01.html" class="content-card" data-module="pv-e-01">
+                            <img src="../../../../assets/images/icons/icon-circuit.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-E-01</span>
+                            <div class="card-info">
+                                <div class="card-title">Electronics Fundamentals</div>
+                                <div class="card-sub">Voltage, current, resistance, Ohm's law, power dissipation, DC circuits — the math you need</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="electronics/pv-e-02.html" class="content-card" data-module="pv-e-02">
+                            <img src="../../../../assets/images/icons/icon-circuit.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-E-02</span>
+                            <div class="card-info">
+                                <div class="card-title">Breadboarding and Prototyping</div>
+                                <div class="card-sub">Breadboard topology, jumper wires, reading schematics, safe wiring practices, common mistakes</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="electronics/pv-e-03.html" class="content-card" data-module="pv-e-03">
+                            <img src="../../../../assets/images/icons/icon-battery.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-E-03</span>
+                            <div class="card-info">
+                                <div class="card-title">GPIO Electrical Characteristics</div>
+                                <div class="card-sub">3.3V logic levels, max current per pin, pull-up/pull-down resistors, 5V tolerance risks, level shifting</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="electronics/pv-e-04.html" class="content-card" data-module="pv-e-04">
+                            <img src="../../../../assets/images/icons/icon-plug.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-E-04</span>
+                            <div class="card-info">
+                                <div class="card-title">LEDs, Buttons, and Switches</div>
+                                <div class="card-sub">Resistor selection for LEDs, input debouncing, pull-up vs pull-down configs, RPi.GPIO and gpiozero</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="electronics/pv-e-05.html" class="content-card" data-module="pv-e-05">
+                            <img src="../../../../assets/images/icons/icon-chart.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-E-05</span>
+                            <div class="card-info">
+                                <div class="card-title">Sensors: Temperature, Humidity, Distance</div>
+                                <div class="card-sub">DHT22, DS18B20, HC-SR04; one-wire protocol, sensor libraries, data validation, reading datasheets</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="electronics/pv-e-06.html" class="content-card" data-module="pv-e-06">
+                            <img src="../../../../assets/images/icons/icon-controls.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-E-06</span>
+                            <div class="card-info">
+                                <div class="card-title">Motor Control: DC and Stepper</div>
+                                <div class="card-sub">L298N driver module, PWM motor speed, stepper sequences, H-bridge theory, current ratings</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="electronics/pv-e-07.html" class="content-card" data-module="pv-e-07">
+                            <img src="../../../../assets/images/icons/icon-gear.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-E-07</span>
+                            <div class="card-info">
+                                <div class="card-title">Relays and High-Voltage Switching</div>
+                                <div class="card-sub">Relay module wiring, flyback diodes, opto-isolation, SSRs, safely switching mains-connected loads</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="electronics/pv-e-08.html" class="content-card" data-module="pv-e-08">
+                            <img src="../../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-E-08</span>
+                            <div class="card-info">
+                                <div class="card-title">Displays: OLED, LCD, and TFT</div>
+                                <div class="card-sub">I2C OLED (SSD1306), 16x2 LCD with I2C backpack, SPI TFT screens, Pillow/luma.oled libraries</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="electronics/pv-e-09.html" class="content-card" data-module="pv-e-09">
+                            <img src="../../../../assets/images/icons/icon-camera.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-E-09</span>
+                            <div class="card-info">
+                                <div class="card-title">Camera Module Integration</div>
+                                <div class="card-sub">Pi Camera v2/v3, rpicam-apps, Picamera2 library, still images, video capture, basic image processing</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="electronics/pv-e-10.html" class="content-card" data-module="pv-e-10">
+                            <img src="../../../../assets/images/icons/icon-tools.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-E-10</span>
+                            <div class="card-info">
+                                <div class="card-title">Debugging Hardware Circuits</div>
+                                <div class="card-sub">Multimeter use, voltage testing, logic analyzer basics, common failure modes, systematic debug methodology</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                    </div>
+                </div>
+            </div>
+        </div><!-- /tr03 -->
+
+
+        <!-- ════════════════════════════════════════════
+             TRACK 4: Maker's Workshop
+             10 modules — pv-m-01 through pv-m-10
+             Color: #ec4899 (pink)
+        ════════════════════════════════════════════ -->
+        <div class="week-card track-maker" id="tr04">
+            <div class="week-header" onclick="toggleWeek('tr04')">
+                <div class="week-header-left">
+                    <div class="week-num" style="background: linear-gradient(135deg, #9d174d, #ec4899);">4</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Maker's Workshop</div>
+                        <div class="week-sub">TRACK 4 // PROJECT-DRIVEN BUILDS</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Projects</span>
+                            <span class="obj-tag">IoT</span>
+                            <span class="obj-tag">Automation</span>
+                            <span class="item-count-tag">10 modules</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Track 4 Progress</span>
+                            <span id="tr04-progress-text">0 / 10</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="tr04-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <div class="week-overview">
+                        <div class="week-overview-title">PROJECT-DRIVEN BUILDS // MAKER MINDSET</div>
+                        <div class="week-overview-desc">
+                            Build real things. This track is structured around complete projects, each introducing a new integration pattern. Weather stations, home automation nodes, retro game consoles, timelapse rigs, and network-attached devices. Every module starts with a wiring diagram, walks through the code, and delivers a working system. This is where electronics knowledge becomes tangible product.
+                        </div>
+                    </div>
+
+                    <div class="content-grid">
+
+                        <a href="maker/pv-m-01.html" class="content-card" data-module="pv-m-01">
+                            <img src="../../../../assets/images/icons/icon-chart.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-M-01</span>
+                            <div class="card-info">
+                                <div class="card-title">Weather Station Build</div>
+                                <div class="card-sub">DHT22 + BMP280, Flask web dashboard, live data display, storing readings to SQLite, Pi as local server</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="maker/pv-m-02.html" class="content-card" data-module="pv-m-02">
+                            <img src="../../../../assets/images/icons/icon-globe.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-M-02</span>
+                            <div class="card-info">
+                                <div class="card-title">Pi as a Web Server</div>
+                                <div class="card-sub">Nginx on Pi, serving static sites, Flask API endpoints, exposing services with ngrok, local DNS setup</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="maker/pv-m-03.html" class="content-card" data-module="pv-m-03">
+                            <img src="../../../../assets/images/icons/icon-eye.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-M-03</span>
+                            <div class="card-info">
+                                <div class="card-title">Motion-Triggered Security Camera</div>
+                                <div class="card-sub">PIR sensor + Pi Camera, motion detection script, email/Telegram alerts, timelapse capture, local NAS storage</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="maker/pv-m-04.html" class="content-card" data-module="pv-m-04">
+                            <img src="../../../../assets/images/icons/icon-controls.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-M-04</span>
+                            <div class="card-info">
+                                <div class="card-title">Home Automation Node</div>
+                                <div class="card-sub">MQTT with Mosquitto, Home Assistant integration, GPIO-controlled relays, Paho-MQTT Python client</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="maker/pv-m-05.html" class="content-card" data-module="pv-m-05">
+                            <img src="../../../../assets/images/icons/icon-game.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-M-05</span>
+                            <div class="card-info">
+                                <div class="card-title">Retro Game Console</div>
+                                <div class="card-sub">RetroPie setup, custom enclosure planning, controller wiring, ROM management, HDMI output config</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="maker/pv-m-06.html" class="content-card" data-module="pv-m-06">
+                            <img src="../../../../assets/images/icons/icon-antenna.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-M-06</span>
+                            <div class="card-info">
+                                <div class="card-title">Pi-hole Network Ad Blocker</div>
+                                <div class="card-sub">Pi-hole installation, DNS sinkhole configuration, blocklist management, network-wide ad blocking setup</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="maker/pv-m-07.html" class="content-card" data-module="pv-m-07">
+                            <img src="../../../../assets/images/icons/icon-robot.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-M-07</span>
+                            <div class="card-info">
+                                <div class="card-title">Autonomous Robot Chassis</div>
+                                <div class="card-sub">Motor HAT, ultrasonic obstacle avoidance, line-following sensors, basic autonomous navigation logic</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="maker/pv-m-08.html" class="content-card" data-module="pv-m-08">
+                            <img src="../../../../assets/images/icons/icon-clock.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-M-08</span>
+                            <div class="card-info">
+                                <div class="card-title">Timelapse and Automation Rig</div>
+                                <div class="card-sub">Picamera2 timelapse scripting, cron-driven automation, servo-controlled pan head, ffmpeg video assembly</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="maker/pv-m-09.html" class="content-card" data-module="pv-m-09">
+                            <img src="../../../../assets/images/icons/icon-database.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-M-09</span>
+                            <div class="card-info">
+                                <div class="card-title">Network Attached Storage (NAS)</div>
+                                <div class="card-sub">Samba setup, USB drive automount, shared folders, user access control, basic NAS for home networks</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="maker/pv-m-10.html" class="content-card" data-module="pv-m-10">
+                            <img src="../../../../assets/images/icons/icon-tools.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-M-10</span>
+                            <div class="card-info">
+                                <div class="card-title">Capstone: IoT Dashboard Device</div>
+                                <div class="card-sub">Full stack: sensor node, MQTT broker, Node-RED dashboard, persistent data, Pi touchscreen display</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                    </div>
+                </div>
+            </div>
+        </div><!-- /tr04 -->
+
+
+        <!-- ════════════════════════════════════════════
+             TRACK 5: Board Engineering
+             8 modules — pv-b-01 through pv-b-08
+             Color: #a78bfa (violet)
+        ════════════════════════════════════════════ -->
+        <div class="week-card track-engineering" id="tr05">
+            <div class="week-header" onclick="toggleWeek('tr05')">
+                <div class="week-header-left">
+                    <div class="week-num" style="background: linear-gradient(135deg, #5b21b6, #a78bfa);">5</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Board Engineering</div>
+                        <div class="week-sub">TRACK 5 // PCB DESIGN AND CUSTOM HARDWARE</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">KiCad</span>
+                            <span class="obj-tag">PCB Design</span>
+                            <span class="obj-tag">HATs</span>
+                            <span class="item-count-tag">8 modules</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Track 5 Progress</span>
+                            <span id="tr05-progress-text">0 / 8</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="tr05-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <div class="week-overview">
+                        <div class="week-overview-title">PCB DESIGN AND CUSTOM HARDWARE // BOARD ENGINEERING</div>
+                        <div class="week-overview-desc">
+                            Stop buying breakout boards. Design your own. This track covers the full PCB design workflow in KiCad: schematic capture, component footprints, PCB layout, design rule checks, and Gerber export for fabrication. Build a custom Raspberry Pi HAT from scratch, understand the HAT specification, and get your board manufactured. The hardware engineer's track.
+                        </div>
+                    </div>
+
+                    <div class="content-grid">
+
+                        <a href="engineering/pv-b-01.html" class="content-card" data-module="pv-b-01">
+                            <img src="../../../../assets/images/icons/icon-circuit.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-B-01</span>
+                            <div class="card-info">
+                                <div class="card-title">Introduction to PCB Design</div>
+                                <div class="card-sub">PCB stack-up, component types (THT vs SMD), design workflow overview, industry tools, KiCad vs Altium</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="engineering/pv-b-02.html" class="content-card" data-module="pv-b-02">
+                            <img src="../../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-B-02</span>
+                            <div class="card-info">
+                                <div class="card-title">KiCad Schematic Capture</div>
+                                <div class="card-sub">KiCad Schematic Editor, placing symbols, wiring nets, power flags, ERC validation, exporting netlists</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="engineering/pv-b-03.html" class="content-card" data-module="pv-b-03">
+                            <img src="../../../../assets/images/icons/icon-ruler.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-B-03</span>
+                            <div class="card-info">
+                                <div class="card-title">Footprints and Component Libraries</div>
+                                <div class="card-sub">KiCad footprint editor, linking symbols to footprints, importing 3D models, building a custom component library</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="engineering/pv-b-04.html" class="content-card" data-module="pv-b-04">
+                            <img src="../../../../assets/images/icons/icon-circuit.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-B-04</span>
+                            <div class="card-info">
+                                <div class="card-title">PCB Layout in KiCad</div>
+                                <div class="card-sub">PCB Editor, component placement strategy, trace routing, ground planes, keepout zones, courtyard rules</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="engineering/pv-b-05.html" class="content-card" data-module="pv-b-05">
+                            <img src="../../../../assets/images/icons/icon-checkbox.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-B-05</span>
+                            <div class="card-info">
+                                <div class="card-title">Design Rule Checks and Validation</div>
+                                <div class="card-sub">KiCad DRC, clearance rules, via constraints, net inspection, fixing violations, pre-fabrication checklist</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="engineering/pv-b-06.html" class="content-card" data-module="pv-b-06">
+                            <img src="../../../../assets/images/icons/icon-document.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-B-06</span>
+                            <div class="card-info">
+                                <div class="card-title">Gerber Export and Fabrication</div>
+                                <div class="card-sub">Gerber file generation, drill files, board outline, fab service comparison (JLCPCB, OSHPark), ordering your first PCB</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="engineering/pv-b-07.html" class="content-card" data-module="pv-b-07">
+                            <img src="../../../../assets/images/icons/icon-circuit.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-B-07</span>
+                            <div class="card-info">
+                                <div class="card-title">Raspberry Pi HAT Specification</div>
+                                <div class="card-sub">HAT mechanical spec, EEPROM requirements, GPIO usage rules, ID EEPROM programming, HAT vs pHAT distinction</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                        <a href="engineering/pv-b-08.html" class="content-card" data-module="pv-b-08">
+                            <img src="../../../../assets/images/icons/icon-tools.webp" alt="" class="card-icon" aria-hidden="true">
+                            <span class="card-id-badge">PV-B-08</span>
+                            <div class="card-info">
+                                <div class="card-title">Capstone: Design a Custom Pi HAT</div>
+                                <div class="card-sub">Full KiCad workflow: schematic, layout, DRC, Gerber export for a sensor HAT with I2C/SPI breakout and EEPROM</div>
+                            </div>
+                            <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                        </a>
+
+                    </div>
+                </div>
+            </div>
+        </div><!-- /tr05 -->
+
+
+        <!-- ── Cross-Reference: From The Signal ── -->
+        <div class="signal-panel">
+            <div class="signal-panel-header">
+                <img src="../../../../assets/images/icons/icon-signal.webp"
+                     alt="" class="signal-panel-icon" aria-hidden="true">
+                <h3>From The Signal</h3>
+            </div>
+            <div class="signal-panel-note">
+                PiVerse teaches concepts. Signal builds hardware. Same topics, different depth.
+            </div>
+            <div class="signal-links">
+
+                <a href="../../../../houses/signal/projects/sg-gpio-blink.html" class="signal-link">
+                    <span class="signal-link-id">SG-GPIO</span>
+                    GPIO LED Blink — First Hardware Project
+                </a>
+
+                <a href="../../../../houses/signal/projects/sg-pico-weather.html" class="signal-link">
+                    <span class="signal-link-id">SG-PICO</span>
+                    Pico W Weather Node Build
+                </a>
+
+                <a href="../../../../houses/signal/projects/sg-pcb-hat.html" class="signal-link">
+                    <span class="signal-link-id">SG-PCB</span>
+                    Designing a Pi Sensor HAT in KiCad
+                </a>
+
+                <a href="../../../../houses/signal/projects/sg-mqtt-node.html" class="signal-link">
+                    <span class="signal-link-id">SG-MQTT</span>
+                    MQTT Sensor Node with Home Assistant
+                </a>
+
+                <a href="../../../../houses/signal/projects/sg-robot.html" class="signal-link">
+                    <span class="signal-link-id">SG-BOT</span>
+                    Autonomous Pi Robot: Motor Control Deep Dive
+                </a>
+
+                <a href="../../../../houses/signal/projects/sg-nas.html" class="signal-link">
+                    <span class="signal-link-id">SG-NAS</span>
+                    Pi NAS Build: Samba, Drives, and Access Control
+                </a>
+
+            </div>
+        </div>
+
+        <!-- ── Attribution ── -->
+        <div class="attribution-block">
+            <img src="../../../../assets/images/icons/icon-handshake.webp"
+                 alt="" class="attribution-block-icon" aria-hidden="true">
+            Content developed in partnership with Raspberry Pi Press
+        </div>
+
+        <!-- ── Page Footer ── -->
+        <div class="page-footer">
+            PiVerse // The Raspberry Pi Learning Ecosystem // Matrix House
+            <div class="footer-sub">5 Tracks &nbsp;|&nbsp; 50 Modules &nbsp;|&nbsp; Raspberry Pi Press Partnership</div>
+        </div>
+
+    </div><!-- /.container -->
+
+    <!-- ── JavaScript ── -->
+    <script>
+        /**
+         * toggleWeek(id)
+         * Adds/removes the 'open' class on a track card to expand or collapse it.
+         * The max-height CSS transition handles the animation.
+         */
+        function toggleWeek(id) {
+            var card = document.getElementById(id);
+            if (card) {
+                card.classList.toggle('open');
+            }
+        }
+
+        // ── Auto-open from URL hash ──────────────────────────────────────────
+        // Supports links like index.html#tr01 to jump directly to a track.
+        (function () {
+            var hash = window.location.hash;
+            if (hash && /^#tr0[1-5]$/.test(hash)) {
+                var id   = hash.substring(1);
+                var card = document.getElementById(id);
+                if (card) {
+                    card.classList.add('open');
+                    setTimeout(function () {
+                        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 300);
+                }
+            }
+        })();
+
+        // ── Progress Tracking ────────────────────────────────────────────────
+        // Runs after DOM is ready. Uses ModuleProgress.isCompleted('matrix', moduleId).
+        // Highlights completed cards, fills per-track bars, fills overall bar.
+        document.addEventListener('DOMContentLoaded', function () {
+            if (!window.ModuleProgress) {
+                document.getElementById('progressText').textContent = 'Progress unavailable';
+                return;
+            }
+
+            // All 50 module IDs grouped by track card ID.
+            var tracks = {
+                tr01: [
+                    'pv-f-01', 'pv-f-02', 'pv-f-03', 'pv-f-04', 'pv-f-05',
+                    'pv-f-06', 'pv-f-07', 'pv-f-08', 'pv-f-09', 'pv-f-10'
+                ],
+                tr02: [
+                    'pv-mp-01', 'pv-mp-02', 'pv-mp-03', 'pv-mp-04', 'pv-mp-05',
+                    'pv-mp-06', 'pv-mp-07', 'pv-mp-08', 'pv-mp-09', 'pv-mp-10',
+                    'pv-mp-11', 'pv-mp-12'
+                ],
+                tr03: [
+                    'pv-e-01', 'pv-e-02', 'pv-e-03', 'pv-e-04', 'pv-e-05',
+                    'pv-e-06', 'pv-e-07', 'pv-e-08', 'pv-e-09', 'pv-e-10'
+                ],
+                tr04: [
+                    'pv-m-01', 'pv-m-02', 'pv-m-03', 'pv-m-04', 'pv-m-05',
+                    'pv-m-06', 'pv-m-07', 'pv-m-08', 'pv-m-09', 'pv-m-10'
+                ],
+                tr05: [
+                    'pv-b-01', 'pv-b-02', 'pv-b-03', 'pv-b-04',
+                    'pv-b-05', 'pv-b-06', 'pv-b-07', 'pv-b-08'
+                ]
+            };
+
+            var totalItems     = 0;
+            var totalCompleted = 0;
+
+            // Process each track: check completions, mark cards, update bars
+            Object.keys(tracks).forEach(function (trackId) {
+                var ids       = tracks[trackId];
+                var completed = 0;
+
+                ids.forEach(function (moduleId) {
+                    if (ModuleProgress.isCompleted('matrix', moduleId)) {
+                        completed++;
+
+                        // Mark the card via data-module attribute
+                        var el = document.querySelector('[data-module="' + moduleId + '"]');
+                        if (el) {
+                            el.classList.add('is-complete');
+                        }
+                    }
+                });
+
+                // Update per-track progress bar and counter
+                var trackPct  = ids.length > 0 ? Math.round((completed / ids.length) * 100) : 0;
+                var trackBar  = document.getElementById(trackId + '-progress-bar');
+                var trackText = document.getElementById(trackId + '-progress-text');
+                if (trackBar)  { trackBar.style.width = trackPct + '%'; }
+                if (trackText) { trackText.textContent = completed + ' / ' + ids.length; }
+
+                totalItems     += ids.length;
+                totalCompleted += completed;
+            });
+
+            // Update overall progress bar at the top of the page
+            var overallPct  = totalItems > 0 ? Math.round((totalCompleted / totalItems) * 100) : 0;
+            var overallBar  = document.getElementById('progressBar');
+            var overallText = document.getElementById('progressText');
+            if (overallBar)  { overallBar.style.width = overallPct + '%'; }
+            if (overallText) {
+                overallText.textContent =
+                    totalCompleted + ' of ' + totalItems + ' modules completed (' + overallPct + '%)';
+            }
+        });
+    </script>
+
+    <!-- ── Shared Components ── -->
+    <script src="../../../../components/TenantShell.js"></script>
+    <script src="../../../../components/ContentDiscovery.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+
+</body>
+</html>

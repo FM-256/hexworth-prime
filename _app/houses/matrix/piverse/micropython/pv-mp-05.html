@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PV-MP-05: Traffic Light Controller | MicroPython on Pico</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #0d0a0c;
+            --bg-card: #140f12;
+            --accent: #c51a4a;
+            --accent-dim: rgba(197, 26, 74, 0.12);
+            --accent-glow: rgba(197, 26, 74, 0.25);
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0909a;
+            --border: rgba(197, 26, 74, 0.18);
+        }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.7; }
+        .ne-header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 14px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .ne-header-left { display: flex; align-items: center; gap: 15px; }
+        .ne-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+        .ne-header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .ne-breadcrumb { font-size: 0.8rem; color: var(--text-secondary); }
+        .ne-breadcrumb a { color: var(--text-secondary); text-decoration: none; }
+        .ne-breadcrumb a:hover { color: var(--accent); }
+        .ne-back { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .ne-back:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .ne-content { max-width: 1100px; margin: 0 auto; padding: 30px 25px 60px; }
+        .ne-objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 30px; }
+        .ne-objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 1rem; }
+        .ne-objectives ul { list-style: none; }
+        .ne-objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.92rem; }
+        .ne-objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .ne-section { margin-bottom: 35px; }
+        .ne-section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .ne-section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .ne-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+        .ne-code { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; overflow-x: auto; color: var(--text-secondary); white-space: pre-wrap; }
+        .ne-code .prompt { color: var(--accent); }
+        .ne-code .comment { color: #6a5060; }
+        .ne-code .highlight { color: var(--accent); }
+        .ne-code .value { color: #f0883e; }
+        .ne-code .keyword { color: #c792ea; }
+        .ne-code .string { color: #c3e88d; }
+        .ne-code .function { color: #82aaff; }
+        .ne-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.88rem; }
+        .ne-table th { background: var(--bg-card); color: var(--accent); padding: 10px 14px; text-align: left; border: 1px solid var(--border); font-weight: 600; }
+        .ne-table td { padding: 10px 14px; border: 1px solid var(--border); color: var(--text-secondary); }
+        .ne-table tr:hover td { background: var(--accent-dim); }
+        .ne-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0; }
+        .ne-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: border-color 0.2s; }
+        .ne-card:hover { border-color: var(--accent); }
+        .ne-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+        .ne-card span { color: var(--text-secondary); font-size: 0.85rem; }
+        .ne-callout { background: rgba(197, 26, 74, 0.06); border: 1px solid var(--accent-glow); border-radius: 8px; padding: 16px 20px; margin: 18px 0; }
+        .ne-callout strong { color: var(--accent); }
+        .ne-callout p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; }
+        .ne-takeaways { background: linear-gradient(135deg, rgba(197, 26, 74, 0.08), rgba(197, 26, 74, 0.03)); border: 1px solid var(--accent); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .ne-takeaways h3 { color: var(--accent); margin-bottom: 12px; font-size: 1rem; }
+        .ne-takeaways ul { list-style: none; }
+        .ne-takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .ne-takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--accent); font-weight: bold; }
+        .ne-nav { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .ne-nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .ne-nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .ne-nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .ne-nav-btn.primary:hover { opacity: 0.88; }
+        .ne-nav-btn.disabled { opacity: 0.4; pointer-events: none; }
+        .ne-inline-code { background: #0d1117; padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--accent); }
+        .ne-diagram { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin: 14px 0; text-align: center; }
+        .ne-diagram svg { max-width: 100%; height: auto; }
+        .ne-complete { text-align: center; padding: 28px 0 8px; }
+        #completeBtn { background: transparent; border: 2px solid var(--accent); color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; padding: 12px 36px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        #completeBtn:hover:not(:disabled) { background: var(--accent-dim); }
+        #completeBtn:disabled { cursor: default; opacity: 0.85; }
+        @media (max-width: 700px) { .ne-card-grid { grid-template-columns: 1fr; } .ne-content { padding: 20px 15px 40px; } }
+    </style>
+</head>
+<body>
+
+    <header class="ne-header">
+        <div class="ne-header-left">
+            <span class="ne-badge">PV-MP-05</span>
+            <h1>Traffic Light Controller</h1>
+        </div>
+        <div class="ne-breadcrumb">
+            <a href="../index.html">PiVerse</a> / <a href="index.html">MicroPython</a> / PV-MP-05
+        </div>
+        <a href="../index.html" class="ne-back">&lt; Back</a>
+    </header>
+
+    <div class="ne-content">
+
+        <div class="ne-objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Design a finite state machine (FSM) for sequential hardware control</li>
+                <li>Implement timed state transitions for a traffic light sequence</li>
+                <li>Coordinate multiple LEDs to represent real-world signal patterns</li>
+                <li>Add a pedestrian crossing button that interrupts the normal cycle</li>
+                <li>Apply the state machine pattern as a reusable design technique</li>
+            </ul>
+        </div>
+
+        <div class="ne-callout">
+            <strong>Track Context:</strong>
+            <p>This is your first project module. Modules 3 and 4 taught individual skills -- output, input, PWM, ADC. Now you combine them into a working system. The traffic light controller introduces state machines, the most important pattern in embedded programming. Every device you will ever build -- from a microwave oven to a car's engine controller -- uses a state machine.</p>
+        </div>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">What Is a State Machine?</h2>
+            <p class="ne-text">A finite state machine (FSM) is a system that can be in exactly one of a finite number of states at any given time. It transitions from one state to another in response to events (time elapsed, button pressed, sensor triggered). The key insight is that the system's behavior is determined entirely by its current state and the event that occurred.</p>
+
+            <div class="ne-diagram">
+                <svg viewBox="0 0 560 200" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <marker id="arrow5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-end">
+                            <path d="M 0 0 L 10 5 L 0 10 z" fill="#c51a4a"/>
+                        </marker>
+                    </defs>
+                    <text x="280" y="18" fill="#c51a4a" font-size="11" font-family="JetBrains Mono" text-anchor="middle" font-weight="bold">Traffic Light State Machine</text>
+                    <!-- GREEN state -->
+                    <circle cx="80" cy="100" r="40" fill="#1a1520" stroke="#22c55e" stroke-width="2"/>
+                    <text x="80" y="95" fill="#22c55e" font-size="11" font-family="JetBrains Mono" text-anchor="middle" font-weight="bold">GREEN</text>
+                    <text x="80" y="112" fill="#a0909a" font-size="9" font-family="Inter" text-anchor="middle">5 sec</text>
+                    <!-- AMBER state -->
+                    <circle cx="240" cy="100" r="40" fill="#1a1520" stroke="#f59e0b" stroke-width="2"/>
+                    <text x="240" y="95" fill="#f59e0b" font-size="11" font-family="JetBrains Mono" text-anchor="middle" font-weight="bold">AMBER</text>
+                    <text x="240" y="112" fill="#a0909a" font-size="9" font-family="Inter" text-anchor="middle">2 sec</text>
+                    <!-- RED state -->
+                    <circle cx="400" cy="100" r="40" fill="#1a1520" stroke="#ef4444" stroke-width="2"/>
+                    <text x="400" y="95" fill="#ef4444" font-size="11" font-family="JetBrains Mono" text-anchor="middle" font-weight="bold">RED</text>
+                    <text x="400" y="112" fill="#a0909a" font-size="9" font-family="Inter" text-anchor="middle">5 sec</text>
+                    <!-- RED-AMBER state -->
+                    <circle cx="480" cy="100" r="35" fill="#1a1520" stroke="#f0883e" stroke-width="2"/>
+                    <text x="480" y="95" fill="#f0883e" font-size="9" font-family="JetBrains Mono" text-anchor="middle" font-weight="bold">RED+</text>
+                    <text x="480" y="108" fill="#f0883e" font-size="9" font-family="JetBrains Mono" text-anchor="middle" font-weight="bold">AMB</text>
+                    <text x="480" y="145" fill="#a0909a" font-size="8" font-family="Inter" text-anchor="middle">1 sec</text>
+                    <!-- Arrows -->
+                    <line x1="120" y1="90" x2="195" y2="90" stroke="#c51a4a" stroke-width="1.5" marker-end="url(#arrow5)"/>
+                    <line x1="280" y1="90" x2="355" y2="90" stroke="#c51a4a" stroke-width="1.5" marker-end="url(#arrow5)"/>
+                    <line x1="440" y1="95" x2="450" y2="95" stroke="#c51a4a" stroke-width="1.5" marker-end="url(#arrow5)"/>
+                    <!-- Return arrow (curved) -->
+                    <path d="M 480 65 Q 480 30 280 30 Q 80 30 80 55" fill="none" stroke="#c51a4a" stroke-width="1.5" marker-end="url(#arrow5)"/>
+                    <text x="280" y="26" fill="#a0909a" font-size="8" font-family="Inter" text-anchor="middle">cycle repeats</text>
+                </svg>
+            </div>
+
+            <p class="ne-text">A UK-style traffic light has four states: GREEN (go), AMBER (prepare to stop), RED (stop), and RED+AMBER (prepare to go). Each state defines which LEDs are on and how long to wait before transitioning. The system cycles through these states forever.</p>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Hardware Setup</h2>
+            <p class="ne-text">You need three LEDs (red, amber/yellow, green), three 330-ohm resistors, a pushbutton, and a breadboard. Each LED connects from a GPIO pin through a resistor to GND.</p>
+
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Component</th>
+                        <th>Pin</th>
+                        <th>Purpose</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Red LED</td>
+                        <td>GP15</td>
+                        <td>Stop signal</td>
+                    </tr>
+                    <tr>
+                        <td>Amber LED</td>
+                        <td>GP14</td>
+                        <td>Caution / transition signal</td>
+                    </tr>
+                    <tr>
+                        <td>Green LED</td>
+                        <td>GP13</td>
+                        <td>Go signal</td>
+                    </tr>
+                    <tr>
+                        <td>Pushbutton</td>
+                        <td>GP16</td>
+                        <td>Pedestrian crossing request</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Basic Traffic Light</h2>
+            <p class="ne-text">The simplest implementation uses a sequential loop. Each state sets the LEDs, waits for its duration, then moves to the next state. This works but is inflexible -- you cannot easily add features like a pedestrian button.</p>
+
+            <div class="ne-code"><span class="comment"># traffic_basic.py -- Sequential traffic light</span>
+<span class="keyword">from</span> machine <span class="keyword">import</span> Pin
+<span class="keyword">import</span> time
+
+red   = Pin(<span class="value">15</span>, Pin.OUT)
+amber = Pin(<span class="value">14</span>, Pin.OUT)
+green = Pin(<span class="value">13</span>, Pin.OUT)
+
+<span class="keyword">def</span> <span class="function">all_off</span>():
+    red.off()
+    amber.off()
+    green.off()
+
+<span class="keyword">while</span> <span class="keyword">True</span>:
+    <span class="comment"># GREEN: go</span>
+    all_off()
+    green.on()
+    <span class="function">print</span>(<span class="string">"GREEN - Go"</span>)
+    time.sleep(<span class="value">5</span>)
+
+    <span class="comment"># AMBER: prepare to stop</span>
+    all_off()
+    amber.on()
+    <span class="function">print</span>(<span class="string">"AMBER - Caution"</span>)
+    time.sleep(<span class="value">2</span>)
+
+    <span class="comment"># RED: stop</span>
+    all_off()
+    red.on()
+    <span class="function">print</span>(<span class="string">"RED - Stop"</span>)
+    time.sleep(<span class="value">5</span>)
+
+    <span class="comment"># RED + AMBER: prepare to go</span>
+    red.on()
+    amber.on()
+    <span class="function">print</span>(<span class="string">"RED+AMBER - Get ready"</span>)
+    time.sleep(<span class="value">1</span>)</div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">State Machine Implementation</h2>
+            <p class="ne-text">A proper state machine uses a data structure to define states, their LED configurations, durations, and transitions. This makes the code extensible -- adding a new state requires adding one entry to the table, not restructuring the entire loop.</p>
+
+            <div class="ne-code"><span class="comment"># traffic_fsm.py -- State machine traffic light</span>
+<span class="keyword">from</span> machine <span class="keyword">import</span> Pin
+<span class="keyword">import</span> time
+
+red   = Pin(<span class="value">15</span>, Pin.OUT)
+amber = Pin(<span class="value">14</span>, Pin.OUT)
+green = Pin(<span class="value">13</span>, Pin.OUT)
+
+<span class="comment"># State table: name -> (red, amber, green, duration_sec, next_state)</span>
+STATES = {
+    <span class="string">'GREEN'</span>:     (<span class="value">0</span>, <span class="value">0</span>, <span class="value">1</span>, <span class="value">5</span>, <span class="string">'AMBER'</span>),
+    <span class="string">'AMBER'</span>:     (<span class="value">0</span>, <span class="value">1</span>, <span class="value">0</span>, <span class="value">2</span>, <span class="string">'RED'</span>),
+    <span class="string">'RED'</span>:       (<span class="value">1</span>, <span class="value">0</span>, <span class="value">0</span>, <span class="value">5</span>, <span class="string">'RED_AMBER'</span>),
+    <span class="string">'RED_AMBER'</span>: (<span class="value">1</span>, <span class="value">1</span>, <span class="value">0</span>, <span class="value">1</span>, <span class="string">'GREEN'</span>),
+}
+
+current_state = <span class="string">'RED'</span>
+
+<span class="keyword">while</span> <span class="keyword">True</span>:
+    state = STATES[current_state]
+    r, a, g, duration, next_state = state
+
+    <span class="comment"># Apply LED outputs</span>
+    red.value(r)
+    amber.value(a)
+    green.value(g)
+
+    <span class="function">print</span>(<span class="string">f"State: </span>{current_state:<span class="value">10s</span>}<span class="string"> | R:</span>{r}<span class="string"> A:</span>{a}<span class="string"> G:</span>{g}<span class="string"> | Duration: </span>{duration}<span class="string">s"</span>)
+
+    <span class="comment"># Wait for state duration</span>
+    time.sleep(duration)
+
+    <span class="comment"># Transition to next state</span>
+    current_state = next_state</div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Adding a Pedestrian Crossing Button</h2>
+            <p class="ne-text">A pedestrian crossing button should not interrupt immediately -- that would be dangerous. Instead, the button sets a flag, and the state machine checks the flag at the appropriate transition point (when the light would normally go GREEN). If the flag is set, the system enters a pedestrian crossing sequence instead.</p>
+
+            <div class="ne-code"><span class="comment"># traffic_pedestrian.py -- Traffic light with crossing button</span>
+<span class="keyword">from</span> machine <span class="keyword">import</span> Pin
+<span class="keyword">import</span> time
+
+red    = Pin(<span class="value">15</span>, Pin.OUT)
+amber  = Pin(<span class="value">14</span>, Pin.OUT)
+green  = Pin(<span class="value">13</span>, Pin.OUT)
+button = Pin(<span class="value">16</span>, Pin.IN, Pin.PULL_DOWN)
+
+<span class="comment"># Extended state table with pedestrian states</span>
+STATES = {
+    <span class="string">'GREEN'</span>:      (<span class="value">0</span>, <span class="value">0</span>, <span class="value">1</span>, <span class="value">5</span>, <span class="string">'AMBER'</span>),
+    <span class="string">'AMBER'</span>:      (<span class="value">0</span>, <span class="value">1</span>, <span class="value">0</span>, <span class="value">2</span>, <span class="string">'RED'</span>),
+    <span class="string">'RED'</span>:        (<span class="value">1</span>, <span class="value">0</span>, <span class="value">0</span>, <span class="value">5</span>, <span class="string">'RED_AMBER'</span>),
+    <span class="string">'RED_AMBER'</span>:  (<span class="value">1</span>, <span class="value">1</span>, <span class="value">0</span>, <span class="value">1</span>, <span class="string">'GREEN'</span>),
+    <span class="comment"># Pedestrian crossing: longer red, then flash green as warning</span>
+    <span class="string">'PED_RED'</span>:    (<span class="value">1</span>, <span class="value">0</span>, <span class="value">0</span>, <span class="value">8</span>, <span class="string">'PED_FLASH'</span>),
+    <span class="string">'PED_FLASH'</span>:  (<span class="value">1</span>, <span class="value">0</span>, <span class="value">0</span>, <span class="value">3</span>, <span class="string">'RED_AMBER'</span>),
+}
+
+current_state = <span class="string">'RED'</span>
+crossing_requested = <span class="keyword">False</span>
+
+<span class="keyword">def</span> <span class="function">apply_state</span>(state_name):
+    <span class="string">"""Set LED outputs for a given state."""</span>
+    r, a, g, _, _ = STATES[state_name]
+    red.value(r)
+    amber.value(a)
+    green.value(g)
+
+<span class="keyword">def</span> <span class="function">wait_with_button_check</span>(seconds):
+    <span class="string">"""Wait for duration, checking button every 100ms."""</span>
+    <span class="keyword">global</span> crossing_requested
+    <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="function">range</span>(<span class="function">int</span>(seconds * <span class="value">10</span>)):
+        <span class="keyword">if</span> button.value() == <span class="value">1</span>:
+            crossing_requested = <span class="keyword">True</span>
+            <span class="function">print</span>(<span class="string">"  >> Crossing requested!"</span>)
+        time.sleep(<span class="value">0.1</span>)
+
+<span class="keyword">def</span> <span class="function">flash_green</span>(seconds):
+    <span class="string">"""Flash green LED to warn pedestrians time is ending."""</span>
+    end_time = time.ticks_add(time.ticks_ms(), seconds * <span class="value">1000</span>)
+    <span class="keyword">while</span> time.ticks_diff(end_time, time.ticks_ms()) > <span class="value">0</span>:
+        green.toggle()
+        time.sleep(<span class="value">0.3</span>)
+    green.off()
+
+<span class="keyword">while</span> <span class="keyword">True</span>:
+    state = STATES[current_state]
+    r, a, g, duration, next_state = state
+
+    apply_state(current_state)
+    <span class="function">print</span>(<span class="string">f"State: </span>{current_state:<span class="value">10s</span>}<span class="string"> | Duration: </span>{duration}<span class="string">s"</span>)
+
+    <span class="comment"># Special handling for PED_FLASH: flash green LED</span>
+    <span class="keyword">if</span> current_state == <span class="string">'PED_FLASH'</span>:
+        flash_green(duration)
+    <span class="keyword">else</span>:
+        wait_with_button_check(duration)
+
+    <span class="comment"># At RED_AMBER->GREEN transition, check for crossing request</span>
+    <span class="keyword">if</span> current_state == <span class="string">'RED_AMBER'</span> <span class="keyword">and</span> crossing_requested:
+        current_state = <span class="string">'PED_RED'</span>
+        crossing_requested = <span class="keyword">False</span>
+        <span class="function">print</span>(<span class="string">"  >> Pedestrian crossing active"</span>)
+    <span class="keyword">else</span>:
+        current_state = next_state</div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Dual Intersection</h2>
+            <p class="ne-text">A more complex version controls two sets of traffic lights at a four-way intersection. When one direction is GREEN, the other must be RED. The state machine coordinates both sets so they never show GREEN simultaneously.</p>
+
+            <div class="ne-code"><span class="comment"># traffic_dual.py -- Four-way intersection controller</span>
+<span class="keyword">from</span> machine <span class="keyword">import</span> Pin
+<span class="keyword">import</span> time
+
+<span class="comment"># North-South lights</span>
+ns_red   = Pin(<span class="value">15</span>, Pin.OUT)
+ns_amber = Pin(<span class="value">14</span>, Pin.OUT)
+ns_green = Pin(<span class="value">13</span>, Pin.OUT)
+
+<span class="comment"># East-West lights</span>
+ew_red   = Pin(<span class="value">12</span>, Pin.OUT)
+ew_amber = Pin(<span class="value">11</span>, Pin.OUT)
+ew_green = Pin(<span class="value">10</span>, Pin.OUT)
+
+<span class="comment"># State: (ns_r, ns_a, ns_g, ew_r, ew_a, ew_g, duration, next)</span>
+STATES = {
+    <span class="string">'NS_GREEN'</span>:     (<span class="value">0</span>,<span class="value">0</span>,<span class="value">1</span>, <span class="value">1</span>,<span class="value">0</span>,<span class="value">0</span>, <span class="value">5</span>, <span class="string">'NS_AMBER'</span>),
+    <span class="string">'NS_AMBER'</span>:     (<span class="value">0</span>,<span class="value">1</span>,<span class="value">0</span>, <span class="value">1</span>,<span class="value">0</span>,<span class="value">0</span>, <span class="value">2</span>, <span class="string">'ALL_RED_1'</span>),
+    <span class="string">'ALL_RED_1'</span>:    (<span class="value">1</span>,<span class="value">0</span>,<span class="value">0</span>, <span class="value">1</span>,<span class="value">0</span>,<span class="value">0</span>, <span class="value">1</span>, <span class="string">'EW_RED_AMB'</span>),
+    <span class="string">'EW_RED_AMB'</span>:   (<span class="value">1</span>,<span class="value">0</span>,<span class="value">0</span>, <span class="value">1</span>,<span class="value">1</span>,<span class="value">0</span>, <span class="value">1</span>, <span class="string">'EW_GREEN'</span>),
+    <span class="string">'EW_GREEN'</span>:     (<span class="value">1</span>,<span class="value">0</span>,<span class="value">0</span>, <span class="value">0</span>,<span class="value">0</span>,<span class="value">1</span>, <span class="value">5</span>, <span class="string">'EW_AMBER'</span>),
+    <span class="string">'EW_AMBER'</span>:     (<span class="value">1</span>,<span class="value">0</span>,<span class="value">0</span>, <span class="value">0</span>,<span class="value">1</span>,<span class="value">0</span>, <span class="value">2</span>, <span class="string">'ALL_RED_2'</span>),
+    <span class="string">'ALL_RED_2'</span>:    (<span class="value">1</span>,<span class="value">0</span>,<span class="value">0</span>, <span class="value">1</span>,<span class="value">0</span>,<span class="value">0</span>, <span class="value">1</span>, <span class="string">'NS_RED_AMB'</span>),
+    <span class="string">'NS_RED_AMB'</span>:   (<span class="value">1</span>,<span class="value">1</span>,<span class="value">0</span>, <span class="value">1</span>,<span class="value">0</span>,<span class="value">0</span>, <span class="value">1</span>, <span class="string">'NS_GREEN'</span>),
+}
+
+current = <span class="string">'NS_GREEN'</span>
+<span class="keyword">while</span> <span class="keyword">True</span>:
+    nr, na, ng, er, ea, eg, dur, nxt = STATES[current]
+    ns_red.value(nr); ns_amber.value(na); ns_green.value(ng)
+    ew_red.value(er); ew_amber.value(ea); ew_green.value(eg)
+    <span class="function">print</span>(<span class="string">f"</span>{current:<span class="value">14s</span>}<span class="string"> NS[</span>{<span class="string">'R'</span> <span class="keyword">if</span> nr <span class="keyword">else</span> <span class="string">' '</span>}{<span class="string">'A'</span> <span class="keyword">if</span> na <span class="keyword">else</span> <span class="string">' '</span>}{<span class="string">'G'</span> <span class="keyword">if</span> ng <span class="keyword">else</span> <span class="string">' '</span>}<span class="string">] EW[</span>{<span class="string">'R'</span> <span class="keyword">if</span> er <span class="keyword">else</span> <span class="string">' '</span>}{<span class="string">'A'</span> <span class="keyword">if</span> ea <span class="keyword">else</span> <span class="string">' '</span>}{<span class="string">'G'</span> <span class="keyword">if</span> eg <span class="keyword">else</span> <span class="string">' '</span>}<span class="string">]"</span>)
+    time.sleep(dur)
+    current = nxt</div>
+
+            <div class="ne-callout">
+                <strong>Safety Invariant:</strong>
+                <p>In the dual intersection, notice that ALL_RED states appear between direction changes. This is the "all-red clearance interval" -- a safety requirement that ensures no conflicting green signals overlap. When designing state machines for safety-critical systems, always verify that no invalid state combinations are reachable.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Design Patterns for State Machines</h2>
+
+            <div class="ne-card-grid">
+                <div class="ne-card">
+                    <strong>Table-Driven FSM</strong>
+                    <span>States defined in a dictionary. The loop reads the table, applies outputs, waits, and transitions. Easy to modify -- change the table, not the code.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>Event-Driven FSM</strong>
+                    <span>Instead of blocking with time.sleep(), the loop checks elapsed time and button events on every iteration. More responsive but more complex.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>Hierarchical FSM</strong>
+                    <span>States contain sub-states. Example: the PED_FLASH state has its own internal timing loop for flashing. Useful for complex sequences within a state.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>Guard Conditions</strong>
+                    <span>Transitions that only fire when a condition is met. Example: RED_AMBER transitions to PED_RED only if crossing_requested is True. Otherwise it goes to GREEN.</span>
+                </div>
+            </div>
+        </section>
+
+        <div class="ne-takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>A finite state machine (FSM) defines all possible states, outputs, durations, and transitions in a structured table</li>
+                <li>Table-driven state machines separate behavior (the table) from mechanism (the loop) -- changes require editing data, not logic</li>
+                <li>Pedestrian buttons set flags that are checked at safe transition points -- never interrupting mid-state</li>
+                <li>Safety-critical systems like traffic controllers must enforce invariants (e.g., no conflicting greens) through the state table design</li>
+                <li>The FSM pattern applies far beyond traffic lights -- it is the foundation of embedded control, protocol handlers, and game logic</li>
+            </ul>
+        </div>
+
+        <div class="ne-complete">
+            <button id="completeBtn">Mark Complete</button>
+        </div>
+
+        <nav class="ne-nav">
+            <a href="pv-mp-04.html" class="ne-nav-btn">&lt; Previous: PWM &amp; Analog</a>
+            <a href="pv-mp-06.html" class="ne-nav-btn primary">Next: Reaction Game &gt;</a>
+        </nav>
+
+    </div>
+
+    <script src="../../../../components/TenantShell.js"></script>
+    <script>
+        const MODULE_HOUSE = 'matrix';
+        const MODULE_ID = 'pv-mp-05';
+
+        function markComplete() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete(MODULE_HOUSE, MODULE_ID);
+            }
+            var btn = document.getElementById('completeBtn');
+            btn.textContent = 'Completed';
+            btn.disabled = true;
+            btn.style.background = '#c51a4a';
+            btn.style.color = '#fff';
+        }
+
+        document.getElementById('completeBtn').addEventListener('click', markComplete);
+
+        (function() {
+            if (typeof ModuleProgress !== 'undefined' && ModuleProgress.isCompleted(MODULE_HOUSE, MODULE_ID)) {
+                var btn = document.getElementById('completeBtn');
+                btn.textContent = 'Completed';
+                btn.disabled = true;
+                btn.style.background = '#c51a4a';
+                btn.style.color = '#fff';
+            }
+        })();
+    </script>
+</body>
+</html>

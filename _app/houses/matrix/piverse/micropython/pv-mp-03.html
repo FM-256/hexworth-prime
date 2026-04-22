@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PV-MP-03: Digital I/O | MicroPython on Pico</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #0d0a0c;
+            --bg-card: #140f12;
+            --accent: #c51a4a;
+            --accent-dim: rgba(197, 26, 74, 0.12);
+            --accent-glow: rgba(197, 26, 74, 0.25);
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0909a;
+            --border: rgba(197, 26, 74, 0.18);
+        }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.7; }
+        .ne-header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 14px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .ne-header-left { display: flex; align-items: center; gap: 15px; }
+        .ne-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+        .ne-header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .ne-breadcrumb { font-size: 0.8rem; color: var(--text-secondary); }
+        .ne-breadcrumb a { color: var(--text-secondary); text-decoration: none; }
+        .ne-breadcrumb a:hover { color: var(--accent); }
+        .ne-back { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .ne-back:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .ne-content { max-width: 1100px; margin: 0 auto; padding: 30px 25px 60px; }
+        .ne-objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 30px; }
+        .ne-objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 1rem; }
+        .ne-objectives ul { list-style: none; }
+        .ne-objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.92rem; }
+        .ne-objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .ne-section { margin-bottom: 35px; }
+        .ne-section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .ne-section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .ne-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+        .ne-code { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; overflow-x: auto; color: var(--text-secondary); white-space: pre-wrap; }
+        .ne-code .prompt { color: var(--accent); }
+        .ne-code .comment { color: #6a5060; }
+        .ne-code .highlight { color: var(--accent); }
+        .ne-code .value { color: #f0883e; }
+        .ne-code .keyword { color: #c792ea; }
+        .ne-code .string { color: #c3e88d; }
+        .ne-code .function { color: #82aaff; }
+        .ne-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.88rem; }
+        .ne-table th { background: var(--bg-card); color: var(--accent); padding: 10px 14px; text-align: left; border: 1px solid var(--border); font-weight: 600; }
+        .ne-table td { padding: 10px 14px; border: 1px solid var(--border); color: var(--text-secondary); }
+        .ne-table tr:hover td { background: var(--accent-dim); }
+        .ne-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0; }
+        .ne-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: border-color 0.2s; }
+        .ne-card:hover { border-color: var(--accent); }
+        .ne-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+        .ne-card span { color: var(--text-secondary); font-size: 0.85rem; }
+        .ne-callout { background: rgba(197, 26, 74, 0.06); border: 1px solid var(--accent-glow); border-radius: 8px; padding: 16px 20px; margin: 18px 0; }
+        .ne-callout strong { color: var(--accent); }
+        .ne-callout p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; }
+        .ne-takeaways { background: linear-gradient(135deg, rgba(197, 26, 74, 0.08), rgba(197, 26, 74, 0.03)); border: 1px solid var(--accent); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .ne-takeaways h3 { color: var(--accent); margin-bottom: 12px; font-size: 1rem; }
+        .ne-takeaways ul { list-style: none; }
+        .ne-takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .ne-takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--accent); font-weight: bold; }
+        .ne-nav { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .ne-nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .ne-nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .ne-nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .ne-nav-btn.primary:hover { opacity: 0.88; }
+        .ne-nav-btn.disabled { opacity: 0.4; pointer-events: none; }
+        .ne-inline-code { background: #0d1117; padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--accent); }
+        .ne-diagram { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin: 14px 0; text-align: center; }
+        .ne-diagram svg { max-width: 100%; height: auto; }
+        .ne-complete { text-align: center; padding: 28px 0 8px; }
+        #completeBtn { background: transparent; border: 2px solid var(--accent); color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; padding: 12px 36px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        #completeBtn:hover:not(:disabled) { background: var(--accent-dim); }
+        #completeBtn:disabled { cursor: default; opacity: 0.85; }
+        @media (max-width: 700px) { .ne-card-grid { grid-template-columns: 1fr; } .ne-content { padding: 20px 15px 40px; } }
+    </style>
+</head>
+<body>
+
+    <header class="ne-header">
+        <div class="ne-header-left">
+            <span class="ne-badge">PV-MP-03</span>
+            <h1>Digital I/O</h1>
+        </div>
+        <div class="ne-breadcrumb">
+            <a href="../index.html">PiVerse</a> / <a href="index.html">MicroPython</a> / PV-MP-03
+        </div>
+        <a href="../index.html" class="ne-back">&lt; Back</a>
+    </header>
+
+    <div class="ne-content">
+
+        <div class="ne-objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Configure GPIO pins as digital outputs to drive LEDs</li>
+                <li>Configure GPIO pins as digital inputs to read button states</li>
+                <li>Explain and apply internal pull-up and pull-down resistors</li>
+                <li>Implement software debouncing for mechanical switches</li>
+                <li>Build circuits that combine input and output for interactive control</li>
+            </ul>
+        </div>
+
+        <div class="ne-callout">
+            <strong>Track Context:</strong>
+            <p>Digital I/O is the foundation of all embedded programming. Every sensor reading, every motor command, every communication protocol ultimately reduces to pins going high (3.3V) or low (0V). Master this and everything else builds on top.</p>
+        </div>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">GPIO Output: Driving LEDs</h2>
+            <p class="ne-text">A GPIO pin configured as an output can be set high (3.3V) or low (0V). When high, the pin sources current -- enough to light a standard LED through a current-limiting resistor. The RP2040 can source or sink up to 12 mA per pin, with a total chip limit of 50 mA across all GPIO.</p>
+
+            <div class="ne-diagram">
+                <svg viewBox="0 0 500 180" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Pico pin -->
+                    <rect x="20" y="60" width="80" height="60" rx="6" fill="#1a1520" stroke="#c51a4a" stroke-width="1.5"/>
+                    <text x="60" y="85" fill="#c51a4a" font-size="10" font-family="JetBrains Mono" text-anchor="middle" font-weight="bold">GP15</text>
+                    <text x="60" y="105" fill="#a0909a" font-size="9" font-family="Inter" text-anchor="middle">OUTPUT</text>
+                    <!-- Wire to resistor -->
+                    <line x1="100" y1="90" x2="160" y2="90" stroke="#c51a4a" stroke-width="2"/>
+                    <!-- Resistor -->
+                    <rect x="160" y="78" width="60" height="24" rx="4" fill="#1a1520" stroke="#f0883e" stroke-width="1.5"/>
+                    <text x="190" y="94" fill="#f0883e" font-size="10" font-family="JetBrains Mono" text-anchor="middle">330R</text>
+                    <!-- Wire to LED -->
+                    <line x1="220" y1="90" x2="280" y2="90" stroke="#c51a4a" stroke-width="2"/>
+                    <!-- LED symbol -->
+                    <polygon points="280,75 320,90 280,105" fill="none" stroke="#c51a4a" stroke-width="1.5"/>
+                    <line x1="320" y1="75" x2="320" y2="105" stroke="#c51a4a" stroke-width="1.5"/>
+                    <text x="300" y="130" fill="#a0909a" font-size="9" font-family="Inter" text-anchor="middle">LED</text>
+                    <!-- Wire to GND -->
+                    <line x1="320" y1="90" x2="400" y2="90" stroke="#888" stroke-width="2"/>
+                    <rect x="400" y="75" width="60" height="30" rx="4" fill="#1a1520" stroke="#888" stroke-width="1.5"/>
+                    <text x="430" y="94" fill="#888" font-size="10" font-family="JetBrains Mono" text-anchor="middle">GND</text>
+                    <!-- Labels -->
+                    <text x="250" y="60" fill="#a0909a" font-size="9" font-family="Inter" text-anchor="middle">Current flows when GP15 = HIGH (3.3V)</text>
+                </svg>
+            </div>
+
+            <div class="ne-code"><span class="comment"># led_output.py -- Control an external LED on GP15</span>
+<span class="keyword">from</span> machine <span class="keyword">import</span> Pin
+<span class="keyword">import</span> time
+
+<span class="comment"># Configure GP15 as digital output</span>
+led = Pin(<span class="value">15</span>, Pin.OUT)
+
+<span class="comment"># Turn on and off</span>
+led.value(<span class="value">1</span>)     <span class="comment"># HIGH = 3.3V = LED on</span>
+time.sleep(<span class="value">1</span>)
+led.value(<span class="value">0</span>)     <span class="comment"># LOW  = 0V   = LED off</span>
+
+<span class="comment"># Shorthand methods</span>
+led.on()           <span class="comment"># Same as led.value(1)</span>
+led.off()          <span class="comment"># Same as led.value(0)</span>
+led.toggle()       <span class="comment"># Flip current state</span>
+
+<span class="comment"># Blink loop using toggle</span>
+<span class="keyword">while</span> <span class="keyword">True</span>:
+    led.toggle()
+    time.sleep(<span class="value">0.25</span>)</div>
+
+            <div class="ne-code"><span class="comment"># multi_led.py -- Control multiple LEDs independently</span>
+<span class="keyword">from</span> machine <span class="keyword">import</span> Pin
+<span class="keyword">import</span> time
+
+<span class="comment"># Three LEDs on GP15, GP14, GP13</span>
+red   = Pin(<span class="value">15</span>, Pin.OUT)
+amber = Pin(<span class="value">14</span>, Pin.OUT)
+green = Pin(<span class="value">13</span>, Pin.OUT)
+
+<span class="comment"># Sequential pattern</span>
+leds = [red, amber, green]
+<span class="keyword">while</span> <span class="keyword">True</span>:
+    <span class="keyword">for</span> led <span class="keyword">in</span> leds:
+        led.on()
+        time.sleep(<span class="value">0.3</span>)
+        led.off()</div>
+
+            <div class="ne-callout">
+                <strong>Resistor Value:</strong>
+                <p>A 330-ohm resistor limits current to about 9 mA at 3.3V -- safe for both the LED and the Pico. Never connect an LED directly to a GPIO pin without a resistor. Without it, the current is uncontrolled and can damage both the LED and the RP2040.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">GPIO Input: Reading Buttons</h2>
+            <p class="ne-text">A GPIO pin configured as an input reads the voltage on the pin and returns 0 (low, below ~1V) or 1 (high, above ~2V). To read a button, you connect one side to the GPIO pin and the other side to either 3.3V or GND. The internal pull-up or pull-down resistor defines the default state when the button is not pressed.</p>
+
+            <div class="ne-diagram">
+                <svg viewBox="0 0 500 200" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Pull-down config -->
+                    <text x="130" y="20" fill="#c51a4a" font-size="11" font-family="JetBrains Mono" text-anchor="middle" font-weight="bold">Pull-Down Config</text>
+                    <rect x="20" y="70" width="70" height="50" rx="6" fill="#1a1520" stroke="#c51a4a" stroke-width="1.5"/>
+                    <text x="55" y="95" fill="#c51a4a" font-size="9" font-family="JetBrains Mono" text-anchor="middle">GP16</text>
+                    <text x="55" y="108" fill="#a0909a" font-size="8" font-family="Inter" text-anchor="middle">INPUT</text>
+                    <line x1="90" y1="95" x2="130" y2="95" stroke="#c51a4a" stroke-width="1.5"/>
+                    <!-- Button -->
+                    <circle cx="140" cy="95" r="4" fill="none" stroke="#c51a4a" stroke-width="1.5"/>
+                    <circle cx="160" cy="95" r="4" fill="none" stroke="#c51a4a" stroke-width="1.5"/>
+                    <text x="150" y="80" fill="#a0909a" font-size="8" font-family="Inter" text-anchor="middle">BTN</text>
+                    <line x1="164" y1="95" x2="230" y2="95" stroke="#c51a4a" stroke-width="1.5"/>
+                    <text x="230" y="88" fill="#f0883e" font-size="9" font-family="JetBrains Mono" text-anchor="middle">3V3</text>
+                    <!-- Pull-down resistor -->
+                    <line x1="120" y1="95" x2="120" y2="140" stroke="#888" stroke-width="1.5"/>
+                    <rect x="108" y="140" width="24" height="12" rx="2" fill="#1a1520" stroke="#888" stroke-width="1"/>
+                    <text x="120" y="170" fill="#888" font-size="8" font-family="Inter" text-anchor="middle">PULL_DOWN</text>
+                    <line x1="120" y1="152" x2="120" y2="180" stroke="#888" stroke-width="1.5"/>
+                    <text x="120" y="195" fill="#888" font-size="8" font-family="JetBrains Mono" text-anchor="middle">GND</text>
+
+                    <!-- Pull-up config -->
+                    <text x="380" y="20" fill="#c51a4a" font-size="11" font-family="JetBrains Mono" text-anchor="middle" font-weight="bold">Pull-Up Config</text>
+                    <rect x="280" y="70" width="70" height="50" rx="6" fill="#1a1520" stroke="#c51a4a" stroke-width="1.5"/>
+                    <text x="315" y="95" fill="#c51a4a" font-size="9" font-family="JetBrains Mono" text-anchor="middle">GP16</text>
+                    <text x="315" y="108" fill="#a0909a" font-size="8" font-family="Inter" text-anchor="middle">INPUT</text>
+                    <line x1="350" y1="95" x2="390" y2="95" stroke="#c51a4a" stroke-width="1.5"/>
+                    <!-- Button -->
+                    <circle cx="400" cy="95" r="4" fill="none" stroke="#c51a4a" stroke-width="1.5"/>
+                    <circle cx="420" cy="95" r="4" fill="none" stroke="#c51a4a" stroke-width="1.5"/>
+                    <text x="410" y="80" fill="#a0909a" font-size="8" font-family="Inter" text-anchor="middle">BTN</text>
+                    <line x1="424" y1="95" x2="480" y2="95" stroke="#888" stroke-width="1.5"/>
+                    <text x="480" y="88" fill="#888" font-size="9" font-family="JetBrains Mono" text-anchor="middle">GND</text>
+                    <!-- Pull-up label -->
+                    <line x1="380" y1="95" x2="380" y2="50" stroke="#f0883e" stroke-width="1.5"/>
+                    <text x="380" y="42" fill="#f0883e" font-size="8" font-family="Inter" text-anchor="middle">PULL_UP to 3V3</text>
+                </svg>
+            </div>
+
+            <div class="ne-code"><span class="comment"># button_input.py -- Read a button with pull-down resistor</span>
+<span class="keyword">from</span> machine <span class="keyword">import</span> Pin
+<span class="keyword">import</span> time
+
+<span class="comment"># Button on GP16, internal pull-down enabled</span>
+<span class="comment"># Default state = 0 (LOW). Pressing button connects to 3V3 = 1 (HIGH).</span>
+button = Pin(<span class="value">16</span>, Pin.IN, Pin.PULL_DOWN)
+
+<span class="keyword">while</span> <span class="keyword">True</span>:
+    <span class="keyword">if</span> button.value() == <span class="value">1</span>:
+        <span class="function">print</span>(<span class="string">"Button pressed!"</span>)
+    time.sleep(<span class="value">0.1</span>)</div>
+
+            <div class="ne-code"><span class="comment"># button_pullup.py -- Read a button with pull-up resistor</span>
+<span class="keyword">from</span> machine <span class="keyword">import</span> Pin
+<span class="keyword">import</span> time
+
+<span class="comment"># Button on GP16, internal pull-up enabled</span>
+<span class="comment"># Default state = 1 (HIGH). Pressing button connects to GND = 0 (LOW).</span>
+<span class="comment"># Note: logic is inverted -- pressed = 0, released = 1</span>
+button = Pin(<span class="value">16</span>, Pin.IN, Pin.PULL_UP)
+
+<span class="keyword">while</span> <span class="keyword">True</span>:
+    <span class="keyword">if</span> button.value() == <span class="value">0</span>:   <span class="comment"># Inverted: 0 = pressed</span>
+        <span class="function">print</span>(<span class="string">"Button pressed!"</span>)
+    time.sleep(<span class="value">0.1</span>)</div>
+
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Configuration</th>
+                        <th>Default (Not Pressed)</th>
+                        <th>Pressed</th>
+                        <th>Button Connects To</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>PULL_DOWN</td>
+                        <td>0 (LOW)</td>
+                        <td>1 (HIGH)</td>
+                        <td>3V3</td>
+                    </tr>
+                    <tr>
+                        <td>PULL_UP</td>
+                        <td>1 (HIGH)</td>
+                        <td>0 (LOW)</td>
+                        <td>GND</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Understanding Pull Resistors</h2>
+            <p class="ne-text">Without a pull resistor, an unconnected input pin is "floating" -- its voltage is undefined. It picks up electrical noise and gives random readings. Pull resistors define a known default state.</p>
+            <p class="ne-text">A pull-up resistor connects the pin to 3.3V through a high-value resistor (~50k ohm internal on RP2040). The pin reads HIGH by default. When you press a button that connects the pin to GND, the low-impedance path to ground wins over the high-impedance pull-up, and the pin reads LOW.</p>
+            <p class="ne-text">A pull-down resistor connects the pin to GND through a high-value resistor. The pin reads LOW by default. Pressing a button that connects to 3.3V overrides the pull-down and the pin reads HIGH.</p>
+
+            <div class="ne-callout">
+                <strong>Floating Pin Danger:</strong>
+                <p>A floating input pin does not just read zero -- it reads random values caused by electromagnetic interference, capacitive coupling from nearby traces, and static charge. This is the number one cause of "my button code is acting erratic." Always use a pull resistor.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Software Debouncing</h2>
+            <p class="ne-text">Mechanical buttons do not make clean contact. When pressed, the metal contacts bounce multiple times over 1-10 milliseconds, producing rapid on/off transitions. Without debouncing, a single press registers as 5-20 presses. Software debouncing ignores these bounces by requiring the signal to be stable for a minimum time.</p>
+
+            <div class="ne-diagram">
+                <svg viewBox="0 0 500 130" xmlns="http://www.w3.org/2000/svg">
+                    <text x="250" y="15" fill="#c51a4a" font-size="11" font-family="JetBrains Mono" text-anchor="middle" font-weight="bold">Button Bounce (Actual Signal)</text>
+                    <!-- Timeline -->
+                    <line x1="30" y1="100" x2="470" y2="100" stroke="#888" stroke-width="1"/>
+                    <line x1="30" y1="40" x2="30" y2="100" stroke="#888" stroke-width="1"/>
+                    <text x="20" y="45" fill="#a0909a" font-size="8" font-family="Inter" text-anchor="end">HIGH</text>
+                    <text x="20" y="105" fill="#a0909a" font-size="8" font-family="Inter" text-anchor="end">LOW</text>
+                    <!-- Clean signal before press -->
+                    <line x1="30" y1="100" x2="100" y2="100" stroke="#c51a4a" stroke-width="2"/>
+                    <!-- Bounce region -->
+                    <line x1="100" y1="100" x2="100" y2="40" stroke="#c51a4a" stroke-width="2"/>
+                    <line x1="100" y1="40" x2="115" y2="40" stroke="#c51a4a" stroke-width="2"/>
+                    <line x1="115" y1="40" x2="115" y2="100" stroke="#c51a4a" stroke-width="2"/>
+                    <line x1="115" y1="100" x2="125" y2="100" stroke="#c51a4a" stroke-width="2"/>
+                    <line x1="125" y1="100" x2="125" y2="40" stroke="#c51a4a" stroke-width="2"/>
+                    <line x1="125" y1="40" x2="140" y2="40" stroke="#c51a4a" stroke-width="2"/>
+                    <line x1="140" y1="40" x2="140" y2="100" stroke="#c51a4a" stroke-width="2"/>
+                    <line x1="140" y1="100" x2="148" y2="100" stroke="#c51a4a" stroke-width="2"/>
+                    <line x1="148" y1="100" x2="148" y2="40" stroke="#c51a4a" stroke-width="2"/>
+                    <!-- Stable HIGH -->
+                    <line x1="148" y1="40" x2="300" y2="40" stroke="#c51a4a" stroke-width="2"/>
+                    <!-- Bounce annotation -->
+                    <rect x="90" y="110" width="68" height="16" rx="3" fill="rgba(197,26,74,0.15)"/>
+                    <text x="124" y="122" fill="#c51a4a" font-size="8" font-family="JetBrains Mono" text-anchor="middle">BOUNCE</text>
+                    <!-- Debounce window -->
+                    <line x1="148" y1="30" x2="198" y2="30" stroke="#f0883e" stroke-width="1.5" stroke-dasharray="4,2"/>
+                    <text x="173" y="26" fill="#f0883e" font-size="8" font-family="Inter" text-anchor="middle">debounce delay</text>
+                    <!-- Stable reading -->
+                    <text x="230" y="35" fill="#a0909a" font-size="8" font-family="Inter" text-anchor="middle">Stable = valid press</text>
+                </svg>
+            </div>
+
+            <div class="ne-code"><span class="comment"># debounce.py -- Simple time-based debouncing</span>
+<span class="keyword">from</span> machine <span class="keyword">import</span> Pin
+<span class="keyword">import</span> time
+
+button = Pin(<span class="value">16</span>, Pin.IN, Pin.PULL_DOWN)
+led = Pin(<span class="value">15</span>, Pin.OUT)
+
+last_press_time = <span class="value">0</span>
+DEBOUNCE_MS = <span class="value">200</span>   <span class="comment"># Ignore presses within 200ms of each other</span>
+led_state = <span class="keyword">False</span>
+
+<span class="keyword">while</span> <span class="keyword">True</span>:
+    <span class="keyword">if</span> button.value() == <span class="value">1</span>:
+        current_time = time.ticks_ms()
+        <span class="keyword">if</span> time.ticks_diff(current_time, last_press_time) > DEBOUNCE_MS:
+            led_state = <span class="keyword">not</span> led_state
+            led.value(led_state)
+            <span class="function">print</span>(<span class="string">f"LED: </span>{<span class="string">'ON'</span> <span class="keyword">if</span> led_state <span class="keyword">else</span> <span class="string">'OFF'</span>}<span class="string">"</span>)
+            last_press_time = current_time
+    time.sleep(<span class="value">0.01</span>)  <span class="comment"># Small delay to reduce CPU usage</span></div>
+
+            <div class="ne-code"><span class="comment"># debounce_class.py -- Reusable debounce wrapper</span>
+<span class="keyword">from</span> machine <span class="keyword">import</span> Pin
+<span class="keyword">import</span> time
+
+<span class="keyword">class</span> <span class="function">DebouncedButton</span>:
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, pin_num, pull=Pin.PULL_DOWN, debounce_ms=<span class="value">200</span>):
+        self.pin = Pin(pin_num, Pin.IN, pull)
+        self.debounce_ms = debounce_ms
+        self.last_time = <span class="value">0</span>
+        self.active = <span class="value">1</span> <span class="keyword">if</span> pull == Pin.PULL_DOWN <span class="keyword">else</span> <span class="value">0</span>
+
+    <span class="keyword">def</span> <span class="function">is_pressed</span>(self):
+        <span class="keyword">if</span> self.pin.value() == self.active:
+            now = time.ticks_ms()
+            <span class="keyword">if</span> time.ticks_diff(now, self.last_time) > self.debounce_ms:
+                self.last_time = now
+                <span class="keyword">return</span> <span class="keyword">True</span>
+        <span class="keyword">return</span> <span class="keyword">False</span>
+
+<span class="comment"># Usage</span>
+btn = DebouncedButton(<span class="value">16</span>)
+led = Pin(<span class="value">15</span>, Pin.OUT)
+
+<span class="keyword">while</span> <span class="keyword">True</span>:
+    <span class="keyword">if</span> btn.is_pressed():
+        led.toggle()
+    time.sleep(<span class="value">0.01</span>)</div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Combining Input and Output</h2>
+            <p class="ne-text">Real projects combine inputs and outputs. Here is a practical example: a button-controlled LED with three brightness modes (off, dim via rapid toggling, full brightness) that cycles through states on each press.</p>
+
+            <div class="ne-code"><span class="comment"># button_led_modes.py -- Three LED modes cycled by button</span>
+<span class="keyword">from</span> machine <span class="keyword">import</span> Pin
+<span class="keyword">import</span> time
+
+button = Pin(<span class="value">16</span>, Pin.IN, Pin.PULL_DOWN)
+led = Pin(<span class="value">15</span>, Pin.OUT)
+
+mode = <span class="value">0</span>           <span class="comment"># 0=off, 1=blink, 2=solid</span>
+last_press = <span class="value">0</span>
+
+<span class="keyword">while</span> <span class="keyword">True</span>:
+    <span class="comment"># Check for button press with debounce</span>
+    <span class="keyword">if</span> button.value() == <span class="value">1</span>:
+        now = time.ticks_ms()
+        <span class="keyword">if</span> time.ticks_diff(now, last_press) > <span class="value">300</span>:
+            mode = (mode + <span class="value">1</span>) % <span class="value">3</span>
+            <span class="function">print</span>(<span class="string">f"Mode: </span>{[<span class="string">'OFF'</span>, <span class="string">'BLINK'</span>, <span class="string">'SOLID'</span>][mode]}<span class="string">"</span>)
+            last_press = now
+
+    <span class="comment"># Apply current mode</span>
+    <span class="keyword">if</span> mode == <span class="value">0</span>:
+        led.off()
+    <span class="keyword">elif</span> mode == <span class="value">1</span>:
+        led.toggle()
+    <span class="keyword">elif</span> mode == <span class="value">2</span>:
+        led.on()
+
+    time.sleep(<span class="value">0.05</span>)</div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Pin Object Reference</h2>
+            <p class="ne-text">The <span class="ne-inline-code">machine.Pin</span> class is the primary interface for digital I/O in MicroPython. Here are the essential methods and configurations.</p>
+
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Method / Constant</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="ne-inline-code">Pin(n, Pin.OUT)</span></td>
+                        <td>Configure pin n as digital output</td>
+                    </tr>
+                    <tr>
+                        <td><span class="ne-inline-code">Pin(n, Pin.IN)</span></td>
+                        <td>Configure pin n as digital input (floating -- avoid)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="ne-inline-code">Pin(n, Pin.IN, Pin.PULL_UP)</span></td>
+                        <td>Input with internal pull-up (default HIGH)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="ne-inline-code">Pin(n, Pin.IN, Pin.PULL_DOWN)</span></td>
+                        <td>Input with internal pull-down (default LOW)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="ne-inline-code">.value()</span></td>
+                        <td>Read current pin value (0 or 1)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="ne-inline-code">.value(1)</span></td>
+                        <td>Set pin HIGH (output mode)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="ne-inline-code">.on() / .off()</span></td>
+                        <td>Set HIGH / LOW (output mode)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="ne-inline-code">.toggle()</span></td>
+                        <td>Flip current output state</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <div class="ne-takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>GPIO output pins drive 3.3V (HIGH) or 0V (LOW) -- always use a current-limiting resistor with LEDs</li>
+                <li>GPIO input pins read HIGH or LOW -- always enable a pull-up or pull-down to avoid floating</li>
+                <li>Pull-down: default LOW, button connects to 3.3V. Pull-up: default HIGH, button connects to GND</li>
+                <li>Mechanical buttons bounce -- software debouncing with a 200ms delay prevents false triggers</li>
+                <li>time.ticks_ms() and time.ticks_diff() provide millisecond-accurate timing for debounce logic</li>
+                <li>The RP2040 can source/sink up to 12 mA per pin -- enough for LEDs but not motors or relays</li>
+            </ul>
+        </div>
+
+        <div class="ne-complete">
+            <button id="completeBtn">Mark Complete</button>
+        </div>
+
+        <nav class="ne-nav">
+            <a href="pv-mp-02.html" class="ne-nav-btn">&lt; Previous: MicroPython &amp; Thonny</a>
+            <a href="pv-mp-04.html" class="ne-nav-btn primary">Next: PWM &amp; Analog &gt;</a>
+        </nav>
+
+    </div>
+
+    <script src="../../../../components/TenantShell.js"></script>
+    <script>
+        const MODULE_HOUSE = 'matrix';
+        const MODULE_ID = 'pv-mp-03';
+
+        function markComplete() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete(MODULE_HOUSE, MODULE_ID);
+            }
+            var btn = document.getElementById('completeBtn');
+            btn.textContent = 'Completed';
+            btn.disabled = true;
+            btn.style.background = '#c51a4a';
+            btn.style.color = '#fff';
+        }
+
+        document.getElementById('completeBtn').addEventListener('click', markComplete);
+
+        (function() {
+            if (typeof ModuleProgress !== 'undefined' && ModuleProgress.isCompleted(MODULE_HOUSE, MODULE_ID)) {
+                var btn = document.getElementById('completeBtn');
+                btn.textContent = 'Completed';
+                btn.disabled = true;
+                btn.style.background = '#c51a4a';
+                btn.style.color = '#fff';
+            }
+        })();
+    </script>
+</body>
+</html>
