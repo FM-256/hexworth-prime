@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Media Server Lab | PiVerse Maker's Workshop</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { height: 100vh; overflow: hidden; background: #0c0408; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #d4a0b0; display: flex; flex-direction: column; }
+        .lab-header { flex-shrink: 0; padding: 15px 30px; background: rgba(13, 4, 8, 0.95); border-bottom: 1px solid rgba(197, 26, 74, 0.2); display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn { padding: 8px 16px; background: rgba(197, 26, 74, 0.1); border: 1px solid rgba(197, 26, 74, 0.3); border-radius: 6px; color: #c51a4a; text-decoration: none; font-size: 0.85rem; transition: all 0.3s ease; }
+        .back-btn:hover { background: rgba(197, 26, 74, 0.2); }
+        .lab-title { font-size: 1rem; color: #f0c0d0; }
+        .lab-badge { padding: 4px 12px; background: rgba(197, 26, 74, 0.15); border: 1px solid rgba(197, 26, 74, 0.3); border-radius: 12px; font-size: 0.7rem; color: #c51a4a; letter-spacing: 0.05em; }
+        .lab-badge-ch { padding: 4px 12px; background: rgba(255, 215, 0, 0.15); border: 1px solid rgba(255, 215, 0, 0.3); border-radius: 12px; font-size: 0.7rem; color: #ffd700; letter-spacing: 0.05em; }
+        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #6b4a55; }
+        .task-count { color: #c51a4a; font-weight: 500; }
+        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(197, 26, 74, 0.15); border-radius: 3px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #c51a4a, #8b1232); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
+        .lab-container { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
+        .task-panel { background: rgba(13, 4, 8, 0.95); border-right: 1px solid rgba(197, 26, 74, 0.15); overflow-y: auto; padding: 20px; }
+        .task-section { margin-bottom: 25px; }
+        .task-section-title { font-size: 0.68rem; color: #3a1a25; letter-spacing: 0.15em; margin-bottom: 12px; text-transform: uppercase; }
+        .task-card { background: rgba(13, 8, 10, 0.8); border: 1px solid rgba(197, 26, 74, 0.15); border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s ease; }
+        .task-card:hover { border-color: rgba(197, 26, 74, 0.4); }
+        .task-card.active { border-color: #c51a4a; background: rgba(197, 26, 74, 0.1); }
+        .task-card.completed { border-color: rgba(52, 211, 153, 0.4); background: rgba(52, 211, 153, 0.04); }
+        .task-card.completed .task-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; font-weight: 400; }
+        .task-number { font-size: 0.68rem; color: #c51a4a; margin-bottom: 4px; }
+        .task-name { font-size: 0.9rem; color: #f0c0d0; margin-bottom: 4px; }
+        .task-desc { font-size: 0.77rem; color: #6b4a55; line-height: 1.45; }
+        .task-desc code { background: rgba(197, 26, 74, 0.15); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; color: #c51a4a; font-family: 'Consolas', monospace; }
+        .terminal-panel { display: flex; flex-direction: column; background: #0a0406; position: relative; overflow: hidden; }
+        .term-toolbar { flex-shrink: 0; padding: 8px 20px; background: rgba(13, 8, 10, 0.9); border-bottom: 1px solid rgba(197, 26, 74, 0.15); display: flex; align-items: center; gap: 12px; }
+        .term-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .term-dot-red   { background: #ff5f57; }
+        .term-dot-amber { background: #febc2e; }
+        .term-dot-green { background: #28c840; }
+        .term-title { flex: 1; text-align: center; font-size: 0.8rem; color: #4a3040; font-family: 'Consolas', 'Courier New', monospace; }
+        .term-vm-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #c51a4a; }
+        .term-status-dot { width: 7px; height: 7px; background: #c51a4a; border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .term-output { flex: 1; overflow-y: auto; padding: 16px 360px 8px 20px; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.875rem; line-height: 1.6; }
+        .term-input-row { flex-shrink: 0; display: flex; align-items: center; padding: 8px 360px 12px 20px; border-top: 1px solid rgba(197, 26, 74, 0.1); gap: 0; }
+        .term-prompt-label { font-family: 'Consolas', 'Courier New', monospace; font-size: 0.875rem; white-space: nowrap; flex-shrink: 0; }
+        .term-prompt-user   { color: #c51a4a; }
+        .term-prompt-sep    { color: #3a1a25; }
+        .term-prompt-path   { color: #ffd700; }
+        .term-prompt-dollar { color: #f0c0d0; margin-right: 6px; }
+        .term-input { flex: 1; background: transparent; border: none; outline: none; color: #f0c0d0; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.875rem; caret-color: #c51a4a; }
+        .term-line { white-space: pre-wrap; word-break: break-all; }
+        .term-line-cmd  { color: #d4a0b0; }
+        .term-line-out  { color: #a0d4a0; }
+        .term-line-err  { color: #f87171; }
+        .term-line-info { color: #c51a4a; }
+        .term-line-warn { color: #ffd700; }
+        .term-line-dim  { color: #3a2030; }
+        .term-prompt-span { color: #c51a4a; }
+        .term-path-span   { color: #ffd700; }
+        .term-ps1-sep     { color: #3a1a25; }
+        .instructions-panel { position: absolute; top: 20px; right: 20px; width: 320px; background: rgba(13, 8, 10, 0.97); border: 1px solid rgba(197, 26, 74, 0.3); border-radius: 12px; padding: 20px; z-index: 100; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); transition: all 0.3s ease; }
+        .instructions-panel.collapsed { width: auto; padding: 10px 14px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-body { display: none; }
+        .instructions-panel.collapsed .instructions-toggle { transform: rotate(180deg); }
+        .instructions-title { font-size: 1rem; color: #c51a4a; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-title { margin-bottom: 0; font-size: 0.85rem; }
+        .instructions-toggle { margin-left: auto; width: 28px; height: 28px; background: rgba(197, 26, 74, 0.2); border: 1px solid rgba(197, 26, 74, 0.3); border-radius: 6px; color: #c51a4a; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; flex-shrink: 0; }
+        .instructions-toggle:hover { background: rgba(197, 26, 74, 0.4); }
+        .instructions-step { font-size: 0.88rem; color: #d4a0b0; line-height: 1.65; margin-bottom: 14px; }
+        .instructions-step code { background: rgba(197, 26, 74, 0.2); padding: 2px 7px; border-radius: 4px; font-family: 'Consolas', monospace; color: #c51a4a; font-size: 0.85em; }
+        .instructions-hint { font-size: 0.78rem; color: #3a1a25; font-style: italic; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(197, 26, 74, 0.15); line-height: 1.5; }
+        .hint-btn { margin-top: 12px; padding: 6px 12px; background: rgba(197, 26, 74, 0.12); border: 1px solid rgba(197, 26, 74, 0.25); border-radius: 5px; color: #c51a4a; font-size: 0.75rem; cursor: pointer; font-family: 'Segoe UI', sans-serif; transition: all 0.2s ease; width: 100%; text-align: center; }
+        .hint-btn:hover { background: rgba(197, 26, 74, 0.22); }
+        .hint-command { display: none; margin-top: 10px; padding: 8px 10px; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(197, 26, 74, 0.25); border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.78rem; color: #86efac; line-height: 1.55; white-space: pre-wrap; word-break: break-all; }
+        .hint-command.visible { display: block; }
+        .success-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.82); display: none; align-items: center; justify-content: center; z-index: 2000; }
+        .success-overlay.active { display: flex; }
+        .success-card { background: rgba(13, 8, 10, 0.97); border: 1px solid rgba(52, 211, 153, 0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
+        .success-message { color: #d4a0b0; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
+        .success-btn { padding: 12px 30px; background: linear-gradient(135deg, #c51a4a, #8b1232); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; transition: all 0.3s ease; }
+        .success-btn:hover { box-shadow: 0 5px 20px rgba(197, 26, 74, 0.35); transform: translateY(-1px); }
+        @media (max-width: 1024px) { .lab-container { grid-template-columns: 1fr; } .task-panel { display: none; } .term-output, .term-input-row { padding-right: 20px; } .instructions-panel { position: absolute; bottom: 60px; top: auto; right: 10px; left: 10px; width: auto; } }
+    </style>
+</head>
+<body>
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Media Server Lab</span>
+            <span class="lab-badge">PiVerse</span>
+            <span class="lab-badge-ch">Ch 6</span>
+        </div>
+        <div class="task-progress">
+            <span>Progress:</span>
+            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBarFill"></div></div>
+            <span class="task-count" id="taskProgress">0 / 8 Tasks</span>
+        </div>
+    </header>
+
+    <div class="lab-container">
+        <aside class="task-panel" id="taskPanel">
+            <div class="task-section">
+                <div class="task-section-title">Phase 1 -- Server Setup</div>
+                <div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)"><div class="task-number">Task 1</div><div class="task-name">Install Jellyfin</div><div class="task-desc">Install the Jellyfin media server package on your Pi. Use <code>media install</code>.</div></div>
+                <div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)"><div class="task-number">Task 2</div><div class="task-name">Mount Storage</div><div class="task-desc">Mount an external USB drive and configure it in <code>/etc/fstab</code>. Use <code>media mount</code>.</div></div>
+                <div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)"><div class="task-number">Task 3</div><div class="task-name">Library Structure</div><div class="task-desc">Create the correct directory structure for movies and TV shows. Use <code>media library</code>.</div></div>
+            </div>
+            <div class="task-section">
+                <div class="task-section-title">Phase 2 -- Transcoding</div>
+                <div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)"><div class="task-number">Task 4</div><div class="task-name">Probe a Media File</div><div class="task-desc">Use FFprobe to analyze a video file's codec and container. Use <code>media probe</code>.</div></div>
+                <div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)"><div class="task-number">Task 5</div><div class="task-name">Remux to MP4</div><div class="task-desc">Convert an MKV container to MP4 without re-encoding. Use <code>media remux</code>.</div></div>
+                <div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)"><div class="task-number">Task 6</div><div class="task-name">Transcode for Compatibility</div><div class="task-desc">Transcode a video to H.264/AAC for universal playback. Use <code>media transcode</code>.</div></div>
+            </div>
+            <div class="task-section">
+                <div class="task-section-title">Phase 3 -- Network</div>
+                <div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)"><div class="task-number">Task 7</div><div class="task-name">Verify Streaming</div><div class="task-desc">Check the Jellyfin service status and test client access. Use <code>media status</code>.</div></div>
+                <div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)"><div class="task-number">Task 8</div><div class="task-name">Bandwidth Calculation</div><div class="task-desc">Calculate concurrent stream capacity for your network. Use <code>media bandwidth</code>.</div></div>
+            </div>
+        </aside>
+
+        <main class="terminal-panel" id="terminalPanel">
+            <div class="term-toolbar">
+                <div class="term-dot term-dot-red"></div>
+                <div class="term-dot term-dot-amber"></div>
+                <div class="term-dot term-dot-green"></div>
+                <div class="term-title">pi@mediaserver -- Jellyfin Lab</div>
+                <div class="term-vm-status"><div class="term-status-dot"></div>Pi Sim Online</div>
+            </div>
+            <div class="term-output" id="termOutput"></div>
+            <div class="term-input-row">
+                <span class="term-prompt-label"><span class="term-prompt-user">pi</span><span class="term-prompt-sep">:</span><span class="term-prompt-path">~/media</span><span class="term-prompt-dollar">$</span></span>
+                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
+            </div>
+            <div class="instructions-panel" id="instructionsPanel">
+                <div class="instructions-title" onclick="toggleInstructions()">Task Instructions<button class="instructions-toggle" id="instructionsToggle" title="Collapse instructions">&#9660;</button></div>
+                <div class="instructions-body" id="instructionsBody">
+                    <div class="instructions-step" id="instructionsStep">Type a command and press Enter. Type <code>help</code> to see available commands.</div>
+                    <div class="instructions-hint" id="instructionsHint">Hint text loads when you select a task.</div>
+                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
+                    <div class="hint-command" id="hintCommand"></div>
+                </div>
+            </div>
+            <div class="success-overlay" id="successOverlay">
+                <div class="success-card">
+                    <div class="success-title">Media Server Lab Complete!</div>
+                    <div class="success-message">You installed Jellyfin, mounted external storage, organized a media library, analyzed codecs with FFprobe, remuxed containers, transcoded for compatibility, verified streaming, and calculated bandwidth capacity. Your Pi is now a functional media server.</div>
+                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+    (function () {
+        'use strict';
+        var TOTAL_TASKS = 8;
+        var taskDone = {};
+        for (var i = 1; i <= TOTAL_TASKS; i++) taskDone[i] = false;
+        var currentTask = 1;
+        var cmdHistory = [];
+        var histIdx = -1;
+        var outputEl, inputEl;
+
+        function addLine(text, cls) { var d = document.createElement('div'); d.className = 'term-line' + (cls ? ' ' + cls : ''); d.textContent = text; outputEl.appendChild(d); outputEl.scrollTop = outputEl.scrollHeight; }
+        function addHTML(html, cls) { var d = document.createElement('div'); d.className = 'term-line' + (cls ? ' ' + cls : ''); d.innerHTML = html; outputEl.appendChild(d); outputEl.scrollTop = outputEl.scrollHeight; }
+        function addBlank() { addLine('', ''); }
+        function addPromptLine(cmd) { addHTML('<span class="term-prompt-span">pi</span><span class="term-ps1-sep">:</span><span class="term-path-span">~/media</span><span class="term-ps1-sep">$ </span>' + escH(cmd), 'term-line-cmd'); }
+        function escH(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+        var taskInstructions = {
+            1: { step: 'Install the Jellyfin media server on your Pi.\n<code>media install</code>\n\nThis will add the Jellyfin repository and install the server package.', hint: 'Jellyfin provides a Debian package for ARM64. The installer adds the repo, imports the GPG key, and installs the server service.', cmd: 'media install' },
+            2: { step: 'Mount an external USB drive for media storage.\n<code>media mount</code>\n\nThe drive must be mounted persistently via /etc/fstab so it survives reboots.', hint: 'The drive is /dev/sda1 with ext4 filesystem. Mount point is /media/usb. The fstab entry uses the "nofail" option to prevent boot failures if the drive is disconnected.', cmd: 'media mount' },
+            3: { step: 'Create the Jellyfin library directory structure.\n<code>media library</code>\n\nJellyfin expects separate directories for movies and TV shows with specific naming conventions.', hint: 'Movies: /media/usb/movies/Title (Year)/file.mkv. TV: /media/usb/tv/Show Name/Season 01/Show - S01E01.mkv. Consistent naming enables automatic metadata matching.', cmd: 'media library' },
+            4: { step: 'Analyze a video file to determine its codec and format.\n<code>media probe</code>\n\nFFprobe reveals whether a file will direct-play or require transcoding.', hint: 'FFprobe reports the container format, video codec, audio codec, resolution, bitrate, and duration. This information determines the transcoding path.', cmd: 'media probe' },
+            5: { step: 'Remux an MKV file to MP4 without re-encoding.\n<code>media remux</code>\n\nRemuxing changes the container without touching the video or audio streams.', hint: 'FFmpeg with -c copy copies all streams without re-encoding. Only the container changes from MKV to MP4. Nearly instant, zero quality loss.', cmd: 'media remux' },
+            6: { step: 'Transcode a video to H.264/AAC for universal playback.\n<code>media transcode</code>\n\nThis converts incompatible codecs to the most widely supported format.', hint: 'FFmpeg uses libx264 for video and aac for audio. CRF 23 provides good quality at reasonable file size. This is CPU-intensive on a Pi.', cmd: 'media transcode' },
+            7: { step: 'Verify the Jellyfin service is running and accessible.\n<code>media status</code>\n\nCheck the systemd service status and test HTTP access on port 8096.', hint: 'systemctl status jellyfin shows if the service is active. curl to localhost:8096 confirms the web UI is responding.', cmd: 'media status' },
+            8: { step: 'Calculate how many concurrent streams your network can handle.\n<code>media bandwidth</code>\n\nFactor in typical bitrates for different quality levels.', hint: 'A 1080p H.264 stream uses ~10 Mbps. Gigabit Ethernet (1000 Mbps) theoretically supports 100 streams, but the Pi CPU is the bottleneck -- not the network.', cmd: 'media bandwidth' }
+        };
+        var taskNames = { 1: 'Install Jellyfin', 2: 'Mount Storage', 3: 'Library Structure', 4: 'Probe a Media File', 5: 'Remux to MP4', 6: 'Transcode for Compatibility', 7: 'Verify Streaming', 8: 'Bandwidth Calculation' };
+
+        function execLine(raw) {
+            var trimmed = raw.trim();
+            addPromptLine(trimmed);
+            if (!trimmed) return;
+            var parts = trimmed.split(/\s+/);
+            var cmd = parts[0];
+            var sub = parts[1] || '';
+
+            if (cmd === 'help') {
+                addLine('Media Server Lab -- Available Commands', 'term-line-info');
+                addBlank();
+                addLine('MEDIA TASKS:', 'term-line-warn');
+                addLine('  media install     -- Task 1: Install Jellyfin', 'term-line-dim');
+                addLine('  media mount       -- Task 2: Mount USB drive', 'term-line-dim');
+                addLine('  media library     -- Task 3: Create library dirs', 'term-line-dim');
+                addLine('  media probe       -- Task 4: FFprobe analysis', 'term-line-dim');
+                addLine('  media remux       -- Task 5: MKV to MP4', 'term-line-dim');
+                addLine('  media transcode   -- Task 6: H.264/AAC transcode', 'term-line-dim');
+                addLine('  media status      -- Task 7: Service verification', 'term-line-dim');
+                addLine('  media bandwidth   -- Task 8: Bandwidth calc', 'term-line-dim');
+                addBlank();
+                addLine('GENERAL:', 'term-line-warn');
+                addLine('  help    -- Show this help', 'term-line-dim');
+                addLine('  clear   -- Clear terminal', 'term-line-dim');
+                addBlank();
+            } else if (cmd === 'clear') { outputEl.innerHTML = '';
+            } else if (cmd === 'media') { runMediaTask(sub);
+            } else { addLine('bash: ' + cmd + ': command not found. Type "help" for available commands.', 'term-line-err'); }
+        }
+
+        function runMediaTask(sub) {
+            if (sub === 'install') {
+                addLine('Installing Jellyfin media server...', 'term-line-info');
+                addBlank();
+                addLine('$ curl -fsSL https://repo.jellyfin.org/install-debuntu.sh | sudo bash', 'term-line-out');
+                addLine('Adding Jellyfin GPG key...                      [OK]', 'term-line-out');
+                addLine('Adding repository: deb [arch=arm64] https://repo.jellyfin.org/debian bookworm main', 'term-line-out');
+                addLine('Installing jellyfin-server jellyfin-web...       [OK]', 'term-line-out');
+                addLine('Starting jellyfin.service...                     [OK]', 'term-line-out');
+                addBlank();
+                addLine('[VERIFY] Jellyfin 10.9.6 installed. Service active on port 8096.', 'term-line-info');
+                completeTask(1);
+            } else if (sub === 'mount') {
+                addLine('Mounting external USB storage...', 'term-line-info');
+                addBlank();
+                addLine('$ lsblk', 'term-line-out');
+                addLine('NAME   MAJ:MIN  SIZE TYPE MOUNTPOINT', 'term-line-out');
+                addLine('sda      8:0   1.8T disk', 'term-line-out');
+                addLine('  sda1   8:1   1.8T part', 'term-line-out');
+                addLine('mmcblk0 179:0  32G  disk', 'term-line-out');
+                addLine('  mmcblk0p1    256M part /boot/firmware', 'term-line-out');
+                addLine('  mmcblk0p2   31.7G part /', 'term-line-out');
+                addBlank();
+                addLine('$ sudo mkdir -p /media/usb', 'term-line-out');
+                addLine('$ sudo mount /dev/sda1 /media/usb', 'term-line-out');
+                addLine('$ echo "/dev/sda1 /media/usb ext4 defaults,nofail 0 2" | sudo tee -a /etc/fstab', 'term-line-out');
+                addBlank();
+                addLine('[VERIFY] /dev/sda1 mounted at /media/usb (1.8TB ext4). fstab entry added.', 'term-line-info');
+                completeTask(2);
+            } else if (sub === 'library') {
+                addLine('Creating Jellyfin library structure...', 'term-line-info');
+                addBlank();
+                addLine('$ sudo mkdir -p /media/usb/movies', 'term-line-out');
+                addLine('$ sudo mkdir -p /media/usb/tv', 'term-line-out');
+                addLine('$ sudo mkdir -p /media/usb/music', 'term-line-out');
+                addLine('$ sudo chown -R jellyfin:jellyfin /media/usb', 'term-line-out');
+                addBlank();
+                addLine('Example structure:', 'term-line-warn');
+                addLine('  /media/usb/movies/Blade Runner 2049 (2017)/Blade Runner 2049.mkv', 'term-line-dim');
+                addLine('  /media/usb/tv/Breaking Bad/Season 01/Breaking Bad - S01E01.mkv', 'term-line-dim');
+                addLine('  /media/usb/music/Artist/Album/01 - Track.flac', 'term-line-dim');
+                addBlank();
+                addLine('[VERIFY] 3 library directories created. Ownership set to jellyfin user.', 'term-line-info');
+                completeTask(3);
+            } else if (sub === 'probe') {
+                addLine('Analyzing video file with FFprobe...', 'term-line-info');
+                addBlank();
+                addLine('$ ffprobe -hide_banner sample.mkv', 'term-line-out');
+                addLine('Input #0, matroska, from \'sample.mkv\':', 'term-line-out');
+                addLine('  Duration: 02:15:30, bitrate: 8542 kb/s', 'term-line-out');
+                addLine('  Stream #0:0: Video: hevc (Main 10), 1920x1080, 23.976 fps', 'term-line-out');
+                addLine('  Stream #0:1: Audio: eac3, 48000 Hz, 5.1, 640 kb/s', 'term-line-out');
+                addLine('  Stream #0:2: Subtitle: subrip (SRT)', 'term-line-out');
+                addBlank();
+                addLine('[ANALYSIS] Container: MKV | Video: HEVC | Audio: EAC3 | Subs: SRT', 'term-line-info');
+                addLine('[VERDICT] HEVC+EAC3 will require transcode on most older clients.', 'term-line-warn');
+                addLine('          Recommended: remux to MP4 or transcode video to H.264.', 'term-line-dim');
+                completeTask(4);
+            } else if (sub === 'remux') {
+                addLine('Remuxing MKV to MP4 (no re-encoding)...', 'term-line-info');
+                addBlank();
+                addLine('$ ffmpeg -i sample.mkv -c copy -movflags +faststart output.mp4', 'term-line-out');
+                addLine('Input: matroska (HEVC + EAC3 + SRT)', 'term-line-out');
+                addLine('Output: mp4 (HEVC + EAC3)', 'term-line-out');
+                addLine('Warning: SRT subtitles cannot be stored in MP4 -- extracting separately', 'term-line-warn');
+                addLine('$ ffmpeg -i sample.mkv -map 0:s:0 sample.srt', 'term-line-out');
+                addBlank();
+                addLine('Time elapsed: 0.8s (stream copy, no encoding)', 'term-line-out');
+                addLine('Input size:  8.42 GB', 'term-line-out');
+                addLine('Output size: 8.42 GB (identical -- only container changed)', 'term-line-out');
+                addBlank();
+                addLine('[VERIFY] Remux complete. Zero quality loss. Container changed MKV -> MP4.', 'term-line-info');
+                completeTask(5);
+            } else if (sub === 'transcode') {
+                addLine('Transcoding to H.264/AAC for universal compatibility...', 'term-line-info');
+                addBlank();
+                addLine('$ ffmpeg -i sample.mkv -c:v libx264 -crf 23 -preset medium \\', 'term-line-out');
+                addLine('         -c:a aac -b:a 192k -movflags +faststart output_h264.mp4', 'term-line-out');
+                addBlank();
+                addLine('Encoding: HEVC -> H.264 (libx264, CRF 23)', 'term-line-out');
+                addLine('Audio:    EAC3 -> AAC (192 kbps stereo)', 'term-line-out');
+                addLine('Progress: [========================================] 100%', 'term-line-out');
+                addLine('Speed: 0.3x realtime on Pi 5 (2.15hr movie took ~7 hours)', 'term-line-warn');
+                addBlank();
+                addLine('Input size:  8.42 GB (HEVC)', 'term-line-out');
+                addLine('Output size: 4.10 GB (H.264 CRF 23)', 'term-line-out');
+                addBlank();
+                addLine('[VERIFY] Transcode complete. H.264/AAC in MP4 -- plays on every device.', 'term-line-info');
+                addLine('[NOTE]   Transcode on a desktop PC, not the Pi. Pi is too slow for batch jobs.', 'term-line-dim');
+                completeTask(6);
+            } else if (sub === 'status') {
+                addLine('Checking Jellyfin service status...', 'term-line-info');
+                addBlank();
+                addLine('$ sudo systemctl status jellyfin', 'term-line-out');
+                addLine('  jellyfin.service - Jellyfin Media Server', 'term-line-out');
+                addLine('     Loaded: loaded (/lib/systemd/system/jellyfin.service; enabled)', 'term-line-out');
+                addLine('     Active: active (running) since Mon 2026-04-21 08:00:00 EDT', 'term-line-out');
+                addLine('   Main PID: 1842 (jellyfin)', 'term-line-out');
+                addLine('     Memory: 312.4M', 'term-line-out');
+                addBlank();
+                addLine('$ curl -s -o /dev/null -w "%{http_code}" http://localhost:8096', 'term-line-out');
+                addLine('200', 'term-line-out');
+                addBlank();
+                addLine('[VERIFY] Jellyfin active. Web UI responding on port 8096. HTTP 200 OK.', 'term-line-info');
+                completeTask(7);
+            } else if (sub === 'bandwidth') {
+                addLine('Calculating concurrent stream capacity...', 'term-line-info');
+                addBlank();
+                addLine('Network: Gigabit Ethernet (1000 Mbps)', 'term-line-out');
+                addBlank();
+                addLine('Stream Bitrates (direct play, typical):', 'term-line-warn');
+                addLine('  720p  H.264:   ~4 Mbps   -> 250 concurrent streams (network limit)', 'term-line-out');
+                addLine('  1080p H.264:  ~10 Mbps   -> 100 concurrent streams (network limit)', 'term-line-out');
+                addLine('  4K    H.265:  ~30 Mbps   ->  33 concurrent streams (network limit)', 'term-line-out');
+                addBlank();
+                addLine('Actual limit: CPU, not network', 'term-line-warn');
+                addLine('  Direct play:  10+ concurrent 1080p streams (Pi serves files, no CPU work)', 'term-line-out');
+                addLine('  Transcode:    0-1 concurrent 1080p streams (Pi CPU maxed by 1 transcode)', 'term-line-out');
+                addBlank();
+                addLine('[VERIFY] Bandwidth analysis complete. Direct play is the Pi strategy.', 'term-line-info');
+                completeTask(8);
+            } else {
+                addLine('Unknown media command: ' + sub + '. Type "help" for available commands.', 'term-line-err');
+            }
+        }
+
+        function completeTask(n) {
+            if (taskDone[n]) return;
+            taskDone[n] = true;
+            addBlank();
+            addLine('[TASK ' + n + ' COMPLETE] ' + taskNames[n], 'term-line-info');
+            addBlank();
+            var card = document.getElementById('task-card-' + n);
+            if (card) card.classList.add('completed');
+            updateProgress();
+            var allDone = true;
+            for (var i = 1; i <= TOTAL_TASKS; i++) { if (!taskDone[i]) { allDone = false; break; } }
+            if (allDone) { setTimeout(function() { document.getElementById('successOverlay').classList.add('active'); }, 500); }
+        }
+
+        function updateProgress() {
+            var done = 0;
+            for (var i = 1; i <= TOTAL_TASKS; i++) { if (taskDone[i]) done++; }
+            document.getElementById('taskProgress').textContent = done + ' / ' + TOTAL_TASKS + ' Tasks';
+            document.getElementById('progressBarFill').style.width = (done / TOTAL_TASKS * 100) + '%';
+        }
+
+        window.selectTask = function(n) {
+            currentTask = n;
+            var cards = document.querySelectorAll('.task-card');
+            cards.forEach(function(c) { c.classList.remove('active'); });
+            var card = document.getElementById('task-card-' + n);
+            if (card) card.classList.add('active');
+            var info = taskInstructions[n];
+            if (info) {
+                document.getElementById('instructionsStep').innerHTML = info.step;
+                document.getElementById('instructionsHint').textContent = info.hint;
+                document.getElementById('hintCommand').textContent = info.cmd;
+                document.getElementById('hintCommand').classList.remove('visible');
+            }
+        };
+
+        window.toggleInstructions = function() { document.getElementById('instructionsPanel').classList.toggle('collapsed'); };
+        window.revealHint = function() { document.getElementById('hintCommand').classList.toggle('visible'); };
+        window.finishLab = function() { if (typeof ModuleProgress !== 'undefined') { ModuleProgress.complete('matrix', 'pv-m-06-lab', { returnUrl: '../../index.html' }); } };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            outputEl = document.getElementById('termOutput');
+            inputEl = document.getElementById('termInput');
+            inputEl.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') { var v = inputEl.value; inputEl.value = ''; if (v.trim()) { cmdHistory.push(v); histIdx = cmdHistory.length; } execLine(v); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); if (histIdx > 0) { histIdx--; inputEl.value = cmdHistory[histIdx]; } }
+                else if (e.key === 'ArrowDown') { e.preventDefault(); if (histIdx < cmdHistory.length - 1) { histIdx++; inputEl.value = cmdHistory[histIdx]; } else { histIdx = cmdHistory.length; inputEl.value = ''; } }
+            });
+            addLine('Welcome to the Media Server Lab -- PiVerse Maker\'s Workshop', 'term-line-info');
+            addLine('Type "help" for available commands. Complete all 8 tasks to finish.', 'term-line-dim');
+            addBlank();
+            selectTask(1);
+            inputEl.focus();
+        });
+    })();
+    </script>
+</body>
+</html>

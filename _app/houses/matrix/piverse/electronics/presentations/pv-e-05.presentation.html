@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Sense HAT | PiVerse Electronics 5</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0d0408 0%, #1a0a10 50%, #0d0408 100%); color: #e2e8f0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #c51a4a; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(13,4,8,0.95); border-top: 1px solid rgba(197,26,74,0.15); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.07); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(197,26,74,0.15); color: #c51a4a; border-color: #c51a4a; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; } .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #c51a4a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c51a4a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip { background: rgba(197,26,74,0.08); border-left: 3px solid #c51a4a; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #d4a0b0; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-red { background: rgba(197,26,74,0.08); border: 1px solid rgba(197,26,74,0.3); color: #f0c0d0; }
+        .box-green { background: rgba(58,181,119,0.08); border: 1px solid rgba(58,181,119,0.35); color: #d1fae5; }
+        .box-gold { background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.3); color: #fef3c7; }
+        .box-blue { background: rgba(100,160,255,0.08); border: 1px solid rgba(100,160,255,0.3); color: #bfdbfe; }
+        .box-warn { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); color: #fee2e2; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c51a4a; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; } .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #c51a4a; }
+        .card:hover { background: rgba(255,255,255,0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-gold { border-left-color: #ffd700; }
+        .card.c-pink { border-left-color: #c51a4a; } .card.c-blue { border-left-color: #60a5fa; }
+        .card.c-purple { border-left-color: #a78bfa; } .card.c-cyan { border-left-color: #06b6d4; }
+        .card.c-red { border-left-color: #ef4444; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #c51a4a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #ffd700; background: rgba(255,215,0,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .ic { font-family: 'Courier New', monospace; color: #ffd700; background: rgba(255,215,0,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .code-block { background: rgba(0,0,0,0.35); border: 1px solid rgba(197,26,74,0.2); border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #ffd700; line-height: 1.6; white-space: pre; overflow-x: auto; }
+        .code-block .cm { color: #64748b; } .code-block .kw { color: #c51a4a; } .code-block .fn { color: #ffd700; } .code-block .st { color: #86efac; } .code-block .nu { color: #fdba74; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num { background: rgba(197,26,74,0.12); border: 1px solid rgba(197,26,74,0.4); color: #c51a4a; font-weight: 700; font-size: 0.78rem; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px; }
+        .step-text { color: #cbd5e1; line-height: 1.4; } .step-text strong { color: #f1f5f9; }
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell { background: rgba(255,255,255,0.04); border: 1px solid rgba(197,26,74,0.25); border-radius: 8px; padding: 12px 14px; text-align: center; }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #c51a4a; margin-bottom: 4px; }
+        .hex-cell .hex-desc { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes glowPulse { 0%, 100% { filter: drop-shadow(0 0 4px rgba(197,26,74,0.3)); } 50% { filter: drop-shadow(0 0 14px rgba(197,26,74,0.9)); } }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">The Sense HAT -- PiVerse Electronics 5</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+<section class="slide active" id="slide-1"><div class="slide-inner"><div class="slide-meta">Slide 1 of 12 | PiVerse | Electronics | Chapter 5</div><div class="title-hero"><div class="big-title"><span class="accent">The Sense HAT</span></div><div class="slide-subtitle">LED matrix, environmental sensors, IMU, joystick -- a complete sensor platform on one board.</div></div><div class="scenario-strip">The Sense HAT packs an 8x8 RGB LED matrix, temperature/humidity/pressure sensors, a 9-DOF IMU, and a 5-way joystick onto a single board. Originally built for the Astro Pi program on the ISS, it communicates entirely over I2C and provides the simplest path to multi-sensor data collection on the Pi.</div><div class="title-meta-row"><span>12 Slides</span><span>PiVerse Electronics</span><span>Chapter 5 of 10</span><span>Matrix House</span></div></div></section>
+<section class="slide" id="slide-2"><div class="slide-inner"><div class="slide-meta">Slide 2 of 12</div><div class="slide-title">Sense HAT <span class="accent">Hardware</span></div><div class="slide-subtitle">Five sensor subsystems on one I2C board.</div><div class="hex-grid"><div class="hex-cell"><div class="hex-title">LED Matrix</div><div class="hex-desc">8x8 RGB LEDs via ATTINY88. I2C 0x46.</div></div><div class="hex-cell"><div class="hex-title">Temperature</div><div class="hex-desc">HTS221. -40 to +120C. I2C 0x5F.</div></div><div class="hex-cell"><div class="hex-title">Humidity</div><div class="hex-desc">HTS221. 0-100% RH. Same chip as temp.</div></div><div class="hex-cell"><div class="hex-title">Pressure</div><div class="hex-desc">LPS25H. 260-1260 hPa. I2C 0x5C.</div></div><div class="hex-cell"><div class="hex-title">IMU 9-DOF</div><div class="hex-desc">LSM9DS1. Gyro + Accel + Mag.</div></div><div class="hex-cell"><div class="hex-title">Joystick</div><div class="hex-desc">5-way: up/down/left/right/press.</div></div></div></div></section>
+<section class="slide" id="slide-3"><div class="slide-inner"><div class="slide-meta">Slide 3 of 12</div><div class="slide-title">LED Matrix: <span class="accent">Pixels</span></div><div class="slide-subtitle">Control 64 RGB pixels individually or display scrolling text.</div><div class="code-block"><span class="kw">from</span> sense_hat <span class="kw">import</span> SenseHat
+sense = <span class="fn">SenseHat</span>()
+sense.<span class="fn">set_pixel</span>(<span class="nu">0</span>, <span class="nu">0</span>, <span class="nu">255</span>, <span class="nu">0</span>, <span class="nu">0</span>)
+sense.<span class="fn">show_message</span>(<span class="st">"PiVerse"</span>, text_colour=[<span class="nu">197</span>,<span class="nu">26</span>,<span class="nu">74</span>])
+sense.<span class="fn">show_letter</span>(<span class="st">"A"</span>)
+sense.<span class="fn">clear</span>()</div><div class="box box-green"><div class="box-label">Emulator</div>No hardware? <span class="ic">from sense_emu import SenseHat</span>. Identical API. Install: <span class="ic">sudo apt install sense-emu</span>.</div></div></section>
+<section class="slide" id="slide-4"><div class="slide-inner"><div class="slide-meta">Slide 4 of 12</div><div class="slide-title">Environmental <span class="accent">Sensors</span></div><div class="slide-subtitle">Temperature, humidity, and pressure readings.</div><div class="code-block"><span class="kw">from</span> sense_hat <span class="kw">import</span> SenseHat
+sense = <span class="fn">SenseHat</span>()
+temp = sense.<span class="fn">get_temperature</span>()
+humidity = sense.<span class="fn">get_humidity</span>()
+pressure = sense.<span class="fn">get_pressure</span>()
+<span class="fn">print</span>(<span class="st">f"T:{temp:.1f}C H:{humidity:.1f}% P:{pressure:.0f}hPa"</span>)</div><div class="box box-gold"><div class="box-label">CPU Heat</div>Temperature reads 5-10C high due to CPU heat conducting through the header. Compensate by reading CPU temp and subtracting the offset.</div></div></section>
+<section class="slide" id="slide-5"><div class="slide-inner"><div class="slide-meta">Slide 5 of 12</div><div class="slide-title">IMU: <span class="accent">Orientation</span></div><div class="slide-subtitle">Pitch, roll, yaw from the 9-DOF sensor fusion.</div><div class="code-block">o = sense.<span class="fn">get_orientation</span>()
+<span class="fn">print</span>(<span class="st">f"Pitch:{o['pitch']:.1f} Roll:{o['roll']:.1f} Yaw:{o['yaw']:.1f}"</span>)
+accel = sense.<span class="fn">get_accelerometer_raw</span>()
+compass = sense.<span class="fn">get_compass</span>()</div><div class="card-grid-2"><div class="card c-pink"><div class="card-label">Accelerometer</div><div class="card-desc">g-force on 3 axes. At rest Z reads ~1g. Tilt = X/Y deviation.</div></div><div class="card c-gold"><div class="card-label">Magnetometer</div><div class="card-desc">Earth magnetic field direction. Digital compass. Needs calibration.</div></div></div></div></section>
+<section class="slide" id="slide-6"><div class="slide-inner"><div class="slide-meta">Slide 6 of 12</div><div class="slide-title"><span class="accent">Joystick</span> Input</div><div class="slide-subtitle">5-way directional events for interactive programs.</div><div class="code-block">event = sense.<span class="fn">stick.wait_for_event</span>()
+<span class="fn">print</span>(<span class="st">f"{event.direction} {event.action}"</span>)
+sense.stick.<span class="fn">direction_up</span> = <span class="kw">lambda</span> e: sense.<span class="fn">show_letter</span>(<span class="st">"U"</span>)
+sense.stick.<span class="fn">direction_down</span> = <span class="kw">lambda</span> e: sense.<span class="fn">show_letter</span>(<span class="st">"D"</span>)</div></div></section>
+<section class="slide" id="slide-7"><div class="slide-inner"><div class="slide-meta">Slide 7 of 12</div><div class="slide-title">Display <span class="accent">Rotation</span></div><div class="slide-subtitle">Rotate the matrix 0/90/180/270 degrees to match physical orientation.</div><div class="code-block">sense.<span class="fn">set_rotation</span>(<span class="nu">90</span>)
+sense.<span class="fn">flip_h</span>()
+sense.<span class="fn">low_light</span> = <span class="kw">True</span></div><div class="box box-blue"><div class="box-label">Auto-Rotate</div>Read accelerometer, determine which axis is down, call set_rotation() to keep display upright regardless of physical orientation.</div></div></section>
+<section class="slide" id="slide-8"><div class="slide-inner"><div class="slide-meta">Slide 8 of 12</div><div class="slide-title">Data <span class="accent">Logging</span></div><div class="slide-subtitle">CSV logger combining all sensors with timestamps.</div><div class="code-block"><span class="kw">import</span> csv, time
+<span class="kw">from</span> datetime <span class="kw">import</span> datetime
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">"log.csv"</span>,<span class="st">"w"</span>) <span class="kw">as</span> f:
+    w = csv.<span class="fn">writer</span>(f)
+    w.<span class="fn">writerow</span>([<span class="st">"time"</span>,<span class="st">"temp"</span>,<span class="st">"humidity"</span>,<span class="st">"pressure"</span>])
+    <span class="kw">while True</span>:
+        w.<span class="fn">writerow</span>([datetime.<span class="fn">now</span>(),
+            sense.<span class="fn">get_temperature</span>(),
+            sense.<span class="fn">get_humidity</span>(),
+            sense.<span class="fn">get_pressure</span>()])
+        f.<span class="fn">flush</span>(); time.<span class="fn">sleep</span>(<span class="nu">10</span>)</div></div></section>
+<section class="slide" id="slide-9"><div class="slide-inner"><div class="slide-meta">Slide 9 of 12</div><div class="slide-title">Pixel <span class="accent">Art</span></div><div class="slide-subtitle">8x8 bitmap images and simple animation on the LED matrix.</div><div class="code-block">r=[<span class="nu">255</span>,<span class="nu">0</span>,<span class="nu">0</span>]; g=[<span class="nu">0</span>,<span class="nu">255</span>,<span class="nu">0</span>]; o=[<span class="nu">0</span>,<span class="nu">0</span>,<span class="nu">0</span>]
+face = [
+  o,o,r,r,r,r,o,o,
+  o,r,o,o,o,o,r,o,
+  r,o,g,o,o,g,o,r,
+  r,o,o,o,o,o,o,r,
+  r,o,g,o,o,g,o,r,
+  r,o,o,g,g,o,o,r,
+  o,r,o,o,o,o,r,o,
+  o,o,r,r,r,r,o,o]
+sense.<span class="fn">set_pixels</span>(face)</div></div></section>
+<section class="slide" id="slide-10"><div class="slide-inner"><div class="slide-meta">Slide 10 of 12</div><div class="slide-title">Sense HAT <span class="accent">v2 Differences</span></div><div class="slide-subtitle">The v2 revision updates the pressure sensor and adds a color/proximity sensor.</div><div class="card-grid-2"><div class="card c-pink"><div class="card-label">v2 Changes</div><div class="card-desc">LPS22HB replaces LPS25H (pressure). TCS34725 color sensor added. Same Python API. Same physical dimensions and pinout.</div></div><div class="card c-green"><div class="card-label">Color Sensor</div><div class="card-desc">Detects ambient light color (RGB + clear). Not exposed through the standard sense_hat API -- requires direct I2C access or Adafruit library.</div></div></div></div></section>
+<section class="slide" id="slide-11"><div class="slide-inner"><div class="slide-meta">Slide 11 of 12</div><div class="slide-title">HAT vs <span class="accent">Standalone Sensors</span></div><div class="slide-subtitle">When to use the all-in-one HAT versus individual breakout boards.</div><div class="card-grid-2"><div class="card c-pink"><div class="card-label">Use Sense HAT</div><div class="card-desc">Fast prototyping, education, Astro Pi. No wiring. Simple API. LED matrix for visual feedback.</div></div><div class="card c-green"><div class="card-label">Use Breakouts</div><div class="card-desc">Accurate temperature, specific sensors (gas, UV, GPS), lower cost, remote placement via long I2C cables.</div></div></div></div></section>
+<section class="slide" id="slide-12"><div class="slide-inner"><div class="slide-meta">Slide 12 of 12</div><div class="slide-title">Key Takeaways: <span class="accent">The Sense HAT</span></div><div class="slide-subtitle">Five essential facts from this chapter.</div><div class="summary-facts"><div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Five sensors + LED matrix on one board.</strong> All I2C. Python API: <code>from sense_hat import SenseHat</code>.</span></div><div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Emulator available.</strong> <code>from sense_emu import SenseHat</code> -- identical API, no hardware needed.</span></div><div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Temperature reads high.</strong> CPU heat conducts through header. Subtract offset for accuracy.</span></div><div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>IMU provides orientation.</strong> <code>get_orientation()</code> fuses gyro + accel + mag for pitch/roll/yaw.</span></div><div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Data logging is the primary use case.</strong> CSV + timestamps + sleep loop = environmental monitoring.</span></div></div><div class="box box-red" style="font-size:0.85rem; text-align:center;"><strong>Next: Chapter 6 -- Camera Modules</strong></div><div style="text-align:center; margin-top:6px;"><button id="complete-btn" onclick="completeModule()">Mark Complete</button></div></div></section>
+<nav id="nav-bar"><a href="../../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; PiVerse</button></a><button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button><span id="slide-counter">Slide 1 of 12</span><button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button></nav>
+<script>
+    let currentSlide = 1; const TOTAL_SLIDES = 12;
+    function goToSlide(n) { if (n < 1 || n > TOTAL_SLIDES) return; const prev = document.getElementById('slide-' + currentSlide); if (prev) prev.classList.remove('active'); currentSlide = n; const next = document.getElementById('slide-' + currentSlide); if (next) next.classList.add('active'); document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%'; document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES; document.getElementById('prev-btn').disabled = (currentSlide === 1); document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES); var cb = document.getElementById('complete-btn'); if (cb) cb.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none'; }
+    document.addEventListener('keydown', function(e) { if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); } else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); } });
+    goToSlide(1);
+</script>
+<script>function completeModule() { if (typeof ModuleProgress !== 'undefined') ModuleProgress.complete('matrix', 'pv-e-05-pres', { returnUrl: '../../index.html' }); }</script>
+</body>
+</html>

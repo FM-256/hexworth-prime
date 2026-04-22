@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signal Integrity | PiVerse Board Engineering</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; } html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0d0408 0%, #1a0812 50%, #0d0408 100%); color: #e2e8f0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #c51a4a; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(13,4,8,0.95); border-top: 1px solid rgba(197,26,74,0.15); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.07); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(197,26,74,0.15); color: #c51a4a; border-color: #c51a4a; } .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; } .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; } #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #c51a4a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; } .slide-title .accent { color: #e8305e; }
+        .slide-subtitle { font-size: 0.95rem; color: #9e8b91; text-align: center; }
+        .scenario-strip { background: rgba(197,26,74,0.08); border-left: 3px solid #c51a4a; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #d4a0ad; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-red { background: rgba(197,26,74,0.08); border: 1px solid rgba(197,26,74,0.3); color: #f0c0cc; }
+        .box-gold { background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.3); color: #fef3c7; }
+        .box-blue { background: rgba(96,165,250,0.08); border: 1px solid rgba(96,165,250,0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; } .title-hero .big-title .accent { color: #e8305e; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; } .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; } .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #c51a4a; } .card:hover { background: rgba(255,255,255,0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; } .card .card-desc { font-size: 0.82rem; color: #9e8b91; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-red { border-left-color: #c51a4a; } .card.c-gold { border-left-color: #ffd700; } .card.c-blue { border-left-color: #60a5fa; } .card.c-purple { border-left-color: #a78bfa; } .card.c-orange { border-left-color: #f97316; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; } .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #c51a4a; min-width: 22px; text-align: right; flex-shrink: 0; } .fact-text { color: #cbd5e1; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #e8305e; background: rgba(197,26,74,0.12); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; } .step-row { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num { background: rgba(197,26,74,0.12); border: 1px solid rgba(197,26,74,0.4); color: #c51a4a; font-weight: 700; font-size: 0.78rem; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px; }
+        .step-text { color: #cbd5e1; line-height: 1.4; } .step-text strong { color: #f1f5f9; }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Signal Integrity -- PiVerse Board Engineering</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<section class="slide active" id="slide-1"><div class="slide-inner">
+    <div class="slide-meta">Slide 1 of 12 | PiVerse | Board Engineering | Chapter 5</div>
+    <div class="title-hero"><div class="big-title"><span class="accent">Signal Integrity:</span> Clean Signals, Clean Data</div>
+    <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">Impedance | Transmission Lines | Crosstalk | EMI | USB Differential Routing</div></div>
+    <div class="scenario-strip">At low frequencies, a wire is just a wire. At high frequencies, a wire is a transmission line with impedance, reflections, and radiation. The RP2040's USB runs at 12 Mbps and QSPI flash at 50+ MHz. Signal integrity determines whether those signals arrive clean or corrupted.</div>
+    <div class="title-meta-row"><span>12 Slides</span><span>PiVerse Board Engineering</span><span>Chapter 5 of 8</span><span>Matrix House</span></div>
+</div></section>
+
+<section class="slide" id="slide-2"><div class="slide-inner">
+    <div class="slide-meta">Slide 2 of 12</div>
+    <div class="slide-title">When Does Signal Integrity <span class="accent">Matter</span>?</div>
+    <div class="slide-subtitle">The rule of thumb: when the trace length exceeds 1/10 of the signal's wavelength.</div>
+    <div class="card-grid-2">
+        <div class="card c-red"><div class="card-label">Low Frequency (No Concern)</div><div class="card-desc">A GPIO toggling at 1 kHz has a wavelength of 300 km. Your 50mm trace is 0.00002% of the wavelength. Signal integrity is irrelevant. The wire is just a wire.</div></div>
+        <div class="card c-gold"><div class="card-label">High Frequency (Critical)</div><div class="card-desc">USB Full Speed at 12 MHz has a wavelength of 25m. QSPI at 50 MHz = 6m. The edge rate matters more than the frequency -- a 1ns rise time means wavelength of 300mm. Your trace IS a transmission line.</div></div>
+    </div>
+    <div class="box box-red"><div class="box-label">RP2040 Signals That Need Care</div>USB D+/D- (12 Mbps, tight impedance requirement). QSPI flash (4 data lines + clock at 50 MHz). SWD debug (up to 24 MHz). PIO outputs driving fast protocols. Everything else -- GPIO, UART at 115200, I2C at 400 kHz -- is fine with basic routing.</div>
+</div></section>
+
+<section class="slide" id="slide-3"><div class="slide-inner">
+    <div class="slide-meta">Slide 3 of 12</div>
+    <div class="slide-title"><span class="accent">Impedance</span> and Transmission Lines</div>
+    <div class="slide-subtitle">A PCB trace over a ground plane forms a transmission line with a characteristic impedance.</div>
+    <div class="card-grid-2">
+        <div class="card c-red"><div class="card-label">Characteristic Impedance (Z0)</div><div class="card-desc">Determined by trace width, copper thickness, distance to ground plane, and dielectric constant of FR-4 (usually 4.2-4.5). USB requires 90 ohm differential impedance. Most general signals target 50 ohm single-ended.</div></div>
+        <div class="card c-gold"><div class="card-label">Impedance Mismatch = Reflections</div><div class="card-desc">If the trace impedance does not match the driver/receiver impedance, the signal reflects back like an echo. Reflections cause ringing, overshoot, and data corruption. Matching eliminates reflections.</div></div>
+    </div>
+    <div class="box box-gold"><div class="box-label">Calculating Trace Impedance</div>Use a trace impedance calculator (Saturn PCB Toolkit is free). Input: trace width, copper weight, dielectric height (distance to ground plane), and Er (4.3 for standard FR-4). For JLCPCB 4-layer stackup, an 8 mil trace over 7.7 mil dielectric gives approximately 50 ohm single-ended impedance.</div>
+</div></section>
+
+<section class="slide" id="slide-4"><div class="slide-inner">
+    <div class="slide-meta">Slide 4 of 12</div>
+    <div class="slide-title">USB <span class="accent">Differential</span> Routing</div>
+    <div class="slide-subtitle">USB D+ and D- form a differential pair. They must be routed together with controlled impedance.</div>
+    <div class="step-list">
+        <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>90 ohm differential impedance.</strong> The USB 2.0 spec requires 90 ohm +/- 10%. This determines trace width and spacing for your specific stackup. Typically 8-10 mil traces with 6-8 mil gap on a 4-layer board.</span></div>
+        <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Length matching.</strong> D+ and D- must be the same length within 2mm (150 mil). If one trace is longer, add a small serpentine to the shorter one. KiCad's differential pair router handles this automatically.</span></div>
+        <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>27-ohm series resistors.</strong> The RP2040 requires 27-ohm resistors on D+ and D-, placed close to the chip. These match the output impedance of the USB PHY to the trace impedance.</span></div>
+        <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Keep the pair together.</strong> Do not separate D+ and D- around obstacles. Route them as a unit. Do not change layers mid-pair (the via discontinuity disrupts impedance).</span></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-5"><div class="slide-inner">
+    <div class="slide-meta">Slide 5 of 12</div>
+    <div class="slide-title"><span class="accent">Crosstalk</span></div>
+    <div class="slide-subtitle">Crosstalk is unwanted coupling between adjacent traces. A signal on one trace induces a signal on its neighbor.</div>
+    <div class="card-grid-2">
+        <div class="card c-red"><div class="card-label">Capacitive Crosstalk</div><div class="card-desc">Electric field coupling between traces. Proportional to the parallel run length and inversely proportional to the spacing. Dominates at high impedance (slow edges).</div></div>
+        <div class="card c-gold"><div class="card-label">Inductive Crosstalk</div><div class="card-desc">Magnetic field coupling between traces. Also proportional to parallel length and inversely proportional to spacing. Dominates at low impedance (fast edges).</div></div>
+    </div>
+    <div class="box box-red"><div class="box-label">The 3W Rule</div>Space traces at 3x the trace width center-to-center to reduce crosstalk by 70%. For critical signals (USB, high-speed SPI clock), use wider spacing. Never run a fast clock trace parallel to a sensitive analog trace for more than a few millimeters.</div>
+</div></section>
+
+<section class="slide" id="slide-6"><div class="slide-inner">
+    <div class="slide-meta">Slide 6 of 12</div>
+    <div class="slide-title"><span class="accent">EMI</span>: Electromagnetic Interference</div>
+    <div class="slide-subtitle">Every current loop is an antenna. EMI is the radiation from those antennas.</div>
+    <div class="card-grid-2">
+        <div class="card c-red"><div class="card-label">Current Loops</div><div class="card-desc">A signal travels out on a trace and returns through the ground plane. The area enclosed by this loop determines how much it radiates. Smaller loop = less EMI. This is why ground planes matter.</div></div>
+        <div class="card c-gold"><div class="card-label">Ground Plane Splits</div><div class="card-desc">If the ground plane has a gap under a signal trace, the return current must detour around it. The enlarged loop area radiates more. This is the primary cause of EMI failures in PCB designs.</div></div>
+    </div>
+    <div class="box box-gold"><div class="box-label">Practical EMI Reduction</div>Continuous ground plane (no splits). Short traces for high-frequency signals. Decoupling caps close to IC power pins (they reduce the AC current loop through the power supply). Series resistors on outputs slow down edges, reducing harmonic content. Shielding (metal can) as a last resort.</div>
+</div></section>
+
+<section class="slide" id="slide-7"><div class="slide-inner">
+    <div class="slide-meta">Slide 7 of 12</div>
+    <div class="slide-title">QSPI Flash <span class="accent">Routing</span></div>
+    <div class="slide-subtitle">The flash interface runs at high speed. Trace routing directly affects reliability.</div>
+    <div class="step-list">
+        <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Short traces.</strong> Keep flash chip within 10-15mm of the RP2040. Shorter traces have lower inductance and less signal degradation.</span></div>
+        <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Length matching.</strong> All 4 data lines (SD0-SD3) and the clock (SCLK) should be matched within 5mm. The flash reads all data lines simultaneously on the clock edge -- length mismatch causes setup/hold violations.</span></div>
+        <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Ground plane underneath.</strong> Route all QSPI traces over continuous ground. Do not route them over a split or gap in the ground plane.</span></div>
+        <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>100nF decoupling on flash VCC.</strong> Place it between the flash chip's VCC pin and ground, within 2mm. Flash switching transients must be locally decoupled.</span></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-8"><div class="slide-inner">
+    <div class="slide-meta">Slide 8 of 12</div>
+    <div class="slide-title">Return <span class="accent">Paths</span></div>
+    <div class="slide-subtitle">Every signal has a return path. At DC, current returns through the shortest conductor. At AC, current returns through the path of least inductance -- directly under the signal trace.</div>
+    <div class="card-grid-2">
+        <div class="card c-red"><div class="card-label">Ground Plane Return</div><div class="card-desc">High-frequency return current flows in the ground plane directly beneath the signal trace. This is why signals must always have a continuous ground reference underneath them. Break the ground and you break the return path.</div></div>
+        <div class="card c-gold"><div class="card-label">Layer Changes and Stitching Vias</div><div class="card-desc">When a signal changes layers via a via, the return current must also change layers. Place a ground via (stitching via) next to every signal via to provide a return path. Without it, the return current detours and creates EMI.</div></div>
+    </div>
+    <div class="box box-blue"><div class="box-label">Via Stitching</div>Sprinkle extra ground vias around the board, especially near signal vias and along board edges. These "stitching vias" connect the top and bottom ground pours, keeping the ground impedance low and providing return paths everywhere they are needed.</div>
+</div></section>
+
+<section class="slide" id="slide-9"><div class="slide-inner">
+    <div class="slide-meta">Slide 9 of 12</div>
+    <div class="slide-title">Series <span class="accent">Termination</span></div>
+    <div class="slide-subtitle">A series resistor at the source absorbs reflections and slows edge rates.</div>
+    <div class="card-grid-2">
+        <div class="card c-red"><div class="card-label">How It Works</div><div class="card-desc">The resistor value = Z0 minus the driver output impedance. For a 50-ohm trace with a 10-ohm driver, use a 39-ohm series resistor. The signal travels half-amplitude to the far end, reflects, and adds to full amplitude. Clean, ringing-free.</div></div>
+        <div class="card c-gold"><div class="card-label">RP2040 USB Resistors</div><div class="card-desc">The 27-ohm series resistors on USB D+/D- serve exactly this purpose. The RP2040 USB PHY output impedance plus 27 ohms matches the 90-ohm differential pair impedance. Without them, USB communication is unreliable.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-10"><div class="slide-inner">
+    <div class="slide-meta">Slide 10 of 12</div>
+    <div class="slide-title">Crystal <span class="accent">Layout</span></div>
+    <div class="slide-subtitle">The 12 MHz crystal is a high-impedance, noise-sensitive component. Bad layout causes clock failure.</div>
+    <div class="step-list">
+        <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Place crystal within 5mm of the RP2040.</strong> Short traces minimize parasitic capacitance and inductance that detune the oscillator.</span></div>
+        <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Ground guard ring.</strong> Surround the crystal and load caps with a ground pour on the same layer. This shields the high-impedance oscillator circuit from nearby switching noise.</span></div>
+        <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>No signal traces underneath.</strong> Do not route any traces under the crystal on any layer. The coupling can inject noise into the oscillator.</span></div>
+        <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Load caps next to crystal pads.</strong> The two 15pF load capacitors connect directly from the crystal pads to ground. Place them within 2mm of the crystal.</span></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-11"><div class="slide-inner">
+    <div class="slide-meta">Slide 11 of 12</div>
+    <div class="slide-title">Controlled <span class="accent">Impedance</span> Ordering</div>
+    <div class="slide-subtitle">When ordering your PCB, you must specify impedance requirements to the fab house.</div>
+    <div class="card-grid-2">
+        <div class="card c-red"><div class="card-label">Impedance Specification</div><div class="card-desc">Tell the fab: "90 ohm differential for USB pair on Layer 1, referenced to Layer 2 ground." They adjust the dielectric thickness to hit your target. JLCPCB supports controlled impedance on 4-layer boards for a small surcharge.</div></div>
+        <div class="card c-gold"><div class="card-label">Stackup Confirmation</div><div class="card-desc">The fab provides a stackup document showing actual layer thicknesses. Recalculate your trace widths against the actual stackup before finalizing Gerbers. The target width changes if the dielectric height changes.</div></div>
+    </div>
+    <div class="box box-red"><div class="box-label">Do You Need Controlled Impedance?</div>For USB Full Speed (12 Mbps) on a short trace (under 50mm), you can often get away without formal impedance control. But for USB High Speed (480 Mbps), long USB cables, or SDIO interfaces, controlled impedance is mandatory. When in doubt, specify it -- the cost increase is minimal.</div>
+</div></section>
+
+<section class="slide" id="slide-12"><div class="slide-inner">
+    <div class="slide-meta">Slide 12 of 12</div>
+    <div class="slide-title">Key Takeaways: <span class="accent">Signal Integrity</span></div>
+    <div class="slide-subtitle">Clean signals start with understanding physics. Dirty signals start with ignoring it.</div>
+    <div class="summary-facts">
+        <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Signal integrity matters above ~10 MHz.</strong> USB, QSPI flash, and fast PIO outputs all need controlled routing. GPIO and UART do not.</span></div>
+        <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>USB requires 90-ohm differential impedance.</strong> Matched length, 27-ohm series resistors, routed as a pair, no layer changes.</span></div>
+        <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Crosstalk: 3W rule.</strong> Space traces at 3x width center-to-center. Keep fast signals away from sensitive analog.</span></div>
+        <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Ground plane continuity is everything.</strong> Unbroken ground plane under all signals. Stitching vias at every layer change.</span></div>
+        <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Crystal layout: short, shielded, isolated.</strong> Within 5mm, ground guard, no traces underneath.</span></div>
+    </div>
+    <div class="box box-red" style="font-size:0.85rem; text-align:center;"><strong>Next: Chapter 6 -- Manufacturing and Assembly</strong> | Gerbers, BOM, Pick-and-Place, Reflow, JLCPCB</div>
+    <div style="text-align:center; margin-top:6px;"><button id="complete-btn" onclick="completeModule()">Mark Complete</button></div>
+</div></section>
+
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; PiVerse</button></a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+<script>
+    let currentSlide = 1; const TOTAL_SLIDES = 12;
+    function goToSlide(n) { if (n < 1 || n > TOTAL_SLIDES) return; const prev = document.getElementById('slide-' + currentSlide); if (prev) prev.classList.remove('active'); currentSlide = n; const next = document.getElementById('slide-' + currentSlide); if (next) next.classList.add('active'); document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%'; document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES; document.getElementById('prev-btn').disabled = (currentSlide === 1); document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES); const cb = document.getElementById('complete-btn'); if (cb) cb.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none'; }
+    document.addEventListener('keydown', function(e) { if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); } else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); } });
+    goToSlide(1);
+</script>
+<script>function completeModule() { if (typeof ModuleProgress !== 'undefined') { ModuleProgress.complete('matrix', 'pv-b-05-pres', { returnUrl: '../../index.html' }); } }</script>
+</body>
+</html>

@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Motor Controller Case Study | PiVerse Board Engineering</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; } html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0d0408 0%, #1a0812 50%, #0d0408 100%); color: #e2e8f0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #c51a4a; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(13,4,8,0.95); border-top: 1px solid rgba(197,26,74,0.15); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.07); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(197,26,74,0.15); color: #c51a4a; border-color: #c51a4a; } .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; } .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; } #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #c51a4a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; } .slide-title .accent { color: #e8305e; }
+        .slide-subtitle { font-size: 0.95rem; color: #9e8b91; text-align: center; }
+        .scenario-strip { background: rgba(197,26,74,0.08); border-left: 3px solid #c51a4a; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #d4a0ad; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-red { background: rgba(197,26,74,0.08); border: 1px solid rgba(197,26,74,0.3); color: #f0c0cc; }
+        .box-gold { background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.3); color: #fef3c7; }
+        .box-blue { background: rgba(96,165,250,0.08); border: 1px solid rgba(96,165,250,0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; } .title-hero .big-title .accent { color: #e8305e; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; } .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; } .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #c51a4a; } .card:hover { background: rgba(255,255,255,0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; } .card .card-desc { font-size: 0.82rem; color: #9e8b91; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-red { border-left-color: #c51a4a; } .card.c-gold { border-left-color: #ffd700; } .card.c-blue { border-left-color: #60a5fa; } .card.c-purple { border-left-color: #a78bfa; } .card.c-orange { border-left-color: #f97316; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; } .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #c51a4a; min-width: 22px; text-align: right; flex-shrink: 0; } .fact-text { color: #cbd5e1; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; } .step-row { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num { background: rgba(197,26,74,0.12); border: 1px solid rgba(197,26,74,0.4); color: #c51a4a; font-weight: 700; font-size: 0.78rem; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px; }
+        .step-text { color: #cbd5e1; line-height: 1.4; } .step-text strong { color: #f1f5f9; }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Motor Controller Case Study -- PiVerse Board Engineering</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<section class="slide active" id="slide-1"><div class="slide-inner">
+    <div class="slide-meta">Slide 1 of 12 | PiVerse | Board Engineering | Chapter 7</div>
+    <div class="title-hero"><div class="big-title"><span class="accent">Motor Controller:</span> Stepper Driver PCB</div>
+    <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">TMC2209 Stepper Driver | RP2040 Control | Power Path | UART Config | PCB Layout Challenges</div></div>
+    <div class="scenario-strip">Theory becomes real when you design a complete board. This case study walks through a stepper motor controller PCB built around the RP2040 and TMC2209 driver -- the same combination used in 3D printers, CNC machines, and robotic arms.</div>
+    <div class="title-meta-row"><span>12 Slides</span><span>PiVerse Board Engineering</span><span>Chapter 7 of 8</span><span>Matrix House</span></div>
+</div></section>
+
+<section class="slide" id="slide-2"><div class="slide-inner">
+    <div class="slide-meta">Slide 2 of 12</div>
+    <div class="slide-title">Project <span class="accent">Overview</span></div>
+    <div class="slide-subtitle">A single PCB that takes USB power/data, runs RP2040 firmware, and drives a NEMA 17 stepper motor.</div>
+    <div class="card-grid">
+        <div class="card c-red"><div class="card-label">RP2040 (Brain)</div><div class="card-desc">Generates step/dir pulses via PIO at precise timing. Communicates with the TMC2209 over UART for configuration. USB connection to host computer.</div></div>
+        <div class="card c-gold"><div class="card-label">TMC2209 (Driver)</div><div class="card-desc">Trinamic stepper driver IC. Silent operation via StealthChop. Up to 2A per coil. Microstepping up to 1/256. UART interface for runtime configuration.</div></div>
+        <div class="card c-blue"><div class="card-label">Power System</div><div class="card-desc">Two separate power domains: 3.3V logic (from USB via LDO) and 8-24V motor power (from external supply via screw terminal). Complete isolation between logic and motor ground.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-3"><div class="slide-inner">
+    <div class="slide-meta">Slide 3 of 12</div>
+    <div class="slide-title"><span class="accent">Schematic</span> Block Diagram</div>
+    <div class="slide-subtitle">Five functional blocks connected through defined interfaces.</div>
+    <div class="step-list">
+        <div class="step-row"><span class="step-num">A</span><span class="step-text"><strong>USB Input Block:</strong> USB-C connector, ESD protection (TVS diode), 5V VBUS, D+/D- to RP2040 with 27-ohm series resistors.</span></div>
+        <div class="step-row"><span class="step-num">B</span><span class="step-text"><strong>RP2040 Core Block:</strong> MCU, 12 MHz crystal, W25Q16JV flash, decoupling network, BOOTSEL button, reset button, SWD header.</span></div>
+        <div class="step-row"><span class="step-num">C</span><span class="step-text"><strong>Logic Power Block:</strong> 5V to 3.3V LDO (AP2112K), input/output caps, power LED.</span></div>
+        <div class="step-row"><span class="step-num">D</span><span class="step-text"><strong>Motor Driver Block:</strong> TMC2209, sense resistors (0.11 ohm for 2A), UART connection to RP2040, step/dir/enable GPIO connections.</span></div>
+        <div class="step-row"><span class="step-num">E</span><span class="step-text"><strong>Motor Power Block:</strong> Screw terminal for 8-24V input, bulk electrolytic cap (100uF), Schottky protection diode, 4-pin motor output connector.</span></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-4"><div class="slide-inner">
+    <div class="slide-meta">Slide 4 of 12</div>
+    <div class="slide-title">TMC2209 <span class="accent">Interface</span></div>
+    <div class="slide-subtitle">How the RP2040 controls the stepper driver.</div>
+    <div class="card-grid-2">
+        <div class="card c-red"><div class="card-label">Step/Dir/Enable (GPIO)</div><div class="card-desc">STEP: Each rising edge moves the motor one microstep. DIR: High = clockwise, Low = counterclockwise. EN: Active low -- pull low to enable motor output. PIO generates STEP pulses for precise timing up to 500 kHz.</div></div>
+        <div class="card c-gold"><div class="card-label">UART Configuration</div><div class="card-desc">Single-wire UART (TX and RX on the same pin via a 1K resistor). RP2040 UART TX connects through 1K to the TMC2209 PDN_UART pin. This lets you configure microstepping, current limit, StealthChop, and read diagnostics at runtime.</div></div>
+    </div>
+    <div class="box box-red"><div class="box-label">Sense Resistors</div>Two 0.11-ohm resistors (R_SENSE) set the maximum motor current. The TMC2209 measures voltage across these resistors to regulate current. I_max = 0.325V / R_SENSE = 0.325 / 0.11 = 2.95A peak. For 2A RMS, configure via UART. Use 1% tolerance resistors -- current accuracy depends on resistor accuracy.</div>
+</div></section>
+
+<section class="slide" id="slide-5"><div class="slide-inner">
+    <div class="slide-meta">Slide 5 of 12</div>
+    <div class="slide-title">Power <span class="accent">Domain</span> Separation</div>
+    <div class="slide-subtitle">Logic power (3.3V) and motor power (8-24V) must be carefully separated.</div>
+    <div class="card-grid-2">
+        <div class="card c-red"><div class="card-label">Why Separate?</div><div class="card-desc">Stepper motors generate large current spikes and back-EMF. If motor power noise couples into logic power, the RP2040 crashes or the USB connection drops. Separate ground paths and ground planes prevent this.</div></div>
+        <div class="card c-gold"><div class="card-label">Single Ground Point</div><div class="card-desc">Logic GND and motor GND connect at exactly one point -- a star ground near the TMC2209. This prevents motor return current from flowing through the logic ground plane. On the PCB, this means a physical split in the ground pour.</div></div>
+    </div>
+    <div class="box box-gold"><div class="box-label">Bulk Capacitor</div>A 100uF electrolytic capacitor on the motor power input absorbs current spikes from the stepper driver's switching action. Without it, the motor power rail rings with every step, radiating EMI and potentially damaging the driver IC. Place it within 10mm of the driver's VM pin.</div>
+</div></section>
+
+<section class="slide" id="slide-6"><div class="slide-inner">
+    <div class="slide-meta">Slide 6 of 12</div>
+    <div class="slide-title">PCB Layout <span class="accent">Strategy</span></div>
+    <div class="slide-subtitle">Component placement drives trace routing. Get placement right and routing follows naturally.</div>
+    <div class="step-list">
+        <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>USB connector at board edge.</strong> Cable stress goes into the connector mounting pads, not the board. Add silkscreen indicating USB-C orientation.</span></div>
+        <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>RP2040 center-left.</strong> Close to USB connector for short D+/D- traces. Crystal and flash within 5-10mm. Decoupling caps surrounding the chip.</span></div>
+        <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>TMC2209 center-right.</strong> Near the motor output connector. Sense resistors directly adjacent. Bulk cap nearby. The thermal pad needs a 3x3 via array to the ground plane.</span></div>
+        <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Motor power at opposite edge from USB.</strong> Screw terminal at board edge. Wide traces (40+ mil) from terminal to TMC2209 VM pin. Motor output connector adjacent.</span></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-7"><div class="slide-inner">
+    <div class="slide-meta">Slide 7 of 12</div>
+    <div class="slide-title">High-Current <span class="accent">Trace</span> Design</div>
+    <div class="slide-subtitle">Motor power traces carry 2+ amps. Standard signal trace widths are insufficient.</div>
+    <div class="card-grid-2">
+        <div class="card c-red"><div class="card-label">Trace Width Calculation</div><div class="card-desc">For 2A on an outer layer with 1oz copper and 10C temperature rise: minimum trace width is approximately 40 mil (1mm). For safety, use 50-60 mil or a copper pour. Use Saturn PCB Toolkit to calculate exactly.</div></div>
+        <div class="card c-gold"><div class="card-label">Via Current Capacity</div><div class="card-desc">A single 0.3mm via carries about 0.5A. Motor power paths need multiple vias in parallel (4-8 vias) to handle 2A+ safely. Place them in a row for even current distribution.</div></div>
+    </div>
+    <div class="box box-red"><div class="box-label">Copper Pour for Motor Power</div>Instead of individual traces, use a copper pour on both top and bottom layers for the motor power path. This maximizes current capacity and minimizes voltage drop. Connect top and bottom pours with a row of vias along the path.</div>
+</div></section>
+
+<section class="slide" id="slide-8"><div class="slide-inner">
+    <div class="slide-meta">Slide 8 of 12</div>
+    <div class="slide-title">Thermal <span class="accent">Design</span></div>
+    <div class="slide-subtitle">The TMC2209 dissipates up to 1W at full current. Heat management is critical.</div>
+    <div class="card-grid-2">
+        <div class="card c-red"><div class="card-label">Thermal Pad Vias</div><div class="card-desc">The TMC2209 QFN exposed pad connects to ground. Place a 4x4 array of 0.3mm thermal vias under the pad, connecting to internal and bottom ground planes. This spreads heat into the board.</div></div>
+        <div class="card c-gold"><div class="card-label">Copper Pour Area</div><div class="card-desc">Maximize ground copper around the TMC2209 on all layers. A larger copper area means more thermal mass and more surface area for convective cooling. 1W is manageable with good layout but not with minimal copper.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-9"><div class="slide-inner">
+    <div class="slide-meta">Slide 9 of 12</div>
+    <div class="slide-title">PIO for <span class="accent">Step</span> Generation</div>
+    <div class="slide-subtitle">Why PIO is the perfect tool for generating stepper motor control signals.</div>
+    <div class="card-grid-2">
+        <div class="card c-red"><div class="card-label">Precise Timing</div><div class="card-desc">PIO generates step pulses at exact frequencies from 1 Hz to 500 kHz. No interrupt jitter, no OS scheduling delays. Each step pulse is cycle-accurate. This translates directly to smooth, quiet motor operation.</div></div>
+        <div class="card c-gold"><div class="card-label">CPU-Free Operation</div><div class="card-desc">While PIO drives the motor, both CPU cores are free for other tasks: processing G-code, running a web interface, managing USB communication. The motor keeps stepping regardless of what the CPU is doing.</div></div>
+    </div>
+    <div class="box box-blue"><div class="box-label">Acceleration Profiles</div>The CPU calculates acceleration ramps (trapezoidal or S-curve) and updates the PIO step frequency at regular intervals. PIO handles the precise pulse generation between updates. This division of labor gives you both mathematical accuracy (CPU) and timing precision (PIO).</div>
+</div></section>
+
+<section class="slide" id="slide-10"><div class="slide-inner">
+    <div class="slide-meta">Slide 10 of 12</div>
+    <div class="slide-title">Protection <span class="accent">Circuits</span></div>
+    <div class="slide-subtitle">Motors are electrically hostile. Protect the driver and the MCU.</div>
+    <div class="card-grid">
+        <div class="card c-red"><div class="card-label">TVS on Motor Power</div><div class="card-desc">A TVS diode on the motor input clamps voltage spikes from back-EMF when the motor decelerates. Without it, voltage spikes can exceed the TMC2209's 29V absolute maximum.</div></div>
+        <div class="card c-gold"><div class="card-label">Flyback Diodes</div><div class="card-desc">The TMC2209 has internal flyback diodes, but external Schottky diodes across the motor outputs provide additional protection for the die when the motor is disconnected under load.</div></div>
+        <div class="card c-blue"><div class="card-label">USB ESD Protection</div><div class="card-desc">A TVS diode array (USBLC6-2SC6 or similar) on the USB D+/D- lines protects the RP2040's USB PHY from electrostatic discharge. This is essential for any user-accessible USB port.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-11"><div class="slide-inner">
+    <div class="slide-meta">Slide 11 of 12</div>
+    <div class="slide-title"><span class="accent">BOM</span> Summary</div>
+    <div class="slide-subtitle">Complete bill of materials for the motor controller board.</div>
+    <div class="step-list">
+        <div class="step-row"><span class="step-num">U1</span><span class="step-text"><strong>RP2040</strong> -- QFN-56, main MCU</span></div>
+        <div class="step-row"><span class="step-num">U2</span><span class="step-text"><strong>W25Q16JV</strong> -- SOIC-8, 2MB QSPI flash</span></div>
+        <div class="step-row"><span class="step-num">U3</span><span class="step-text"><strong>AP2112K-3.3</strong> -- SOT-23-5, 3.3V LDO 600mA</span></div>
+        <div class="step-row"><span class="step-num">U4</span><span class="step-text"><strong>TMC2209</strong> -- QFN-28, stepper driver</span></div>
+        <div class="step-row"><span class="step-num">Y1</span><span class="step-text"><strong>12 MHz crystal</strong> -- 3215 package, 15pF load</span></div>
+        <div class="step-row"><span class="step-num">--</span><span class="step-text"><strong>Passives:</strong> ~25 resistors/capacitors (100nF, 10uF, 1uF, 27R, 1K, 10K, 0.11R)</span></div>
+        <div class="step-row"><span class="step-num">--</span><span class="step-text"><strong>Connectors:</strong> USB-C, 2-pin screw terminal (motor power), 4-pin JST (motor output), 3-pin SWD header</span></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-12"><div class="slide-inner">
+    <div class="slide-meta">Slide 12 of 12</div>
+    <div class="slide-title">Key Takeaways: <span class="accent">Motor Controller</span></div>
+    <div class="slide-subtitle">A complete board design integrating everything from Chapters 1-6.</div>
+    <div class="summary-facts">
+        <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Separate power domains.</strong> Logic (3.3V) and motor (8-24V) with a single ground connection point. This prevents motor noise from crashing the MCU.</span></div>
+        <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Wide traces for motor current.</strong> 40+ mil or copper pours for 2A+ paths. Multiple parallel vias for layer transitions.</span></div>
+        <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>TMC2209 thermal management.</strong> 4x4 thermal via array under QFN pad. Maximize ground copper on all layers.</span></div>
+        <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>PIO for step generation.</strong> Cycle-accurate timing, zero jitter, CPU-free operation. The perfect tool for motor control.</span></div>
+        <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Protection everywhere.</strong> TVS on motor power, ESD on USB, flyback diodes on outputs. Motors are electrically hostile -- design defensively.</span></div>
+    </div>
+    <div class="box box-red" style="font-size:0.85rem; text-align:center;"><strong>Next: Chapter 8 -- USB HID Controller Case Study</strong> | Custom Game Controller PCB</div>
+    <div style="text-align:center; margin-top:6px;"><button id="complete-btn" onclick="completeModule()">Mark Complete</button></div>
+</div></section>
+
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; PiVerse</button></a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+<script>
+    let currentSlide = 1; const TOTAL_SLIDES = 12;
+    function goToSlide(n) { if (n < 1 || n > TOTAL_SLIDES) return; const prev = document.getElementById('slide-' + currentSlide); if (prev) prev.classList.remove('active'); currentSlide = n; const next = document.getElementById('slide-' + currentSlide); if (next) next.classList.add('active'); document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%'; document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES; document.getElementById('prev-btn').disabled = (currentSlide === 1); document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES); const cb = document.getElementById('complete-btn'); if (cb) cb.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none'; }
+    document.addEventListener('keydown', function(e) { if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); } else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); } });
+    goToSlide(1);
+</script>
+<script>function completeModule() { if (typeof ModuleProgress !== 'undefined') { ModuleProgress.complete('matrix', 'pv-b-07-pres', { returnUrl: '../../index.html' }); } }</script>
+</body>
+</html>

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PCB Anatomy | PiVerse Board Engineering</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0d0408 0%, #1a0812 50%, #0d0408 100%); color: #e2e8f0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #c51a4a; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(13,4,8,0.95); border-top: 1px solid rgba(197,26,74,0.15); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.07); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(197,26,74,0.15); color: #c51a4a; border-color: #c51a4a; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #c51a4a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #e8305e; }
+        .slide-subtitle { font-size: 0.95rem; color: #9e8b91; text-align: center; }
+        .scenario-strip { background: rgba(197,26,74,0.08); border-left: 3px solid #c51a4a; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #d4a0ad; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-red { background: rgba(197,26,74,0.08); border: 1px solid rgba(197,26,74,0.3); color: #f0c0cc; }
+        .box-green { background: rgba(58,181,119,0.08); border: 1px solid rgba(58,181,119,0.35); color: #d1fae5; }
+        .box-gold { background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.3); color: #fef3c7; }
+        .box-blue { background: rgba(96,165,250,0.08); border: 1px solid rgba(96,165,250,0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #e8305e; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #c51a4a; }
+        .card:hover { background: rgba(255,255,255,0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc { font-size: 0.82rem; color: #9e8b91; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-red { border-left-color: #c51a4a; } .card.c-gold { border-left-color: #ffd700; } .card.c-cyan { border-left-color: #06b6d4; } .card.c-purple { border-left-color: #a78bfa; } .card.c-orange { border-left-color: #f97316; } .card.c-blue { border-left-color: #60a5fa; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #c51a4a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #e8305e; background: rgba(197,26,74,0.12); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num { background: rgba(197,26,74,0.12); border: 1px solid rgba(197,26,74,0.4); color: #c51a4a; font-weight: 700; font-size: 0.78rem; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px; }
+        .step-text { color: #cbd5e1; line-height: 1.4; } .step-text strong { color: #f1f5f9; }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">PCB Anatomy -- PiVerse Board Engineering</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 | PiVerse | Board Engineering | Chapter 3</div>
+        <div class="title-hero">
+            <div class="big-title"><span class="accent">PCB Anatomy:</span> Layers, Traces, and Planes</div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">Copper Layers | Traces and Width | Vias | Ground Planes | Board Stackup | Solder Mask</div>
+        </div>
+        <div class="scenario-strip">A PCB is a sandwich of copper and fiberglass, precisely engineered to carry signals and power between components. Understanding the anatomy of this sandwich is the foundation of every board you will ever design.</div>
+        <div class="title-meta-row"><span>12 Slides</span><span>PiVerse Board Engineering</span><span>Chapter 3 of 8</span><span>Matrix House</span></div>
+    </div>
+</section>
+
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">What is a <span class="accent">PCB</span>?</div>
+        <div class="slide-subtitle">A Printed Circuit Board replaces breadboard wires with permanent, reliable copper traces on a rigid substrate.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">FR-4 Substrate</div><div class="card-desc">Fiberglass-reinforced epoxy laminate. The most common PCB material. Cheap, strong, and good enough for frequencies up to several GHz. Green color comes from the solder mask, not the substrate.</div></div>
+            <div class="card c-gold"><div class="card-label">Copper Layers</div><div class="card-desc">Thin copper foil (typically 1 oz/ft2 = 35 um) laminated onto the FR-4. Copper is etched away to leave only the traces and pads you designed. More layers = more routing flexibility.</div></div>
+        </div>
+        <div class="box box-red"><div class="box-label">Layer Count</div>A 2-layer board has copper on top and bottom. A 4-layer board adds two internal copper layers. The Pico is a 4-layer board. Most hobby projects use 2 layers. Production boards use 4-8 layers. Server boards can exceed 20 layers.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Copper <span class="accent">Traces</span></div>
+        <div class="slide-subtitle">Traces are the wires of the PCB. Their width determines how much current they can carry.</div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">Width Matters</div><div class="card-desc">A 0.15mm (6 mil) trace carries about 0.3A on the outer layer. A 0.5mm (20 mil) trace carries about 1A. Power traces need to be wider than signal traces.</div></div>
+            <div class="card c-gold"><div class="card-label">Thickness</div><div class="card-desc">Standard 1 oz copper is 35 micrometers thick. 2 oz copper (70 um) doubles current capacity. Heavier copper costs more and is harder to etch fine features.</div></div>
+            <div class="card c-blue"><div class="card-label">Spacing</div><div class="card-desc">Minimum spacing between traces depends on voltage and manufacturer capability. Typical: 0.15mm (6 mil) for low voltage. High voltage needs wider gaps to prevent arcing.</div></div>
+        </div>
+        <div class="box box-gold"><div class="box-label">Design Rule: Power vs Signal</div>Signal traces (GPIO, UART, SPI) can be thin (6-8 mil). Power traces (VCC, GND) should be wide (20-50 mil) or use copper pours. USB differential pairs need specific widths for impedance control (typically 8-10 mil with specific spacing).</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title"><span class="accent">Vias</span>: Connecting Layers</div>
+        <div class="slide-subtitle">A via is a plated hole that connects copper on one layer to copper on another layer.</div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">Through-Hole Via</div><div class="card-desc">Drilled completely through the board. Connects all layers. Most common type. Typical drill size: 0.3mm hole, 0.6mm pad. Cheap to manufacture.</div></div>
+            <div class="card c-gold"><div class="card-label">Blind Via</div><div class="card-desc">Connects an outer layer to an inner layer without going all the way through. More expensive. Used in high-density designs.</div></div>
+            <div class="card c-blue"><div class="card-label">Buried Via</div><div class="card-desc">Connects two internal layers only. Not visible from outside. Most expensive. Used in advanced designs with 6+ layers.</div></div>
+        </div>
+        <div class="box box-red"><div class="box-label">Via-in-Pad</div>Placing a via directly in a component pad saves space but requires the via to be filled and plated over. JLCPCB and most fabs support this for a small surcharge. Essential for QFN packages like the RP2040 where the ground pad needs vias for thermal relief.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title"><span class="accent">Ground</span> Planes</div>
+        <div class="slide-subtitle">A ground plane is an entire copper layer (or large pour) dedicated to ground. It is the single most important feature of a well-designed PCB.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Signal Return Path</div><div class="card-desc">Every signal needs a return path. A continuous ground plane provides the shortest, lowest-inductance return path directly beneath each signal trace. This minimizes EMI and crosstalk.</div></div>
+            <div class="card c-gold"><div class="card-label">Thermal Dissipation</div><div class="card-desc">Large copper areas spread heat. The RP2040's exposed ground pad on the bottom of the QFN package connects to the ground plane through thermal vias, conducting heat into the board.</div></div>
+        </div>
+        <div class="box box-gold"><div class="box-label">Rule: Never Split the Ground Plane</div>Routing signal traces on the ground plane layer creates splits. A split ground plane forces return currents to take longer paths, creating antenna loops that radiate EMI. On a 4-layer board, keep one entire inner layer as an unbroken ground plane.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Board <span class="accent">Stackup</span></div>
+        <div class="slide-subtitle">The stackup defines the order and thickness of copper and dielectric layers.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">L1</span><span class="step-text"><strong>Top Copper (Signal):</strong> Components and signal traces. Most routing happens here.</span></div>
+            <div class="step-row"><span class="step-num">L2</span><span class="step-text"><strong>Inner 1 (Ground Plane):</strong> Continuous ground pour. Signal return path. Do not route signals here.</span></div>
+            <div class="step-row"><span class="step-num">L3</span><span class="step-text"><strong>Inner 2 (Power Plane):</strong> 3.3V pour, or split between 3.3V and other rails. Some signal routing if needed.</span></div>
+            <div class="step-row"><span class="step-num">L4</span><span class="step-text"><strong>Bottom Copper (Signal):</strong> Additional signal routing, ground pour fill, and some components (in double-sided assembly).</span></div>
+        </div>
+        <div class="box box-red"><div class="box-label">Why 4 Layers for RP2040?</div>The RP2040 QFN-56 package has pins on all four sides plus a ground pad underneath. A 2-layer board makes routing extremely difficult. The 4-layer stackup with dedicated ground and power planes gives you clean power delivery, good signal integrity, and room to route all 30 GPIO pins.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title"><span class="accent">Solder Mask</span> and Silkscreen</div>
+        <div class="slide-subtitle">Two non-copper layers that protect the board and communicate component placement.</div>
+        <div class="card-grid-2">
+            <div class="card c-green"><div class="card-label">Solder Mask</div><div class="card-desc">The colored coating (usually green) that covers all copper except pads and vias. Prevents solder bridges between closely-spaced pads during assembly. Also protects copper from oxidation and environmental damage.</div></div>
+            <div class="card c-gold"><div class="card-label">Silkscreen</div><div class="card-desc">White (or other color) ink printed on the solder mask. Shows reference designators (R1, C1, U1), component outlines, pin 1 markers, board name, version number, and orientation markers.</div></div>
+        </div>
+        <div class="box box-blue"><div class="box-label">Colors Are Cosmetic</div>Green solder mask is traditional but any color works: black, white, red, blue, purple, matte black. JLCPCB charges extra for non-green. The Raspberry Pi Pico uses green. Your custom boards can use whatever you like.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Component <span class="accent">Footprints</span></div>
+        <div class="slide-subtitle">A footprint is the physical pad pattern on the PCB that a component solders to.</div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">Through-Hole (THT)</div><div class="card-desc">Pins go through holes in the board and are soldered on the opposite side. Larger, easier to solder by hand. Used for connectors, large capacitors, and pin headers.</div></div>
+            <div class="card c-gold"><div class="card-label">Surface Mount (SMD)</div><div class="card-desc">Pads sit flat on the surface. Components are placed on top and soldered with reflow. Smaller, cheaper for mass production. 0402, 0603, 0805 are common resistor/cap sizes.</div></div>
+            <div class="card c-blue"><div class="card-label">QFN (RP2040)</div><div class="card-desc">Quad Flat No-lead. Pads on all four edges plus an exposed ground pad underneath. The RP2040 is QFN-56: 56 pads, 7mm x 7mm. Requires reflow soldering.</div></div>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Copper <span class="accent">Pours</span> and Fills</div>
+        <div class="slide-subtitle">Large areas of copper that fill unused board space. Essential for power distribution and EMI control.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Ground Pour (Fill)</div><div class="card-desc">Fill unused areas on the top and bottom layers with copper connected to GND. This extends the ground plane, reduces EMI, and improves thermal performance. Always use ground pours unless you have a specific reason not to.</div></div>
+            <div class="card c-gold"><div class="card-label">Thermal Relief</div><div class="card-desc">Where a pad connects to a copper pour, a thermal relief pattern (spoked connection) is used instead of a direct solid connection. This makes hand soldering possible -- a pad directly connected to a huge copper pour would wick away heat too fast to solder.</div></div>
+        </div>
+        <div class="box box-red"><div class="box-label">Pour Order Matters</div>In KiCad and other EDA tools, copper pours have priority numbers. Higher-priority pours fill first. GND pours typically have the lowest priority so they fill around everything else. Always re-pour (rebuild) fills before generating Gerber files.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Board <span class="accent">Outline</span> and Mounting</div>
+        <div class="slide-subtitle">The edge cuts layer defines the physical shape of your board.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Edge Cuts</div><div class="card-desc">A closed polygon on the Edge.Cuts layer defines the board outline. Can be rectangular, rounded, or any custom shape. The router at the fab house follows this line to cut your board out of the panel.</div></div>
+            <div class="card c-gold"><div class="card-label">Mounting Holes</div><div class="card-desc">Non-plated holes for screws. Typically M2.5 or M3. Place them at corners, inset by at least 3mm from the board edge. Connect to ground plane if using metal standoffs for grounding.</div></div>
+        </div>
+        <div class="box box-gold"><div class="box-label">Keep-Out Zones</div>Nothing should be placed within 0.5mm of the board edge (copper, components, or vias). This is the fabrication clearance. Also keep components clear of mounting holes -- the screw head needs clearance. Define keep-out zones in your EDA tool to enforce this.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Design Rule <span class="accent">Check</span> (DRC)</div>
+        <div class="slide-subtitle">The DRC is your last line of defense before sending the board to fabrication.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Clearance violations:</strong> Traces or pads too close to each other. The fab cannot reliably etch copper below its minimum clearance (typically 0.15mm for JLCPCB).</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Unconnected nets:</strong> A net in the schematic that is not fully routed on the PCB. Every connection in the netlist must have a physical copper path.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Minimum trace width:</strong> Below 0.1mm (4 mil), most budget fabs cannot reliably produce traces. Standard minimum is 0.15mm (6 mil).</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Drill size violations:</strong> Minimum drill is typically 0.2mm for mechanical, 0.3mm for vias. Smaller drills cost more and break more easily.</span></div>
+            <div class="step-row"><span class="step-num">5</span><span class="step-text"><strong>Courtyard overlaps:</strong> Component courtyards define the physical space a component occupies including clearance. Overlaps mean components will physically collide.</span></div>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Key Takeaways: <span class="accent">PCB Anatomy</span></div>
+        <div class="slide-subtitle">You now understand the physical structure of every PCB. Next: powering it.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>A PCB is layered copper and FR-4.</strong> 2-layer for simple, 4-layer for RP2040 designs. Each layer serves a purpose: signals, ground, power.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Trace width determines current capacity.</strong> Thin for signals (6 mil), wide for power (20+ mil). Use copper pours for high-current paths.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Vias connect layers.</strong> Through-hole vias are cheapest. Via-in-pad is essential for QFN packages like the RP2040.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Ground planes are non-negotiable.</strong> Continuous, unbroken ground plane on an inner layer. Never split it with signal routing.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Always run DRC before fabrication.</strong> Clearance, unconnected nets, minimum widths -- the tool catches what your eyes miss.</span></div>
+        </div>
+        <div class="box box-red" style="font-size:0.85rem; text-align:center;"><strong>Next: Chapter 4 -- Power System Design</strong> | Voltage Regulation, Decoupling, Power Sequencing</div>
+        <div style="text-align:center; margin-top:6px;"><button id="complete-btn" onclick="completeModule()">Mark Complete</button></div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; PiVerse</button></a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+<script>
+    let currentSlide = 1; const TOTAL_SLIDES = 12;
+    function goToSlide(n) { if (n < 1 || n > TOTAL_SLIDES) return; const prev = document.getElementById('slide-' + currentSlide); if (prev) prev.classList.remove('active'); currentSlide = n; const next = document.getElementById('slide-' + currentSlide); if (next) next.classList.add('active'); document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%'; document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES; document.getElementById('prev-btn').disabled = (currentSlide === 1); document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES); const cb = document.getElementById('complete-btn'); if (cb) cb.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none'; }
+    document.addEventListener('keydown', function(e) { if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); } else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); } });
+    goToSlide(1);
+</script>
+<script>function completeModule() { if (typeof ModuleProgress !== 'undefined') { ModuleProgress.complete('matrix', 'pv-b-03-pres', { returnUrl: '../../index.html' }); } }</script>
+</body>
+</html>

@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home Automation Protocols | PiVerse Maker's Workshop</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0d0408 0%, #1a0810 50%, #0d0408 100%); color: #e2e8f0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #c51a4a; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(13,4,8,0.95); border-top: 1px solid rgba(197,26,74,0.15); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.07); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(197,26,74,0.15); color: #c51a4a; border-color: #c51a4a; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s; }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #c51a4a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #e8305e; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip { background: rgba(197,26,74,0.08); border-left: 3px solid #c51a4a; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #d4a0b0; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-red { background: rgba(197,26,74,0.08); border: 1px solid rgba(197,26,74,0.3); color: #f0c0d0; }
+        .box-green { background: rgba(58,181,119,0.08); border: 1px solid rgba(58,181,119,0.35); color: #d1fae5; }
+        .box-gold { background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.3); color: #fef3c7; }
+        .box-blue { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.2rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #e8305e; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #c51a4a; }
+        .card:hover { background: rgba(255,255,255,0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-red { border-left-color: #c51a4a; } .card.c-gold { border-left-color: #ffd700; } .card.c-cyan { border-left-color: #06b6d4; } .card.c-purple { border-left-color: #a78bfa; } .card.c-orange { border-left-color: #f97316; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #c51a4a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #e8305e; background: rgba(197,26,74,0.1); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num { background: rgba(197,26,74,0.12); border: 1px solid rgba(197,26,74,0.4); color: #c51a4a; font-weight: 700; font-size: 0.78rem; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px; }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+        .code-block { background: rgba(0,0,0,0.35); border: 1px solid rgba(197,26,74,0.2); border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #e8305e; line-height: 1.6; white-space: pre; overflow-x: auto; }
+        .code-block .cm { color: #64748b; } .code-block .kw { color: #a78bfa; } .code-block .fn { color: #e8305e; } .code-block .st { color: #86efac; } .code-block .nu { color: #fdba74; }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Home Automation Protocols -- PiVerse Maker's Workshop</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; PiVerse &nbsp;|&nbsp; Maker's Workshop &nbsp;|&nbsp; PV-M-05</div>
+        <div class="title-hero">
+            <div class="big-title"><span class="accent">Home Automation</span> Protocols</div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">MQTT &nbsp;|&nbsp; Zigbee &nbsp;|&nbsp; Z-Wave &nbsp;|&nbsp; Home Assistant &nbsp;|&nbsp; Node-RED</div>
+        </div>
+        <div class="scenario-strip">A Raspberry Pi on your shelf becomes the brain of your home. Sensors publish temperature data via MQTT. Zigbee devices form a mesh network. Home Assistant ties everything together. This is IoT at the edge -- and you control every layer.</div>
+        <div class="title-meta-row"><span>12 Slides</span><span>PiVerse Maker's Workshop</span><span>Chapter 5 of 10</span><span>Matrix House</span></div>
+    </div>
+</section>
+
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title"><span class="accent">MQTT</span> Publish/Subscribe</div>
+        <div class="slide-subtitle">A lightweight messaging protocol designed for constrained devices and unreliable networks.</div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">Publisher</div><div class="card-desc">Sends messages to a topic (e.g., "home/livingroom/temp"). Does not know or care who receives the message. Sensors, buttons, and scripts are typical publishers.</div></div>
+            <div class="card c-gold"><div class="card-label">Broker</div><div class="card-desc">Central server (Mosquitto on the Pi) that receives all published messages and forwards them to subscribers. Routes by topic. Stores retained messages for late joiners.</div></div>
+            <div class="card c-green"><div class="card-label">Subscriber</div><div class="card-desc">Registers interest in one or more topics. Receives messages in real time when publishers send data. Dashboards, relays, and loggers are typical subscribers.</div></div>
+        </div>
+        <div class="box box-red"><div class="box-label">Decoupling</div>Publishers and subscribers never communicate directly. The broker handles all routing. This means you can add new subscribers (a logger, a dashboard, an alert system) without modifying any publisher code.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">MQTT <span class="accent">Topics</span> and QoS</div>
+        <div class="slide-subtitle">Hierarchical topic structure with wildcard subscriptions.</div>
+        <div class="card-grid-2">
+            <div class="card"><div class="card-label">Topic Hierarchy</div><div class="card-desc">Topics use / as separators: home/bedroom/temp, home/kitchen/humidity. Subscribe to home/bedroom/# to get all bedroom sensors. Subscribe to home/+/temp to get temperature from all rooms.</div></div>
+            <div class="card c-green"><div class="card-label">QoS Levels</div><div class="card-desc">QoS 0: fire and forget (fastest, no guarantee). QoS 1: at least once delivery (may duplicate). QoS 2: exactly once delivery (slowest, guaranteed). Most sensor data uses QoS 0; critical commands use QoS 1.</div></div>
+        </div>
+        <div class="code-block"><span class="cm"># Install and start Mosquitto broker</span>
+$ sudo apt install -y mosquitto mosquitto-clients
+$ sudo systemctl enable mosquitto
+
+<span class="cm"># Publish a temperature reading</span>
+$ mosquitto_pub -h localhost -t <span class="st">"home/livingroom/temp"</span> -m <span class="st">"22.5"</span>
+
+<span class="cm"># Subscribe to all home topics</span>
+$ mosquitto_sub -h localhost -t <span class="st">"home/#"</span> -v</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Python <span class="accent">MQTT</span> Client</div>
+        <div class="slide-subtitle">paho-mqtt provides a clean Python API for publishing and subscribing.</div>
+        <div class="code-block"><span class="kw">import</span> paho.mqtt.client <span class="kw">as</span> mqtt
+
+<span class="kw">def</span> <span class="fn">on_connect</span>(client, userdata, flags, rc):
+    print(<span class="st">"Connected"</span>, rc)
+    client.subscribe(<span class="st">"home/#"</span>)
+
+<span class="kw">def</span> <span class="fn">on_message</span>(client, userdata, msg):
+    print(f<span class="st">"{msg.topic}: {msg.payload.decode()}"</span>)
+
+client = mqtt.Client()
+client.on_connect = on_connect
+client.on_message = on_message
+client.connect(<span class="st">"localhost"</span>, <span class="nu">1883</span>)
+client.loop_forever()
+
+<span class="cm"># Publishing from a sensor script</span>
+client.publish(<span class="st">"home/office/temp"</span>, <span class="st">"23.1"</span>, qos=<span class="nu">1</span>)</div>
+        <div class="box box-green"><div class="box-label">Retained Messages</div>Publish with retain=True and the broker stores the last message on that topic. New subscribers immediately receive the most recent value without waiting for the next publish. Essential for state topics (light on/off).</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title"><span class="accent">Zigbee</span> vs. Z-Wave vs. Wi-Fi</div>
+        <div class="slide-subtitle">Three wireless protocols for home automation, each with distinct trade-offs.</div>
+        <div class="card-grid">
+            <div class="card c-cyan"><div class="card-label">Zigbee (2.4 GHz)</div><div class="card-desc">Low power, mesh networking, open standard. 10-20m range per node, extended by mesh. Shares the crowded 2.4 GHz band with Wi-Fi. USB coordinator needed (SONOFF, ConBee).</div></div>
+            <div class="card c-purple"><div class="card-label">Z-Wave (908 MHz)</div><div class="card-desc">Dedicated sub-GHz frequency -- no Wi-Fi interference. 30-100m range through walls. Mesh networking. Devices cost more but reliability is higher. USB stick required (Aeotec).</div></div>
+            <div class="card c-orange"><div class="card-label">Wi-Fi (2.4/5 GHz)</div><div class="card-desc">Built into the Pi, no extra hardware. High bandwidth for cameras and displays. High power consumption -- not suitable for battery sensors. No mesh. Each device needs its own IP address.</div></div>
+        </div>
+        <div class="box box-gold"><div class="box-label">Best Starting Point</div>For a Pi-based hub, Zigbee with a SONOFF Zigbee 3.0 USB dongle is the most cost-effective. Sensors cost $5-15 each, the dongle is $10, and Zigbee2MQTT integrates directly with Home Assistant.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Mesh <span class="accent">Networking</span></div>
+        <div class="slide-subtitle">Devices relay messages for each other, extending range without a central router.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Coordinators</div><div class="card-desc">The USB dongle on your Pi. Manages the mesh, stores the network key, and assigns addresses. There is exactly one coordinator per Zigbee network.</div></div>
+            <div class="card c-green"><div class="card-label">Routers</div><div class="card-desc">Mains-powered devices (smart plugs, bulbs) that relay messages for other devices. More routers = better coverage. A smart plug in every room creates a strong mesh backbone.</div></div>
+        </div>
+        <div class="box box-blue"><div class="box-label">End Devices</div>Battery-powered sensors (temperature, motion, door/window) are end devices. They sleep most of the time to save power and only wake to send data. They rely on nearby routers to relay their messages to the coordinator.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title"><span class="accent">Home Assistant</span> on the Pi</div>
+        <div class="slide-subtitle">An open-source platform integrating 2,000+ device types with automations and dashboards.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>HA OS (recommended):</strong> Flash the Home Assistant OS image to an SD card. Boot the Pi. Access at http://homeassistant.local:8123. Manages everything -- OS, Docker, updates.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>HA Container:</strong> Run on existing Pi OS via Docker. sudo docker run --network=host ghcr.io/home-assistant/home-assistant:stable. Good if you need Pi OS for other projects.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>HA Core:</strong> Python venv install. For developers who want full control over dependencies. pip3 install homeassistant inside a virtual environment.</span></div>
+        </div>
+        <div class="box box-red"><div class="box-label">Integrations</div>After install, add integrations: Zigbee2MQTT for Zigbee devices, Mosquitto for MQTT, Node-RED for visual automation, ESPHome for custom ESP32 sensors. Each integration is a one-click setup in the UI.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">HA <span class="accent">Automations</span></div>
+        <div class="slide-subtitle">Trigger -> Condition -> Action. The core pattern of all home automation.</div>
+        <div class="code-block"><span class="cm"># automation.yaml</span>
+- alias: <span class="st">"Turn on porch light at sunset"</span>
+  trigger:
+    - platform: sun
+      event: sunset
+      offset: <span class="st">"-00:15:00"</span>
+  condition:
+    - condition: state
+      entity_id: binary_sensor.vacation_mode
+      state: <span class="st">"off"</span>
+  action:
+    - service: light.turn_on
+      target:
+        entity_id: light.porch
+      data:
+        brightness_pct: <span class="nu">80</span>
+        color_temp: <span class="nu">350</span></div>
+        <div class="box box-gold"><div class="box-label">YAML vs. UI</div>Automations can be built entirely in the HA web UI (visual editor) or written in YAML for version control and replication. The UI generates valid YAML behind the scenes -- you can switch between them freely.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title"><span class="accent">Node-RED</span> Visual Automation</div>
+        <div class="slide-subtitle">Drag-and-drop flow programming for IoT logic.</div>
+        <div class="card-grid-2">
+            <div class="card"><div class="card-label">Nodes</div><div class="card-desc">Each node performs one operation: receive MQTT message, parse JSON, compare value, send HTTP request, control GPIO pin. Nodes are connected by wires that carry messages between them.</div></div>
+            <div class="card c-green"><div class="card-label">Flows</div><div class="card-desc">A flow is a connected graph of nodes. Input nodes (MQTT in, HTTP request) trigger the flow. Processing nodes (switch, change, function) transform data. Output nodes (MQTT out, GPIO) take action.</div></div>
+        </div>
+        <div class="code-block"><span class="cm"># Install Node-RED on Pi OS</span>
+$ bash &lt;(curl -sL https://raw.githubusercontent.com/node-red/linux-installers/master/deb/update-nodejs-and-nodered)
+$ sudo systemctl enable nodered
+$ sudo systemctl start nodered
+
+<span class="cm"># Access at http://your-pi-ip:1880</span>
+<span class="cm"># Install HA nodes: Manage palette -> @node-red-contrib-home-assistant-websocket</span></div>
+    </div>
+</section>
+
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Sensor-to-Action <span class="accent">Pipeline</span></div>
+        <div class="slide-subtitle">A complete data flow from physical sensor to automated response.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Sensor reads data:</strong> A DHT22 temperature sensor connected to an ESP32 reads 28.5C.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>ESP32 publishes:</strong> The ESP32 publishes "28.5" to MQTT topic "home/office/temp" via Wi-Fi.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Mosquitto routes:</strong> The broker on the Pi forwards the message to all subscribers of "home/office/temp".</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Home Assistant receives:</strong> The MQTT integration updates the sensor entity in HA's state machine.</span></div>
+            <div class="step-row"><span class="step-num">5</span><span class="step-text"><strong>Automation triggers:</strong> If temp > 27, HA sends a Zigbee command to turn on the fan via the coordinator.</span></div>
+            <div class="step-row"><span class="step-num">6</span><span class="step-text"><strong>Dashboard updates:</strong> The HA dashboard shows current temp and fan state in real time.</span></div>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title"><span class="accent">Security</span> Considerations</div>
+        <div class="slide-subtitle">An insecure smart home is worse than a dumb home.</div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">MQTT Authentication</div><div class="card-desc">Never run Mosquitto without a password file. mosquitto_passwd creates hashed credentials. Configure allow_anonymous false in mosquitto.conf. Enable TLS for encrypted transport.</div></div>
+            <div class="card c-gold"><div class="card-label">Network Isolation</div><div class="card-desc">Put IoT devices on a separate VLAN. Cheap sensors with outdated firmware are attack vectors. Isolate them from your main network. The Pi hub bridges the VLANs securely.</div></div>
+            <div class="card c-green"><div class="card-label">Update Policy</div><div class="card-desc">Keep Home Assistant, Mosquitto, and Zigbee2MQTT updated. Disable UPnP on your router. Never expose HA directly to the internet -- use Nabu Casa or a VPN for remote access.</div></div>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Key Takeaways: <span class="accent">Home Automation</span></div>
+        <div class="slide-subtitle">The five facts that matter.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>MQTT decouples publishers from subscribers via a broker.</strong> Topics are hierarchical (home/room/sensor). Wildcards (# and +) enable flexible subscriptions. QoS controls delivery guarantees.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Zigbee is the best Pi-compatible protocol for sensors.</strong> Low power, mesh networking, $5-15 per device. A USB coordinator dongle connects the Pi to the Zigbee mesh.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Home Assistant runs natively on the Pi.</strong> HA OS is the simplest install. Integrates MQTT, Zigbee, Z-Wave, Wi-Fi devices, and 2,000+ platforms into one automation engine.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Automations follow Trigger -> Condition -> Action.</strong> Sunset triggers lights. Temperature thresholds trigger fans. Door sensors trigger notifications. All configurable in YAML or the visual editor.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Security is non-negotiable.</strong> Authenticate MQTT, isolate IoT on a VLAN, never expose services to the internet without VPN or Nabu Casa, and keep all firmware updated.</span></div>
+        </div>
+        <div style="text-align:center; margin-top:6px;"><button id="complete-btn" onclick="completeModule()">Mark Complete</button></div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; PiVerse</button></a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        var prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        var next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        var cb = document.getElementById('complete-btn');
+        if (cb) cb.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+    goToSlide(1);
+</script>
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pv-m-05-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>

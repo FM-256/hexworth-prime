@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera Modules | PiVerse Electronics 6</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0d0408 0%, #1a0a10 50%, #0d0408 100%); color: #e2e8f0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #c51a4a; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(13,4,8,0.95); border-top: 1px solid rgba(197,26,74,0.15); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.07); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(197,26,74,0.15); color: #c51a4a; border-color: #c51a4a; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; } .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #c51a4a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c51a4a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip { background: rgba(197,26,74,0.08); border-left: 3px solid #c51a4a; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #d4a0b0; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-red { background: rgba(197,26,74,0.08); border: 1px solid rgba(197,26,74,0.3); color: #f0c0d0; }
+        .box-green { background: rgba(58,181,119,0.08); border: 1px solid rgba(58,181,119,0.35); color: #d1fae5; }
+        .box-gold { background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.3); color: #fef3c7; }
+        .box-blue { background: rgba(100,160,255,0.08); border: 1px solid rgba(100,160,255,0.3); color: #bfdbfe; }
+        .box-warn { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); color: #fee2e2; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c51a4a; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; } .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #c51a4a; }
+        .card:hover { background: rgba(255,255,255,0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-gold { border-left-color: #ffd700; }
+        .card.c-pink { border-left-color: #c51a4a; } .card.c-blue { border-left-color: #60a5fa; }
+        .card.c-purple { border-left-color: #a78bfa; } .card.c-cyan { border-left-color: #06b6d4; }
+        .card.c-red { border-left-color: #ef4444; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #c51a4a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #ffd700; background: rgba(255,215,0,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .ic { font-family: 'Courier New', monospace; color: #ffd700; background: rgba(255,215,0,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .code-block { background: rgba(0,0,0,0.35); border: 1px solid rgba(197,26,74,0.2); border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #ffd700; line-height: 1.6; white-space: pre; overflow-x: auto; }
+        .code-block .cm { color: #64748b; } .code-block .kw { color: #c51a4a; } .code-block .fn { color: #ffd700; } .code-block .st { color: #86efac; } .code-block .nu { color: #fdba74; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num { background: rgba(197,26,74,0.12); border: 1px solid rgba(197,26,74,0.4); color: #c51a4a; font-weight: 700; font-size: 0.78rem; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px; }
+        .step-text { color: #cbd5e1; line-height: 1.4; } .step-text strong { color: #f1f5f9; }
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell { background: rgba(255,255,255,0.04); border: 1px solid rgba(197,26,74,0.25); border-radius: 8px; padding: 12px 14px; text-align: center; }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #c51a4a; margin-bottom: 4px; }
+        .hex-cell .hex-desc { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes glowPulse { 0%, 100% { filter: drop-shadow(0 0 4px rgba(197,26,74,0.3)); } 50% { filter: drop-shadow(0 0 14px rgba(197,26,74,0.9)); } }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Camera Modules -- PiVerse Electronics 6</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+<section class="slide active" id="slide-1"><div class="slide-inner"><div class="slide-meta">Slide 1 of 12 | PiVerse | Electronics | Chapter 6</div><div class="title-hero"><div class="big-title"><span class="accent">Camera Modules</span></div><div class="slide-subtitle">Pi Camera v3, libcamera, picamera2, time-lapse, and OpenCV basics.</div></div><div class="scenario-strip">The Pi Camera Module connects via CSI ribbon cable. The v3 features a 12MP Sony IMX708 with autofocus. libcamera replaces legacy commands, and picamera2 provides the Python API.</div><div class="title-meta-row"><span>12 Slides</span><span>PiVerse Electronics</span><span>Chapter 6 of 10</span><span>Matrix House</span></div></div></section>
+<section class="slide" id="slide-2"><div class="slide-inner"><div class="slide-meta">Slide 2 of 12</div><div class="slide-title">Camera <span class="accent">Hardware</span></div><div class="slide-subtitle">v2 (8MP fixed focus), v3 (12MP autofocus), HQ (interchangeable lens).</div><div class="card-grid"><div class="card c-pink"><div class="card-label">Camera v3</div><div class="card-desc">Sony IMX708 12MP. Autofocus. HDR. 75/120-deg FoV. 4608x2592 stills. $25.</div></div><div class="card c-gold"><div class="card-label">Camera v2</div><div class="card-desc">Sony IMX219 8MP. Fixed focus. 62-deg FoV. Still widely available. $20.</div></div><div class="card c-green"><div class="card-label">HQ Camera</div><div class="card-desc">Sony IMX477 12.3MP. C/CS-mount. Interchangeable lenses. $50.</div></div></div></div></section>
+<section class="slide" id="slide-3"><div class="slide-inner"><div class="slide-meta">Slide 3 of 12</div><div class="slide-title"><span class="accent">libcamera</span> CLI</div><div class="slide-subtitle">Take photos and video from the terminal with the modern camera stack.</div><div class="code-block"><span class="fn">libcamera-hello</span> --list-cameras
+<span class="fn">libcamera-still</span> -o photo.jpg
+<span class="fn">libcamera-vid</span> -t <span class="nu">10000</span> -o video.h264
+<span class="fn">libcamera-still</span> -o hdr.jpg --hdr</div></div></section>
+<section class="slide" id="slide-4"><div class="slide-inner"><div class="slide-meta">Slide 4 of 12</div><div class="slide-title"><span class="accent">picamera2</span> Python</div><div class="slide-subtitle">Capture stills and configure resolution from Python.</div><div class="code-block"><span class="kw">from</span> picamera2 <span class="kw">import</span> Picamera2
+cam = <span class="fn">Picamera2</span>()
+cam.<span class="fn">start</span>()
+<span class="kw">import</span> time; time.<span class="fn">sleep</span>(<span class="nu">2</span>)
+cam.<span class="fn">capture_file</span>(<span class="st">"photo.jpg"</span>)
+cam.<span class="fn">stop</span>()</div></div></section>
+<section class="slide" id="slide-5"><div class="slide-inner"><div class="slide-meta">Slide 5 of 12</div><div class="slide-title"><span class="accent">Time-Lapse</span></div><div class="slide-subtitle">Capture images at intervals, stitch with ffmpeg.</div><div class="code-block"><span class="kw">for</span> i <span class="kw">in</span> <span class="fn">range</span>(<span class="nu">100</span>):
+    cam.<span class="fn">capture_file</span>(<span class="st">f"tl_{i:04d}.jpg"</span>)
+    time.<span class="fn">sleep</span>(<span class="nu">30</span>)
+<span class="cm"># ffmpeg -framerate 24 -i tl_%04d.jpg out.mp4</span></div></div></section>
+<section class="slide" id="slide-6"><div class="slide-inner"><div class="slide-meta">Slide 6 of 12</div><div class="slide-title"><span class="accent">Video</span> Recording</div><div class="slide-subtitle">H.264 encoding with configurable bitrate.</div><div class="code-block"><span class="kw">from</span> picamera2.encoders <span class="kw">import</span> H264Encoder
+encoder = <span class="fn">H264Encoder</span>(<span class="nu">10000000</span>)
+cam.<span class="fn">start_encoder</span>(encoder, <span class="fn">FileOutput</span>(<span class="st">"vid.h264"</span>))
+time.<span class="fn">sleep</span>(<span class="nu">10</span>)
+cam.<span class="fn">stop_encoder</span>()</div></div></section>
+<section class="slide" id="slide-7"><div class="slide-inner"><div class="slide-meta">Slide 7 of 12</div><div class="slide-title"><span class="accent">OpenCV</span> Integration</div><div class="slide-subtitle">Real-time image processing with capture_array().</div><div class="code-block"><span class="kw">import</span> cv2
+frame = cam.<span class="fn">capture_array</span>()
+gray = cv2.<span class="fn">cvtColor</span>(frame, cv2.COLOR_RGB2GRAY)
+edges = cv2.<span class="fn">Canny</span>(gray, <span class="nu">50</span>, <span class="nu">150</span>)</div><div class="box box-green"><div class="box-label">Install</div><span class="ic">sudo apt install python3-opencv</span>. Pi 4/5 handles 640x480 at 30fps with basic filters.</div></div></section>
+<section class="slide" id="slide-8"><div class="slide-inner"><div class="slide-meta">Slide 8 of 12</div><div class="slide-title">Camera <span class="accent">Controls</span></div><div class="slide-subtitle">Exposure, white balance, ISO, autofocus modes.</div><div class="step-list"><div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Exposure:</strong> <span class="ic">cam.set_controls({"ExposureTime": 10000})</span> in microseconds.</span></div><div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Gain:</strong> <span class="ic">cam.set_controls({"AnalogueGain": 2.0})</span>. Higher = brighter but noisier.</span></div><div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Autofocus (v3):</strong> AfMode 0=manual, 1=auto, 2=continuous.</span></div></div></div></section>
+<section class="slide" id="slide-9"><div class="slide-inner"><div class="slide-meta">Slide 9 of 12</div><div class="slide-title"><span class="accent">NoIR</span> Camera</div><div class="slide-subtitle">Night vision with IR illumination using the NoIR module.</div><div class="card-grid-2"><div class="card c-pink"><div class="card-label">NoIR Module</div><div class="card-desc">Same sensor, no IR filter. Daytime images look pink. With IR LEDs, sees in total darkness.</div></div><div class="card c-green"><div class="card-label">Applications</div><div class="card-desc">Wildlife cameras, security, plant monitoring (NDVI), nighttime robotics.</div></div></div></div></section>
+<section class="slide" id="slide-10"><div class="slide-inner"><div class="slide-meta">Slide 10 of 12</div><div class="slide-title">Image <span class="accent">Processing</span> Pipeline</div><div class="slide-subtitle">From capture to analysis: detect, classify, respond.</div><div class="step-list"><div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Capture:</strong> <span class="ic">capture_array()</span> returns a numpy array.</span></div><div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Process:</strong> OpenCV filters, edge detection, face detection, object tracking.</span></div><div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Act:</strong> Trigger GPIO output based on detection result. Camera + GPIO = smart system.</span></div></div></div></section>
+<section class="slide" id="slide-11"><div class="slide-inner"><div class="slide-meta">Slide 11 of 12</div><div class="slide-title">Camera <span class="accent">Best Practices</span></div><div class="slide-subtitle">Tips for reliable camera operation in projects.</div><div class="step-list"><div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Let auto-exposure settle:</strong> Wait 2 seconds after start() before capturing.</span></div><div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Handle the ribbon cable carefully:</strong> The CSI cable is fragile. Secure it with tape.</span></div><div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Storage planning:</strong> 2MP JPEG ~ 1-2MB. Plan SD card or USB capacity accordingly.</span></div><div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Always stop():</strong> Close the camera when done to release the hardware resource.</span></div></div></div></section>
+<section class="slide" id="slide-12"><div class="slide-inner"><div class="slide-meta">Slide 12 of 12</div><div class="slide-title">Key Takeaways: <span class="accent">Camera Modules</span></div><div class="slide-subtitle">Five essential facts from this chapter.</div><div class="summary-facts"><div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>libcamera replaced raspistill.</strong> Use <code>libcamera-still</code> and <code>libcamera-vid</code>.</span></div><div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>picamera2 is the Python API.</strong> <code>Picamera2()</code>, <code>.start()</code>, <code>.capture_file()</code>.</span></div><div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Camera v3 has autofocus.</strong> v2 is fixed focus only.</span></div><div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>OpenCV integration via capture_array().</strong> Returns numpy array for processing.</span></div><div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Time-lapse = loop + ffmpeg.</strong> Capture JPEGs, stitch into MP4.</span></div></div><div class="box box-red" style="font-size:0.85rem; text-align:center;"><strong>Next: Chapter 7 -- Serial Protocols</strong></div><div style="text-align:center; margin-top:6px;"><button id="complete-btn" onclick="completeModule()">Mark Complete</button></div></div></section>
+<nav id="nav-bar"><a href="../../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; PiVerse</button></a><button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button><span id="slide-counter">Slide 1 of 12</span><button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button></nav>
+<script>
+    let currentSlide = 1; const TOTAL_SLIDES = 12;
+    function goToSlide(n) { if (n < 1 || n > TOTAL_SLIDES) return; const prev = document.getElementById('slide-' + currentSlide); if (prev) prev.classList.remove('active'); currentSlide = n; const next = document.getElementById('slide-' + currentSlide); if (next) next.classList.add('active'); document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%'; document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES; document.getElementById('prev-btn').disabled = (currentSlide === 1); document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES); var cb = document.getElementById('complete-btn'); if (cb) cb.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none'; }
+    document.addEventListener('keydown', function(e) { if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); } else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); } });
+    goToSlide(1);
+</script>
+<script>function completeModule() { if (typeof ModuleProgress !== 'undefined') ModuleProgress.complete('matrix', 'pv-e-06-pres', { returnUrl: '../../index.html' }); }</script>
+</body>
+</html>

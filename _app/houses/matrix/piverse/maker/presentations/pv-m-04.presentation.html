@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procedural Generation | PiVerse Maker's Workshop</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0d0408 0%, #1a0810 50%, #0d0408 100%); color: #e2e8f0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #c51a4a; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(13,4,8,0.95); border-top: 1px solid rgba(197,26,74,0.15); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.07); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(197,26,74,0.15); color: #c51a4a; border-color: #c51a4a; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s; }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #c51a4a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #e8305e; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip { background: rgba(197,26,74,0.08); border-left: 3px solid #c51a4a; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #d4a0b0; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-red { background: rgba(197,26,74,0.08); border: 1px solid rgba(197,26,74,0.3); color: #f0c0d0; }
+        .box-green { background: rgba(58,181,119,0.08); border: 1px solid rgba(58,181,119,0.35); color: #d1fae5; }
+        .box-gold { background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.3); color: #fef3c7; }
+        .box-blue { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.2rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #e8305e; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #c51a4a; }
+        .card:hover { background: rgba(255,255,255,0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-red { border-left-color: #c51a4a; } .card.c-gold { border-left-color: #ffd700; } .card.c-cyan { border-left-color: #06b6d4; } .card.c-purple { border-left-color: #a78bfa; } .card.c-orange { border-left-color: #f97316; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #c51a4a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #e8305e; background: rgba(197,26,74,0.1); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num { background: rgba(197,26,74,0.12); border: 1px solid rgba(197,26,74,0.4); color: #c51a4a; font-weight: 700; font-size: 0.78rem; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px; }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+        .code-block { background: rgba(0,0,0,0.35); border: 1px solid rgba(197,26,74,0.2); border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #e8305e; line-height: 1.6; white-space: pre; overflow-x: auto; }
+        .code-block .cm { color: #64748b; } .code-block .kw { color: #a78bfa; } .code-block .fn { color: #e8305e; } .code-block .st { color: #86efac; } .code-block .nu { color: #fdba74; }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Procedural Generation -- PiVerse Maker's Workshop</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; PiVerse &nbsp;|&nbsp; Maker's Workshop &nbsp;|&nbsp; PV-M-04</div>
+        <div class="title-hero">
+            <div class="big-title"><span class="accent">Procedural</span> Generation</div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">Seeds &nbsp;|&nbsp; Weighted Random &nbsp;|&nbsp; Perlin Noise &nbsp;|&nbsp; Endless Runners &nbsp;|&nbsp; Difficulty Curves</div>
+        </div>
+        <div class="scenario-strip">Minecraft builds infinite worlds from a single integer. Spelunky generates unique caves every run. Procedural generation turns algorithms into content -- and a Raspberry Pi into an infinite game machine.</div>
+        <div class="title-meta-row"><span>12 Slides</span><span>PiVerse Maker's Workshop</span><span>Chapter 4 of 10</span><span>Matrix House</span></div>
+    </div>
+</section>
+
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Seeds and <span class="accent">Determinism</span></div>
+        <div class="slide-subtitle">Same seed = same world, every time.</div>
+        <div class="code-block"><span class="kw">import</span> random
+
+<span class="cm"># Same seed produces identical sequence</span>
+random.seed(<span class="nu">42</span>)
+print(random.randint(<span class="nu">0</span>, <span class="nu">100</span>))  <span class="cm"># Always 81</span>
+print(random.randint(<span class="nu">0</span>, <span class="nu">100</span>))  <span class="cm"># Always 14</span>
+print(random.randint(<span class="nu">0</span>, <span class="nu">100</span>))  <span class="cm"># Always 3</span>
+
+<span class="cm"># Share a seed to let others play the same level</span>
+WORLD_SEED = <span class="nu">12345</span>
+random.seed(WORLD_SEED)
+level = generate_level()  <span class="cm"># Identical for everyone</span></div>
+        <div class="box box-red"><div class="box-label">PRNG vs. True Random</div>Python's random module uses a Mersenne Twister PRNG -- a deterministic algorithm. Given the same seed, the output sequence is always identical. True randomness (from hardware noise) cannot be reproduced, which is why games use PRNGs.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title"><span class="accent">Weighted</span> Random Choices</div>
+        <div class="slide-subtitle">Not all outcomes should be equally likely.</div>
+        <div class="code-block">elements = [<span class="st">"ground"</span>, <span class="st">"gap"</span>, <span class="st">"platform"</span>, <span class="st">"collectible"</span>]
+weights  = [<span class="nu">60</span>, <span class="nu">20</span>, <span class="nu">15</span>, <span class="nu">5</span>]
+
+level = random.choices(elements, weights=weights, k=<span class="nu">100</span>)
+
+<span class="cm"># Constraint: no gap wider than 3 tiles</span>
+<span class="kw">def</span> <span class="fn">validate_level</span>(level):
+    gap_count = <span class="nu">0</span>
+    <span class="kw">for</span> i, elem <span class="kw">in</span> enumerate(level):
+        <span class="kw">if</span> elem == <span class="st">"gap"</span>:
+            gap_count += <span class="nu">1</span>
+            <span class="kw">if</span> gap_count > <span class="nu">3</span>:
+                level[i] = <span class="st">"ground"</span>
+        <span class="kw">else</span>:
+            gap_count = <span class="nu">0</span>
+    <span class="kw">return</span> level</div>
+        <div class="box box-gold"><div class="box-label">Generate Then Validate</div>Generate content freely, then apply constraints to ensure playability. This two-pass approach (generate, validate) is simpler and more reliable than trying to build perfect constraints into the generator itself.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title"><span class="accent">Perlin</span> Noise</div>
+        <div class="slide-subtitle">Smooth, continuous randomness -- rolling hills instead of static.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">random.random()</div><div class="card-desc">Each value is independent. Adjacent values have no relationship. Plotting them produces visual noise -- jagged, incoherent, unusable as terrain.</div></div>
+            <div class="card c-green"><div class="card-label">pnoise1(x * scale)</div><div class="card-desc">Adjacent values are similar. The output smoothly transitions between peaks and valleys. Scale controls feature size. The result looks like natural terrain, caves, or clouds.</div></div>
+        </div>
+        <div class="code-block"><span class="kw">from</span> noise <span class="kw">import</span> pnoise1
+
+<span class="kw">def</span> <span class="fn">generate_terrain</span>(width, scale=<span class="nu">0.05</span>, octaves=<span class="nu">4</span>, seed=<span class="nu">0</span>):
+    heights = []
+    <span class="kw">for</span> x <span class="kw">in</span> range(width):
+        n = pnoise1(x * scale, octaves=octaves, base=seed)
+        <span class="cm"># Map -1.0..1.0 to tile height 2..10</span>
+        height = int((n + <span class="nu">1</span>) * <span class="nu">4</span>) + <span class="nu">2</span>
+        heights.append(height)
+    <span class="kw">return</span> heights</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Noise <span class="accent">Parameters</span></div>
+        <div class="slide-subtitle">Four knobs that control the character of generated content.</div>
+        <div class="card-grid-2">
+            <div class="card c-gold"><div class="card-label">Scale (0.01 - 0.2)</div><div class="card-desc">How "zoomed in" the noise is. Small scale = broad, gentle hills. Large scale = tight, frequent peaks. Scale 0.02 gives rolling plains; scale 0.15 gives jagged mountains.</div></div>
+            <div class="card c-cyan"><div class="card-label">Octaves (1 - 8)</div><div class="card-desc">Layers of detail stacked on top of each other. Octave 1 is the broad shape. Each additional octave adds finer detail at half the amplitude. 4 octaves is a good default.</div></div>
+            <div class="card c-purple"><div class="card-label">Persistence (0.3 - 0.7)</div><div class="card-desc">How much each octave contributes relative to the previous one. Low persistence = smooth. High persistence = rough. Controls the "bumpiness" of the output.</div></div>
+            <div class="card c-orange"><div class="card-label">Threshold (-0.2 to 0.3)</div><div class="card-desc">For cave generation: values above threshold become air, below become rock. Lower threshold = more caves. Higher threshold = more solid rock. Controls density.</div></div>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">2D Noise: <span class="accent">Cave</span> Generation</div>
+        <div class="slide-subtitle">Apply a threshold to 2D Perlin noise to carve caves from solid rock.</div>
+        <div class="code-block"><span class="kw">from</span> noise <span class="kw">import</span> pnoise2
+
+<span class="kw">def</span> <span class="fn">generate_caves</span>(width, height, threshold=<span class="nu">0.1</span>, scale=<span class="nu">0.08</span>):
+    grid = []
+    <span class="kw">for</span> y <span class="kw">in</span> range(height):
+        row = []
+        <span class="kw">for</span> x <span class="kw">in</span> range(width):
+            n = pnoise2(x * scale, y * scale, octaves=<span class="nu">4</span>)
+            row.append(<span class="nu">0</span> <span class="kw">if</span> n > threshold <span class="kw">else</span> <span class="nu">1</span>)
+        grid.append(row)
+    <span class="kw">return</span> grid  <span class="cm"># 0 = air (cave), 1 = rock (solid)</span></div>
+        <div class="box box-blue"><div class="box-label">Connectivity</div>Raw noise caves may produce disconnected chambers. Post-process with flood-fill: find the largest connected air region, fill all smaller disconnected regions with rock. This guarantees the player can reach every part of the cave.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Endless Runner <span class="accent">Architecture</span></div>
+        <div class="slide-subtitle">Generate chunks ahead, destroy chunks behind. The world is never fully in memory.</div>
+        <div class="code-block">CHUNK_WIDTH = <span class="nu">20</span>  <span class="cm"># Tiles per chunk</span>
+BUFFER_AHEAD = <span class="nu">3</span>   <span class="cm"># Chunks ahead of player</span>
+BUFFER_BEHIND = <span class="nu">1</span>  <span class="cm"># Chunks behind before cleanup</span>
+
+<span class="kw">class</span> <span class="fn">ChunkManager</span>:
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, seed):
+        self.chunks = {}
+        self.seed = seed
+
+    <span class="kw">def</span> <span class="fn">get_chunk</span>(self, idx):
+        <span class="kw">if</span> idx <span class="kw">not in</span> self.chunks:
+            random.seed(self.seed + idx)
+            self.chunks[idx] = self._generate(idx)
+        <span class="kw">return</span> self.chunks[idx]
+
+    <span class="kw">def</span> <span class="fn">update</span>(self, player_chunk):
+        <span class="kw">for</span> i <span class="kw">in</span> range(player_chunk - BUFFER_BEHIND,
+                        player_chunk + BUFFER_AHEAD + <span class="nu">1</span>):
+            self.get_chunk(i)
+        old = [k <span class="kw">for</span> k <span class="kw">in</span> self.chunks
+               <span class="kw">if</span> k &lt; player_chunk - BUFFER_BEHIND - <span class="nu">1</span>]
+        <span class="kw">for</span> k <span class="kw">in</span> old:
+            <span class="kw">del</span> self.chunks[k]</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title"><span class="accent">Difficulty</span> Curves</div>
+        <div class="slide-subtitle">Procedural parameters should change over time to create progression.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Linear Ramp</div><div class="card-desc">gap_probability = 0.1 + (chunk_idx * 0.005). Simple, predictable. Gap chance increases 0.5% per chunk. After 100 chunks, gap probability is 60%.</div></div>
+            <div class="card c-green"><div class="card-label">Logarithmic Curve</div><div class="card-desc">difficulty = log(chunk_idx + 1) / log(MAX_CHUNK). Starts steep (fast progression early), then flattens (slow progression late). Prevents overwhelming late-game spikes.</div></div>
+        </div>
+        <div class="code-block"><span class="kw">import</span> math
+
+<span class="kw">def</span> <span class="fn">get_difficulty</span>(chunk_idx, max_diff=<span class="nu">0.8</span>):
+    <span class="cm"># Logarithmic curve: fast early, slow late</span>
+    raw = math.log(chunk_idx + <span class="nu">1</span>) / math.log(<span class="nu">200</span>)
+    <span class="kw">return</span> min(raw, max_diff)
+
+<span class="cm"># Apply to generation parameters</span>
+diff = get_difficulty(chunk_idx)
+gap_chance = <span class="nu">0.1</span> + diff * <span class="nu">0.4</span>      <span class="cm"># 10% -> 50%</span>
+enemy_chance = <span class="nu">0.05</span> + diff * <span class="nu">0.25</span>   <span class="cm"># 5% -> 30%</span>
+platform_height_var = <span class="nu">1</span> + diff * <span class="nu">4</span>  <span class="cm"># 1 -> 5 tiles</span></div>
+    </div>
+</section>
+
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Room-Based <span class="accent">Dungeon</span> Generation</div>
+        <div class="slide-subtitle">Place rooms randomly, then connect them with corridors.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Place rooms:</strong> Generate random rectangles. Reject if they overlap existing rooms. Repeat until N rooms are placed or max attempts reached.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Sort by position:</strong> Sort rooms by their center x-coordinate. This creates a natural left-to-right flow.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Connect with corridors:</strong> For each adjacent pair of rooms, carve an L-shaped corridor (horizontal then vertical) between their centers.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Place content:</strong> Spawn enemies, items, and the exit in rooms. The first room is the spawn, the last room is the exit. Content density scales with distance from spawn.</span></div>
+        </div>
+        <div class="box box-gold"><div class="box-label">Roguelike Standard</div>This BSP (Binary Space Partition) or random-room approach is used by Rogue, Nethack, Binding of Isaac, and Dead Cells. The template is simple; the variety comes from room contents and enemy placement.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Wave Function <span class="accent">Collapse</span></div>
+        <div class="slide-subtitle">A constraint-based algorithm that generates content by eliminating impossibilities.</div>
+        <div class="card-grid-2">
+            <div class="card"><div class="card-label">The Concept</div><div class="card-desc">Start with a grid where every cell can be any tile. Pick the cell with the fewest valid options. Collapse it (choose one option). Propagate constraints to neighbors. Repeat until all cells are collapsed.</div></div>
+            <div class="card c-green"><div class="card-label">Adjacency Rules</div><div class="card-desc">Define which tiles can be next to which. Grass can border grass, dirt, or water. Water can border water or sand -- but never directly touch grass. The rules ensure visual coherence.</div></div>
+        </div>
+        <div class="box box-blue"><div class="box-label">Real-World Use</div>WFC is used in Townscaper, Bad North, and many indie games. It produces surprisingly coherent results from simple adjacency rules. On a Pi, a 50x50 grid collapses in milliseconds.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Testing <span class="accent">Procedural</span> Content</div>
+        <div class="slide-subtitle">How do you test infinite content?</div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">Seed Regression</div><div class="card-desc">Generate 1000 levels from sequential seeds. Assert none are unsolvable (path from start to exit exists). Store known-good seeds as regression test fixtures.</div></div>
+            <div class="card c-gold"><div class="card-label">Statistical Analysis</div><div class="card-desc">Generate 10,000 levels. Measure average gap count, enemy density, completion path length. Verify distributions match design intent. Flag statistical outliers.</div></div>
+            <div class="card c-green"><div class="card-label">Visual Debug Mode</div><div class="card-desc">Render the level with color-coded overlay: green = reachable, red = unreachable, yellow = critical path. One glance reveals connectivity problems that statistics might miss.</div></div>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Key Takeaways: <span class="accent">Procedural Generation</span></div>
+        <div class="slide-subtitle">The five facts that matter.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Seeds make randomness reproducible.</strong> Same seed = same world. Share seeds for identical experiences. Use them for debugging and regression testing.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Weighted random + constraints = playable levels.</strong> Generate freely, then validate. Reject or fix anything that violates playability rules (impossible gaps, disconnected rooms).</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Perlin noise produces coherent randomness.</strong> Scale controls feature size, octaves add detail, threshold converts continuous noise into binary maps (cave/rock).</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Endless runners use chunk-based streaming.</strong> Generate chunks ahead of the player, discard behind. The world is never fully in memory -- just the visible window plus a buffer.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Difficulty curves apply to generation parameters.</strong> Logarithmic curves prevent late-game spikes. Every procedural parameter (gap chance, enemy density, height variance) should scale with progression.</span></div>
+        </div>
+        <div style="text-align:center; margin-top:6px;"><button id="complete-btn" onclick="completeModule()">Mark Complete</button></div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; PiVerse</button></a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        var prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        var next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        var cb = document.getElementById('complete-btn');
+        if (cb) cb.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+    goToSlide(1);
+</script>
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pv-m-04-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>

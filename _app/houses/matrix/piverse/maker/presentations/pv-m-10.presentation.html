@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Motor Control &amp; Robotics Theory | PiVerse Maker's Workshop</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d0408 0%, #1a0810 50%, #0d0408 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #c51a4a; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(13, 4, 8, 0.95); border-top: 1px solid rgba(197, 26, 74, 0.15); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255, 255, 255, 0.07); color: #94a3b8; border: 1px solid rgba(255, 255, 255, 0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(197, 26, 74, 0.15); color: #c51a4a; border-color: #c51a4a; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s; }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #c51a4a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #e8305e; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip { background: rgba(197, 26, 74, 0.08); border-left: 3px solid #c51a4a; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #d4a0b0; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-red   { background: rgba(197, 26, 74, 0.08); border: 1px solid rgba(197, 26, 74, 0.3); color: #f0c0d0; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-gold  { background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.2rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #e8305e; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255, 255, 255, 0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #c51a4a; }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #c51a4a; }
+        .card.c-gold   { border-left-color: #ffd700; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c51a4a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #e8305e; background: rgba(197, 26, 74, 0.1); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .ic { font-family: 'Courier New', monospace; color: #e8305e; background: rgba(197, 26, 74, 0.1); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  { background: rgba(197, 26, 74, 0.12); border: 1px solid rgba(197, 26, 74, 0.4); color: #c51a4a; font-weight: 700; font-size: 0.78rem; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px; }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+        .code-block { background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(197, 26, 74, 0.2); border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #e8305e; line-height: 1.6; white-space: pre; overflow-x: auto; }
+        .code-block .cm { color: #64748b; }
+        .code-block .kw { color: #a78bfa; }
+        .code-block .fn { color: #e8305e; }
+        .code-block .st { color: #86efac; }
+        .code-block .nu { color: #fdba74; }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Motor Control and Robotics Theory -- PiVerse Maker's Workshop</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; PiVerse &nbsp;|&nbsp; Maker's Workshop &nbsp;|&nbsp; PV-M-10</div>
+        <div class="title-hero">
+            <div class="big-title"><span class="accent">Motor Control &amp; Robotics Theory</span></div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">DC Motors &nbsp;|&nbsp; Servos &nbsp;|&nbsp; Steppers &nbsp;|&nbsp; H-Bridge &nbsp;|&nbsp; Line Following</div>
+        </div>
+        <div class="scenario-strip">A Raspberry Pi sits at the heart of a small robot chassis with two wheels and a caster. By the end of this session, you will understand the electrical and software principles that make motors spin, servos position, and robots navigate -- bridging the gap between code and physical motion.</div>
+        <div class="title-meta-row"><span>12 Slides</span><span>PiVerse Maker's Workshop</span><span>Chapter 10 of 10</span><span>Matrix House</span></div>
+    </div>
+</section>
+
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Why the Pi <span class="accent">Cannot Drive Motors Directly</span></div>
+        <div class="slide-subtitle">Understanding the electrical constraints of GPIO pins.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">GPIO Limits</div><div class="card-desc">Each GPIO pin on the Pi supplies a maximum of 16mA at 3.3V. The total across all pins must not exceed 50mA. A small DC motor draws 200-500mA. A servo draws 500-1500mA. Connecting a motor directly to GPIO will damage the Pi.</div></div>
+            <div class="card c-green"><div class="card-label">The Solution: Motor Drivers</div><div class="card-desc">A motor driver is a power amplifier. The Pi sends low-current control signals (direction, speed via PWM). The motor driver uses an external power supply (battery pack) to deliver high current to the motor. Electrical isolation protects the Pi.</div></div>
+        </div>
+        <div class="box box-gold"><div class="box-label">Back-EMF</div>Motors generate voltage spikes when they stop or reverse (back-EMF). These spikes can travel back through the driver and damage the Pi. Motor driver boards include flyback diodes to absorb these spikes. Never skip the driver board.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title"><span class="accent">DC Motors</span></div>
+        <div class="slide-subtitle">Continuous rotation motors controlled by voltage polarity and PWM.</div>
+        <div class="card-grid-2">
+            <div class="card"><div class="card-label">How They Work</div><div class="card-desc">Apply voltage and the motor spins. Reverse the voltage polarity and it spins the opposite direction. Speed is proportional to voltage. No position feedback -- they spin freely until power is removed. Cheap, simple, high-speed.</div></div>
+            <div class="card c-green"><div class="card-label">Speed Control via PWM</div><div class="card-desc">Pulse Width Modulation rapidly switches the motor on and off. 50% duty cycle = half speed. 100% = full speed. The motor's inertia smooths the pulses into continuous rotation. Pi GPIO can generate software PWM; hardware PWM (GPIO 12, 13, 18, 19) is more precise.</div></div>
+        </div>
+        <div class="box box-blue"><div class="box-label">Common DC Motors for Pi Robots</div>TT motors (yellow gearbox motors) are the standard for hobby robotics. 3-6V, ~200mA no-load, ~800mA stall current. Built-in gear reduction provides usable torque at reasonable speeds. ~$2 each.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">The <span class="accent">H-Bridge</span></div>
+        <div class="slide-subtitle">The circuit that controls motor direction by switching voltage polarity.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">Q1-Q4</span><span class="step-text"><strong>Four transistors (switches) arranged in an H pattern.</strong> The motor sits in the crossbar of the H. By closing different pairs of transistors, current flows through the motor in either direction.</span></div>
+            <div class="step-row"><span class="step-num">FWD</span><span class="step-text"><strong>Forward:</strong> Close Q1 (top-left) and Q4 (bottom-right). Current flows left-to-right through the motor. Q2 and Q3 are open.</span></div>
+            <div class="step-row"><span class="step-num">REV</span><span class="step-text"><strong>Reverse:</strong> Close Q3 (top-right) and Q2 (bottom-left). Current flows right-to-left through the motor. Q1 and Q4 are open.</span></div>
+            <div class="step-row"><span class="step-num">BRK</span><span class="step-text"><strong>Brake:</strong> Close Q1 and Q3 (both top) or Q2 and Q4 (both bottom). Motor terminals are shorted -- back-EMF decelerates the motor quickly.</span></div>
+            <div class="step-row"><span class="step-num">CST</span><span class="step-text"><strong>Coast:</strong> All transistors open. No current flows. Motor spins freely on its own inertia until friction stops it.</span></div>
+        </div>
+        <div class="box box-red"><div class="box-label">Shoot-Through</div>Never close Q1+Q2 or Q3+Q4 simultaneously. This creates a direct short from power to ground through the transistors -- called shoot-through. The resulting current spike destroys the transistors instantly. Motor driver ICs have built-in shoot-through protection.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title"><span class="accent">Motor Driver</span> Boards</div>
+        <div class="slide-subtitle">Common H-bridge ICs and driver boards for Pi robots.</div>
+        <div class="card-grid">
+            <div class="card"><div class="card-label">L298N</div><div class="card-desc">Dual H-bridge, 2A per channel. 5-35V motor voltage. Older design with high voltage drop (2-3V wasted as heat). Cheap and widely available. Good for learning, not efficient for battery-powered robots.</div></div>
+            <div class="card c-green"><div class="card-label">TB6612FNG</div><div class="card-desc">Dual H-bridge, 1.2A continuous (3.2A peak). MOSFET-based with very low voltage drop (~0.5V). Much more efficient than L298N for battery-powered projects. Used in Adafruit and Pololu breakout boards.</div></div>
+            <div class="card c-gold"><div class="card-label">DRV8833</div><div class="card-desc">Dual H-bridge, 1.5A per channel. 2.7-10.8V motor voltage. Ultra-compact. Built-in current limiting and thermal shutdown. Excellent for small robots with TT motors. ~$3 on breakout boards.</div></div>
+        </div>
+        <div class="box box-blue"><div class="box-label">Choosing a Driver</div>Match the driver to your motor's stall current (not no-load current). TT motors stall at ~800mA, so a 1.2A driver works. Larger motors may stall at 3-5A and need beefier drivers like the BTS7960 (43A continuous).</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title"><span class="accent">Servo Motors</span></div>
+        <div class="slide-subtitle">Position-controlled motors with built-in feedback.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Standard Servo (180 degrees)</div><div class="card-desc">Rotates to a specific angle based on PWM pulse width. 1ms pulse = 0 degrees. 1.5ms = 90 degrees. 2ms = 180 degrees. Pulse frequency is 50Hz (20ms period). Internal potentiometer provides position feedback to a control circuit.</div></div>
+            <div class="card c-green"><div class="card-label">Continuous Rotation Servo</div><div class="card-desc">Modified servo where the potentiometer feedback is disabled. Pulse width controls speed and direction instead of position. 1.5ms = stop. Less than 1.5ms = one direction. Greater than 1.5ms = other direction. Useful as geared motors with easy Pi control.</div></div>
+        </div>
+        <div class="code-block"><span class="cm"># Control a servo with Pi hardware PWM (gpiozero)</span>
+<span class="kw">from</span> gpiozero <span class="kw">import</span> Servo
+<span class="kw">from</span> time <span class="kw">import</span> sleep
+
+servo = Servo(<span class="nu">17</span>)   <span class="cm"># GPIO 17</span>
+servo.min()          <span class="cm"># 0 degrees</span>
+sleep(<span class="nu">1</span>)
+servo.mid()          <span class="cm"># 90 degrees</span>
+sleep(<span class="nu">1</span>)
+servo.max()          <span class="cm"># 180 degrees</span></div>
+    </div>
+</section>
+
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title"><span class="accent">Stepper Motors</span></div>
+        <div class="slide-subtitle">Precise rotational control in discrete angular steps.</div>
+        <div class="card-grid-2">
+            <div class="card c-gold"><div class="card-label">How They Work</div><div class="card-desc">The motor has multiple electromagnetic coils arranged around a toothed rotor. Energizing coils in sequence rotates the rotor one step at a time. A common NEMA 17 stepper has 200 steps per revolution (1.8 degrees per step). No feedback needed -- position is known by counting steps.</div></div>
+            <div class="card c-cyan"><div class="card-label">Microstepping</div><div class="card-desc">Instead of fully energizing one coil at a time, microstepping applies proportional current to adjacent coils. 1/16 microstepping divides each step into 16 microsteps: 3,200 positions per revolution (0.1125 degrees). Smoother motion but lower torque per step.</div></div>
+        </div>
+        <div class="box box-red"><div class="box-label">Stepper vs. DC vs. Servo</div>Steppers excel at precise positioning (CNC machines, 3D printers) but are heavy, power-hungry, and slow. DC motors are fast and efficient but have no position feedback. Servos have feedback but limited rotation range. Choose based on your project's primary requirement: speed, position, or torque.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title"><span class="accent">Encoders</span> -- Adding Feedback to DC Motors</div>
+        <div class="slide-subtitle">Turning a dumb DC motor into a precision actuator.</div>
+        <div class="card-grid-2">
+            <div class="card"><div class="card-label">Optical Encoder</div><div class="card-desc">A slotted disc attached to the motor shaft passes between an LED and photodetector. Each slot generates a pulse. Count pulses to measure distance. Measure pulse frequency to calculate speed. 20-slot disc on a TT motor gives 20 pulses per wheel revolution.</div></div>
+            <div class="card c-green"><div class="card-label">Quadrature Encoder</div><div class="card-desc">Two sensors offset by 90 degrees generate overlapping pulse trains (Channel A and B). By comparing which channel leads, you can determine rotation direction. Doubles resolution compared to single-channel. Essential for bidirectional position tracking.</div></div>
+        </div>
+        <div class="box box-gold"><div class="box-label">PID Control</div>With encoder feedback, a PID (Proportional-Integral-Derivative) controller can maintain precise speed. The Pi reads encoder pulses, calculates the error between desired and actual speed, and adjusts PWM duty cycle. This is how differential-drive robots maintain straight-line travel despite unmatched motors.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title"><span class="accent">Differential Drive</span></div>
+        <div class="slide-subtitle">The most common locomotion model for Pi robots.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">FWD</span><span class="step-text"><strong>Forward:</strong> Both motors at equal speed, same direction. Robot drives straight (in theory -- motor matching determines actual straightness).</span></div>
+            <div class="step-row"><span class="step-num">REV</span><span class="step-text"><strong>Reverse:</strong> Both motors at equal speed, opposite direction from forward. Robot drives backward.</span></div>
+            <div class="step-row"><span class="step-num">LEFT</span><span class="step-text"><strong>Pivot left:</strong> Stop left motor, run right motor forward. Robot turns left around the stopped wheel. Turning radius equals the wheelbase width.</span></div>
+            <div class="step-row"><span class="step-num">SPIN</span><span class="step-text"><strong>Spin in place:</strong> Left motor forward, right motor reverse (or vice versa) at equal speed. Robot rotates around its center point. Zero turning radius.</span></div>
+            <div class="step-row"><span class="step-num">ARC</span><span class="step-text"><strong>Arc turn:</strong> Both motors forward but at different speeds. The slower motor traces the inner arc. Speed ratio determines the turn radius. This is how smooth curved paths are achieved.</span></div>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title"><span class="accent">Line Following</span></div>
+        <div class="slide-subtitle">An IR reflectance sensor array guides the robot along a dark line on a light surface.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Sensor Array</div><div class="card-desc">TCRT5000 IR reflectance sensors. Each contains an IR LED and photodiode pair. Dark surfaces absorb IR (low reflection = line detected). Light surfaces reflect IR (high reflection = no line). 3-5 sensors in a row provide position resolution.</div></div>
+            <div class="card c-green"><div class="card-label">Control Algorithm</div><div class="card-desc">Read sensor array. Calculate line position as a weighted average. If line is centered, drive straight. If line drifts left, speed up right motor (or slow left). PID controller smooths corrections. The proportional term handles current error; derivative term prevents overshoot.</div></div>
+        </div>
+        <div class="code-block"><span class="cm"># Simplified line-following logic</span>
+<span class="cm"># sensors: [left, center-left, center, center-right, right]</span>
+<span class="cm"># 1 = line detected, 0 = no line</span>
+
+position = (-<span class="nu">2</span>*s[<span class="nu">0</span>] + -<span class="nu">1</span>*s[<span class="nu">1</span>] + <span class="nu">0</span>*s[<span class="nu">2</span>] + <span class="nu">1</span>*s[<span class="nu">3</span>] + <span class="nu">2</span>*s[<span class="nu">4</span>]) / sum(s)
+error = <span class="nu">0</span> - position  <span class="cm"># target = center</span>
+correction = Kp * error + Kd * (error - prev_error)
+left_speed  = base_speed + correction
+right_speed = base_speed - correction</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title"><span class="accent">Pi Robotics</span> Software Stack</div>
+        <div class="slide-subtitle">Libraries and frameworks for building Pi-based robots.</div>
+        <div class="card-grid">
+            <div class="card"><div class="card-label">gpiozero</div><div class="card-desc">Python library with high-level motor abstractions. Motor(), Servo(), Robot() classes. Two-line motor control. Built into Pi OS. Best for beginners and rapid prototyping.</div></div>
+            <div class="card c-green"><div class="card-label">pigpio</div><div class="card-desc">Low-level GPIO library with hardware-timed PWM. Microsecond precision. Supports remote GPIO (control one Pi's pins from another). Better servo jitter performance than software PWM.</div></div>
+            <div class="card c-gold"><div class="card-label">ROS 2 (Robot Operating System)</div><div class="card-desc">Full robotics middleware framework. Publisher-subscriber messaging, sensor fusion, path planning, SLAM. Massive ecosystem but heavy -- Pi 5 with 8GB RAM recommended. Used in research and commercial robotics.</div></div>
+        </div>
+        <div class="box box-blue"><div class="box-label">Choosing a Stack</div>Start with gpiozero for learning motor control fundamentals. Move to pigpio when you need precise PWM timing (servo jitter, encoder reading). Graduate to ROS 2 only when your project needs sensor fusion, mapping, or multi-robot coordination.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Key Takeaways: <span class="accent">Motor Control &amp; Robotics</span></div>
+        <div class="slide-subtitle">The five facts that matter.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Never connect motors directly to GPIO.</strong> Pi GPIO supplies 16mA max; motors draw 200-1500mA. Always use a motor driver board (L298N, TB6612FNG, DRV8833) with a separate power supply.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>H-bridges control direction by switching voltage polarity.</strong> Four transistors in an H configuration. PWM on the enable pin controls speed. Shoot-through (both top or both bottom transistors on) must be prevented.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Three motor types serve different needs.</strong> DC motors: speed and simplicity. Servos: angular positioning (180 degrees). Steppers: precise multi-revolution positioning without feedback.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Differential drive is the standard Pi robot model.</strong> Two independently driven wheels plus a caster. Speed difference between wheels controls turning radius. Spin-in-place requires opposite motor directions.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Line following combines IR sensors with PID control.</strong> Sensor array detects line position, PID controller adjusts motor speeds to center the robot on the line. Proportional term corrects error; derivative term prevents overshoot.</span></div>
+        </div>
+        <div style="text-align:center; margin-top:6px;"><button id="complete-btn" onclick="completeModule()">Mark Complete</button></div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; PiVerse</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        var prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        var next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        var cb = document.getElementById('complete-btn');
+        if (cb) cb.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+    goToSlide(1);
+</script>
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pv-m-10-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>

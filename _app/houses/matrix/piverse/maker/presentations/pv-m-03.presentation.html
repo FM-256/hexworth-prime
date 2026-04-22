@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Platformer Mechanics | PiVerse Maker's Workshop</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d0408 0%, #1a0810 50%, #0d0408 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #c51a4a; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(13, 4, 8, 0.95); border-top: 1px solid rgba(197, 26, 74, 0.15); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.07); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(197,26,74,0.15); color: #c51a4a; border-color: #c51a4a; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s; }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #c51a4a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #e8305e; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip { background: rgba(197,26,74,0.08); border-left: 3px solid #c51a4a; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #d4a0b0; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-red { background: rgba(197,26,74,0.08); border: 1px solid rgba(197,26,74,0.3); color: #f0c0d0; }
+        .box-green { background: rgba(58,181,119,0.08); border: 1px solid rgba(58,181,119,0.35); color: #d1fae5; }
+        .box-gold { background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.3); color: #fef3c7; }
+        .box-blue { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.2rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #e8305e; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #c51a4a; }
+        .card:hover { background: rgba(255,255,255,0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-red { border-left-color: #c51a4a; } .card.c-gold { border-left-color: #ffd700; } .card.c-cyan { border-left-color: #06b6d4; } .card.c-purple { border-left-color: #a78bfa; } .card.c-orange { border-left-color: #f97316; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #c51a4a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #e8305e; background: rgba(197,26,74,0.1); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num { background: rgba(197,26,74,0.12); border: 1px solid rgba(197,26,74,0.4); color: #c51a4a; font-weight: 700; font-size: 0.78rem; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px; }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+        .code-block { background: rgba(0,0,0,0.35); border: 1px solid rgba(197,26,74,0.2); border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #e8305e; line-height: 1.6; white-space: pre; overflow-x: auto; }
+        .code-block .cm { color: #64748b; } .code-block .kw { color: #a78bfa; } .code-block .fn { color: #e8305e; } .code-block .st { color: #86efac; } .code-block .nu { color: #fdba74; }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Platformer Mechanics -- PiVerse Maker's Workshop</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; PiVerse &nbsp;|&nbsp; Maker's Workshop &nbsp;|&nbsp; PV-M-03</div>
+        <div class="title-hero">
+            <div class="big-title"><span class="accent">Platformer</span> Mechanics</div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">Gravity &nbsp;|&nbsp; Jumping &nbsp;|&nbsp; Tile Maps &nbsp;|&nbsp; Collision Resolution &nbsp;|&nbsp; Scrolling Camera</div>
+        </div>
+        <div class="scenario-strip">Mario jumps. Sonic runs. Celeste dashes. Every platformer is built on the same physics: a gravity accumulator, a jump impulse, and a tile map with collision resolution. Master these mechanics and you can build any 2D platformer.</div>
+        <div class="title-meta-row"><span>12 Slides</span><span>PiVerse Maker's Workshop</span><span>Chapter 3 of 10</span><span>Matrix House</span></div>
+    </div>
+</section>
+
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title"><span class="accent">Gravity</span> as Acceleration</div>
+        <div class="slide-subtitle">Gravity is not a force in game code -- it is a constant added to vertical velocity every frame.</div>
+        <div class="code-block">GRAVITY = <span class="nu">0.5</span>        <span class="cm"># Pixels per frame per frame (acceleration)</span>
+MAX_FALL = <span class="nu">12</span>        <span class="cm"># Terminal velocity cap</span>
+JUMP_FORCE = <span class="nu">-10</span>     <span class="cm"># Negative = upward (Y-axis is inverted)</span>
+
+<span class="kw">class</span> <span class="fn">Player</span>:
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, x, y):
+        self.rect = pygame.Rect(x, y, <span class="nu">32</span>, <span class="nu">48</span>)
+        self.vel_y = <span class="nu">0</span>
+        self.on_ground = <span class="kw">False</span>
+
+    <span class="kw">def</span> <span class="fn">update</span>(self):
+        self.vel_y += GRAVITY
+        <span class="kw">if</span> self.vel_y > MAX_FALL:
+            self.vel_y = MAX_FALL
+        self.rect.y += self.vel_y</div>
+        <div class="box box-red"><div class="box-label">Parabolic Motion</div>At GRAVITY = 0.5, velocity increases by 0.5 pixels/frame each frame. After 20 frames of free fall, the player moves 10 px/frame. Position changes quadratically with time -- this is what creates the natural arc of a jump.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">The <span class="accent">Jump</span> Mechanic</div>
+        <div class="slide-subtitle">Set vertical velocity to a negative value. Gravity does the rest.</div>
+        <div class="card-grid-2">
+            <div class="card c-gold"><div class="card-label">Fixed Jump</div><div class="card-desc">Press space while on_ground: vel_y = JUMP_FORCE. Simple, consistent height. Good for puzzle platformers where precision matters more than expression.</div></div>
+            <div class="card c-cyan"><div class="card-label">Variable-Height Jump</div><div class="card-desc">Release space early: cap vel_y at JUMP_CUT (-3). This lets players control jump height -- tap for short hop, hold for full jump. Used in every Mario game since SMB3.</div></div>
+        </div>
+        <div class="code-block"><span class="cm"># Variable-height jump</span>
+JUMP_CUT = <span class="nu">-3</span>
+
+<span class="kw">def</span> <span class="fn">handle_input</span>(self, keys, keys_prev):
+    <span class="kw">if</span> keys[pygame.K_SPACE] <span class="kw">and</span> self.on_ground:
+        self.vel_y = JUMP_FORCE
+        self.on_ground = <span class="kw">False</span>
+    <span class="cm"># Cut jump short on release</span>
+    <span class="kw">if not</span> keys[pygame.K_SPACE] <span class="kw">and</span> keys_prev[pygame.K_SPACE]:
+        <span class="kw">if</span> self.vel_y &lt; JUMP_CUT:
+            self.vel_y = JUMP_CUT</div>
+        <div class="box box-gold"><div class="box-label">Coyote Time</div>Most polished platformers allow the player to jump for 4-6 frames after walking off a ledge. This forgiveness prevents the feeling of "I pressed jump but nothing happened" -- the most frustrating bug in any platformer.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title"><span class="accent">Tile Maps</span></div>
+        <div class="slide-subtitle">Represent the level as a 2D array of integers. Each integer is a tile type.</div>
+        <div class="code-block">TILE_SIZE = <span class="nu">32</span>
+<span class="cm"># 0 = air, 1 = solid ground, 2 = platform</span>
+level_data = [
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 0, 0, 0, 0],
+    [0, 0, 0, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 0],
+    [1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1],
+]</div>
+        <div class="card-grid-2">
+            <div class="card"><div class="card-label">Why Tiles</div><div class="card-desc">A 50x30 level is a 50x30 array (1500 integers) instead of thousands of individual rectangle objects. Memory-efficient, easy to edit, fast to render -- only draw tiles visible on screen.</div></div>
+            <div class="card c-green"><div class="card-label">Rendering</div><div class="card-desc">Nested loop: for each row, for each column, skip if air (0), otherwise draw a colored rectangle at (col * TILE_SIZE, row * TILE_SIZE). Different tile IDs map to different colors or sprite textures.</div></div>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Tile <span class="accent">Collision</span> Resolution</div>
+        <div class="slide-subtitle">Move on each axis separately. Check overlaps. Push the player out.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Move horizontally:</strong> player.rect.x += vel_x. Check which solid tiles the player now overlaps.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Resolve horizontal:</strong> If moving right, push player.rect.right = tile.left. If moving left, push player.rect.left = tile.right.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Move vertically:</strong> player.rect.y += vel_y. Check overlapping tiles again.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Resolve vertical:</strong> If falling (vel_y > 0), push player.rect.bottom = tile.top and set on_ground = True. If rising, push player.rect.top = tile.bottom. Zero out vel_y.</span></div>
+        </div>
+        <div class="box box-blue"><div class="box-label">Why Separate Axes</div>If you moved both axes simultaneously, a diagonal movement into a corner could resolve on the wrong axis -- the player might snap to the wrong surface or tunnel through geometry entirely.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Efficient <span class="accent">Collision Checks</span></div>
+        <div class="slide-subtitle">Only check tiles near the player -- not every tile in the level.</div>
+        <div class="code-block"><span class="kw">def</span> <span class="fn">get_colliding_tiles</span>(rect, tiles):
+    hits = []
+    left_col  = max(<span class="nu">0</span>, rect.left // TILE_SIZE)
+    right_col = min(len(tiles[<span class="nu">0</span>]) - <span class="nu">1</span>, rect.right // TILE_SIZE)
+    top_row   = max(<span class="nu">0</span>, rect.top // TILE_SIZE)
+    bot_row   = min(len(tiles) - <span class="nu">1</span>, rect.bottom // TILE_SIZE)
+
+    <span class="kw">for</span> r <span class="kw">in</span> range(top_row, bot_row + <span class="nu">1</span>):
+        <span class="kw">for</span> c <span class="kw">in</span> range(left_col, right_col + <span class="nu">1</span>):
+            <span class="kw">if</span> tiles[r][c] != <span class="nu">0</span>:
+                tile_rect = pygame.Rect(
+                    c * TILE_SIZE, r * TILE_SIZE,
+                    TILE_SIZE, TILE_SIZE)
+                <span class="kw">if</span> rect.colliderect(tile_rect):
+                    hits.append(tile_rect)
+    <span class="kw">return</span> hits</div>
+        <div class="box box-green"><div class="box-label">Performance</div>A 200x50 tile level has 10,000 tiles. The player occupies at most 2x3 = 6 tiles. Checking 6 instead of 10,000 is a 1,667x speedup. This spatial optimization is critical for smooth gameplay.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title"><span class="accent">Sprite</span> Animation</div>
+        <div class="slide-subtitle">A sprite sheet is a single image containing all animation frames in a grid.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Sprite Sheet</div><div class="card-desc">One image file with frames arranged in rows/columns. A 4-frame walk cycle at 32x48 per frame is a 128x48 image. Load once, blit different sub-regions each frame.</div></div>
+            <div class="card c-green"><div class="card-label">Frame Timing</div><div class="card-desc">Advance frame index every N game frames. animation_speed = 8 means the sprite changes every 8 game frames (7.5 FPS animation at 60 FPS game). Too fast looks jittery; too slow looks frozen.</div></div>
+        </div>
+        <div class="code-block"><span class="kw">class</span> <span class="fn">AnimatedSprite</span>:
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, sheet, frame_w, frame_h, count):
+        self.frames = []
+        <span class="kw">for</span> i <span class="kw">in</span> range(count):
+            rect = pygame.Rect(i * frame_w, <span class="nu">0</span>, frame_w, frame_h)
+            self.frames.append(sheet.subsurface(rect))
+        self.index = <span class="nu">0</span>
+        self.timer = <span class="nu">0</span>
+
+    <span class="kw">def</span> <span class="fn">update</span>(self):
+        self.timer += <span class="nu">1</span>
+        <span class="kw">if</span> self.timer >= <span class="nu">8</span>:
+            self.timer = <span class="nu">0</span>
+            self.index = (self.index + <span class="nu">1</span>) % len(self.frames)</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Horizontal <span class="accent">Movement</span></div>
+        <div class="slide-subtitle">Acceleration and friction make movement feel responsive, not floaty.</div>
+        <div class="card-grid-2">
+            <div class="card c-gold"><div class="card-label">Direct Velocity</div><div class="card-desc">Set vel_x = SPEED when key pressed, vel_x = 0 when released. Instant start/stop. Feels snappy but robotic. Good for precision platformers like Celeste.</div></div>
+            <div class="card c-cyan"><div class="card-label">Acceleration + Friction</div><div class="card-desc">Add acceleration when key pressed, apply friction (multiply vel_x by 0.85) every frame. Gradual speed up and slow down. Feels slippery but natural. Used in Mario games.</div></div>
+        </div>
+        <div class="code-block">ACCEL = <span class="nu">0.8</span>
+FRICTION = <span class="nu">0.85</span>
+MAX_SPEED = <span class="nu">6</span>
+
+<span class="kw">if</span> keys[pygame.K_RIGHT]:
+    self.vel_x += ACCEL
+<span class="kw">elif</span> keys[pygame.K_LEFT]:
+    self.vel_x -= ACCEL
+<span class="kw">else</span>:
+    self.vel_x *= FRICTION  <span class="cm"># Decelerate when no input</span>
+
+<span class="cm"># Clamp to max speed</span>
+self.vel_x = max(-MAX_SPEED, min(MAX_SPEED, self.vel_x))</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">The <span class="accent">Scrolling</span> Camera</div>
+        <div class="slide-subtitle">The camera follows the player by offsetting all draw positions.</div>
+        <div class="code-block"><span class="kw">class</span> <span class="fn">Camera</span>:
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, width, height):
+        self.offset_x = <span class="nu">0</span>
+        self.offset_y = <span class="nu">0</span>
+        self.width = width
+        self.height = height
+
+    <span class="kw">def</span> <span class="fn">follow</span>(self, target):
+        <span class="cm"># Center on target</span>
+        self.offset_x = target.rect.centerx - SCREEN_W // <span class="nu">2</span>
+        self.offset_y = target.rect.centery - SCREEN_H // <span class="nu">2</span>
+        <span class="cm"># Clamp to level bounds</span>
+        self.offset_x = max(<span class="nu">0</span>, min(self.offset_x,
+            self.width - SCREEN_W))
+        self.offset_y = max(<span class="nu">0</span>, min(self.offset_y,
+            self.height - SCREEN_H))</div>
+        <div class="box box-red"><div class="box-label">Apply Offset</div>Every draw call subtracts the camera offset: screen.blit(sprite, (obj.x - camera.offset_x, obj.y - camera.offset_y)). The game world does not move -- the viewport does. Objects outside the viewport are culled (not drawn).</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">One-Way <span class="accent">Platforms</span></div>
+        <div class="slide-subtitle">Platforms the player can jump through from below but stand on from above.</div>
+        <div class="card-grid-2">
+            <div class="card"><div class="card-label">Detection Logic</div><div class="card-desc">Only resolve vertical collision when the player is falling (vel_y > 0) AND the player's feet were above the platform's top edge last frame. If rising, ignore the platform entirely.</div></div>
+            <div class="card c-green"><div class="card-label">Drop-Through</div><div class="card-desc">Press Down + Jump to fall through a one-way platform. Temporarily disable collision for that platform for 10-15 frames, then re-enable. Gives players full vertical control.</div></div>
+        </div>
+        <div class="box box-gold"><div class="box-label">Tile Types</div>Use a different tile ID (e.g., 2) for one-way platforms. In the collision resolver, check the tile type: solid tiles (1) block in all directions; platform tiles (2) only block downward movement.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Game <span class="accent">Feel</span> Tweaks</div>
+        <div class="slide-subtitle">The difference between a prototype and a game people want to play.</div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">Input Buffer</div><div class="card-desc">Store jump input for 6 frames. If the player hits space just before landing, the buffered input triggers the jump on the next ground contact. Prevents "missed" jumps.</div></div>
+            <div class="card c-gold"><div class="card-label">Squash and Stretch</div><div class="card-desc">Scale the player sprite on landing (wider, shorter) and at jump peak (taller, narrower). Purely visual -- the collision rect stays constant. Adds weight and life.</div></div>
+            <div class="card c-green"><div class="card-label">Screen Shake</div><div class="card-desc">Offset the camera by random small amounts (2-4 px) for a few frames on big impacts. Subtle but powerful feedback. Reset the offset after the shake duration expires.</div></div>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Key Takeaways: <span class="accent">Platformer Mechanics</span></div>
+        <div class="slide-subtitle">The five facts that matter.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Gravity is vel_y += GRAVITY every frame.</strong> Position changes quadratically, creating the natural arc. Terminal velocity caps prevent infinite acceleration.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Variable-height jump:</strong> set vel_y = JUMP_FORCE on press, cap vel_y at JUMP_CUT on early release. Gives players control over jump height.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Tile maps store levels as 2D integer arrays.</strong> Only check collision against tiles near the player -- spatial partitioning by grid position.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Resolve collisions on each axis separately.</strong> Move X, resolve X, move Y, resolve Y. This prevents corner tunneling and incorrect surface snapping.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Game feel comes from buffers and forgiveness.</strong> Coyote time, input buffering, and squash/stretch transform rigid physics into a game people enjoy.</span></div>
+        </div>
+        <div style="text-align:center; margin-top:6px;"><button id="complete-btn" onclick="completeModule()">Mark Complete</button></div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; PiVerse</button></a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        var prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        var next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        var cb = document.getElementById('complete-btn');
+        if (cb) cb.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+    goToSlide(1);
+</script>
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pv-m-03-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>

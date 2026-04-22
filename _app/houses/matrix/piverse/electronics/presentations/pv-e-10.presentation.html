@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GUI Programming on Pi | PiVerse Electronics 10</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0d0408 0%, #1a0a10 50%, #0d0408 100%); color: #e2e8f0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #c51a4a; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(13,4,8,0.95); border-top: 1px solid rgba(197,26,74,0.15); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.07); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(197,26,74,0.15); color: #c51a4a; border-color: #c51a4a; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; } .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #c51a4a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c51a4a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip { background: rgba(197,26,74,0.08); border-left: 3px solid #c51a4a; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #d4a0b0; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-red { background: rgba(197,26,74,0.08); border: 1px solid rgba(197,26,74,0.3); color: #f0c0d0; }
+        .box-green { background: rgba(58,181,119,0.08); border: 1px solid rgba(58,181,119,0.35); color: #d1fae5; }
+        .box-gold { background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.3); color: #fef3c7; }
+        .box-blue { background: rgba(100,160,255,0.08); border: 1px solid rgba(100,160,255,0.3); color: #bfdbfe; }
+        .box-warn { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); color: #fee2e2; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c51a4a; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; } .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #c51a4a; }
+        .card:hover { background: rgba(255,255,255,0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-gold { border-left-color: #ffd700; }
+        .card.c-pink { border-left-color: #c51a4a; } .card.c-blue { border-left-color: #60a5fa; }
+        .card.c-purple { border-left-color: #a78bfa; } .card.c-cyan { border-left-color: #06b6d4; }
+        .card.c-red { border-left-color: #ef4444; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #c51a4a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #ffd700; background: rgba(255,215,0,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .ic { font-family: 'Courier New', monospace; color: #ffd700; background: rgba(255,215,0,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .code-block { background: rgba(0,0,0,0.35); border: 1px solid rgba(197,26,74,0.2); border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #ffd700; line-height: 1.6; white-space: pre; overflow-x: auto; }
+        .code-block .cm { color: #64748b; } .code-block .kw { color: #c51a4a; } .code-block .fn { color: #ffd700; } .code-block .st { color: #86efac; } .code-block .nu { color: #fdba74; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num { background: rgba(197,26,74,0.12); border: 1px solid rgba(197,26,74,0.4); color: #c51a4a; font-weight: 700; font-size: 0.78rem; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px; }
+        .step-text { color: #cbd5e1; line-height: 1.4; } .step-text strong { color: #f1f5f9; }
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell { background: rgba(255,255,255,0.04); border: 1px solid rgba(197,26,74,0.25); border-radius: 8px; padding: 12px 14px; text-align: center; }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #c51a4a; margin-bottom: 4px; }
+        .hex-cell .hex-desc { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes glowPulse { 0%, 100% { filter: drop-shadow(0 0 4px rgba(197,26,74,0.3)); } 50% { filter: drop-shadow(0 0 14px rgba(197,26,74,0.9)); } }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">GUI Programming on Pi -- PiVerse Electronics 10</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+<section class="slide active" id="slide-1"><div class="slide-inner"><div class="slide-meta">Slide 1 of 12 | PiVerse | Electronics | Chapter 10</div><div class="title-hero"><div class="big-title"><span class="accent">GUI Programming on Pi</span></div><div class="slide-subtitle">Tkinter, GTK, slider controls, sensor dashboards, GPIO integration.</div></div><div class="scenario-strip">The Pi runs a full Linux desktop. Combine Tkinter or GTK with gpiozero to build graphical control panels, real-time sensor dashboards, and interactive kiosks that bridge the screen and the physical world.</div><div class="title-meta-row"><span>12 Slides</span><span>PiVerse Electronics</span><span>Chapter 10 of 10</span><span>Matrix House</span></div></div></section>
+<section class="slide" id="slide-2"><div class="slide-inner"><div class="slide-meta">Slide 2 of 12</div><div class="slide-title">GUI <span class="accent">Toolkits</span></div><div class="slide-subtitle">Tkinter (built-in), GTK (native), PyQt (heavy), Pygame (games).</div><div class="card-grid-2"><div class="card c-pink"><div class="card-label">Tkinter</div><div class="card-desc">Built into Python. Zero dependencies. Simple API. Best for quick control panels and learning.</div></div><div class="card c-gold"><div class="card-label">GTK 3</div><div class="card-desc">Native Pi OS look. Rich widgets. CSS theming. Heavier but more polished.</div></div></div><div class="box box-blue"><div class="box-label">Display Required</div>GUI apps need X11/Wayland. Use Pi OS Desktop (not Lite). For headless: enable VNC via raspi-config.</div></div></section>
+<section class="slide" id="slide-3"><div class="slide-inner"><div class="slide-meta">Slide 3 of 12</div><div class="slide-title">Tkinter <span class="accent">Basics</span></div><div class="slide-subtitle">Root window, widgets, layout, event loop.</div><div class="code-block"><span class="kw">import</span> tkinter <span class="kw">as</span> tk
+root = tk.<span class="fn">Tk</span>()
+root.<span class="fn">title</span>(<span class="st">"Pi Panel"</span>)
+tk.<span class="fn">Label</span>(root, text=<span class="st">"GPIO Controller"</span>,
+    font=(<span class="st">"Helvetica"</span>,<span class="nu">16</span>)).<span class="fn">pack</span>(pady=<span class="nu">20</span>)
+tk.<span class="fn">Button</span>(root, text=<span class="st">"Click"</span>,
+    command=<span class="kw">lambda</span>: <span class="fn">print</span>(<span class="st">"!"</span>)).<span class="fn">pack</span>()
+root.<span class="fn">mainloop</span>()</div></div></section>
+<section class="slide" id="slide-4"><div class="slide-inner"><div class="slide-meta">Slide 4 of 12</div><div class="slide-title">GUI + <span class="accent">GPIO</span></div><div class="slide-subtitle">Wire Tkinter buttons directly to gpiozero methods.</div><div class="code-block"><span class="kw">from</span> gpiozero <span class="kw">import</span> LED
+led = <span class="fn">LED</span>(<span class="nu">17</span>)
+tk.<span class="fn">Button</span>(root, text=<span class="st">"LED ON"</span>,
+    command=led.on).<span class="fn">pack</span>()
+tk.<span class="fn">Button</span>(root, text=<span class="st">"LED OFF"</span>,
+    command=led.off).<span class="fn">pack</span>()</div></div></section>
+<section class="slide" id="slide-5"><div class="slide-inner"><div class="slide-meta">Slide 5 of 12</div><div class="slide-title"><span class="accent">Slider</span> Controls</div><div class="slide-subtitle">Scale widgets map directly to PWMLED brightness.</div><div class="code-block"><span class="kw">from</span> gpiozero <span class="kw">import</span> PWMLED
+led = <span class="fn">PWMLED</span>(<span class="nu">17</span>)
+<span class="kw">def</span> <span class="fn">set_brt</span>(v):
+    led.value = <span class="fn">float</span>(v)/<span class="nu">100</span>
+slider = tk.<span class="fn">Scale</span>(root, from_=<span class="nu">0</span>, to=<span class="nu">100</span>,
+    orient=<span class="st">"horizontal"</span>, command=set_brt)
+slider.<span class="fn">pack</span>()</div></div></section>
+<section class="slide" id="slide-6"><div class="slide-inner"><div class="slide-meta">Slide 6 of 12</div><div class="slide-title">Sensor <span class="accent">Dashboard</span></div><div class="slide-subtitle">Live data display using root.after() for periodic updates.</div><div class="code-block"><span class="kw">from</span> gpiozero <span class="kw">import</span> CPUTemperature
+cpu = <span class="fn">CPUTemperature</span>()
+temp_var = tk.<span class="fn">StringVar</span>()
+tk.<span class="fn">Label</span>(root, textvariable=temp_var,
+    font=(<span class="st">"Courier"</span>,<span class="nu">24</span>)).<span class="fn">pack</span>()
+<span class="kw">def</span> <span class="fn">update</span>():
+    temp_var.<span class="fn">set</span>(<span class="st">f"CPU: {cpu.temperature:.1f}C"</span>)
+    root.<span class="fn">after</span>(<span class="nu">1000</span>, update)
+<span class="fn">update</span>()</div><div class="box box-gold"><div class="box-label">Never time.sleep()</div>Use root.after(ms, callback) for periodic updates. time.sleep() freezes the entire GUI.</div></div></section>
+<section class="slide" id="slide-7"><div class="slide-inner"><div class="slide-meta">Slide 7 of 12</div><div class="slide-title">Canvas <span class="accent">Drawing</span></div><div class="slide-subtitle">Custom gauges, graphs, and animated indicators.</div><div class="code-block">canvas = tk.<span class="fn">Canvas</span>(root, width=<span class="nu">300</span>,
+    height=<span class="nu">300</span>, bg=<span class="st">"#1a1a2e"</span>)
+canvas.<span class="fn">create_arc</span>(<span class="nu">50</span>,<span class="nu">50</span>,<span class="nu">250</span>,<span class="nu">250</span>,
+    start=<span class="nu">0</span>, extent=<span class="nu">180</span>,
+    outline=<span class="st">"#c51a4a"</span>, width=<span class="nu">3</span>, style=<span class="st">"arc"</span>)
+canvas.<span class="fn">pack</span>()</div></div></section>
+<section class="slide" id="slide-8"><div class="slide-inner"><div class="slide-meta">Slide 8 of 12</div><div class="slide-title"><span class="accent">Fullscreen</span> Kiosk</div><div class="slide-subtitle">Deploy as a dedicated appliance.</div><div class="code-block">root.<span class="fn">attributes</span>(<span class="st">"-fullscreen"</span>, <span class="kw">True</span>)
+root.<span class="fn">configure</span>(cursor=<span class="st">"none"</span>)
+root.<span class="fn">bind</span>(<span class="st">"&lt;Escape&gt;"</span>,
+    <span class="kw">lambda</span> e: root.<span class="fn">destroy</span>())
+
+<span class="cm"># Auto-start via ~/.config/autostart/</span></div></div></section>
+<section class="slide" id="slide-9"><div class="slide-inner"><div class="slide-meta">Slide 9 of 12</div><div class="slide-title">Threading <span class="accent">Safety</span></div><div class="slide-subtitle">Tkinter is single-threaded. GPIO callbacks run in background threads.</div><div class="step-list"><div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Never update widgets from callbacks.</strong> gpiozero callbacks run in background threads. Tkinter crashes.</span></div><div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Use Queue:</strong> Put data in queue.Queue() from callback, read in root.after() loop.</span></div><div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Cleanup on close:</strong> Override WM_DELETE_WINDOW to close GPIO devices before destroying window.</span></div></div></div></section>
+<section class="slide" id="slide-10"><div class="slide-inner"><div class="slide-meta">Slide 10 of 12</div><div class="slide-title">Entry Fields and <span class="accent">Forms</span></div><div class="slide-subtitle">Text input for configuration: pin numbers, intervals, filenames.</div><div class="code-block">pin_entry = tk.<span class="fn">Entry</span>(root, width=<span class="nu">10</span>)
+pin_entry.<span class="fn">insert</span>(<span class="nu">0</span>, <span class="st">"17"</span>)
+pin_entry.<span class="fn">pack</span>()
+<span class="kw">def</span> <span class="fn">set_pin</span>():
+    pin = <span class="fn">int</span>(pin_entry.<span class="fn">get</span>())
+    led = <span class="fn">LED</span>(pin)
+    led.<span class="fn">on</span>()
+tk.<span class="fn">Button</span>(root, text=<span class="st">"Activate"</span>,
+    command=set_pin).<span class="fn">pack</span>()</div></div></section>
+<section class="slide" id="slide-11"><div class="slide-inner"><div class="slide-meta">Slide 11 of 12</div><div class="slide-title">GTK <span class="accent">Alternative</span></div><div class="slide-subtitle">Native Pi OS look with gi.repository.</div><div class="code-block"><span class="kw">import</span> gi
+gi.<span class="fn">require_version</span>(<span class="st">"Gtk"</span>, <span class="st">"3.0"</span>)
+<span class="kw">from</span> gi.repository <span class="kw">import</span> Gtk
+win = <span class="fn">Gtk.Window</span>(title=<span class="st">"Pi Control"</span>)
+btn = <span class="fn">Gtk.Button</span>(label=<span class="st">"LED Toggle"</span>)
+btn.<span class="fn">connect</span>(<span class="st">"clicked"</span>, <span class="kw">lambda</span> w: led.<span class="fn">toggle</span>())
+win.<span class="fn">add</span>(btn)
+win.<span class="fn">show_all</span>()
+<span class="fn">Gtk.main</span>()</div></div></section>
+<section class="slide" id="slide-12"><div class="slide-inner"><div class="slide-meta">Slide 12 of 12</div><div class="slide-title">Key Takeaways: <span class="accent">GUI Programming on Pi</span></div><div class="slide-subtitle">Five essential facts from this chapter.</div><div class="summary-facts"><div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Tkinter is pre-installed.</strong> Zero dependencies. <code>import tkinter as tk</code>.</span></div><div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Connect buttons to gpiozero.</strong> <code>command=led.on</code> wires GUI to hardware directly.</span></div><div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Use root.after() for live data.</strong> Never time.sleep() in a GUI. Schedule periodic updates.</span></div><div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Scale widgets = PWM control.</strong> Slider 0-100 maps to PWMLED brightness. Smooth, real-time.</span></div><div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Thread safety is critical.</strong> Use Queue or root.after() to bridge GPIO callbacks and Tkinter.</span></div></div><div class="box box-red" style="font-size:0.85rem; text-align:center;"><strong>Track 3 Complete -- Return to PiVerse Hub</strong></div><div style="text-align:center; margin-top:6px;"><button id="complete-btn" onclick="completeModule()">Mark Complete</button></div></div></section>
+<nav id="nav-bar"><a href="../../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; PiVerse</button></a><button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button><span id="slide-counter">Slide 1 of 12</span><button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button></nav>
+<script>
+    let currentSlide = 1; const TOTAL_SLIDES = 12;
+    function goToSlide(n) { if (n < 1 || n > TOTAL_SLIDES) return; const prev = document.getElementById('slide-' + currentSlide); if (prev) prev.classList.remove('active'); currentSlide = n; const next = document.getElementById('slide-' + currentSlide); if (next) next.classList.add('active'); document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%'; document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES; document.getElementById('prev-btn').disabled = (currentSlide === 1); document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES); var cb = document.getElementById('complete-btn'); if (cb) cb.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none'; }
+    document.addEventListener('keydown', function(e) { if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); } else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); } });
+    goToSlide(1);
+</script>
+<script>function completeModule() { if (typeof ModuleProgress !== 'undefined') ModuleProgress.complete('matrix', 'pv-e-10-pres', { returnUrl: '../../index.html' }); }</script>
+</body>
+</html>

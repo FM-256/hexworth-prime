@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Environmental Sensing | PiVerse Maker's Workshop</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d0408 0%, #1a0810 50%, #0d0408 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #c51a4a; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(13, 4, 8, 0.95); border-top: 1px solid rgba(197, 26, 74, 0.15); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255, 255, 255, 0.07); color: #94a3b8; border: 1px solid rgba(255, 255, 255, 0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(197, 26, 74, 0.15); color: #c51a4a; border-color: #c51a4a; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s; }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #c51a4a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #e8305e; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip { background: rgba(197, 26, 74, 0.08); border-left: 3px solid #c51a4a; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #d4a0b0; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-red   { background: rgba(197, 26, 74, 0.08); border: 1px solid rgba(197, 26, 74, 0.3); color: #f0c0d0; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-gold  { background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.2rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #e8305e; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255, 255, 255, 0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #c51a4a; }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #c51a4a; }
+        .card.c-gold   { border-left-color: #ffd700; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c51a4a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #e8305e; background: rgba(197, 26, 74, 0.1); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .ic { font-family: 'Courier New', monospace; color: #e8305e; background: rgba(197, 26, 74, 0.1); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  { background: rgba(197, 26, 74, 0.12); border: 1px solid rgba(197, 26, 74, 0.4); color: #c51a4a; font-weight: 700; font-size: 0.78rem; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px; }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+        .code-block { background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(197, 26, 74, 0.2); border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #e8305e; line-height: 1.6; white-space: pre; overflow-x: auto; }
+        .code-block .cm { color: #64748b; }
+        .code-block .kw { color: #a78bfa; }
+        .code-block .fn { color: #e8305e; }
+        .code-block .st { color: #86efac; }
+        .code-block .nu { color: #fdba74; }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Environmental Sensing -- PiVerse Maker's Workshop</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; PiVerse &nbsp;|&nbsp; Maker's Workshop &nbsp;|&nbsp; PV-M-09</div>
+        <div class="title-hero">
+            <div class="big-title"><span class="accent">Environmental Sensing</span></div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">USB Microphones &nbsp;|&nbsp; Sound Classification &nbsp;|&nbsp; Wildlife Monitoring &nbsp;|&nbsp; Data Pipelines</div>
+        </div>
+        <div class="scenario-strip">A Raspberry Pi sits in a weatherproof enclosure at the edge of a forest. A USB microphone listens to the soundscape 24/7. By the end of this session, you will understand how to capture, classify, and analyze environmental audio -- turning a Pi into an autonomous ecological monitoring station.</div>
+        <div class="title-meta-row"><span>12 Slides</span><span>PiVerse Maker's Workshop</span><span>Chapter 9 of 10</span><span>Matrix House</span></div>
+    </div>
+</section>
+
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title"><span class="accent">Audio Capture</span> on the Pi</div>
+        <div class="slide-subtitle">The Pi has no analog audio input -- USB is the only path.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">USB Microphones</div><div class="card-desc">The Pi lacks a microphone input or ADC for analog audio. USB microphones present as ALSA sound cards via the USB Audio Class driver. No additional drivers needed. Common choices: Blue Snowball, USB lavalier mics, or USB sound cards with 3.5mm mic input.</div></div>
+            <div class="card c-green"><div class="card-label">I2S MEMS Microphones</div><div class="card-desc">Digital microphones (INMP441, SPH0645) connect directly to the Pi's I2S bus via GPIO. Higher quality than cheap USB mics. Require kernel overlay configuration. Multiple mics enable stereo or directional recording.</div></div>
+        </div>
+        <div class="box box-gold"><div class="box-label">Sample Rates</div>Most environmental monitoring uses 44.1kHz or 48kHz sample rate at 16-bit depth. For bird call analysis, 44.1kHz captures frequencies up to 22kHz -- well above the ~10kHz upper range of most bird vocalizations. Higher sample rates waste storage without adding useful data.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title"><span class="accent">ALSA</span> and Audio Architecture</div>
+        <div class="slide-subtitle">The Linux audio subsystem that manages all sound devices.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">L3</span><span class="step-text"><strong>Application Layer</strong> -- Python (sounddevice, pyaudio), arecord CLI, FFmpeg. Your code requests audio samples from the device through these interfaces.</span></div>
+            <div class="step-row"><span class="step-num">L2</span><span class="step-text"><strong>ALSA Library</strong> -- Advanced Linux Sound Architecture. Manages device enumeration, sample format conversion, buffering, and mixing. The <code>arecord -l</code> command lists all available capture devices.</span></div>
+            <div class="step-row"><span class="step-num">L1</span><span class="step-text"><strong>Kernel Driver</strong> -- USB Audio Class driver (snd-usb-audio) or I2S driver. Handles DMA transfers between the audio device and system memory. Manages interrupt timing for sample-accurate capture.</span></div>
+        </div>
+        <div class="code-block"><span class="cm"># List audio capture devices</span>
+$ arecord -l
+<span class="cm"># Record 10 seconds of audio to WAV</span>
+$ arecord -D plughw:1,0 -f S16_LE -r 44100 -d 10 recording.wav
+<span class="cm"># -D: device  -f: format  -r: sample rate  -d: duration</span></div>
+    </div>
+</section>
+
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title"><span class="accent">Spectrograms</span></div>
+        <div class="slide-subtitle">Converting audio from time-domain to frequency-domain for analysis.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">What is a Spectrogram?</div><div class="card-desc">A visual representation of sound. X-axis is time, Y-axis is frequency, color intensity is amplitude. Created by applying Short-Time Fourier Transform (STFT) to overlapping windows of audio samples. Each vertical slice is one FFT of a short audio segment.</div></div>
+            <div class="card c-green"><div class="card-label">Mel Spectrogram</div><div class="card-desc">A spectrogram with frequency axis warped to the Mel scale, which models human pitch perception. Low frequencies get more resolution, high frequencies get less. Standard input for audio ML models because it better represents perceptually relevant features.</div></div>
+        </div>
+        <div class="box box-blue"><div class="box-label">Why Spectrograms for ML?</div>Audio classification models typically do not process raw waveforms. Instead, audio is converted to a Mel spectrogram image, and the classification problem becomes an image classification problem. A CNN trained on spectrogram images can distinguish bird species, identify chainsaws, or detect gunshots.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title"><span class="accent">Sound Classification</span> with ML</div>
+        <div class="slide-subtitle">Using pre-trained models to identify environmental sounds.</div>
+        <div class="card-grid">
+            <div class="card"><div class="card-label">YAMNet</div><div class="card-desc">Google's audio event classifier. Trained on AudioSet (2M+ clips, 521 sound classes). Recognizes birds, vehicles, speech, alarms, rain, thunder. MobileNet v1 backbone on Mel spectrograms. Runs on Pi 5 at real-time speed.</div></div>
+            <div class="card c-green"><div class="card-label">BirdNET</div><div class="card-desc">Cornell Lab of Ornithology's bird identifier. Recognizes 6,000+ bird species by their vocalizations. Optimized for ecological monitoring. TFLite version runs on Pi. The gold standard for avian bioacoustics.</div></div>
+            <div class="card c-gold"><div class="card-label">Custom Models</div><div class="card-desc">Train your own classifier using transfer learning from YAMNet. Record local sounds, label them, fine-tune. Useful for detecting specific events: chainsaw activity, specific frog species, or equipment malfunction sounds.</div></div>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title"><span class="accent">Wildlife Monitoring</span> Architecture</div>
+        <div class="slide-subtitle">An autonomous recording station for ecological research.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Scheduled recording.</strong> Cron job triggers recording at dawn and dusk (peak bird activity). Continuous recording is possible but generates ~1.5GB/hour at 44.1kHz 16-bit mono. Storage planning is critical.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>On-device classification.</strong> BirdNET or YAMNet analyzes each recording segment. Only segments with confident detections are retained, reducing storage by 80-90%.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Metadata logging.</strong> Each detection logged with timestamp, species, confidence score, GPS coordinates (if available), temperature, and audio filename. SQLite database on the Pi.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Data sync.</strong> When WiFi is available, sync detection logs and flagged audio clips to a central server. rsync over SSH or MQTT messages for lightweight telemetry.</span></div>
+        </div>
+        <div class="box box-red"><div class="box-label">Power Budget</div>A Pi 5 draws ~5W at idle, ~8W under ML inference load. A 100Wh battery provides ~12-20 hours of operation. Solar panels (20-50W) can sustain indefinite operation in areas with 4+ hours of daily sunlight.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title"><span class="accent">Environmental Sensors</span> via GPIO and I2C</div>
+        <div class="slide-subtitle">Complementing audio data with physical measurements.</div>
+        <div class="card-grid">
+            <div class="card"><div class="card-label">BME280</div><div class="card-desc">Temperature, humidity, barometric pressure. I2C interface. Correlate weather conditions with animal activity patterns.</div></div>
+            <div class="card c-green"><div class="card-label">TSL2591</div><div class="card-desc">Light intensity sensor. I2C. Measures lux from 0.001 to 88,000. Determines dawn/dusk timing for automated recording schedules.</div></div>
+            <div class="card c-gold"><div class="card-label">PM2.5 (SDS011)</div><div class="card-desc">Particulate matter sensor. UART serial. Measures air quality. Relevant for environmental health studies and wildfire smoke detection.</div></div>
+            <div class="card c-cyan"><div class="card-label">GPS (NEO-6M)</div><div class="card-desc">UART serial GPS module. Provides location coordinates and precise UTC timestamps. Essential for multi-station deployments where location matters.</div></div>
+            <div class="card c-purple"><div class="card-label">PIR Sensor</div><div class="card-desc">Passive infrared motion detector. GPIO digital input. Triggers camera capture when an animal moves within detection range. Reduces continuous recording overhead.</div></div>
+            <div class="card c-orange"><div class="card-label">DS18B20</div><div class="card-desc">Waterproof temperature probe. 1-Wire protocol on GPIO. Measures water or soil temperature. Can chain multiple sensors on one GPIO pin.</div></div>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title"><span class="accent">Data Pipelines</span></div>
+        <div class="slide-subtitle">Moving sensor data from the Pi to analysis and visualization platforms.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">MQTT Telemetry</div><div class="card-desc">Lightweight publish-subscribe messaging. Pi publishes sensor readings to topics (sensors/station-01/temperature). A central broker (Mosquitto) routes messages to subscribers. Ideal for real-time dashboards. Low bandwidth -- a single reading is ~100 bytes.</div></div>
+            <div class="card c-green"><div class="card-label">InfluxDB Time Series</div><div class="card-desc">Purpose-built database for timestamped sensor data. Efficient compression for sequential measurements. Query language optimized for time-range aggregations (hourly averages, daily min/max). Pairs with Grafana for visualization.</div></div>
+        </div>
+        <div class="box box-gold"><div class="box-label">Local-First Architecture</div>Always store data locally on the Pi first (SQLite or CSV). Network connectivity at remote sites is unreliable. The Pi should function autonomously for days or weeks, syncing accumulated data when connectivity is restored.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Python <span class="accent">Audio Pipeline</span></div>
+        <div class="slide-subtitle">Recording and analyzing audio with Python on the Pi.</div>
+        <div class="code-block"><span class="cm"># Record audio and generate spectrogram</span>
+<span class="kw">import</span> sounddevice <span class="kw">as</span> sd
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">import</span> scipy.io.wavfile <span class="kw">as</span> wav
+<span class="kw">import</span> librosa
+
+<span class="cm"># Record 5 seconds at 44.1kHz</span>
+RATE = <span class="nu">44100</span>
+DURATION = <span class="nu">5</span>
+audio = sd.rec(
+    <span class="kw">int</span>(RATE * DURATION),
+    samplerate=RATE,
+    channels=<span class="nu">1</span>,
+    dtype=<span class="st">'float32'</span>
+)
+sd.wait()
+wav.write(<span class="st">'capture.wav'</span>, RATE, audio)
+
+<span class="cm"># Generate Mel spectrogram</span>
+y, sr = librosa.load(<span class="st">'capture.wav'</span>, sr=RATE)
+mel = librosa.feature.melspectrogram(
+    y=y, sr=sr, n_mels=<span class="nu">128</span>, fmax=<span class="nu">8000</span>
+)
+mel_db = librosa.power_to_db(mel, ref=np.max)</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title"><span class="accent">Weatherproofing</span> and Field Deployment</div>
+        <div class="slide-subtitle">Protecting Pi hardware in outdoor environments.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Enclosure.</strong> IP67-rated junction boxes with cable glands for power and microphone cables. Drill ventilation holes covered with Gore-Tex membrane patches for pressure equalization without moisture ingress.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Microphone protection.</strong> Mount the USB microphone outside the enclosure under a wind screen (deadcat) and rain shield. Waterproof outdoor microphones (Primo EM172) are purpose-built for ecological recording.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Power.</strong> 12V sealed lead-acid battery or LiFePO4 pack. 12V-to-5V buck converter (not a linear regulator -- efficiency matters). Solar charge controller manages panel-to-battery charging.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Temperature management.</strong> Pi operates from 0C to 85C (BCM2712 spec). Below freezing, lithium batteries lose capacity. Insulate the battery compartment. In extreme heat, shade the enclosure and ensure airflow.</span></div>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Real-World <span class="accent">Monitoring Projects</span></div>
+        <div class="slide-subtitle">Practical environmental sensing deployments on Pi hardware.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Bird Population Survey</div><div class="card-desc">Network of Pi stations with BirdNET running at dawn chorus. Automated species identification, daily diversity indices, seasonal migration tracking. Data aggregated to central InfluxDB with Grafana dashboards.</div></div>
+            <div class="card c-green"><div class="card-label">Urban Noise Mapping</div><div class="card-desc">Grid of Pi nodes measuring SPL (sound pressure level) across a city. Classify noise sources (traffic, construction, aircraft). Generate heat maps of noise pollution over time. Inform urban planning decisions.</div></div>
+            <div class="card c-gold"><div class="card-label">Bat Detector</div><div class="card-desc">Pi with ultrasonic USB microphone (up to 192kHz sample rate). Record echolocation calls, identify bat species by call frequency and pattern. Time-expansion playback makes ultrasonic calls audible to humans.</div></div>
+            <div class="card c-cyan"><div class="card-label">Weather Station Network</div><div class="card-desc">Pi + BME280 + rain gauge + anemometer + UV sensor. Log readings every 60 seconds. Publish via MQTT. Create local microclimate maps with higher spatial resolution than commercial weather services.</div></div>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Key Takeaways: <span class="accent">Environmental Sensing</span></div>
+        <div class="slide-subtitle">The five facts that matter.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>The Pi has no analog audio input.</strong> Use USB microphones (plug-and-play via ALSA) or I2S MEMS microphones (GPIO, higher quality, requires configuration).</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Sound classification converts audio to Mel spectrograms</strong> and applies image classification CNNs. YAMNet handles 521 general sound classes; BirdNET identifies 6,000+ bird species.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>On-device classification reduces storage by 80-90%.</strong> Only retain audio segments with confident detections instead of archiving hours of silence and wind noise.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Local-first data architecture is mandatory for field deployments.</strong> Store to SQLite on the Pi, sync when connectivity is available. Never depend on real-time network access.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Weatherproofing is as important as the code.</strong> IP67 enclosure, Gore-Tex vent, wind-screened microphone, solar power, and temperature management determine whether a deployment lasts days or years.</span></div>
+        </div>
+        <div style="text-align:center; margin-top:6px;"><button id="complete-btn" onclick="completeModule()">Mark Complete</button></div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; PiVerse</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        var prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        var next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        var cb = document.getElementById('complete-btn');
+        if (cb) cb.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+    goToSlide(1);
+</script>
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pv-m-09-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>

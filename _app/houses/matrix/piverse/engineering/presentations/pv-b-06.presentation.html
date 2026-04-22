@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manufacturing and Assembly | PiVerse Board Engineering</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; } html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0d0408 0%, #1a0812 50%, #0d0408 100%); color: #e2e8f0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #c51a4a; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(13,4,8,0.95); border-top: 1px solid rgba(197,26,74,0.15); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.07); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(197,26,74,0.15); color: #c51a4a; border-color: #c51a4a; } .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; } .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; } #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #c51a4a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; } .slide-title .accent { color: #e8305e; }
+        .slide-subtitle { font-size: 0.95rem; color: #9e8b91; text-align: center; }
+        .scenario-strip { background: rgba(197,26,74,0.08); border-left: 3px solid #c51a4a; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #d4a0ad; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-red { background: rgba(197,26,74,0.08); border: 1px solid rgba(197,26,74,0.3); color: #f0c0cc; }
+        .box-gold { background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.3); color: #fef3c7; }
+        .box-blue { background: rgba(96,165,250,0.08); border: 1px solid rgba(96,165,250,0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; } .title-hero .big-title .accent { color: #e8305e; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; } .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; } .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #c51a4a; } .card:hover { background: rgba(255,255,255,0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; } .card .card-desc { font-size: 0.82rem; color: #9e8b91; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-red { border-left-color: #c51a4a; } .card.c-gold { border-left-color: #ffd700; } .card.c-blue { border-left-color: #60a5fa; } .card.c-purple { border-left-color: #a78bfa; } .card.c-orange { border-left-color: #f97316; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; } .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #c51a4a; min-width: 22px; text-align: right; flex-shrink: 0; } .fact-text { color: #cbd5e1; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; } .step-row { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num { background: rgba(197,26,74,0.12); border: 1px solid rgba(197,26,74,0.4); color: #c51a4a; font-weight: 700; font-size: 0.78rem; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px; }
+        .step-text { color: #cbd5e1; line-height: 1.4; } .step-text strong { color: #f1f5f9; }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Manufacturing and Assembly -- PiVerse Board Engineering</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<section class="slide active" id="slide-1"><div class="slide-inner">
+    <div class="slide-meta">Slide 1 of 12 | PiVerse | Board Engineering | Chapter 6</div>
+    <div class="title-hero"><div class="big-title"><span class="accent">Manufacturing and Assembly:</span> From Design to Physical Board</div>
+    <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">Gerber Files | BOM | Pick-and-Place | Solder Paste | Reflow | JLCPCB Workflow</div></div>
+    <div class="scenario-strip">Your design exists as data files on a computer. Manufacturing turns those files into a physical board with real components soldered in place. Understanding the manufacturing process prevents design mistakes that are impossible or expensive to fix after fabrication.</div>
+    <div class="title-meta-row"><span>12 Slides</span><span>PiVerse Board Engineering</span><span>Chapter 6 of 8</span><span>Matrix House</span></div>
+</div></section>
+
+<section class="slide" id="slide-2"><div class="slide-inner">
+    <div class="slide-meta">Slide 2 of 12</div>
+    <div class="slide-title"><span class="accent">Gerber</span> Files</div>
+    <div class="slide-subtitle">Gerber is the universal file format that fab houses use to manufacture your PCB.</div>
+    <div class="card-grid">
+        <div class="card c-red"><div class="card-label">One File Per Layer</div><div class="card-desc">Top copper (F.Cu.gbr), bottom copper (B.Cu.gbr), top solder mask (F.Mask.gbr), bottom solder mask (B.Mask.gbr), top silkscreen (F.SilkS.gbr), bottom silkscreen, edge cuts, and drill files.</div></div>
+        <div class="card c-gold"><div class="card-label">Drill Files</div><div class="card-desc">Separate files specify hole positions and sizes. Through-hole drill, NPTH (non-plated), and via drill. Excellon format (.drl). Without drill files, no holes are drilled.</div></div>
+        <div class="card c-blue"><div class="card-label">Gerber Viewers</div><div class="card-desc">Always inspect Gerbers in a viewer before submitting. KiCad's built-in viewer, gerbv, or the online JLCPCB Gerber viewer. Verify every layer looks correct. Check for missing pads, broken traces, and correct board outline.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-3"><div class="slide-inner">
+    <div class="slide-meta">Slide 3 of 12</div>
+    <div class="slide-title">Bill of <span class="accent">Materials</span> (BOM)</div>
+    <div class="slide-subtitle">The BOM lists every component that gets soldered to the board.</div>
+    <div class="step-list">
+        <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Reference designator.</strong> R1, C1, U1 -- links back to the schematic and PCB silkscreen.</span></div>
+        <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Value.</strong> 100nF, 10K, RP2040 -- what the component IS.</span></div>
+        <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Footprint/Package.</strong> 0402, 0603, QFN-56 -- the physical size and pad pattern.</span></div>
+        <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Manufacturer Part Number (MPN).</strong> The exact part to order. Example: "GRM155R71C104KA88D" for a specific Murata 100nF cap.</span></div>
+        <div class="step-row"><span class="step-num">5</span><span class="step-text"><strong>LCSC Part Number.</strong> For JLCPCB assembly, every component needs an LCSC number. Basic parts (resistors, common caps) are cheaper than extended parts.</span></div>
+    </div>
+    <div class="box box-red"><div class="box-label">BOM Optimization</div>Use the fewest unique part values possible. If you need 10K and 10.2K resistors, consolidate to 10K. Fewer unique parts = simpler BOM = cheaper assembly = fewer placement errors. JLCPCB charges per unique part, not per total part count.</div>
+</div></section>
+
+<section class="slide" id="slide-4"><div class="slide-inner">
+    <div class="slide-meta">Slide 4 of 12</div>
+    <div class="slide-title">Pick-and-Place <span class="accent">File</span> (CPL)</div>
+    <div class="slide-subtitle">The Component Placement List tells the assembly machine where to put each component.</div>
+    <div class="card-grid-2">
+        <div class="card c-red"><div class="card-label">Position Data</div><div class="card-desc">For each component: reference designator, X coordinate, Y coordinate, rotation angle, and which side (top/bottom). Generated by KiCad's "Fabrication Outputs" menu.</div></div>
+        <div class="card c-gold"><div class="card-label">Rotation Corrections</div><div class="card-desc">Different EDA tools define 0-degree rotation differently. JLCPCB may need rotation corrections for polarized components (ICs, diodes, LEDs). Their online tool lets you visually verify and correct placement before production.</div></div>
+    </div>
+    <div class="box box-gold"><div class="box-label">Fiducial Markers</div>Small copper circles (fiducials) on the board give the pick-and-place machine reference points for alignment. Place at least two fiducials on opposite corners of the board. Without them, the machine has no way to correct for board rotation or offset during placement.</div>
+</div></section>
+
+<section class="slide" id="slide-5"><div class="slide-inner">
+    <div class="slide-meta">Slide 5 of 12</div>
+    <div class="slide-title">Solder Paste <span class="accent">Stencil</span></div>
+    <div class="slide-subtitle">Before components are placed, solder paste is applied to every pad through a stencil.</div>
+    <div class="card-grid-2">
+        <div class="card c-red"><div class="card-label">The Stencil</div><div class="card-desc">A thin stainless steel sheet with laser-cut openings matching every pad on your board. Paste is squeegeed across the stencil, depositing precise amounts on each pad. Then the stencil is lifted off.</div></div>
+        <div class="card c-gold"><div class="card-label">Paste Volume</div><div class="card-desc">Too much paste causes bridges (shorts between adjacent pins). Too little causes cold joints (weak or missing connections). The stencil aperture size controls the volume. For QFN-56, apertures are typically 80% of pad size.</div></div>
+    </div>
+    <div class="box box-red"><div class="box-label">For Hand Assembly</div>If you are assembling boards yourself (low volume, prototyping), order a stencil with your PCBs. JLCPCB includes a free stencil with PCB orders. Apply paste, place components with tweezers, then reflow in a hot air station or reflow oven. It is surprisingly doable for boards with 50-100 components.</div>
+</div></section>
+
+<section class="slide" id="slide-6"><div class="slide-inner">
+    <div class="slide-meta">Slide 6 of 12</div>
+    <div class="slide-title"><span class="accent">Reflow</span> Soldering</div>
+    <div class="slide-subtitle">The board passes through an oven with a carefully controlled temperature profile.</div>
+    <div class="step-list">
+        <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Preheat (150-200C, 60-90s).</strong> Gradually heats the board to activate flux and equalize temperature across all components. Prevents thermal shock.</span></div>
+        <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Soak (200-217C, 60-90s).</strong> Holds temperature to ensure all areas of the board reach uniform temperature. Flux cleans oxide from pads.</span></div>
+        <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Reflow (217-250C, 30-60s).</strong> Solder paste melts (liquidus at 217C for SAC305 lead-free). Surface tension pulls components into alignment on their pads (self-centering).</span></div>
+        <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Cooling (controlled ramp down).</strong> Gradual cooling prevents thermal stress cracks in solder joints. Do not quench -- let it cool naturally or use controlled cooling.</span></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-7"><div class="slide-inner">
+    <div class="slide-meta">Slide 7 of 12</div>
+    <div class="slide-title">JLCPCB <span class="accent">Workflow</span></div>
+    <div class="slide-subtitle">JLCPCB is the most popular low-cost PCB fabrication and assembly house. Here is the complete order flow.</div>
+    <div class="step-list">
+        <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Upload Gerbers.</strong> ZIP your Gerber and drill files. Upload to JLCPCB. Their system auto-detects board size, layers, and drill count.</span></div>
+        <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Configure PCB options.</strong> Choose layers (2 or 4), thickness (1.6mm standard), color (green is cheapest), surface finish (HASL or lead-free HASL).</span></div>
+        <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Enable SMT Assembly.</strong> Toggle assembly on. Upload BOM (.csv) and CPL (.csv). Select top-side or both-side assembly.</span></div>
+        <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Component review.</strong> JLCPCB shows each component placement on a visual board preview. Verify rotation and position. Fix any misaligned parts.</span></div>
+        <div class="step-row"><span class="step-num">5</span><span class="step-text"><strong>Pay and wait.</strong> PCB fabrication: 2-5 days. Assembly: 3-7 days. Shipping: 5-20 days depending on method. Total: 10-30 days from order to mailbox.</span></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-8"><div class="slide-inner">
+    <div class="slide-meta">Slide 8 of 12</div>
+    <div class="slide-title"><span class="accent">Design for Manufacturing</span> (DFM)</div>
+    <div class="slide-subtitle">Rules that make your board cheaper and more reliable to manufacture.</div>
+    <div class="card-grid-2">
+        <div class="card c-red"><div class="card-label">Minimum Feature Sizes</div><div class="card-desc">JLCPCB minimums: 0.127mm (5 mil) trace width, 0.127mm spacing, 0.2mm drill, 0.45mm via pad. Stay above these for reliable results. 6 mil trace/space is the sweet spot for cost and reliability.</div></div>
+        <div class="card c-gold"><div class="card-label">Panelization</div><div class="card-desc">For small boards, combine multiple copies into a panel with V-score or mouse-bite tabs. JLCPCB can panelize for you, or you create your own panel in KiCad. Reduces per-board cost for orders of 10+.</div></div>
+    </div>
+    <div class="box box-blue"><div class="box-label">Component Orientation</div>Align all passive components (resistors, capacitors) in the same direction where possible. This helps the reflow oven heat them evenly and reduces placement machine time. It also makes visual inspection easier.</div>
+</div></section>
+
+<section class="slide" id="slide-9"><div class="slide-inner">
+    <div class="slide-meta">Slide 9 of 12</div>
+    <div class="slide-title">Surface <span class="accent">Finish</span> Options</div>
+    <div class="slide-subtitle">The surface finish protects exposed copper pads from oxidation until soldering.</div>
+    <div class="card-grid">
+        <div class="card c-red"><div class="card-label">HASL (Hot Air Solder Leveling)</div><div class="card-desc">Board is dipped in molten solder, then leveled with hot air. Cheapest. Good solderability. But uneven surface -- not ideal for fine-pitch QFN pads. Lead-free HASL is standard.</div></div>
+        <div class="card c-gold"><div class="card-label">ENIG (Electroless Nickel / Immersion Gold)</div><div class="card-desc">Flat, uniform gold surface over nickel. Excellent for QFN and BGA packages. Good shelf life. More expensive. The gold surface is the industry standard for professional boards.</div></div>
+        <div class="card c-blue"><div class="card-label">OSP (Organic Solderability Preservative)</div><div class="card-desc">Thin organic coating. Cheapest flat finish. Short shelf life (6 months). Adequate for immediate assembly. Not recommended for boards you plan to store or rework.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-10"><div class="slide-inner">
+    <div class="slide-meta">Slide 10 of 12</div>
+    <div class="slide-title">Inspection and <span class="accent">Testing</span></div>
+    <div class="slide-subtitle">After assembly, verify the board works before deploying it.</div>
+    <div class="card-grid-2">
+        <div class="card c-red"><div class="card-label">Visual Inspection</div><div class="card-desc">Check for solder bridges (shorts), tombstoned components (one end lifted), missing components, and correct orientation of polarized parts (ICs, diodes, electrolytic caps). A USB microscope helps enormously.</div></div>
+        <div class="card c-gold"><div class="card-label">Continuity Testing</div><div class="card-desc">Use a multimeter in continuity mode. Check that power rails are not shorted to ground (beep = bad). Check that expected connections exist (power to regulator input, regulator output to MCU VDD).</div></div>
+    </div>
+    <div class="box box-red"><div class="box-label">First Power-On Protocol</div>Connect a current-limited power supply (set to 100mA max). Monitor current draw. An RP2040 board should draw 20-50mA at first power-on. If it draws the limit immediately, disconnect -- you have a short. Never power a new board from a non-current-limited source.</div>
+</div></section>
+
+<section class="slide" id="slide-11"><div class="slide-inner">
+    <div class="slide-meta">Slide 11 of 12</div>
+    <div class="slide-title">Common Manufacturing <span class="accent">Failures</span></div>
+    <div class="slide-subtitle">Problems you will encounter and how to fix them.</div>
+    <div class="step-list">
+        <div class="step-row"><span class="step-num">X</span><span class="step-text"><strong>Solder bridges.</strong> Excess paste shorts adjacent pins. Fix with solder wick and flux. Prevent with correct stencil aperture sizing.</span></div>
+        <div class="step-row"><span class="step-num">X</span><span class="step-text"><strong>Tombstoning.</strong> Uneven heating lifts one end of a small component (0402, 0603). Caused by thermal imbalance in pad sizes or asymmetric paste application.</span></div>
+        <div class="step-row"><span class="step-num">X</span><span class="step-text"><strong>Cold joints.</strong> Insufficient heat or paste creates a weak, dull-looking joint. Reheat with a soldering iron or hot air.</span></div>
+        <div class="step-row"><span class="step-num">X</span><span class="step-text"><strong>Wrong component rotation.</strong> IC placed 90 or 180 degrees off. Verify pin 1 marker on the IC matches pin 1 on the PCB silkscreen.</span></div>
+        <div class="step-row"><span class="step-num">X</span><span class="step-text"><strong>Missing Gerber layers.</strong> Forgetting to export the drill file means no holes. Forgetting solder mask means exposed copper everywhere. Always verify Gerbers in a viewer before ordering.</span></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-12"><div class="slide-inner">
+    <div class="slide-meta">Slide 12 of 12</div>
+    <div class="slide-title">Key Takeaways: <span class="accent">Manufacturing and Assembly</span></div>
+    <div class="slide-subtitle">Design is half the battle. Getting it manufactured correctly is the other half.</div>
+    <div class="summary-facts">
+        <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Gerbers are the universal PCB format.</strong> One file per layer plus drill files. Always verify in a Gerber viewer before ordering.</span></div>
+        <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>BOM and CPL files drive assembly.</strong> Every component needs an MPN and LCSC number. Fewer unique parts = cheaper.</span></div>
+        <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Reflow profile: preheat, soak, reflow, cool.</strong> 217C is the magic number for SAC305 lead-free solder.</span></div>
+        <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>DFM: respect minimum feature sizes.</strong> 6 mil trace/space, 0.3mm via drill, 0.45mm via pad for JLCPCB.</span></div>
+        <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>First power-on with current limiting.</strong> Never power a new board without current protection. Check for shorts first.</span></div>
+    </div>
+    <div class="box box-red" style="font-size:0.85rem; text-align:center;"><strong>Next: Chapter 7 -- Motor Controller Case Study</strong> | Stepper Driver PCB Around RP2040</div>
+    <div style="text-align:center; margin-top:6px;"><button id="complete-btn" onclick="completeModule()">Mark Complete</button></div>
+</div></section>
+
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; PiVerse</button></a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+<script>
+    let currentSlide = 1; const TOTAL_SLIDES = 12;
+    function goToSlide(n) { if (n < 1 || n > TOTAL_SLIDES) return; const prev = document.getElementById('slide-' + currentSlide); if (prev) prev.classList.remove('active'); currentSlide = n; const next = document.getElementById('slide-' + currentSlide); if (next) next.classList.add('active'); document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%'; document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES; document.getElementById('prev-btn').disabled = (currentSlide === 1); document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES); const cb = document.getElementById('complete-btn'); if (cb) cb.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none'; }
+    document.addEventListener('keydown', function(e) { if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); } else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); } });
+    goToSlide(1);
+</script>
+<script>function completeModule() { if (typeof ModuleProgress !== 'undefined') { ModuleProgress.complete('matrix', 'pv-b-06-pres', { returnUrl: '../../index.html' }); } }</script>
+</body>
+</html>

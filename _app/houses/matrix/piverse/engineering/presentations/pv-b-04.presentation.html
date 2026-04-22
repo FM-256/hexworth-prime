@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Power System Design | PiVerse Board Engineering</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0d0408 0%, #1a0812 50%, #0d0408 100%); color: #e2e8f0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #c51a4a; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(13,4,8,0.95); border-top: 1px solid rgba(197,26,74,0.15); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.07); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(197,26,74,0.15); color: #c51a4a; border-color: #c51a4a; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #c51a4a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #e8305e; }
+        .slide-subtitle { font-size: 0.95rem; color: #9e8b91; text-align: center; }
+        .scenario-strip { background: rgba(197,26,74,0.08); border-left: 3px solid #c51a4a; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #d4a0ad; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-red { background: rgba(197,26,74,0.08); border: 1px solid rgba(197,26,74,0.3); color: #f0c0cc; }
+        .box-green { background: rgba(58,181,119,0.08); border: 1px solid rgba(58,181,119,0.35); color: #d1fae5; }
+        .box-gold { background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.3); color: #fef3c7; }
+        .box-blue { background: rgba(96,165,250,0.08); border: 1px solid rgba(96,165,250,0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #e8305e; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #c51a4a; }
+        .card:hover { background: rgba(255,255,255,0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc { font-size: 0.82rem; color: #9e8b91; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-red { border-left-color: #c51a4a; } .card.c-gold { border-left-color: #ffd700; } .card.c-blue { border-left-color: #60a5fa; } .card.c-purple { border-left-color: #a78bfa; } .card.c-orange { border-left-color: #f97316; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #c51a4a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #e8305e; background: rgba(197,26,74,0.12); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num { background: rgba(197,26,74,0.12); border: 1px solid rgba(197,26,74,0.4); color: #c51a4a; font-weight: 700; font-size: 0.78rem; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px; }
+        .step-text { color: #cbd5e1; line-height: 1.4; } .step-text strong { color: #f1f5f9; }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Power System Design -- PiVerse Board Engineering</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 | PiVerse | Board Engineering | Chapter 4</div>
+        <div class="title-hero">
+            <div class="big-title"><span class="accent">Power System Design:</span> Feeding the RP2040</div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">LDO vs Buck | Decoupling Strategy | Power Sequencing | Thermal Budget | Battery Operation</div>
+        </div>
+        <div class="scenario-strip">Power is the foundation of every PCB. A perfect schematic with perfect routing will fail if the power system is wrong. Noise on the power rail corrupts signals. Voltage droop crashes the MCU. Thermal runaway destroys components. This chapter teaches you to design power systems that are silent, stable, and efficient.</div>
+        <div class="title-meta-row"><span>12 Slides</span><span>PiVerse Board Engineering</span><span>Chapter 4 of 8</span><span>Matrix House</span></div>
+    </div>
+</section>
+
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">RP2040 <span class="accent">Power</span> Requirements</div>
+        <div class="slide-subtitle">The RP2040 needs two voltage rails: 3.3V for I/O and an internal 1.1V for the digital core.</div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">IOVDD (3.3V)</div><div class="card-desc">Powers GPIO, USB PHY, ADC, and pad logic. All IOVDD pins must connect to the same 3.3V rail. Current draw varies with GPIO activity: ~5-50mA typical.</div></div>
+            <div class="card c-gold"><div class="card-label">DVDD (1.1V)</div><div class="card-desc">Powers the digital core (CPU, SRAM, PIO). Generated internally by the RP2040's built-in LDO from IOVDD. You supply the input; the chip handles the rest.</div></div>
+            <div class="card c-blue"><div class="card-label">USB_VDD (3.3V)</div><div class="card-desc">Separate power pin for the USB PHY. Connect to the same 3.3V rail but with its own decoupling cap. Noisy USB transients should not propagate to the core.</div></div>
+        </div>
+        <div class="box box-red"><div class="box-label">Total Power Budget</div>At 125 MHz with both cores active, typical current draw is 40-60mA from 3.3V. Add GPIO loads, LEDs, sensors, and you may need 100-300mA. Size your regulator for peak load plus 20% margin.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">LDO vs <span class="accent">Switching</span> Regulators</div>
+        <div class="slide-subtitle">Two fundamentally different approaches to voltage regulation. Each has trade-offs.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">LDO (Linear)</div><div class="card-desc">Simple: input voltage in, lower output voltage out. Excess energy burned as heat. Efficiency = Vout/Vin. Example: 5V to 3.3V = 66% efficiency. Silent (no switching noise). Cheap. Small. Best when Vin is close to Vout.</div></div>
+            <div class="card c-gold"><div class="card-label">Buck (Switching)</div><div class="card-desc">Chops the input voltage with a transistor switch, filters with an inductor and capacitor. 85-95% efficient regardless of Vin/Vout ratio. But generates switching noise at the switching frequency (typically 500kHz-2MHz). Needs inductor and output caps.</div></div>
+        </div>
+        <div class="box box-gold"><div class="box-label">The Pico's Choice</div>The Pico uses an RT6150B buck-boost converter (U2). "Buck-boost" means it can step voltage up OR down: input 1.8-5.5V, output 3.3V. This lets the Pico run from USB (5V), LiPo battery (3.0-4.2V), or two AA batteries (2.4-3.0V). The trade-off is complexity -- L1, C5-C7, R5, R6 are all part of the converter circuit.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title"><span class="accent">Decoupling</span> Capacitors</div>
+        <div class="slide-subtitle">The most important passive components on your board. Every power pin needs decoupling.</div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">100nF Ceramic (Per Pin)</div><div class="card-desc">One 100nF (0.1uF) ceramic capacitor on EVERY VDD pin, placed as close to the pin as physically possible. This filters high-frequency noise (10-100MHz range). Non-negotiable.</div></div>
+            <div class="card c-gold"><div class="card-label">10uF Bulk (Per Rail)</div><div class="card-desc">One or two 10uF capacitors near the voltage regulator output. Provides bulk charge storage for sudden current demands. Stabilizes the rail during load transients.</div></div>
+            <div class="card c-blue"><div class="card-label">1uF ADC Reference</div><div class="card-desc">The RP2040 ADC reference pin (ADC_AVDD) needs a 1uF cap for noise filtering. ADC accuracy depends directly on power supply cleanliness. A noisy reference means noisy readings.</div></div>
+        </div>
+        <div class="box box-red"><div class="box-label">Placement is Everything</div>A decoupling cap 10mm away from the pin it serves is almost useless. The inductance of the trace connecting them defeats the purpose. Place caps within 2mm of the pin. Route directly from the pad to the via, then to the cap. The shortest path wins.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Power <span class="accent">Input</span> Protection</div>
+        <div class="slide-subtitle">Protect your board from reverse voltage, overvoltage, and inrush current.</div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">Reverse Polarity</div><div class="card-desc">A Schottky diode in series (like D1 on the Pico) prevents damage if power is connected backwards. Drops about 0.3V. A P-channel MOSFET is more efficient (millivolts of drop).</div></div>
+            <div class="card c-gold"><div class="card-label">Overvoltage (TVS)</div><div class="card-desc">A TVS diode clamps voltage spikes. For a 5V USB input, a 5.5V TVS will clamp anything above that to protect downstream components.</div></div>
+            <div class="card c-blue"><div class="card-label">Inrush Current</div><div class="card-desc">Large capacitors on the output cause a surge when power is first applied. A soft-start circuit or NTC thermistor limits the initial current spike. Important for battery-powered designs.</div></div>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Power <span class="accent">Sequencing</span></div>
+        <div class="slide-subtitle">Some chips require power rails to come up in a specific order. The RP2040 is forgiving, but others are not.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">RP2040 Sequencing</div><div class="card-desc">The RP2040 generates its own 1.1V core voltage from 3.3V via an internal LDO. No external sequencing needed. Apply 3.3V and the chip handles the rest. The POR (Power-On Reset) circuit holds the chip in reset until voltages stabilize.</div></div>
+            <div class="card c-gold"><div class="card-label">When Sequencing Matters</div><div class="card-desc">FPGAs, DDR memory, and multi-rail SoCs often require precise power sequencing: core voltage first, then I/O voltage, then aux. Wrong order can cause latch-up (destructive short circuit inside the chip).</div></div>
+        </div>
+        <div class="box box-blue"><div class="box-label">3V3_EN Pin on the Pico</div>The Pico exposes a 3V3_EN pin. Pull it low to disable the 3.3V regulator and put the entire board to sleep. This is useful for ultra-low-power battery designs: an external RTC or sensor can wake the board by releasing 3V3_EN.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title"><span class="accent">Thermal</span> Management</div>
+        <div class="slide-subtitle">Every watt dissipated becomes heat. Manage it or your board overheats.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">LDO Heat</div><div class="card-desc">An LDO dropping 5V to 3.3V at 200mA dissipates (5-3.3) x 0.2 = 0.34W. That is enough to heat a SOT-23 package to 80+ degrees C without adequate copper area for heat spreading.</div></div>
+            <div class="card c-gold"><div class="card-label">Thermal Vias</div><div class="card-desc">Vias under the regulator's thermal pad connect to internal ground planes, spreading heat through the board. The RP2040's QFN ground pad also needs thermal vias -- typically a 3x3 or 4x4 array of 0.3mm vias.</div></div>
+        </div>
+        <div class="box box-red"><div class="box-label">Rule of Thumb</div>If your regulator dissipates more than 0.5W, consider a switching converter instead. If it dissipates more than 1W, you MUST use a switching converter or add a heatsink. Calculate: P = (Vin - Vout) x Iload. This is the waste heat equation for linear regulators.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title"><span class="accent">Battery</span> Power Design</div>
+        <div class="slide-subtitle">Running the RP2040 from a LiPo battery introduces new design considerations.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">LiPo Voltage Range</div><div class="card-desc">A single-cell LiPo varies from 4.2V (fully charged) to 3.0V (empty). A buck-boost converter maintains 3.3V output across this entire range. An LDO only works above 3.3V + dropout.</div></div>
+            <div class="card c-gold"><div class="card-label">Charge Controller</div><div class="card-desc">A TP4056 or MCP73831 IC manages safe LiPo charging from USB. It handles constant-current, constant-voltage charging and terminates when full. Essential safety component.</div></div>
+        </div>
+        <div class="box box-gold"><div class="box-label">Load Sharing</div>When USB is connected, the board should run from USB power while charging the battery. A Schottky diode OR-ing circuit or a dedicated load-sharing IC handles this. The Pico's VSYS diode (D1) provides basic OR-ing between USB and external power.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Power <span class="accent">Layout</span> Best Practices</div>
+        <div class="slide-subtitle">How you route power on the PCB matters as much as the schematic design.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Wide traces or pours for power.</strong> Minimum 20 mil for 3.3V distribution. Use copper pours connected to the power plane for maximum current capacity and minimum voltage drop.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Star topology for sensitive analog.</strong> Route ADC power separately from digital power. They connect at one point (the regulator output) to prevent digital noise from coupling into analog measurements.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Input caps before output caps.</strong> Place the regulator's input capacitor close to its input pin. Place output capacitors close to its output pin. The inductor goes between.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Short, direct paths.</strong> The loop area formed by the switching node, inductor, output cap, and ground should be as small as possible. Large loops radiate EMI.</span></div>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Measuring <span class="accent">Power</span> Quality</div>
+        <div class="slide-subtitle">How to verify your power design works after the board is built.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Multimeter: DC Voltage</div><div class="card-desc">Verify 3.3V rail reads 3.3V +/- 3%. Check under load (all peripherals active) -- if voltage drops below 3.1V, your regulator is undersized or your traces have too much resistance.</div></div>
+            <div class="card c-gold"><div class="card-label">Oscilloscope: Ripple</div><div class="card-desc">Probe the 3.3V rail with AC coupling. Switching converters produce ripple at the switching frequency. Acceptable: under 50mV peak-to-peak. Over 100mV: add more output capacitance or check layout.</div></div>
+        </div>
+        <div class="box box-blue"><div class="box-label">Test Points</div>Add test points (TP) on your PCB for every power rail. A test point is a small exposed pad that you can touch with a probe tip. Label them: TP_3V3, TP_VBUS, TP_GND. They cost nothing and save hours of debugging.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Common Power <span class="accent">Mistakes</span></div>
+        <div class="slide-subtitle">Errors that cause boards to fail or behave erratically.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">X</span><span class="step-text"><strong>Missing decoupling caps.</strong> The RP2040 has multiple VDD pins. Missing even one decoupling cap can cause random crashes, USB dropouts, or ADC noise.</span></div>
+            <div class="step-row"><span class="step-num">X</span><span class="step-text"><strong>Decoupling caps too far from pins.</strong> A cap 10mm away on a thin trace adds inductance that negates the benefit. Place within 2mm, route directly.</span></div>
+            <div class="step-row"><span class="step-num">X</span><span class="step-text"><strong>Wrong regulator for the job.</strong> Using an LDO for 12V to 3.3V at 300mA = 2.6W of waste heat. Use a buck converter instead.</span></div>
+            <div class="step-row"><span class="step-num">X</span><span class="step-text"><strong>No bulk capacitance.</strong> Only 100nF per pin but no 10uF bulk cap. The rail sags during current spikes (motor start, LED strip update).</span></div>
+            <div class="step-row"><span class="step-num">X</span><span class="step-text"><strong>Ground plane splits under the regulator.</strong> The switching converter's return current cannot flow through the ground plane, creating EMI.</span></div>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Key Takeaways: <span class="accent">Power System Design</span></div>
+        <div class="slide-subtitle">Clean power is invisible. Bad power destroys everything downstream.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>LDO for simplicity, buck for efficiency.</strong> Use LDO when Vin is close to Vout. Use switching when the difference is large or efficiency matters (battery designs).</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>100nF on every VDD pin.</strong> Placed within 2mm. No exceptions. Plus 10uF bulk cap per rail near the regulator.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Protection circuits prevent destruction.</strong> Reverse polarity diode, TVS for ESD, soft-start for inrush. Design defensively.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Thermal budget: P = (Vin-Vout) x I.</strong> If your LDO dissipates more than 0.5W, switch to a buck converter.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Test points on every rail.</strong> Free to add, invaluable for debugging. You will thank yourself later.</span></div>
+        </div>
+        <div class="box box-red" style="font-size:0.85rem; text-align:center;"><strong>Next: Chapter 5 -- Signal Integrity</strong> | Impedance, Crosstalk, EMI, USB Routing</div>
+        <div style="text-align:center; margin-top:6px;"><button id="complete-btn" onclick="completeModule()">Mark Complete</button></div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; PiVerse</button></a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+<script>
+    let currentSlide = 1; const TOTAL_SLIDES = 12;
+    function goToSlide(n) { if (n < 1 || n > TOTAL_SLIDES) return; const prev = document.getElementById('slide-' + currentSlide); if (prev) prev.classList.remove('active'); currentSlide = n; const next = document.getElementById('slide-' + currentSlide); if (next) next.classList.add('active'); document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%'; document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES; document.getElementById('prev-btn').disabled = (currentSlide === 1); document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES); const cb = document.getElementById('complete-btn'); if (cb) cb.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none'; }
+    document.addEventListener('keydown', function(e) { if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); } else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); } });
+    goToSlide(1);
+</script>
+<script>function completeModule() { if (typeof ModuleProgress !== 'undefined') { ModuleProgress.complete('matrix', 'pv-b-04-pres', { returnUrl: '../../index.html' }); } }</script>
+</body>
+</html>

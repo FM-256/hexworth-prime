@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chapter 3 Quiz: Platformer Mechanics | PiVerse Maker's Workshop</title>
+    <link rel="stylesheet" href="../../../../../styles/quiz-engine.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { min-height: 100vh; background: linear-gradient(135deg, #0d0408 0%, #1a0810 50%, #0d0408 100%); display: flex; flex-direction: column; font-family: 'Segoe UI', system-ui, sans-serif; }
+        .page-header { padding: 15px 30px; background: rgba(0,0,0,0.4); border-bottom: 1px solid rgba(197,26,74,0.2); display: flex; justify-content: space-between; align-items: center; }
+        .page-header a { color: #c51a4a; text-decoration: none; font-size: 0.9rem; }
+        .page-header a:hover { opacity: 0.8; }
+        .brand { font-weight: 600; color: #e0e0e0; }
+        .quiz-wrapper { flex: 1; display: flex; align-items: center; justify-content: center; padding: 30px 20px; }
+        #quiz-container { width: 100%; max-width: 800px; }
+    </style>
+</head>
+<body>
+    <header class="page-header">
+        <a href="../../index.html">&larr; Back to PiVerse Hub</a>
+        <span class="brand">Hexworth Prime</span>
+    </header>
+    <main class="quiz-wrapper">
+        <div id="quiz-container"></div>
+    </main>
+    <script src="../../../../../components/ProgressSystem.js"></script>
+    <script src="../../../../../components/QuizEngine.js"></script>
+    <script>
+        const quiz = new QuizEngine({
+            containerId: 'quiz-container',
+            title: 'Chapter 3: Platformer Mechanics',
+            description: 'Test your understanding of gravity, jumping, tile maps, collision resolution, sprite animation, and camera scrolling.',
+            passingScore: 80,
+            showFeedback: true,
+            randomize: true,
+            theme: 'matrix',
+            achievement: 'pv-m-03-quiz',
+            moduleId: 'pv-m-03-quiz',
+            serverGrading: true,
+            houseId: 'matrix',
+            trackProgress: true,
+
+            questions: [
+                {
+                    question: 'In a platformer, gravity is implemented as:',
+                    options: [
+                        'A constant value subtracted from the player\'s x-position each frame',
+                        'A constant value added to the player\'s vertical velocity each frame',
+                        'A one-time impulse applied when the player leaves a platform',
+                        'A random force applied in a random direction each frame'
+                    ],
+                    explanation: 'Gravity in a game is a constant acceleration added to the player\'s vertical velocity (vel_y) every frame: vel_y += GRAVITY. The velocity then updates position: rect.y += vel_y. Because velocity accumulates over time, position changes quadratically, which produces the natural parabolic arc of a jump or fall.'
+                },
+                {
+                    question: 'Why is JUMP_FORCE a negative value (e.g., -10) in Pygame platformers?',
+                    options: [
+                        'Negative values move objects faster than positive values',
+                        'Because Pygame\'s Y-axis points downward, so negative Y moves the player upward',
+                        'To indicate the jump is decelerating',
+                        'Negative forces are stronger than positive forces in the physics engine'
+                    ],
+                    explanation: 'In Pygame\'s coordinate system, Y increases downward. The top of the screen is y=0 and the bottom is y=HEIGHT. To move the player upward (toward smaller Y values), you need a negative velocity. JUMP_FORCE = -10 means the player moves 10 pixels upward per frame at the start of the jump, before gravity gradually reverses the direction.'
+                },
+                {
+                    question: 'What is terminal velocity in the context of a platformer?',
+                    options: [
+                        'The maximum horizontal speed the player can reach',
+                        'The maximum downward velocity allowed, capping how fast the player can fall',
+                        'The speed at which the player dies on impact',
+                        'The velocity at which the game loop terminates'
+                    ],
+                    explanation: 'Terminal velocity (MAX_FALL) is a cap on downward velocity to prevent the player from accelerating infinitely during a long fall. Without it, vel_y would grow without bound, eventually causing the player to fall so fast they pass through platforms entirely (tunneling). Typical values are 10-15 pixels per frame.'
+                },
+                {
+                    question: 'How does variable-height jumping work?',
+                    options: [
+                        'The game randomly selects a jump height each time',
+                        'The player presses different buttons for different jump heights',
+                        'Releasing the jump button early caps the upward velocity at a minimum value, shortening the jump',
+                        'Holding the jump button charges a jump meter that determines height'
+                    ],
+                    explanation: 'Variable-height jumping detects when the player releases the jump button while still rising. If vel_y is still more negative than JUMP_CUT (e.g., -3), it caps vel_y at JUMP_CUT. This immediately reduces upward momentum, making gravity pull the player down sooner. Holding the button allows the full JUMP_FORCE to play out for maximum height.'
+                },
+                {
+                    question: 'What is "coyote time" in platformer game design?',
+                    options: [
+                        'A power-up that lets the player double jump',
+                        'A grace period of a few frames after walking off a ledge during which the player can still jump',
+                        'The time it takes for gravity to reach terminal velocity',
+                        'A visual effect where the player hangs in the air at the peak of a jump'
+                    ],
+                    explanation: 'Coyote time (named after Wile E. Coyote running off cliffs in cartoons) gives the player a 4-6 frame window after leaving a platform where the jump is still valid. Without it, players who press jump one frame after leaving a ledge get nothing -- which feels unfair and unresponsive. Most commercial platformers implement this forgiveness mechanic.'
+                },
+                {
+                    question: 'What data structure is commonly used to represent a tile map level?',
+                    options: [
+                        'A linked list of tile objects',
+                        'A 2D array (list of lists) of integers, where each integer represents a tile type',
+                        'A dictionary mapping tile names to positions',
+                        'A binary tree of spatial partitions'
+                    ],
+                    explanation: 'A tile map is stored as a 2D array where each element is an integer tile ID: 0 for air, 1 for solid ground, 2 for platforms, etc. The position of each tile is implicit from its array index: tile at [row][col] is drawn at (col * TILE_SIZE, row * TILE_SIZE). This is memory-efficient and fast to render and collide against.'
+                },
+                {
+                    question: 'Why is collision resolution performed on each axis separately (X first, then Y)?',
+                    options: [
+                        'Because Pygame cannot process both axes simultaneously',
+                        'To prevent diagonal movement into corners from resolving on the wrong axis or tunneling through geometry',
+                        'Because horizontal movement is always faster than vertical movement',
+                        'To save CPU cycles by only checking one axis per frame'
+                    ],
+                    explanation: 'Separating axes prevents ambiguous corner cases. If you move both X and Y at once and the player enters a corner, the collision resolver cannot determine whether to push the player out horizontally or vertically. By moving X first and resolving, then moving Y and resolving, each resolution is unambiguous: horizontal overlaps push horizontally, vertical overlaps push vertically.'
+                },
+                {
+                    question: 'When the player is falling and collides with a solid tile from above, what two things happen?',
+                    options: [
+                        'The player\'s X velocity is zeroed and they bounce upward',
+                        'The player\'s rect.bottom is set to tile.top, and on_ground is set to True',
+                        'The tile is destroyed and the player falls through',
+                        'The game checks for a double-jump input'
+                    ],
+                    explanation: 'When vel_y > 0 (falling) and a tile collision occurs, the player is pushed up so their feet (rect.bottom) align with the tile\'s top edge (tile.top). Then vel_y is set to 0 (stopping the fall) and on_ground is set to True (enabling jump). This is the fundamental ground-landing resolution in every tile-based platformer.'
+                },
+                {
+                    question: 'How does the efficient collision check function limit which tiles it examines?',
+                    options: [
+                        'It checks every tile in the level but uses multithreading',
+                        'It calculates the player\'s bounding grid cells (left_col, right_col, top_row, bot_row) and only checks tiles within that range',
+                        'It uses a spatial hash table updated every 10 frames',
+                        'It only checks tiles that have been marked as dirty by the renderer'
+                    ],
+                    explanation: 'The function converts the player\'s pixel-space bounding box to grid-space indices: left_col = rect.left // TILE_SIZE, right_col = rect.right // TILE_SIZE, etc. It then only iterates tiles within that small rectangular range (typically 2x3 tiles for a 32x48 player). This is a 1000x+ speedup over checking every tile in the level.'
+                },
+                {
+                    question: 'What is a sprite sheet?',
+                    options: [
+                        'A text file listing all sprite positions in the game',
+                        'A single image containing all animation frames arranged in a grid',
+                        'A 3D model file used for character rendering',
+                        'A configuration file for sprite collision bounds'
+                    ],
+                    explanation: 'A sprite sheet is one image file with all animation frames laid out in a grid. A 4-frame walk cycle at 32x48 pixels per frame would be a 128x48 pixel image. The game loads this single image once and uses subsurface() or clip rectangles to draw the appropriate frame each game tick. This is more efficient than loading separate image files for each frame.'
+                },
+                {
+                    question: 'What controls how fast a sprite animation plays?',
+                    options: [
+                        'The file size of the sprite sheet image',
+                        'The number of game frames between each animation frame advance (e.g., advance every 8 frames)',
+                        'The screen resolution',
+                        'The CPU clock speed'
+                    ],
+                    explanation: 'A timer counter increments each game frame. When it reaches the threshold (e.g., 8), the animation frame index advances and the timer resets. At 60 FPS game speed with a threshold of 8, the animation plays at 7.5 FPS (60/8). Lower thresholds make the animation faster; higher thresholds make it slower.'
+                },
+                {
+                    question: 'What is the difference between direct velocity and acceleration-based horizontal movement?',
+                    options: [
+                        'Direct velocity is analog; acceleration is digital',
+                        'Direct velocity sets speed instantly (snappy feel); acceleration gradually changes speed with friction (slippery feel)',
+                        'Direct velocity uses the keyboard; acceleration uses a controller',
+                        'There is no practical difference'
+                    ],
+                    explanation: 'Direct velocity sets vel_x = SPEED immediately on key press and vel_x = 0 on release -- instant start and stop, snappy and precise (like Celeste). Acceleration adds a small value each frame and applies friction (vel_x *= 0.85), creating gradual speed-up and slide-to-stop behavior (like Mario). The choice defines the fundamental feel of the platformer.'
+                },
+                {
+                    question: 'How does a scrolling camera work in a 2D platformer?',
+                    options: [
+                        'The game world physically moves in the opposite direction of the player',
+                        'All draw positions are offset by the camera\'s position; the viewport moves, not the world',
+                        'The screen resolution changes to show more of the level',
+                        'The tile map is regenerated to show different sections'
+                    ],
+                    explanation: 'The camera stores an offset (offset_x, offset_y) centered on the player. Every draw call subtracts this offset: screen.blit(sprite, (obj.x - camera.offset_x, obj.y - camera.offset_y)). The game world coordinates never change -- only the viewport position changes. Objects outside the viewport are simply not drawn (culled), saving render time.'
+                },
+                {
+                    question: 'How do one-way platforms differ from solid tiles in collision resolution?',
+                    options: [
+                        'One-way platforms have different visual textures but identical collision behavior',
+                        'One-way platforms only block the player when falling from above (vel_y > 0) and allow passage from below',
+                        'One-way platforms are destructible; solid tiles are permanent',
+                        'One-way platforms move horizontally; solid tiles are stationary'
+                    ],
+                    explanation: 'One-way platforms only resolve vertical collision when the player is falling (vel_y > 0) AND the player\'s feet were above the platform\'s top edge in the previous frame. When the player is rising (vel_y < 0), the platform is ignored entirely, allowing the player to jump through from below. This requires a separate tile ID (e.g., 2) and special handling in the collision resolver.'
+                },
+                {
+                    question: 'What is input buffering and why does it improve game feel?',
+                    options: [
+                        'Storing all input in a log file for replay purposes',
+                        'Storing a jump input for several frames so it triggers on the next ground contact, preventing missed jumps',
+                        'Buffering controller input over the network for multiplayer',
+                        'Delaying all input by 3 frames to smooth out jitter'
+                    ],
+                    explanation: 'Input buffering stores a jump press for 4-8 frames. If the player presses jump a few frames before landing, the buffer holds the input. The moment on_ground becomes True, the buffered jump fires immediately. Without this, players who press jump 2 frames too early get nothing, which feels unresponsive. Combined with coyote time, input buffering makes the controls feel generous and fair.'
+                }
+            ]
+        });
+        quiz.start();
+    </script>
+</body>
+</html>
