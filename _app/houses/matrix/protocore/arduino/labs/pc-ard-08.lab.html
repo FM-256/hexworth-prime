@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Motors & Motion Lab | ProtoCore Arduino Core 8</title>
+    <style>
+        :root {
+            --blue: #0088ff;
+            --blue-dim: rgba(0,136,255,0.15);
+            --blue-border: rgba(0,136,255,0.3);
+            --green: #34d399;
+            --green-dim: rgba(52,211,153,0.1);
+            --green-border: rgba(52,211,153,0.3);
+            --gold: #ffd700;
+            --gold-dim: rgba(255,215,0,0.1);
+            --gold-border: rgba(255,215,0,0.3);
+            --red: #ef4444;
+            --bg: #040810;
+            --bg2: #081020;
+            --bg3: #0c1628;
+            --text: #dbeafe;
+            --text2: #6b82a0;
+            --border: rgba(0,136,255,0.12);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* ---- top bar ---- */
+        .topbar { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .topbar-left { display: flex; align-items: center; gap: 14px; }
+        .back-btn { padding: 6px 14px; background: var(--blue-dim); border: 1px solid var(--blue-border); border-radius: 6px; color: var(--blue); text-decoration: none; font-size: 0.82rem; transition: background 0.2s; }
+        .back-btn:hover { background: rgba(0,136,255,0.25); }
+        .lab-title { font-size: 0.95rem; color: var(--text); }
+        .badge { padding: 3px 10px; border-radius: 10px; font-size: 0.68rem; letter-spacing: 0.06em; }
+        .badge-blue { background: var(--blue-dim); border: 1px solid var(--blue-border); color: var(--blue); }
+        .badge-gold { background: var(--gold-dim); border: 1px solid var(--gold-border); color: var(--gold); }
+        .topbar-right { display: flex; align-items: center; gap: 14px; font-size: 0.82rem; color: var(--text2); }
+        .prog-wrap { width: 130px; height: 5px; background: rgba(0,136,255,0.12); border-radius: 3px; overflow: hidden; }
+        .prog-fill { height: 100%; background: linear-gradient(90deg, var(--blue), #0055cc); border-radius: 3px; transition: width 0.4s ease; }
+        .prog-label { color: var(--blue); font-weight: 500; }
+
+        /* ---- main layout ---- */
+        .workspace { display: grid; grid-template-columns: 1fr 320px; flex: 1; min-height: 0; }
+
+        /* ---- motor control panel (left) ---- */
+        .panel-main { display: flex; flex-direction: column; overflow-y: auto; padding: 16px; gap: 14px; }
+
+        /* gauge/indicator cards */
+        .gauge-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+        .gauge-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; text-align: center; }
+        .gauge-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text2); margin-bottom: 8px; }
+        .gauge-value { font-size: 1.8rem; font-weight: 700; color: var(--gold); margin-bottom: 4px; font-family: 'Consolas', monospace; }
+        .gauge-unit { font-size: 0.72rem; color: var(--text2); }
+
+        /* servo arc */
+        .servo-arc-wrap { display: flex; align-items: center; justify-content: center; }
+
+        /* speed bar */
+        .speed-bar-wrap { width: 100%; max-width: 200px; margin: 0 auto; }
+        .speed-bar-track { height: 12px; background: rgba(0,136,255,0.1); border-radius: 6px; overflow: hidden; position: relative; }
+        .speed-bar-fill { height: 100%; background: linear-gradient(90deg, var(--blue), #00ccff); border-radius: 6px; transition: width 0.3s ease; width: 0%; }
+
+        /* stepper indicator */
+        .stepper-ring { display: flex; align-items: center; justify-content: center; }
+
+        /* control buttons */
+        .ctrl-section { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+        .ctrl-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text2); margin-bottom: 10px; }
+        .ctrl-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .ctrl-btn { padding: 7px 16px; background: var(--blue-dim); border: 1px solid var(--blue-border); border-radius: 6px; color: var(--blue); font-size: 0.82rem; cursor: pointer; transition: all 0.2s; font-weight: 600; }
+        .ctrl-btn:hover { background: rgba(0,136,255,0.25); }
+        .ctrl-btn.active { background: rgba(0,136,255,0.3); border-color: var(--blue); }
+        .ctrl-btn.green { background: var(--green-dim); border-color: var(--green-border); color: var(--green); }
+        .ctrl-btn.green:hover { background: rgba(52,211,153,0.2); }
+        .ctrl-btn.gold { background: var(--gold-dim); border-color: var(--gold-border); color: var(--gold); }
+        .ctrl-btn.gold:hover { background: rgba(255,215,0,0.2); }
+        .ctrl-btn.red { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); color: var(--red); }
+        .ctrl-btn.red:hover { background: rgba(239,68,68,0.2); }
+        .ctrl-input { width: 80px; padding: 6px 10px; background: var(--bg3); border: 1px solid var(--blue-border); border-radius: 5px; color: var(--text); font-size: 0.82rem; text-align: center; }
+        .ctrl-label { font-size: 0.78rem; color: var(--text2); }
+        .ctrl-slider { width: 180px; accent-color: var(--blue); }
+
+        /* output log */
+        .output-log { background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-family: 'Consolas', monospace; font-size: 0.75rem; color: var(--text2); height: 90px; overflow-y: auto; line-height: 1.5; }
+        .out-ok { color: var(--green); }
+        .out-err { color: #f87171; }
+        .out-info { color: var(--blue); }
+
+        /* ---- task panel (right) ---- */
+        .task-panel { background: var(--bg2); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+        .panel-header { padding: 12px 16px; font-size: 0.7rem; color: var(--text2); letter-spacing: 0.12em; text-transform: uppercase; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .task-list { flex: 1; overflow-y: auto; padding: 12px; }
+        .task-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 9px; padding: 12px 14px; margin-bottom: 8px; transition: all 0.2s; }
+        .task-card.active { border-color: var(--blue); background: rgba(0,136,255,0.06); }
+        .task-card.done { border-color: var(--green-border); background: var(--green-dim); }
+        .task-num { font-size: 0.67rem; color: var(--blue); margin-bottom: 3px; }
+        .task-name { font-size: 0.88rem; color: var(--text); margin-bottom: 3px; display: flex; align-items: center; gap: 6px; }
+        .task-name .chk { font-size: 0.75rem; color: var(--green); margin-left: auto; display: none; }
+        .task-desc { font-size: 0.77rem; color: var(--text2); line-height: 1.45; }
+
+        /* ---- finish overlay ---- */
+        .finish-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 9000; }
+        .finish-overlay.active { display: flex; }
+        .finish-card { background: var(--bg2); border: 1px solid var(--green-border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .finish-title { font-size: 1.5rem; color: var(--gold); margin-bottom: 10px; }
+        .finish-msg { color: var(--text2); font-size: 0.95rem; margin-bottom: 24px; line-height: 1.6; }
+        .finish-btn { padding: 11px 28px; background: linear-gradient(135deg, var(--blue), #0055cc); border: none; border-radius: 8px; color: #fff; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; }
+        .finish-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+        @media (max-width: 768px) { .workspace { grid-template-columns: 1fr; } .task-panel { max-height: 200px; border-left: none; border-top: 1px solid var(--border); } .gauge-row { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+    <header class="topbar">
+        <div class="topbar-left">
+            <a href="../../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Motors & Motion</span>
+            <span class="badge badge-blue">ProtoCore</span>
+            <span class="badge badge-gold">Core 8</span>
+        </div>
+        <div class="topbar-right">
+            <span>Tasks:</span>
+            <div class="prog-wrap"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+            <span class="prog-label" id="progLabel">0 / 10</span>
+        </div>
+    </header>
+
+    <div class="workspace">
+
+        <!-- LEFT: Motor Control Panel -->
+        <div class="panel-main">
+
+            <!-- Gauges -->
+            <div class="gauge-row">
+                <div class="gauge-card">
+                    <div class="gauge-label">Servo Angle</div>
+                    <div class="servo-arc-wrap">
+                        <svg width="140" height="80" viewBox="0 0 140 80" id="servoArc" aria-hidden="true">
+                            <!-- Arc background -->
+                            <path d="M 15 75 A 55 55 0 0 1 125 75" fill="none" stroke="rgba(0,136,255,0.15)" stroke-width="8" stroke-linecap="round"/>
+                            <!-- Arc filled -->
+                            <path d="M 15 75 A 55 55 0 0 1 125 75" fill="none" stroke="#0088ff" stroke-width="8" stroke-linecap="round" id="servoArcFill"
+                                stroke-dasharray="173" stroke-dashoffset="173" style="transition: stroke-dashoffset 0.3s ease;"/>
+                            <!-- Needle -->
+                            <line x1="70" y1="75" x2="70" y2="25" stroke="#ffd700" stroke-width="2" stroke-linecap="round" id="servoNeedle"
+                                style="transform-origin: 70px 75px; transition: transform 0.3s ease;"/>
+                            <!-- Center dot -->
+                            <circle cx="70" cy="75" r="4" fill="#ffd700"/>
+                            <!-- Labels -->
+                            <text x="8" y="75" font-size="8" fill="#6b82a0" font-family="Consolas,monospace">0</text>
+                            <text x="62" y="14" font-size="8" fill="#6b82a0" font-family="Consolas,monospace">90</text>
+                            <text x="122" y="75" font-size="8" fill="#6b82a0" font-family="Consolas,monospace">180</text>
+                        </svg>
+                    </div>
+                    <div class="gauge-value" id="servoVal">0</div>
+                    <div class="gauge-unit">degrees</div>
+                </div>
+
+                <div class="gauge-card">
+                    <div class="gauge-label">DC Motor Speed</div>
+                    <div class="speed-bar-wrap">
+                        <div class="speed-bar-track">
+                            <div class="speed-bar-fill" id="dcSpeedFill"></div>
+                        </div>
+                    </div>
+                    <div class="gauge-value" id="dcSpeedVal" style="margin-top:8px;">0</div>
+                    <div class="gauge-unit">PWM (0-255)</div>
+                </div>
+
+                <div class="gauge-card">
+                    <div class="gauge-label">Stepper Position</div>
+                    <div class="stepper-ring">
+                        <svg width="80" height="80" viewBox="0 0 80 80" id="stepperSvg" aria-hidden="true">
+                            <circle cx="40" cy="40" r="30" fill="none" stroke="rgba(58,181,119,0.15)" stroke-width="4"/>
+                            <circle cx="40" cy="40" r="30" fill="none" stroke="#3ab577" stroke-width="4"
+                                stroke-dasharray="188.5" stroke-dashoffset="188.5" id="stepperRing"
+                                style="transition: stroke-dashoffset 0.3s ease; transform: rotate(-90deg); transform-origin: 40px 40px;"/>
+                            <circle cx="40" cy="40" r="4" fill="#3ab577"/>
+                        </svg>
+                    </div>
+                    <div class="gauge-value" id="stepperVal" style="color:#3ab577;">0</div>
+                    <div class="gauge-unit">steps (of 200)</div>
+                </div>
+            </div>
+
+            <!-- Servo Controls -->
+            <div class="ctrl-section">
+                <div class="ctrl-title">Servo Control</div>
+                <div class="ctrl-row">
+                    <button class="ctrl-btn" onclick="cmdAttachServo()">attach(9)</button>
+                    <button class="ctrl-btn gold" onclick="cmdServoSweep()">Sweep 0-180</button>
+                    <label class="ctrl-label">Angle:</label>
+                    <input type="range" class="ctrl-slider" id="servoSlider" min="0" max="180" value="0" oninput="cmdServoAngle(this.value)" disabled>
+                    <input class="ctrl-input" id="servoInput" placeholder="0-180" onkeydown="if(event.key==='Enter')cmdServoSerial(this.value)" disabled>
+                    <button class="ctrl-btn" onclick="cmdServoSerial(document.getElementById('servoInput').value)" id="btnServoSend" disabled>Send</button>
+                </div>
+            </div>
+
+            <!-- DC Motor Controls -->
+            <div class="ctrl-section">
+                <div class="ctrl-title">DC Motor (H-Bridge L298N)</div>
+                <div class="ctrl-row">
+                    <button class="ctrl-btn" onclick="cmdDcOn()">On (transistor)</button>
+                    <button class="ctrl-btn red" onclick="cmdDcOff()">Off</button>
+                    <button class="ctrl-btn green" onclick="cmdDcForward()">Forward</button>
+                    <button class="ctrl-btn gold" onclick="cmdDcReverse()">Reverse</button>
+                    <label class="ctrl-label">PWM Ramp:</label>
+                    <button class="ctrl-btn" onclick="cmdDcRamp()">Ramp 0-255</button>
+                </div>
+            </div>
+
+            <!-- Stepper Controls -->
+            <div class="ctrl-section">
+                <div class="ctrl-title">Stepper Motor (28BYJ-48)</div>
+                <div class="ctrl-row">
+                    <button class="ctrl-btn green" onclick="cmdStepForward()">Step +200</button>
+                    <button class="ctrl-btn gold" onclick="cmdStepReverse()">Step -200</button>
+                    <button class="ctrl-btn" onclick="cmdStepAccel()">Accel Profile</button>
+                </div>
+            </div>
+
+            <!-- Relay Controls -->
+            <div class="ctrl-section">
+                <div class="ctrl-title">Relay Module</div>
+                <div class="ctrl-row">
+                    <button class="ctrl-btn" onclick="cmdRelayToggle()">Toggle (5s timer)</button>
+                    <span class="ctrl-label" id="relayStatus" style="color: var(--red);">OFF</span>
+                </div>
+            </div>
+
+            <!-- Sensor-Driven -->
+            <div class="ctrl-section">
+                <div class="ctrl-title">Sensor-Driven Motion</div>
+                <div class="ctrl-row">
+                    <label class="ctrl-label">Pot (A0):</label>
+                    <input type="range" class="ctrl-slider" id="potSlider" min="0" max="1023" value="512" oninput="cmdPotServo(this.value)">
+                    <span class="ctrl-label" id="potVal">512</span>
+                    <button class="ctrl-btn" onclick="cmdDistMotor()">Distance Motor</button>
+                </div>
+            </div>
+
+            <!-- Output Log -->
+            <div class="output-log" id="outputLog">
+                <div class="out-info">Motor Control Panel -- Ready</div>
+            </div>
+        </div>
+
+        <!-- RIGHT: Task Panel -->
+        <aside class="task-panel">
+            <div class="panel-header">Lab Tasks</div>
+            <div class="task-list" id="taskList"></div>
+        </aside>
+    </div>
+
+    <!-- Finish overlay -->
+    <div class="finish-overlay" id="finishOverlay">
+        <div class="finish-card">
+            <div class="finish-title">Motors & Motion -- Complete</div>
+            <div class="finish-msg">You have commanded servos, driven DC motors through H-bridges, stepped through precise positions, toggled relays, and linked sensors to actuators. Every class of motor is now in your control.</div>
+            <button class="finish-btn" onclick="finishLab()">Return to ProtoCore Hub</button>
+        </div>
+    </div>
+
+<script>
+(function () {
+    'use strict';
+
+    /* ---- task definitions ---- */
+    var TASKS = [
+        { id: 1, name: 'Attach servo and sweep', desc: 'Click attach(9) to connect the servo, then click Sweep to move it from 0 to 180 degrees and back.' },
+        { id: 2, name: 'Control servo from serial input', desc: 'Type an angle (0-180) in the input box and click Send to move the servo to that position.' },
+        { id: 3, name: 'DC motor on/off with transistor', desc: 'Click On to power the DC motor through the transistor driver, then Off to stop it.' },
+        { id: 4, name: 'H-bridge direction control', desc: 'Click Forward and Reverse to change the DC motor direction via the L298N H-bridge.' },
+        { id: 5, name: 'PWM speed ramp', desc: 'Click Ramp 0-255 to watch the motor accelerate from stopped to full speed using PWM.' },
+        { id: 6, name: 'Stepper 200 steps', desc: 'Click Step +200 to advance the stepper motor one full revolution (200 steps).' },
+        { id: 7, name: 'Stepper with acceleration', desc: 'Click Accel Profile to run the stepper with acceleration and deceleration curves.' },
+        { id: 8, name: 'Relay toggle on timer', desc: 'Click Toggle to switch the relay on for 5 seconds, then automatically off.' },
+        { id: 9, name: 'Pot-controlled servo', desc: 'Move the Pot (A0) slider. The servo angle will follow the potentiometer value via map().' },
+        { id: 10, name: 'Distance-triggered motor', desc: 'Click Distance Motor to simulate an ultrasonic sensor controlling DC motor speed based on proximity.' }
+    ];
+
+    /* ---- state ---- */
+    var completedTasks = {};
+    var servoAttached = false;
+    var servoAngle = 0;
+    var dcMotorOn = false;
+    var dcDirection = 'forward';
+    var dcSpeed = 0;
+    var stepperPos = 0;
+    var relayOn = false;
+    var relayTimer = null;
+    var animFrame = null;
+    var TOTAL = TASKS.length;
+
+    /* ---- init ---- */
+    function init() {
+        buildTaskList();
+        updateProgress();
+        highlightTask(1);
+    }
+
+    /* ---- task list builder ---- */
+    function buildTaskList() {
+        var list = document.getElementById('taskList');
+        TASKS.forEach(function(t) {
+            var card = document.createElement('div');
+            card.className = 'task-card';
+            card.id = 'tc-' + t.id;
+            card.innerHTML = '<div class="task-num">Task ' + t.id + '</div><div class="task-name">' + t.name + '<span class="chk" id="ck-' + t.id + '">Done</span></div><div class="task-desc">' + t.desc + '</div>';
+            list.appendChild(card);
+        });
+    }
+
+    /* ---- progress ---- */
+    function updateProgress() {
+        var count = Object.keys(completedTasks).length;
+        var pct = (count / TOTAL) * 100;
+        document.getElementById('progFill').style.width = pct + '%';
+        document.getElementById('progLabel').textContent = count + ' / ' + TOTAL;
+    }
+
+    function completeTask(id) {
+        if (completedTasks[id]) return;
+        completedTasks[id] = true;
+        var card = document.getElementById('tc-' + id);
+        if (card) card.className = 'task-card done';
+        var chk = document.getElementById('ck-' + id);
+        if (chk) chk.style.display = 'inline';
+        updateProgress();
+        var next = TASKS.find(function(t) { return !completedTasks[t.id]; });
+        if (next) highlightTask(next.id);
+        if (Object.keys(completedTasks).length === TOTAL) {
+            setTimeout(function() { document.getElementById('finishOverlay').classList.add('active'); }, 600);
+        }
+    }
+
+    function highlightTask(id) {
+        TASKS.forEach(function(t) {
+            var card = document.getElementById('tc-' + t.id);
+            if (card && !completedTasks[t.id]) {
+                card.className = (t.id === id) ? 'task-card active' : 'task-card';
+            }
+        });
+    }
+
+    /* ---- output log ---- */
+    function log(msg, cls) {
+        var panel = document.getElementById('outputLog');
+        var div = document.createElement('div');
+        div.className = cls || '';
+        div.textContent = msg;
+        div.style.animation = 'fadeIn 0.3s ease';
+        panel.appendChild(div);
+        panel.scrollTop = panel.scrollHeight;
+    }
+
+    /* ---- gauge updates ---- */
+    function setServoGauge(angle) {
+        servoAngle = angle;
+        document.getElementById('servoVal').textContent = angle;
+        /* Arc fill: 173 total dash length for 180 degrees */
+        var offset = 173 - (angle / 180) * 173;
+        document.getElementById('servoArcFill').setAttribute('stroke-dashoffset', offset);
+        /* Needle rotation: 0 deg = -90 rotation, 180 deg = +90 rotation */
+        var rotation = -90 + angle;
+        document.getElementById('servoNeedle').style.transform = 'rotate(' + rotation + 'deg)';
+    }
+
+    function setDcGauge(speed) {
+        dcSpeed = speed;
+        document.getElementById('dcSpeedVal').textContent = speed;
+        document.getElementById('dcSpeedFill').style.width = (speed / 255 * 100) + '%';
+    }
+
+    function setStepperGauge(pos) {
+        stepperPos = pos;
+        var displayPos = ((pos % 200) + 200) % 200;
+        document.getElementById('stepperVal').textContent = displayPos;
+        /* Ring: 188.5 circumference */
+        var offset = 188.5 - (displayPos / 200) * 188.5;
+        document.getElementById('stepperRing').setAttribute('stroke-dashoffset', offset);
+    }
+
+    /* ---- Servo commands ---- */
+    window.cmdAttachServo = function() {
+        servoAttached = true;
+        document.getElementById('servoSlider').disabled = false;
+        document.getElementById('servoInput').disabled = false;
+        document.getElementById('btnServoSend').disabled = false;
+        log('Servo attached to pin 9.', 'out-ok');
+    };
+
+    window.cmdServoSweep = function() {
+        if (!servoAttached) { log('Error: Attach servo first.', 'out-err'); return; }
+        log('Sweeping servo 0 -> 180 -> 0...', 'out-info');
+        var angle = 0;
+        var dir = 1;
+        var iv = setInterval(function() {
+            setServoGauge(angle);
+            angle += dir * 3;
+            if (angle >= 180) { angle = 180; dir = -1; }
+            if (angle <= 0 && dir === -1) {
+                angle = 0; setServoGauge(0);
+                clearInterval(iv);
+                log('Sweep complete.', 'out-ok');
+                completeTask(1);
+            }
+        }, 20);
+    };
+
+    window.cmdServoAngle = function(val) {
+        if (!servoAttached) return;
+        var angle = parseInt(val, 10);
+        if (isNaN(angle) || angle < 0 || angle > 180) return;
+        setServoGauge(angle);
+    };
+
+    window.cmdServoSerial = function(val) {
+        if (!servoAttached) { log('Error: Attach servo first.', 'out-err'); return; }
+        var angle = parseInt(val, 10);
+        if (isNaN(angle) || angle < 0 || angle > 180) {
+            log('Error: Enter a value between 0 and 180.', 'out-err');
+            return;
+        }
+        setServoGauge(angle);
+        document.getElementById('servoSlider').value = angle;
+        log('Serial input: servo.write(' + angle + ')', 'out-ok');
+        completeTask(2);
+    };
+
+    /* ---- DC Motor commands ---- */
+    window.cmdDcOn = function() {
+        dcMotorOn = true;
+        setDcGauge(200);
+        log('DC motor ON via TIP120 transistor. Speed: 200 PWM.', 'out-ok');
+        if (!completedTasks[3]) {
+            /* Will complete when they also turn off */
+            window._dcOnDone = true;
+        }
+    };
+
+    window.cmdDcOff = function() {
+        dcMotorOn = false;
+        setDcGauge(0);
+        log('DC motor OFF.', 'out-ok');
+        if (window._dcOnDone && !completedTasks[3]) {
+            completeTask(3);
+        }
+    };
+
+    window.cmdDcForward = function() {
+        dcDirection = 'forward';
+        dcMotorOn = true;
+        setDcGauge(200);
+        log('H-bridge: IN1=HIGH, IN2=LOW. Motor forward.', 'out-ok');
+        if (!completedTasks[4]) window._dcFwdDone = true;
+    };
+
+    window.cmdDcReverse = function() {
+        dcDirection = 'reverse';
+        dcMotorOn = true;
+        setDcGauge(200);
+        log('H-bridge: IN1=LOW, IN2=HIGH. Motor reverse.', 'out-ok');
+        if (window._dcFwdDone && !completedTasks[4]) {
+            completeTask(4);
+        }
+    };
+
+    window.cmdDcRamp = function() {
+        log('Ramping PWM speed 0 -> 255...', 'out-info');
+        var speed = 0;
+        var iv = setInterval(function() {
+            setDcGauge(speed);
+            speed += 3;
+            if (speed >= 255) {
+                speed = 255; setDcGauge(255);
+                clearInterval(iv);
+                log('Ramp complete. Motor at full speed (255 PWM).', 'out-ok');
+                completeTask(5);
+            }
+        }, 25);
+    };
+
+    /* ---- Stepper commands ---- */
+    window.cmdStepForward = function() {
+        log('Stepping +200 (full revolution CW)...', 'out-info');
+        var target = stepperPos + 200;
+        var iv = setInterval(function() {
+            stepperPos += 4;
+            setStepperGauge(stepperPos);
+            if (stepperPos >= target) {
+                stepperPos = target;
+                setStepperGauge(stepperPos);
+                clearInterval(iv);
+                log('200 steps complete. Position: ' + stepperPos, 'out-ok');
+                completeTask(6);
+            }
+        }, 20);
+    };
+
+    window.cmdStepReverse = function() {
+        log('Stepping -200 (full revolution CCW)...', 'out-info');
+        var target = stepperPos - 200;
+        var iv = setInterval(function() {
+            stepperPos -= 4;
+            setStepperGauge(stepperPos);
+            if (stepperPos <= target) {
+                stepperPos = target;
+                setStepperGauge(stepperPos);
+                clearInterval(iv);
+                log('200 steps reverse complete. Position: ' + stepperPos, 'out-ok');
+            }
+        }, 20);
+    };
+
+    window.cmdStepAccel = function() {
+        log('Acceleration profile: ramp up, cruise, ramp down...', 'out-info');
+        var steps = 0;
+        var totalSteps = 200;
+        var delay = 60;
+        var phase = 'accel';
+        function doStep() {
+            stepperPos++;
+            steps++;
+            setStepperGauge(stepperPos);
+            if (steps >= totalSteps) {
+                log('Accel profile complete. Smooth stop.', 'out-ok');
+                completeTask(7);
+                return;
+            }
+            if (phase === 'accel' && steps < 50) {
+                delay = Math.max(10, delay - 1);
+            } else if (steps < 150) {
+                phase = 'cruise';
+                delay = 10;
+            } else {
+                phase = 'decel';
+                delay = Math.min(60, delay + 1);
+            }
+            setTimeout(doStep, delay);
+        }
+        doStep();
+    };
+
+    /* ---- Relay commands ---- */
+    window.cmdRelayToggle = function() {
+        if (relayTimer) { clearTimeout(relayTimer); }
+        relayOn = true;
+        document.getElementById('relayStatus').textContent = 'ON';
+        document.getElementById('relayStatus').style.color = 'var(--green)';
+        log('Relay ON. Will auto-off in 5 seconds.', 'out-ok');
+        relayTimer = setTimeout(function() {
+            relayOn = false;
+            document.getElementById('relayStatus').textContent = 'OFF';
+            document.getElementById('relayStatus').style.color = 'var(--red)';
+            log('Relay OFF (timer expired).', 'out-ok');
+            completeTask(8);
+        }, 5000);
+    };
+
+    /* ---- Sensor-driven commands ---- */
+    window.cmdPotServo = function(val) {
+        var raw = parseInt(val, 10);
+        document.getElementById('potVal').textContent = raw;
+        if (!servoAttached) {
+            log('Attach servo first to see pot-controlled motion.', 'out-err');
+            return;
+        }
+        var angle = Math.round(raw / 1023 * 180);
+        setServoGauge(angle);
+        document.getElementById('servoSlider').value = angle;
+        if (!completedTasks[9] && raw !== 512) {
+            log('map(' + raw + ', 0, 1023, 0, 180) = ' + angle + ' degrees', 'out-info');
+            completeTask(9);
+        }
+    };
+
+    window.cmdDistMotor = function() {
+        log('Simulating ultrasonic distance sensor -> motor speed...', 'out-info');
+        var dist = 100;
+        var iv = setInterval(function() {
+            dist -= 2;
+            if (dist < 5) dist = 5;
+            var speed = Math.round((100 - dist) / 95 * 255);
+            setDcGauge(speed);
+            if (dist <= 5) {
+                clearInterval(iv);
+                log('Object at 5cm. Motor at max speed (255). Continuous tone.', 'out-ok');
+                completeTask(10);
+            } else {
+                if (dist % 20 === 0) log('Distance: ' + dist + 'cm -> Speed: ' + speed + ' PWM', 'out-info');
+            }
+        }, 80);
+    };
+
+    /* ---- finish lab ---- */
+    window.finishLab = function() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-ard-08-lab', { returnUrl: '../../index.html' });
+        } else {
+            window.location.href = '../../index.html';
+        }
+    };
+
+    document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>
