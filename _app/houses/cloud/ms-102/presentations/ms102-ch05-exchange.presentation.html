@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Exchange Online | MS-102 Chapter 5</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #3b82f6; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: #3b82f6;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.08); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #3b82f6;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .diagram-row { display: flex; gap: 16px; align-items: center; justify-content: center; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        .hex-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 8px; padding: 12px 14px;
+            text-align: center;
+            opacity: 0;
+            animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #3b82f6; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes flow {
+            0%   { stroke-dashoffset: 20; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes boxGrow {
+            from { opacity: 0; transform: scale(0.7); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes entityPop {
+            from { opacity: 0; transform: scale(0.6) translateY(6px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.4);
+            color: #3b82f6; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Manage Exchange Online -- MS-102 Chapter 5</h1>
+
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; MS-102 &nbsp;|&nbsp; Chapter 5 &nbsp;|&nbsp; Exchange Online</div>
+        <div class="title-hero">
+            <svg width="480" height="120" viewBox="0 0 480 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central Exchange hub -->
+                <rect x="165" y="15" width="150" height="90" rx="14" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="240" y="40" text-anchor="middle" font-size="11" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Exchange Online</text>
+                <text x="240" y="57" text-anchor="middle" font-size="14" fill="#93c5fd" font-weight="800" font-family="Segoe UI,sans-serif">MAIL FLOW</text>
+                <text x="240" y="72" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Mailboxes | Transport Rules</text>
+                <text x="240" y="84" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Connectors | Protection</text>
+                <!-- Glow ring -->
+                <ellipse cx="240" cy="60" rx="90" ry="56" fill="none" stroke="rgba(59,130,246,0.1)" stroke-width="1.2"
+                    style="animation: pulse 2.8s ease-in-out infinite;"/>
+                <!-- Mailboxes - left -->
+                <rect x="4" y="10" width="120" height="44" rx="8" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.4"
+                    style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="64" y="28" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Mailboxes</text>
+                <text x="64" y="42" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">User | Shared | Resource</text>
+                <!-- Anti-Spam - bottom left -->
+                <rect x="4" y="66" width="120" height="44" rx="8" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.4"
+                    style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="64" y="84" text-anchor="middle" font-size="9" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Protection</text>
+                <text x="64" y="98" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Anti-Spam | Anti-Malware</text>
+                <!-- Connectors - right -->
+                <rect x="356" y="10" width="120" height="44" rx="8" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.4"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="416" y="28" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Connectors</text>
+                <text x="416" y="42" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Inbound | Outbound</text>
+                <!-- Migration - bottom right -->
+                <rect x="356" y="66" width="120" height="44" rx="8" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.4"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="416" y="84" text-anchor="middle" font-size="9" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Migration</text>
+                <text x="416" y="98" text-anchor="middle" font-size="7" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Cutover | Staged | Hybrid</text>
+                <!-- Flow lines -->
+                <line x1="124" y1="32" x2="165" y2="50" stroke="rgba(255,255,255,0.08)" stroke-width="1" stroke-dasharray="4,3"
+                    style="animation: flow 1.5s linear infinite;"/>
+                <line x1="124" y1="88" x2="165" y2="70" stroke="rgba(255,255,255,0.08)" stroke-width="1" stroke-dasharray="4,3"
+                    style="animation: flow 1.5s linear infinite;"/>
+                <line x1="315" y1="50" x2="356" y2="32" stroke="rgba(255,255,255,0.08)" stroke-width="1" stroke-dasharray="4,3"
+                    style="animation: flow 1.5s linear infinite;"/>
+                <line x1="315" y1="70" x2="356" y2="88" stroke="rgba(255,255,255,0.08)" stroke-width="1" stroke-dasharray="4,3"
+                    style="animation: flow 1.5s linear infinite;"/>
+            </svg>
+            <div class="big-title">Manage <span class="accent">Exchange Online</span></div>
+            <div class="title-meta-row">
+                <span>MS-102</span>
+                <span>Chapter 5</span>
+                <span>12 Slides</span>
+                <span>Exchange Administration</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- MAILBOX TYPES ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Exchange Online <span class="accent">Mailbox Types</span></div>
+        <div class="slide-subtitle">Every recipient in Exchange Online has a mailbox type that determines licensing, access, and functionality.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">User Mailbox</div>
+                <div class="card-desc">Assigned to individual users with a license. Default 50 GB storage (100 GB with E3/E5). Supports rules, delegates, mobile access, and archive mailboxes. One user = one mailbox = one license.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Shared Mailbox</div>
+                <div class="card-desc">No license required (up to 50 GB). Multiple users access via delegate permissions (Full Access, Send As, Send on Behalf). No direct sign-in. Common for team inboxes like info@ or support@. Auto-grows to 50 GB; archive requires a license.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Resource Mailbox</div>
+                <div class="card-desc">Two subtypes: Room mailbox (conference rooms) and Equipment mailbox (projectors, vehicles). No license required. Automatically accept or decline meeting requests based on scheduling policies. Managed via booking delegates or auto-accept rules.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Exam Alert</div>
+            Shared mailboxes do NOT require a license unless they exceed 50 GB or need an archive/litigation hold. Converting a user mailbox to shared releases the license. Converting shared to user requires assigning a license. This is one of the most commonly tested Exchange Online concepts on the MS-102 exam.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- MAIL FLOW RULES ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Mail Flow Rules <span class="accent">(Transport Rules)</span></div>
+        <div class="slide-subtitle">Conditions, actions, and exceptions that process messages as they flow through the Exchange Online transport pipeline.</div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">Conditions</div>
+                <div class="card-desc">Evaluate message properties: sender/recipient address, subject keywords, attachment types, header values, message size, sender domain, internal vs. external, sensitivity labels. A rule fires only when all conditions are met.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Actions</div>
+                <div class="card-desc">What happens when conditions match: add disclaimer/header, redirect to manager, BCC compliance mailbox, moderate message, reject with NDR, encrypt with OME, prepend subject, apply rights template, route through connector.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Exceptions</div>
+                <div class="card-desc">Override conditions for specific cases: except if sender is in group X, except if subject contains "confidential override," except if message is digitally signed. Exceptions take priority over conditions.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Your compliance team requires a legal disclaimer appended to all external emails except those sent by the Legal department. Create a mail flow rule with condition "recipient is external," action "append disclaimer," and exception "sender is member of Legal group." This three-part structure (condition + action + exception) is the pattern tested on the exam.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- CONNECTORS ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Mail Flow <span class="accent">Connectors</span></div>
+        <div class="slide-subtitle">Connectors control how mail flows between Exchange Online and external mail systems or on-premises Exchange servers.</div>
+
+        <div class="diagram-center">
+            <svg width="620" height="100" viewBox="0 0 620 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="4" y="20" width="150" height="60" rx="10" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="79" y="45" text-anchor="middle" font-size="10" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">On-Premises / Partner</text>
+                <text x="79" y="62" text-anchor="middle" font-size="7.5" fill="#86efac" font-family="Segoe UI,sans-serif">Exchange Server | SMTP relay</text>
+
+                <line x1="160" y1="42" x2="228" y2="42" stroke="#3b82f6" stroke-width="1.2" stroke-dasharray="4,3" style="animation: flow 1.5s linear infinite;"/>
+                <text x="194" y="36" text-anchor="middle" font-size="7" fill="#60a5fa" font-family="Segoe UI,sans-serif">Inbound</text>
+                <polygon points="224,38 232,42 224,46" fill="#3b82f6"/>
+
+                <rect x="234" y="10" width="150" height="80" rx="12" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="2"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="309" y="38" text-anchor="middle" font-size="11" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Exchange Online</text>
+                <text x="309" y="55" text-anchor="middle" font-size="8" fill="#93c5fd" font-family="Segoe UI,sans-serif">EOP + Transport Pipeline</text>
+                <text x="309" y="70" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Connectors + Mail Flow Rules</text>
+
+                <line x1="390" y1="58" x2="458" y2="58" stroke="#c9a83a" stroke-width="1.2" stroke-dasharray="4,3" style="animation: flow 1.5s linear infinite;"/>
+                <text x="424" y="52" text-anchor="middle" font-size="7" fill="#c9a83a" font-family="Segoe UI,sans-serif">Outbound</text>
+                <polygon points="454,54 462,58 454,62" fill="#c9a83a"/>
+
+                <rect x="464" y="20" width="150" height="60" rx="10" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="539" y="45" text-anchor="middle" font-size="10" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">On-Premises / Partner</text>
+                <text x="539" y="62" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">TLS-secured delivery</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Inbound Connector (Partner/On-Premises to M365)</div>
+                <div class="card-desc">Validates the sender by IP address or TLS certificate. Use for mail from on-premises Exchange (hybrid) or trusted partner organizations. Ensures messages bypass spam filtering when from a known source. Required for hybrid mail flow.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Outbound Connector (M365 to Partner/On-Premises)</div>
+                <div class="card-desc">Routes mail to specific domains through a designated smart host or partner server. Use TLS enforcement and certificate validation to secure the connection. Required when routing mail through on-premises servers for compliance scanning or archival.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- ANTI-SPAM POLICIES ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title"><span class="accent">Anti-Spam</span> Policies</div>
+        <div class="slide-subtitle">Exchange Online Protection (EOP) evaluates every inbound message through multiple spam filtering layers.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Connection Filter</div>
+                <div class="card-desc">First layer: evaluates the sending server IP address. IP Allow List bypasses spam filtering for trusted senders. IP Block List rejects mail at the connection level. Configured at the organization level, not per-user. Uses the default connection filter policy.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Inbound Anti-Spam</div>
+                <div class="card-desc">Evaluates message content: Spam Confidence Level (SCL) scoring, bulk complaint level (BCL), phishing detection, sender reputation. Actions per SCL threshold: move to Junk, quarantine, delete, add X-header. Custom policies can target specific groups.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Outbound Anti-Spam</div>
+                <div class="card-desc">Monitors outbound messages from your tenant to prevent your domain from being blocklisted. Rate limits per user (default: 10,000 recipients/day external). Actions when exceeded: restrict user, alert admin. Compromised account sends trigger outbound spam alerts.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Key Concept</div>
+            The Spam Confidence Level (SCL) is a score from 0-9 assigned to each inbound message. SCL 5-6 = spam (move to Junk). SCL 7-9 = high-confidence spam (quarantine or delete). SCL -1 = safe sender/allowed. Anti-spam policies define the action for each threshold. The default policy applies to all recipients; custom policies override the default for targeted groups.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- ANTI-MALWARE ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title"><span class="accent">Anti-Malware</span> Policies</div>
+        <div class="slide-subtitle">EOP scans all messages for malware using multiple engines, zero-hour auto purge, and common attachment filtering.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Malware Detection</div>
+                <div class="card-desc">Multiple anti-malware engines scan every attachment in real time. Zero-hour Auto Purge (ZAP) retroactively removes messages from mailboxes when a previously unknown attachment is later identified as malicious. Quarantine action replaces the attachment with a notification text file.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Common Attachment Filter</div>
+                <div class="card-desc">Blocks file types by extension (e.g., .exe, .bat, .vbs, .js, .scr). Enabled in the anti-malware policy with a predefined list. Action: reject the message (NDR), quarantine, or remove the attachment. Protects against executable payloads even if the malware signature is unknown.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2" style="margin-top:4px;">
+            <div class="card c-blue">
+                <div class="card-label">Admin Notifications</div>
+                <div class="card-desc">Configure notifications to internal or external senders when their message is quarantined. Optionally notify an admin (security team DL) for all malware detections. Notifications help legitimate senders re-send clean files and alert security of active threats.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Safe Attachments (Defender)</div>
+                <div class="card-desc">Microsoft Defender for Office 365 adds sandboxed detonation: attachments are opened in a virtual environment to detect zero-day malware that signature-based engines miss. Requires Defender for Office 365 Plan 1 or Plan 2 licensing (not included in base EOP).</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- QUARANTINE ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title"><span class="accent">Quarantine</span> Management</div>
+        <div class="slide-subtitle">Quarantine holds messages that triggered spam, phishing, malware, or mail flow rule actions for admin or user review.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Quarantine Policies</div>
+                <div class="card-desc">Define what users can do with quarantined messages: view only, release, delete, report false positive. Policies are assigned per protection feature (spam, phishing, malware). AdminOnlyAccessPolicy restricts all actions to admins. DefaultFullAccessPolicy lets users release their own quarantined mail.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Quarantine Notifications</div>
+                <div class="card-desc">End-user spam notifications (quarantine notifications) send periodic digests to users listing their quarantined messages. Users can review and release directly from the notification email. Frequency is configurable (default: every 3 days). Requires the quarantine policy to allow user access.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Admin Review + Release</div>
+                <div class="card-desc">Admins access quarantine at security.microsoft.com > Email &amp; collaboration > Review > Quarantine. Filter by reason (spam, phish, malware), recipient, sender, or date. Release to recipient, release and report false positive, or permanently delete. Malware quarantine is admin-only by default.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            A user reports missing an expected email from a partner. You check quarantine and find the message was flagged as high-confidence phishing. After verifying the sender is legitimate, you release the message and add the sender domain to the allowed senders list in the anti-spam policy. You then submit the message to Microsoft as a false positive for filter improvement.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- PUBLIC FOLDERS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title"><span class="accent">Public Folders</span></div>
+        <div class="slide-subtitle">Legacy shared content repositories hosted in Exchange Online for organizational-wide access to mail, calendars, and contacts.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Public Folder Mailboxes</div>
+                <div class="card-desc">Content is stored in special public folder mailboxes (not user mailboxes). One primary hierarchy mailbox contains the folder tree structure. Secondary mailboxes hold content and serve read-only copies of the hierarchy for load distribution.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Permissions</div>
+                <div class="card-desc">Granular permission levels: Owner, Publishing Editor, Editor, Publishing Author, Author, Contributor, Reviewer, None. Assigned per folder. Mail-enabled public folders can receive external email with their own SMTP address. Permissions are managed via EAC or PowerShell.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Migration from On-Premises</div>
+                <div class="card-desc">Batch migration moves public folders from on-premises Exchange to Exchange Online. Steps: create CSV mapping file, create migration endpoint, start migration batch, validate, complete (cutover). Users see no interruption after the final cutover and DNS update.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Modern Alternative</div>
+            Microsoft recommends Microsoft 365 Groups and SharePoint team sites as modern replacements for public folders. Groups provide a shared mailbox, calendar, file library, Planner, and OneNote. Public folders remain supported for backward compatibility but receive limited new investment. Exam scenarios may ask you to recommend the appropriate solution based on requirements.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- MIGRATION OVERVIEW ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Mailbox <span class="accent">Migration</span> Methods</div>
+        <div class="slide-subtitle">Three primary methods to migrate mailboxes from on-premises Exchange to Exchange Online.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Cutover Migration</div>
+                <div class="card-desc">Moves ALL mailboxes at once in a single batch. Best for small organizations (fewer than 150 mailboxes) running Exchange 2003 or later. All mailboxes, contacts, and distribution groups migrate together. MX record changes to point to Exchange Online after migration completes.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Staged Migration</div>
+                <div class="card-desc">Moves mailboxes in batches over weeks or months using CSV files to define each batch. Requires Exchange 2003 or 2007 with directory synchronization (DirSync/Entra Connect). Users are migrated in groups based on department, location, or priority. Coexistence during migration.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Hybrid Migration</div>
+                <div class="card-desc">Full coexistence between on-premises Exchange and Exchange Online. Requires Exchange 2010 or later with Entra Connect and the Hybrid Configuration Wizard. Supports move requests in either direction. Shared namespace, free/busy, cross-premises mail flow. Long-term or permanent coexistence.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Exam Decision Tree</div>
+            Fewer than 150 mailboxes + Exchange 2003+? Cutover. Exchange 2003/2007 + need batches? Staged. Exchange 2010+ + long-term coexistence or bi-directional moves? Hybrid. The exam tests your ability to select the correct migration method based on Exchange version, mailbox count, and coexistence requirements.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- HYBRID DEEP DIVE ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Hybrid <span class="accent">Configuration</span></div>
+        <div class="slide-subtitle">The Hybrid Configuration Wizard automates the setup of coexistence between on-premises Exchange and Exchange Online.</div>
+
+        <div class="hex-grid">
+            <div class="hex-cell">
+                <div class="hex-title">HCW</div>
+                <div class="hex-desc">Hybrid Configuration Wizard creates send/receive connectors, configures OAuth, and sets up the shared namespace between on-premises and cloud.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Free/Busy</div>
+                <div class="hex-desc">Cross-premises calendar availability. On-premises users see cloud users' free/busy and vice versa. Requires OAuth or federation trust.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Mail Routing</div>
+                <div class="hex-desc">Centralized or decentralized. Centralized: all inbound mail routes through on-premises first. Decentralized: MX points directly to Exchange Online.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Move Requests</div>
+                <div class="hex-desc">Onboarding (on-prem to cloud) and offboarding (cloud to on-prem) migration batches. Users retain their email address and Outlook profile.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Entra Connect</div>
+                <div class="hex-desc">Required for hybrid. Syncs user objects so mailboxes appear in both directories. Exchange hybrid attributes (mailNickname, proxyAddresses) must sync.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Edge Transport</div>
+                <div class="hex-desc">Optional: Edge Transport server in the DMZ handles inbound/outbound mail flow between the internet and on-premises Exchange. Adds a layer of protection.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- EXCHANGE ADMINISTRATION ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Exchange Online <span class="accent">Administration</span></div>
+        <div class="slide-subtitle">Day-to-day management tasks and tools for Exchange Online.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Exchange Admin Center (EAC)</div>
+                <div class="card-desc">Web portal at admin.exchange.microsoft.com. Manage mailboxes, groups, mail flow rules, connectors, and migration batches. The new EAC replaces the classic EAC and adds a modern interface with improved search and bulk operations.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Exchange Online PowerShell</div>
+                <div class="card-desc">Connect-ExchangeOnline module for automation and bulk operations. Required for tasks not available in EAC: message tracking, detailed mailbox statistics, advanced transport rule conditions, and programmatic management of thousands of objects.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Recipient Management</div>
+                <div class="card-desc">Create and manage mailboxes, distribution lists, dynamic distribution groups, mail contacts (external), and mail users (external with credentials). Assign mailbox permissions (Full Access, Send As, Send on Behalf) per recipient.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2" style="margin-top:4px;">
+            <div class="card c-cyan">
+                <div class="card-label">Message Trace</div>
+                <div class="card-desc">Track message delivery through the transport pipeline. Filter by sender, recipient, date range, subject, and status. Shows each hop: received, delivered, failed, quarantined, expanded (DL). Essential for troubleshooting delivery issues. Results available for up to 90 days.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Accepted Domains</div>
+                <div class="card-desc">Authoritative: Exchange Online is the only mail system for this domain (all recipients must exist). Internal Relay: Exchange Online accepts mail but forwards unknown recipients to on-premises. External Relay: forwards to an external mail system. Type determines how unresolvable recipients are handled.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- SUMMARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Chapter 5 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Key concepts for Manage Exchange Online</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Mailbox types:</strong> User mailboxes require a license. Shared mailboxes (up to 50 GB) and resource mailboxes (room/equipment) do not. Converting between types changes licensing requirements.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Mail flow rules:</strong> Transport rules use conditions + actions + exceptions. Common uses: disclaimers, BCC compliance, encryption, message routing. Rules are processed in priority order.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Connectors:</strong> Inbound connectors validate mail from on-premises/partners (by IP or certificate). Outbound connectors route mail to specific destinations with TLS enforcement.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Anti-spam:</strong> Three layers -- connection filter (IP), inbound anti-spam (SCL scoring), outbound anti-spam (rate limiting). Custom policies override the default for targeted groups.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Quarantine:</strong> Policies control user vs. admin access. Notifications send periodic digests. Malware quarantine is admin-only by default. Release, delete, or report false positives.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>Migration:</strong> Cutover (all at once, &lt;150 mailboxes). Staged (batched, Exchange 2003/2007). Hybrid (full coexistence, Exchange 2010+, bidirectional moves, HCW required).</span></div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Chapter 6 &mdash; Manage SharePoint and OneDrive</strong> &nbsp;|&nbsp; Site Collections &bull; Sharing Policies &bull; Access Control &bull; Content Migration
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; MS-102</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('cloud', 'ms102-ch05-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

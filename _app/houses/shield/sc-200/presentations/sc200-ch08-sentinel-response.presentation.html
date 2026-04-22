@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perform Threat Response in Microsoft Sentinel | SC-200 Chapter 8</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0608 0%, #140a10 50%, #1a0c14 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #ef4444; transition: width 0.4s ease; z-index: 200;
+        }
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(10, 6, 8, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(239, 68, 68, 0.15); color: #ef4444; border-color: #ef4444;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #ef4444; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ef4444; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip {
+            background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fca5a5; font-style: italic;
+        }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ef4444; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #ef4444;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #ef4444; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #ef4444;
+            background: rgba(239, 68, 68, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+        .ic {
+            font-family: 'Courier New', monospace; color: #ef4444;
+            background: rgba(239, 68, 68, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+        .diagram-row { display: flex; gap: 16px; align-items: center; justify-content: center; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            border-radius: 8px; padding: 12px 14px; text-align: center;
+            opacity: 0; animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #ef4444; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes flow { 0% { stroke-dashoffset: 20; } 100% { stroke-dashoffset: 0; } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes entityPop { from { opacity: 0; transform: scale(0.6) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes arrowMarch { 0% { stroke-dashoffset: 14; } 100% { stroke-dashoffset: 0; } }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.4);
+            color: #ef4444; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+        .code-block {
+            background: rgba(0,0,0,0.35); border: 1px solid rgba(239,68,68,0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #ef4444; line-height: 1.6; white-space: pre;
+        }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Perform Threat Response in Microsoft Sentinel -- SC-200 Chapter 8</h1>
+<div id="progress-bar" style="width:7.14%"></div>
+
+<!-- SLIDE 1 -- TITLE -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 14 &nbsp;|&nbsp; SC-200 &nbsp;|&nbsp; Chapter 8 &nbsp;|&nbsp; Sentinel Response</div>
+        <div class="title-hero">
+            <svg width="420" height="130" viewBox="0 0 420 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="150" y="15" width="120" height="100" rx="16" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="2" style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="210" y="42" text-anchor="middle" font-size="11" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">SENTINEL</text>
+                <text x="210" y="58" text-anchor="middle" font-size="11" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">RESPONSE</text>
+                <text x="210" y="74" text-anchor="middle" font-size="9" fill="#fca5a5" font-family="Segoe UI,sans-serif">SOAR + Incident Mgmt</text>
+                <polygon points="210,88 195,108 225,108" fill="none" stroke="#ef4444" stroke-width="1.8" style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <line x1="200" y1="102" x2="220" y2="102" stroke="#ef4444" stroke-width="1" style="animation: entityPop 0.3s ease forwards 0.35s; opacity:0;"/>
+                <rect x="10" y="20" width="110" height="42" rx="9" fill="rgba(239,68,68,0.06)" stroke="#f87171" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="65" y="38" text-anchor="middle" font-size="8" fill="#f87171" font-weight="700" font-family="Segoe UI,sans-serif">Automation Rules</text>
+                <text x="65" y="52" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Triggers + actions</text>
+                <rect x="10" y="72" width="110" height="42" rx="9" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="65" y="90" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Playbooks</text>
+                <text x="65" y="104" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Logic Apps workflows</text>
+                <rect x="300" y="20" width="110" height="42" rx="9" fill="rgba(251,191,36,0.06)" stroke="#fbbf24" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="355" y="38" text-anchor="middle" font-size="8" fill="#fbbf24" font-weight="700" font-family="Segoe UI,sans-serif">UEBA</text>
+                <text x="355" y="52" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Entity behavior analytics</text>
+                <rect x="300" y="72" width="110" height="42" rx="9" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="355" y="90" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Notebooks</text>
+                <text x="355" y="104" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Jupyter + MSTICPy</text>
+                <line x1="120" y1="41" x2="149" y2="55" stroke="rgba(239,68,68,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/></line>
+                <line x1="120" y1="93" x2="149" y2="75" stroke="rgba(59,130,246,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/></line>
+                <line x1="299" y1="41" x2="271" y2="55" stroke="rgba(251,191,36,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.15s"/></line>
+                <line x1="299" y1="93" x2="271" y2="75" stroke="rgba(58,181,119,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/></line>
+            </svg>
+            <div class="big-title">Perform Threat Response in <span class="accent">Microsoft Sentinel</span></div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Automation Rules &nbsp;&bull;&nbsp; Playbooks &nbsp;&bull;&nbsp; Incident Management &nbsp;&bull;&nbsp; UEBA &nbsp;&bull;&nbsp; Notebooks
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Microsoft Sentinel provides SOAR (Security Orchestration, Automation, and Response) capabilities through automation rules and playbooks powered by Azure Logic Apps. This chapter covers automating incident response, managing incidents through their lifecycle, leveraging entity behavior analytics (UEBA) for anomaly detection, and using Jupyter notebooks with MSTICPy for advanced investigation.
+        </div>
+        <div class="title-meta-row">
+            <span>14 Slides</span>
+            <span>SC-200 Exam Objectives</span>
+            <span>Chapter 8</span>
+            <span>Security Operations</span>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 2 -- AUTOMATION RULES -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 14</div>
+        <div class="slide-title">Automation <span class="accent">Rules</span></div>
+        <div class="slide-subtitle">Automation rules are lightweight, condition-based rules that run automatically when incidents or alerts are created or updated. They handle routine tasks without requiring a full playbook.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Trigger Conditions</div><div class="card-desc">Triggers fire when an incident is created, when an incident is updated, or when an alert is created. Conditions filter by analytics rule name, severity, entity values, tags, or custom details. Combine multiple conditions with AND logic to target specific scenarios precisely.</div></div>
+            <div class="card c-blue"><div class="card-label">Built-In Actions</div><div class="card-desc">Change incident status (New, Active, Closed). Assign an owner. Change severity. Add tags. Run a playbook. Suppress incident creation entirely. These actions execute instantly without deploying Logic Apps infrastructure.</div></div>
+            <div class="card c-gold"><div class="card-label">Action Ordering</div><div class="card-desc">Multiple automation rules can fire on the same trigger. Sentinel evaluates rules in order (1 to 512). Earlier rules modify the incident before later rules evaluate it. Use ordering to chain logic: Rule 1 tags the incident, Rule 2 triggers a playbook only if that tag is present.</div></div>
+            <div class="card c-green"><div class="card-label">Suppression</div><div class="card-desc">Automation rules can suppress incident creation entirely. Use suppression to block known false positive patterns: if a specific analytics rule fires for a known-safe service account, suppress the incident instead of tuning the rule query. Quick fix while you refine detection logic.</div></div>
+        </div>
+        <div class="box box-gold"><div class="box-label">Exam Tip</div>Automation rules run before playbooks. They are evaluated in numeric order. An automation rule can assign ownership and change severity before a playbook performs enrichment. Use automation rules for simple actions and playbooks for complex multi-step workflows.</div>
+    </div>
+</section>
+
+<!-- SLIDE 3 -- PLAYBOOKS -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 14</div>
+        <div class="slide-title"><span class="accent">Playbooks</span> (Logic Apps)</div>
+        <div class="slide-subtitle">Playbooks are Azure Logic Apps workflows triggered by Sentinel automation rules or directly from incidents. They orchestrate multi-step response actions across Microsoft and third-party services.</div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">Logic Apps Foundation</div><div class="card-desc">Every Sentinel playbook is an Azure Logic Apps workflow. Logic Apps provides a visual designer, hundreds of connectors, and built-in retry/error handling. Sentinel triggers pass incident or alert data as JSON that the workflow consumes.</div></div>
+            <div class="card c-blue"><div class="card-label">Common Connectors</div><div class="card-desc">Microsoft Sentinel connector (get incident details, update incident, add comments). Microsoft Entra ID (disable user, revoke sessions). Microsoft Teams (post alert to channel). ServiceNow (create ticket). Defender for Endpoint (isolate machine). HTTP (call any REST API).</div></div>
+            <div class="card c-green"><div class="card-label">Managed Identity</div><div class="card-desc">Playbooks use a managed identity to authenticate to Sentinel and other Azure services. No credentials stored in the workflow. The managed identity must be granted the Microsoft Sentinel Responder role on the workspace to read and update incidents.</div></div>
+        </div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Trigger</strong> -- the playbook starts when Sentinel fires the Logic Apps trigger (incident created, alert created, or entity triggered).</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Enrich</strong> -- query external systems for context: check VirusTotal for IP reputation, query Entra ID for user details, look up asset inventory.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Act</strong> -- take containment actions: disable the user account, isolate the endpoint, block the IP in the firewall, create a ServiceNow ticket.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Update</strong> -- add enrichment results and action logs as incident comments. Change severity based on enrichment findings. Assign to the appropriate team.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 4 -- SOAR ARCHITECTURE -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 14</div>
+        <div class="slide-title">SOAR <span class="accent">Architecture</span></div>
+        <div class="slide-subtitle">Security Orchestration, Automation, and Response (SOAR) in Sentinel combines automation rules, playbooks, and incident management into a unified response pipeline.</div>
+        <div class="diagram-center">
+            <svg width="560" height="130" viewBox="0 0 560 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="10" y="15" width="100" height="50" rx="8" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="60" y="35" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Incident Created</text>
+                <text x="60" y="50" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Analytics rule fires</text>
+                <rect x="155" y="15" width="100" height="50" rx="8" fill="rgba(251,191,36,0.1)" stroke="#fbbf24" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="205" y="35" text-anchor="middle" font-size="8" fill="#fbbf24" font-weight="700" font-family="Segoe UI,sans-serif">Automation Rule</text>
+                <text x="205" y="50" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Tag, assign, severity</text>
+                <rect x="300" y="15" width="100" height="50" rx="8" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="350" y="35" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Playbook</text>
+                <text x="350" y="50" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Enrich + contain</text>
+                <rect x="445" y="15" width="100" height="50" rx="8" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.4s; opacity:0;"/>
+                <text x="495" y="35" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Analyst Review</text>
+                <text x="495" y="50" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Investigate + close</text>
+                <line x1="110" y1="40" x2="155" y2="40" stroke="rgba(239,68,68,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/></line>
+                <line x1="255" y1="40" x2="300" y2="40" stroke="rgba(251,191,36,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.15s"/></line>
+                <line x1="400" y1="40" x2="445" y2="40" stroke="rgba(59,130,246,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/></line>
+                <rect x="155" y="80" width="245" height="40" rx="8" fill="rgba(167,139,250,0.06)" stroke="#a78bfa" stroke-width="1" style="animation: boxGrow 0.3s ease forwards 0.45s; opacity:0;"/>
+                <text x="277" y="100" text-anchor="middle" font-size="7.5" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Automation rules run FIRST (in order 1-512), THEN playbooks execute in parallel</text>
+                <text x="277" y="113" text-anchor="middle" font-size="6.5" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Multiple automation rules and playbooks can fire on the same incident</text>
+            </svg>
+        </div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Orchestration</div><div class="card-desc">Coordinates actions across multiple tools and services from a single trigger. One incident can trigger enrichment from VirusTotal, containment in Defender for Endpoint, a ticket in ServiceNow, and a notification in Teams -- all in one automated workflow.</div></div>
+            <div class="card c-blue"><div class="card-label">Automation vs. Orchestration</div><div class="card-desc"><strong>Automation rules</strong> = simple if/then actions (change status, assign owner, add tag). <strong>Playbooks</strong> = complex multi-step orchestration (call APIs, branch on conditions, loop through entities). Use automation rules for speed and playbooks for sophistication.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 5 -- INCIDENT MANAGEMENT -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 14</div>
+        <div class="slide-title">Incident <span class="accent">Management</span></div>
+        <div class="slide-subtitle">Incidents are the primary investigation unit in Sentinel. Each incident groups related alerts and entities into a single investigable case with severity, status, ownership, and an activity log.</div>
+        <div class="hex-grid">
+            <div class="hex-cell"><div class="hex-title">Severity</div><div class="hex-desc">Informational, Low, Medium, High. Set by the analytics rule that created the incident. Can be changed by automation rules or analysts during investigation based on enrichment findings.</div></div>
+            <div class="hex-cell"><div class="hex-title">Status</div><div class="hex-desc">New (unassigned), Active (under investigation), Closed (resolved). Closing requires a classification: True Positive, Benign Positive (true alert, expected activity), False Positive, or Undetermined.</div></div>
+            <div class="hex-cell"><div class="hex-title">Assignment</div><div class="hex-desc">Assign incidents to specific analysts or security groups. Automation rules can auto-assign based on severity or analytics rule name. Ownership tracking ensures no incident is left unattended.</div></div>
+            <div class="hex-cell"><div class="hex-title">Tasks</div><div class="hex-desc">Add tasks to incidents as investigation checklists. Each task has a title, description, and completion status. Tasks standardize investigation procedures: "Check user's recent sign-ins," "Verify endpoint health," "Contact user for confirmation."</div></div>
+            <div class="hex-cell"><div class="hex-title">Comments</div><div class="hex-desc">Add analyst notes and playbook enrichment results as incident comments. Comments create an audit trail of the investigation: what was checked, what was found, what actions were taken, and why decisions were made.</div></div>
+            <div class="hex-cell"><div class="hex-title">Evidence</div><div class="hex-desc">Incidents contain alerts (from analytics rules), entities (mapped from alert data), and bookmarks (from hunting queries). The investigation graph visualizes relationships between all evidence pieces.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 6 -- INCIDENT INVESTIGATION -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 14</div>
+        <div class="slide-title">Incident <span class="accent">Investigation</span></div>
+        <div class="slide-subtitle">The investigation workflow in Sentinel uses entity pages, investigation graphs, and KQL queries to determine the scope, impact, and root cause of security incidents.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Triage</strong> -- review incident severity, alert count, affected entities, and MITRE tactics. Read playbook enrichment comments. Decide if the incident needs full investigation or can be closed as a known false positive.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Entity Pages</strong> -- click any entity (user, host, IP) to open its entity page. Entity pages show the timeline of all events, alerts, and activities associated with that entity across all data sources -- not just the current incident.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Investigation Graph</strong> -- visual map of entities and their relationships. Expand entities to discover connected users, machines, IPs, and alerts. The graph reveals the attack scope -- how many machines and accounts are involved.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>KQL Deep Dive</strong> -- run ad-hoc KQL queries in Log Analytics for deeper analysis. Query raw log tables to find evidence not captured in the alert: related network connections, process trees, file modifications.</span></div>
+            <div class="step-row"><span class="step-num">5</span><span class="step-text"><strong>Response</strong> -- take containment and remediation actions. Run playbooks on-demand, disable accounts, isolate endpoints. Document all actions in incident comments and close with the appropriate classification.</span></div>
+        </div>
+        <div class="box box-red"><div class="box-label">Classification Matters</div>Closing incidents with accurate classifications (True Positive, Benign Positive, False Positive) feeds analytics. Sentinel uses classification data to measure detection quality, calculate mean time to resolve, and identify rules that need tuning.</div>
+    </div>
+</section>
+
+<!-- SLIDE 7 -- UEBA OVERVIEW -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 14</div>
+        <div class="slide-title">Entity Behavior Analytics <span class="accent">(UEBA)</span></div>
+        <div class="slide-subtitle">User and Entity Behavior Analytics (UEBA) in Sentinel builds behavioral baselines for users, hosts, and IP addresses, then identifies anomalies that deviate from normal patterns.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">How UEBA Works</div><div class="card-desc">UEBA ingests data from multiple sources: Entra ID sign-ins, Active Directory events (via Defender for Identity), Azure activity logs, and security events. It builds a behavioral profile per entity over time and flags deviations as anomalies with investigation priority scores.</div></div>
+            <div class="card c-blue"><div class="card-label">Data Sources</div><div class="card-desc">Enable UEBA in Sentinel settings and select the data sources to feed it: Microsoft Entra ID (required), Active Directory (via Defender for Identity connector), Azure Activity, and SecurityEvent table. More sources = richer behavioral profiles.</div></div>
+            <div class="card c-gold"><div class="card-label">Anomaly Scores</div><div class="card-desc">Each detected anomaly receives a score based on deviation magnitude, entity importance, and historical rarity. High-score anomalies appear in entity pages and can be used in analytics rules. Scores help analysts prioritize which anomalies to investigate first.</div></div>
+            <div class="card c-green"><div class="card-label">Investigation Priority</div><div class="card-desc">UEBA calculates an investigation priority score (0-10) per entity based on anomaly count, anomaly severity, and alert association. Entities with high investigation priority appear at the top of entity lists, directing analyst attention to the most suspicious users and hosts.</div></div>
+        </div>
+        <div class="box box-gold"><div class="box-label">Exam Tip</div>UEBA is not enabled by default. You must enable it in Sentinel settings and select data sources. Microsoft Entra ID is the required minimum data source. UEBA anomalies appear on entity pages and in the BehaviorAnalytics table for KQL queries.</div>
+    </div>
+</section>
+
+<!-- SLIDE 8 -- UEBA ANOMALY TYPES -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 14</div>
+        <div class="slide-title">UEBA Anomaly <span class="accent">Types</span></div>
+        <div class="slide-subtitle">UEBA detects a wide range of behavioral anomalies. Each anomaly type captures a specific deviation from an entity's established baseline.</div>
+        <div class="hex-grid">
+            <div class="hex-cell"><div class="hex-title">Anomalous Logon</div><div class="hex-desc">User authenticates from a location, device, or at a time never seen before in their behavioral history. Accounts for time zones, travel patterns, and typical working hours for each user individually.</div></div>
+            <div class="hex-cell"><div class="hex-title">Anomalous Resource Access</div><div class="hex-desc">User accesses a resource (SharePoint site, Azure subscription, application) they have never accessed before. Flags potential data exploration by compromised accounts or insider threats.</div></div>
+            <div class="hex-cell"><div class="hex-title">Anomalous Privilege Use</div><div class="hex-desc">User performs administrative actions (role assignments, policy changes, password resets) that are unusual for their role. Detects potential privilege escalation or compromised admin accounts.</div></div>
+            <div class="hex-cell"><div class="hex-title">Unusual Data Volume</div><div class="hex-desc">User downloads, uploads, or transfers a volume of data significantly exceeding their historical baseline. Potential data exfiltration indicator when combined with other anomalies.</div></div>
+            <div class="hex-cell"><div class="hex-title">Peer Group Deviation</div><div class="hex-desc">User's behavior deviates from their peer group (users with similar roles, departments, or access patterns). A finance analyst suddenly behaving like an IT administrator is flagged even if the individual actions are not suspicious in isolation.</div></div>
+            <div class="hex-cell"><div class="hex-title">First-Time Activity</div><div class="hex-desc">Entity performs an action for the first time ever in the environment: first-time VPN connection, first-time PowerShell execution, first-time access to a critical server. Weighted by entity importance and action sensitivity.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 9 -- NOTEBOOKS -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 14</div>
+        <div class="slide-title">Sentinel <span class="accent">Notebooks</span></div>
+        <div class="slide-subtitle">Jupyter notebooks in Sentinel provide a programmable investigation environment for advanced threat hunting, data analysis, and visualization using Python and the MSTICPy library.</div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">Jupyter Integration</div><div class="card-desc">Sentinel integrates with Azure Machine Learning to host Jupyter notebooks. Launch notebooks directly from the Sentinel portal. Notebooks persist in the AML workspace, allowing analysts to save investigation state and resume later.</div></div>
+            <div class="card c-blue"><div class="card-label">MSTICPy Library</div><div class="card-desc">MSTICPy is Microsoft's open-source Python library for security investigation. It provides KQL query helpers, entity enrichment functions (GeoIP, TI lookups, Whois), visualization tools (timeline charts, process trees), and data connectors for Sentinel workspaces.</div></div>
+            <div class="card c-green"><div class="card-label">Use Cases</div><div class="card-desc">Complex investigations requiring custom analysis: correlating data across multiple workspaces, building process trees from raw events, statistical anomaly detection, generating custom visualizations, and documenting investigation findings in a reproducible format.</div></div>
+        </div>
+        <div class="code-block">// MSTICPy KQL query from a notebook
+from msticpy.data import QueryProvider
+qry_prov = QueryProvider("MSSentinel")
+qry_prov.connect(workspace="ContosoSOC")
+df = qry_prov.exec_query("""
+    SecurityEvent
+    | where TimeGenerated > ago(24h)
+    | where EventID == 4688
+    | summarize count() by Account, Process
+""")</div>
+    </div>
+</section>
+
+<!-- SLIDE 10 -- COMMON PLAYBOOK PATTERNS -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 14</div>
+        <div class="slide-title">Common Playbook <span class="accent">Patterns</span></div>
+        <div class="slide-subtitle">These playbook patterns cover the most frequent automated response scenarios in a SOC. Each pattern can be built as a Logic Apps workflow and triggered by automation rules.</div>
+        <div class="hex-grid">
+            <div class="hex-cell"><div class="hex-title">IP Enrichment</div><div class="hex-desc">Extract IP entities from the incident. Query VirusTotal, AbuseIPDB, or Microsoft TI for reputation. Add results as incident comments. Raise severity if IP is known malicious.</div></div>
+            <div class="hex-cell"><div class="hex-title">User Containment</div><div class="hex-desc">Extract account entity. Disable the user in Microsoft Entra ID. Revoke all refresh tokens. Post notification to the SOC Teams channel. Add containment log as incident comment.</div></div>
+            <div class="hex-cell"><div class="hex-title">Endpoint Isolation</div><div class="hex-desc">Extract host entity. Call Defender for Endpoint API to isolate the machine from the network. Machine can still communicate with the Defender service for investigation. Log isolation action to incident.</div></div>
+            <div class="hex-cell"><div class="hex-title">Ticket Creation</div><div class="hex-desc">Create a ticket in ServiceNow, Jira, or Azure DevOps with incident details. Bi-directional sync: updates in the ticketing system reflect back in Sentinel. Bridges SOC workflow with IT operations.</div></div>
+            <div class="hex-cell"><div class="hex-title">Analyst Notification</div><div class="hex-desc">Send rich adaptive card to Microsoft Teams with incident summary, entities, and action buttons. Analyst can approve containment actions directly from Teams without switching to the Sentinel portal.</div></div>
+            <div class="hex-cell"><div class="hex-title">Watchlist Update</div><div class="hex-desc">Automatically add confirmed malicious indicators to Sentinel watchlists. Future detections reference the updated watchlist. Creates a feedback loop between incident response and detection logic.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 11 -- WORKBOOKS AND REPORTING -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 14</div>
+        <div class="slide-title">Workbooks and <span class="accent">Reporting</span></div>
+        <div class="slide-subtitle">Sentinel workbooks provide interactive dashboards built on KQL queries for monitoring SOC metrics, tracking incident trends, and reporting on detection effectiveness.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">SOC Efficiency Metrics</div><div class="card-desc">Track mean time to acknowledge (MTTA), mean time to resolve (MTTR), incidents per analyst, and closure classification ratios. These metrics identify bottlenecks in the response pipeline and measure team performance over time.</div></div>
+            <div class="card c-blue"><div class="card-label">Detection Coverage</div><div class="card-desc">Visualize analytics rule health: rules that have not fired in 30+ days may indicate broken queries or data source gaps. Map active rules to MITRE ATT&CK to identify technique coverage gaps in your detection posture.</div></div>
+            <div class="card c-gold"><div class="card-label">Incident Trends</div><div class="card-desc">Chart incident volume over time by severity, analytics rule, and data source. Identify spikes that indicate active campaigns or rule tuning issues. Compare true positive rates across rules to prioritize tuning efforts.</div></div>
+            <div class="card c-green"><div class="card-label">Data Connector Health</div><div class="card-desc">Monitor data ingestion latency and volume per connector. Detect when a data source stops sending data -- a silent failure that creates blind spots. Alert on ingestion anomalies before attackers exploit the gap.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 12 -- RESPONSE BEST PRACTICES -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 14</div>
+        <div class="slide-title">Response <span class="accent">Best Practices</span></div>
+        <div class="slide-subtitle">Effective incident response combines automation for speed with human judgment for accuracy. These practices ensure your SOAR implementation improves outcomes rather than creating noise.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Automate Enrichment First</div><div class="card-desc">Start automation with enrichment playbooks -- adding context to incidents is low-risk and high-value. IP reputation, user details, asset classification. Once enrichment is reliable, gradually add containment actions with approval gates.</div></div>
+            <div class="card c-blue"><div class="card-label">Human-in-the-Loop</div><div class="card-desc">For destructive actions (disabling accounts, isolating machines), include an approval step. Send a Teams adaptive card asking the analyst to confirm before executing containment. Prevents automation from acting on false positives.</div></div>
+            <div class="card c-gold"><div class="card-label">Incident Templates</div><div class="card-desc">Use tasks to create standardized investigation checklists per incident type. A phishing incident gets different tasks than a brute force incident. Templates ensure consistent investigation quality regardless of which analyst handles the case.</div></div>
+            <div class="card c-green"><div class="card-label">Feedback Loops</div><div class="card-desc">Track which analytics rules produce the most false positives by monitoring closure classifications. Use this data to prioritize rule tuning. Feed confirmed IOCs from investigations back into watchlists and threat intelligence for improved future detection.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 13 -- RESPONSE PIPELINE FLOW -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 14</div>
+        <div class="slide-title">Response Pipeline <span class="accent">Flow</span></div>
+        <div class="slide-subtitle">The complete incident response pipeline from detection to closure, showing how automation rules, playbooks, and analyst actions work together.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Detection</strong> -- analytics rule fires, incident is created with mapped entities, severity, and MITRE tactics.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Automation Rules</strong> -- run in order. Assign owner based on severity. Add tags. Change severity if conditions match. Optionally suppress known false positives.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Playbook Enrichment</strong> -- Logic Apps workflow queries VirusTotal, Entra ID, asset inventory. Adds enrichment results as incident comments. Raises or lowers severity based on findings.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Analyst Triage</strong> -- analyst reviews enriched incident. Opens entity pages and investigation graph. Runs ad-hoc KQL queries for additional context.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Containment</strong> -- analyst approves containment actions (or automation executes pre-approved actions). Disable accounts, isolate endpoints, block IPs. All actions logged in incident comments.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>Resolution</strong> -- analyst completes investigation tasks, documents findings, and closes the incident with accurate classification. Closure data feeds SOC metrics and detection tuning.</span></div>
+        </div>
+        <div class="box box-cyan"><div class="box-label">Key Principle</div>Automation handles the first 80% -- enrichment, triage acceleration, and routine containment. Analysts handle the remaining 20% -- complex investigation, judgment calls, and novel attack analysis. The goal is not to replace analysts but to remove toil so they can focus on what humans do best.</div>
+    </div>
+</section>
+
+<!-- SLIDE 14 -- SUMMARY -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 14</div>
+        <div class="slide-title">Chapter 8 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Key concepts you must know for the SC-200 exam.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Automation Rules</strong> -- lightweight condition-based rules. Triggers: incident created/updated, alert created. Actions: change status, assign owner, change severity, add tags, run playbook, suppress. Evaluated in order 1-512.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Playbooks</strong> -- Azure Logic Apps workflows for multi-step orchestration. Common connectors: Sentinel, Entra ID, Teams, ServiceNow, Defender for Endpoint. Use managed identity for authentication (Sentinel Responder role).</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Incident Management</strong> -- severity (Info/Low/Medium/High), status (New/Active/Closed), assignment, tasks, comments. Closure requires classification: True Positive, Benign Positive, False Positive, Undetermined.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>SOAR</strong> -- Security Orchestration, Automation, and Response. Automation rules for simple actions, playbooks for complex workflows. Automate enrichment first, add containment with approval gates.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>UEBA</strong> -- User and Entity Behavior Analytics. Must be enabled manually. Requires Entra ID as minimum data source. Builds baselines per entity. Anomaly scores and investigation priority (0-10). Query via <code>BehaviorAnalytics</code> table.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>Notebooks</strong> -- Jupyter notebooks hosted in Azure ML. MSTICPy library for KQL queries, entity enrichment, and visualization. Use for complex investigations requiring custom Python analysis and reproducible documentation.</span></div>
+        </div>
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; SC-200</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 14</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 14;
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) { completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none'; }
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+    goToSlide(1);
+</script>
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'sc200-ch08-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
