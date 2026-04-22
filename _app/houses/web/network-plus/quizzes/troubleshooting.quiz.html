@@ -4,583 +4,233 @@
     <meta charset="UTF-8">
     <script src="../../../../components/AccessGuard.js"></script>
     <script>AccessGuard.require('sorted');</script>
-    <script src="../../../../components/ModuleProgress.js"></script>
-    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
     <script src="../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chapter 9: Troubleshooting Quiz | Network+ N10-009</title>
+    <title>Troubleshooting Quiz | N10-009</title>
+    <link rel="stylesheet" href="../../../../styles/quiz-engine.css">
     <style>
-        :root {
-            --bg: #090910;
-            --bg-card: #12121e;
-            --bg-option: #161625;
-            --cyan: #06b6d4;
-            --cyan-dim: rgba(6, 182, 212, 0.15);
-            --text: #e2e8f0;
-            --text-muted: #8892a8;
-            --success: #22c55e;
-            --danger: #ef4444;
-            --border: rgba(255,255,255,0.08);
-        }
-
         * { margin: 0; padding: 0; box-sizing: border-box; }
-
         body {
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            background: linear-gradient(135deg, var(--bg) 0%, #0f0f1a 50%, #111128 100%);
-            color: var(--text);
             min-height: 100vh;
-            line-height: 1.6;
-        }
-
-        .quiz-container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-
-        .nav-links {
-            display: flex;
-            gap: 1.5rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .back-link {
-            color: var(--cyan);
-            text-decoration: none;
-            font-size: 0.9rem;
-            transition: all 0.3s;
-        }
-        .back-link:hover { color: #67e8f9; transform: translateX(-5px); }
-
-        .quiz-header {
-            text-align: center;
-            margin-bottom: 2rem;
-            padding: 2rem;
-            background: var(--bg-card);
-            border-radius: 14px;
-            border: 1px solid var(--cyan-dim);
-        }
-
-        .quiz-header h1 {
-            font-size: 1.6rem;
-            color: var(--cyan);
-            margin-bottom: 0.5rem;
-        }
-
-        .quiz-header .subtitle {
-            color: var(--text-muted);
-            font-size: 0.9rem;
-            margin-bottom: 0.75rem;
-        }
-
-        .quiz-header .meta {
-            display: flex;
-            gap: 1rem;
-            justify-content: center;
-            flex-wrap: wrap;
-            font-size: 0.8rem;
-        }
-
-        .quiz-header .meta span {
-            background: var(--bg);
-            padding: 4px 12px;
-            border-radius: 6px;
-            border: 1px solid var(--border);
-            color: var(--text-muted);
-        }
-
-        /* Progress */
-        .progress-bar-wrap {
-            background: var(--bg-card);
-            border-radius: 10px;
-            padding: 14px 18px;
-            margin-bottom: 1.5rem;
-            border: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            gap: 14px;
-        }
-
-        .progress-label {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            white-space: nowrap;
-        }
-
-        .progress-track {
-            flex: 1;
-            height: 8px;
-            background: var(--bg);
-            border-radius: 4px;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, var(--cyan), var(--success));
-            border-radius: 4px;
-            transition: width 0.4s ease;
-            width: 0%;
-        }
-
-        .score-label {
-            font-size: 0.85rem;
-            color: var(--cyan);
-            font-weight: 600;
-            white-space: nowrap;
-        }
-
-        /* Question card */
-        .question-card {
-            background: var(--bg-card);
-            border-radius: 14px;
-            padding: 2rem;
-            border: 1px solid var(--border);
-            margin-bottom: 1.5rem;
-        }
-
-        .question-num {
-            font-size: 0.8rem;
-            color: var(--cyan);
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            margin-bottom: 0.75rem;
-        }
-
-        .question-text {
-            font-size: 1.15rem;
-            font-weight: 600;
-            margin-bottom: 1.5rem;
-            line-height: 1.5;
-        }
-
-        /* Options */
-        .options {
+            background: linear-gradient(135deg, #0f1728 0%, #0d1f3c 50%, #0f1728 100%);
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            margin-bottom: 1rem;
+            font-family: 'Segoe UI', system-ui, sans-serif;
         }
-
-        .option {
+        .page-header {
+            padding: 15px 30px;
+            background: rgba(0, 0, 0, 0.4);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.2);
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 12px;
-            padding: 14px 18px;
-            background: var(--bg-option);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-size: 0.95rem;
         }
-
-        .option:hover { border-color: rgba(6, 182, 212, 0.4); background: rgba(6, 182, 212, 0.05); }
-
-        .option.selected { border-color: var(--cyan); background: rgba(6, 182, 212, 0.08); }
-
-        .option.correct {
-            border-color: var(--success);
-            background: rgba(34, 197, 94, 0.1);
-        }
-
-        .option.incorrect {
-            border-color: var(--danger);
-            background: rgba(239, 68, 68, 0.08);
-        }
-
-        .option.disabled { pointer-events: none; opacity: 0.7; }
-        .option.correct.disabled, .option.incorrect.disabled { opacity: 1; }
-
-        .option-letter {
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 6px;
-            background: var(--bg);
-            border: 1px solid var(--border);
-            font-weight: 700;
-            font-size: 0.85rem;
-            color: var(--cyan);
-            flex-shrink: 0;
-        }
-
-        .option.correct .option-letter { background: var(--success); color: #fff; border-color: var(--success); }
-        .option.incorrect .option-letter { background: var(--danger); color: #fff; border-color: var(--danger); }
-
-        /* Feedback */
-        .feedback {
-            padding: 14px 18px;
-            border-radius: 10px;
-            margin-bottom: 1rem;
-            font-size: 0.9rem;
-            line-height: 1.6;
-            display: none;
-        }
-
-        .feedback.correct {
-            display: block;
-            background: rgba(34, 197, 94, 0.08);
-            border: 1px solid rgba(34, 197, 94, 0.3);
-            color: #86efac;
-        }
-
-        .feedback.incorrect {
-            display: block;
-            background: rgba(239, 68, 68, 0.08);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            color: #fca5a5;
-        }
-
-        /* Navigation */
-        .quiz-nav {
-            display: flex;
-            justify-content: flex-end;
-        }
-
-        .next-btn {
-            padding: 10px 24px;
-            background: rgba(6, 182, 212, 0.15);
-            border: 1px solid rgba(6, 182, 212, 0.4);
-            color: var(--cyan);
-            border-radius: 8px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .next-btn:hover { background: var(--cyan); color: #fff; }
-        .next-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-        .next-btn:disabled:hover { background: rgba(6, 182, 212, 0.15); color: var(--cyan); }
-
-        /* Results */
-        .results-card {
-            display: none;
-            text-align: center;
-            background: var(--bg-card);
-            border-radius: 14px;
-            padding: 3rem 2rem;
-            border: 1px solid var(--border);
-        }
-
-        .results-card h2 {
-            color: var(--cyan);
-            font-size: 1.4rem;
-            margin-bottom: 1rem;
-        }
-
-        .score-big {
-            font-size: 3.5rem;
-            font-weight: 700;
-            color: var(--success);
-            margin-bottom: 0.5rem;
-        }
-
-        .score-big.low { color: var(--danger); }
-        .score-big.mid { color: #fbbf24; }
-
-        .score-msg {
-            color: var(--text-muted);
-            font-size: 1rem;
-            margin-bottom: 2rem;
-        }
-
-        .results-btns {
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
-        .results-btns a, .results-btns button {
-            padding: 10px 24px;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            cursor: pointer;
+        .page-header a {
+            color: #3b82f6;
             text-decoration: none;
-            transition: all 0.2s;
-            border: none;
+            font-size: 0.9rem;
+            transition: color 0.2s;
         }
-
-        .btn-retry {
-            background: rgba(6, 182, 212, 0.15);
-            border: 1px solid rgba(6, 182, 212, 0.4);
-            color: var(--cyan);
+        .page-header a:hover { opacity: 0.8; }
+        .brand {
+            font-weight: 600;
+            color: #e0e0e0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
-        .btn-retry:hover { background: var(--cyan); color: #fff; }
-
-        .btn-hub {
-            background: rgba(34, 197, 94, 0.15);
-            border: 1px solid rgba(34, 197, 94, 0.4);
-            color: var(--success);
+        .quiz-wrapper {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 30px 20px;
         }
-        .btn-hub:hover { background: var(--success); color: #fff; }
-
-        @media (max-width: 640px) {
-            .quiz-container { padding: 1rem; }
-            .question-card { padding: 1.25rem; }
-            .quiz-header h1 { font-size: 1.3rem; }
-        }
+        #quiz-container { width: 100%; max-width: 800px; }
     </style>
 </head>
 <body>
-    <div class="quiz-container">
-        <div class="nav-links">
-            <a href="../index.html" class="back-link">&#8592; Network+ Hub</a>
-        </div>
-
-        <div class="quiz-header">
-            <h1>Chapter 9: Troubleshooting Quiz</h1>
-            <p class="subtitle">Methodology, tools, cable issues, and network diagnostics</p>
-            <div class="meta">
-                <span>Chapter 9</span>
-                <span>15 Questions</span>
-                <span>Obj 5.1-5.5</span>
-            </div>
-        </div>
-
-        <div class="progress-bar-wrap">
-            <span class="progress-label" id="progressLabel">Question 1 of 15</span>
-            <div class="progress-track">
-                <div class="progress-fill" id="progressFill"></div>
-            </div>
-            <span class="score-label" id="scoreLabel">Score: 0</span>
-        </div>
-
-        <div class="question-card" id="questionCard">
-            <div class="question-num" id="questionNum">QUESTION 1</div>
-            <div class="question-text" id="questionText"></div>
-            <div class="options" id="optionsEl"></div>
-            <div class="feedback" id="feedback"></div>
-            <div class="quiz-nav">
-                <button class="next-btn" id="nextBtn" onclick="nextQuestion()" disabled>Next Question</button>
-            </div>
-        </div>
-
-        <div class="results-card" id="resultsCard">
-            <h2>Quiz Complete</h2>
-            <div class="score-big" id="finalScore"></div>
-            <p class="score-msg" id="scoreMsg"></p>
-            <div class="results-btns">
-                <button class="btn-retry" onclick="restartQuiz()">Try Again</button>
-                <a href="../index.html" class="btn-hub">Back to Network+ Hub</a>
-            </div>
-        </div>
-    </div>
-
+    <header class="page-header">
+        <a href="../index.html">&larr; Back to N10-009 Hub</a>
+        <span class="brand"><img src="/assets/images/icons/icon-brain.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Hexworth Prime</span>
+    </header>
+    <main class="quiz-wrapper">
+        <div id="quiz-container"></div>
+    </main>
+    <script src="../../../../components/ProgressSystem.js"></script>
+    <script src="../../../../components/QuizEngine.js"></script>
     <script>
-        var questions = [
-            {
-                q: "What is the FIRST step in the CompTIA troubleshooting methodology?",
-                opts: ["Establish a theory of probable cause", "Identify the problem", "Test the theory to determine the cause", "Implement the solution"],
-                ans: 1,
-                exp: "The 7-step CompTIA methodology begins with Identify the problem. This includes gathering information, questioning users, and identifying symptoms."
-            },
-            {
-                q: "What is the correct order of the CompTIA 7-step troubleshooting methodology?",
-                opts: [
-                    "Identify, Theory, Test, Plan, Implement, Verify, Document",
-                    "Document, Identify, Theory, Test, Plan, Implement, Verify",
-                    "Identify, Test, Theory, Plan, Implement, Document, Verify",
-                    "Theory, Identify, Test, Implement, Plan, Verify, Document"
-                ],
-                ans: 0,
-                exp: "The correct order is: 1) Identify the problem, 2) Establish a theory, 3) Test the theory, 4) Establish a plan of action, 5) Implement the solution, 6) Verify full system functionality, 7) Document findings."
-            },
-            {
-                q: "A technician suspects a problem exists at a specific layer. Which troubleshooting approach starts at that layer and moves up or down?",
-                opts: ["Bottom-up", "Top-down", "Divide and conquer", "Random approach"],
-                ans: 2,
-                exp: "Divide and conquer starts at the suspected layer and works outward. Bottom-up starts at Layer 1, and top-down starts at Layer 7."
-            },
-            {
-                q: "Which command tests reachability to a remote host and measures round-trip time?",
-                opts: ["traceroute", "nslookup", "ping", "netstat"],
-                ans: 2,
-                exp: "Ping sends ICMP echo requests to a target and reports round-trip time, TTL, and packet loss — the most basic reachability test."
-            },
-            {
-                q: "A user cannot access a website by name but can reach it by IP address. Which tool should you use first to diagnose this?",
-                opts: ["ping", "traceroute", "nslookup", "netstat"],
-                ans: 2,
-                exp: "When name resolution fails but IP access works, use nslookup or dig to query DNS and verify whether the DNS server returns correct records."
-            },
-            {
-                q: "Which command shows the path packets take across a network, listing each hop?",
-                opts: ["ping", "traceroute / tracert", "arp -a", "ipconfig /all"],
-                ans: 1,
-                exp: "Traceroute (Linux/Mac) or tracert (Windows) sends packets with incrementing TTL values to discover each router hop between source and destination."
-            },
-            {
-                q: "A technician runs netstat -an and sees many connections in TIME_WAIT state. What does this indicate?",
-                opts: ["Active SYN flood attack in progress", "Connections that recently closed and are waiting for stale packets to expire", "The server has run out of available ports", "DNS resolution is failing"],
-                ans: 1,
-                exp: "TIME_WAIT is a normal TCP state after a connection closes. The socket waits (typically 2x MSL) to ensure late-arriving packets are handled. Many TIME_WAIT entries indicate high recent connection turnover."
-            },
-            {
-                q: "What cable problem occurs when signals from one wire pair bleed into an adjacent pair?",
-                opts: ["Attenuation", "EMI", "Crosstalk", "Open circuit"],
-                ans: 2,
-                exp: "Crosstalk is signal interference between adjacent wire pairs in a cable. NEXT (near-end) and FEXT (far-end) are types measured by cable testers."
-            },
-            {
-                q: "What is the maximum recommended cable length for a single Cat 5e/6 UTP run?",
-                opts: ["50 meters", "100 meters", "150 meters", "300 meters"],
-                ans: 1,
-                exp: "The TIA/EIA standard specifies 100 meters (328 feet) maximum for a single copper Ethernet run, including patch cables at both ends."
-            },
-            {
-                q: "A switch port shows a high number of late collisions. What is the most likely cause?",
-                opts: ["Cable exceeds maximum length", "Duplex mismatch between the switch and the connected device", "Incorrect VLAN assignment", "DNS misconfiguration"],
-                ans: 1,
-                exp: "Late collisions are the hallmark symptom of a duplex mismatch — one side is set to full-duplex while the other is half-duplex."
-            },
-            {
-                q: "In Wireshark, which display filter shows only HTTP traffic?",
-                opts: ["filter == http", "tcp.port == 80", "http", "protocol.http"],
-                ans: 2,
-                exp: "In Wireshark, typing 'http' as a display filter shows all HTTP protocol traffic. You can also use 'tcp.port == 80' but 'http' is the proper protocol filter."
-            },
-            {
-                q: "A host receives an ICMP Type 3, Code 1 message. What does this indicate?",
-                opts: ["TTL expired in transit", "Destination host unreachable", "Port unreachable", "Redirect to a better route"],
-                ans: 1,
-                exp: "ICMP Type 3 is Destination Unreachable. Code 0 = network unreachable, Code 1 = host unreachable, Code 3 = port unreachable, Code 4 = fragmentation needed."
-            },
-            {
-                q: "A user can ping hosts on the local subnet but cannot reach any remote networks. Packets larger than 1472 bytes fail. What is the issue?",
-                opts: ["DNS failure", "MTU/PMTUD issue — packets are being dropped due to fragmentation problems", "Duplex mismatch", "VLAN misconfiguration"],
-                ans: 1,
-                exp: "Path MTU Discovery (PMTUD) issues occur when ICMP 'fragmentation needed' messages are blocked (often by a firewall), preventing the sender from reducing packet size."
-            },
-            {
-                q: "An interface shows a high number of CRC errors. What is the most likely cause?",
-                opts: ["Software bug on the switch", "Damaged cable, bad connector, or electromagnetic interference", "Incorrect IP configuration", "DHCP scope exhaustion"],
-                ans: 1,
-                exp: "CRC (Cyclic Redundancy Check) errors indicate data corruption during transmission, typically caused by bad cables, loose connectors, or EMI from nearby power sources."
-            },
-            {
-                q: "Users in a conference room report intermittent Wi-Fi disconnections. A site survey shows three nearby APs all on channel 6. What should you do?",
-                opts: ["Increase the transmit power on all APs", "Change APs to non-overlapping channels (1, 6, 11)", "Disable SSID broadcast on the APs", "Switch all clients to 802.11a"],
-                ans: 1,
-                exp: "Co-channel interference occurs when multiple APs use the same channel. In the 2.4 GHz band, channels 1, 6, and 11 are non-overlapping and should be assigned to adjacent APs."
-            }
-        ];
+        const quiz = new QuizEngine({
+            containerId: 'quiz-container',
+            title: 'Troubleshooting Quiz',
+            description: 'Methodology, tools, cable issues, and network diagnostics.',
+            passingScore: 80,
+            showFeedback: true,
+            randomize: true,
+            theme: 'web',
+            achievement: 'web-troubleshooting-quiz',
+            moduleId: 'web-troubleshooting-quiz',
+            serverGrading: true,
+            houseId: 'web',
+            trackProgress: true,
 
-        var current = 0;
-        var score = 0;
-        var answered = false;
-        var TOTAL = questions.length;
-
-        function loadQuestion() {
-            var q = questions[current];
-            document.getElementById('questionNum').textContent = 'QUESTION ' + (current + 1);
-            document.getElementById('questionText').textContent = q.q;
-            document.getElementById('progressLabel').textContent = 'Question ' + (current + 1) + ' of ' + TOTAL;
-            document.getElementById('progressFill').style.width = ((current + 1) / TOTAL * 100) + '%';
-
-            var html = '';
-            var letters = ['A', 'B', 'C', 'D'];
-            for (var i = 0; i < q.opts.length; i++) {
-                html += '<div class="option" onclick="selectAnswer(' + i + ')">' +
-                    '<span class="option-letter">' + letters[i] + '</span>' +
-                    '<span>' + q.opts[i] + '</span></div>';
-            }
-            document.getElementById('optionsEl').innerHTML = html;
-            document.getElementById('feedback').className = 'feedback';
-            document.getElementById('feedback').textContent = '';
-            document.getElementById('nextBtn').disabled = true;
-            answered = false;
-        }
-
-        function selectAnswer(idx) {
-            if (answered) return;
-            answered = true;
-
-            var q = questions[current];
-            var opts = document.querySelectorAll('.option');
-
-            for (var i = 0; i < opts.length; i++) {
-                opts[i].classList.add('disabled');
-                if (i === q.ans) opts[i].classList.add('correct');
-                else if (i === idx) opts[i].classList.add('incorrect');
-            }
-
-            var fb = document.getElementById('feedback');
-            if (idx === q.ans) {
-                score++;
-                fb.className = 'feedback correct';
-                fb.textContent = 'Correct! ' + q.exp;
-            } else {
-                fb.className = 'feedback incorrect';
-                fb.textContent = 'Incorrect. ' + q.exp;
-            }
-
-            document.getElementById('scoreLabel').textContent = 'Score: ' + score;
-            document.getElementById('nextBtn').disabled = false;
-
-            if (current === TOTAL - 1) {
-                document.getElementById('nextBtn').textContent = 'See Results';
-            }
-        }
-
-        function nextQuestion() {
-            current++;
-            if (current >= TOTAL) {
-                showResults();
-                return;
-            }
-            loadQuestion();
-        }
-
-        function showResults() {
-            document.getElementById('questionCard').style.display = 'none';
-            document.querySelector('.progress-bar-wrap').style.display = 'none';
-            var resultsCard = document.getElementById('resultsCard');
-            resultsCard.style.display = 'block';
-
-            var pct = Math.round((score / TOTAL) * 100);
-            var scoreBig = document.getElementById('finalScore');
-            scoreBig.textContent = score + '/' + TOTAL + ' (' + pct + '%)';
-
-            if (pct >= 80) {
-                scoreBig.className = 'score-big';
-            } else if (pct >= 60) {
-                scoreBig.className = 'score-big mid';
-            } else {
-                scoreBig.className = 'score-big low';
-            }
-
-            var msg = '';
-            if (pct >= 90) msg = 'Outstanding! You have mastered network troubleshooting concepts.';
-            else if (pct >= 70) msg = 'Solid understanding. Review the topics you missed and you will be exam-ready.';
-            else if (pct >= 50) msg = 'Good effort. Revisit the troubleshooting presentations and try again.';
-            else msg = 'Keep studying. Review Chapter 9 materials and retake the quiz.';
-            document.getElementById('scoreMsg').textContent = msg;
-
-            if (pct >= 70 && typeof ModuleProgress !== 'undefined') {
-                ModuleProgress.complete('web', 'web-troubleshooting-quiz', { returnToDashboard: false, returnUrl: '../index.html' });
-            }
-        }
-
-        function restartQuiz() {
-            current = 0;
-            score = 0;
-            answered = false;
-            document.getElementById('scoreLabel').textContent = 'Score: 0';
-            document.getElementById('questionCard').style.display = '';
-            document.querySelector('.progress-bar-wrap').style.display = '';
-            document.getElementById('resultsCard').style.display = 'none';
-            document.getElementById('nextBtn').textContent = 'Next Question';
-            loadQuestion();
-        }
-
-        loadQuestion();
+            questions: [
+                {
+                    question: 'What is the FIRST step in the CompTIA troubleshooting methodology?',
+                    options: [
+                        'Establish a theory of probable cause',
+                        'Identify the problem',
+                        'Test the theory to determine the cause',
+                        'Implement the solution'
+                    ],
+                    explanation: 'The 7-step CompTIA methodology begins with Identify the problem. This includes gathering information, questioning users, and identifying symptoms.'
+                },
+                {
+                    question: 'What is the correct order of the CompTIA 7-step troubleshooting methodology?',
+                    options: [
+                        'Identify, Theory, Test, Plan, Implement, Verify, Document',
+                        'Document, Identify, Theory, Test, Plan, Implement, Verify',
+                        'Identify, Test, Theory, Plan, Implement, Document, Verify',
+                        'Theory, Identify, Test, Implement, Plan, Verify, Document'
+                    ],
+                    explanation: 'The correct order is: 1) Identify the problem, 2) Establish a theory, 3) Test the theory, 4) Establish a plan of action, 5) Implement the solution, 6) Verify full system functionality, 7) Document findings.'
+                },
+                {
+                    question: 'A technician suspects a problem exists at a specific layer. Which troubleshooting approach starts at that layer and moves up or down?',
+                    options: [
+                        'Bottom-up',
+                        'Top-down',
+                        'Divide and conquer',
+                        'Random approach'
+                    ],
+                    explanation: 'Divide and conquer starts at the suspected layer and works outward. Bottom-up starts at Layer 1, and top-down starts at Layer 7.'
+                },
+                {
+                    question: 'Which command tests reachability to a remote host and measures round-trip time?',
+                    options: [
+                        'traceroute',
+                        'nslookup',
+                        'ping',
+                        'netstat'
+                    ],
+                    explanation: 'Ping sends ICMP echo requests to a target and reports round-trip time, TTL, and packet loss -- the most basic reachability test.'
+                },
+                {
+                    question: 'A user cannot access a website by name but can reach it by IP address. Which tool should you use first to diagnose this?',
+                    options: [
+                        'ping',
+                        'traceroute',
+                        'nslookup',
+                        'netstat'
+                    ],
+                    explanation: 'When name resolution fails but IP access works, use nslookup or dig to query DNS and verify whether the DNS server returns correct records.'
+                },
+                {
+                    question: 'Which command shows the path packets take across a network, listing each hop?',
+                    options: [
+                        'ping',
+                        'traceroute / tracert',
+                        'arp -a',
+                        'ipconfig /all'
+                    ],
+                    explanation: 'Traceroute (Linux/Mac) or tracert (Windows) sends packets with incrementing TTL values to discover each router hop between source and destination.'
+                },
+                {
+                    question: 'A technician runs netstat -an and sees many connections in TIME_WAIT state. What does this indicate?',
+                    options: [
+                        'Active SYN flood attack in progress',
+                        'Connections that recently closed and are waiting for stale packets to expire',
+                        'The server has run out of available ports',
+                        'DNS resolution is failing'
+                    ],
+                    explanation: 'TIME_WAIT is a normal TCP state after a connection closes. The socket waits (typically 2x MSL) to ensure late-arriving packets are handled. Many TIME_WAIT entries indicate high recent connection turnover.'
+                },
+                {
+                    question: 'What cable problem occurs when signals from one wire pair bleed into an adjacent pair?',
+                    options: [
+                        'Attenuation',
+                        'EMI',
+                        'Crosstalk',
+                        'Open circuit'
+                    ],
+                    explanation: 'Crosstalk is signal interference between adjacent wire pairs in a cable. NEXT (near-end) and FEXT (far-end) are types measured by cable testers.'
+                },
+                {
+                    question: 'What is the maximum recommended cable length for a single Cat 5e/6 UTP run?',
+                    options: [
+                        '50 meters',
+                        '100 meters',
+                        '150 meters',
+                        '300 meters'
+                    ],
+                    explanation: 'The TIA/EIA standard specifies 100 meters (328 feet) maximum for a single copper Ethernet run, including patch cables at both ends.'
+                },
+                {
+                    question: 'A switch port shows a high number of late collisions. What is the most likely cause?',
+                    options: [
+                        'Cable exceeds maximum length',
+                        'Duplex mismatch between the switch and the connected device',
+                        'Incorrect VLAN assignment',
+                        'DNS misconfiguration'
+                    ],
+                    explanation: 'Late collisions are the hallmark symptom of a duplex mismatch -- one side is set to full-duplex while the other is half-duplex.'
+                },
+                {
+                    question: 'In Wireshark, which display filter shows only HTTP traffic?',
+                    options: [
+                        'filter == http',
+                        'tcp.port == 80',
+                        'http',
+                        'protocol.http'
+                    ],
+                    explanation: 'In Wireshark, typing \\'http\\' as a display filter shows all HTTP protocol traffic. You can also use \\'tcp.port == 80\\' but \\'http\\' is the proper protocol filter.'
+                },
+                {
+                    question: 'A host receives an ICMP Type 3, Code 1 message. What does this indicate?',
+                    options: [
+                        'TTL expired in transit',
+                        'Destination host unreachable',
+                        'Port unreachable',
+                        'Redirect to a better route'
+                    ],
+                    explanation: 'ICMP Type 3 is Destination Unreachable. Code 0 = network unreachable, Code 1 = host unreachable, Code 3 = port unreachable, Code 4 = fragmentation needed.'
+                },
+                {
+                    question: 'A user can ping hosts on the local subnet but cannot reach any remote networks. Packets larger than 1472 bytes fail. What is the issue?',
+                    options: [
+                        'DNS failure',
+                        'MTU/PMTUD issue -- packets are being dropped due to fragmentation problems',
+                        'Duplex mismatch',
+                        'VLAN misconfiguration'
+                    ],
+                    explanation: 'Path MTU Discovery (PMTUD) issues occur when ICMP \\'fragmentation needed\\' messages are blocked (often by a firewall), preventing the sender from reducing packet size.'
+                },
+                {
+                    question: 'An interface shows a high number of CRC errors. What is the most likely cause?',
+                    options: [
+                        'Software bug on the switch',
+                        'Damaged cable, bad connector, or electromagnetic interference',
+                        'Incorrect IP configuration',
+                        'DHCP scope exhaustion'
+                    ],
+                    explanation: 'CRC (Cyclic Redundancy Check) errors indicate data corruption during transmission, typically caused by bad cables, loose connectors, or EMI from nearby power sources.'
+                },
+                {
+                    question: 'Users in a conference room report intermittent Wi-Fi disconnections. A site survey shows three nearby APs all on channel 6. What should you do?',
+                    options: [
+                        'Increase the transmit power on all APs',
+                        'Change APs to non-overlapping channels (1, 6, 11)',
+                        'Disable SSID broadcast on the APs',
+                        'Switch all clients to 802.11a'
+                    ],
+                    explanation: 'Co-channel interference occurs when multiple APs use the same channel. In the 2.4 GHz band, channels 1, 6, and 11 are non-overlapping and should be assigned to adjacent APs.'
+                }
+            ]
+        });
+        quiz.start();
     </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
 </body>
 </html>
