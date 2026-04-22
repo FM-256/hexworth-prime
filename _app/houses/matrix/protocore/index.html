@@ -1,0 +1,3125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- Security / Auth: must run first; blocks unauthorized users immediately -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../components/TenantRouter.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProtoCore // Build the Core. Control the System.</title>
+
+    <style>
+        /* ── CSS Custom Properties: ProtoCore palette ── */
+        :root {
+            --pc-primary:     #0088ff;
+            --pc-secondary:   #33aaff;
+            --pc-accent:      #ffd700;
+            --pc-dark:        #003366;
+            --pc-glow:        rgba(0, 136, 255, 0.30);
+            --pc-bright-glow: rgba(0, 136, 255, 0.45);
+            --pc-bg:          rgba(0, 136, 255, 0.05);
+            --pc-border:      rgba(0, 136, 255, 0.25);
+            --pc-accent-glow: rgba(255, 215, 0, 0.30);
+
+            --bg-main:        #080810;
+            --bg-deep:        #04040a;
+            --bg-card:        #0b0b18;
+            --bg-card-hover:  #10102a;
+            --text-primary:   #d8e8ff;
+            --text-secondary: #7a9ac0;
+            --text-muted:     #2a3a5a;
+            --border-color:   rgba(0, 136, 255, 0.12);
+            --border-hover:   rgba(0, 136, 255, 0.35);
+            --shadow-md:      0 4px 6px -1px rgba(0, 0, 0, 0.65);
+            --shadow-lg:      0 10px 18px -3px rgba(0, 0, 0, 0.75);
+            --shadow-glow:    0 0 32px rgba(0, 136, 255, 0.12);
+
+            /* Track accent colors */
+            --track-arduino:  #0088ff;
+            --track-esp32:    #3a3a5a;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background: linear-gradient(160deg, var(--bg-main) 0%, var(--bg-deep) 100%);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* Visually hidden: accessibility + SEO anchor */
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        /* ── Top navigation bar ── */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 10px 0;
+        }
+
+        .course-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* Single exit point back to Matrix house hub */
+        .dashboard-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.82rem;
+            font-weight: 500;
+            font-family: 'Courier New', Courier, monospace;
+            padding: 7px 16px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background: var(--pc-bg);
+            transition: all 0.2s ease;
+            letter-spacing: 0.5px;
+        }
+
+        .dashboard-btn:hover {
+            color: var(--pc-secondary);
+            border-color: var(--border-hover);
+            background: rgba(0, 136, 255, 0.10);
+        }
+
+        .dashboard-btn-icon {
+            width: 14px;
+            height: 14px;
+            opacity: 0.7;
+        }
+
+        /* ── Hero Header ── */
+        .header {
+            text-align: center;
+            margin-bottom: 28px;
+            padding: 48px 24px 40px;
+            background: linear-gradient(135deg, #04040e 0%, #060618 50%, #04040e 100%);
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg), var(--shadow-glow);
+            border: 1px solid var(--pc-border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /*
+         * Electric arc background pattern: jagged zigzag lines suggesting
+         * raw voltage — SVG data URI, very low opacity.
+         * This is the Frankenstein's lab aesthetic: not clean PCB traces,
+         * but wild, crackling energy.
+         */
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Crect width='120' height='120' fill='none'/%3E%3Cpolyline points='0,60 10,45 20,65 30,40 40,70 50,35 60,60 70,45 80,65 90,38 100,62 110,42 120,60' stroke='%230088ff' stroke-width='0.7' fill='none' opacity='0.5'/%3E%3Cpolyline points='0,30 12,20 22,38 35,15 45,40 58,18 68,35 80,12 92,32 105,18 120,30' stroke='%230088ff' stroke-width='0.5' fill='none' opacity='0.3'/%3E%3Cpolyline points='0,90 15,80 25,98 38,72 50,95 62,75 75,100 88,78 100,96 112,80 120,90' stroke='%230088ff' stroke-width='0.5' fill='none' opacity='0.3'/%3E%3Ccircle cx='60' cy='60' r='1.5' fill='%230088ff' opacity='0.5'/%3E%3Ccircle cx='0' cy='60' r='1.5' fill='%230088ff' opacity='0.5'/%3E%3Ccircle cx='120' cy='60' r='1.5' fill='%230088ff' opacity='0.5'/%3E%3C/svg%3E");
+            background-size: 120px 120px;
+            opacity: 0.07;
+            pointer-events: none;
+        }
+
+        /* Diagonal stripe overlay: very faint energy bands */
+        .header::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 18px,
+                rgba(0, 136, 255, 0.015) 18px,
+                rgba(0, 136, 255, 0.015) 20px
+            );
+            pointer-events: none;
+        }
+
+        /* Hero badge pill */
+        .course-badge {
+            display: inline-block;
+            background: rgba(0, 136, 255, 0.15);
+            border: 1px solid rgba(0, 136, 255, 0.40);
+            color: var(--pc-secondary);
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 4px 18px;
+            border-radius: 20px;
+            margin-bottom: 18px;
+            position: relative;
+            z-index: 1;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* ProtoCore wordmark: electric blue glow */
+        .header h2 {
+            font-size: 3.2rem;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: 700;
+            letter-spacing: 5px;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+            color: #ffffff;
+            text-shadow:
+                0 0 10px rgba(0, 136, 255, 0.90),
+                0 0 22px rgba(0, 136, 255, 0.60),
+                0 0 40px rgba(0, 136, 255, 0.35),
+                0 0 80px rgba(0, 136, 255, 0.15);
+        }
+
+        .header .subtitle {
+            font-size: 0.92rem;
+            color: var(--pc-accent);
+            opacity: 0.90;
+            position: relative;
+            z-index: 1;
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+            margin-bottom: 28px;
+            text-shadow: 0 0 14px rgba(255, 215, 0, 0.40);
+        }
+
+        /* ── Lightning arc animation element ── */
+        /*
+         * Two contact points with a bolt arcing between them.
+         * The bolt uses CSS clip-path + animation to flicker and pulse —
+         * representing the moment the board comes alive (AllSpark).
+         * NOT a blinking LED. This is raw energy.
+         */
+        .arc-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto 28px;
+            position: relative;
+            z-index: 1;
+            width: 260px;
+            height: 80px;
+        }
+
+        /* Left contact point: metal electrode post */
+        .contact-left,
+        .contact-right {
+            width: 16px;
+            height: 50px;
+            background: linear-gradient(180deg, #aaccff 0%, #4488cc 40%, #0044aa 100%);
+            border-radius: 4px 4px 2px 2px;
+            flex-shrink: 0;
+            position: relative;
+            box-shadow: 0 0 8px rgba(0, 136, 255, 0.50);
+        }
+
+        /* Top tip of each electrode — the discharge point */
+        .contact-left::before,
+        .contact-right::before {
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #88ccff;
+            box-shadow: 0 0 10px rgba(0, 200, 255, 0.80), 0 0 20px rgba(0, 136, 255, 0.50);
+        }
+
+        /* The gap between the two contacts where the arc lives */
+        .arc-gap {
+            flex: 1;
+            height: 80px;
+            position: relative;
+            overflow: visible;
+        }
+
+        /* Main bolt SVG container */
+        .arc-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: visible;
+        }
+
+        /*
+         * Primary bolt: the main lightning path.
+         * Flicker animation alternates between two bolt shapes,
+         * varying opacity for the crackling effect.
+         */
+        @keyframes bolt-flicker {
+            0%   { opacity: 1;    d: path('M 0,40 L 18,28 L 35,48 L 55,22 L 72,45 L 90,30 L 110,40'); }
+            8%   { opacity: 0.2;  d: path('M 0,40 L 18,28 L 35,48 L 55,22 L 72,45 L 90,30 L 110,40'); }
+            10%  { opacity: 1;    d: path('M 0,40 L 15,52 L 32,24 L 50,46 L 68,20 L 88,44 L 110,40'); }
+            20%  { opacity: 0.85; d: path('M 0,40 L 15,52 L 32,24 L 50,46 L 68,20 L 88,44 L 110,40'); }
+            28%  { opacity: 0.1;  d: path('M 0,40 L 15,52 L 32,24 L 50,46 L 68,20 L 88,44 L 110,40'); }
+            30%  { opacity: 1;    d: path('M 0,40 L 20,30 L 38,52 L 58,18 L 75,48 L 92,28 L 110,40'); }
+            45%  { opacity: 0.90; d: path('M 0,40 L 20,30 L 38,52 L 58,18 L 75,48 L 92,28 L 110,40'); }
+            50%  { opacity: 0.05; d: path('M 0,40 L 20,30 L 38,52 L 58,18 L 75,48 L 92,28 L 110,40'); }
+            52%  { opacity: 1;    d: path('M 0,40 L 16,55 L 34,22 L 54,50 L 70,25 L 90,46 L 110,40'); }
+            70%  { opacity: 0.80; d: path('M 0,40 L 16,55 L 34,22 L 54,50 L 70,25 L 90,46 L 110,40'); }
+            75%  { opacity: 0.15; d: path('M 0,40 L 16,55 L 34,22 L 54,50 L 70,25 L 90,46 L 110,40'); }
+            78%  { opacity: 1;    d: path('M 0,40 L 18,28 L 35,48 L 55,22 L 72,45 L 90,30 L 110,40'); }
+            100% { opacity: 0.95; d: path('M 0,40 L 18,28 L 35,48 L 55,22 L 72,45 L 90,30 L 110,40'); }
+        }
+
+        /*
+         * Secondary bolt: thinner branch arc, offset timing.
+         * Gives the arc depth — real lightning always has branches.
+         */
+        @keyframes bolt-branch {
+            0%   { opacity: 0.5;  d: path('M 30,36 L 44,58 L 58,32 L 72,52'); }
+            15%  { opacity: 0;    d: path('M 30,36 L 44,58 L 58,32 L 72,52'); }
+            20%  { opacity: 0.4;  d: path('M 25,38 L 40,20 L 55,42 L 70,28'); }
+            40%  { opacity: 0;    d: path('M 25,38 L 40,20 L 55,42 L 70,28'); }
+            55%  { opacity: 0.6;  d: path('M 35,40 L 48,60 L 62,28 L 78,50'); }
+            70%  { opacity: 0;    d: path('M 35,40 L 48,60 L 62,28 L 78,50'); }
+            80%  { opacity: 0.35; d: path('M 28,42 L 42,22 L 60,46 L 76,30'); }
+            100% { opacity: 0;    d: path('M 28,42 L 42,22 L 60,46 L 76,30'); }
+        }
+
+        /* Glow halo under the bolt — pulses with the flicker */
+        @keyframes bolt-glow-pulse {
+            0%, 100% { opacity: 0.25; filter: blur(4px); }
+            8%       { opacity: 0.05; filter: blur(2px); }
+            10%      { opacity: 0.30; filter: blur(5px); }
+            50%      { opacity: 0.05; filter: blur(2px); }
+            52%      { opacity: 0.35; filter: blur(6px); }
+        }
+
+        .bolt-main {
+            stroke: #88ddff;
+            stroke-width: 2.2;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            filter: drop-shadow(0 0 4px #00aaff) drop-shadow(0 0 8px #0055ff);
+            animation: bolt-flicker 2.4s ease-in-out infinite;
+        }
+
+        .bolt-branch {
+            stroke: #aaeeff;
+            stroke-width: 1.2;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            filter: drop-shadow(0 0 3px #0088ff);
+            animation: bolt-branch 2.4s ease-in-out infinite;
+        }
+
+        .bolt-glow {
+            stroke: #0044ff;
+            stroke-width: 12;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            animation: bolt-flicker 2.4s ease-in-out infinite, bolt-glow-pulse 2.4s ease-in-out infinite;
+        }
+
+        /* Course stat chips */
+        .course-stats {
+            display: flex;
+            justify-content: center;
+            gap: 14px;
+            flex-wrap: wrap;
+            position: relative;
+            z-index: 1;
+        }
+
+        .course-stat {
+            background: rgba(0, 136, 255, 0.08);
+            border: 1px solid rgba(0, 136, 255, 0.22);
+            padding: 10px 22px;
+            border-radius: 10px;
+            text-align: center;
+            min-width: 80px;
+        }
+
+        /* "Coming Soon" stat chip — distinct style */
+        .course-stat.stat-soon {
+            background: rgba(255, 215, 0, 0.05);
+            border-color: rgba(255, 215, 0, 0.18);
+        }
+
+        .course-stat .value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--pc-secondary);
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .course-stat.stat-soon .value {
+            font-size: 1rem;
+            color: var(--pc-accent);
+            opacity: 0.75;
+        }
+
+        .course-stat .label {
+            font-size: 0.68rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-top: 2px;
+        }
+
+        /* ── Overall progress bar ── */
+        .progress-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 18px 22px;
+            margin-bottom: 28px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .progress-section h3 {
+            color: var(--pc-secondary);
+            font-size: 0.82rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .progress-bar-container {
+            background: rgba(0, 136, 255, 0.08);
+            border-radius: 10px;
+            height: 14px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--pc-dark), var(--pc-primary), var(--pc-secondary));
+            width: 0%;
+            transition: width 0.6s ease;
+            border-radius: 10px;
+            box-shadow: 0 0 8px rgba(0, 136, 255, 0.45);
+        }
+
+        .progress-text {
+            text-align: right;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 6px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* ── Section heading label ── */
+        .section-heading {
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            padding-left: 4px;
+        }
+
+        /* ── Core Cards (collapsible) ── */
+        .week-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            margin-bottom: 10px;
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+            transition: border-color 0.2s ease;
+        }
+
+        .week-card:hover {
+            border-color: var(--border-hover);
+        }
+
+        /* Arduino track left border — electric blue */
+        .week-card.track-arduino {
+            border-left: 3px solid var(--track-arduino);
+        }
+
+        /* ESP32 track — locked/greyed */
+        .week-card.track-esp32-locked {
+            border-left: 3px solid var(--track-esp32);
+            opacity: 0.45;
+            pointer-events: none;
+            position: relative;
+        }
+
+        .week-card.track-esp32-locked::after {
+            content: 'COMING SOON';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.2em;
+            color: var(--pc-accent);
+            background: rgba(0, 0, 0, 0.70);
+            padding: 6px 18px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 215, 0, 0.25);
+            z-index: 5;
+        }
+
+        /* Always-visible clickable header */
+        .week-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 22px;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s ease;
+        }
+
+        .week-header:hover {
+            background: rgba(0, 136, 255, 0.04);
+        }
+
+        .week-header-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        /* Core number badge — inherits track color via inline gradient */
+        .week-num {
+            color: #000;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.95rem;
+            flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .week-title-group .week-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1.25;
+            font-family: 'Courier New', Courier, monospace;
+            letter-spacing: 0.5px;
+        }
+
+        /* AllSpark core title — gold accent to mark the creation moment */
+        .week-title.allspark {
+            color: var(--pc-accent);
+            text-shadow: 0 0 12px rgba(255, 215, 0, 0.35);
+        }
+
+        .week-title-group .week-sub {
+            font-size: 0.83rem;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        /* Objective and item count tags */
+        .week-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 5px;
+            flex-wrap: wrap;
+        }
+
+        .obj-tag {
+            font-size: 0.68rem;
+            font-weight: 700;
+            color: var(--pc-secondary);
+            background: rgba(0, 136, 255, 0.08);
+            border: 1px solid rgba(0, 136, 255, 0.18);
+            padding: 2px 8px;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+        }
+
+        /* AllSpark tag — gold */
+        .obj-tag.tag-allspark {
+            color: var(--pc-accent);
+            background: rgba(255, 215, 0, 0.08);
+            border-color: rgba(255, 215, 0, 0.25);
+        }
+
+        .item-count-tag {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            background: rgba(0, 136, 255, 0.04);
+            border: 1px solid rgba(0, 136, 255, 0.10);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        /* Chevron: rotates 180deg when core is open */
+        .week-toggle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            transition: transform 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .week-card.open .week-toggle {
+            transform: rotate(180deg);
+        }
+
+        /* Expand/collapse via max-height transition */
+        .week-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .week-card.open .week-body {
+            max-height: 2000px;
+        }
+
+        .week-inner {
+            padding: 4px 22px 24px;
+            border-top: 1px solid rgba(0, 136, 255, 0.06);
+        }
+
+        /* ── Per-core progress bar ── */
+        .week-progress {
+            margin: 14px 0 8px;
+        }
+
+        .week-progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.70rem;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .week-progress-bar-container {
+            background: rgba(0, 136, 255, 0.06);
+            border-radius: 6px;
+            height: 5px;
+            overflow: hidden;
+        }
+
+        .week-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--pc-dark), var(--pc-primary));
+            width: 0%;
+            transition: width 0.5s ease;
+            border-radius: 6px;
+        }
+
+        /* ── Core Overview Card ── */
+        .week-overview {
+            background: linear-gradient(135deg, rgba(0, 136, 255, 0.04), rgba(0, 136, 255, 0.01));
+            border: 1px solid rgba(0, 136, 255, 0.15);
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+            margin-top: 14px;
+        }
+
+        .week-overview-title {
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--pc-secondary);
+            margin-bottom: 8px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .week-overview-desc {
+            font-size: 0.86rem;
+            color: var(--text-secondary);
+            line-height: 1.65;
+        }
+
+        /* AllSpark core overview — gold accent border */
+        .week-overview.allspark-overview {
+            border-color: rgba(255, 215, 0, 0.22);
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.05), rgba(0, 136, 255, 0.02));
+        }
+
+        .week-overview.allspark-overview .week-overview-title {
+            color: var(--pc-accent);
+        }
+
+        /* ── Subsection labels inside a core ── */
+        .subsection {
+            margin-top: 20px;
+        }
+
+        .subsection-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(42, 58, 90, 0.30);
+        }
+
+        /* Colored accent bar before label text */
+        .subsection-label::before {
+            content: '';
+            display: inline-block;
+            width: 3px;
+            height: 12px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        .subsection-label.label-presentation::before { background: var(--pc-secondary); }
+        .subsection-label.label-lab::before          { background: #ef4444; }
+        .subsection-label.label-assessment::before   { background: var(--pc-accent); }
+
+        /* ── Content type badges ── */
+        .content-badge {
+            font-size: 0.58rem;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            padding: 3px 8px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .badge-presentation {
+            background: rgba(0, 136, 255, 0.12);
+            color: #33aaff;
+            border: 1px solid rgba(0, 136, 255, 0.28);
+        }
+
+        .badge-quiz {
+            background: rgba(255, 215, 0, 0.12);
+            color: #ffd700;
+            border: 1px solid rgba(255, 215, 0, 0.28);
+        }
+
+        /* ── Content link cards ── */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 6px;
+        }
+
+        .content-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 14px;
+            background: rgba(0, 136, 255, 0.02);
+            border: 1px solid rgba(0, 136, 255, 0.07);
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+        }
+
+        .content-card:hover {
+            background: rgba(0, 136, 255, 0.07);
+            border-color: rgba(0, 136, 255, 0.22);
+            transform: translateX(3px);
+        }
+
+        /* Completed module state */
+        .content-card.is-complete {
+            border-color: rgba(0, 136, 255, 0.30);
+            background: rgba(0, 136, 255, 0.04);
+        }
+
+        /* Module ID badge */
+        .card-id-badge {
+            font-size: 0.60rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: var(--pc-secondary);
+            background: rgba(0, 136, 255, 0.08);
+            border: 1px solid rgba(0, 136, 255, 0.18);
+            padding: 2px 7px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: nowrap;
+        }
+
+        .card-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            opacity: 0.75;
+        }
+
+        /* Card text block */
+        .card-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .card-info .card-title {
+            font-size: 0.86rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .card-info .card-sub {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-top: 1px;
+        }
+
+        /* Checkmark: hidden until is-complete */
+        .card-check {
+            width: 16px;
+            height: 16px;
+            opacity: 0;
+            flex-shrink: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .content-card.is-complete .card-check {
+            opacity: 1;
+        }
+
+        /* ── Lab cards: red/danger accent ── */
+        .lab-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 13px 16px;
+            background: rgba(239, 68, 68, 0.06);
+            border: 1px solid rgba(239, 68, 68, 0.28);
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.25s ease;
+            position: relative;
+        }
+
+        .lab-card:hover {
+            background: rgba(239, 68, 68, 0.12);
+            border-color: rgba(239, 68, 68, 0.55);
+            transform: translateX(3px);
+        }
+
+        /* Electric pulse on lab card hover — high energy action */
+        @keyframes pulse-border {
+            0%, 100% { box-shadow: 0 0 6px rgba(239, 68, 68, 0.15); }
+            50%       { box-shadow: 0 0 16px rgba(239, 68, 68, 0.35); }
+        }
+
+        .lab-card:hover {
+            animation: pulse-border 1.4s ease infinite;
+        }
+
+        .lab-card.is-complete {
+            border-color: rgba(0, 136, 255, 0.30);
+            background: rgba(0, 136, 255, 0.04);
+        }
+
+        /* Lab ID badge */
+        .lab-id-badge {
+            font-size: 0.60rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: #f87171;
+            background: rgba(239, 68, 68, 0.10);
+            border: 1px solid rgba(239, 68, 68, 0.28);
+            padding: 2px 7px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: nowrap;
+        }
+
+        .lab-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            opacity: 0.80;
+        }
+
+        .lab-check {
+            width: 16px;
+            height: 16px;
+            opacity: 0;
+            flex-shrink: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .lab-card.is-complete .lab-check {
+            opacity: 1;
+        }
+
+        /* ── Track section wrapper ── */
+        .track-section {
+            margin-bottom: 36px;
+        }
+
+        .track-section-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .track-section-label {
+            font-size: 0.70rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--pc-secondary);
+            border-left: 3px solid var(--pc-primary);
+            padding-left: 10px;
+        }
+
+        .track-section-label.label-esp32 {
+            color: rgba(255, 215, 0, 0.55);
+            border-color: var(--track-esp32);
+        }
+
+        /* ── ESP32 coming soon panel ── */
+        .esp32-panel {
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 215, 0, 0.12);
+            border-left: 3px solid rgba(255, 215, 0, 0.25);
+            border-radius: 12px;
+            padding: 28px 30px;
+            box-shadow: var(--shadow-md);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Faint static noise texture for the locked panel */
+        .esp32-panel::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Crect width='60' height='60' fill='none'/%3E%3Cline x1='0' y1='10' x2='60' y2='10' stroke='%23ffd700' stroke-width='0.3' opacity='0.08'/%3E%3Cline x1='0' y1='30' x2='60' y2='30' stroke='%23ffd700' stroke-width='0.3' opacity='0.08'/%3E%3Cline x1='0' y1='50' x2='60' y2='50' stroke='%23ffd700' stroke-width='0.3' opacity='0.08'/%3E%3C/svg%3E");
+            background-size: 60px 60px;
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .esp32-panel-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: rgba(255, 215, 0, 0.55);
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .esp32-panel-badge {
+            display: inline-block;
+            background: rgba(255, 215, 0, 0.08);
+            border: 1px solid rgba(255, 215, 0, 0.22);
+            color: rgba(255, 215, 0, 0.55);
+            font-size: 0.66rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 3px 12px;
+            border-radius: 4px;
+            margin-bottom: 14px;
+            position: relative;
+            z-index: 1;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .esp32-panel-desc {
+            font-size: 0.88rem;
+            color: rgba(122, 154, 192, 0.55);
+            line-height: 1.65;
+            position: relative;
+            z-index: 1;
+            max-width: 640px;
+        }
+
+        .esp32-panel-tags {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 16px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .esp32-tag {
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: rgba(255, 215, 0, 0.35);
+            background: rgba(255, 215, 0, 0.04);
+            border: 1px solid rgba(255, 215, 0, 0.12);
+            padding: 3px 10px;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* ── Cross-Reference Panel ── */
+        .signal-panel {
+            background: var(--bg-card);
+            border: 1px solid rgba(0, 136, 255, 0.18);
+            border-radius: 12px;
+            padding: 26px 28px;
+            margin-top: 36px;
+            margin-bottom: 10px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .signal-panel-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 6px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .signal-panel-header h3 {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--pc-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .signal-panel-icon {
+            width: 18px;
+            height: 18px;
+            opacity: 0.80;
+        }
+
+        .signal-panel-note {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            font-style: italic;
+            margin-bottom: 16px;
+            margin-top: 12px;
+            padding: 8px 14px;
+            border-left: 2px solid rgba(0, 136, 255, 0.3);
+        }
+
+        .signal-links {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 8px;
+        }
+
+        .signal-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            background: rgba(0, 136, 255, 0.03);
+            border: 1px solid rgba(0, 136, 255, 0.10);
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+            transition: all 0.2s ease;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .signal-link:hover {
+            background: rgba(0, 136, 255, 0.08);
+            border-color: rgba(0, 136, 255, 0.25);
+            color: var(--text-primary);
+            transform: translateX(2px);
+        }
+
+        .signal-link-id {
+            font-size: 0.60rem;
+            font-weight: 700;
+            color: var(--pc-secondary);
+            background: rgba(0, 136, 255, 0.10);
+            border: 1px solid rgba(0, 136, 255, 0.20);
+            padding: 2px 7px;
+            border-radius: 3px;
+            white-space: nowrap;
+            letter-spacing: 0.5px;
+            flex-shrink: 0;
+        }
+
+        /* ── Page footer ── */
+        .page-footer {
+            text-align: center;
+            padding: 28px 0 10px;
+            color: var(--text-muted);
+            font-size: 0.72rem;
+            font-family: 'Courier New', Courier, monospace;
+            letter-spacing: 0.5px;
+        }
+
+        .page-footer .footer-sub {
+            margin-top: 4px;
+            font-size: 0.65rem;
+            opacity: 0.7;
+        }
+
+        /* ── Mobile responsive ── */
+        @media (max-width: 768px) {
+            body { padding: 12px; }
+            .header { padding: 32px 16px 28px; }
+            .header h2 { font-size: 2.4rem; }
+            .header .subtitle { font-size: 0.80rem; }
+            .course-stats { gap: 10px; }
+            .course-stat { padding: 8px 14px; }
+            .course-stat .value { font-size: 1.15rem; }
+            .week-header { padding: 14px 16px; }
+            .week-inner { padding: 4px 16px 18px; }
+            .signal-links { grid-template-columns: 1fr; }
+            .arc-wrapper { width: 200px; height: 64px; }
+        }
+
+        @media (max-width: 480px) {
+            .header h2 { font-size: 1.9rem; letter-spacing: 3px; }
+            .course-stat { padding: 6px 10px; }
+            .course-stat .value { font-size: 1rem; }
+            .course-stat .label { font-size: 0.60rem; }
+            .week-num { width: 34px; height: 34px; font-size: 0.82rem; }
+            .week-title-group .week-title { font-size: 0.92rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Hidden H1 for screen readers and SEO -->
+    <h1 class="visually-hidden">ProtoCore — Microcontroller Education Hub — Matrix House, Hexworth Prime</h1>
+
+    <div class="container">
+
+        <!-- ── Top Bar ── -->
+        <div class="top-bar">
+            <span class="course-label">ProtoCore // Matrix House</span>
+            <a href="../index.html" class="dashboard-btn" id="dashboardBtn">
+                <img src="../../../../assets/images/icons/icon-matrix.webp"
+                     alt="" class="dashboard-btn-icon" aria-hidden="true">
+                Matrix Hub
+            </a>
+        </div>
+
+        <!-- ── Hero Header ── -->
+        <div class="header">
+            <span class="course-badge">MATRIX HOUSE // MICROCONTROLLER TRACK</span>
+
+            <!--
+                Lightning arc element: two contact points with a bolt between them.
+                Represents the Frankenstein moment — dead hardware coming alive through code.
+                The bolt is an animated SVG path inside a flex container.
+            -->
+            <div class="arc-wrapper" aria-hidden="true">
+                <div class="contact-left"></div>
+                <div class="arc-gap">
+                    <svg class="arc-svg" viewBox="0 0 110 80" preserveAspectRatio="none"
+                         xmlns="http://www.w3.org/2000/svg">
+                        <!-- Glow layer: thick blurred stroke behind the bolt -->
+                        <path class="bolt-glow"
+                              d="M 0,40 L 18,28 L 35,48 L 55,22 L 72,45 L 90,30 L 110,40"/>
+                        <!-- Secondary branch arc: gives depth -->
+                        <path class="bolt-branch"
+                              d="M 30,36 L 44,58 L 58,32 L 72,52"/>
+                        <!-- Primary bolt: the main arc -->
+                        <path class="bolt-main"
+                              d="M 0,40 L 18,28 L 35,48 L 55,22 L 72,45 L 90,30 L 110,40"/>
+                    </svg>
+                </div>
+                <div class="contact-right"></div>
+            </div>
+
+            <h2>ProtoCore</h2>
+            <p class="subtitle">Build the Core. Control the System.</p>
+
+            <!-- Hero stat chips -->
+            <div class="course-stats">
+                <div class="course-stat">
+                    <div class="value">2</div>
+                    <div class="label">Tracks</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">19+</div>
+                    <div class="label">Arduino Cores</div>
+                </div>
+                <div class="course-stat stat-soon">
+                    <div class="value">ESP32</div>
+                    <div class="label">Coming Soon</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Overall Progress ── -->
+        <div class="progress-section">
+            <h3>System Status: Overall Progress</h3>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <div class="progress-text" id="progressText">Loading...</div>
+        </div>
+
+        <!-- ── Arduino Track ── -->
+        <div class="track-section">
+            <div class="track-section-header">
+                <div class="track-section-label">Arduino Track // 19 Cores // All Unlocked</div>
+            </div>
+
+
+            <!-- ════════════════════════════════════════════
+                 CORE 01: AllSpark — First Program
+                 The creation moment. Core 1 has the AllSpark name.
+                 Module IDs: pc-ard-01-pres, pc-ard-01-lab, pc-ard-01-quiz
+            ════════════════════════════════════════════ -->
+            <div class="week-card track-arduino" id="core01">
+                <div class="week-header" onclick="toggleWeek('core01')">
+                    <div class="week-header-left">
+                        <div class="week-num" style="background: linear-gradient(135deg, #003366, #0088ff);">1</div>
+                        <div class="week-title-group">
+                            <div class="week-title allspark">AllSpark: First Program</div>
+                            <div class="week-sub">CORE 01 // THE MOMENT OF CREATION</div>
+                            <div class="week-meta">
+                                <span class="obj-tag tag-allspark">AllSpark</span>
+                                <span class="obj-tag">Arduino IDE</span>
+                                <span class="obj-tag">Blink</span>
+                                <span class="item-count-tag">3 items</span>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="week-toggle">&#9660;</span>
+                </div>
+
+                <div class="week-body">
+                    <div class="week-inner">
+
+                        <div class="week-progress">
+                            <div class="week-progress-label">
+                                <span>Core 01 Progress</span>
+                                <span id="core01-progress-text">0 / 3</span>
+                            </div>
+                            <div class="week-progress-bar-container">
+                                <div class="week-progress-bar" id="core01-progress-bar"></div>
+                            </div>
+                        </div>
+
+                        <div class="week-overview allspark-overview">
+                            <div class="week-overview-title">THE MOMENT OF CREATION // ALLSPARK</div>
+                            <div class="week-overview-desc">
+                                This is where it begins. Install the Arduino IDE, connect your first board, and upload your first sketch. The classic Blink program — an LED turning on and off — is more than a tutorial. It is proof that your code controls physical hardware. You are no longer just writing software. You are writing commands that reach out and move electrons through the real world. That is the AllSpark moment.
+                            </div>
+                        </div>
+
+                        <div class="subsection">
+                            <div class="subsection-label label-presentation">Slides</div>
+                            <div class="content-grid">
+                                <a href="arduino/presentations/pc-ard-01.presentation.html"
+                                   class="content-card" data-module="pc-ard-01-pres">
+                                    <img src="../../../../assets/images/icons/icon-desktop.webp"
+                                         alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-01-P</span>
+                                    <div class="card-info">
+                                        <div class="card-title">AllSpark: First Program</div>
+                                        <div class="card-sub">Arduino IDE setup, board selection, sketch structure, upload process, Blink walkthrough</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp"
+                                         alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-presentation">Slides</span>
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="subsection">
+                            <div class="subsection-label label-lab">Lab</div>
+                            <div class="content-grid">
+                                <a href="arduino/labs/pc-ard-01.lab.html"
+                                   class="lab-card" data-module="pc-ard-01-lab">
+                                    <img src="../../../../assets/images/icons/icon-circuit.webp"
+                                         alt="" class="lab-icon" aria-hidden="true">
+                                    <span class="lab-id-badge">PC-ARD-01-L</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Blink and Beyond</div>
+                                        <div class="card-sub">Install Arduino IDE, connect an Uno, upload Blink, modify delay values, observe physical output.</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp"
+                                         alt="Complete" class="lab-check" aria-hidden="true">
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="subsection">
+                            <div class="subsection-label label-assessment">Quiz</div>
+                            <div class="content-grid">
+                                <a href="arduino/quizzes/pc-ard-01.quiz.html"
+                                   class="content-card" data-module="pc-ard-01-quiz">
+                                    <img src="../../../../assets/images/icons/icon-clipboard.webp"
+                                         alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-01-Q</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Core 01 Quiz</div>
+                                        <div class="card-sub">Arduino IDE, sketch structure, setup() vs loop(), digital output, board types</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp"
+                                         alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-quiz">Quiz</span>
+                                </a>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div><!-- /core01 -->
+
+
+            <!-- ════════════════════════════════════════════
+                 CORE 02: Programming Foundations
+                 Module IDs: pc-ard-02-pres, pc-ard-02-lab, pc-ard-02-quiz
+            ════════════════════════════════════════════ -->
+            <div class="week-card track-arduino" id="core02">
+                <div class="week-header" onclick="toggleWeek('core02')">
+                    <div class="week-header-left">
+                        <div class="week-num" style="background: linear-gradient(135deg, #003366, #0088ff);">2</div>
+                        <div class="week-title-group">
+                            <div class="week-title">Programming Foundations</div>
+                            <div class="week-sub">CORE 02 // C++ FOR EMBEDDED SYSTEMS</div>
+                            <div class="week-meta">
+                                <span class="obj-tag">C++</span>
+                                <span class="obj-tag">Variables</span>
+                                <span class="obj-tag">Control Flow</span>
+                                <span class="item-count-tag">3 items</span>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="week-toggle">&#9660;</span>
+                </div>
+
+                <div class="week-body">
+                    <div class="week-inner">
+                        <div class="week-progress">
+                            <div class="week-progress-label">
+                                <span>Core 02 Progress</span>
+                                <span id="core02-progress-text">0 / 3</span>
+                            </div>
+                            <div class="week-progress-bar-container">
+                                <div class="week-progress-bar" id="core02-progress-bar"></div>
+                            </div>
+                        </div>
+                        <div class="week-overview">
+                            <div class="week-overview-title">C++ FOR EMBEDDED SYSTEMS // BUILDING BLOCKS</div>
+                            <div class="week-overview-desc">
+                                Arduino runs on C++. You do not need to master the full language — you need the specific subset that controls hardware. Data types, variables, conditionals, loops, and functions map directly to real-world decisions your board makes. This core builds the programming foundation every subsequent project depends on.
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-presentation">Slides</div>
+                            <div class="content-grid">
+                                <a href="arduino/presentations/pc-ard-02.presentation.html"
+                                   class="content-card" data-module="pc-ard-02-pres">
+                                    <img src="../../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-02-P</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Programming Foundations</div>
+                                        <div class="card-sub">Data types, variables, if/else, for/while loops, functions, scope, Arduino C++ conventions</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-presentation">Slides</span>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-lab">Lab</div>
+                            <div class="content-grid">
+                                <a href="arduino/labs/pc-ard-02.lab.html"
+                                   class="lab-card" data-module="pc-ard-02-lab">
+                                    <img src="../../../../assets/images/icons/icon-code.webp" alt="" class="lab-icon" aria-hidden="true">
+                                    <span class="lab-id-badge">PC-ARD-02-L</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Variables and Control Flow on Hardware</div>
+                                        <div class="card-sub">Write sketches using loops, conditionals, and functions to control LED patterns and timing.</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-assessment">Quiz</div>
+                            <div class="content-grid">
+                                <a href="arduino/quizzes/pc-ard-02.quiz.html"
+                                   class="content-card" data-module="pc-ard-02-quiz">
+                                    <img src="../../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-02-Q</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Core 02 Quiz</div>
+                                        <div class="card-sub">Data types, operators, control flow, function syntax, variable scope in C++</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-quiz">Quiz</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- /core02 -->
+
+
+            <!-- ════════════════════════════════════════════
+                 CORE 03: Math and Logic
+                 Module IDs: pc-ard-03-pres, pc-ard-03-lab, pc-ard-03-quiz
+            ════════════════════════════════════════════ -->
+            <div class="week-card track-arduino" id="core03">
+                <div class="week-header" onclick="toggleWeek('core03')">
+                    <div class="week-header-left">
+                        <div class="week-num" style="background: linear-gradient(135deg, #003366, #0088ff);">3</div>
+                        <div class="week-title-group">
+                            <div class="week-title">Math and Logic</div>
+                            <div class="week-sub">CORE 03 // ARITHMETIC, BOOLEAN, BITWISE</div>
+                            <div class="week-meta">
+                                <span class="obj-tag">Arithmetic</span>
+                                <span class="obj-tag">Boolean</span>
+                                <span class="obj-tag">Bitwise</span>
+                                <span class="item-count-tag">3 items</span>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="week-toggle">&#9660;</span>
+                </div>
+                <div class="week-body">
+                    <div class="week-inner">
+                        <div class="week-progress">
+                            <div class="week-progress-label">
+                                <span>Core 03 Progress</span>
+                                <span id="core03-progress-text">0 / 3</span>
+                            </div>
+                            <div class="week-progress-bar-container">
+                                <div class="week-progress-bar" id="core03-progress-bar"></div>
+                            </div>
+                        </div>
+                        <div class="week-overview">
+                            <div class="week-overview-title">ARITHMETIC, BOOLEAN, AND BITWISE OPERATIONS</div>
+                            <div class="week-overview-desc">
+                                Hardware lives in the world of numbers and bits. Map sensor readings, calculate PWM duty cycles, and manipulate register flags using arithmetic, boolean logic, and bitwise operators. Understanding these operations is the difference between a programmer who uses libraries and one who understands what the libraries are doing under the hood.
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-presentation">Slides</div>
+                            <div class="content-grid">
+                                <a href="arduino/presentations/pc-ard-03.presentation.html"
+                                   class="content-card" data-module="pc-ard-03-pres">
+                                    <img src="../../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-03-P</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Math and Logic</div>
+                                        <div class="card-sub">Arithmetic operators, modulo, map(), constrain(), boolean logic, bitwise AND/OR/XOR/shift</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-presentation">Slides</span>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-lab">Lab</div>
+                            <div class="content-grid">
+                                <a href="arduino/labs/pc-ard-03.lab.html"
+                                   class="lab-card" data-module="pc-ard-03-lab">
+                                    <img src="../../../../assets/images/icons/icon-circuit.webp" alt="" class="lab-icon" aria-hidden="true">
+                                    <span class="lab-id-badge">PC-ARD-03-L</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Sensor Mapping and Bit Manipulation</div>
+                                        <div class="card-sub">Use map() and constrain() on analog readings; toggle LEDs using bitwise operations on a port byte.</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-assessment">Quiz</div>
+                            <div class="content-grid">
+                                <a href="arduino/quizzes/pc-ard-03.quiz.html"
+                                   class="content-card" data-module="pc-ard-03-quiz">
+                                    <img src="../../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-03-Q</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Core 03 Quiz</div>
+                                        <div class="card-sub">map(), constrain(), integer math, boolean expressions, bitwise operators, operator precedence</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-quiz">Quiz</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- /core03 -->
+
+
+            <!-- ════════════════════════════════════════════
+                 CORE 04: Serial Communication
+                 Module IDs: pc-ard-04-pres, pc-ard-04-lab, pc-ard-04-quiz
+            ════════════════════════════════════════════ -->
+            <div class="week-card track-arduino" id="core04">
+                <div class="week-header" onclick="toggleWeek('core04')">
+                    <div class="week-header-left">
+                        <div class="week-num" style="background: linear-gradient(135deg, #003366, #0088ff);">4</div>
+                        <div class="week-title-group">
+                            <div class="week-title">Serial Communication</div>
+                            <div class="week-sub">CORE 04 // THE BOARD TALKS BACK</div>
+                            <div class="week-meta">
+                                <span class="obj-tag">Serial Monitor</span>
+                                <span class="obj-tag">UART</span>
+                                <span class="obj-tag">Debugging</span>
+                                <span class="item-count-tag">3 items</span>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="week-toggle">&#9660;</span>
+                </div>
+                <div class="week-body">
+                    <div class="week-inner">
+                        <div class="week-progress">
+                            <div class="week-progress-label">
+                                <span>Core 04 Progress</span>
+                                <span id="core04-progress-text">0 / 3</span>
+                            </div>
+                            <div class="week-progress-bar-container">
+                                <div class="week-progress-bar" id="core04-progress-bar"></div>
+                            </div>
+                        </div>
+                        <div class="week-overview">
+                            <div class="week-overview-title">THE BOARD TALKS BACK // SERIAL AND UART</div>
+                            <div class="week-overview-desc">
+                                The Serial Monitor is your window into the board's mind. Print sensor values, debug sketch logic, read user input, and communicate between devices over UART. Serial communication is both the most fundamental debugging tool and the backbone of device-to-device communication — foundational before any wireless work begins.
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-presentation">Slides</div>
+                            <div class="content-grid">
+                                <a href="arduino/presentations/pc-ard-04.presentation.html"
+                                   class="content-card" data-module="pc-ard-04-pres">
+                                    <img src="../../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-04-P</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Serial Communication</div>
+                                        <div class="card-sub">Serial.begin(), print(), println(), read(), parseInt(), baud rates, Serial Monitor, UART protocol</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-presentation">Slides</span>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-lab">Lab</div>
+                            <div class="content-grid">
+                                <a href="arduino/labs/pc-ard-04.lab.html"
+                                   class="lab-card" data-module="pc-ard-04-lab">
+                                    <img src="../../../../assets/images/icons/icon-terminal.webp" alt="" class="lab-icon" aria-hidden="true">
+                                    <span class="lab-id-badge">PC-ARD-04-L</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Serial Debug and Command Interface</div>
+                                        <div class="card-sub">Print sensor data to Serial Monitor, parse incoming commands to control LEDs over UART.</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-assessment">Quiz</div>
+                            <div class="content-grid">
+                                <a href="arduino/quizzes/pc-ard-04.quiz.html"
+                                   class="content-card" data-module="pc-ard-04-quiz">
+                                    <img src="../../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-04-Q</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Core 04 Quiz</div>
+                                        <div class="card-sub">UART fundamentals, baud rates, Serial API, available(), read(), println(), buffer behavior</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-quiz">Quiz</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- /core04 -->
+
+
+            <!-- ════════════════════════════════════════════
+                 CORE 05: Digital and Analog Input
+                 Module IDs: pc-ard-05-pres, pc-ard-05-lab, pc-ard-05-quiz
+            ════════════════════════════════════════════ -->
+            <div class="week-card track-arduino" id="core05">
+                <div class="week-header" onclick="toggleWeek('core05')">
+                    <div class="week-header-left">
+                        <div class="week-num" style="background: linear-gradient(135deg, #003366, #0088ff);">5</div>
+                        <div class="week-title-group">
+                            <div class="week-title">Digital and Analog Input</div>
+                            <div class="week-sub">CORE 05 // READING THE WORLD</div>
+                            <div class="week-meta">
+                                <span class="obj-tag">digitalRead</span>
+                                <span class="obj-tag">analogRead</span>
+                                <span class="obj-tag">Pull-up/down</span>
+                                <span class="item-count-tag">3 items</span>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="week-toggle">&#9660;</span>
+                </div>
+                <div class="week-body">
+                    <div class="week-inner">
+                        <div class="week-progress">
+                            <div class="week-progress-label">
+                                <span>Core 05 Progress</span>
+                                <span id="core05-progress-text">0 / 3</span>
+                            </div>
+                            <div class="week-progress-bar-container">
+                                <div class="week-progress-bar" id="core05-progress-bar"></div>
+                            </div>
+                        </div>
+                        <div class="week-overview">
+                            <div class="week-overview-title">READING THE WORLD // DIGITAL AND ANALOG INPUT</div>
+                            <div class="week-overview-desc">
+                                The board needs input from the world to act intelligently. Buttons, switches, potentiometers, and analog voltage dividers are the physical sensors the Creator connects. Learn digitalRead(), analogRead(), the ADC pipeline, pull-up and pull-down resistors, and debouncing — the techniques that turn raw electrical signals into reliable program data.
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-presentation">Slides</div>
+                            <div class="content-grid">
+                                <a href="arduino/presentations/pc-ard-05.presentation.html"
+                                   class="content-card" data-module="pc-ard-05-pres">
+                                    <img src="../../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-05-P</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Digital and Analog Input</div>
+                                        <div class="card-sub">digitalRead(), analogRead(), 10-bit ADC, INPUT_PULLUP, debouncing, potentiometer as voltage divider</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-presentation">Slides</span>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-lab">Lab</div>
+                            <div class="content-grid">
+                                <a href="arduino/labs/pc-ard-05.lab.html"
+                                   class="lab-card" data-module="pc-ard-05-lab">
+                                    <img src="../../../../assets/images/icons/icon-circuit.webp" alt="" class="lab-icon" aria-hidden="true">
+                                    <span class="lab-id-badge">PC-ARD-05-L</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Button and Potentiometer Circuits</div>
+                                        <div class="card-sub">Wire button with pull-up, implement debounce, read pot and map to LED brightness via PWM.</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-assessment">Quiz</div>
+                            <div class="content-grid">
+                                <a href="arduino/quizzes/pc-ard-05.quiz.html"
+                                   class="content-card" data-module="pc-ard-05-quiz">
+                                    <img src="../../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-05-Q</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Core 05 Quiz</div>
+                                        <div class="card-sub">ADC resolution, pull-up vs pull-down, debouncing theory, analogRead() range, INPUT_PULLUP behavior</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-quiz">Quiz</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- /core05 -->
+
+
+            <!-- ════════════════════════════════════════════
+                 CORE 06: Sensors
+                 Module IDs: pc-ard-06-pres, pc-ard-06-lab, pc-ard-06-quiz
+            ════════════════════════════════════════════ -->
+            <div class="week-card track-arduino" id="core06">
+                <div class="week-header" onclick="toggleWeek('core06')">
+                    <div class="week-header-left">
+                        <div class="week-num" style="background: linear-gradient(135deg, #003366, #0088ff);">6</div>
+                        <div class="week-title-group">
+                            <div class="week-title">Sensors</div>
+                            <div class="week-sub">CORE 06 // THE BOARD PERCEIVES</div>
+                            <div class="week-meta">
+                                <span class="obj-tag">Temperature</span>
+                                <span class="obj-tag">Ultrasonic</span>
+                                <span class="obj-tag">PIR</span>
+                                <span class="item-count-tag">3 items</span>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="week-toggle">&#9660;</span>
+                </div>
+                <div class="week-body">
+                    <div class="week-inner">
+                        <div class="week-progress">
+                            <div class="week-progress-label">
+                                <span>Core 06 Progress</span>
+                                <span id="core06-progress-text">0 / 3</span>
+                            </div>
+                            <div class="week-progress-bar-container">
+                                <div class="week-progress-bar" id="core06-progress-bar"></div>
+                            </div>
+                        </div>
+                        <div class="week-overview">
+                            <div class="week-overview-title">THE BOARD PERCEIVES // SENSOR INTEGRATION</div>
+                            <div class="week-overview-desc">
+                                Sensors give the board senses — temperature, humidity, distance, motion, light, and pressure. Learn to connect and read DHT11/DHT22, HC-SR04 ultrasonic, PIR motion, and LDR light sensors. Understand how each sensor communicates (analog, digital pulse, protocol) and how to extract reliable data from noisy signals.
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-presentation">Slides</div>
+                            <div class="content-grid">
+                                <a href="arduino/presentations/pc-ard-06.presentation.html"
+                                   class="content-card" data-module="pc-ard-06-pres">
+                                    <img src="../../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-06-P</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Sensors</div>
+                                        <div class="card-sub">DHT11/22, HC-SR04, PIR, LDR, NTC thermistor; sensor wiring, signal conditioning, library usage</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-presentation">Slides</span>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-lab">Lab</div>
+                            <div class="content-grid">
+                                <a href="arduino/labs/pc-ard-06.lab.html"
+                                   class="lab-card" data-module="pc-ard-06-lab">
+                                    <img src="../../../../assets/images/icons/icon-eye.webp" alt="" class="lab-icon" aria-hidden="true">
+                                    <span class="lab-id-badge">PC-ARD-06-L</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Environmental Sensor Station</div>
+                                        <div class="card-sub">Read DHT22 temperature/humidity and HC-SR04 distance; log all values to Serial Monitor on a timed interval.</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-assessment">Quiz</div>
+                            <div class="content-grid">
+                                <a href="arduino/quizzes/pc-ard-06.quiz.html"
+                                   class="content-card" data-module="pc-ard-06-quiz">
+                                    <img src="../../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-06-Q</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Core 06 Quiz</div>
+                                        <div class="card-sub">Sensor output types, DHT protocol timing, ultrasonic distance formula, PIR output logic, LDR voltage divider</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-quiz">Quiz</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- /core06 -->
+
+
+            <!-- ════════════════════════════════════════════
+                 CORE 07: LEDs and Visual Output
+                 Module IDs: pc-ard-07-pres, pc-ard-07-lab, pc-ard-07-quiz
+            ════════════════════════════════════════════ -->
+            <div class="week-card track-arduino" id="core07">
+                <div class="week-header" onclick="toggleWeek('core07')">
+                    <div class="week-header-left">
+                        <div class="week-num" style="background: linear-gradient(135deg, #003366, #0088ff);">7</div>
+                        <div class="week-title-group">
+                            <div class="week-title">LEDs and Visual Output</div>
+                            <div class="week-sub">CORE 07 // LIGHT AS OUTPUT</div>
+                            <div class="week-meta">
+                                <span class="obj-tag">PWM</span>
+                                <span class="obj-tag">RGB LED</span>
+                                <span class="obj-tag">NeoPixel</span>
+                                <span class="item-count-tag">3 items</span>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="week-toggle">&#9660;</span>
+                </div>
+                <div class="week-body">
+                    <div class="week-inner">
+                        <div class="week-progress">
+                            <div class="week-progress-label">
+                                <span>Core 07 Progress</span>
+                                <span id="core07-progress-text">0 / 3</span>
+                            </div>
+                            <div class="week-progress-bar-container">
+                                <div class="week-progress-bar" id="core07-progress-bar"></div>
+                            </div>
+                        </div>
+                        <div class="week-overview">
+                            <div class="week-overview-title">LIGHT AS OUTPUT // PWM, RGB, AND ADDRESSABLE LEDS</div>
+                            <div class="week-overview-desc">
+                                From single LEDs to RGB arrays and addressable NeoPixel strips, visual output is one of the most immediate ways to see your code running. Master PWM dimming with analogWrite(), mix colors with common-cathode RGB LEDs, and drive WS2812B NeoPixel strips using the Adafruit NeoPixel library. Visual feedback turns abstract code into concrete reality.
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-presentation">Slides</div>
+                            <div class="content-grid">
+                                <a href="arduino/presentations/pc-ard-07.presentation.html"
+                                   class="content-card" data-module="pc-ard-07-pres">
+                                    <img src="../../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-07-P</span>
+                                    <div class="card-info">
+                                        <div class="card-title">LEDs and Visual Output</div>
+                                        <div class="card-sub">PWM theory, analogWrite(), RGB LED wiring, NeoPixel WS2812B protocol, Adafruit NeoPixel library</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-presentation">Slides</span>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-lab">Lab</div>
+                            <div class="content-grid">
+                                <a href="arduino/labs/pc-ard-07.lab.html"
+                                   class="lab-card" data-module="pc-ard-07-lab">
+                                    <img src="../../../../assets/images/icons/icon-lightning.webp" alt="" class="lab-icon" aria-hidden="true">
+                                    <span class="lab-id-badge">PC-ARD-07-L</span>
+                                    <div class="card-info">
+                                        <div class="card-title">RGB and NeoPixel Control</div>
+                                        <div class="card-sub">Fade RGB LED through the spectrum; drive a NeoPixel strip with color-wipe and chase animations.</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-assessment">Quiz</div>
+                            <div class="content-grid">
+                                <a href="arduino/quizzes/pc-ard-07.quiz.html"
+                                   class="content-card" data-module="pc-ard-07-quiz">
+                                    <img src="../../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-07-Q</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Core 07 Quiz</div>
+                                        <div class="card-sub">PWM frequency and resolution, analogWrite() range, RGB common cathode vs anode, WS2812B data protocol</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-quiz">Quiz</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- /core07 -->
+
+
+            <!-- ════════════════════════════════════════════
+                 CORE 08: Motors and Motion
+                 Module IDs: pc-ard-08-pres, pc-ard-08-lab, pc-ard-08-quiz
+            ════════════════════════════════════════════ -->
+            <div class="week-card track-arduino" id="core08">
+                <div class="week-header" onclick="toggleWeek('core08')">
+                    <div class="week-header-left">
+                        <div class="week-num" style="background: linear-gradient(135deg, #003366, #0088ff);">8</div>
+                        <div class="week-title-group">
+                            <div class="week-title">Motors and Motion</div>
+                            <div class="week-sub">CORE 08 // THE BOARD MOVES</div>
+                            <div class="week-meta">
+                                <span class="obj-tag">DC Motor</span>
+                                <span class="obj-tag">Servo</span>
+                                <span class="obj-tag">Stepper</span>
+                                <span class="item-count-tag">3 items</span>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="week-toggle">&#9660;</span>
+                </div>
+                <div class="week-body">
+                    <div class="week-inner">
+                        <div class="week-progress">
+                            <div class="week-progress-label">
+                                <span>Core 08 Progress</span>
+                                <span id="core08-progress-text">0 / 3</span>
+                            </div>
+                            <div class="week-progress-bar-container">
+                                <div class="week-progress-bar" id="core08-progress-bar"></div>
+                            </div>
+                        </div>
+                        <div class="week-overview">
+                            <div class="week-overview-title">THE BOARD MOVES // MOTORS AND MOTION CONTROL</div>
+                            <div class="week-overview-desc">
+                                Code that makes things move is among the most satisfying programs to write. Control DC motors with H-bridge drivers and PWM speed control, position servo motors with the Servo library, and drive stepper motors for precise angular movement. This core is the foundation for any robotics, automation, or mechanical control project.
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-presentation">Slides</div>
+                            <div class="content-grid">
+                                <a href="arduino/presentations/pc-ard-08.presentation.html"
+                                   class="content-card" data-module="pc-ard-08-pres">
+                                    <img src="../../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-08-P</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Motors and Motion</div>
+                                        <div class="card-sub">DC motor + L298N H-bridge, Servo.write() and sweep, A4988 stepper driver, step/direction control</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-presentation">Slides</span>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-lab">Lab</div>
+                            <div class="content-grid">
+                                <a href="arduino/labs/pc-ard-08.lab.html"
+                                   class="lab-card" data-module="pc-ard-08-lab">
+                                    <img src="../../../../assets/images/icons/icon-gear.webp" alt="" class="lab-icon" aria-hidden="true">
+                                    <span class="lab-id-badge">PC-ARD-08-L</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Motor Control Circuit Build</div>
+                                        <div class="card-sub">Wire L298N to DC motor with PWM speed control; position servo via potentiometer; drive stepper with Accelstepper.</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-assessment">Quiz</div>
+                            <div class="content-grid">
+                                <a href="arduino/quizzes/pc-ard-08.quiz.html"
+                                   class="content-card" data-module="pc-ard-08-quiz">
+                                    <img src="../../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-08-Q</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Core 08 Quiz</div>
+                                        <div class="card-sub">H-bridge logic, PWM for motor speed, servo pulse width, stepper modes (full/half step), back-EMF</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-quiz">Quiz</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- /core08 -->
+
+
+            <!-- ════════════════════════════════════════════
+                 CORE 09: Sound and Audio
+                 Module IDs: pc-ard-09-pres, pc-ard-09-lab, pc-ard-09-quiz
+            ════════════════════════════════════════════ -->
+            <div class="week-card track-arduino" id="core09">
+                <div class="week-header" onclick="toggleWeek('core09')">
+                    <div class="week-header-left">
+                        <div class="week-num" style="background: linear-gradient(135deg, #003366, #0088ff);">9</div>
+                        <div class="week-title-group">
+                            <div class="week-title">Sound and Audio</div>
+                            <div class="week-sub">CORE 09 // THE BOARD SPEAKS</div>
+                            <div class="week-meta">
+                                <span class="obj-tag">Buzzer</span>
+                                <span class="obj-tag">tone()</span>
+                                <span class="obj-tag">Frequencies</span>
+                                <span class="item-count-tag">3 items</span>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="week-toggle">&#9660;</span>
+                </div>
+                <div class="week-body">
+                    <div class="week-inner">
+                        <div class="week-progress">
+                            <div class="week-progress-label">
+                                <span>Core 09 Progress</span>
+                                <span id="core09-progress-text">0 / 3</span>
+                            </div>
+                            <div class="week-progress-bar-container">
+                                <div class="week-progress-bar" id="core09-progress-bar"></div>
+                            </div>
+                        </div>
+                        <div class="week-overview">
+                            <div class="week-overview-title">THE BOARD SPEAKS // SOUND AND AUDIO OUTPUT</div>
+                            <div class="week-overview-desc">
+                                Sound output transforms projects from silent machines into communicating devices. Use tone() and noTone() with passive buzzers to generate frequencies, compose simple melodies, and build audio alert systems. Understand frequency-to-note mapping, timing constraints, and the difference between active and passive buzzers.
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-presentation">Slides</div>
+                            <div class="content-grid">
+                                <a href="arduino/presentations/pc-ard-09.presentation.html"
+                                   class="content-card" data-module="pc-ard-09-pres">
+                                    <img src="../../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-09-P</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Sound and Audio</div>
+                                        <div class="card-sub">tone(), noTone(), frequency-to-note table, active vs passive buzzers, melody arrays, timer conflicts with PWM</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-presentation">Slides</span>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-lab">Lab</div>
+                            <div class="content-grid">
+                                <a href="arduino/labs/pc-ard-09.lab.html"
+                                   class="lab-card" data-module="pc-ard-09-lab">
+                                    <img src="../../../../assets/images/icons/icon-circuit.webp" alt="" class="lab-icon" aria-hidden="true">
+                                    <span class="lab-id-badge">PC-ARD-09-L</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Buzzer Melody and Alert System</div>
+                                        <div class="card-sub">Play a 3-note melody; implement a sensor-triggered alarm that combines tone output with LED visual alert.</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-assessment">Quiz</div>
+                            <div class="content-grid">
+                                <a href="arduino/quizzes/pc-ard-09.quiz.html"
+                                   class="content-card" data-module="pc-ard-09-quiz">
+                                    <img src="../../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-09-Q</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Core 09 Quiz</div>
+                                        <div class="card-sub">tone() timer usage, frequency/duration args, active vs passive buzzer, PWM pin conflicts, noTone() behavior</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-quiz">Quiz</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- /core09 -->
+
+
+            <!-- ════════════════════════════════════════════
+                 CORE 10: Remote Control
+                 Module IDs: pc-ard-10-pres, pc-ard-10-lab, pc-ard-10-quiz
+            ════════════════════════════════════════════ -->
+            <div class="week-card track-arduino" id="core10">
+                <div class="week-header" onclick="toggleWeek('core10')">
+                    <div class="week-header-left">
+                        <div class="week-num" style="background: linear-gradient(135deg, #003366, #0088ff);">10</div>
+                        <div class="week-title-group">
+                            <div class="week-title">Remote Control</div>
+                            <div class="week-sub">CORE 10 // INFRARED AND RF CONTROL</div>
+                            <div class="week-meta">
+                                <span class="obj-tag">IR Receiver</span>
+                                <span class="obj-tag">RF 433MHz</span>
+                                <span class="obj-tag">IRremote</span>
+                                <span class="item-count-tag">3 items</span>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="week-toggle">&#9660;</span>
+                </div>
+                <div class="week-body">
+                    <div class="week-inner">
+                        <div class="week-progress">
+                            <div class="week-progress-label">
+                                <span>Core 10 Progress</span>
+                                <span id="core10-progress-text">0 / 3</span>
+                            </div>
+                            <div class="week-progress-bar-container">
+                                <div class="week-progress-bar" id="core10-progress-bar"></div>
+                            </div>
+                        </div>
+                        <div class="week-overview">
+                            <div class="week-overview-title">INFRARED AND RF CONTROL // REMOTE COMMAND</div>
+                            <div class="week-overview-desc">
+                                Control your creations from across the room. Decode IR signals from any remote control using the IRremote library, and transmit/receive data with 433MHz RF modules for longer range wireless switching. Remote control is a step toward autonomous and wireless systems — and a gateway to understanding signal encoding.
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-presentation">Slides</div>
+                            <div class="content-grid">
+                                <a href="arduino/presentations/pc-ard-10.presentation.html"
+                                   class="content-card" data-module="pc-ard-10-pres">
+                                    <img src="../../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-10-P</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Remote Control</div>
+                                        <div class="card-sub">IR carrier frequency, NEC protocol, TSOP IR receiver, IRremote library, 433MHz ASK/OOK, RC-Switch library</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-presentation">Slides</span>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-lab">Lab</div>
+                            <div class="content-grid">
+                                <a href="arduino/labs/pc-ard-10.lab.html"
+                                   class="lab-card" data-module="pc-ard-10-lab">
+                                    <img src="../../../../assets/images/icons/icon-signal.webp" alt="" class="lab-icon" aria-hidden="true">
+                                    <span class="lab-id-badge">PC-ARD-10-L</span>
+                                    <div class="card-info">
+                                        <div class="card-title">IR Remote Command Decoder</div>
+                                        <div class="card-sub">Decode TV remote button codes, map codes to actions (LED toggle, servo move, speed change on DC motor).</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-assessment">Quiz</div>
+                            <div class="content-grid">
+                                <a href="arduino/quizzes/pc-ard-10.quiz.html"
+                                   class="content-card" data-module="pc-ard-10-quiz">
+                                    <img src="../../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-10-Q</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Core 10 Quiz</div>
+                                        <div class="card-sub">IR modulation carrier frequency, NEC vs other protocols, raw code vs decoded HEX, RF433 vs IR range/speed</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-quiz">Quiz</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- /core10 -->
+
+
+            <!-- ════════════════════════════════════════════
+                 CORE 11: Displays
+                 Module IDs: pc-ard-11-pres, pc-ard-11-lab, pc-ard-11-quiz
+            ════════════════════════════════════════════ -->
+            <div class="week-card track-arduino" id="core11">
+                <div class="week-header" onclick="toggleWeek('core11')">
+                    <div class="week-header-left">
+                        <div class="week-num" style="background: linear-gradient(135deg, #003366, #0088ff);">11</div>
+                        <div class="week-title-group">
+                            <div class="week-title">Displays</div>
+                            <div class="week-sub">CORE 11 // VISUAL INTERFACE</div>
+                            <div class="week-meta">
+                                <span class="obj-tag">LCD 16x2</span>
+                                <span class="obj-tag">OLED</span>
+                                <span class="obj-tag">I2C Display</span>
+                                <span class="item-count-tag">3 items</span>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="week-toggle">&#9660;</span>
+                </div>
+                <div class="week-body">
+                    <div class="week-inner">
+                        <div class="week-progress">
+                            <div class="week-progress-label">
+                                <span>Core 11 Progress</span>
+                                <span id="core11-progress-text">0 / 3</span>
+                            </div>
+                            <div class="week-progress-bar-container">
+                                <div class="week-progress-bar" id="core11-progress-bar"></div>
+                            </div>
+                        </div>
+                        <div class="week-overview">
+                            <div class="week-overview-title">VISUAL INTERFACE // LCD AND OLED DISPLAYS</div>
+                            <div class="week-overview-desc">
+                                Displays transform your board from a data processor into a standalone device. Drive 16x2 LCD screens in parallel and I2C modes using the LiquidCrystal library, then upgrade to 128x64 OLED displays with the Adafruit SSD1306 library for full graphics output. Sensor dashboards, status indicators, and menus — all without a computer screen.
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-presentation">Slides</div>
+                            <div class="content-grid">
+                                <a href="arduino/presentations/pc-ard-11.presentation.html"
+                                   class="content-card" data-module="pc-ard-11-pres">
+                                    <img src="../../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-11-P</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Displays</div>
+                                        <div class="card-sub">LCD parallel vs I2C wiring, LiquidCrystal_I2C library, SSD1306 OLED, Adafruit GFX library, text and graphics</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-presentation">Slides</span>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-lab">Lab</div>
+                            <div class="content-grid">
+                                <a href="arduino/labs/pc-ard-11.lab.html"
+                                   class="lab-card" data-module="pc-ard-11-lab">
+                                    <img src="../../../../assets/images/icons/icon-eye.webp" alt="" class="lab-icon" aria-hidden="true">
+                                    <span class="lab-id-badge">PC-ARD-11-L</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Sensor Dashboard on OLED</div>
+                                        <div class="card-sub">Display DHT22 temp/humidity readings live on SSD1306 OLED; add a scrolling status bar and button-toggle screen.</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-assessment">Quiz</div>
+                            <div class="content-grid">
+                                <a href="arduino/quizzes/pc-ard-11.quiz.html"
+                                   class="content-card" data-module="pc-ard-11-quiz">
+                                    <img src="../../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-11-Q</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Core 11 Quiz</div>
+                                        <div class="card-sub">LCD 4-bit vs 8-bit mode, I2C address scanning, SSD1306 init sequence, GFX coordinate system, display.display()</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-quiz">Quiz</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- /core11 -->
+
+
+            <!-- ════════════════════════════════════════════
+                 CORE 12: Timing and Clocks
+                 Module IDs: pc-ard-12-pres, pc-ard-12-lab, pc-ard-12-quiz
+            ════════════════════════════════════════════ -->
+            <div class="week-card track-arduino" id="core12">
+                <div class="week-header" onclick="toggleWeek('core12')">
+                    <div class="week-header-left">
+                        <div class="week-num" style="background: linear-gradient(135deg, #003366, #0088ff);">12</div>
+                        <div class="week-title-group">
+                            <div class="week-title">Timing and Clocks</div>
+                            <div class="week-sub">CORE 12 // NON-BLOCKING TIME</div>
+                            <div class="week-meta">
+                                <span class="obj-tag">millis()</span>
+                                <span class="obj-tag">RTC</span>
+                                <span class="obj-tag">Non-blocking</span>
+                                <span class="item-count-tag">3 items</span>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="week-toggle">&#9660;</span>
+                </div>
+                <div class="week-body">
+                    <div class="week-inner">
+                        <div class="week-progress">
+                            <div class="week-progress-label">
+                                <span>Core 12 Progress</span>
+                                <span id="core12-progress-text">0 / 3</span>
+                            </div>
+                            <div class="week-progress-bar-container">
+                                <div class="week-progress-bar" id="core12-progress-bar"></div>
+                            </div>
+                        </div>
+                        <div class="week-overview">
+                            <div class="week-overview-title">NON-BLOCKING TIME // MILLIS AND RTC MODULES</div>
+                            <div class="week-overview-desc">
+                                delay() blocks everything. Once you graduate to real projects with multiple simultaneous behaviors — reading sensors, updating displays, controlling motors — you need non-blocking timing via millis(). Add an RTC module (DS1307 or DS3231) for wall-clock time, and build systems that do many things at once without freezing.
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-presentation">Slides</div>
+                            <div class="content-grid">
+                                <a href="arduino/presentations/pc-ard-12.presentation.html"
+                                   class="content-card" data-module="pc-ard-12-pres">
+                                    <img src="../../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-12-P</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Timing and Clocks</div>
+                                        <div class="card-sub">millis() vs delay(), non-blocking state machine pattern, DS3231 RTC over I2C, RTClib, alarm functions</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-presentation">Slides</span>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-lab">Lab</div>
+                            <div class="content-grid">
+                                <a href="arduino/labs/pc-ard-12.lab.html"
+                                   class="lab-card" data-module="pc-ard-12-lab">
+                                    <img src="../../../../assets/images/icons/icon-clock.webp" alt="" class="lab-icon" aria-hidden="true">
+                                    <span class="lab-id-badge">PC-ARD-12-L</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Multi-Task Timer with RTC Clock</div>
+                                        <div class="card-sub">Blink two LEDs at different rates non-blocking using millis(); display live time from DS3231 on OLED.</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-assessment">Quiz</div>
+                            <div class="content-grid">
+                                <a href="arduino/quizzes/pc-ard-12.quiz.html"
+                                   class="content-card" data-module="pc-ard-12-quiz">
+                                    <img src="../../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-12-Q</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Core 12 Quiz</div>
+                                        <div class="card-sub">millis() overflow handling, non-blocking pattern, RTC accuracy, DS3231 vs DS1307, I2C address conflicts</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-quiz">Quiz</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- /core12 -->
+
+
+            <!-- ════════════════════════════════════════════
+                 CORE 13: Bus Protocols (I2C and SPI)
+                 Module IDs: pc-ard-13-pres, pc-ard-13-lab, pc-ard-13-quiz
+            ════════════════════════════════════════════ -->
+            <div class="week-card track-arduino" id="core13">
+                <div class="week-header" onclick="toggleWeek('core13')">
+                    <div class="week-header-left">
+                        <div class="week-num" style="background: linear-gradient(135deg, #003366, #0088ff);">13</div>
+                        <div class="week-title-group">
+                            <div class="week-title">Bus Protocols (I2C and SPI)</div>
+                            <div class="week-sub">CORE 13 // DEVICE-TO-DEVICE COMMUNICATION</div>
+                            <div class="week-meta">
+                                <span class="obj-tag">I2C</span>
+                                <span class="obj-tag">SPI</span>
+                                <span class="obj-tag">Wire.h</span>
+                                <span class="item-count-tag">3 items</span>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="week-toggle">&#9660;</span>
+                </div>
+                <div class="week-body">
+                    <div class="week-inner">
+                        <div class="week-progress">
+                            <div class="week-progress-label">
+                                <span>Core 13 Progress</span>
+                                <span id="core13-progress-text">0 / 3</span>
+                            </div>
+                            <div class="week-progress-bar-container">
+                                <div class="week-progress-bar" id="core13-progress-bar"></div>
+                            </div>
+                        </div>
+                        <div class="week-overview">
+                            <div class="week-overview-title">DEVICE-TO-DEVICE COMMUNICATION // I2C AND SPI</div>
+                            <div class="week-overview-desc">
+                                I2C and SPI are the universal languages of hardware. Virtually every sensor, display, and peripheral module speaks one of these two protocols. Master I2C addressing, the Wire library, multi-device buses, and SPI clock polarity and phase modes. After this core, you can connect and drive almost any hardware peripheral that exists.
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-presentation">Slides</div>
+                            <div class="content-grid">
+                                <a href="arduino/presentations/pc-ard-13.presentation.html"
+                                   class="content-card" data-module="pc-ard-13-pres">
+                                    <img src="../../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-13-P</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Bus Protocols (I2C and SPI)</div>
+                                        <div class="card-sub">I2C clock/data, 7-bit addressing, Wire.h API, SPI MOSI/MISO/SCK/CS, SPI.begin(), CPOL/CPHA modes</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-presentation">Slides</span>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-lab">Lab</div>
+                            <div class="content-grid">
+                                <a href="arduino/labs/pc-ard-13.lab.html"
+                                   class="lab-card" data-module="pc-ard-13-lab">
+                                    <img src="../../../../assets/images/icons/icon-circuit.webp" alt="" class="lab-icon" aria-hidden="true">
+                                    <span class="lab-id-badge">PC-ARD-13-L</span>
+                                    <div class="card-info">
+                                        <div class="card-title">I2C Bus Scan and Multi-Device Control</div>
+                                        <div class="card-sub">Scan I2C bus, identify device addresses; drive OLED and RTC on same bus; read SPI-based SD card module.</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-assessment">Quiz</div>
+                            <div class="content-grid">
+                                <a href="arduino/quizzes/pc-ard-13.quiz.html"
+                                   class="content-card" data-module="pc-ard-13-quiz">
+                                    <img src="../../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-13-Q</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Core 13 Quiz</div>
+                                        <div class="card-sub">I2C vs SPI trade-offs, address conflicts, pull-up resistor requirements, SPI chip select, bus contention</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-quiz">Quiz</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- /core13 -->
+
+
+            <!-- ════════════════════════════════════════════
+                 CORE 14: Wireless Communication
+                 Module IDs: pc-ard-14-pres, pc-ard-14-lab, pc-ard-14-quiz
+            ════════════════════════════════════════════ -->
+            <div class="week-card track-arduino" id="core14">
+                <div class="week-header" onclick="toggleWeek('core14')">
+                    <div class="week-header-left">
+                        <div class="week-num" style="background: linear-gradient(135deg, #003366, #0088ff);">14</div>
+                        <div class="week-title-group">
+                            <div class="week-title">Wireless Communication</div>
+                            <div class="week-sub">CORE 14 // CUT THE WIRE</div>
+                            <div class="week-meta">
+                                <span class="obj-tag">nRF24L01</span>
+                                <span class="obj-tag">HC-05 BT</span>
+                                <span class="obj-tag">RF Protocols</span>
+                                <span class="item-count-tag">3 items</span>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="week-toggle">&#9660;</span>
+                </div>
+                <div class="week-body">
+                    <div class="week-inner">
+                        <div class="week-progress">
+                            <div class="week-progress-label">
+                                <span>Core 14 Progress</span>
+                                <span id="core14-progress-text">0 / 3</span>
+                            </div>
+                            <div class="week-progress-bar-container">
+                                <div class="week-progress-bar" id="core14-progress-bar"></div>
+                            </div>
+                        </div>
+                        <div class="week-overview">
+                            <div class="week-overview-title">CUT THE WIRE // WIRELESS COMMUNICATION MODULES</div>
+                            <div class="week-overview-desc">
+                                Wireless communication transforms isolated boards into networked systems. Use nRF24L01 2.4GHz radio modules with the RF24 library for reliable board-to-board data transfer, and pair Arduino with HC-05 Bluetooth modules to send commands from your phone. This is the bridge between physical hardware and the wireless world.
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-presentation">Slides</div>
+                            <div class="content-grid">
+                                <a href="arduino/presentations/pc-ard-14.presentation.html"
+                                   class="content-card" data-module="pc-ard-14-pres">
+                                    <img src="../../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-14-P</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Wireless Communication</div>
+                                        <div class="card-sub">nRF24L01 SPI wiring, RF24 library, pipes and addresses, HC-05 AT commands, Bluetooth Serial pairing</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-presentation">Slides</span>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-lab">Lab</div>
+                            <div class="content-grid">
+                                <a href="arduino/labs/pc-ard-14.lab.html"
+                                   class="lab-card" data-module="pc-ard-14-lab">
+                                    <img src="../../../../assets/images/icons/icon-signal.webp" alt="" class="lab-icon" aria-hidden="true">
+                                    <span class="lab-id-badge">PC-ARD-14-L</span>
+                                    <div class="card-info">
+                                        <div class="card-title">nRF24L01 Two-Board Sensor Link</div>
+                                        <div class="card-sub">Transmit DHT22 readings from one Arduino to another via nRF24L01; display received data on OLED.</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-assessment">Quiz</div>
+                            <div class="content-grid">
+                                <a href="arduino/quizzes/pc-ard-14.quiz.html"
+                                   class="content-card" data-module="pc-ard-14-quiz">
+                                    <img src="../../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-14-Q</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Core 14 Quiz</div>
+                                        <div class="card-sub">nRF24L01 power levels, pipe addresses, ACK behavior, HC-05 baud rate, AT command mode, Bluetooth pairing PIN</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-quiz">Quiz</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- /core14 -->
+
+
+            <!-- ════════════════════════════════════════════
+                 CORE 15: WiFi and IoT
+                 Module IDs: pc-ard-15-pres, pc-ard-15-lab, pc-ard-15-quiz
+            ════════════════════════════════════════════ -->
+            <div class="week-card track-arduino" id="core15">
+                <div class="week-header" onclick="toggleWeek('core15')">
+                    <div class="week-header-left">
+                        <div class="week-num" style="background: linear-gradient(135deg, #003366, #0088ff);">15</div>
+                        <div class="week-title-group">
+                            <div class="week-title">WiFi and IoT</div>
+                            <div class="week-sub">CORE 15 // CONNECTED TO THE NETWORK</div>
+                            <div class="week-meta">
+                                <span class="obj-tag">ESP8266</span>
+                                <span class="obj-tag">MQTT</span>
+                                <span class="obj-tag">HTTP REST</span>
+                                <span class="item-count-tag">3 items</span>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="week-toggle">&#9660;</span>
+                </div>
+                <div class="week-body">
+                    <div class="week-inner">
+                        <div class="week-progress">
+                            <div class="week-progress-label">
+                                <span>Core 15 Progress</span>
+                                <span id="core15-progress-text">0 / 3</span>
+                            </div>
+                            <div class="week-progress-bar-container">
+                                <div class="week-progress-bar" id="core15-progress-bar"></div>
+                            </div>
+                        </div>
+                        <div class="week-overview">
+                            <div class="week-overview-title">CONNECTED TO THE NETWORK // WIFI AND IOT</div>
+                            <div class="week-overview-desc">
+                                Connect your creations to the internet. Use the ESP8266 WiFi module as a network co-processor for Arduino to make HTTP GET/POST requests and publish sensor data to MQTT brokers. Build IoT sensor nodes that report to cloud dashboards, home automation systems, and remote monitoring endpoints. The Creator goes online.
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-presentation">Slides</div>
+                            <div class="content-grid">
+                                <a href="arduino/presentations/pc-ard-15.presentation.html"
+                                   class="content-card" data-module="pc-ard-15-pres">
+                                    <img src="../../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-15-P</span>
+                                    <div class="card-info">
+                                        <div class="card-title">WiFi and IoT</div>
+                                        <div class="card-sub">ESP8266 AT commands, WiFiEsp library, HTTP client, MQTT with PubSubClient, topic/payload structure</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-presentation">Slides</span>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-lab">Lab</div>
+                            <div class="content-grid">
+                                <a href="arduino/labs/pc-ard-15.lab.html"
+                                   class="lab-card" data-module="pc-ard-15-lab">
+                                    <img src="../../../../assets/images/icons/icon-globe.webp" alt="" class="lab-icon" aria-hidden="true">
+                                    <span class="lab-id-badge">PC-ARD-15-L</span>
+                                    <div class="card-info">
+                                        <div class="card-title">MQTT Sensor Publisher</div>
+                                        <div class="card-sub">Publish DHT22 readings to a local MQTT broker every 30s; subscribe to a command topic to toggle an output.</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-assessment">Quiz</div>
+                            <div class="content-grid">
+                                <a href="arduino/quizzes/pc-ard-15.quiz.html"
+                                   class="content-card" data-module="pc-ard-15-quiz">
+                                    <img src="../../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-15-Q</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Core 15 Quiz</div>
+                                        <div class="card-sub">HTTP GET vs POST, MQTT QoS levels, retain flag, broker vs client, ESP8266 modes, AT firmware vs SDK</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-quiz">Quiz</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- /core15 -->
+
+
+            <!-- ════════════════════════════════════════════
+                 CORE 16: Libraries
+                 Module IDs: pc-ard-16-pres, pc-ard-16-lab, pc-ard-16-quiz
+            ════════════════════════════════════════════ -->
+            <div class="week-card track-arduino" id="core16">
+                <div class="week-header" onclick="toggleWeek('core16')">
+                    <div class="week-header-left">
+                        <div class="week-num" style="background: linear-gradient(135deg, #003366, #0088ff);">16</div>
+                        <div class="week-title-group">
+                            <div class="week-title">Libraries</div>
+                            <div class="week-sub">CORE 16 // STANDING ON SHOULDERS</div>
+                            <div class="week-meta">
+                                <span class="obj-tag">Library Manager</span>
+                                <span class="obj-tag">Custom Library</span>
+                                <span class="obj-tag">Header Files</span>
+                                <span class="item-count-tag">3 items</span>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="week-toggle">&#9660;</span>
+                </div>
+                <div class="week-body">
+                    <div class="week-inner">
+                        <div class="week-progress">
+                            <div class="week-progress-label">
+                                <span>Core 16 Progress</span>
+                                <span id="core16-progress-text">0 / 3</span>
+                            </div>
+                            <div class="week-progress-bar-container">
+                                <div class="week-progress-bar" id="core16-progress-bar"></div>
+                            </div>
+                        </div>
+                        <div class="week-overview">
+                            <div class="week-overview-title">STANDING ON SHOULDERS // ARDUINO LIBRARY SYSTEM</div>
+                            <div class="week-overview-desc">
+                                The Arduino ecosystem's greatest strength is its library ecosystem — thousands of pre-built drivers and utilities. Learn to find, install, and evaluate libraries from the Library Manager and GitHub. Then build your own: header files, .cpp source files, constructors, and public methods. A custom library is reusable code that travels with your projects.
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-presentation">Slides</div>
+                            <div class="content-grid">
+                                <a href="arduino/presentations/pc-ard-16.presentation.html"
+                                   class="content-card" data-module="pc-ard-16-pres">
+                                    <img src="../../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-16-P</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Libraries</div>
+                                        <div class="card-sub">Library Manager, ZIP install, #include syntax, .h/.cpp structure, keywords.txt, writing a class-based library</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-presentation">Slides</span>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-lab">Lab</div>
+                            <div class="content-grid">
+                                <a href="arduino/labs/pc-ard-16.lab.html"
+                                   class="lab-card" data-module="pc-ard-16-lab">
+                                    <img src="../../../../assets/images/icons/icon-code.webp" alt="" class="lab-icon" aria-hidden="true">
+                                    <span class="lab-id-badge">PC-ARD-16-L</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Build a Reusable Sensor Library</div>
+                                        <div class="card-sub">Write a DHT wrapper class as a proper Arduino library with .h/.cpp files; use it across two different sketches.</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-assessment">Quiz</div>
+                            <div class="content-grid">
+                                <a href="arduino/quizzes/pc-ard-16.quiz.html"
+                                   class="content-card" data-module="pc-ard-16-quiz">
+                                    <img src="../../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-16-Q</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Core 16 Quiz</div>
+                                        <div class="card-sub">Library folder structure, include guard syntax, constructor vs begin(), library versioning, library.properties</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-quiz">Quiz</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- /core16 -->
+
+
+            <!-- ════════════════════════════════════════════
+                 CORE 17: Memory and Optimization
+                 Module IDs: pc-ard-17-pres, pc-ard-17-lab, pc-ard-17-quiz
+            ════════════════════════════════════════════ -->
+            <div class="week-card track-arduino" id="core17">
+                <div class="week-header" onclick="toggleWeek('core17')">
+                    <div class="week-header-left">
+                        <div class="week-num" style="background: linear-gradient(135deg, #003366, #0088ff);">17</div>
+                        <div class="week-title-group">
+                            <div class="week-title">Memory and Optimization</div>
+                            <div class="week-sub">CORE 17 // EVERY BYTE COUNTS</div>
+                            <div class="week-meta">
+                                <span class="obj-tag">SRAM</span>
+                                <span class="obj-tag">PROGMEM</span>
+                                <span class="obj-tag">EEPROM</span>
+                                <span class="item-count-tag">3 items</span>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="week-toggle">&#9660;</span>
+                </div>
+                <div class="week-body">
+                    <div class="week-inner">
+                        <div class="week-progress">
+                            <div class="week-progress-label">
+                                <span>Core 17 Progress</span>
+                                <span id="core17-progress-text">0 / 3</span>
+                            </div>
+                            <div class="week-progress-bar-container">
+                                <div class="week-progress-bar" id="core17-progress-bar"></div>
+                            </div>
+                        </div>
+                        <div class="week-overview">
+                            <div class="week-overview-title">EVERY BYTE COUNTS // MEMORY AND OPTIMIZATION</div>
+                            <div class="week-overview-desc">
+                                The Arduino Uno has 2KB of SRAM and 32KB of Flash. Constraint is reality. Understand the three memory regions — SRAM, Flash, EEPROM — and how your code occupies each. Use PROGMEM to store constants in Flash, the F() macro for string literals, and EEPROM for persistent storage. Learn to use the free() check and diagnose memory overflow crashes.
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-presentation">Slides</div>
+                            <div class="content-grid">
+                                <a href="arduino/presentations/pc-ard-17.presentation.html"
+                                   class="content-card" data-module="pc-ard-17-pres">
+                                    <img src="../../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-17-P</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Memory and Optimization</div>
+                                        <div class="card-sub">SRAM vs Flash vs EEPROM, stack/heap, PROGMEM, F() macro, avr-size, EEPROM.read/write, freeMemory()</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-presentation">Slides</span>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-lab">Lab</div>
+                            <div class="content-grid">
+                                <a href="arduino/labs/pc-ard-17.lab.html"
+                                   class="lab-card" data-module="pc-ard-17-lab">
+                                    <img src="../../../../assets/images/icons/icon-memory.webp" alt="" class="lab-icon" aria-hidden="true">
+                                    <span class="lab-id-badge">PC-ARD-17-L</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Memory Audit and EEPROM Settings Store</div>
+                                        <div class="card-sub">Measure sketch footprint with avr-size, refactor strings to F() macro, persist config values to EEPROM.</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-assessment">Quiz</div>
+                            <div class="content-grid">
+                                <a href="arduino/quizzes/pc-ard-17.quiz.html"
+                                   class="content-card" data-module="pc-ard-17-quiz">
+                                    <img src="../../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-17-Q</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Core 17 Quiz</div>
+                                        <div class="card-sub">Memory regions, stack overflow symptoms, PROGMEM data access, EEPROM write endurance, F() behavior</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-quiz">Quiz</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- /core17 -->
+
+
+            <!-- ════════════════════════════════════════════
+                 CORE 18: Hardware Internals
+                 Module IDs: pc-ard-18-pres, pc-ard-18-lab, pc-ard-18-quiz
+            ════════════════════════════════════════════ -->
+            <div class="week-card track-arduino" id="core18">
+                <div class="week-header" onclick="toggleWeek('core18')">
+                    <div class="week-header-left">
+                        <div class="week-num" style="background: linear-gradient(135deg, #003366, #0088ff);">18</div>
+                        <div class="week-title-group">
+                            <div class="week-title">Hardware Internals</div>
+                            <div class="week-sub">CORE 18 // BELOW THE ABSTRACTION</div>
+                            <div class="week-meta">
+                                <span class="obj-tag">Registers</span>
+                                <span class="obj-tag">Interrupts</span>
+                                <span class="obj-tag">Timers</span>
+                                <span class="item-count-tag">3 items</span>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="week-toggle">&#9660;</span>
+                </div>
+                <div class="week-body">
+                    <div class="week-inner">
+                        <div class="week-progress">
+                            <div class="week-progress-label">
+                                <span>Core 18 Progress</span>
+                                <span id="core18-progress-text">0 / 3</span>
+                            </div>
+                            <div class="week-progress-bar-container">
+                                <div class="week-progress-bar" id="core18-progress-bar"></div>
+                            </div>
+                        </div>
+                        <div class="week-overview">
+                            <div class="week-overview-title">BELOW THE ABSTRACTION // REGISTERS, INTERRUPTS, TIMERS</div>
+                            <div class="week-overview-desc">
+                                The Arduino API is a wrapper around hardware registers. This core pulls back that wrapper. Direct port manipulation, interrupt service routines (ISR), timer/counter configuration, and watchdog timers — these are the tools that separate firmware engineers from hobbyists. When speed and precision matter, you bypass the library and talk directly to the silicon.
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-presentation">Slides</div>
+                            <div class="content-grid">
+                                <a href="arduino/presentations/pc-ard-18.presentation.html"
+                                   class="content-card" data-module="pc-ard-18-pres">
+                                    <img src="../../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-18-P</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Hardware Internals</div>
+                                        <div class="card-sub">DDRB/PORTB registers, attachInterrupt(), ISR constraints, Timer0/1/2 registers, prescalers, watchdog timer</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-presentation">Slides</span>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-lab">Lab</div>
+                            <div class="content-grid">
+                                <a href="arduino/labs/pc-ard-18.lab.html"
+                                   class="lab-card" data-module="pc-ard-18-lab">
+                                    <img src="../../../../assets/images/icons/icon-circuit.webp" alt="" class="lab-icon" aria-hidden="true">
+                                    <span class="lab-id-badge">PC-ARD-18-L</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Direct Register Control and ISR</div>
+                                        <div class="card-sub">Toggle GPIO via PORTB register, attach ISR to INT0 for encoder counting, configure Timer1 for custom PWM frequency.</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-assessment">Quiz</div>
+                            <div class="content-grid">
+                                <a href="arduino/quizzes/pc-ard-18.quiz.html"
+                                   class="content-card" data-module="pc-ard-18-quiz">
+                                    <img src="../../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-18-Q</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Core 18 Quiz</div>
+                                        <div class="card-sub">DDRx/PORTx/PINx relationship, ISR volatile variables, INT0/INT1 trigger modes, timer prescaler calculation</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-quiz">Quiz</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- /core18 -->
+
+
+            <!-- ════════════════════════════════════════════
+                 CORE 19: Arduino for Security
+                 Module IDs: pc-ard-19-pres, pc-ard-19-lab, pc-ard-19-quiz
+            ════════════════════════════════════════════ -->
+            <div class="week-card track-arduino" id="core19">
+                <div class="week-header" onclick="toggleWeek('core19')">
+                    <div class="week-header-left">
+                        <div class="week-num" style="background: linear-gradient(135deg, #003366, #0088ff);">19</div>
+                        <div class="week-title-group">
+                            <div class="week-title">Arduino for Security</div>
+                            <div class="week-sub">CORE 19 // HARDWARE MEETS SECURITY</div>
+                            <div class="week-meta">
+                                <span class="obj-tag">BadUSB</span>
+                                <span class="obj-tag">RFID</span>
+                                <span class="obj-tag">Physical Sec</span>
+                                <span class="item-count-tag">3 items</span>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="week-toggle">&#9660;</span>
+                </div>
+                <div class="week-body">
+                    <div class="week-inner">
+                        <div class="week-progress">
+                            <div class="week-progress-label">
+                                <span>Core 19 Progress</span>
+                                <span id="core19-progress-text">0 / 3</span>
+                            </div>
+                            <div class="week-progress-bar-container">
+                                <div class="week-progress-bar" id="core19-progress-bar"></div>
+                            </div>
+                        </div>
+                        <div class="week-overview">
+                            <div class="week-overview-title">HARDWARE MEETS SECURITY // ARDUINO IN SECURITY CONTEXTS</div>
+                            <div class="week-overview-desc">
+                                The physical layer is the final frontier of cybersecurity. Understand how HID injection attacks work with Arduino-based devices, implement RFID access control systems with the MFRC522 module, build tamper detection circuits, and analyze physical security vulnerabilities. This core connects the ProtoCore skill set directly to the security practitioner's toolkit.
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-presentation">Slides</div>
+                            <div class="content-grid">
+                                <a href="arduino/presentations/pc-ard-19.presentation.html"
+                                   class="content-card" data-module="pc-ard-19-pres">
+                                    <img src="../../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-19-P</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Arduino for Security</div>
+                                        <div class="card-sub">HID injection via USB HID library, MFRC522 RFID read/write, UID-based access control, tamper detection circuits</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-presentation">Slides</span>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-lab">Lab</div>
+                            <div class="content-grid">
+                                <a href="arduino/labs/pc-ard-19.lab.html"
+                                   class="lab-card" data-module="pc-ard-19-lab">
+                                    <img src="../../../../assets/images/icons/icon-shield.webp" alt="" class="lab-icon" aria-hidden="true">
+                                    <span class="lab-id-badge">PC-ARD-19-L</span>
+                                    <div class="card-info">
+                                        <div class="card-title">RFID Access Control System Build</div>
+                                        <div class="card-sub">Build MFRC522 RFID reader, whitelist UIDs, trigger servo lock/unlock on access grant/deny with LED+buzzer feedback.</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                                </a>
+                            </div>
+                        </div>
+                        <div class="subsection">
+                            <div class="subsection-label label-assessment">Quiz</div>
+                            <div class="content-grid">
+                                <a href="arduino/quizzes/pc-ard-19.quiz.html"
+                                   class="content-card" data-module="pc-ard-19-quiz">
+                                    <img src="../../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                    <span class="card-id-badge">PC-ARD-19-Q</span>
+                                    <div class="card-info">
+                                        <div class="card-title">Core 19 Quiz</div>
+                                        <div class="card-sub">HID attack surface, USB descriptor spoofing, RFID frequency (13.56MHz), UID vs sector data, Mifare Classic security</div>
+                                    </div>
+                                    <img src="../../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                    <span class="content-badge badge-quiz">Quiz</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- /core19 -->
+
+        </div><!-- /.track-section (Arduino) -->
+
+
+        <!-- ── ESP32 Track — Coming Soon ── -->
+        <div class="track-section">
+            <div class="track-section-header">
+                <div class="track-section-label label-esp32">ESP32 Track // In Development</div>
+            </div>
+
+            <div class="esp32-panel">
+                <div class="esp32-panel-badge">COMING SOON</div>
+                <div class="esp32-panel-title">ESP32 Track</div>
+                <div class="esp32-panel-desc">
+                    Dual-core, WiFi, BLE, FreeRTOS — the ESP32 track is being developed. Where the Arduino track builds foundational control, the ESP32 track enters the professional tier: real-time operating systems, concurrent tasks, built-in WiFi and Bluetooth stacks, deep sleep power management, and hardware encryption. The ESP32 is what you reach for when Arduino is not enough.
+                </div>
+                <div class="esp32-panel-tags">
+                    <span class="esp32-tag">Dual Core</span>
+                    <span class="esp32-tag">FreeRTOS</span>
+                    <span class="esp32-tag">WiFi Native</span>
+                    <span class="esp32-tag">Bluetooth LE</span>
+                    <span class="esp32-tag">Deep Sleep</span>
+                    <span class="esp32-tag">Hardware Crypto</span>
+                    <span class="esp32-tag">OTA Updates</span>
+                    <span class="esp32-tag">SPIFFS Storage</span>
+                </div>
+            </div>
+        </div><!-- /.track-section (ESP32) -->
+
+
+        <!-- ── Cross-Reference: From The Signal ── -->
+        <div class="signal-panel">
+            <div class="signal-panel-header">
+                <img src="../../../../assets/images/icons/icon-signal.webp"
+                     alt="" class="signal-panel-icon" aria-hidden="true">
+                <h3>From The Signal</h3>
+            </div>
+            <div class="signal-panel-note">
+                PiVerse teaches Pi. ProtoCore creates with microcontrollers. Signal deploys in the field.
+            </div>
+            <div class="signal-links">
+
+                <a href="../../../../houses/signal/projects/sg-01.html" class="signal-link">
+                    <span class="signal-link-id">SG-01</span>
+                    Arduino Foundations Build — First Hardware Deploy
+                </a>
+
+                <a href="../../../../houses/signal/projects/sg-02.html" class="signal-link">
+                    <span class="signal-link-id">SG-02</span>
+                    Sensor Node Build — DHT22 + Serial Logging
+                </a>
+
+                <a href="../../../../houses/signal/projects/sg-03.html" class="signal-link">
+                    <span class="signal-link-id">SG-03</span>
+                    OLED Sensor Dashboard — Field Display Build
+                </a>
+
+                <a href="../../../../houses/signal/projects/sg-04.html" class="signal-link">
+                    <span class="signal-link-id">SG-04</span>
+                    Wireless Sensor Link — nRF24L01 Two-Node System
+                </a>
+
+                <a href="../../../../houses/signal/projects/sg-05.html" class="signal-link">
+                    <span class="signal-link-id">SG-05</span>
+                    RFID Access Control — Physical Security Deployment
+                </a>
+
+            </div>
+        </div>
+
+        <!-- ── Page Footer ── -->
+        <div class="page-footer">
+            ProtoCore // Build the Core. Control the System. // Matrix House
+            <div class="footer-sub">2 Tracks &nbsp;|&nbsp; 19+ Arduino Cores &nbsp;|&nbsp; ESP32 Coming Soon</div>
+        </div>
+
+    </div><!-- /.container -->
+
+    <!-- ── JavaScript ── -->
+    <script>
+        /**
+         * toggleWeek(id)
+         * Adds/removes the 'open' class on a core card to expand or collapse it.
+         * The max-height CSS transition handles the animation.
+         */
+        function toggleWeek(id) {
+            var card = document.getElementById(id);
+            if (card) {
+                card.classList.toggle('open');
+            }
+        }
+
+        // ── Auto-open from URL hash ──────────────────────────────────────────
+        // Supports links like index.html#core01 to jump directly to a core.
+        (function () {
+            var hash = window.location.hash;
+            if (hash && /^#core\d{2}$/.test(hash)) {
+                var id   = hash.substring(1);
+                var card = document.getElementById(id);
+                if (card) {
+                    card.classList.add('open');
+                    setTimeout(function () {
+                        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 300);
+                }
+            }
+        })();
+
+        // ── Progress Tracking ────────────────────────────────────────────────
+        // Runs after DOM is ready. Uses ModuleProgress.isCompleted('matrix', moduleId).
+        // Three modules per core: -pres, -lab, -quiz. Total: 19 cores x 3 = 57 modules.
+        // Highlights completed cards, fills per-core bars, fills overall bar.
+        document.addEventListener('DOMContentLoaded', function () {
+            if (!window.ModuleProgress) {
+                document.getElementById('progressText').textContent = 'Progress unavailable';
+                return;
+            }
+
+            // All 57 module IDs grouped by core card ID.
+            var cores = {
+                core01: ['pc-ard-01-pres', 'pc-ard-01-lab', 'pc-ard-01-quiz'],
+                core02: ['pc-ard-02-pres', 'pc-ard-02-lab', 'pc-ard-02-quiz'],
+                core03: ['pc-ard-03-pres', 'pc-ard-03-lab', 'pc-ard-03-quiz'],
+                core04: ['pc-ard-04-pres', 'pc-ard-04-lab', 'pc-ard-04-quiz'],
+                core05: ['pc-ard-05-pres', 'pc-ard-05-lab', 'pc-ard-05-quiz'],
+                core06: ['pc-ard-06-pres', 'pc-ard-06-lab', 'pc-ard-06-quiz'],
+                core07: ['pc-ard-07-pres', 'pc-ard-07-lab', 'pc-ard-07-quiz'],
+                core08: ['pc-ard-08-pres', 'pc-ard-08-lab', 'pc-ard-08-quiz'],
+                core09: ['pc-ard-09-pres', 'pc-ard-09-lab', 'pc-ard-09-quiz'],
+                core10: ['pc-ard-10-pres', 'pc-ard-10-lab', 'pc-ard-10-quiz'],
+                core11: ['pc-ard-11-pres', 'pc-ard-11-lab', 'pc-ard-11-quiz'],
+                core12: ['pc-ard-12-pres', 'pc-ard-12-lab', 'pc-ard-12-quiz'],
+                core13: ['pc-ard-13-pres', 'pc-ard-13-lab', 'pc-ard-13-quiz'],
+                core14: ['pc-ard-14-pres', 'pc-ard-14-lab', 'pc-ard-14-quiz'],
+                core15: ['pc-ard-15-pres', 'pc-ard-15-lab', 'pc-ard-15-quiz'],
+                core16: ['pc-ard-16-pres', 'pc-ard-16-lab', 'pc-ard-16-quiz'],
+                core17: ['pc-ard-17-pres', 'pc-ard-17-lab', 'pc-ard-17-quiz'],
+                core18: ['pc-ard-18-pres', 'pc-ard-18-lab', 'pc-ard-18-quiz'],
+                core19: ['pc-ard-19-pres', 'pc-ard-19-lab', 'pc-ard-19-quiz']
+            };
+
+            var totalItems     = 0;
+            var totalCompleted = 0;
+
+            // Process each core: check completions, mark cards, update per-core bars
+            Object.keys(cores).forEach(function (coreId) {
+                var ids       = cores[coreId];
+                var completed = 0;
+
+                ids.forEach(function (moduleId) {
+                    if (ModuleProgress.isCompleted('matrix', moduleId)) {
+                        completed++;
+
+                        // Mark the card via data-module attribute
+                        var el = document.querySelector('[data-module="' + moduleId + '"]');
+                        if (el) {
+                            el.classList.add('is-complete');
+                        }
+                    }
+                });
+
+                // Update per-core progress bar and counter
+                var corePct  = ids.length > 0 ? Math.round((completed / ids.length) * 100) : 0;
+                var coreBar  = document.getElementById(coreId + '-progress-bar');
+                var coreText = document.getElementById(coreId + '-progress-text');
+                if (coreBar)  { coreBar.style.width = corePct + '%'; }
+                if (coreText) { coreText.textContent = completed + ' / ' + ids.length; }
+
+                totalItems     += ids.length;
+                totalCompleted += completed;
+            });
+
+            // Update overall progress bar at the top of the page
+            var overallPct  = totalItems > 0 ? Math.round((totalCompleted / totalItems) * 100) : 0;
+            var overallBar  = document.getElementById('progressBar');
+            var overallText = document.getElementById('progressText');
+            if (overallBar)  { overallBar.style.width = overallPct + '%'; }
+            if (overallText) {
+                overallText.textContent =
+                    totalCompleted + ' of ' + totalItems + ' modules completed (' + overallPct + '%)';
+            }
+        });
+    </script>
+
+    <!-- ── Shared Components ── -->
+    <script src="../../../../components/TenantShell.js"></script>
+    <script src="../../../../components/ContentDiscovery.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+
+</body>
+</html>

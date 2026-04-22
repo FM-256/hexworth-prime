@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Auth -->
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Programming Foundations Lab -- ProtoCore Arduino Core 2</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            height: 100vh; overflow: hidden;
+            background: #0c0c0c;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #b0d4ff; display: flex; flex-direction: column;
+        }
+
+        /* Header */
+        .lab-header {
+            flex-shrink: 0; padding: 15px 30px;
+            background: rgba(6, 10, 20, 0.95);
+            border-bottom: 1px solid rgba(0, 136, 255, 0.2);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn {
+            padding: 8px 16px; background: rgba(0, 136, 255, 0.1);
+            border: 1px solid rgba(0, 136, 255, 0.3); border-radius: 6px;
+            color: #0088ff; text-decoration: none; font-size: 0.85rem; transition: all 0.3s ease;
+        }
+        .back-btn:hover { background: rgba(0, 136, 255, 0.2); }
+        .lab-title { font-size: 1rem; color: #dbeafe; }
+        .lab-badge {
+            padding: 4px 12px; background: rgba(0, 136, 255, 0.15);
+            border: 1px solid rgba(0, 136, 255, 0.3); border-radius: 12px;
+            font-size: 0.7rem; color: #0088ff; letter-spacing: 0.05em;
+        }
+        .lab-badge-ch {
+            padding: 4px 12px; background: rgba(255, 215, 0, 0.15);
+            border: 1px solid rgba(255, 215, 0, 0.3); border-radius: 12px;
+            font-size: 0.7rem; color: #ffd700; letter-spacing: 0.05em;
+        }
+        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #6b82a0; }
+        .task-count { color: #0088ff; font-weight: 500; }
+        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(0, 136, 255, 0.15); border-radius: 3px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #0088ff, #0055cc); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
+
+        /* Main Layout */
+        .lab-container { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
+
+        /* Task Panel */
+        .task-panel { background: rgba(6, 10, 20, 0.95); border-right: 1px solid rgba(0, 136, 255, 0.15); overflow-y: auto; padding: 20px; }
+        .task-section { margin-bottom: 25px; }
+        .task-section-title { font-size: 0.68rem; color: #1a3a5c; letter-spacing: 0.15em; margin-bottom: 12px; text-transform: uppercase; }
+        .task-card {
+            background: rgba(8, 14, 28, 0.8); border: 1px solid rgba(0, 136, 255, 0.15);
+            border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s ease;
+        }
+        .task-card:hover { border-color: rgba(0, 136, 255, 0.4); }
+        .task-card.active { border-color: #0088ff; background: rgba(0, 136, 255, 0.1); }
+        .task-card.completed { border-color: rgba(52, 211, 153, 0.4); background: rgba(52, 211, 153, 0.04); }
+        .task-card.completed .task-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; font-weight: 400; }
+        .task-number { font-size: 0.68rem; color: #0088ff; margin-bottom: 4px; }
+        .task-name { font-size: 0.9rem; color: #dbeafe; margin-bottom: 4px; }
+        .task-desc { font-size: 0.77rem; color: #6b82a0; line-height: 1.45; }
+        .task-desc code { background: rgba(0, 136, 255, 0.15); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; color: #0088ff; font-family: 'Consolas', monospace; }
+
+        /* Terminal Panel */
+        .terminal-panel { display: flex; flex-direction: column; background: #0a0a0a; position: relative; overflow: hidden; }
+        .term-toolbar {
+            flex-shrink: 0; padding: 8px 20px; background: rgba(8, 14, 24, 0.9);
+            border-bottom: 1px solid rgba(0, 136, 255, 0.15);
+            display: flex; align-items: center; gap: 12px;
+        }
+        .term-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .term-dot-red   { background: #ff5f57; }
+        .term-dot-amber { background: #febc2e; }
+        .term-dot-green { background: #28c840; }
+        .term-title { flex: 1; text-align: center; font-size: 0.8rem; color: #4a6080; font-family: 'Consolas', 'Courier New', monospace; }
+        .term-vm-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #0088ff; }
+        .term-status-dot { width: 7px; height: 7px; background: #0088ff; border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        .term-output { flex: 1; overflow-y: auto; padding: 16px 360px 8px 20px; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.875rem; line-height: 1.6; }
+        .term-input-row {
+            flex-shrink: 0; display: flex; align-items: center; padding: 8px 360px 12px 20px;
+            border-top: 1px solid rgba(0, 136, 255, 0.1); gap: 0;
+        }
+        .term-prompt-label { font-family: 'Consolas', 'Courier New', monospace; font-size: 0.875rem; white-space: nowrap; flex-shrink: 0; }
+        .term-prompt-user   { color: #0088ff; }
+        .term-prompt-sep    { color: #1a3a5c; }
+        .term-prompt-path   { color: #ffd700; }
+        .term-prompt-dollar { color: #dbeafe; margin-right: 6px; }
+        .term-input {
+            flex: 1; background: transparent; border: none; outline: none;
+            color: #dbeafe; font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem; caret-color: #0088ff;
+        }
+
+        .term-line { white-space: pre-wrap; word-break: break-all; }
+        .term-line-cmd  { color: #b0d4ff; }
+        .term-line-out  { color: #a0d4a0; }
+        .term-line-err  { color: #f87171; }
+        .term-line-info { color: #0088ff; }
+        .term-line-warn { color: #ffd700; }
+        .term-line-dim  { color: #374860; }
+        .term-welcome   { color: #0088ff; }
+
+        .term-prompt-span { color: #0088ff; }
+        .term-path-span   { color: #ffd700; }
+        .term-ps1-sep     { color: #1a3a5c; }
+
+        /* Instructions Panel */
+        .instructions-panel {
+            position: absolute; top: 20px; right: 20px; width: 320px;
+            background: rgba(6, 12, 24, 0.97); border: 1px solid rgba(0, 136, 255, 0.3);
+            border-radius: 12px; padding: 20px; z-index: 100;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); transition: all 0.3s ease;
+        }
+        .instructions-panel.collapsed { width: auto; padding: 10px 14px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-body { display: none; }
+        .instructions-panel.collapsed .instructions-toggle { transform: rotate(180deg); }
+        .instructions-title { font-size: 1rem; color: #0088ff; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-title { margin-bottom: 0; font-size: 0.85rem; }
+        .instructions-toggle {
+            margin-left: auto; width: 28px; height: 28px;
+            background: rgba(0, 136, 255, 0.2); border: 1px solid rgba(0, 136, 255, 0.3);
+            border-radius: 6px; color: #0088ff; font-size: 0.75rem; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; flex-shrink: 0;
+        }
+        .instructions-toggle:hover { background: rgba(0, 136, 255, 0.4); }
+        .instructions-step { font-size: 0.88rem; color: #b0d4ff; line-height: 1.65; margin-bottom: 14px; }
+        .instructions-step code { background: rgba(0, 136, 255, 0.2); padding: 2px 7px; border-radius: 4px; font-family: 'Consolas', monospace; color: #0088ff; font-size: 0.85em; }
+        .instructions-hint { font-size: 0.78rem; color: #1a3a5c; font-style: italic; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(0, 136, 255, 0.15); line-height: 1.5; }
+        .hint-btn {
+            margin-top: 12px; padding: 6px 12px; background: rgba(0, 136, 255, 0.12);
+            border: 1px solid rgba(0, 136, 255, 0.25); border-radius: 5px;
+            color: #0088ff; font-size: 0.75rem; cursor: pointer; font-family: 'Segoe UI', sans-serif;
+            transition: all 0.2s ease; width: 100%; text-align: center;
+        }
+        .hint-btn:hover { background: rgba(0, 136, 255, 0.22); }
+        .hint-command {
+            display: none; margin-top: 10px; padding: 8px 10px;
+            background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(0, 136, 255, 0.25);
+            border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.78rem;
+            color: #86efac; line-height: 1.55; white-space: pre-wrap; word-break: break-all;
+        }
+        .hint-command.visible { display: block; }
+
+        /* Success Overlay */
+        .success-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.82); display: none; align-items: center; justify-content: center; z-index: 2000; }
+        .success-overlay.active { display: flex; }
+        .success-card { background: rgba(6, 12, 24, 0.97); border: 1px solid rgba(52, 211, 153, 0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
+        .success-message { color: #b0d4ff; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
+        .success-btn { padding: 12px 30px; background: linear-gradient(135deg, #0088ff, #0055cc); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; transition: all 0.3s ease; }
+        .success-btn:hover { box-shadow: 0 5px 20px rgba(0, 136, 255, 0.35); transform: translateY(-1px); }
+
+        @media (max-width: 1024px) {
+            .lab-container { grid-template-columns: 1fr; }
+            .task-panel { display: none; }
+            .term-output, .term-input-row { padding-right: 20px; }
+            .instructions-panel { position: absolute; bottom: 60px; top: auto; right: 10px; left: 10px; width: auto; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Programming Foundations Lab</span>
+            <span class="lab-badge">Arduino</span>
+            <span class="lab-badge-ch">Core 2</span>
+        </div>
+        <div class="task-progress">
+            <span>Progress:</span>
+            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBarFill"></div></div>
+            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
+        </div>
+    </header>
+
+    <div class="lab-container">
+        <aside class="task-panel" id="taskPanel">
+            <div class="task-section">
+                <div class="task-section-title">Phase 1 -- Variables &amp; Data Types</div>
+                <div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)">
+                    <div class="task-number">Task 1</div>
+                    <div class="task-name">Declare Variables</div>
+                    <div class="task-desc">Declare an <code>int</code>, <code>float</code>, <code>byte</code>, and <code>bool</code> variable with initial values. Use <code>sketch declare</code> to enter your declarations.</div>
+                </div>
+                <div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)">
+                    <div class="task-number">Task 2</div>
+                    <div class="task-name">Write Conditions</div>
+                    <div class="task-desc">Write an if/else block that checks a temperature value and prints HIGH, MEDIUM, or LOW. Use <code>sketch condition</code>.</div>
+                </div>
+                <div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)">
+                    <div class="task-number">Task 3</div>
+                    <div class="task-name">Build a Counting Loop</div>
+                    <div class="task-desc">Write a for loop that counts from 0 to 9 and prints each value. Use <code>sketch loop</code>.</div>
+                </div>
+            </div>
+            <div class="task-section">
+                <div class="task-section-title">Phase 2 -- Functions &amp; Strings</div>
+                <div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)">
+                    <div class="task-number">Task 4</div>
+                    <div class="task-name">Temperature Converter</div>
+                    <div class="task-desc">Write a function <code>celsiusToFahrenheit(float c)</code> that returns the Fahrenheit equivalent. Use <code>sketch function</code>.</div>
+                </div>
+                <div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)">
+                    <div class="task-number">Task 5</div>
+                    <div class="task-name">Use Arrays</div>
+                    <div class="task-desc">Declare an array of 5 sensor readings and calculate their average. Use <code>sketch array</code>.</div>
+                </div>
+                <div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)">
+                    <div class="task-number">Task 6</div>
+                    <div class="task-name">String Manipulation</div>
+                    <div class="task-desc">Create a String, concatenate text, and extract a substring. Use <code>sketch string</code>.</div>
+                </div>
+            </div>
+            <div class="task-section">
+                <div class="task-section-title">Phase 3 -- Advanced Patterns</div>
+                <div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)">
+                    <div class="task-number">Task 7</div>
+                    <div class="task-name">Switch/Case Menu</div>
+                    <div class="task-desc">Write a switch/case block that handles serial commands 'F', 'B', 'S', and a default case. Use <code>sketch switch</code>.</div>
+                </div>
+                <div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)">
+                    <div class="task-number">Task 8</div>
+                    <div class="task-name">Scope Challenge</div>
+                    <div class="task-desc">Identify the scope error in a given code snippet and explain the fix. Use <code>sketch scope</code>.</div>
+                </div>
+                <div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)">
+                    <div class="task-number">Task 9</div>
+                    <div class="task-name">Bitwise Flag Operations</div>
+                    <div class="task-desc">Set, clear, and read individual bits in a flag byte using bitwise operators. Use <code>sketch bitwise</code>.</div>
+                </div>
+                <div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)">
+                    <div class="task-number">Task 10</div>
+                    <div class="task-name">Structured Sketch</div>
+                    <div class="task-desc">Combine everything into a complete Arduino sketch with setup(), loop(), variables, a function, and conditions. Use <code>sketch full</code>.</div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="terminal-panel" id="terminalPanel">
+            <div class="term-toolbar">
+                <div class="term-dot term-dot-red"></div>
+                <div class="term-dot term-dot-amber"></div>
+                <div class="term-dot term-dot-green"></div>
+                <div class="term-title">arduino-sim@protocore -- C Compiler</div>
+                <div class="term-vm-status">
+                    <div class="term-status-dot"></div>
+                    Arduino Sim Online
+                </div>
+            </div>
+            <div class="term-output" id="termOutput"></div>
+            <div class="term-input-row">
+                <span class="term-prompt-label">
+                    <span class="term-prompt-user">arduino-sim</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~/sketch</span><span class="term-prompt-dollar">$</span>
+                </span>
+                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
+            </div>
+
+            <div class="instructions-panel" id="instructionsPanel">
+                <div class="instructions-title" onclick="toggleInstructions()">
+                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+                    Task Instructions
+                    <button class="instructions-toggle" id="instructionsToggle" title="Collapse instructions">&#9660;</button>
+                </div>
+                <div class="instructions-body" id="instructionsBody">
+                    <div class="instructions-step" id="instructionsStep">Type a command and press Enter.</div>
+                    <div class="instructions-hint" id="instructionsHint">
+                        <img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block">
+                        Hint text loads when you select a task.
+                    </div>
+                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
+                    <div class="hint-command" id="hintCommand"></div>
+                </div>
+            </div>
+
+            <div class="success-overlay" id="successOverlay">
+                <div class="success-card">
+                    <div class="success-icon">
+                        <img src="/assets/images/icons/icon-star.webp" alt="" style="width:3rem;height:3rem;object-fit:contain">
+                    </div>
+                    <div class="success-title">Core 2 Lab Complete!</div>
+                    <div class="success-message">
+                        You declared variables with correct types, wrote conditions and loops,
+                        built a temperature conversion function, worked with arrays and strings,
+                        implemented a switch/case menu, debugged a scope error, performed bitwise
+                        flag operations, and combined everything into a structured sketch.
+                        These are the programming foundations every Arduino project depends on.
+                    </div>
+                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+    (function () {
+        'use strict';
+
+        var TOTAL_TASKS = 10;
+        var taskDone = {};
+        for (var i = 1; i <= TOTAL_TASKS; i++) taskDone[i] = false;
+        var currentTask = 1;
+        var cmdHistory = [];
+        var histIdx = -1;
+        var outputEl, inputEl;
+
+        /* ── Terminal helpers ── */
+        function addLine(text, cls) {
+            var div = document.createElement('div');
+            div.className = 'term-line' + (cls ? ' ' + cls : '');
+            div.textContent = text;
+            outputEl.appendChild(div);
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+        function addHTML(html, cls) {
+            var div = document.createElement('div');
+            div.className = 'term-line' + (cls ? ' ' + cls : '');
+            div.innerHTML = html;
+            outputEl.appendChild(div);
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+        function addBlank() { addLine('', ''); }
+        function addPromptLine(cmd) {
+            addHTML(
+                '<span class="term-prompt-span">arduino-sim</span>' +
+                '<span class="term-ps1-sep">:</span>' +
+                '<span class="term-path-span">~/sketch</span>' +
+                '<span class="term-ps1-sep">$ </span>' + escH(cmd),
+                'term-line-cmd'
+            );
+        }
+        function escH(s) {
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        /* ── Task instructions ── */
+        var taskInstructions = {
+            1: {
+                step: 'Declare four variables with correct types and initial values.\n<code>sketch declare</code>\n\nYou need: an <code>int</code> for a pin number, a <code>float</code> for temperature, a <code>byte</code> for brightness (0-255), and a <code>bool</code> for a state flag.',
+                hint: 'Use the correct Arduino data types. int for whole numbers, float for decimals, byte for 0-255 range, bool for true/false. Each variable needs an initial value assigned with =.',
+                cmd: 'sketch declare'
+            },
+            2: {
+                step: 'Write an if/else chain that categorizes a temperature reading.\n<code>sketch condition</code>\n\nThe sim will provide a temperature variable. Write conditions: above 100 = HIGH, above 50 = MEDIUM, else = LOW.',
+                hint: 'Use if (temp > 100) for the first check, else if (temp > 50) for the middle, and else for the fallback. Remember: the order matters -- check the highest threshold first.',
+                cmd: 'sketch condition'
+            },
+            3: {
+                step: 'Write a for loop that counts from 0 to 9.\n<code>sketch loop</code>\n\nThe loop should print each value using Serial.println().',
+                hint: 'Standard for loop: for (int i = 0; i < 10; i++) { Serial.println(i); }. The condition i < 10 means i goes from 0 through 9.',
+                cmd: 'sketch loop'
+            },
+            4: {
+                step: 'Write a function that converts Celsius to Fahrenheit.\n<code>sketch function</code>\n\nThe function signature: float celsiusToFahrenheit(float celsius). Formula: F = C * 1.8 + 32.',
+                hint: 'The return type is float because the result has decimals. The formula is (celsius * 1.8) + 32.0. Make sure you use return to send the value back.',
+                cmd: 'sketch function'
+            },
+            5: {
+                step: 'Declare an array of 5 sensor readings and calculate the average.\n<code>sketch array</code>\n\nYou need to iterate through the array, sum all values, then divide by the count.',
+                hint: 'Declare: int readings[] = {512, 480, 530, 495, 510}; Then use a for loop to sum them. Average = sum / 5. Use float division to avoid truncation.',
+                cmd: 'sketch array'
+            },
+            6: {
+                step: 'Work with Arduino Strings: create, concatenate, and extract.\n<code>sketch string</code>\n\nCreate a String, append text with +=, then use substring() to extract a portion.',
+                hint: 'String msg = "Hello"; msg += " Arduino"; String sub = msg.substring(0, 5); -- substring takes start and end indices.',
+                cmd: 'sketch string'
+            },
+            7: {
+                step: 'Write a switch/case block for serial command handling.\n<code>sketch switch</code>\n\nHandle commands: F = forward, B = backward, S = stop, default = unknown.',
+                hint: 'switch (cmd) { case \'F\': ... break; case \'B\': ... break; case \'S\': ... break; default: ... } -- always include break to prevent fallthrough.',
+                cmd: 'sketch switch'
+            },
+            8: {
+                step: 'Find and fix the scope error in the provided code.\n<code>sketch scope</code>\n\nThe sim will show you a code snippet with a variable used outside its scope. Identify the problem.',
+                hint: 'A variable declared inside a for loop or if block is not accessible outside that block. The fix is to declare the variable in the outer scope before the block.',
+                cmd: 'sketch scope'
+            },
+            9: {
+                step: 'Perform bitwise operations on a flag byte.\n<code>sketch bitwise</code>\n\nSet bit 3, clear bit 5, read bit 3, and toggle bit 7 of a byte variable.',
+                hint: 'Set: flags |= (1 << 3);  Clear: flags &= ~(1 << 5);  Read: bool b = (flags >> 3) & 1;  Toggle: flags ^= (1 << 7);',
+                cmd: 'sketch bitwise'
+            },
+            10: {
+                step: 'Combine everything into a complete structured sketch.\n<code>sketch full</code>\n\nThe sketch needs: global variables, a setup() function with Serial.begin and pinMode, and a loop() function that reads a sensor, applies conditions, and calls a helper function.',
+                hint: 'Structure: globals at top, then setup() with Serial.begin(9600) and pinMode(), then loop() with analogRead, an if/else, and a call to your own function. End with the helper function definition.',
+                cmd: 'sketch full'
+            }
+        };
+
+        var taskNames = {
+            1: 'Declare Variables', 2: 'Write Conditions', 3: 'Build a Counting Loop',
+            4: 'Temperature Converter', 5: 'Use Arrays', 6: 'String Manipulation',
+            7: 'Switch/Case Menu', 8: 'Scope Challenge', 9: 'Bitwise Flag Operations',
+            10: 'Structured Sketch'
+        };
+
+        /* ── Command execution ── */
+        function execLine(raw) {
+            var trimmed = raw.trim();
+            addPromptLine(trimmed);
+            if (!trimmed) return;
+
+            var parts = trimmed.split(/\s+/);
+            var cmd = parts[0];
+            var sub = parts[1] || '';
+
+            if (cmd === 'help') {
+                addLine('Arduino Programming Lab -- Available Commands', 'term-line-info');
+                addBlank();
+                addLine('SKETCH TASKS:', 'term-line-warn');
+                addLine('  sketch declare    -- Task 1: Declare variables', 'term-line-dim');
+                addLine('  sketch condition  -- Task 2: Write if/else', 'term-line-dim');
+                addLine('  sketch loop       -- Task 3: For loop counting', 'term-line-dim');
+                addLine('  sketch function   -- Task 4: Temperature converter', 'term-line-dim');
+                addLine('  sketch array      -- Task 5: Array average', 'term-line-dim');
+                addLine('  sketch string     -- Task 6: String manipulation', 'term-line-dim');
+                addLine('  sketch switch     -- Task 7: Switch/case menu', 'term-line-dim');
+                addLine('  sketch scope      -- Task 8: Scope challenge', 'term-line-dim');
+                addLine('  sketch bitwise    -- Task 9: Bitwise flags', 'term-line-dim');
+                addLine('  sketch full       -- Task 10: Complete sketch', 'term-line-dim');
+                addBlank();
+                addLine('GENERAL:', 'term-line-warn');
+                addLine('  help    -- Show this help', 'term-line-dim');
+                addLine('  clear   -- Clear terminal', 'term-line-dim');
+                addBlank();
+            } else if (cmd === 'clear') {
+                outputEl.innerHTML = '';
+            } else if (cmd === 'sketch') {
+                runSketchTask(sub);
+            } else {
+                addLine('bash: ' + cmd + ': command not found. Type "help" for available commands.', 'term-line-err');
+            }
+        }
+
+        function runSketchTask(sub) {
+            if (sub === 'declare') {
+                addLine('Compiling variable declarations...', 'term-line-info');
+                addBlank();
+                addLine('int sensorPin = A0;      // 16-bit signed integer', 'term-line-out');
+                addLine('float temperature = 22.5; // 32-bit floating point', 'term-line-out');
+                addLine('byte brightness = 128;    // 8-bit unsigned (0-255)', 'term-line-out');
+                addLine('bool isActive = true;     // boolean flag', 'term-line-out');
+                addBlank();
+                addLine('[COMPILE] 4 variables declared. Types verified. Memory: 8 bytes.', 'term-line-info');
+                addLine('[VERIFY]  int=2B, float=4B, byte=1B, bool=1B on ATmega328P', 'term-line-dim');
+                completeTask(1);
+            } else if (sub === 'condition') {
+                addLine('Compiling condition block...', 'term-line-info');
+                addBlank();
+                addLine('int temp = 75;', 'term-line-out');
+                addLine('if (temp > 100) {', 'term-line-out');
+                addLine('    Serial.println("HIGH");', 'term-line-out');
+                addLine('} else if (temp > 50) {', 'term-line-out');
+                addLine('    Serial.println("MEDIUM");', 'term-line-out');
+                addLine('} else {', 'term-line-out');
+                addLine('    Serial.println("LOW");', 'term-line-out');
+                addLine('}', 'term-line-out');
+                addBlank();
+                addLine('[RUN] Output: MEDIUM', 'term-line-info');
+                addLine('[VERIFY] Condition chain correct. 3 branches, no fallthrough.', 'term-line-dim');
+                completeTask(2);
+            } else if (sub === 'loop') {
+                addLine('Compiling for loop...', 'term-line-info');
+                addBlank();
+                addLine('for (int i = 0; i < 10; i++) {', 'term-line-out');
+                addLine('    Serial.println(i);', 'term-line-out');
+                addLine('}', 'term-line-out');
+                addBlank();
+                addLine('[RUN] Output: 0 1 2 3 4 5 6 7 8 9', 'term-line-info');
+                addLine('[VERIFY] 10 iterations. i scoped to for block. Correct.', 'term-line-dim');
+                completeTask(3);
+            } else if (sub === 'function') {
+                addLine('Compiling function definition...', 'term-line-info');
+                addBlank();
+                addLine('float celsiusToFahrenheit(float celsius) {', 'term-line-out');
+                addLine('    return (celsius * 1.8) + 32.0;', 'term-line-out');
+                addLine('}', 'term-line-out');
+                addBlank();
+                addLine('[TEST] celsiusToFahrenheit(0.0)   = 32.0    PASS', 'term-line-info');
+                addLine('[TEST] celsiusToFahrenheit(100.0) = 212.0   PASS', 'term-line-info');
+                addLine('[TEST] celsiusToFahrenheit(37.0)  = 98.6    PASS', 'term-line-info');
+                addLine('[VERIFY] Return type float, parameter float. All tests passed.', 'term-line-dim');
+                completeTask(4);
+            } else if (sub === 'array') {
+                addLine('Compiling array operations...', 'term-line-info');
+                addBlank();
+                addLine('int readings[] = {512, 480, 530, 495, 510};', 'term-line-out');
+                addLine('int sum = 0;', 'term-line-out');
+                addLine('for (int i = 0; i < 5; i++) {', 'term-line-out');
+                addLine('    sum += readings[i];', 'term-line-out');
+                addLine('}', 'term-line-out');
+                addLine('float avg = (float)sum / 5.0;', 'term-line-out');
+                addBlank();
+                addLine('[RUN] Sum: 2527  Average: 505.40', 'term-line-info');
+                addLine('[VERIFY] 5-element array, correct iteration, float cast for division.', 'term-line-dim');
+                completeTask(5);
+            } else if (sub === 'string') {
+                addLine('Compiling String operations...', 'term-line-info');
+                addBlank();
+                addLine('String msg = "Hello";', 'term-line-out');
+                addLine('msg += " Arduino";', 'term-line-out');
+                addLine('int len = msg.length();        // 13', 'term-line-out');
+                addLine('char first = msg.charAt(0);    // \'H\'', 'term-line-out');
+                addLine('int pos = msg.indexOf("Ard");  // 6', 'term-line-out');
+                addLine('String sub = msg.substring(6, 13); // "Arduino"', 'term-line-out');
+                addBlank();
+                addLine('[RUN] msg = "Hello Arduino"  length=13  sub = "Arduino"', 'term-line-info');
+                addLine('[VERIFY] Concatenation, length, charAt, indexOf, substring correct.', 'term-line-dim');
+                completeTask(6);
+            } else if (sub === 'switch') {
+                addLine('Compiling switch/case block...', 'term-line-info');
+                addBlank();
+                addLine('char cmd = \'F\';', 'term-line-out');
+                addLine('switch (cmd) {', 'term-line-out');
+                addLine('    case \'F\': Serial.println("Forward");  break;', 'term-line-out');
+                addLine('    case \'B\': Serial.println("Backward"); break;', 'term-line-out');
+                addLine('    case \'S\': Serial.println("Stop");     break;', 'term-line-out');
+                addLine('    default:  Serial.println("Unknown");', 'term-line-out');
+                addLine('}', 'term-line-out');
+                addBlank();
+                addLine('[RUN] Output: Forward', 'term-line-info');
+                addLine('[VERIFY] 3 cases + default. Break on each case. No fallthrough.', 'term-line-dim');
+                completeTask(7);
+            } else if (sub === 'scope') {
+                addLine('Analyzing scope error...', 'term-line-info');
+                addBlank();
+                addLine('// BROKEN CODE:', 'term-line-err');
+                addLine('void loop() {', 'term-line-out');
+                addLine('    if (analogRead(A0) > 500) {', 'term-line-out');
+                addLine('        int value = analogRead(A0);', 'term-line-err');
+                addLine('    }', 'term-line-out');
+                addLine('    Serial.println(value);  // ERROR: value not in scope', 'term-line-err');
+                addLine('}', 'term-line-out');
+                addBlank();
+                addLine('[ERROR] \'value\' was not declared in this scope (line 5)', 'term-line-err');
+                addBlank();
+                addLine('// FIXED CODE:', 'term-line-info');
+                addLine('void loop() {', 'term-line-out');
+                addLine('    int value = 0;  // declare in outer scope', 'term-line-out');
+                addLine('    if (analogRead(A0) > 500) {', 'term-line-out');
+                addLine('        value = analogRead(A0);', 'term-line-out');
+                addLine('    }', 'term-line-out');
+                addLine('    Serial.println(value);  // now accessible', 'term-line-out');
+                addLine('}', 'term-line-out');
+                addBlank();
+                addLine('[VERIFY] Variable declared before the block. Accessible everywhere in function.', 'term-line-dim');
+                completeTask(8);
+            } else if (sub === 'bitwise') {
+                addLine('Compiling bitwise operations...', 'term-line-info');
+                addBlank();
+                addLine('byte flags = 0b00000000;', 'term-line-out');
+                addLine('', '');
+                addLine('flags |= (1 << 3);         // Set bit 3', 'term-line-out');
+                addLine('// flags = 0b00001000', 'term-line-dim');
+                addLine('', '');
+                addLine('flags |= (1 << 5);         // Set bit 5', 'term-line-out');
+                addLine('// flags = 0b00101000', 'term-line-dim');
+                addLine('', '');
+                addLine('flags &= ~(1 << 5);        // Clear bit 5', 'term-line-out');
+                addLine('// flags = 0b00001000', 'term-line-dim');
+                addLine('', '');
+                addLine('bool bit3 = (flags >> 3) & 1; // Read bit 3 = true', 'term-line-out');
+                addLine('', '');
+                addLine('flags ^= (1 << 7);         // Toggle bit 7', 'term-line-out');
+                addLine('// flags = 0b10001000', 'term-line-dim');
+                addBlank();
+                addLine('[VERIFY] Set, clear, read, toggle -- all 4 bitwise operations correct.', 'term-line-info');
+                completeTask(9);
+            } else if (sub === 'full') {
+                addLine('Compiling full structured sketch...', 'term-line-info');
+                addBlank();
+                addLine('// Global variables', 'term-line-dim');
+                addLine('const int SENSOR_PIN = A0;', 'term-line-out');
+                addLine('const int LED_PIN = 13;', 'term-line-out');
+                addLine('float lastTemp = 0.0;', 'term-line-out');
+                addBlank();
+                addLine('void setup() {', 'term-line-out');
+                addLine('    Serial.begin(9600);', 'term-line-out');
+                addLine('    pinMode(LED_PIN, OUTPUT);', 'term-line-out');
+                addLine('}', 'term-line-out');
+                addBlank();
+                addLine('float readTemperature() {', 'term-line-out');
+                addLine('    int raw = analogRead(SENSOR_PIN);', 'term-line-out');
+                addLine('    return (float)raw * 5.0 / 1023.0 * 100.0;', 'term-line-out');
+                addLine('}', 'term-line-out');
+                addBlank();
+                addLine('void loop() {', 'term-line-out');
+                addLine('    lastTemp = readTemperature();', 'term-line-out');
+                addLine('    if (lastTemp > 50.0) {', 'term-line-out');
+                addLine('        digitalWrite(LED_PIN, HIGH);', 'term-line-out');
+                addLine('        Serial.println("WARNING: High temp");', 'term-line-out');
+                addLine('    } else {', 'term-line-out');
+                addLine('        digitalWrite(LED_PIN, LOW);', 'term-line-out');
+                addLine('    }', 'term-line-out');
+                addLine('    delay(1000);', 'term-line-out');
+                addLine('}', 'term-line-out');
+                addBlank();
+                addLine('[COMPILE] Sketch uses 1,842 bytes (5%) of program storage.', 'term-line-info');
+                addLine('[COMPILE] Global variables use 26 bytes (1%) of dynamic memory.', 'term-line-info');
+                addLine('[UPLOAD]  Uploading to board... done.', 'term-line-info');
+                addLine('[VERIFY]  Globals, setup, loop, custom function -- structure correct.', 'term-line-dim');
+                completeTask(10);
+            } else {
+                addLine('sketch: unknown task "' + sub + '". Type "help" for available commands.', 'term-line-err');
+            }
+        }
+
+        /* ── Task completion ── */
+        function completeTask(num) {
+            if (taskDone[num]) return;
+            taskDone[num] = true;
+
+            var card = document.getElementById('task-card-' + num);
+            if (card) { card.classList.add('completed'); card.classList.remove('active'); }
+
+            var doneCount = 0;
+            for (var k in taskDone) { if (taskDone[k]) doneCount++; }
+
+            document.getElementById('taskProgress').textContent = doneCount + ' / ' + TOTAL_TASKS + ' Tasks';
+            var fill = document.getElementById('progressBarFill');
+            if (fill) fill.style.width = Math.round((doneCount / TOTAL_TASKS) * 100) + '%';
+
+            addBlank();
+            addHTML(
+                '  <span style="color:#34d399">[Task ' + num + ' complete]</span> ' +
+                '<span style="color:#374860">' + escH(taskNames[num]) + '</span>',
+                'term-line-info'
+            );
+            addBlank();
+
+            if (doneCount === TOTAL_TASKS) {
+                setTimeout(function () {
+                    document.getElementById('successOverlay').classList.add('active');
+                }, 700);
+                return;
+            }
+
+            var next = null;
+            for (var i = 1; i <= TOTAL_TASKS; i++) { if (!taskDone[i]) { next = i; break; } }
+            if (next !== null) selectTask(next);
+        }
+
+        /* ── UI functions ── */
+        function selectTask(num) {
+            currentTask = num;
+            for (var i = 1; i <= TOTAL_TASKS; i++) {
+                var card = document.getElementById('task-card-' + i);
+                if (!card) continue;
+                card.classList.remove('active');
+                if (i === num) card.classList.add('active');
+            }
+            var activeCard = document.getElementById('task-card-' + num);
+            if (activeCard) activeCard.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+
+            var info = taskInstructions[num];
+            if (!info) return;
+            var stepEl = document.getElementById('instructionsStep');
+            var hintEl = document.getElementById('instructionsHint');
+            var hintCmd = document.getElementById('hintCommand');
+            if (stepEl) stepEl.innerHTML = info.step.replace(/\n/g, '<br>');
+            if (hintEl) hintEl.innerHTML = '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block"> ' + escH(info.hint);
+            if (hintCmd) { hintCmd.textContent = info.cmd; hintCmd.classList.remove('visible'); }
+            var btn = document.getElementById('hintBtn');
+            if (btn) btn.textContent = 'Show command hint';
+            var panel = document.getElementById('instructionsPanel');
+            if (panel && panel.classList.contains('collapsed')) panel.classList.remove('collapsed');
+        }
+
+        function toggleInstructions() {
+            var panel = document.getElementById('instructionsPanel');
+            if (panel) panel.classList.toggle('collapsed');
+        }
+
+        function revealHint() {
+            var hintCmd = document.getElementById('hintCommand');
+            if (hintCmd) hintCmd.classList.toggle('visible');
+            var btn = document.getElementById('hintBtn');
+            if (btn) btn.textContent = (hintCmd && hintCmd.classList.contains('visible')) ? 'Hide hint' : 'Show command hint';
+        }
+
+        function finishLab() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('matrix', 'pc-ard-02-lab', { returnUrl: '../../index.html' });
+            } else {
+                window.location.href = '../../index.html';
+            }
+        }
+
+        window.selectTask = selectTask;
+        window.toggleInstructions = toggleInstructions;
+        window.revealHint = revealHint;
+        window.finishLab = finishLab;
+
+        /* ── Init ── */
+        function init() {
+            outputEl = document.getElementById('termOutput');
+            inputEl = document.getElementById('termInput');
+            if (!outputEl || !inputEl) return;
+
+            addLine('Arduino Programming Foundations Lab -- Compiler Simulation', 'term-welcome');
+            addLine('ProtoCore Arduino Core 2 -- C/C++ for Arduino', 'term-welcome');
+            addBlank();
+            addLine('This lab simulates an Arduino C compiler. Each task compiles and', 'term-line-info');
+            addLine('verifies a code pattern from the Programming Foundations core.', 'term-line-info');
+            addBlank();
+            addLine('Type "help" for all available commands.', 'term-line-info');
+            addLine('Complete 10 tasks to finish the lab.', 'term-line-info');
+            addBlank();
+
+            inputEl.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    var cmd = inputEl.value;
+                    inputEl.value = '';
+                    if (cmd.trim()) { cmdHistory.push(cmd); histIdx = cmdHistory.length; }
+                    execLine(cmd);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (histIdx > 0) { histIdx--; inputEl.value = cmdHistory[histIdx]; }
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (histIdx < cmdHistory.length - 1) { histIdx++; inputEl.value = cmdHistory[histIdx]; }
+                    else { histIdx = cmdHistory.length; inputEl.value = ''; }
+                }
+            });
+
+            outputEl.addEventListener('click', function () { inputEl.focus(); });
+            inputEl.focus();
+            selectTask(1);
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    })();
+    </script>
+
+    <script src="../../../../../components/AchievementManager.js"></script>
+</body>
+</html>

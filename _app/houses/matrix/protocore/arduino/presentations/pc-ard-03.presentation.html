@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math &amp; Logic | ProtoCore Arduino Core 3</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #060a14 0%, #0a1628 50%, #060a14 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #0088ff; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(6, 10, 20, 0.95);
+            border-top: 1px solid rgba(0, 136, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(0, 136, 255, 0.15); color: #0088ff; border-color: #0088ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #0088ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ffd700; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(0, 136, 255, 0.08); border-left: 3px solid #0088ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #b0d4ff; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-blue  { background: rgba(0, 136, 255, 0.08); border: 1px solid rgba(0, 136, 255, 0.3); color: #b0d4ff; }
+        .box-gold  { background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); color: #fef3c7; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ffd700; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #0088ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #ffd700; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #0088ff; }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #0088ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .code-block {
+            background: rgba(0,0,0,0.35); border: 1px solid rgba(255,215,0,0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #ffd700; line-height: 1.6; white-space: pre;
+        }
+        .code-block .cm { color: #64748b; }
+        .code-block .kw { color: #93c5fd; }
+        .code-block .st { color: #86efac; }
+        .code-block .nu { color: #fdba74; }
+        .code-block .fn { color: #0088ff; }
+
+        .code-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .code-panel-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.07em; margin-bottom: 5px; }
+
+        .hex-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(0, 136, 255, 0.25);
+            border-radius: 8px; padding: 12px 14px;
+            text-align: center;
+            opacity: 0;
+            animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #0088ff; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes boxGrow {
+            from { opacity: 0; transform: scale(0.7); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .code-compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Math and Logic -- ProtoCore Arduino Core 3</h1>
+
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; ProtoCore &nbsp;|&nbsp; Arduino &nbsp;|&nbsp; Core 3</div>
+        <div class="title-hero">
+            <svg width="420" height="110" viewBox="0 0 420 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central math symbol -->
+                <rect x="165" y="20" width="90" height="70" rx="12" fill="rgba(0,136,255,0.12)" stroke="#0088ff" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="210" y="45" text-anchor="middle" font-size="14" fill="#ffd700" font-weight="800" font-family="Segoe UI,sans-serif">f(x)</text>
+                <text x="210" y="62" text-anchor="middle" font-size="9" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Math &amp; Logic</text>
+                <text x="210" y="76" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">Arduino Functions</text>
+
+                <!-- Left: map() -->
+                <rect x="20" y="15" width="110" height="35" rx="8" fill="rgba(255,215,0,0.08)" stroke="#ffd700" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="75" y="30" text-anchor="middle" font-size="8" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">map() + constrain()</text>
+                <text x="75" y="42" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Courier New,monospace">Scale &amp; clamp values</text>
+
+                <!-- Left: Trig -->
+                <rect x="20" y="60" width="110" height="35" rx="8" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="75" y="75" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">sin() cos() tan()</text>
+                <text x="75" y="87" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Courier New,monospace">Smooth motion</text>
+
+                <!-- Right: Random -->
+                <rect x="290" y="15" width="110" height="35" rx="8" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="345" y="30" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">random() + seed</text>
+                <text x="345" y="42" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Courier New,monospace">Entropy from analog</text>
+
+                <!-- Right: Bits -->
+                <rect x="290" y="60" width="110" height="35" rx="8" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="345" y="75" text-anchor="middle" font-size="8" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">bitRead / bitWrite</text>
+                <text x="345" y="87" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Courier New,monospace">Byte manipulation</text>
+
+                <!-- Connecting lines -->
+                <line x1="130" y1="32" x2="163" y2="45" stroke="rgba(255,215,0,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <line x1="130" y1="77" x2="163" y2="65" stroke="rgba(58,181,119,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.15s"/>
+                </line>
+                <line x1="290" y1="32" x2="257" y2="45" stroke="rgba(167,139,250,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <line x1="290" y1="77" x2="257" y2="65" stroke="rgba(6,182,212,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.25s"/>
+                </line>
+            </svg>
+            <div class="big-title">
+                Math &amp; <span class="accent">Logic</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Arithmetic &bull; map() &bull; constrain() &bull; Trigonometry &bull; Random &bull; Bit &amp; Byte Operations
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Sensors produce raw numbers. Math transforms them into meaningful data -- voltages, distances, angles, temperatures. This core covers every Arduino math function from basic arithmetic to bitwise byte manipulation, and when each one matters in real embedded systems.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>Arduino Cookbook Ch. 3</span>
+            <span>Core 3 of 16</span>
+            <span>ProtoCore Arduino Track</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- ARITHMETIC ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Arithmetic: <span class="accent">The Basics</span></div>
+        <div class="slide-subtitle">Addition, subtraction, multiplication, and division -- with one critical gotcha that trips up every beginner.</div>
+
+        <div class="code-block"><span class="cm">// Integer arithmetic</span>
+<span class="kw">int</span> a = <span class="nu">10</span>, b = <span class="nu">3</span>;
+<span class="kw">int</span> sum  = a + b;    <span class="cm">// 13</span>
+<span class="kw">int</span> diff = a - b;    <span class="cm">// 7</span>
+<span class="kw">int</span> prod = a * b;    <span class="cm">// 30</span>
+<span class="kw">int</span> quot = a / b;    <span class="cm">// 3   -- NOT 3.333!  Integer division truncates.</span>
+
+<span class="cm">// The fix: use float</span>
+<span class="kw">float</span> result = (<span class="kw">float</span>)a / (<span class="kw">float</span>)b;  <span class="cm">// 3.333333</span>
+
+<span class="cm">// Real-world: converting analog reading to voltage</span>
+<span class="kw">int</span> raw = <span class="fn">analogRead</span>(<span class="nu">A0</span>);             <span class="cm">// 0-1023</span>
+<span class="kw">float</span> volts = raw * <span class="nu">5.0</span> / <span class="nu">1023.0</span>;    <span class="cm">// correct -- 5.0 forces float math</span>
+<span class="kw">int</span> wrong   = raw * <span class="nu">5</span> / <span class="nu">1023</span>;        <span class="cm">// WRONG -- integer overflow possible</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Integer Division Gotcha</div>
+                <div class="card-desc">When both operands are integers, the result is an integer with the fractional part discarded. <span class="ic">5 / 2 = 2</span>, <span class="ic">1 / 3 = 0</span>. This is not rounding -- it is truncation toward zero. Cast at least one operand to <span class="ic">float</span> to get a decimal result.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Overflow Danger</div>
+                <div class="card-desc"><span class="ic">int</span> on AVR holds -32,768 to 32,767. <span class="ic">raw * 5</span> where raw = 1023 gives 5115 -- fine. But <span class="ic">raw * 1000</span> gives 1,023,000 which overflows int silently, wrapping to a garbage value. Use <span class="ic">long</span> for large intermediate values.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- INCREMENT / DECREMENT ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Increment &amp; <span class="accent">Decrement</span></div>
+        <div class="slide-subtitle">The ++ and -- operators add or subtract 1. The position (prefix vs postfix) determines when the change takes effect.</div>
+
+        <div class="code-compare">
+            <div>
+                <div class="code-panel-label" style="color:#0088ff;">Post-increment (i++)</div>
+                <div class="code-block"><span class="kw">int</span> a = <span class="nu">5</span>;
+<span class="kw">int</span> b = a++;
+<span class="cm">// b = 5 (original value used first)</span>
+<span class="cm">// a = 6 (then incremented)</span>
+
+<span class="cm">// Most common in for loops:</span>
+<span class="kw">for</span> (<span class="kw">int</span> i = <span class="nu">0</span>; i &lt; <span class="nu">10</span>; i++) {
+    <span class="cm">// i incremented after each</span>
+    <span class="cm">// iteration's body executes</span>
+}</div>
+            </div>
+            <div>
+                <div class="code-panel-label" style="color:#ffd700;">Pre-increment (++i)</div>
+                <div class="code-block"><span class="kw">int</span> a = <span class="nu">5</span>;
+<span class="kw">int</span> b = ++a;
+<span class="cm">// a = 6 (incremented first)</span>
+<span class="cm">// b = 6 (new value used)</span>
+
+<span class="cm">// Decrement works the same:</span>
+<span class="kw">int</span> count = <span class="nu">10</span>;
+count--;    <span class="cm">// now 9</span>
+--count;    <span class="cm">// now 8</span>
+<span class="cm">// Standalone: no difference.</span>
+<span class="cm">// Only matters in expressions.</span></div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            In practice, the difference rarely matters because most uses are standalone statements (<span class="ic">i++;</span> on its own line). But inside expressions like <span class="ic">array[i++] = val;</span> vs <span class="ic">array[++i] = val;</span>, it determines which index is written. When in doubt, do the increment on a separate line for clarity.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- MODULO & REMAINDER ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Modulo &amp; <span class="accent">Remainder</span></div>
+        <div class="slide-subtitle">The % operator gives the remainder after division. It is one of the most useful tools for cycling, wrapping, and periodic behavior.</div>
+
+        <div class="code-block"><span class="cm">// Basic modulo</span>
+<span class="kw">int</span> result = <span class="nu">7</span> % <span class="nu">3</span>;   <span class="cm">// 1  (7 = 2*3 + 1)</span>
+<span class="kw">int</span> result = <span class="nu">10</span> % <span class="nu">5</span>;  <span class="cm">// 0  (evenly divisible)</span>
+<span class="kw">int</span> result = <span class="nu">3</span> % <span class="nu">7</span>;   <span class="cm">// 3  (3 < 7, so remainder is 3)</span>
+
+<span class="cm">// Circular buffer index</span>
+<span class="kw">int</span> readings[<span class="nu">10</span>];
+<span class="kw">int</span> index = <span class="nu">0</span>;
+<span class="kw">void</span> <span class="fn">loop</span>() {
+    readings[index] = <span class="fn">analogRead</span>(<span class="nu">A0</span>);
+    index = (index + <span class="nu">1</span>) % <span class="nu">10</span>;  <span class="cm">// wraps: 0,1,2...9,0,1,2...</span>
+}
+
+<span class="cm">// Run code every Nth iteration</span>
+<span class="kw">static int</span> loopCount = <span class="nu">0</span>;
+loopCount++;
+<span class="kw">if</span> (loopCount % <span class="nu">100</span> == <span class="nu">0</span>) {
+    <span class="fn">Serial</span>.<span class="fn">println</span>(<span class="st">"Every 100 loops"</span>);
+}</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Cycling Through Values</div>
+                <div class="card-desc">Cycle through LED colors: <span class="ic">colorIndex = (colorIndex + 1) % NUM_COLORS;</span>. Wraps automatically from the last index back to 0. No if/else needed.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Even/Odd Check</div>
+                <div class="card-desc"><span class="ic">if (n % 2 == 0)</span> tests for even numbers. <span class="ic">n % 2 == 1</span> for odd. Use for alternating behavior, blinking patterns, or split processing.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Integer Only</div>
+                <div class="card-desc">The <span class="ic">%</span> operator works only on integers in C/C++. For float remainder, use <span class="ic">fmod(a, b)</span>. On Arduino, <span class="ic">fmod</span> is available but rarely needed.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- ABS & CONSTRAIN ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">abs() &amp; <span class="accent">constrain()</span></div>
+        <div class="slide-subtitle">Two utility functions that handle the most common sensor data problems: negative values and out-of-range readings.</div>
+
+        <div class="code-block"><span class="cm">// abs() -- returns the absolute value</span>
+<span class="kw">int</span> diff = sensorA - sensorB;
+<span class="kw">int</span> magnitude = <span class="fn">abs</span>(diff);  <span class="cm">// always positive</span>
+
+<span class="cm">// constrain(val, min, max) -- clamps a value to a range</span>
+<span class="kw">int</span> raw = <span class="fn">analogRead</span>(<span class="nu">A0</span>);
+<span class="kw">int</span> safe = <span class="fn">constrain</span>(raw, <span class="nu">100</span>, <span class="nu">900</span>);
+<span class="cm">// If raw = 50,  safe = 100 (clamped to min)</span>
+<span class="cm">// If raw = 500, safe = 500 (within range, unchanged)</span>
+<span class="cm">// If raw = 950, safe = 900 (clamped to max)</span>
+
+<span class="cm">// Real-world: protect a servo from over-rotation</span>
+<span class="kw">int</span> angle = <span class="fn">map</span>(raw, <span class="nu">0</span>, <span class="nu">1023</span>, <span class="nu">0</span>, <span class="nu">180</span>);
+angle = <span class="fn">constrain</span>(angle, <span class="nu">10</span>, <span class="nu">170</span>);  <span class="cm">// mechanical safety limits</span>
+servo.<span class="fn">write</span>(angle);</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">abs() Warning</div>
+                <div class="card-desc">Arduino's <span class="ic">abs()</span> is a macro. Avoid <span class="ic">abs(a++)</span> because the argument gets evaluated twice. Use a temporary variable: <span class="ic">int tmp = a++; int val = abs(tmp);</span>.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Clamping Sensor Data</div>
+                <div class="card-desc">Sensors often produce outlier readings -- spikes, noise, or transients. <span class="ic">constrain()</span> after reading prevents those outliers from driving actuators to dangerous positions. Always constrain before writing to servos, motors, or PWM outputs.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- MIN/MAX & MAP ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">min(), max() &amp; <span class="accent">map()</span></div>
+        <div class="slide-subtitle">map() is one of the most-used Arduino functions. It scales a value from one range to another -- the bridge between raw sensor data and useful output.</div>
+
+        <div class="code-block"><span class="cm">// min() and max()</span>
+<span class="kw">int</span> smaller = <span class="fn">min</span>(<span class="nu">10</span>, <span class="nu">25</span>);   <span class="cm">// 10</span>
+<span class="kw">int</span> larger  = <span class="fn">max</span>(<span class="nu">10</span>, <span class="nu">25</span>);   <span class="cm">// 25</span>
+
+<span class="cm">// map(value, fromLow, fromHigh, toLow, toHigh)</span>
+<span class="kw">int</span> raw = <span class="fn">analogRead</span>(<span class="nu">A0</span>);         <span class="cm">// 0-1023</span>
+<span class="kw">int</span> pwm = <span class="fn">map</span>(raw, <span class="nu">0</span>, <span class="nu">1023</span>, <span class="nu">0</span>, <span class="nu">255</span>);  <span class="cm">// scale to PWM range</span>
+<span class="fn">analogWrite</span>(<span class="nu">9</span>, pwm);
+
+<span class="cm">// map() with inverted range -- sensor reads high when dark</span>
+<span class="kw">int</span> light = <span class="fn">map</span>(raw, <span class="nu">0</span>, <span class="nu">1023</span>, <span class="nu">100</span>, <span class="nu">0</span>);  <span class="cm">// invert: 1023 -> 0%</span>
+
+<span class="cm">// map() for servo control</span>
+<span class="kw">int</span> potVal = <span class="fn">analogRead</span>(<span class="nu">A0</span>);
+<span class="kw">int</span> angle  = <span class="fn">map</span>(potVal, <span class="nu">0</span>, <span class="nu">1023</span>, <span class="nu">0</span>, <span class="nu">180</span>);
+servo.<span class="fn">write</span>(angle);
+
+<span class="cm">// map() does NOT constrain -- values outside the range extrapolate</span>
+<span class="kw">int</span> oops = <span class="fn">map</span>(<span class="nu">1100</span>, <span class="nu">0</span>, <span class="nu">1023</span>, <span class="nu">0</span>, <span class="nu">255</span>);  <span class="cm">// returns ~274, not 255!</span></div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">map() Parameters</div>
+                <div class="card-desc">Five arguments: the value, then the source range (fromLow, fromHigh), then the target range (toLow, toHigh). The math: <span class="ic">(val - fromLow) * (toHigh - toLow) / (fromHigh - fromLow) + toLow</span>. Integer math only -- no fractional results.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">map + constrain Combo</div>
+                <div class="card-desc">Always pair map() with constrain() when driving outputs: <span class="ic">int pwm = constrain(map(raw, 0, 1023, 0, 255), 0, 255);</span>. This prevents extrapolated values from damaging hardware or producing unexpected behavior.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">min/max as Macros</div>
+                <div class="card-desc">Like abs(), min() and max() are macros on Arduino. Avoid side effects in arguments: <span class="ic">min(a++, b)</span> will increment <span class="ic">a</span> unpredictably. Use temporary variables for safety.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- POWERS & ROOTS ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Powers &amp; <span class="accent">Roots</span></div>
+        <div class="slide-subtitle">pow() and sqrt() handle exponentiation and square roots -- essential for distance calculations, signal processing, and physics simulations.</div>
+
+        <div class="code-block"><span class="cm">// pow(base, exponent) -- returns float</span>
+<span class="kw">float</span> squared = <span class="fn">pow</span>(<span class="nu">5</span>, <span class="nu">2</span>);     <span class="cm">// 25.0</span>
+<span class="kw">float</span> cubed   = <span class="fn">pow</span>(<span class="nu">3</span>, <span class="nu">3</span>);     <span class="cm">// 27.0</span>
+<span class="kw">float</span> root    = <span class="fn">pow</span>(<span class="nu">27</span>, <span class="nu">1.0</span>/<span class="nu">3</span>); <span class="cm">// 3.0 (cube root)</span>
+
+<span class="cm">// sqrt(x) -- square root</span>
+<span class="kw">float</span> side = <span class="fn">sqrt</span>(<span class="nu">144</span>);       <span class="cm">// 12.0</span>
+
+<span class="cm">// Euclidean distance between two points</span>
+<span class="kw">float</span> dx = x2 - x1;
+<span class="kw">float</span> dy = y2 - y1;
+<span class="kw">float</span> distance = <span class="fn">sqrt</span>(<span class="fn">pow</span>(dx, <span class="nu">2</span>) + <span class="fn">pow</span>(dy, <span class="nu">2</span>));
+
+<span class="cm">// Faster alternative for squaring (avoid pow overhead):</span>
+<span class="kw">float</span> distFast = <span class="fn">sqrt</span>(dx * dx + dy * dy);</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Performance</div>
+                <div class="card-desc"><span class="ic">pow()</span> and <span class="ic">sqrt()</span> are slow on AVR (no hardware FPU). For simple squares, use multiplication: <span class="ic">x * x</span> is 10-50x faster than <span class="ic">pow(x, 2)</span>. Save <span class="ic">pow()</span> for fractional exponents and cube roots.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Distance Calculations</div>
+                <div class="card-desc">Ultrasonic sensors return distance in microseconds. Thermistors use exponential curves. GPS modules provide lat/lon that require Haversine distance with pow() and sqrt(). These functions bridge raw numbers and real-world measurements.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- TRIGONOMETRY ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title"><span class="accent">Trigonometry</span></div>
+        <div class="slide-subtitle">sin(), cos(), and tan() take arguments in radians. They produce smooth, periodic motion -- essential for servo sweeps, LED fades, and circular patterns.</div>
+
+        <div class="code-block"><span class="cm">// Trig functions use RADIANS, not degrees</span>
+<span class="cm">// Convert: radians = degrees * PI / 180</span>
+<span class="kw">float</span> angle = <span class="nu">45.0</span> * <span class="nu">PI</span> / <span class="nu">180.0</span>;  <span class="cm">// 0.7854 radians</span>
+<span class="kw">float</span> s = <span class="fn">sin</span>(angle);  <span class="cm">// 0.7071</span>
+<span class="kw">float</span> c = <span class="fn">cos</span>(angle);  <span class="cm">// 0.7071</span>
+
+<span class="cm">// Smooth LED breathing effect</span>
+<span class="kw">void</span> <span class="fn">loop</span>() {
+    <span class="kw">float</span> t = <span class="fn">millis</span>() / <span class="nu">1000.0</span>;       <span class="cm">// time in seconds</span>
+    <span class="kw">float</span> brightness = (<span class="fn">sin</span>(t * <span class="nu">2.0</span> * <span class="nu">PI</span>) + <span class="nu">1.0</span>) * <span class="nu">127.5</span>;
+    <span class="fn">analogWrite</span>(<span class="nu">9</span>, (<span class="kw">int</span>)brightness);  <span class="cm">// smooth 0-255 cycle</span>
+}
+
+<span class="cm">// Servo smooth sweep (sinusoidal instead of linear)</span>
+<span class="kw">float</span> pos = <span class="nu">90.0</span> + <span class="nu">80.0</span> * <span class="fn">sin</span>(<span class="fn">millis</span>() / <span class="nu">2000.0</span>);
+servo.<span class="fn">write</span>((<span class="kw">int</span>)pos);  <span class="cm">// sweeps 10-170 smoothly</span></div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Radians vs Degrees</div>
+                <div class="card-desc">Arduino trig functions require radians. Full circle = 2*PI radians = 360 degrees. <span class="ic">PI</span> is predefined as 3.14159265. Use <span class="ic">radians(deg)</span> and <span class="ic">degrees(rad)</span> helper macros for conversion.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">sin() for Smooth Motion</div>
+                <div class="card-desc">sin() oscillates from -1 to +1. Scale and shift it: <span class="ic">(sin(t) + 1.0) * 127.5</span> maps to 0-255 for PWM. The result is a smooth breathing pattern instead of a linear ramp -- more natural and visually pleasing.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Circular Patterns</div>
+                <div class="card-desc">Plot a circle: <span class="ic">x = cx + r * cos(angle)</span>, <span class="ic">y = cy + r * sin(angle)</span>. Useful for OLED display animations, LED ring effects, or robotic arm kinematics where joints move in arcs.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- RANDOM NUMBERS ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Random <span class="accent">Numbers</span></div>
+        <div class="slide-subtitle">random() generates pseudo-random numbers. randomSeed() makes them unpredictable -- and an unconnected analog pin provides the entropy.</div>
+
+        <div class="code-block"><span class="cm">// random(max) -- returns 0 to max-1</span>
+<span class="kw">long</span> r = <span class="fn">random</span>(<span class="nu">100</span>);          <span class="cm">// 0 to 99</span>
+
+<span class="cm">// random(min, max) -- returns min to max-1</span>
+<span class="kw">long</span> r = <span class="fn">random</span>(<span class="nu">10</span>, <span class="nu">50</span>);       <span class="cm">// 10 to 49</span>
+
+<span class="cm">// Without randomSeed, the sequence is the same every power-on!</span>
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    <span class="cm">// Read floating analog pin for noise-based seed</span>
+    <span class="fn">randomSeed</span>(<span class="fn">analogRead</span>(<span class="nu">A7</span>));  <span class="cm">// A7 unconnected = random noise</span>
+}
+
+<span class="cm">// Random LED blink timing</span>
+<span class="kw">void</span> <span class="fn">loop</span>() {
+    <span class="fn">digitalWrite</span>(<span class="nu">13</span>, <span class="kw">HIGH</span>);
+    <span class="fn">delay</span>(<span class="fn">random</span>(<span class="nu">50</span>, <span class="nu">500</span>));    <span class="cm">// random on-time</span>
+    <span class="fn">digitalWrite</span>(<span class="nu">13</span>, <span class="kw">LOW</span>);
+    <span class="fn">delay</span>(<span class="fn">random</span>(<span class="nu">50</span>, <span class="nu">500</span>));    <span class="cm">// random off-time</span>
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">randomSeed() Is Essential</div>
+                <div class="card-desc">Without calling <span class="ic">randomSeed()</span>, random() produces the exact same sequence every boot. Seed with <span class="ic">analogRead()</span> on an unconnected pin -- the floating input picks up electrical noise, giving a different seed each time.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Not Cryptographic</div>
+                <div class="card-desc">Arduino's random() is a pseudo-random number generator (PRNG) -- fine for games, animations, and randomized delays, but not for security. For cryptographic randomness on ESP32, use <span class="ic">esp_random()</span> which reads a hardware RNG.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- BIT OPERATIONS ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Bit <span class="accent">Operations</span></div>
+        <div class="slide-subtitle">Setting, clearing, and reading individual bits. Essential for hardware register manipulation, feature flags, and compact data storage.</div>
+
+        <div class="code-block"><span class="cm">// Setting a bit (turn bit ON)</span>
+<span class="kw">byte</span> flags = <span class="nu">0b00000000</span>;
+flags |= (<span class="nu">1</span> &lt;&lt; <span class="nu">3</span>);          <span class="cm">// Set bit 3: 0b00001000</span>
+
+<span class="cm">// Clearing a bit (turn bit OFF)</span>
+flags &amp;= ~(<span class="nu">1</span> &lt;&lt; <span class="nu">3</span>);         <span class="cm">// Clear bit 3: 0b00000000</span>
+
+<span class="cm">// Reading a bit</span>
+<span class="kw">bool</span> isSet = (flags &gt;&gt; <span class="nu">3</span>) &amp; <span class="nu">1</span>;  <span class="cm">// true if bit 3 is set</span>
+
+<span class="cm">// Toggling a bit</span>
+flags ^= (<span class="nu">1</span> &lt;&lt; <span class="nu">5</span>);          <span class="cm">// Flip bit 5</span>
+
+<span class="cm">// Bit masks for multiple flags</span>
+<span class="kw">#define</span> FLAG_ARMED    (<span class="nu">1</span> &lt;&lt; <span class="nu">0</span>)  <span class="cm">// bit 0</span>
+<span class="kw">#define</span> FLAG_RUNNING  (<span class="nu">1</span> &lt;&lt; <span class="nu">1</span>)  <span class="cm">// bit 1</span>
+<span class="kw">#define</span> FLAG_ERROR    (<span class="nu">1</span> &lt;&lt; <span class="nu">2</span>)  <span class="cm">// bit 2</span>
+
+flags |= FLAG_ARMED | FLAG_RUNNING;  <span class="cm">// set both</span>
+<span class="kw">if</span> (flags &amp; FLAG_ERROR) { <span class="fn">handleError</span>(); }</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Why Bits Matter</div>
+                <div class="card-desc">Hardware registers (PORTB, DDRB, TCCR1A) are controlled bit by bit. Each bit has a specific function -- pin direction, timer prescaler, interrupt enable. Bit operations are the only way to change one setting without affecting others in the same register.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Compact Flag Storage</div>
+                <div class="card-desc">A single byte holds 8 boolean flags using 1 byte of RAM instead of 8 bytes. On a 2 KB microcontroller, this matters. Name your flags with <span class="ic">#define</span> for readability: <span class="ic">if (status &amp; FLAG_READY)</span> is cleaner than <span class="ic">if ((status &gt;&gt; 4) &amp; 1)</span>.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- BYTE MANIPULATION ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Byte <span class="accent">Manipulation</span></div>
+        <div class="slide-subtitle">Arduino provides helper functions for working with individual bits and bytes -- cleaner than raw bitwise operators for common operations.</div>
+
+        <div class="code-block"><span class="cm">// Arduino bit/byte helper functions</span>
+<span class="kw">int</span> value = <span class="nu">0xABCD</span>;  <span class="cm">// 43981 decimal</span>
+
+<span class="kw">byte</span> hi = <span class="fn">highByte</span>(value);  <span class="cm">// 0xAB (171)</span>
+<span class="kw">byte</span> lo = <span class="fn">lowByte</span>(value);   <span class="cm">// 0xCD (205)</span>
+
+<span class="cm">// Reconstruct the int from bytes</span>
+<span class="kw">int</span> rebuilt = (hi &lt;&lt; <span class="nu">8</span>) | lo;  <span class="cm">// 0xABCD</span>
+
+<span class="cm">// Read/write individual bits</span>
+<span class="kw">byte</span> reg = <span class="nu">0b10110100</span>;
+<span class="kw">bool</span> bit3 = <span class="fn">bitRead</span>(reg, <span class="nu">3</span>);       <span class="cm">// 0 (bit 3 is off)</span>
+<span class="kw">bool</span> bit5 = <span class="fn">bitRead</span>(reg, <span class="nu">5</span>);       <span class="cm">// 1 (bit 5 is on)</span>
+
+<span class="fn">bitWrite</span>(reg, <span class="nu">3</span>, <span class="nu">1</span>);               <span class="cm">// Set bit 3: 0b10111100</span>
+<span class="fn">bitClear</span>(reg, <span class="nu">5</span>);                  <span class="cm">// Clear bit 5: 0b10011100</span>
+<span class="fn">bitSet</span>(reg, <span class="nu">0</span>);                    <span class="cm">// Set bit 0: 0b10011101</span>
+
+<span class="cm">// bit() macro -- creates a bitmask</span>
+<span class="kw">byte</span> mask = <span class="fn">bit</span>(<span class="nu">4</span>);  <span class="cm">// 0b00010000 -- same as (1 &lt;&lt; 4)</span></div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Multi-Byte Sensor Data</div>
+                <div class="card-desc">Many I2C sensors return 16-bit readings as two separate bytes (high byte first, then low byte). Use <span class="ic">highByte()</span> and <span class="ic">lowByte()</span> to split, or <span class="ic">(hi &lt;&lt; 8) | lo</span> to combine. The BMP280 barometric sensor does exactly this.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">bitRead / bitWrite</div>
+                <div class="card-desc">More readable than raw bitwise ops: <span class="ic">bitRead(PORTB, 5)</span> vs <span class="ic">(PORTB &gt;&gt; 5) &amp; 1</span>. Same compiled code, better readability. Use these helpers when working with registers or protocol bytes in your own code.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Serial Communication</div>
+                <div class="card-desc">When sending multi-byte data over Serial, SPI, or I2C, you split values into bytes for transmission and reassemble on the receiving end. <span class="ic">lowByte()</span>/<span class="ic">highByte()</span> is the standard pattern for this split.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- KEY TAKEAWAYS ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Key <span class="accent">Takeaways</span></div>
+        <div class="slide-subtitle">Math &amp; Logic -- the Arduino functions that transform raw sensor data into meaningful behavior.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Integer division truncates.</strong> <code>5 / 2 = 2</code>, not 2.5. Cast to float when you need decimal precision. Watch for int overflow in intermediate calculations.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>map() scales, constrain() clamps.</strong> Always pair them: <code>constrain(map(raw, 0, 1023, 0, 255), 0, 255)</code>. map() alone can extrapolate beyond your target range.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Trig uses radians.</strong> <code>sin()</code>, <code>cos()</code>, <code>tan()</code> expect radians, not degrees. Use <code>degrees * PI / 180.0</code> or the <code>radians()</code> macro to convert.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Seed your random.</strong> Without <code>randomSeed(analogRead(A7))</code>, random() produces the same sequence every boot. An unconnected analog pin provides the noise-based entropy.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Bit helpers are your friends.</strong> <code>bitRead()</code>, <code>bitWrite()</code>, <code>highByte()</code>, <code>lowByte()</code> -- cleaner than raw bitwise ops, same compiled output. Use them for registers and multi-byte sensor data.</span></div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Core 4 -- Serial Communication</strong> &nbsp;|&nbsp; Serial Monitor &bull; Parsing Input &bull; Formatted Output &bull; Multi-Device Communication
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; ProtoCore</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-ard-03-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>
