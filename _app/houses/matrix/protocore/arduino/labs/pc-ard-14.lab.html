@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wireless Communication Lab | ProtoCore Arduino Core 14</title>
+    <style>
+        :root {
+            --blue: #0088ff; --blue-dim: rgba(0,136,255,0.15); --blue-border: rgba(0,136,255,0.3);
+            --green: #34d399; --green-dim: rgba(52,211,153,0.1); --green-border: rgba(52,211,153,0.3);
+            --gold: #ffd700; --gold-dim: rgba(255,215,0,0.1); --gold-border: rgba(255,215,0,0.3);
+            --red: #ef4444; --bg: #040810; --bg2: #081020; --bg3: #0c1628;
+            --text: #dbeafe; --text2: #6b82a0; --border: rgba(0,136,255,0.12);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        .topbar { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .topbar-left { display: flex; align-items: center; gap: 14px; }
+        .back-btn { padding: 6px 14px; background: var(--blue-dim); border: 1px solid var(--blue-border); border-radius: 6px; color: var(--blue); text-decoration: none; font-size: 0.82rem; transition: background 0.2s; }
+        .back-btn:hover { background: rgba(0,136,255,0.25); }
+        .lab-title { font-size: 0.95rem; color: var(--text); }
+        .badge { padding: 3px 10px; border-radius: 10px; font-size: 0.68rem; letter-spacing: 0.06em; }
+        .badge-blue { background: var(--blue-dim); border: 1px solid var(--blue-border); color: var(--blue); }
+        .badge-gold { background: var(--gold-dim); border: 1px solid var(--gold-border); color: var(--gold); }
+        .topbar-right { display: flex; align-items: center; gap: 14px; font-size: 0.82rem; color: var(--text2); }
+        .prog-wrap { width: 130px; height: 5px; background: rgba(0,136,255,0.12); border-radius: 3px; overflow: hidden; }
+        .prog-fill { height: 100%; background: linear-gradient(90deg, var(--blue), #0055cc); border-radius: 3px; transition: width 0.4s ease; }
+        .prog-label { color: var(--blue); font-weight: 500; }
+        .workspace { display: grid; grid-template-columns: 1fr 320px; flex: 1; min-height: 0; }
+        .terminal-panel { display: flex; flex-direction: column; overflow: hidden; }
+        .terminal-header { flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .terminal-header span { font-size: 0.72rem; color: var(--text2); letter-spacing: 0.08em; text-transform: uppercase; }
+        .terminal-output { flex: 1; overflow-y: auto; padding: 12px 16px; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.82rem; color: var(--green); background: rgba(0,0,0,0.4); line-height: 1.7; }
+        .terminal-output .t-blue { color: var(--blue); }
+        .terminal-output .t-gold { color: var(--gold); }
+        .terminal-output .t-red { color: #f87171; }
+        .terminal-output .t-green { color: var(--green); }
+        .terminal-output .t-dim { color: #475569; }
+        .terminal-output .t-white { color: #e2e8f0; }
+        .terminal-input-row { flex-shrink: 0; display: flex; align-items: center; padding: 0; background: var(--bg3); border-top: 1px solid var(--border); }
+        .terminal-prompt { padding: 10px 0 10px 16px; color: var(--blue); font-family: 'Consolas', monospace; font-size: 0.82rem; white-space: nowrap; }
+        .terminal-input { flex: 1; background: transparent; border: none; outline: none; color: var(--text); font-family: 'Consolas', monospace; font-size: 0.82rem; padding: 10px 16px 10px 6px; }
+        .terminal-input::placeholder { color: #384860; }
+        .task-panel { background: var(--bg2); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+        .panel-header { padding: 12px 16px; font-size: 0.7rem; color: var(--text2); letter-spacing: 0.12em; text-transform: uppercase; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .task-list { flex: 1; overflow-y: auto; padding: 12px; }
+        .task-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 9px; padding: 12px 14px; margin-bottom: 8px; transition: all 0.2s; }
+        .task-card.active { border-color: var(--blue); background: rgba(0,136,255,0.06); }
+        .task-card.done { border-color: var(--green-border); background: var(--green-dim); }
+        .task-num { font-size: 0.67rem; color: var(--blue); margin-bottom: 3px; }
+        .task-name { font-size: 0.88rem; color: var(--text); margin-bottom: 3px; display: flex; align-items: center; gap: 6px; }
+        .task-name .chk { font-size: 0.75rem; color: var(--green); margin-left: auto; display: none; }
+        .task-desc { font-size: 0.77rem; color: var(--text2); line-height: 1.45; }
+        .finish-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 9000; }
+        .finish-overlay.active { display: flex; }
+        .finish-card { background: var(--bg2); border: 1px solid var(--green-border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .finish-title { font-size: 1.5rem; color: var(--gold); margin-bottom: 10px; }
+        .finish-msg { color: var(--text2); font-size: 0.95rem; margin-bottom: 24px; line-height: 1.6; }
+        .finish-btn { padding: 11px 28px; background: linear-gradient(135deg, var(--blue), #0055cc); border: none; border-radius: 8px; color: #fff; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; }
+        .finish-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <div class="topbar-left">
+            <a href="../../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Wireless Communication Lab</span>
+            <span class="badge badge-blue">ProtoCore</span>
+            <span class="badge badge-gold">Core 14</span>
+        </div>
+        <div class="topbar-right">
+            <span>Tasks:</span>
+            <div class="prog-wrap"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+            <span class="prog-label" id="progLabel">0 / 10</span>
+        </div>
+    </header>
+
+    <div class="workspace">
+        <!-- LEFT: Terminal -->
+        <div class="terminal-panel">
+            <div class="terminal-header">
+                <span>Wireless Configuration Terminal</span>
+            </div>
+            <div class="terminal-output" id="termOutput"></div>
+            <div class="terminal-input-row">
+                <span class="terminal-prompt">wireless&gt;</span>
+                <input type="text" class="terminal-input" id="termInput" placeholder="Type a command and press Enter..." autocomplete="off" spellcheck="false">
+            </div>
+        </div>
+
+        <!-- RIGHT: Task panel -->
+        <aside class="task-panel">
+            <div class="panel-header">Lab Tasks</div>
+            <div class="task-list" id="taskList"></div>
+        </aside>
+    </div>
+
+    <!-- Finish overlay -->
+    <div class="finish-overlay" id="finishOverlay">
+        <div class="finish-card">
+            <div class="finish-title">Wireless Mastery Achieved</div>
+            <div class="finish-msg">You have configured 433MHz radios, set up XBee networks, managed ZigBee mesh addressing, paired Bluetooth modules, advertised BLE services, and assessed wireless security. The air is now your data bus.</div>
+            <button class="finish-btn" onclick="finishLab()">Return to ProtoCore Hub</button>
+        </div>
+    </div>
+
+<script>
+(function () {
+    'use strict';
+
+    var TASKS = [
+        { id: 1, name: 'Configure 433MHz TX', desc: 'Use "vw_setup 2000" to set VirtualWire data rate to 2000 bps, then "vw_tx_pin 12" to set transmit pin.' },
+        { id: 2, name: 'Receive 433MHz message', desc: 'Use "vw_receive" to start the receiver and display incoming messages from the TX module.' },
+        { id: 3, name: 'XBee AT mode configure', desc: 'Enter AT command mode with "+++" then set PAN ID with "ATID 1234" and destination address with "ATDL 0002".' },
+        { id: 4, name: 'XBee send data', desc: 'Use "xbee_send TEMP:23.5" to transmit sensor data through the XBee module in transparent mode.' },
+        { id: 5, name: 'ZigBee mesh address', desc: 'Use "zigbee_address coordinator" to set this node as coordinator, then "zigbee_pan 0x1A2B" to set the PAN ID.' },
+        { id: 6, name: 'HC-05 pairing sequence', desc: 'Use "bt_mode slave" to set Bluetooth mode, "bt_name ArduinoBT" to set device name, and "bt_pin 5678" to set pairing PIN.' },
+        { id: 7, name: 'BLE advertise', desc: 'Use "ble_name MySensor" to set BLE device name, then "ble_advertise" to start advertising.' },
+        { id: 8, name: 'BLE characteristic read', desc: 'Use "ble_char_read FFE1" to read the value of characteristic 0xFFE1 from the connected BLE device.' },
+        { id: 9, name: 'Wireless range estimation', desc: 'Use "range_calc 433 10 indoor" to estimate the range for 433MHz at 10dBm power indoors.' },
+        { id: 10, name: 'Security assessment', desc: 'Use "security_audit 433" to assess the security posture of a 433MHz link and view recommendations.' }
+    ];
+
+    var completedTasks = {};
+    var activeTaskId = 1;
+
+    /* State tracking */
+    var vwSetup = false;
+    var vwTxPin = false;
+    var atMode = false;
+    var panIdSet = false;
+    var destSet = false;
+    var xbeeSent = false;
+    var zigbeeRole = '';
+    var zigbeePan = false;
+    var btMode = '';
+    var btName = '';
+    var btPin = '';
+    var bleName = '';
+    var bleAdvertising = false;
+    var bleCharRead = false;
+    var rangeCalced = false;
+    var securityAudited = false;
+
+    function init() {
+        buildTaskList();
+        updateProgress();
+        highlightTask(1);
+        printLine('Wireless Configuration Terminal v1.4', 't-blue');
+        printLine('Type "help" for available commands.', 't-dim');
+        printLine('', '');
+
+        var input = document.getElementById('termInput');
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                var cmd = input.value.trim();
+                input.value = '';
+                if (cmd) processCommand(cmd);
+            }
+        });
+        input.focus();
+    }
+
+    function buildTaskList() {
+        var list = document.getElementById('taskList');
+        TASKS.forEach(function(t) {
+            var card = document.createElement('div');
+            card.className = 'task-card';
+            card.id = 'tc-' + t.id;
+            card.innerHTML = '<div class="task-num">Task ' + t.id + '</div><div class="task-name">' + t.name + '<span class="chk" id="ck-' + t.id + '">Done</span></div><div class="task-desc">' + t.desc + '</div>';
+            list.appendChild(card);
+        });
+    }
+
+    function updateProgress() {
+        var count = Object.keys(completedTasks).length;
+        var pct = (count / TASKS.length) * 100;
+        document.getElementById('progFill').style.width = pct + '%';
+        document.getElementById('progLabel').textContent = count + ' / ' + TASKS.length;
+    }
+
+    function completeTask(id) {
+        if (completedTasks[id]) return;
+        completedTasks[id] = true;
+        var card = document.getElementById('tc-' + id);
+        if (card) card.className = 'task-card done';
+        var chk = document.getElementById('ck-' + id);
+        if (chk) chk.style.display = 'inline';
+        updateProgress();
+        printLine('[Task ' + id + ' complete]', 't-green');
+
+        var next = TASKS.find(function(t) { return !completedTasks[t.id]; });
+        if (next) highlightTask(next.id);
+
+        if (Object.keys(completedTasks).length === TASKS.length) {
+            setTimeout(function() {
+                document.getElementById('finishOverlay').classList.add('active');
+            }, 600);
+        }
+    }
+
+    function highlightTask(id) {
+        activeTaskId = id;
+        TASKS.forEach(function(t) {
+            var card = document.getElementById('tc-' + t.id);
+            if (card && !completedTasks[t.id]) {
+                card.className = (t.id === id) ? 'task-card active' : 'task-card';
+            }
+        });
+    }
+
+    function printLine(text, cls) {
+        var panel = document.getElementById('termOutput');
+        var div = document.createElement('div');
+        div.className = cls || '';
+        div.textContent = text;
+        div.style.animation = 'fadeIn 0.3s ease';
+        panel.appendChild(div);
+        panel.scrollTop = panel.scrollHeight;
+    }
+
+    function processCommand(cmd) {
+        printLine('wireless> ' + cmd, 't-white');
+        var parts = cmd.toLowerCase().split(/\s+/);
+        var base = parts[0];
+
+        switch (base) {
+            case 'help':
+                printLine('Available commands:', 't-blue');
+                printLine('  vw_setup <bps>          Set VirtualWire data rate', 't-dim');
+                printLine('  vw_tx_pin <pin>         Set VirtualWire TX pin', 't-dim');
+                printLine('  vw_receive              Start 433MHz receiver', 't-dim');
+                printLine('  +++                     Enter XBee AT command mode', 't-dim');
+                printLine('  ATID <pan_id>           Set XBee PAN ID', 't-dim');
+                printLine('  ATDL <addr>             Set XBee destination address', 't-dim');
+                printLine('  xbee_send <message>     Send data via XBee', 't-dim');
+                printLine('  zigbee_address <role>   Set ZigBee role (coordinator/router/end_device)', 't-dim');
+                printLine('  zigbee_pan <id>         Set ZigBee PAN ID', 't-dim');
+                printLine('  bt_mode <mode>          Set Bluetooth mode (master/slave)', 't-dim');
+                printLine('  bt_name <name>          Set Bluetooth device name', 't-dim');
+                printLine('  bt_pin <pin>            Set Bluetooth pairing PIN', 't-dim');
+                printLine('  ble_name <name>         Set BLE device name', 't-dim');
+                printLine('  ble_advertise           Start BLE advertising', 't-dim');
+                printLine('  ble_char_read <uuid>    Read BLE characteristic', 't-dim');
+                printLine('  range_calc <freq> <power> <env>  Estimate wireless range', 't-dim');
+                printLine('  security_audit <tech>   Assess wireless security', 't-dim');
+                printLine('  clear                   Clear terminal', 't-dim');
+                break;
+
+            case 'vw_setup':
+                if (parts[1] === '2000') {
+                    vwSetup = true;
+                    printLine('VirtualWire initialized at 2000 bps.', 't-green');
+                    printLine('Modulation: ASK (Amplitude Shift Keying)', 't-dim');
+                    printLine('Manchester encoding enabled for noise immunity.', 't-dim');
+                    if (vwSetup && vwTxPin) completeTask(1);
+                } else if (parts[1]) {
+                    printLine('VirtualWire initialized at ' + parts[1] + ' bps.', 't-gold');
+                    printLine('Note: 2000 bps is recommended for reliable 433MHz communication.', 't-dim');
+                } else {
+                    printLine('Usage: vw_setup <bps>  (e.g., vw_setup 2000)', 't-red');
+                }
+                break;
+
+            case 'vw_tx_pin':
+                if (parts[1] === '12') {
+                    vwTxPin = true;
+                    printLine('TX pin set to digital pin 12.', 't-green');
+                    printLine('Connect 433MHz TX module DATA pin to Arduino pin 12.', 't-dim');
+                    if (vwSetup && vwTxPin) completeTask(1);
+                } else if (parts[1]) {
+                    printLine('TX pin set to pin ' + parts[1] + '.', 't-gold');
+                } else {
+                    printLine('Usage: vw_tx_pin <pin>  (e.g., vw_tx_pin 12)', 't-red');
+                }
+                break;
+
+            case 'vw_receive':
+                if (!vwSetup) {
+                    printLine('Error: VirtualWire not initialized. Run vw_setup first.', 't-red');
+                } else {
+                    printLine('Starting 433MHz receiver...', 't-blue');
+                    printLine('Listening on default RX pin 11...', 't-dim');
+                    setTimeout(function() {
+                        printLine('>> Received: "TEMP:23.5" (RSSI: -65 dBm, 9 bytes)', 't-green');
+                    }, 800);
+                    setTimeout(function() {
+                        printLine('>> Received: "TEMP:23.7" (RSSI: -63 dBm, 9 bytes)', 't-green');
+                    }, 1600);
+                    setTimeout(function() {
+                        printLine('>> Received: "HUM:45.2" (RSSI: -68 dBm, 8 bytes)', 't-green');
+                        printLine('Receiver active. 3 messages captured.', 't-blue');
+                        completeTask(2);
+                    }, 2400);
+                }
+                break;
+
+            case '+++':
+                atMode = true;
+                printLine('OK', 't-green');
+                printLine('Entered AT command mode. XBee ready for configuration.', 't-dim');
+                break;
+
+            case 'atid':
+                if (!atMode) {
+                    printLine('Error: Not in AT command mode. Send "+++" first.', 't-red');
+                } else if (parts[1] === '1234') {
+                    panIdSet = true;
+                    printLine('OK', 't-green');
+                    printLine('PAN ID set to 0x1234. All modules on this network must use the same PAN ID.', 't-dim');
+                    if (panIdSet && destSet) completeTask(3);
+                } else if (parts[1]) {
+                    panIdSet = true;
+                    printLine('OK', 't-green');
+                    printLine('PAN ID set to ' + parts[1] + '.', 't-dim');
+                    if (panIdSet && destSet) completeTask(3);
+                } else {
+                    printLine('Usage: ATID <pan_id>  (e.g., ATID 1234)', 't-red');
+                }
+                break;
+
+            case 'atdl':
+                if (!atMode) {
+                    printLine('Error: Not in AT command mode. Send "+++" first.', 't-red');
+                } else if (parts[1]) {
+                    destSet = true;
+                    printLine('OK', 't-green');
+                    printLine('Destination low address set to 0x' + parts[1].toUpperCase() + '.', 't-dim');
+                    if (panIdSet && destSet) completeTask(3);
+                } else {
+                    printLine('Usage: ATDL <addr>  (e.g., ATDL 0002)', 't-red');
+                }
+                break;
+
+            case 'xbee_send':
+                if (!panIdSet) {
+                    printLine('Error: XBee not configured. Set PAN ID and destination first.', 't-red');
+                } else {
+                    var msg = cmd.substring(cmd.indexOf(' ') + 1);
+                    printLine('Transmitting via XBee: "' + msg + '"', 't-blue');
+                    setTimeout(function() {
+                        printLine('TX Status: SUCCESS (delivery confirmed)', 't-green');
+                        printLine('Frame ID: 0x01, Retry count: 0, Signal: -52 dBm', 't-dim');
+                        completeTask(4);
+                    }, 600);
+                }
+                break;
+
+            case 'zigbee_address':
+                if (parts[1] === 'coordinator' || parts[1] === 'router' || parts[1] === 'end_device') {
+                    zigbeeRole = parts[1];
+                    printLine('ZigBee role set to: ' + parts[1].toUpperCase(), 't-green');
+                    if (parts[1] === 'coordinator') {
+                        printLine('This node will form the network and assign addresses.', 't-dim');
+                        printLine('Coordinator must be always on (no sleep mode).', 't-gold');
+                    } else if (parts[1] === 'router') {
+                        printLine('This node will relay messages and extend range.', 't-dim');
+                    } else {
+                        printLine('This node will sleep to conserve power. Talks to parent router only.', 't-dim');
+                    }
+                    if (zigbeeRole && zigbeePan) completeTask(5);
+                } else {
+                    printLine('Usage: zigbee_address <role>  (coordinator | router | end_device)', 't-red');
+                }
+                break;
+
+            case 'zigbee_pan':
+                if (parts[1]) {
+                    zigbeePan = true;
+                    printLine('ZigBee PAN ID set to ' + parts[1], 't-green');
+                    printLine('All nodes on this mesh must share this PAN ID.', 't-dim');
+                    if (zigbeeRole && zigbeePan) completeTask(5);
+                } else {
+                    printLine('Usage: zigbee_pan <id>  (e.g., zigbee_pan 0x1A2B)', 't-red');
+                }
+                break;
+
+            case 'bt_mode':
+                if (parts[1] === 'master' || parts[1] === 'slave') {
+                    btMode = parts[1];
+                    printLine('Bluetooth mode set to: ' + parts[1].toUpperCase(), 't-green');
+                    if (parts[1] === 'slave') {
+                        printLine('HC-05 will accept incoming connections only.', 't-dim');
+                    } else {
+                        printLine('HC-05 can initiate connections to other devices.', 't-dim');
+                    }
+                    if (btMode && btName && btPin) completeTask(6);
+                } else {
+                    printLine('Usage: bt_mode <mode>  (master | slave)', 't-red');
+                }
+                break;
+
+            case 'bt_name':
+                if (parts[1]) {
+                    btName = cmd.substring(cmd.indexOf(' ') + 1);
+                    printLine('Bluetooth device name set to: "' + btName + '"', 't-green');
+                    printLine('Device will appear as "' + btName + '" in Bluetooth scans.', 't-dim');
+                    if (btMode && btName && btPin) completeTask(6);
+                } else {
+                    printLine('Usage: bt_name <name>  (e.g., bt_name ArduinoBT)', 't-red');
+                }
+                break;
+
+            case 'bt_pin':
+                if (parts[1] && parts[1].length === 4 && /^\d+$/.test(parts[1])) {
+                    btPin = parts[1];
+                    printLine('Pairing PIN set to: ' + btPin, 't-green');
+                    printLine('Devices must enter this PIN to pair.', 't-dim');
+                    if (parts[1] === '1234') {
+                        printLine('WARNING: Default PIN 1234 is easily guessed. Use a unique PIN.', 't-gold');
+                    }
+                    if (btMode && btName && btPin) completeTask(6);
+                } else {
+                    printLine('Usage: bt_pin <4-digit PIN>  (e.g., bt_pin 5678)', 't-red');
+                }
+                break;
+
+            case 'ble_name':
+                if (parts[1]) {
+                    bleName = cmd.substring(cmd.indexOf(' ') + 1);
+                    printLine('BLE device name set to: "' + bleName + '"', 't-green');
+                    printLine('Name will appear in advertising packets.', 't-dim');
+                    if (bleName && bleAdvertising) completeTask(7);
+                } else {
+                    printLine('Usage: ble_name <name>  (e.g., ble_name MySensor)', 't-red');
+                }
+                break;
+
+            case 'ble_advertise':
+                if (!bleName) {
+                    printLine('Error: Set BLE device name first with ble_name.', 't-red');
+                } else {
+                    bleAdvertising = true;
+                    printLine('BLE advertising started.', 't-green');
+                    printLine('Broadcasting: name="' + bleName + '", service=0xFFE0', 't-dim');
+                    printLine('Advertising interval: 100ms, TX power: 0 dBm', 't-dim');
+                    setTimeout(function() {
+                        printLine('>> Device connected: iPhone (addr: A1:B2:C3:D4:E5:F6)', 't-gold');
+                    }, 1200);
+                    completeTask(7);
+                }
+                break;
+
+            case 'ble_char_read':
+                if (parts[1] && (parts[1] === 'ffe1' || parts[1] === '0xffe1')) {
+                    bleCharRead = true;
+                    printLine('Reading characteristic 0xFFE1...', 't-blue');
+                    setTimeout(function() {
+                        printLine('Service: 0xFFE0 (Custom)', 't-dim');
+                        printLine('Characteristic: 0xFFE1', 't-dim');
+                        printLine('Properties: READ, WRITE, NOTIFY', 't-dim');
+                        printLine('Value: 0x31 0x38 0x2E 0x35 ("18.5")', 't-green');
+                        printLine('Descriptor: "Temperature Celsius"', 't-dim');
+                        completeTask(8);
+                    }, 500);
+                } else if (parts[1]) {
+                    printLine('Reading characteristic 0x' + parts[1].toUpperCase() + '...', 't-blue');
+                    printLine('Value: (empty)', 't-dim');
+                } else {
+                    printLine('Usage: ble_char_read <uuid>  (e.g., ble_char_read FFE1)', 't-red');
+                }
+                break;
+
+            case 'range_calc':
+                if (parts.length >= 4) {
+                    var freq = parts[1];
+                    var power = parts[2];
+                    var env = parts[3];
+                    printLine('--- Wireless Range Estimation ---', 't-blue');
+                    printLine('Frequency: ' + freq + ' MHz', 't-dim');
+                    printLine('TX Power: ' + power + ' dBm', 't-dim');
+                    printLine('Environment: ' + env, 't-dim');
+                    printLine('', '');
+
+                    var rangeMeter;
+                    if (freq === '433') {
+                        rangeMeter = env === 'indoor' ? '30-80m' : '100-500m';
+                    } else if (freq === '2400') {
+                        rangeMeter = env === 'indoor' ? '10-30m' : '50-100m';
+                    } else if (freq === '868' || freq === '915') {
+                        rangeMeter = env === 'indoor' ? '50-150m' : '500-2000m';
+                    } else {
+                        rangeMeter = 'N/A';
+                    }
+
+                    printLine('Estimated range: ' + rangeMeter, 't-green');
+                    printLine('Note: Actual range varies with antenna, obstacles, and interference.', 't-gold');
+                    printLine('Lower frequencies penetrate walls better. Higher frequencies carry more data.', 't-dim');
+                    rangeCalced = true;
+                    completeTask(9);
+                } else {
+                    printLine('Usage: range_calc <freq_mhz> <power_dbm> <indoor|outdoor>', 't-red');
+                    printLine('Example: range_calc 433 10 indoor', 't-dim');
+                }
+                break;
+
+            case 'security_audit':
+                if (parts[1]) {
+                    var tech = parts[1];
+                    printLine('--- Security Audit: ' + tech.toUpperCase() + ' ---', 't-blue');
+                    printLine('', '');
+
+                    if (tech === '433') {
+                        printLine('Encryption: NONE (plaintext transmission)', 't-red');
+                        printLine('Authentication: NONE', 't-red');
+                        printLine('Replay protection: NONE', 't-red');
+                        printLine('Sniffing risk: HIGH (RTL-SDR can capture all traffic)', 't-red');
+                        printLine('', '');
+                        printLine('Recommendations:', 't-gold');
+                        printLine('  1. Encrypt payloads using AES-128 in Arduino code', 't-dim');
+                        printLine('  2. Add rolling sequence numbers to prevent replay attacks', 't-dim');
+                        printLine('  3. Include timestamps in messages (requires time sync)', 't-dim');
+                        printLine('  4. Never transmit sensitive data without encryption', 't-dim');
+                    } else if (tech === 'bluetooth' || tech === 'bt') {
+                        printLine('Encryption: Available (SSP or legacy pairing)', 't-gold');
+                        printLine('Authentication: PIN-based (weak if default 1234)', 't-gold');
+                        printLine('Replay protection: Partial (session keys rotate)', 't-green');
+                        printLine('Sniffing risk: MEDIUM (Ubertooth can capture)', 't-gold');
+                        printLine('', '');
+                        printLine('Recommendations:', 't-gold');
+                        printLine('  1. Change default PIN from 1234', 't-dim');
+                        printLine('  2. Use SSP (Secure Simple Pairing) when possible', 't-dim');
+                        printLine('  3. Limit discoverable window', 't-dim');
+                    } else if (tech === 'ble') {
+                        printLine('Encryption: AES-CCM (BLE 4.2+ LE Secure Connections)', 't-green');
+                        printLine('Authentication: "Just Works" has no MITM protection', 't-gold');
+                        printLine('Replay protection: YES (sequence counters)', 't-green');
+                        printLine('Sniffing risk: LOW-MEDIUM (encrypted after pairing)', 't-gold');
+                    } else if (tech === 'zigbee') {
+                        printLine('Encryption: AES-128 at network layer', 't-green');
+                        printLine('Authentication: Network key distribution', 't-green');
+                        printLine('Replay protection: YES (frame counters)', 't-green');
+                        printLine('Sniffing risk: LOW (encrypted by default)', 't-green');
+                    } else {
+                        printLine('Unknown technology: ' + tech, 't-red');
+                        printLine('Supported: 433, bluetooth, ble, zigbee', 't-dim');
+                        return;
+                    }
+
+                    securityAudited = true;
+                    completeTask(10);
+                } else {
+                    printLine('Usage: security_audit <technology>', 't-red');
+                    printLine('Supported: 433, bluetooth, ble, zigbee', 't-dim');
+                }
+                break;
+
+            case 'clear':
+                document.getElementById('termOutput').innerHTML = '';
+                break;
+
+            default:
+                printLine('Unknown command: ' + base + '. Type "help" for available commands.', 't-red');
+        }
+    }
+
+    window.finishLab = function() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-ard-14-lab', { returnUrl: '../../index.html' });
+        } else {
+            window.location.href = '../../index.html';
+        }
+    };
+
+    document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>
