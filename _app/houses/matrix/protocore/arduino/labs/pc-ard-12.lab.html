@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timing &amp; Clocks Lab | ProtoCore Arduino Core 12</title>
+    <style>
+        :root {
+            --blue: #0088ff;
+            --blue-dim: rgba(0,136,255,0.15);
+            --blue-border: rgba(0,136,255,0.3);
+            --green: #34d399;
+            --green-dim: rgba(52,211,153,0.1);
+            --green-border: rgba(52,211,153,0.3);
+            --gold: #ffd700;
+            --gold-dim: rgba(255,215,0,0.1);
+            --gold-border: rgba(255,215,0,0.3);
+            --red: #ef4444;
+            --bg: #040810;
+            --bg2: #081020;
+            --bg3: #0c1628;
+            --text: #dbeafe;
+            --text2: #6b82a0;
+            --border: rgba(0,136,255,0.12);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        .topbar { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .topbar-left { display: flex; align-items: center; gap: 14px; }
+        .back-btn { padding: 6px 14px; background: var(--blue-dim); border: 1px solid var(--blue-border); border-radius: 6px; color: var(--blue); text-decoration: none; font-size: 0.82rem; transition: background 0.2s; }
+        .back-btn:hover { background: rgba(0,136,255,0.25); }
+        .lab-title { font-size: 0.95rem; color: var(--text); }
+        .badge { padding: 3px 10px; border-radius: 10px; font-size: 0.68rem; letter-spacing: 0.06em; }
+        .badge-blue { background: var(--blue-dim); border: 1px solid var(--blue-border); color: var(--blue); }
+        .badge-gold { background: var(--gold-dim); border: 1px solid var(--gold-border); color: var(--gold); }
+        .topbar-right { display: flex; align-items: center; gap: 14px; font-size: 0.82rem; color: var(--text2); }
+        .prog-wrap { width: 130px; height: 5px; background: rgba(0,136,255,0.12); border-radius: 3px; overflow: hidden; }
+        .prog-fill { height: 100%; background: linear-gradient(90deg, var(--blue), #0055cc); border-radius: 3px; transition: width 0.4s ease; }
+        .prog-label { color: var(--blue); font-weight: 500; }
+
+        .workspace { display: grid; grid-template-columns: 1fr 320px; flex: 1; min-height: 0; }
+
+        .ide-panel { display: flex; flex-direction: column; overflow: hidden; }
+        .ide-toolbar { flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: var(--bg2); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+        .tb-btn { padding: 5px 14px; background: var(--blue-dim); border: 1px solid var(--blue-border); border-radius: 5px; color: var(--blue); font-size: 0.82rem; cursor: pointer; transition: background 0.2s; white-space: nowrap; font-weight: 600; }
+        .tb-btn:hover:not(:disabled) { background: rgba(0,136,255,0.25); }
+        .tb-btn:disabled { opacity: 0.35; cursor: default; }
+        .tb-btn.verify { background: rgba(52,211,153,0.12); border-color: var(--green-border); color: var(--green); }
+        .tb-btn.verify:hover:not(:disabled) { background: rgba(52,211,153,0.22); }
+        .tb-btn.upload { background: rgba(0,136,255,0.12); border-color: var(--blue-border); color: var(--blue); }
+        .toolbar-sep { width: 1px; height: 18px; background: var(--border); }
+        .tb-label { font-size: 0.72rem; color: var(--text2); }
+
+        .code-area { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+        .code-editor-wrap { flex: 1; display: flex; overflow: hidden; }
+        .line-numbers { background: var(--bg2); color: #475569; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.82rem; padding: 12px 8px 12px 12px; text-align: right; line-height: 1.7; user-select: none; overflow: hidden; min-width: 38px; border-right: 1px solid var(--border); }
+        .code-editor { flex: 1; background: var(--bg3); color: #e2e8f0; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.82rem; padding: 12px 14px; border: none; outline: none; resize: none; line-height: 1.7; tab-size: 2; overflow: auto; white-space: pre; }
+        .code-editor::placeholder { color: #384860; }
+
+        .output-panel { flex-shrink: 0; height: 80px; background: rgba(0,0,0,0.4); border-top: 1px solid var(--border); overflow-y: auto; padding: 8px 14px; font-family: 'Consolas', monospace; font-size: 0.75rem; color: var(--text2); line-height: 1.5; }
+        .output-panel .out-ok { color: var(--green); }
+        .output-panel .out-err { color: #f87171; }
+        .output-panel .out-info { color: var(--blue); }
+
+        .serial-panel { flex-shrink: 0; border-top: 1px solid var(--border); display: flex; flex-direction: column; }
+        .serial-header { display: flex; align-items: center; gap: 10px; padding: 6px 14px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .serial-header span { font-size: 0.72rem; color: var(--text2); letter-spacing: 0.08em; text-transform: uppercase; }
+        .serial-baud { font-size: 0.75rem; color: var(--gold); }
+        .serial-output { height: 100px; overflow-y: auto; padding: 8px 14px; font-family: 'Consolas', monospace; font-size: 0.78rem; color: var(--green); background: rgba(0,0,0,0.3); line-height: 1.5; }
+
+        .task-panel { background: var(--bg2); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+        .panel-header { padding: 12px 16px; font-size: 0.7rem; color: var(--text2); letter-spacing: 0.12em; text-transform: uppercase; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .task-list { flex: 1; overflow-y: auto; padding: 12px; }
+        .task-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 9px; padding: 12px 14px; margin-bottom: 8px; transition: all 0.2s; }
+        .task-card.active { border-color: var(--blue); background: rgba(0,136,255,0.06); }
+        .task-card.done { border-color: var(--green-border); background: var(--green-dim); }
+        .task-num { font-size: 0.67rem; color: var(--blue); margin-bottom: 3px; }
+        .task-name { font-size: 0.88rem; color: var(--text); margin-bottom: 3px; display: flex; align-items: center; gap: 6px; }
+        .task-name .chk { font-size: 0.75rem; color: var(--green); margin-left: auto; display: none; }
+        .task-desc { font-size: 0.77rem; color: var(--text2); line-height: 1.45; }
+
+        .finish-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 9000; }
+        .finish-overlay.active { display: flex; }
+        .finish-card { background: var(--bg2); border: 1px solid var(--green-border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .finish-title { font-size: 1.5rem; color: var(--gold); margin-bottom: 10px; }
+        .finish-msg { color: var(--text2); font-size: 0.95rem; margin-bottom: 24px; line-height: 1.6; }
+        .finish-btn { padding: 11px 28px; background: linear-gradient(135deg, var(--blue), #0055cc); border: none; border-radius: 8px; color: #fff; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; }
+        .finish-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <header class="topbar">
+        <div class="topbar-left">
+            <a href="../../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Timing &amp; Clocks Lab</span>
+            <span class="badge badge-blue">ProtoCore</span>
+            <span class="badge badge-gold">Core 12</span>
+        </div>
+        <div class="topbar-right">
+            <span>Tasks:</span>
+            <div class="prog-wrap"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+            <span class="prog-label" id="progLabel">0 / 10</span>
+        </div>
+    </header>
+
+    <div class="workspace">
+        <div class="ide-panel">
+            <div class="ide-toolbar">
+                <button class="tb-btn verify" id="btnVerify" onclick="doVerify()">Verify</button>
+                <button class="tb-btn upload" id="btnUpload" onclick="doUpload()" disabled>Upload</button>
+                <div class="toolbar-sep"></div>
+                <span class="tb-label">Board: Arduino Uno</span>
+                <span class="tb-label">|</span>
+                <span class="tb-label">Port: COM3</span>
+            </div>
+
+            <div class="code-area">
+                <div class="code-editor-wrap">
+                    <div class="line-numbers" id="lineNums">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15</div>
+                    <textarea class="code-editor" id="codeEditor" spellcheck="false" placeholder="// Write your timing sketch here..."></textarea>
+                </div>
+            </div>
+
+            <div class="output-panel" id="outputPanel">
+                <div class="out-info">Arduino IDE Simulator -- Ready (Board: Uno, Port: COM3)</div>
+            </div>
+
+            <div class="serial-panel">
+                <div class="serial-header">
+                    <span>Serial Monitor</span>
+                    <span class="serial-baud">9600 baud</span>
+                </div>
+                <div class="serial-output" id="serialOutput"></div>
+            </div>
+        </div>
+
+        <aside class="task-panel">
+            <div class="panel-header">Lab Tasks</div>
+            <div class="task-list" id="taskList"></div>
+        </aside>
+    </div>
+
+    <div class="finish-overlay" id="finishOverlay">
+        <div class="finish-card">
+            <div class="finish-title">Timing Mastered</div>
+            <div class="finish-msg">You replaced delay() with millis(), ran multiple independent timers, measured pulse durations, built an RTC reader, and created a scheduled alarm system. Time is now your tool, not your obstacle.</div>
+            <button class="finish-btn" onclick="finishLab()">Return to ProtoCore Hub</button>
+        </div>
+    </div>
+
+<script>
+(function () {
+    'use strict';
+
+    var TASKS = [
+        { id: 1, name: 'Blink LED with millis()', desc: 'Write a non-blocking blink sketch using millis() instead of delay(). Toggle the LED every 500ms. Include unsigned long previousMillis.' },
+        { id: 2, name: 'Verify the millis() sketch', desc: 'Click Verify to compile. The sketch must include millis(), previousMillis, and an interval check.' },
+        { id: 3, name: 'Upload and observe non-blocking blink', desc: 'Upload the sketch. The serial monitor should show "LED toggled" messages at 500ms intervals.' },
+        { id: 4, name: 'Add a second timer for sensor reads', desc: 'Add a second timer that prints "Sensor read" to Serial every 2000ms. Both timers must coexist in loop().' },
+        { id: 5, name: 'Upload the dual-timer sketch', desc: 'Upload and verify both "LED toggled" and "Sensor read" messages appear at their independent intervals.' },
+        { id: 6, name: 'Write a pulseIn() measurement sketch', desc: 'Write code that uses pulseIn() on a pin and prints the duration in microseconds to Serial.' },
+        { id: 7, name: 'Profile a function with micros()', desc: 'Use micros() before and after an operation, then print the elapsed microseconds to Serial. Include "elapsed" in the output.' },
+        { id: 8, name: 'Initialize an RTC with RTClib', desc: 'Write code that includes RTClib.h, creates an RTC_DS3231 object, calls rtc.begin() in setup(), and prints the time from rtc.now().' },
+        { id: 9, name: 'Format a timestamp string', desc: 'Print the RTC time in "HH:MM:SS" format to Serial. The output must contain two colons separating hours, minutes, and seconds.' },
+        { id: 10, name: 'Build a 3-timer scheduler', desc: 'Create three independent millis() timers: 500ms prints "FAST", 2000ms prints "MEDIUM", 5000ms prints "SLOW". Upload and verify all three appear.' }
+    ];
+
+    var completedTasks = {};
+    var codeVerified = false;
+    var uploadCount = 0;
+    var serialInterval = null;
+    var activeTaskId = 1;
+
+    function init() {
+        buildTaskList();
+        updateProgress();
+        highlightTask(1);
+        var editor = document.getElementById('codeEditor');
+        editor.addEventListener('input', updateLineNumbers);
+        editor.addEventListener('scroll', syncScroll);
+        updateLineNumbers();
+    }
+
+    function buildTaskList() {
+        var list = document.getElementById('taskList');
+        TASKS.forEach(function(t) {
+            var card = document.createElement('div');
+            card.className = 'task-card';
+            card.id = 'tc-' + t.id;
+            card.innerHTML = '<div class="task-num">Task ' + t.id + '</div><div class="task-name">' + t.name + '<span class="chk" id="ck-' + t.id + '">Done</span></div><div class="task-desc">' + t.desc + '</div>';
+            list.appendChild(card);
+        });
+    }
+
+    function updateProgress() {
+        var count = Object.keys(completedTasks).length;
+        var pct = (count / TASKS.length) * 100;
+        document.getElementById('progFill').style.width = pct + '%';
+        document.getElementById('progLabel').textContent = count + ' / ' + TASKS.length;
+    }
+
+    function completeTask(id) {
+        if (completedTasks[id]) return;
+        completedTasks[id] = true;
+        var card = document.getElementById('tc-' + id);
+        if (card) card.className = 'task-card done';
+        var chk = document.getElementById('ck-' + id);
+        if (chk) chk.style.display = 'inline';
+        updateProgress();
+        var next = TASKS.find(function(t) { return !completedTasks[t.id]; });
+        if (next) highlightTask(next.id);
+        if (Object.keys(completedTasks).length === TASKS.length) {
+            setTimeout(function() { document.getElementById('finishOverlay').classList.add('active'); }, 600);
+        }
+    }
+
+    function highlightTask(id) {
+        activeTaskId = id;
+        TASKS.forEach(function(t) {
+            var card = document.getElementById('tc-' + t.id);
+            if (card && !completedTasks[t.id]) {
+                card.className = (t.id === id) ? 'task-card active' : 'task-card';
+            }
+        });
+    }
+
+    function updateLineNumbers() {
+        var editor = document.getElementById('codeEditor');
+        var lines = editor.value.split('\n').length;
+        if (lines < 15) lines = 15;
+        var nums = '';
+        for (var i = 1; i <= lines; i++) nums += i + '\n';
+        document.getElementById('lineNums').textContent = nums;
+    }
+
+    function syncScroll() {
+        document.getElementById('lineNums').scrollTop = document.getElementById('codeEditor').scrollTop;
+    }
+
+    function addOutput(msg, cls) {
+        var panel = document.getElementById('outputPanel');
+        var div = document.createElement('div');
+        div.className = cls || '';
+        div.textContent = msg;
+        panel.appendChild(div);
+        panel.scrollTop = panel.scrollHeight;
+    }
+
+    function clearOutput() { document.getElementById('outputPanel').innerHTML = ''; }
+
+    function addSerialLine(msg) {
+        var panel = document.getElementById('serialOutput');
+        var div = document.createElement('div');
+        div.textContent = msg;
+        div.style.animation = 'fadeIn 0.3s ease';
+        panel.appendChild(div);
+        panel.scrollTop = panel.scrollHeight;
+    }
+
+    function clearSerial() { document.getElementById('serialOutput').innerHTML = ''; }
+
+    function getCode() { return document.getElementById('codeEditor').value; }
+    function codeHas(p) { return p.test(getCode()); }
+
+    function hasMillisBlink() {
+        return codeHas(/unsigned\s+long/) && codeHas(/millis\s*\(\s*\)/) && codeHas(/previousMillis|prevMillis|prev/) && codeHas(/interval|>=\s*\d{2,}/);
+    }
+
+    function hasDualTimer() {
+        var code = getCode();
+        var timerVars = (code.match(/unsigned\s+long/g) || []).length;
+        return timerVars >= 2 && codeHas(/millis\s*\(\s*\)/) && (codeHas(/[Ss]ensor/) || codeHas(/2000/));
+    }
+
+    function hasPulseIn() { return codeHas(/pulseIn\s*\(/); }
+
+    function hasMicrosProfile() { return codeHas(/micros\s*\(\s*\)/) && codeHas(/elapsed/i); }
+
+    function hasRTCInit() {
+        return codeHas(/RTClib\.h|RTClib/) && codeHas(/RTC_DS3231/) && codeHas(/rtc\s*\.\s*begin/) && codeHas(/rtc\s*\.\s*now/);
+    }
+
+    function hasTimestamp() { return codeHas(/:\s*/) && codeHas(/now\s*\.\s*(hour|minute|second)/); }
+
+    function hasThreeTimers() {
+        return codeHas(/FAST/i) && codeHas(/MEDIUM/i) && codeHas(/SLOW/i) && codeHas(/500/) && codeHas(/2000/) && codeHas(/5000/);
+    }
+
+    window.doVerify = function() {
+        clearOutput();
+        addOutput('Compiling sketch...', 'out-info');
+        var code = getCode().trim();
+        if (!code) { setTimeout(function() { addOutput('Error: Sketch is empty.', 'out-err'); }, 400); return; }
+
+        setTimeout(function() {
+            addOutput('Compiling for Arduino Uno...', 'out-info');
+        }, 300);
+        setTimeout(function() {
+            var size = 1200 + Math.floor(code.length * 2.1);
+            addOutput('Sketch uses ' + size + ' bytes of program storage space.', 'out-ok');
+            addOutput('Compilation complete.', 'out-ok');
+            codeVerified = true;
+            document.getElementById('btnUpload').disabled = false;
+
+            if (hasMillisBlink() && !completedTasks[1]) completeTask(1);
+            if (!completedTasks[2] && hasMillisBlink()) completeTask(2);
+            if (hasPulseIn() && !completedTasks[6]) completeTask(6);
+            if (hasMicrosProfile() && !completedTasks[7]) completeTask(7);
+            if (hasRTCInit() && !completedTasks[8]) completeTask(8);
+        }, 900);
+    };
+
+    window.doUpload = function() {
+        if (!codeVerified) { addOutput('Verify first.', 'out-err'); return; }
+        clearOutput();
+        if (serialInterval) { clearInterval(serialInterval); serialInterval = null; }
+        addOutput('Uploading to Arduino Uno on COM3...', 'out-info');
+
+        setTimeout(function() { addOutput('Writing flash: [##########] 100%', 'out-info'); }, 600);
+        setTimeout(function() {
+            addOutput('Done uploading.', 'out-ok');
+            uploadCount++;
+            clearSerial();
+
+            if (hasMillisBlink()) {
+                var count = 0;
+                serialInterval = setInterval(function() {
+                    addSerialLine('[' + (count * 500) + 'ms] LED toggled');
+                    count++;
+                    if (!completedTasks[3] && count >= 3) completeTask(3);
+                }, 500);
+            }
+
+            if (hasDualTimer()) {
+                if (serialInterval) { clearInterval(serialInterval); serialInterval = null; }
+                var tick = 0;
+                serialInterval = setInterval(function() {
+                    tick += 500;
+                    addSerialLine('[' + tick + 'ms] LED toggled');
+                    if (tick % 2000 === 0) addSerialLine('[' + tick + 'ms] Sensor read');
+                    if (!completedTasks[4]) completeTask(4);
+                    if (!completedTasks[5] && tick >= 4000) completeTask(5);
+                }, 500);
+            }
+
+            if (hasMicrosProfile()) {
+                setTimeout(function() { addSerialLine('elapsed: 148 us'); }, 300);
+            }
+
+            if (hasRTCInit()) {
+                setTimeout(function() {
+                    var d = new Date();
+                    var hh = String(d.getHours()).padStart(2, '0');
+                    var mm = String(d.getMinutes()).padStart(2, '0');
+                    var ss = String(d.getSeconds()).padStart(2, '0');
+                    addSerialLine('RTC Time: ' + hh + ':' + mm + ':' + ss);
+                    if (hasTimestamp() && !completedTasks[9]) completeTask(9);
+                }, 400);
+            }
+
+            if (hasThreeTimers()) {
+                if (serialInterval) { clearInterval(serialInterval); serialInterval = null; }
+                var t3 = 0;
+                serialInterval = setInterval(function() {
+                    t3 += 500;
+                    if (t3 % 500 === 0) addSerialLine('[' + t3 + 'ms] FAST');
+                    if (t3 % 2000 === 0) addSerialLine('[' + t3 + 'ms] MEDIUM');
+                    if (t3 % 5000 === 0) addSerialLine('[' + t3 + 'ms] SLOW');
+                    if (!completedTasks[10] && t3 >= 5000) completeTask(10);
+                }, 500);
+            }
+        }, 1000);
+    };
+
+    window.finishLab = function() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-ard-12-lab', { returnUrl: '../../index.html' });
+        } else {
+            window.location.href = '../../index.html';
+        }
+    };
+
+    document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>
