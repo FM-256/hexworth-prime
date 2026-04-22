@@ -581,6 +581,94 @@ The heuristics validator checks this file and skips matching entries.
 
 ---
 
+## Verified False Positives (HITL)
+
+The Human-in-the-Loop (HITL) verification system is the primary method for suppressing confirmed false positives. Unlike the quarantine allowlist (which matches file+code), verified findings use a **content hash** that expires automatically when the flagged code changes.
+
+### How It Works
+
+1. EduScan flags a finding during a scan
+2. A human reviews the finding and confirms it is a false positive
+3. The human labels it via CLI (see below)
+4. A signature is stored in `verified-findings.json` with:
+   - `code` -- the rule ID (e.g., QUIZ-001)
+   - `file` -- relative file path from `_app/`
+   - `line` -- line number where the finding occurs
+   - `hash` -- SHA-256 (first 12 chars) of the trimmed line content
+   - `verifiedBy` -- who reviewed it
+   - `date` -- when it was reviewed
+   - `reason` -- why it is a false positive
+5. On future scans, matched findings are suppressed
+6. **If the line content changes, the hash won't match and the label expires** -- the finding gets re-flagged for human review
+
+### CLI Commands
+
+**Add a verified false positive:**
+
+```bash
+node cli.js --verify <CODE> \
+  --verify-file <relative-path-from-_app> \
+  --verify-line <line-number> \
+  --reason "explanation of why this is a false positive"
+```
+
+**Example:**
+
+```bash
+node cli.js --verify QUIZ-001 \
+  --verify-file houses/shield/applets/compliance/cmmc_quiz/shield-cmmc-comprehensive.quiz.html \
+  --verify-line 287 \
+  --reason "correct: fields are domain score counters, not answer keys"
+```
+
+**Remove a verification (re-flag for review):**
+
+```bash
+node cli.js --unverify <CODE> \
+  --verify-file <relative-path> \
+  --verify-line <line-number>
+```
+
+**List all verified false positives:**
+
+```bash
+node cli.js --show-verified
+```
+
+### Data File
+
+Verified findings are stored in `_tools/eduscan/verified-findings.json`. Each entry looks like:
+
+```json
+{
+  "code": "QUIZ-001",
+  "file": "houses/shield/applets/compliance/cmmc_quiz/shield-cmmc-comprehensive.quiz.html",
+  "line": 287,
+  "hash": "18239ab442c7",
+  "verifiedBy": "eq",
+  "date": "2026-04-22",
+  "reason": "correct: fields are domain score counters, not answer keys"
+}
+```
+
+### Hash Expiration
+
+The hash is computed as: `SHA-256(line_content.trim()).substring(0, 12)`
+
+If someone edits the flagged line (even changing whitespace beyond leading/trailing), the hash changes and the verification expires. This prevents stale suppressions from hiding real problems introduced by code changes.
+
+### When to Use What
+
+| Method | Use When | Expiration |
+|--------|----------|------------|
+| `verified-findings.json` (HITL) | Confirmed false positive on a specific line | Auto-expires on code change |
+| `quarantine-allowlist.json` | Blanket suppress a rule for an entire file | Never expires (manual removal) |
+| `<!-- eduscan-ignore: CODE reason="..." -->` | Inline suppression in the HTML file itself | Lives with the code |
+
+**Prefer HITL verification** for individual findings. Use quarantine allowlist only for files that need blanket suppression. Use inline directives sparingly.
+
+---
+
 ## Naming Convention
 
 ### Standard Format
