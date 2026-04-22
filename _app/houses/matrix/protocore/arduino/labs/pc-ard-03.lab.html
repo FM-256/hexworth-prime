@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Auth -->
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math &amp; Logic Lab -- ProtoCore Arduino Core 3</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            height: 100vh; overflow: hidden;
+            background: #0c0c0c;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #b0d4ff; display: flex; flex-direction: column;
+        }
+
+        .lab-header {
+            flex-shrink: 0; padding: 15px 30px;
+            background: rgba(6, 10, 20, 0.95);
+            border-bottom: 1px solid rgba(0, 136, 255, 0.2);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn {
+            padding: 8px 16px; background: rgba(0, 136, 255, 0.1);
+            border: 1px solid rgba(0, 136, 255, 0.3); border-radius: 6px;
+            color: #0088ff; text-decoration: none; font-size: 0.85rem; transition: all 0.3s ease;
+        }
+        .back-btn:hover { background: rgba(0, 136, 255, 0.2); }
+        .lab-title { font-size: 1rem; color: #dbeafe; }
+        .lab-badge {
+            padding: 4px 12px; background: rgba(0, 136, 255, 0.15);
+            border: 1px solid rgba(0, 136, 255, 0.3); border-radius: 12px;
+            font-size: 0.7rem; color: #0088ff; letter-spacing: 0.05em;
+        }
+        .lab-badge-ch {
+            padding: 4px 12px; background: rgba(255, 215, 0, 0.15);
+            border: 1px solid rgba(255, 215, 0, 0.3); border-radius: 12px;
+            font-size: 0.7rem; color: #ffd700; letter-spacing: 0.05em;
+        }
+        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #6b82a0; }
+        .task-count { color: #0088ff; font-weight: 500; }
+        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(0, 136, 255, 0.15); border-radius: 3px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #0088ff, #0055cc); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
+
+        .lab-container { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
+
+        .task-panel { background: rgba(6, 10, 20, 0.95); border-right: 1px solid rgba(0, 136, 255, 0.15); overflow-y: auto; padding: 20px; }
+        .task-section { margin-bottom: 25px; }
+        .task-section-title { font-size: 0.68rem; color: #1a3a5c; letter-spacing: 0.15em; margin-bottom: 12px; text-transform: uppercase; }
+        .task-card {
+            background: rgba(8, 14, 28, 0.8); border: 1px solid rgba(0, 136, 255, 0.15);
+            border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s ease;
+        }
+        .task-card:hover { border-color: rgba(0, 136, 255, 0.4); }
+        .task-card.active { border-color: #0088ff; background: rgba(0, 136, 255, 0.1); }
+        .task-card.completed { border-color: rgba(52, 211, 153, 0.4); background: rgba(52, 211, 153, 0.04); }
+        .task-card.completed .task-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; font-weight: 400; }
+        .task-number { font-size: 0.68rem; color: #0088ff; margin-bottom: 4px; }
+        .task-name { font-size: 0.9rem; color: #dbeafe; margin-bottom: 4px; }
+        .task-desc { font-size: 0.77rem; color: #6b82a0; line-height: 1.45; }
+        .task-desc code { background: rgba(0, 136, 255, 0.15); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; color: #0088ff; font-family: 'Consolas', monospace; }
+
+        .terminal-panel { display: flex; flex-direction: column; background: #0a0a0a; position: relative; overflow: hidden; }
+        .term-toolbar {
+            flex-shrink: 0; padding: 8px 20px; background: rgba(8, 14, 24, 0.9);
+            border-bottom: 1px solid rgba(0, 136, 255, 0.15);
+            display: flex; align-items: center; gap: 12px;
+        }
+        .term-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .term-dot-red   { background: #ff5f57; }
+        .term-dot-amber { background: #febc2e; }
+        .term-dot-green { background: #28c840; }
+        .term-title { flex: 1; text-align: center; font-size: 0.8rem; color: #4a6080; font-family: 'Consolas', 'Courier New', monospace; }
+        .term-vm-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #0088ff; }
+        .term-status-dot { width: 7px; height: 7px; background: #0088ff; border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        .term-output { flex: 1; overflow-y: auto; padding: 16px 360px 8px 20px; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.875rem; line-height: 1.6; }
+        .term-input-row {
+            flex-shrink: 0; display: flex; align-items: center; padding: 8px 360px 12px 20px;
+            border-top: 1px solid rgba(0, 136, 255, 0.1); gap: 0;
+        }
+        .term-prompt-label { font-family: 'Consolas', 'Courier New', monospace; font-size: 0.875rem; white-space: nowrap; flex-shrink: 0; }
+        .term-prompt-user   { color: #0088ff; }
+        .term-prompt-sep    { color: #1a3a5c; }
+        .term-prompt-path   { color: #ffd700; }
+        .term-prompt-dollar { color: #dbeafe; margin-right: 6px; }
+        .term-input {
+            flex: 1; background: transparent; border: none; outline: none;
+            color: #dbeafe; font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem; caret-color: #0088ff;
+        }
+
+        .term-line { white-space: pre-wrap; word-break: break-all; }
+        .term-line-cmd  { color: #b0d4ff; }
+        .term-line-out  { color: #a0d4a0; }
+        .term-line-err  { color: #f87171; }
+        .term-line-info { color: #0088ff; }
+        .term-line-warn { color: #ffd700; }
+        .term-line-dim  { color: #374860; }
+        .term-welcome   { color: #0088ff; }
+
+        .term-prompt-span { color: #0088ff; }
+        .term-path-span   { color: #ffd700; }
+        .term-ps1-sep     { color: #1a3a5c; }
+
+        .instructions-panel {
+            position: absolute; top: 20px; right: 20px; width: 320px;
+            background: rgba(6, 12, 24, 0.97); border: 1px solid rgba(0, 136, 255, 0.3);
+            border-radius: 12px; padding: 20px; z-index: 100;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); transition: all 0.3s ease;
+        }
+        .instructions-panel.collapsed { width: auto; padding: 10px 14px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-body { display: none; }
+        .instructions-panel.collapsed .instructions-toggle { transform: rotate(180deg); }
+        .instructions-title { font-size: 1rem; color: #0088ff; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-title { margin-bottom: 0; font-size: 0.85rem; }
+        .instructions-toggle {
+            margin-left: auto; width: 28px; height: 28px;
+            background: rgba(0, 136, 255, 0.2); border: 1px solid rgba(0, 136, 255, 0.3);
+            border-radius: 6px; color: #0088ff; font-size: 0.75rem; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; flex-shrink: 0;
+        }
+        .instructions-toggle:hover { background: rgba(0, 136, 255, 0.4); }
+        .instructions-step { font-size: 0.88rem; color: #b0d4ff; line-height: 1.65; margin-bottom: 14px; }
+        .instructions-step code { background: rgba(0, 136, 255, 0.2); padding: 2px 7px; border-radius: 4px; font-family: 'Consolas', monospace; color: #0088ff; font-size: 0.85em; }
+        .instructions-hint { font-size: 0.78rem; color: #1a3a5c; font-style: italic; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(0, 136, 255, 0.15); line-height: 1.5; }
+        .hint-btn {
+            margin-top: 12px; padding: 6px 12px; background: rgba(0, 136, 255, 0.12);
+            border: 1px solid rgba(0, 136, 255, 0.25); border-radius: 5px;
+            color: #0088ff; font-size: 0.75rem; cursor: pointer; font-family: 'Segoe UI', sans-serif;
+            transition: all 0.2s ease; width: 100%; text-align: center;
+        }
+        .hint-btn:hover { background: rgba(0, 136, 255, 0.22); }
+        .hint-command {
+            display: none; margin-top: 10px; padding: 8px 10px;
+            background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(0, 136, 255, 0.25);
+            border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.78rem;
+            color: #86efac; line-height: 1.55; white-space: pre-wrap; word-break: break-all;
+        }
+        .hint-command.visible { display: block; }
+
+        .success-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.82); display: none; align-items: center; justify-content: center; z-index: 2000; }
+        .success-overlay.active { display: flex; }
+        .success-card { background: rgba(6, 12, 24, 0.97); border: 1px solid rgba(52, 211, 153, 0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
+        .success-message { color: #b0d4ff; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
+        .success-btn { padding: 12px 30px; background: linear-gradient(135deg, #0088ff, #0055cc); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; transition: all 0.3s ease; }
+        .success-btn:hover { box-shadow: 0 5px 20px rgba(0, 136, 255, 0.35); transform: translateY(-1px); }
+
+        @media (max-width: 1024px) {
+            .lab-container { grid-template-columns: 1fr; }
+            .task-panel { display: none; }
+            .term-output, .term-input-row { padding-right: 20px; }
+            .instructions-panel { position: absolute; bottom: 60px; top: auto; right: 10px; left: 10px; width: auto; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Math &amp; Logic Lab</span>
+            <span class="lab-badge">Arduino</span>
+            <span class="lab-badge-ch">Core 3</span>
+        </div>
+        <div class="task-progress">
+            <span>Progress:</span>
+            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBarFill"></div></div>
+            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
+        </div>
+    </header>
+
+    <div class="lab-container">
+        <aside class="task-panel" id="taskPanel">
+            <div class="task-section">
+                <div class="task-section-title">Phase 1 -- Arithmetic &amp; Scaling</div>
+                <div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)">
+                    <div class="task-number">Task 1</div>
+                    <div class="task-name">Integer vs Float Division</div>
+                    <div class="task-desc">Compare <code>5 / 2</code> (integer) vs <code>5.0 / 2.0</code> (float). Understand the truncation difference. Use <code>math division</code>.</div>
+                </div>
+                <div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)">
+                    <div class="task-number">Task 2</div>
+                    <div class="task-name">Constrain Sensor Reading</div>
+                    <div class="task-desc">Use <code>constrain()</code> to clamp an analog reading to a safe range. Use <code>math constrain</code>.</div>
+                </div>
+                <div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)">
+                    <div class="task-number">Task 3</div>
+                    <div class="task-name">Map Analog to Percentage</div>
+                    <div class="task-desc">Use <code>map()</code> to scale a 0-1023 reading to 0-100%. Use <code>math map</code>.</div>
+                </div>
+            </div>
+            <div class="task-section">
+                <div class="task-section-title">Phase 2 -- Advanced Math</div>
+                <div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)">
+                    <div class="task-number">Task 4</div>
+                    <div class="task-name">Distance with sqrt()</div>
+                    <div class="task-desc">Calculate the Euclidean distance between two points using <code>sqrt()</code>. Use <code>math distance</code>.</div>
+                </div>
+                <div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)">
+                    <div class="task-number">Task 5</div>
+                    <div class="task-name">Random in Range</div>
+                    <div class="task-desc">Generate random numbers within a specific range using <code>random()</code> and <code>randomSeed()</code>. Use <code>math random</code>.</div>
+                </div>
+                <div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)">
+                    <div class="task-number">Task 6</div>
+                    <div class="task-name">Set/Clear Register Bits</div>
+                    <div class="task-desc">Set and clear individual bits in a hardware register byte. Use <code>math bits</code>.</div>
+                </div>
+            </div>
+            <div class="task-section">
+                <div class="task-section-title">Phase 3 -- Applied Patterns</div>
+                <div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)">
+                    <div class="task-number">Task 7</div>
+                    <div class="task-name">Extract Bytes from Int</div>
+                    <div class="task-desc">Split a 16-bit integer into high and low bytes using <code>highByte()</code> and <code>lowByte()</code>. Use <code>math bytes</code>.</div>
+                </div>
+                <div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)">
+                    <div class="task-number">Task 8</div>
+                    <div class="task-name">Trig-Based LED Fade</div>
+                    <div class="task-desc">Use <code>sin()</code> to create a smooth breathing LED pattern. Use <code>math trig</code>.</div>
+                </div>
+                <div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)">
+                    <div class="task-number">Task 9</div>
+                    <div class="task-name">Modulo Cycling Counter</div>
+                    <div class="task-desc">Build a counter that wraps around using the modulo operator. Use <code>math modulo</code>.</div>
+                </div>
+                <div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)">
+                    <div class="task-number">Task 10</div>
+                    <div class="task-name">Calibrated Sensor</div>
+                    <div class="task-desc">Combine <code>map()</code> + <code>constrain()</code> for a fully calibrated sensor pipeline. Use <code>math calibrate</code>.</div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="terminal-panel" id="terminalPanel">
+            <div class="term-toolbar">
+                <div class="term-dot term-dot-red"></div>
+                <div class="term-dot term-dot-amber"></div>
+                <div class="term-dot term-dot-green"></div>
+                <div class="term-title">arduino-sim@protocore -- Math Engine</div>
+                <div class="term-vm-status">
+                    <div class="term-status-dot"></div>
+                    Arduino Sim Online
+                </div>
+            </div>
+            <div class="term-output" id="termOutput"></div>
+            <div class="term-input-row">
+                <span class="term-prompt-label">
+                    <span class="term-prompt-user">arduino-sim</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~/sketch</span><span class="term-prompt-dollar">$</span>
+                </span>
+                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
+            </div>
+
+            <div class="instructions-panel" id="instructionsPanel">
+                <div class="instructions-title" onclick="toggleInstructions()">
+                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+                    Task Instructions
+                    <button class="instructions-toggle" id="instructionsToggle" title="Collapse instructions">&#9660;</button>
+                </div>
+                <div class="instructions-body" id="instructionsBody">
+                    <div class="instructions-step" id="instructionsStep">Type a command and press Enter.</div>
+                    <div class="instructions-hint" id="instructionsHint">
+                        <img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block">
+                        Hint text loads when you select a task.
+                    </div>
+                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
+                    <div class="hint-command" id="hintCommand"></div>
+                </div>
+            </div>
+
+            <div class="success-overlay" id="successOverlay">
+                <div class="success-card">
+                    <div class="success-icon">
+                        <img src="/assets/images/icons/icon-star.webp" alt="" style="width:3rem;height:3rem;object-fit:contain">
+                    </div>
+                    <div class="success-title">Core 3 Lab Complete!</div>
+                    <div class="success-message">
+                        You compared integer vs float division, constrained sensor data,
+                        mapped analog readings to percentages, calculated distances with sqrt,
+                        generated seeded random numbers, manipulated register bits, extracted
+                        bytes from integers, created a trig-based LED fade, built a modulo
+                        cycling counter, and calibrated a full sensor pipeline.
+                        You now command the math functions behind every Arduino sensor project.
+                    </div>
+                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+    (function () {
+        'use strict';
+
+        var TOTAL_TASKS = 10;
+        var taskDone = {};
+        for (var i = 1; i <= TOTAL_TASKS; i++) taskDone[i] = false;
+        var currentTask = 1;
+        var cmdHistory = [];
+        var histIdx = -1;
+        var outputEl, inputEl;
+
+        function addLine(text, cls) {
+            var div = document.createElement('div');
+            div.className = 'term-line' + (cls ? ' ' + cls : '');
+            div.textContent = text;
+            outputEl.appendChild(div);
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+        function addHTML(html, cls) {
+            var div = document.createElement('div');
+            div.className = 'term-line' + (cls ? ' ' + cls : '');
+            div.innerHTML = html;
+            outputEl.appendChild(div);
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+        function addBlank() { addLine('', ''); }
+        function addPromptLine(cmd) {
+            addHTML(
+                '<span class="term-prompt-span">arduino-sim</span>' +
+                '<span class="term-ps1-sep">:</span>' +
+                '<span class="term-path-span">~/sketch</span>' +
+                '<span class="term-ps1-sep">$ </span>' + escH(cmd),
+                'term-line-cmd'
+            );
+        }
+        function escH(s) {
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        var taskInstructions = {
+            1: {
+                step: 'Compare integer division with float division.\n<code>math division</code>\n\nSee why <code>5 / 2</code> gives 2 (not 2.5) and how casting to float fixes it.',
+                hint: 'Integer division truncates the decimal. 5 / 2 = 2, not 2.5. Cast at least one operand: (float)5 / 2 = 2.5. This is critical for sensor voltage calculations.',
+                cmd: 'math division'
+            },
+            2: {
+                step: 'Clamp a sensor reading to a safe range.\n<code>math constrain</code>\n\nUse constrain(value, min, max) to prevent out-of-range values from reaching actuators.',
+                hint: 'constrain(val, 100, 900) returns 100 if val < 100, 900 if val > 900, or val unchanged if within range. Always constrain before writing to servos or motors.',
+                cmd: 'math constrain'
+            },
+            3: {
+                step: 'Scale an analog reading (0-1023) to a percentage (0-100).\n<code>math map</code>\n\nUse map(value, fromLow, fromHigh, toLow, toHigh) to scale between ranges.',
+                hint: 'map(raw, 0, 1023, 0, 100) scales the reading proportionally. Remember: map does not constrain -- values outside the source range will extrapolate beyond the target range.',
+                cmd: 'math map'
+            },
+            4: {
+                step: 'Calculate distance between two points.\n<code>math distance</code>\n\nUse the Euclidean formula: sqrt(dx*dx + dy*dy).',
+                hint: 'float dx = x2 - x1; float dy = y2 - y1; float dist = sqrt(dx*dx + dy*dy); Prefer dx*dx over pow(dx, 2) for performance on AVR.',
+                cmd: 'math distance'
+            },
+            5: {
+                step: 'Generate random numbers with proper seeding.\n<code>math random</code>\n\nSeed with analogRead on an unconnected pin, then generate values in a range.',
+                hint: 'randomSeed(analogRead(A7)); -- reads floating pin noise. Then random(10, 50) gives values from 10 to 49. Without seed, same sequence every boot.',
+                cmd: 'math random'
+            },
+            6: {
+                step: 'Set and clear bits in a register.\n<code>math bits</code>\n\nUse OR to set bits, AND-NOT to clear bits, and shift to read individual bits.',
+                hint: 'Set: reg |= (1 << n);  Clear: reg &= ~(1 << n);  Read: (reg >> n) & 1;  These are the three fundamental bit operations for hardware register control.',
+                cmd: 'math bits'
+            },
+            7: {
+                step: 'Split a 16-bit integer into high and low bytes.\n<code>math bytes</code>\n\nUse highByte() and lowByte(), then reconstruct the original value.',
+                hint: 'byte hi = highByte(0xABCD);  byte lo = lowByte(0xABCD);  int rebuilt = (hi << 8) | lo;  This pattern is used for I2C sensor data.',
+                cmd: 'math bytes'
+            },
+            8: {
+                step: 'Create a smooth LED breathing effect with sin().\n<code>math trig</code>\n\nUse sin() with millis() to produce a smooth oscillation between 0 and 255.',
+                hint: 'sin() returns -1 to 1. Shift and scale: (sin(t) + 1.0) * 127.5 maps to 0-255. Use millis()/1000.0 for time in seconds, multiply by 2*PI for one cycle per second.',
+                cmd: 'math trig'
+            },
+            9: {
+                step: 'Build a counter that wraps around automatically.\n<code>math modulo</code>\n\nUse the % operator to cycle through values 0 to N-1 continuously.',
+                hint: 'index = (index + 1) % SIZE; wraps from SIZE-1 back to 0. No if/else needed. This is the circular buffer pattern used for sensor averaging.',
+                cmd: 'math modulo'
+            },
+            10: {
+                step: 'Build a full calibrated sensor pipeline.\n<code>math calibrate</code>\n\nCombine analogRead, map(), and constrain() for a sensor that outputs a clean, bounded percentage.',
+                hint: 'int raw = analogRead(A0); int pct = constrain(map(raw, 100, 900, 0, 100), 0, 100); The inner map scales the useful range, the outer constrain clips outliers.',
+                cmd: 'math calibrate'
+            }
+        };
+
+        var taskNames = {
+            1: 'Integer vs Float Division', 2: 'Constrain Sensor Reading', 3: 'Map Analog to Percentage',
+            4: 'Distance with sqrt()', 5: 'Random in Range', 6: 'Set/Clear Register Bits',
+            7: 'Extract Bytes from Int', 8: 'Trig-Based LED Fade', 9: 'Modulo Cycling Counter',
+            10: 'Calibrated Sensor'
+        };
+
+        function execLine(raw) {
+            var trimmed = raw.trim();
+            addPromptLine(trimmed);
+            if (!trimmed) return;
+
+            var parts = trimmed.split(/\s+/);
+            var cmd = parts[0];
+            var sub = parts[1] || '';
+
+            if (cmd === 'help') {
+                addLine('Arduino Math & Logic Lab -- Available Commands', 'term-line-info');
+                addBlank();
+                addLine('MATH TASKS:', 'term-line-warn');
+                addLine('  math division   -- Task 1: Integer vs float division', 'term-line-dim');
+                addLine('  math constrain  -- Task 2: Constrain sensor reading', 'term-line-dim');
+                addLine('  math map        -- Task 3: Map analog to percentage', 'term-line-dim');
+                addLine('  math distance   -- Task 4: Euclidean distance', 'term-line-dim');
+                addLine('  math random     -- Task 5: Random number generation', 'term-line-dim');
+                addLine('  math bits       -- Task 6: Register bit operations', 'term-line-dim');
+                addLine('  math bytes      -- Task 7: Byte extraction', 'term-line-dim');
+                addLine('  math trig       -- Task 8: Trig LED fade', 'term-line-dim');
+                addLine('  math modulo     -- Task 9: Modulo cycling', 'term-line-dim');
+                addLine('  math calibrate  -- Task 10: Calibrated sensor', 'term-line-dim');
+                addBlank();
+                addLine('GENERAL:', 'term-line-warn');
+                addLine('  help    -- Show this help', 'term-line-dim');
+                addLine('  clear   -- Clear terminal', 'term-line-dim');
+                addBlank();
+            } else if (cmd === 'clear') {
+                outputEl.innerHTML = '';
+            } else if (cmd === 'math') {
+                runMathTask(sub);
+            } else {
+                addLine('bash: ' + cmd + ': command not found. Type "help" for available commands.', 'term-line-err');
+            }
+        }
+
+        function runMathTask(sub) {
+            if (sub === 'division') {
+                addLine('Evaluating integer vs float division...', 'term-line-info');
+                addBlank();
+                addLine('// Integer division', 'term-line-dim');
+                addLine('int a = 5, b = 2;', 'term-line-out');
+                addLine('int result = a / b;           // result = 2 (truncated!)', 'term-line-out');
+                addBlank();
+                addLine('// Float division', 'term-line-dim');
+                addLine('float result2 = (float)a / b; // result2 = 2.500000', 'term-line-out');
+                addBlank();
+                addLine('// Sensor voltage conversion', 'term-line-dim');
+                addLine('int raw = 512;', 'term-line-out');
+                addLine('int wrong   = raw * 5 / 1023;         // 2  (integer math)', 'term-line-err');
+                addLine('float right = raw * 5.0 / 1023.0;     // 2.502  (float math)', 'term-line-out');
+                addBlank();
+                addLine('[VERIFY] Integer division truncates. Cast to float for precision.', 'term-line-info');
+                completeTask(1);
+            } else if (sub === 'constrain') {
+                addLine('Testing constrain()...', 'term-line-info');
+                addBlank();
+                addLine('int raw = 1050;  // out-of-range sensor spike', 'term-line-out');
+                addLine('int safe = constrain(raw, 0, 1023);', 'term-line-out');
+                addLine('// safe = 1023 (clamped to max)', 'term-line-info');
+                addBlank();
+                addLine('int raw2 = -15;  // negative noise', 'term-line-out');
+                addLine('int safe2 = constrain(raw2, 0, 1023);', 'term-line-out');
+                addLine('// safe2 = 0 (clamped to min)', 'term-line-info');
+                addBlank();
+                addLine('int raw3 = 512;  // normal reading', 'term-line-out');
+                addLine('int safe3 = constrain(raw3, 0, 1023);', 'term-line-out');
+                addLine('// safe3 = 512 (unchanged -- within range)', 'term-line-info');
+                addBlank();
+                addLine('[VERIFY] constrain(val, min, max) clamps outliers. Safe for actuators.', 'term-line-info');
+                completeTask(2);
+            } else if (sub === 'map') {
+                addLine('Testing map()...', 'term-line-info');
+                addBlank();
+                addLine('int raw = 512;', 'term-line-out');
+                addLine('int pct = map(raw, 0, 1023, 0, 100);', 'term-line-out');
+                addLine('// pct = 50  (50% of range)', 'term-line-info');
+                addBlank();
+                addLine('int pwm = map(raw, 0, 1023, 0, 255);', 'term-line-out');
+                addLine('// pwm = 127  (mapped to PWM range)', 'term-line-info');
+                addBlank();
+                addLine('// WARNING: map does NOT constrain', 'term-line-warn');
+                addLine('int oops = map(1100, 0, 1023, 0, 100);', 'term-line-out');
+                addLine('// oops = 107  (extrapolated beyond 100!)', 'term-line-err');
+                addBlank();
+                addLine('[VERIFY] map() scales linearly. Always pair with constrain() for safety.', 'term-line-info');
+                completeTask(3);
+            } else if (sub === 'distance') {
+                addLine('Calculating Euclidean distance...', 'term-line-info');
+                addBlank();
+                addLine('float x1 = 3.0, y1 = 4.0;', 'term-line-out');
+                addLine('float x2 = 7.0, y2 = 1.0;', 'term-line-out');
+                addLine('float dx = x2 - x1;  // 4.0', 'term-line-out');
+                addLine('float dy = y2 - y1;  // -3.0', 'term-line-out');
+                addLine('float dist = sqrt(dx * dx + dy * dy);', 'term-line-out');
+                addBlank();
+                addLine('[RUN] dx = 4.0, dy = -3.0', 'term-line-info');
+                addLine('[RUN] dx*dx + dy*dy = 16.0 + 9.0 = 25.0', 'term-line-info');
+                addLine('[RUN] sqrt(25.0) = 5.000000', 'term-line-info');
+                addBlank();
+                addLine('[VERIFY] Distance = 5.0. Used dx*dx instead of pow(dx,2) for speed.', 'term-line-dim');
+                completeTask(4);
+            } else if (sub === 'random') {
+                addLine('Testing random number generation...', 'term-line-info');
+                addBlank();
+                addLine('// Seed from unconnected analog pin', 'term-line-dim');
+                addLine('randomSeed(analogRead(A7));  // A7 floating = noise', 'term-line-out');
+                addBlank();
+                addLine('// Generate 5 random values in range 10-49', 'term-line-dim');
+                addLine('for (int i = 0; i < 5; i++) {', 'term-line-out');
+                addLine('    Serial.println(random(10, 50));', 'term-line-out');
+                addLine('}', 'term-line-out');
+                addBlank();
+                addLine('[RUN] Output: 23  41  17  38  29', 'term-line-info');
+                addLine('[RUN] Range check: all values 10-49. PASS', 'term-line-info');
+                addBlank();
+                addLine('[VERIFY] randomSeed() from analog noise. random(min, max) returns min to max-1.', 'term-line-dim');
+                completeTask(5);
+            } else if (sub === 'bits') {
+                addLine('Register bit operations...', 'term-line-info');
+                addBlank();
+                addLine('byte PORTB_sim = 0b00000000;', 'term-line-out');
+                addBlank();
+                addLine('// Set bit 5 (pin 13 on Uno)', 'term-line-dim');
+                addLine('PORTB_sim |= (1 << 5);', 'term-line-out');
+                addLine('// PORTB_sim = 0b00100000', 'term-line-info');
+                addBlank();
+                addLine('// Set bit 3', 'term-line-dim');
+                addLine('PORTB_sim |= (1 << 3);', 'term-line-out');
+                addLine('// PORTB_sim = 0b00101000', 'term-line-info');
+                addBlank();
+                addLine('// Clear bit 5 (turn off pin 13)', 'term-line-dim');
+                addLine('PORTB_sim &= ~(1 << 5);', 'term-line-out');
+                addLine('// PORTB_sim = 0b00001000', 'term-line-info');
+                addBlank();
+                addLine('// Read bit 3', 'term-line-dim');
+                addLine('bool bit3 = (PORTB_sim >> 3) & 1;  // true', 'term-line-out');
+                addBlank();
+                addLine('[VERIFY] Set, clear, read on simulated PORTB register. Correct.', 'term-line-info');
+                completeTask(6);
+            } else if (sub === 'bytes') {
+                addLine('Extracting bytes from 16-bit integer...', 'term-line-info');
+                addBlank();
+                addLine('int sensorValue = 0xABCD;  // 43981 decimal', 'term-line-out');
+                addBlank();
+                addLine('byte hi = highByte(sensorValue);  // 0xAB = 171', 'term-line-out');
+                addLine('byte lo = lowByte(sensorValue);   // 0xCD = 205', 'term-line-out');
+                addBlank();
+                addLine('[RUN] highByte = 0xAB (171)', 'term-line-info');
+                addLine('[RUN] lowByte  = 0xCD (205)', 'term-line-info');
+                addBlank();
+                addLine('// Reconstruct', 'term-line-dim');
+                addLine('int rebuilt = (hi << 8) | lo;  // 0xABCD = 43981', 'term-line-out');
+                addBlank();
+                addLine('[VERIFY] Split and reconstruct match. Pattern used in I2C sensor reads.', 'term-line-info');
+                completeTask(7);
+            } else if (sub === 'trig') {
+                addLine('Compiling trig-based LED fade...', 'term-line-info');
+                addBlank();
+                addLine('void loop() {', 'term-line-out');
+                addLine('    float t = millis() / 1000.0;', 'term-line-out');
+                addLine('    float brightness = (sin(t * 2.0 * PI) + 1.0) * 127.5;', 'term-line-out');
+                addLine('    analogWrite(9, (int)brightness);', 'term-line-out');
+                addLine('}', 'term-line-out');
+                addBlank();
+                addLine('[SIM] t=0.00s  sin=0.000   brightness=127', 'term-line-info');
+                addLine('[SIM] t=0.25s  sin=1.000   brightness=255', 'term-line-info');
+                addLine('[SIM] t=0.50s  sin=0.000   brightness=127', 'term-line-info');
+                addLine('[SIM] t=0.75s  sin=-1.000  brightness=0', 'term-line-info');
+                addLine('[SIM] t=1.00s  sin=0.000   brightness=127', 'term-line-info');
+                addBlank();
+                addLine('[VERIFY] Smooth 0-255 oscillation. 1 cycle per second. No linear jumps.', 'term-line-dim');
+                completeTask(8);
+            } else if (sub === 'modulo') {
+                addLine('Building modulo cycling counter...', 'term-line-info');
+                addBlank();
+                addLine('const int BUFFER_SIZE = 5;', 'term-line-out');
+                addLine('int readings[5];', 'term-line-out');
+                addLine('int index = 0;', 'term-line-out');
+                addBlank();
+                addLine('// Simulate 8 iterations', 'term-line-dim');
+                addLine('for (int i = 0; i < 8; i++) {', 'term-line-out');
+                addLine('    readings[index] = analogRead(A0);', 'term-line-out');
+                addLine('    index = (index + 1) % BUFFER_SIZE;', 'term-line-out');
+                addLine('}', 'term-line-out');
+                addBlank();
+                addLine('[RUN] index sequence: 0, 1, 2, 3, 4, 0, 1, 2', 'term-line-info');
+                addLine('[RUN] Wraps from 4 back to 0 automatically.', 'term-line-info');
+                addBlank();
+                addLine('[VERIFY] Circular buffer with modulo. No bounds overflow. Correct.', 'term-line-dim');
+                completeTask(9);
+            } else if (sub === 'calibrate') {
+                addLine('Building calibrated sensor pipeline...', 'term-line-info');
+                addBlank();
+                addLine('// Sensor characteristics:', 'term-line-dim');
+                addLine('// - Useful range: 100-900 (dead zones at extremes)', 'term-line-dim');
+                addLine('// - Output: 0-100% (clamped, no extrapolation)', 'term-line-dim');
+                addBlank();
+                addLine('int raw = analogRead(A0);  // simulated: 742', 'term-line-out');
+                addLine('int mapped = map(raw, 100, 900, 0, 100);', 'term-line-out');
+                addLine('int pct = constrain(mapped, 0, 100);', 'term-line-out');
+                addBlank();
+                addLine('[RUN] raw=742  mapped=80  pct=80%', 'term-line-info');
+                addBlank();
+                addLine('// Edge cases:', 'term-line-dim');
+                addLine('raw=50   -> mapped=-6  -> constrained=0%', 'term-line-out');
+                addLine('raw=950  -> mapped=106 -> constrained=100%', 'term-line-out');
+                addLine('raw=500  -> mapped=50  -> constrained=50%', 'term-line-out');
+                addBlank();
+                addLine('[VERIFY] map() handles scaling, constrain() clips outliers.', 'term-line-info');
+                addLine('[VERIFY] Full pipeline: read -> map -> constrain -> output. Production ready.', 'term-line-dim');
+                completeTask(10);
+            } else {
+                addLine('math: unknown task "' + sub + '". Type "help" for available commands.', 'term-line-err');
+            }
+        }
+
+        function completeTask(num) {
+            if (taskDone[num]) return;
+            taskDone[num] = true;
+
+            var card = document.getElementById('task-card-' + num);
+            if (card) { card.classList.add('completed'); card.classList.remove('active'); }
+
+            var doneCount = 0;
+            for (var k in taskDone) { if (taskDone[k]) doneCount++; }
+
+            document.getElementById('taskProgress').textContent = doneCount + ' / ' + TOTAL_TASKS + ' Tasks';
+            var fill = document.getElementById('progressBarFill');
+            if (fill) fill.style.width = Math.round((doneCount / TOTAL_TASKS) * 100) + '%';
+
+            addBlank();
+            addHTML(
+                '  <span style="color:#34d399">[Task ' + num + ' complete]</span> ' +
+                '<span style="color:#374860">' + escH(taskNames[num]) + '</span>',
+                'term-line-info'
+            );
+            addBlank();
+
+            if (doneCount === TOTAL_TASKS) {
+                setTimeout(function () { document.getElementById('successOverlay').classList.add('active'); }, 700);
+                return;
+            }
+            var next = null;
+            for (var i = 1; i <= TOTAL_TASKS; i++) { if (!taskDone[i]) { next = i; break; } }
+            if (next !== null) selectTask(next);
+        }
+
+        function selectTask(num) {
+            currentTask = num;
+            for (var i = 1; i <= TOTAL_TASKS; i++) {
+                var card = document.getElementById('task-card-' + i);
+                if (!card) continue;
+                card.classList.remove('active');
+                if (i === num) card.classList.add('active');
+            }
+            var activeCard = document.getElementById('task-card-' + num);
+            if (activeCard) activeCard.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+
+            var info = taskInstructions[num];
+            if (!info) return;
+            var stepEl = document.getElementById('instructionsStep');
+            var hintEl = document.getElementById('instructionsHint');
+            var hintCmd = document.getElementById('hintCommand');
+            if (stepEl) stepEl.innerHTML = info.step.replace(/\n/g, '<br>');
+            if (hintEl) hintEl.innerHTML = '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block"> ' + escH(info.hint);
+            if (hintCmd) { hintCmd.textContent = info.cmd; hintCmd.classList.remove('visible'); }
+            var btn = document.getElementById('hintBtn');
+            if (btn) btn.textContent = 'Show command hint';
+            var panel = document.getElementById('instructionsPanel');
+            if (panel && panel.classList.contains('collapsed')) panel.classList.remove('collapsed');
+        }
+
+        function toggleInstructions() {
+            var panel = document.getElementById('instructionsPanel');
+            if (panel) panel.classList.toggle('collapsed');
+        }
+
+        function revealHint() {
+            var hintCmd = document.getElementById('hintCommand');
+            if (hintCmd) hintCmd.classList.toggle('visible');
+            var btn = document.getElementById('hintBtn');
+            if (btn) btn.textContent = (hintCmd && hintCmd.classList.contains('visible')) ? 'Hide hint' : 'Show command hint';
+        }
+
+        function finishLab() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('matrix', 'pc-ard-03-lab', { returnUrl: '../../index.html' });
+            } else {
+                window.location.href = '../../index.html';
+            }
+        }
+
+        window.selectTask = selectTask;
+        window.toggleInstructions = toggleInstructions;
+        window.revealHint = revealHint;
+        window.finishLab = finishLab;
+
+        function init() {
+            outputEl = document.getElementById('termOutput');
+            inputEl = document.getElementById('termInput');
+            if (!outputEl || !inputEl) return;
+
+            addLine('Arduino Math & Logic Lab -- Computation Engine', 'term-welcome');
+            addLine('ProtoCore Arduino Core 3 -- Math Functions & Bit Operations', 'term-welcome');
+            addBlank();
+            addLine('This lab simulates Arduino math functions. Each task demonstrates', 'term-line-info');
+            addLine('a key math pattern from the Arduino Cookbook Chapter 3.', 'term-line-info');
+            addBlank();
+            addLine('Type "help" for all available commands.', 'term-line-info');
+            addLine('Complete 10 tasks to finish the lab.', 'term-line-info');
+            addBlank();
+
+            inputEl.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    var cmd = inputEl.value;
+                    inputEl.value = '';
+                    if (cmd.trim()) { cmdHistory.push(cmd); histIdx = cmdHistory.length; }
+                    execLine(cmd);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (histIdx > 0) { histIdx--; inputEl.value = cmdHistory[histIdx]; }
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (histIdx < cmdHistory.length - 1) { histIdx++; inputEl.value = cmdHistory[histIdx]; }
+                    else { histIdx = cmdHistory.length; inputEl.value = ''; }
+                }
+            });
+
+            outputEl.addEventListener('click', function () { inputEl.focus(); });
+            inputEl.focus();
+            selectTask(1);
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    })();
+    </script>
+
+    <script src="../../../../../components/AchievementManager.js"></script>
+</body>
+</html>

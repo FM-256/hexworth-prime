@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sensors | ProtoCore Arduino Core 6</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #040810 0%, #081020 50%, #0a0c1a 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Electric blue progress bar -- ProtoCore color */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #0088ff; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(4, 8, 16, 0.95);
+            border-top: 1px solid rgba(0, 136, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(0, 136, 255, 0.15); color: #0088ff; border-color: #0088ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #0088ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ffd700; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip */
+        .scenario-strip {
+            background: rgba(0, 136, 255, 0.08); border-left: 3px solid #0088ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(0, 136, 255, 0.08); border: 1px solid rgba(0, 136, 255, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ffd700; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #0088ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #ffd700; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #0088ff; }
+
+        /* Section label */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #0088ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Inline code */
+        .ic {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* SVG diagram containers */
+        .diagram-row {
+            display: flex; gap: 16px; align-items: center; justify-content: center;
+        }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        /* Step-by-step flow list */
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(0, 136, 255, 0.12); border: 1px solid rgba(0, 136, 255, 0.4);
+            color: #0088ff; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        /* Code block */
+        .code-block {
+            background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #ffd700; line-height: 1.6; white-space: pre;
+        }
+        .code-block .cm { color: #64748b; }
+        .code-block .kw { color: #5cb8ff; }
+        .code-block .fn { color: #ffd700; }
+        .code-block .st { color: #86efac; }
+        .code-block .nu { color: #fdba74; }
+
+        /* Two-column code compare */
+        .code-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .code-panel-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.07em; margin-bottom: 5px; }
+
+        /* Hex grid cells */
+        .hex-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(0, 136, 255, 0.25);
+            border-radius: 8px; padding: 12px 14px;
+            text-align: center;
+            opacity: 0;
+            animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #0088ff; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        /* Shared animation keyframes */
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes flow {
+            0%   { stroke-dashoffset: 20; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes boxGrow {
+            from { opacity: 0; transform: scale(0.7); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes entityPop {
+            from { opacity: 0; transform: scale(0.6) translateY(6px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes glowPulse {
+            0%, 100% { filter: drop-shadow(0 0 4px rgba(0,136,255,0.3)); }
+            50%       { filter: drop-shadow(0 0 14px rgba(0,136,255,0.9)); }
+        }
+        @keyframes dataFlow {
+            0%   { stroke-dashoffset: 14; }
+            100% { stroke-dashoffset: 0; }
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .code-compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Sensors -- ProtoCore Arduino Core 6</h1>
+
+<!-- Electric blue progress bar -->
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; ProtoCore &nbsp;|&nbsp; Arduino &nbsp;|&nbsp; Core 6</div>
+        <div class="title-hero">
+            <!-- Sensor array SVG -->
+            <svg width="420" height="130" viewBox="0 0 420 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central radar/sensor pulse -->
+                <circle cx="210" cy="65" r="20" fill="rgba(0,136,255,0.1)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: pulse 2s ease-in-out infinite;"/>
+                <circle cx="210" cy="65" r="35" fill="none" stroke="rgba(0,136,255,0.15)" stroke-width="1"
+                    style="animation: pulse 2.5s ease-in-out infinite;"/>
+                <circle cx="210" cy="65" r="50" fill="none" stroke="rgba(0,136,255,0.08)" stroke-width="1"
+                    style="animation: pulse 3s ease-in-out infinite;"/>
+                <text x="210" y="69" text-anchor="middle" font-size="10" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">SENSE</text>
+                <!-- Sensor nodes around the center -->
+                <rect x="30" y="20" width="70" height="40" rx="6" fill="rgba(255,215,0,0.08)" stroke="#ffd700" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="65" y="37" text-anchor="middle" font-size="7" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">PIR</text>
+                <text x="65" y="49" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">Motion</text>
+                <line x1="100" y1="40" x2="160" y2="60" stroke="rgba(255,215,0,0.3)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <rect x="30" y="75" width="70" height="40" rx="6" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="65" y="92" text-anchor="middle" font-size="7" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">HC-SR04</text>
+                <text x="65" y="104" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">Distance</text>
+                <line x1="100" y1="95" x2="160" y2="72" stroke="rgba(6,182,212,0.3)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <rect x="320" y="20" width="70" height="40" rx="6" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="355" y="37" text-anchor="middle" font-size="7" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">DHT22</text>
+                <text x="355" y="49" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">Temp/Humidity</text>
+                <line x1="320" y1="40" x2="260" y2="60" stroke="rgba(58,181,119,0.3)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <rect x="320" y="75" width="70" height="40" rx="6" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.4s; opacity:0;"/>
+                <text x="355" y="92" text-anchor="middle" font-size="7" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">MFRC522</text>
+                <text x="355" y="104" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">RFID</text>
+                <line x1="320" y1="95" x2="260" y2="72" stroke="rgba(167,139,250,0.3)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+            </svg>
+            <div class="big-title">
+                <span class="accent">Sensors</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                PIR &nbsp;|&nbsp; Ultrasonic &nbsp;|&nbsp; Temperature &nbsp;|&nbsp; RFID &nbsp;|&nbsp; GPS &nbsp;|&nbsp; Accelerometer
+            </div>
+        </div>
+        <div class="scenario-strip">
+            A microcontroller without sensors is blind, deaf, and numb. Sensors are the nervous system -- they convert physical phenomena like heat, motion, light, and distance into electrical signals the Arduino can read and act on. This core teaches you to give your projects the ability to perceive the world.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>ProtoCore Arduino</span>
+            <span>Core 6 of 10</span>
+            <span>Matrix House</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- SENSOR CATEGORIES ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Sensor <span class="accent">Categories</span></div>
+        <div class="slide-subtitle">Sensors convert physical world phenomena into electrical signals. Every sensor falls into one of these families.</div>
+
+        <div class="hex-grid">
+            <div class="hex-cell">
+                <div class="hex-title">Environmental</div>
+                <div class="hex-desc">Temperature, humidity, barometric pressure. Measure the atmosphere around the board. DHT11, DHT22, BMP280.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Motion</div>
+                <div class="hex-desc">Detect movement in an area. PIR (passive infrared) sensors trigger when a warm body enters their field of view.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Distance</div>
+                <div class="hex-desc">Measure how far away an object is. Ultrasonic (HC-SR04), infrared rangefinder, time-of-flight (VL53L0X).</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Light</div>
+                <div class="hex-desc">Sense ambient brightness. LDR (photoresistor), phototransistor, UV sensors, IR receivers.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Position</div>
+                <div class="hex-desc">Track orientation, rotation, and location. Accelerometer, gyroscope, rotary encoder, GPS module.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Identification</div>
+                <div class="hex-desc">Recognize objects and credentials. RFID/NFC readers scan tags for access control and inventory tracking.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Analog vs Digital Sensors</div>
+            Analog sensors output a voltage proportional to the measurement -- read them with <span class="ic">analogRead()</span> on pins A0-A5. Digital sensors communicate via protocols (I2C, SPI, OneWire) and send structured data packets. Some sensors like the DHT11 use a custom single-wire protocol. The interface determines how you wire and code the sensor.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- BUILT-IN SENSORS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Built-in Sensors &amp; <span class="accent">Analog Temperature</span></div>
+        <div class="slide-subtitle">Some Arduino boards have onboard sensors. The simplest external sensor is an analog temperature sensor.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Boards with Onboard Sensors</div>
+                <div class="card-desc">The Arduino Nano 33 BLE Sense has a 9-axis IMU, temperature, humidity, pressure, light, and microphone -- all built in. The Uno R4 WiFi has a temperature sensor on the chip. For the classic Uno R3, all sensors are external -- you wire them yourself.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">TMP36 Analog Temperature Sensor</div>
+                <div class="card-desc">Three pins: VCC, GND, and signal output. Output voltage is linearly proportional to temperature: 10mV per degree Celsius with a 500mV offset at 0C. Read the analog pin, convert the ADC value to voltage, then to temperature.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="kw">int</span> sensorPin = <span class="nu">A0</span>;
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  <span class="fn">Serial.begin</span>(<span class="nu">9600</span>);
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="kw">int</span> reading = <span class="fn">analogRead</span>(sensorPin);        <span class="cm">// 0-1023</span>
+  <span class="kw">float</span> voltage = reading * (<span class="nu">5.0</span> / <span class="nu">1023.0</span>);   <span class="cm">// Convert to volts</span>
+  <span class="kw">float</span> tempC = (voltage - <span class="nu">0.5</span>) * <span class="nu">100.0</span>;     <span class="cm">// TMP36 formula</span>
+  <span class="fn">Serial.print</span>(<span class="st">"Temp: "</span>);
+  <span class="fn">Serial.print</span>(tempC);
+  <span class="fn">Serial.println</span>(<span class="st">" C"</span>);
+  <span class="fn">delay</span>(<span class="nu">1000</span>);
+}</div>
+
+        <div class="box box-green">
+            <div class="box-label">The ADC Math</div>
+            The Arduino Uno has a 10-bit ADC: <span class="ic">analogRead()</span> returns 0-1023, mapping 0V to 5V. To convert back to voltage: <span class="ic">voltage = reading * (5.0 / 1023.0)</span>. For the TMP36, subtract the 500mV offset and multiply by 100 to get Celsius. At 25C, the TMP36 outputs 750mV. This analog-to-digital conversion is the foundation of reading every analog sensor.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- MOTION DETECTION ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Motion Detection: <span class="accent">PIR Sensor (HC-SR501)</span></div>
+        <div class="slide-subtitle">Passive Infrared sensors detect moving warm bodies. The go-to sensor for security and automation projects.</div>
+
+        <div class="diagram-center">
+            <svg width="580" height="120" viewBox="0 0 580 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- PIR sensor body -->
+                <circle cx="100" cy="60" r="35" fill="rgba(255,215,0,0.06)" stroke="#ffd700" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <circle cx="100" cy="60" r="22" fill="rgba(255,215,0,0.1)" stroke="#ffd700" stroke-width="1"/>
+                <text x="100" y="57" text-anchor="middle" font-size="9" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">PIR</text>
+                <text x="100" y="69" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">HC-SR501</text>
+                <!-- Detection cone -->
+                <path d="M135,45 L280,10 L280,110 L135,75 Z" fill="rgba(255,215,0,0.04)" stroke="rgba(255,215,0,0.2)" stroke-width="1" stroke-dasharray="5,4"/>
+                <text x="210" y="65" text-anchor="middle" font-size="8" fill="#ffd700" font-family="Segoe UI,sans-serif">Detection Zone (~110 deg)</text>
+                <!-- Wiring -->
+                <rect x="380" y="25" width="100" height="70" rx="8" fill="rgba(0,136,255,0.06)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: boxGrow 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="430" y="50" text-anchor="middle" font-size="9" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Arduino</text>
+                <text x="430" y="65" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Pin 2 (INT0)</text>
+                <text x="430" y="80" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">digitalRead()</text>
+                <line x1="300" y1="60" x2="378" y2="60" stroke="#ffd700" stroke-width="2" stroke-dasharray="6,3">
+                    <animate attributeName="stroke-dashoffset" values="18;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <!-- Person icon (moving) -->
+                <circle cx="260" cy="55" r="6" fill="none" stroke="rgba(239,68,68,0.5)" stroke-width="1.5"
+                    style="animation: pulse 1.5s ease-in-out infinite;"/>
+                <line x1="260" y1="61" x2="260" y2="78" stroke="rgba(239,68,68,0.4)" stroke-width="1.5"/>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Three Wires</div>
+                <div class="card-desc"><strong>VCC</strong> to 5V, <strong>GND</strong> to GND, <strong>OUT</strong> to a digital pin. When motion is detected, OUT goes HIGH. When no motion, OUT is LOW. That is it -- a simple digital signal.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Detection Zones</div>
+                <div class="card-desc">The Fresnel lens splits the field of view into zones. When a warm body moves between zones, the infrared signature changes and the sensor triggers. Range: up to 7 meters. Angle: ~110 degrees.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Sensitivity & Timing</div>
+                <div class="card-desc">Two trimpots on the back adjust sensitivity (range) and hold time (how long OUT stays HIGH after detection). Default hold time is about 5 seconds. The sensor needs 30-60 seconds to stabilize after power-on.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="kw">const int</span> pirPin = <span class="nu">2</span>;
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  <span class="fn">pinMode</span>(pirPin, <span class="kw">INPUT</span>);
+  <span class="fn">Serial.begin</span>(<span class="nu">9600</span>);
+  <span class="fn">delay</span>(<span class="nu">30000</span>);  <span class="cm">// 30s warm-up for PIR to stabilize</span>
+  <span class="fn">Serial.println</span>(<span class="st">"PIR ready"</span>);
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="kw">if</span> (<span class="fn">digitalRead</span>(pirPin) == <span class="kw">HIGH</span>) {
+    <span class="fn">Serial.println</span>(<span class="st">"Motion detected!"</span>);
+  }
+  <span class="fn">delay</span>(<span class="nu">200</span>);
+}</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- LIGHT SENSING ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Light Sensing: <span class="accent">LDR &amp; Phototransistor</span></div>
+        <div class="slide-subtitle">Measure ambient light levels to build automatic night lights, solar trackers, or light-following robots.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">LDR (Photoresistor)</div>
+                <div class="card-desc">A Light Dependent Resistor changes resistance based on light. In darkness: ~1 megaohm. In bright light: ~1-10 kilohm. Create a voltage divider with a fixed resistor (10k) and read the midpoint with <span class="ic">analogRead()</span>. Higher reading = more light (with the LDR between VCC and the analog pin).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Phototransistor</div>
+                <div class="card-desc">A transistor activated by light instead of a base current. Faster response than an LDR, more sensitive to narrow wavelengths. Used in optical encoders, IR receivers, and precise light measurement. Wired similarly with a pull-down resistor and read via <span class="ic">analogRead()</span>.</div>
+            </div>
+        </div>
+
+        <div class="code-compare">
+            <div>
+                <div class="code-panel-label" style="color: #ffd700;">LDR Voltage Divider</div>
+                <div class="code-block"><span class="kw">int</span> ldrPin = <span class="nu">A0</span>;
+<span class="cm">// LDR between 5V and A0</span>
+<span class="cm">// 10k resistor between A0 and GND</span>
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="kw">int</span> light = <span class="fn">analogRead</span>(ldrPin);
+  <span class="fn">Serial.print</span>(<span class="st">"Light: "</span>);
+  <span class="fn">Serial.println</span>(light); <span class="cm">// 0-1023</span>
+  <span class="fn">delay</span>(<span class="nu">500</span>);
+}</div>
+            </div>
+            <div>
+                <div class="code-panel-label" style="color: #06b6d4;">Automatic Night Light</div>
+                <div class="code-block"><span class="kw">const int</span> ledPin = <span class="nu">9</span>;
+<span class="kw">const int</span> threshold = <span class="nu">300</span>;
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="kw">int</span> light = <span class="fn">analogRead</span>(<span class="nu">A0</span>);
+  <span class="kw">if</span> (light < threshold) {
+    <span class="fn">digitalWrite</span>(ledPin, <span class="kw">HIGH</span>);
+  } <span class="kw">else</span> {
+    <span class="fn">digitalWrite</span>(ledPin, <span class="kw">LOW</span>);
+  }
+}</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Voltage Divider Formula</div>
+            V_out = V_in * (R2 / (R1 + R2)). With the LDR as R1 and a 10k fixed resistor as R2, brighter light = lower LDR resistance = lower R1 = higher V_out = higher analogRead value. In darkness, R1 is very high, so V_out drops near zero. This is the fundamental analog sensor circuit.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- DISTANCE MEASUREMENT ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Distance Measurement: <span class="accent">Ultrasonic (HC-SR04)</span></div>
+        <div class="slide-subtitle">Send a pulse of sound, measure the echo return time, calculate distance. Sonar on a chip.</div>
+
+        <div class="diagram-center">
+            <svg width="600" height="100" viewBox="0 0 600 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- HC-SR04 -->
+                <rect x="20" y="20" width="100" height="60" rx="8" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.5"
+                    style="animation: boxGrow 0.3s ease forwards 0.1s; opacity:0;"/>
+                <circle cx="50" cy="45" r="12" fill="none" stroke="#06b6d4" stroke-width="1"/>
+                <text x="50" y="48" text-anchor="middle" font-size="6" fill="#06b6d4" font-family="Segoe UI,sans-serif">TX</text>
+                <circle cx="90" cy="45" r="12" fill="none" stroke="#06b6d4" stroke-width="1"/>
+                <text x="90" y="48" text-anchor="middle" font-size="6" fill="#06b6d4" font-family="Segoe UI,sans-serif">RX</text>
+                <text x="70" y="72" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">HC-SR04</text>
+                <!-- Outgoing pulse -->
+                <line x1="122" y1="38" x2="380" y2="38" stroke="rgba(6,182,212,0.4)" stroke-width="1.5" stroke-dasharray="8,4">
+                    <animate attributeName="stroke-dashoffset" values="24;0" dur="1.2s" repeatCount="indefinite"/>
+                </line>
+                <text x="250" y="32" text-anchor="middle" font-size="7" fill="#06b6d4" font-family="Segoe UI,sans-serif">40kHz ultrasonic pulse (trigger)</text>
+                <!-- Return echo -->
+                <line x1="380" y1="55" x2="122" y2="55" stroke="rgba(255,215,0,0.4)" stroke-width="1.5" stroke-dasharray="8,4">
+                    <animate attributeName="stroke-dashoffset" values="0;24" dur="1.2s" repeatCount="indefinite"/>
+                </line>
+                <text x="250" y="68" text-anchor="middle" font-size="7" fill="#ffd700" font-family="Segoe UI,sans-serif">echo return (measured by pulseIn)</text>
+                <!-- Target object -->
+                <rect x="385" y="15" width="20" height="70" rx="4" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="1.5"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="440" y="55" font-size="8" fill="#ef4444" font-family="Segoe UI,sans-serif">Object</text>
+            </svg>
+        </div>
+
+        <div class="step-list">
+            <div class="step-row">
+                <span class="step-num">1</span>
+                <span class="step-text"><strong>Trigger pulse:</strong> Set the TRIG pin HIGH for 10 microseconds. This tells the sensor to send a burst of eight 40kHz ultrasonic pulses from the transmitter.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">2</span>
+                <span class="step-text"><strong>Echo timing:</strong> The ECHO pin goes HIGH when the pulse is sent and stays HIGH until the echo returns. Use <span class="ic">pulseIn(echoPin, HIGH)</span> to measure the duration in microseconds.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">3</span>
+                <span class="step-text"><strong>Calculate distance:</strong> Speed of sound is ~343 m/s = 0.0343 cm/us. The pulse travels to the object and back, so divide by 2: <span class="ic">cm = duration * 0.0343 / 2</span>.</span>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="kw">const int</span> trigPin = <span class="nu">9</span>;
+<span class="kw">const int</span> echoPin = <span class="nu">10</span>;
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="fn">digitalWrite</span>(trigPin, <span class="kw">LOW</span>);  <span class="fn">delayMicroseconds</span>(<span class="nu">2</span>);
+  <span class="fn">digitalWrite</span>(trigPin, <span class="kw">HIGH</span>); <span class="fn">delayMicroseconds</span>(<span class="nu">10</span>);
+  <span class="fn">digitalWrite</span>(trigPin, <span class="kw">LOW</span>);
+  <span class="kw">long</span> duration = <span class="fn">pulseIn</span>(echoPin, <span class="kw">HIGH</span>);
+  <span class="kw">float</span> cm = duration * <span class="nu">0.0343</span> / <span class="nu">2</span>;
+  <span class="fn">Serial.print</span>(<span class="st">"Distance: "</span>);
+  <span class="fn">Serial.print</span>(cm);
+  <span class="fn">Serial.println</span>(<span class="st">" cm"</span>);
+  <span class="fn">delay</span>(<span class="nu">100</span>);
+}</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- PRECISE DISTANCE ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Precise Distance: <span class="accent">IR &amp; Time-of-Flight</span></div>
+        <div class="slide-subtitle">When ultrasonic is not enough -- IR rangefinders for short range, time-of-flight for millimeter precision.</div>
+
+        <div class="card-grid">
+            <div class="card c-orange">
+                <div class="card-label">IR Rangefinder (Sharp GP2Y0A21)</div>
+                <div class="card-desc">Emits an IR beam and measures the angle of the reflected light on a position-sensitive detector. Analog output: higher voltage = closer object. Range: 10-80 cm. Non-linear output curve requires a lookup table or formula. Unaffected by object color or ambient light.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Time-of-Flight (VL53L0X)</div>
+                <div class="card-desc">Fires a laser pulse and measures the exact time for photons to bounce back. I2C interface, digital output in millimeters. Range: up to 2 meters. Accuracy: +/- 3%. Handles ambient light well. The most precise distance sensor for Arduino projects.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Choosing the Right Sensor</div>
+                <div class="card-desc"><strong>HC-SR04:</strong> 2-400 cm, cheap, easy. <strong>IR rangefinder:</strong> 10-80 cm, analog, works on soft surfaces. <strong>VL53L0X:</strong> 0-200 cm, precise, I2C. <strong>LIDAR-Lite:</strong> 0-40m, expensive, for robotics. Match the sensor to the range and precision you need.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// VL53L0X time-of-flight via I2C</span>
+<span class="kw">#include</span> <span class="st">&lt;Wire.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;VL53L0X.h&gt;</span>
+
+VL53L0X sensor;
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  <span class="fn">Wire.begin</span>();
+  <span class="fn">Serial.begin</span>(<span class="nu">9600</span>);
+  sensor.<span class="fn">init</span>();
+  sensor.<span class="fn">setTimeout</span>(<span class="nu">500</span>);
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="kw">int</span> mm = sensor.<span class="fn">readRangeSingleMillimeters</span>();
+  <span class="fn">Serial.print</span>(<span class="st">"Distance: "</span>);
+  <span class="fn">Serial.print</span>(mm);
+  <span class="fn">Serial.println</span>(<span class="st">" mm"</span>);
+  <span class="fn">delay</span>(<span class="nu">100</span>);
+}</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- TEMPERATURE ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Temperature: <span class="accent">Thermistor, DS18B20, DHT</span></div>
+        <div class="slide-subtitle">Three ways to measure temperature -- analog, digital OneWire, and combined temp+humidity.</div>
+
+        <div class="card-grid">
+            <div class="card c-orange">
+                <div class="card-label">Thermistor (Analog)</div>
+                <div class="card-desc">A resistor whose resistance changes with temperature. NTC (Negative Temperature Coefficient) thermistors decrease resistance as temperature rises. Wire in a voltage divider with a 10k resistor. Use the Steinhart-Hart equation to convert resistance to accurate temperature.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">DS18B20 (Digital, OneWire)</div>
+                <div class="card-desc">A waterproof digital sensor that communicates over the OneWire protocol -- multiple sensors on a single pin, each with a unique 64-bit address. Accuracy: +/- 0.5C. Range: -55C to +125C. Resolution: configurable 9-12 bits. Needs a 4.7k pull-up resistor on the data line.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">DHT11 / DHT22 (Temp + Humidity)</div>
+                <div class="card-desc"><strong>DHT11:</strong> 0-50C, +/- 2C accuracy, 20-80% humidity. Cheap, slow (1 reading/sec). <strong>DHT22:</strong> -40 to 80C, +/- 0.5C accuracy, 0-100% humidity. More precise, slightly slower (0.5 reading/sec). Both use a single-wire custom protocol and the DHT library.</div>
+            </div>
+        </div>
+
+        <div class="code-compare">
+            <div>
+                <div class="code-panel-label" style="color: #0088ff;">DS18B20 (OneWire)</div>
+                <div class="code-block"><span class="kw">#include</span> <span class="st">&lt;OneWire.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;DallasTemperature.h&gt;</span>
+
+OneWire oneWire(<span class="nu">2</span>);
+DallasTemperature sensors(&oneWire);
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  sensors.<span class="fn">begin</span>();
+  <span class="fn">Serial.begin</span>(<span class="nu">9600</span>);
+}
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  sensors.<span class="fn">requestTemperatures</span>();
+  <span class="kw">float</span> c = sensors.<span class="fn">getTempCByIndex</span>(<span class="nu">0</span>);
+  <span class="fn">Serial.println</span>(c);
+  <span class="fn">delay</span>(<span class="nu">1000</span>);
+}</div>
+            </div>
+            <div>
+                <div class="code-panel-label" style="color: #3ab577;">DHT22 (Temp + Humidity)</div>
+                <div class="code-block"><span class="kw">#include</span> <span class="st">&lt;DHT.h&gt;</span>
+
+DHT dht(<span class="nu">4</span>, DHT22);
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  dht.<span class="fn">begin</span>();
+  <span class="fn">Serial.begin</span>(<span class="nu">9600</span>);
+}
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="kw">float</span> t = dht.<span class="fn">readTemperature</span>();
+  <span class="kw">float</span> h = dht.<span class="fn">readHumidity</span>();
+  <span class="fn">Serial.print</span>(t);
+  <span class="fn">Serial.print</span>(<span class="st">"C  "</span>);
+  <span class="fn">Serial.print</span>(h);
+  <span class="fn">Serial.println</span>(<span class="st">"%"</span>);
+  <span class="fn">delay</span>(<span class="nu">2000</span>);
+}</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- RFID/NFC ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">RFID/NFC: <span class="accent">MFRC522 Reader</span></div>
+        <div class="slide-subtitle">Read contactless tags to build access control systems, inventory trackers, and authentication projects.</div>
+
+        <div class="diagram-center">
+            <svg width="500" height="100" viewBox="0 0 500 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- RFID reader -->
+                <rect x="20" y="15" width="120" height="70" rx="8" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="80" y="40" text-anchor="middle" font-size="9" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">MFRC522</text>
+                <text x="80" y="55" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">13.56 MHz</text>
+                <text x="80" y="67" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">SPI Interface</text>
+                <!-- RF field -->
+                <circle cx="180" cy="50" r="15" fill="none" stroke="rgba(167,139,250,0.3)" stroke-width="1"
+                    style="animation: pulse 1.5s ease-in-out infinite;"/>
+                <circle cx="180" cy="50" r="25" fill="none" stroke="rgba(167,139,250,0.15)" stroke-width="1"
+                    style="animation: pulse 2s ease-in-out infinite;"/>
+                <!-- Tag -->
+                <rect x="220" y="25" width="80" height="50" rx="6" fill="rgba(255,215,0,0.08)" stroke="#ffd700" stroke-width="1.5"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="260" y="46" text-anchor="middle" font-size="8" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">RFID Tag</text>
+                <text x="260" y="60" text-anchor="middle" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">UID: A3 B7 2F 01</text>
+                <!-- Arrow to Arduino -->
+                <line x1="320" y1="50" x2="365" y2="50" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.8s" repeatCount="indefinite"/>
+                </line>
+                <rect x="370" y="20" width="110" height="60" rx="8" fill="rgba(0,136,255,0.06)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: boxGrow 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="425" y="45" text-anchor="middle" font-size="8" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Arduino</text>
+                <text x="425" y="60" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">SPI: 10,11,12,13</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-purple">
+                <div class="card-label">How RFID Works</div>
+                <div class="card-desc">The MFRC522 generates a 13.56 MHz electromagnetic field. When an RFID tag enters the field, the tag's coil antenna absorbs energy, powers the tag's chip, and the chip transmits its unique ID (UID) back to the reader. No battery needed in the tag -- power comes from the RF field itself. This is called passive RFID.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Access Control Pattern</div>
+                <div class="card-desc">Store authorized UIDs in an array. When a tag is scanned, compare its UID against the authorized list. Match = unlock (servo, relay, or green LED). No match = deny (red LED, buzzer). The MFRC522 library handles all SPI communication. You just read the UID bytes.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">&lt;SPI.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;MFRC522.h&gt;</span>
+
+MFRC522 rfid(<span class="nu">10</span>, <span class="nu">9</span>); <span class="cm">// SS=10, RST=9</span>
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  <span class="fn">SPI.begin</span>();
+  rfid.<span class="fn">PCD_Init</span>();
+  <span class="fn">Serial.begin</span>(<span class="nu">9600</span>);
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="kw">if</span> (!rfid.<span class="fn">PICC_IsNewCardPresent</span>() || !rfid.<span class="fn">PICC_ReadCardSerial</span>()) <span class="kw">return</span>;
+  <span class="fn">Serial.print</span>(<span class="st">"UID: "</span>);
+  <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nu">0</span>; i < rfid.uid.size; i++) {
+    <span class="fn">Serial.print</span>(rfid.uid.uidByte[i], HEX);
+    <span class="fn">Serial.print</span>(<span class="st">" "</span>);
+  }
+  <span class="fn">Serial.println</span>();
+  rfid.<span class="fn">PICC_HaltA</span>();
+}</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- MOTION TRACKING ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Motion Tracking: <span class="accent">Accelerometer, Gyroscope, Encoder</span></div>
+        <div class="slide-subtitle">Measure tilt, rotation speed, and precise angular position for robotics, drones, and interactive projects.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Accelerometer (MPU-6050)</div>
+                <div class="card-desc">Measures acceleration on 3 axes (X, Y, Z) in g-force units. At rest, the Z-axis reads ~1g (gravity). Tilt the board and the gravity vector shifts between axes, revealing the tilt angle. I2C interface, 16-bit resolution per axis. The MPU-6050 combines a 3-axis accelerometer with a 3-axis gyroscope in one chip.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Gyroscope</div>
+                <div class="card-desc">Measures the rate of rotation in degrees per second around each axis. Integrate the rate over time to get the angle -- but integration accumulates drift error. That is why real projects fuse accelerometer + gyroscope data using a complementary filter or Kalman filter for stable orientation.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Rotary Encoder</div>
+                <div class="card-desc">Outputs pulses as a shaft rotates. Two channels (A and B) offset by 90 degrees -- the phase difference tells you the direction. Count pulses for position, measure pulse frequency for speed. Use <span class="ic">attachInterrupt()</span> on pin 2 or 3 for reliable counting at high speeds.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// Rotary encoder with interrupts</span>
+<span class="kw">volatile int</span> encoderCount = <span class="nu">0</span>;
+<span class="kw">const int</span> pinA = <span class="nu">2</span>;  <span class="cm">// Interrupt pin</span>
+<span class="kw">const int</span> pinB = <span class="nu">3</span>;
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  <span class="fn">pinMode</span>(pinA, <span class="kw">INPUT_PULLUP</span>);
+  <span class="fn">pinMode</span>(pinB, <span class="kw">INPUT_PULLUP</span>);
+  <span class="fn">attachInterrupt</span>(<span class="fn">digitalPinToInterrupt</span>(pinA), onEncoder, <span class="kw">RISING</span>);
+  <span class="fn">Serial.begin</span>(<span class="nu">9600</span>);
+}
+
+<span class="kw">void</span> <span class="fn">onEncoder</span>() {
+  <span class="kw">if</span> (<span class="fn">digitalRead</span>(pinB) == <span class="kw">HIGH</span>) encoderCount++;
+  <span class="kw">else</span> encoderCount--;
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="fn">Serial.print</span>(<span class="st">"Position: "</span>);
+  <span class="fn">Serial.println</span>(encoderCount);
+  <span class="fn">delay</span>(<span class="nu">200</span>);
+}</div>
+
+        <div class="box box-blue">
+            <div class="box-label">Why Interrupts Matter</div>
+            At high rotation speeds, a polling loop (<span class="ic">digitalRead()</span> in <span class="ic">loop()</span>) will miss pulses. Hardware interrupts fire instantly when the pin state changes, regardless of what the main loop is doing. On the Uno, pin 2 is INT0 and pin 3 is INT1 -- the only two external interrupt pins. For encoders and other fast signals, interrupts are non-negotiable.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- GPS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">GPS: <span class="accent">NEO-6M Module</span></div>
+        <div class="slide-subtitle">Receive satellite signals and extract latitude, longitude, altitude, speed, and time from NMEA sentences.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">NEO-6M Basics</div>
+                <div class="card-desc">A u-blox GPS receiver that communicates via serial (TX/RX) at 9600 baud by default. Connect to SoftwareSerial pins (not 0/1, to keep hardware serial free for debugging). Requires a clear view of the sky -- first fix can take 30-60 seconds cold, 1-5 seconds warm. Accuracy: ~2.5 meters.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">NMEA Sentences</div>
+                <div class="card-desc">GPS modules output NMEA-0183 formatted text. The key sentence is <span class="ic">$GPGGA</span> -- it contains fix time, latitude, longitude, fix quality, number of satellites, and altitude. The <span class="ic">$GPRMC</span> sentence adds speed and heading. The TinyGPS++ library parses these strings into usable values.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">&lt;SoftwareSerial.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;TinyGPS++.h&gt;</span>
+
+SoftwareSerial gpsSerial(<span class="nu">4</span>, <span class="nu">3</span>); <span class="cm">// RX=4, TX=3</span>
+TinyGPSPlus gps;
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  <span class="fn">Serial.begin</span>(<span class="nu">9600</span>);
+  gpsSerial.<span class="fn">begin</span>(<span class="nu">9600</span>);
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="kw">while</span> (gpsSerial.<span class="fn">available</span>()) {
+    gps.<span class="fn">encode</span>(gpsSerial.<span class="fn">read</span>());
+  }
+  <span class="kw">if</span> (gps.location.<span class="fn">isUpdated</span>()) {
+    <span class="fn">Serial.print</span>(<span class="st">"Lat: "</span>);
+    <span class="fn">Serial.print</span>(gps.location.<span class="fn">lat</span>(), <span class="nu">6</span>);
+    <span class="fn">Serial.print</span>(<span class="st">"  Lng: "</span>);
+    <span class="fn">Serial.println</span>(gps.location.<span class="fn">lng</span>(), <span class="nu">6</span>);
+  }
+}</div>
+
+        <div class="box box-green">
+            <div class="box-label">Raw NMEA Example</div>
+            <span class="ic">$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,47.0,M,,*47</span> -- This sentence says: fix at 12:35:19 UTC, latitude 48 degrees 07.038 minutes North, longitude 11 degrees 31.000 minutes East, fix quality 1 (GPS fix), 8 satellites, altitude 545.4 meters. TinyGPS++ parses all of this for you automatically.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- KEY TAKEAWAYS ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Key Takeaways: <span class="accent">Sensors Complete</span></div>
+        <div class="slide-subtitle">Your Arduino can now see, feel, hear, and locate. Here are the five facts that matter.</div>
+
+        <div class="diagram-center">
+            <svg width="400" height="90" viewBox="0 0 400 90" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central sensor icon with pulses -->
+                <circle cx="200" cy="45" r="18" fill="rgba(0,136,255,0.12)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: glowPulse 2s ease-in-out infinite;"/>
+                <text x="200" y="49" text-anchor="middle" font-size="9" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">S</text>
+                <circle cx="200" cy="45" r="30" fill="none" stroke="rgba(0,136,255,0.1)" stroke-width="1"
+                    style="animation: pulse 2s ease-in-out infinite;"/>
+                <circle cx="200" cy="45" r="45" fill="none" stroke="rgba(0,136,255,0.06)" stroke-width="1"
+                    style="animation: pulse 2.5s ease-in-out infinite;"/>
+                <text x="80" y="40" text-anchor="middle" font-size="10" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Physical</text>
+                <text x="80" y="56" text-anchor="middle" font-size="10" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">World</text>
+                <text x="320" y="40" text-anchor="middle" font-size="10" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">Digital</text>
+                <text x="320" y="56" text-anchor="middle" font-size="10" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">Data</text>
+            </svg>
+        </div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Analog sensors use voltage dividers and <code>analogRead()</code>.</strong> The Arduino's 10-bit ADC converts 0-5V into 0-1023. LDRs, thermistors, and the TMP36 all follow this pattern. Convert ADC values to engineering units with math.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Digital sensors speak protocols.</strong> I2C (VL53L0X, MPU-6050), SPI (MFRC522), OneWire (DS18B20), and custom single-wire (DHT). Each protocol has its own library. Wire.h handles I2C, SPI.h handles SPI.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Ultrasonic distance = trigger, echo, math.</strong> Send a 10us trigger pulse, measure echo duration with <code>pulseIn()</code>, calculate cm = duration * 0.0343 / 2. The HC-SR04 is the most common first distance sensor.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Interrupts are required for fast signals.</strong> Rotary encoders at speed will lose pulses without hardware interrupts. Use <code>attachInterrupt()</code> on pin 2 (INT0) or pin 3 (INT1) on the Uno. The ISR must be fast -- no Serial, no delay.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>GPS modules output NMEA sentences.</strong> Use TinyGPS++ to parse <code>$GPGGA</code> and <code>$GPRMC</code> into latitude, longitude, altitude, and speed. SoftwareSerial on non-0/1 pins keeps hardware serial free for debugging.</span></div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Core 7 -- LEDs & Visual Output</strong> &nbsp;|&nbsp; PWM, RGB, Matrices, Shift Registers, MAX7219
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; ProtoCore</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* Slide navigation state */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    /* Module completion via ModuleProgress component */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-ard-06-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>
