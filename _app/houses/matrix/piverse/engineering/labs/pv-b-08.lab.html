@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab: USB HID Controller PCB | PiVerse Board Engineering</title>
+    <style>
+        :root { --accent: #c51a4a; --accent-dim: rgba(197,26,74,0.15); --accent-border: rgba(197,26,74,0.3); --green: #34d399; --green-dim: rgba(52,211,153,0.1); --green-border: rgba(52,211,153,0.3); --gold: #ffd700; --gold-dim: rgba(255,215,0,0.1); --gold-border: rgba(255,215,0,0.3); --bg: #0d0408; --bg2: #130810; --bg3: #1a0c12; --text: #e0d0d6; --text2: #9e8b91; --border: rgba(197,26,74,0.12); }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        .topbar { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .topbar-left { display: flex; align-items: center; gap: 14px; }
+        .back-btn { padding: 6px 14px; background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: 6px; color: var(--accent); text-decoration: none; font-size: 0.82rem; transition: background 0.2s; }
+        .back-btn:hover { background: rgba(197,26,74,0.25); }
+        .lab-title { font-size: 0.95rem; color: var(--text); }
+        .badge { padding: 3px 10px; border-radius: 10px; font-size: 0.68rem; letter-spacing: 0.06em; }
+        .badge-red { background: var(--accent-dim); border: 1px solid var(--accent-border); color: var(--accent); }
+        .topbar-right { display: flex; align-items: center; gap: 14px; font-size: 0.82rem; color: var(--text2); }
+        .prog-wrap { width: 130px; height: 5px; background: rgba(197,26,74,0.12); border-radius: 3px; overflow: hidden; }
+        .prog-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #8a1030); border-radius: 3px; transition: width 0.4s ease; }
+        .prog-label { color: var(--accent); font-weight: 500; }
+        .workspace { display: grid; grid-template-columns: 1fr 340px; flex: 1; min-height: 0; }
+        .terminal-panel { display: flex; flex-direction: column; overflow: hidden; }
+        .terminal-toolbar { flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .tb-btn { padding: 5px 14px; background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: 5px; color: var(--accent); font-size: 0.82rem; cursor: pointer; transition: background 0.2s; font-weight: 600; }
+        .tb-btn:hover:not(:disabled) { background: rgba(197,26,74,0.25); }
+        .tb-btn:disabled { opacity: 0.35; cursor: default; }
+        .tb-btn.run { background: rgba(52,211,153,0.12); border-color: var(--green-border); color: var(--green); }
+        .tb-btn.run:hover:not(:disabled) { background: rgba(52,211,153,0.22); }
+        .tb-btn.clear { background: rgba(255,215,0,0.08); border-color: var(--gold-border); color: var(--gold); }
+        .terminal-area { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+        .terminal-output { flex: 1; background: #0a0208; padding: 12px 16px; overflow-y: auto; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.82rem; line-height: 1.7; color: var(--text2); }
+        .terminal-output .t-prompt { color: var(--accent); } .terminal-output .t-ok { color: var(--green); } .terminal-output .t-err { color: #f87171; } .terminal-output .t-info { color: #60a5fa; } .terminal-output .t-gold { color: var(--gold); }
+        .terminal-input-row { display: flex; border-top: 1px solid var(--border); background: var(--bg2); }
+        .terminal-prompt { padding: 8px 4px 8px 14px; color: var(--accent); font-family: 'Consolas', monospace; font-size: 0.82rem; }
+        .terminal-input { flex: 1; background: transparent; border: none; outline: none; color: var(--text); font-family: 'Consolas', monospace; font-size: 0.82rem; padding: 8px 8px; }
+        .task-panel { background: var(--bg2); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+        .panel-header { padding: 12px 16px; font-size: 0.7rem; color: var(--text2); letter-spacing: 0.12em; text-transform: uppercase; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .task-list { flex: 1; overflow-y: auto; padding: 12px; }
+        .task-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 9px; padding: 12px 14px; margin-bottom: 8px; transition: all 0.2s; }
+        .task-card.active { border-color: var(--accent); background: rgba(197,26,74,0.06); }
+        .task-card.done { border-color: var(--green-border); background: var(--green-dim); }
+        .task-num { font-size: 0.67rem; color: var(--accent); margin-bottom: 3px; }
+        .task-name { font-size: 0.88rem; color: var(--text); margin-bottom: 3px; display: flex; align-items: center; gap: 6px; }
+        .task-name .chk { font-size: 0.75rem; color: var(--green); margin-left: auto; display: none; }
+        .task-desc { font-size: 0.77rem; color: var(--text2); line-height: 1.45; }
+        .finish-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 9000; }
+        .finish-overlay.active { display: flex; }
+        .finish-card { background: var(--bg2); border: 1px solid var(--green-border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .finish-title { font-size: 1.5rem; color: var(--gold); margin-bottom: 10px; }
+        .finish-msg { color: var(--text2); font-size: 0.95rem; margin-bottom: 24px; line-height: 1.6; }
+        .finish-btn { padding: 11px 28px; background: linear-gradient(135deg, var(--accent), #8a1030); border: none; border-radius: 8px; color: #fff; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; }
+        .finish-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+        @media (max-width: 800px) { .workspace { grid-template-columns: 1fr; } .task-panel { max-height: 200px; border-left: none; border-top: 1px solid var(--border); } }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <div class="topbar-left">
+            <a href="../../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">PV-B-08: USB HID Controller PCB</span>
+            <span class="badge badge-red">Board Engineering</span>
+        </div>
+        <div class="topbar-right">
+            <span>Tasks:</span>
+            <div class="prog-wrap"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+            <span class="prog-label" id="progLabel">0 / 8</span>
+        </div>
+    </header>
+    <div class="workspace">
+        <div class="terminal-panel">
+            <div class="terminal-toolbar">
+                <button class="tb-btn run" id="btnRun" onclick="runCommand()">Run</button>
+                <button class="tb-btn clear" onclick="clearTerminal()">Clear</button>
+            </div>
+            <div class="terminal-area">
+                <div class="terminal-output" id="termOutput">
+                    <div class="t-info">PiVerse Board Engineering Lab -- USB HID Controller PCB</div>
+                    <div class="t-info">Type commands below. Use 'help' for available commands.</div>
+                    <div>&nbsp;</div>
+                </div>
+                <div class="terminal-input-row">
+                    <span class="terminal-prompt">pv-b&gt;</span>
+                    <input class="terminal-input" id="termInput" type="text" spellcheck="false" autocomplete="off" placeholder="Type a command...">
+                </div>
+            </div>
+        </div>
+        <aside class="task-panel">
+            <div class="panel-header">Lab Tasks</div>
+            <div class="task-list" id="taskList"></div>
+        </aside>
+    </div>
+    <div class="finish-overlay" id="finishOverlay">
+        <div class="finish-card">
+            <div class="finish-title">Lab Complete</div>
+            <div class="finish-msg">You have completed all tasks for the USB HID Controller PCB lab. Well done.</div>
+            <button class="finish-btn" onclick="finishLab()">Return to PiVerse Hub</button>
+        </div>
+    </div>
+<script>
+(function() {
+    'use strict';
+    var TASKS = [
+    {"id":1,"name":"Define HID report descriptor","desc":"Design the USB HID gamepad report structure.","commands":["hid descriptor","define hid"],"response":"HID Report: 12 buttons (12 bits, packed into 2 bytes with 4 padding bits), 4 axes (X, Y, Rx, Ry, each 8-bit signed, range -127 to 127). Total report size: 6 bytes. Polling interval: 1ms. Device class: 0x05 (Gamepad). No output reports (no rumble/LED control).","hint":"hid descriptor -- Define the HID report structure"},
+    {"id":2,"name":"Assign GPIO pins","desc":"Map all inputs to RP2040 GPIO pins.","commands":["assign pins","gpio map"],"response":"GPIO Map: Buttons (direct, active low with pull-up): GP0-GP11 (A,B,X,Y,Up,Down,Left,Right,L,R,Start,Select). Joysticks (ADC): GP26=LX, GP27=LY, GP28=RX, GP29=RY. USB: GP-internal (D+/D-). Remaining: GP12-GP25 free for LEDs and expansion.","hint":"assign pins -- Map inputs to GPIO pins"},
+    {"id":3,"name":"Design joystick circuit","desc":"Create the analog joystick ADC circuit.","commands":["joystick circuit","design joystick"],"response":"Per axis: Potentiometer (10K, center tap) -> 1K series resistor -> ADC pin (GP26-29). 100nF cap from ADC pin to GND. ADC_AVDD: 1uF decoupling cap. Route ADC traces away from USB and QSPI. Ground pour under all ADC traces.","hint":"joystick circuit -- Design the analog joystick circuit"},
+    {"id":4,"name":"Calculate power budget","desc":"Total current draw for the controller.","commands":["power budget","calc power"],"response":"Power Budget: RP2040 @ 125MHz (40mA) + Flash idle (1mA) + 12 pull-up resistors (0.3mA each = 3.6mA) + 4 pots (0.33mA each = 1.3mA) + Power LED (5mA) + USB LED (5mA) = 56mA from 3.3V. From 5V USB: 56 x 3.3/5 / 0.66 = 56mA at LDO. Well under 100mA USB limit.","hint":"power budget -- Calculate total current draw"},
+    {"id":5,"name":"Design the USB-C circuit","desc":"Complete USB-C connector wiring for device mode.","commands":["usb circuit","design usb"],"response":"USB-C device: VBUS to LDO input via Schottky. CC1/CC2: 5.1K pull-down to GND each (identifies as device). D+/D- through USBLC6 ESD protection, then 27-ohm series resistors, then to RP2040. Shield to GND via 1M resistor + 4.7nF cap.","hint":"usb circuit -- Design USB-C connector circuit"},
+    {"id":6,"name":"Plan button debouncing","desc":"Design the debounce strategy for tactile switches.","commands":["debounce plan","plan debounce"],"response":"Software debounce: Sample all 12 buttons every 1ms. Require 5 consecutive identical readings to register a state change (5ms debounce time). No hardware RC filter needed -- saves 12 resistors and 12 capacitors. Integration-based: increment counter on high, decrement on low, threshold at 5.","hint":"debounce plan -- Design button debounce strategy"},
+    {"id":7,"name":"Create custom board outline","desc":"Design the controller-shaped PCB outline.","commands":["board outline","design shape"],"response":"Board outline: 140mm x 70mm with ergonomic grip curves. D-pad buttons at (25, 35). Face buttons at (115, 35). Left joystick at (45, 50). Right joystick at (95, 50). USB-C at (70, 0) top center. 4x M2.5 mounting holes for bottom plate. Edge radius: 3mm on all corners.","hint":"board outline -- Design the controller PCB shape"},
+    {"id":8,"name":"Estimate total cost","desc":"Calculate the per-unit cost for 10 controllers.","commands":["unit cost","estimate cost"],"response":"Cost per unit (10 boards): PCB fabrication $1.50 (custom shape, 2-layer). SMT assembly $3.20 (setup amortized over 10). Components $4.80 (RP2040, flash, LDO, passives, ESD). THT parts hand-solder $1.00 (joysticks, buttons). Total: ~$10.50 per controller. Add enclosure 3D print: $3.00. Grand total: ~$13.50 each.","hint":"unit cost -- Calculate per-unit cost"}
+];
+    var TOTAL = TASKS.length;
+    var completed = {};
+    var activeTask = 1;
+
+    function init() {
+        buildTasks();
+        updateProgress();
+        highlightTask(1);
+        var input = document.getElementById('termInput');
+        input.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); runCommand(); } });
+        input.focus();
+    }
+
+    function buildTasks() {
+        var list = document.getElementById('taskList');
+        TASKS.forEach(function(t) {
+            var card = document.createElement('div');
+            card.className = 'task-card';
+            card.id = 'tc-' + t.id;
+            card.innerHTML = '<div class="task-num">Task ' + t.id + '</div><div class="task-name">' + t.name + '<span class="chk" id="ck-' + t.id + '">Done</span></div><div class="task-desc">' + t.desc + '</div>';
+            list.appendChild(card);
+        });
+    }
+
+    function updateProgress() {
+        var count = Object.keys(completed).length;
+        document.getElementById('progFill').style.width = (count / TOTAL) * 100 + '%';
+        document.getElementById('progLabel').textContent = count + ' / ' + TOTAL;
+    }
+
+    function completeTask(id) {
+        if (completed[id]) return;
+        completed[id] = true;
+        var card = document.getElementById('tc-' + id);
+        if (card) card.className = 'task-card done';
+        var chk = document.getElementById('ck-' + id);
+        if (chk) chk.style.display = 'inline';
+        updateProgress();
+        var next = TASKS.find(function(t) { return !completed[t.id]; });
+        if (next) highlightTask(next.id);
+        if (Object.keys(completed).length === TOTAL) {
+            setTimeout(function() { document.getElementById('finishOverlay').classList.add('active'); }, 600);
+        }
+    }
+
+    function highlightTask(id) {
+        activeTask = id;
+        TASKS.forEach(function(t) {
+            var card = document.getElementById('tc-' + t.id);
+            if (card && !completed[t.id]) card.className = (t.id === id) ? 'task-card active' : 'task-card';
+        });
+    }
+
+    function addLine(text, cls) {
+        var out = document.getElementById('termOutput');
+        var div = document.createElement('div');
+        if (cls) div.className = cls;
+        div.textContent = text;
+        out.appendChild(div);
+        out.scrollTop = out.scrollHeight;
+    }
+
+    window.clearTerminal = function() {
+        document.getElementById('termOutput').innerHTML = '<div class="t-info">Terminal cleared.</div>';
+    };
+
+    window.runCommand = function() {
+        var input = document.getElementById('termInput');
+        var cmd = input.value.trim().toLowerCase();
+        input.value = '';
+        if (!cmd) return;
+        addLine('pv-b> ' + cmd, 't-prompt');
+        processCommand(cmd);
+    };
+
+    function processCommand(cmd) {
+        var parts = cmd.split(/\s+/);
+        var base = parts[0];
+        var taskHandled = false;
+
+        TASKS.forEach(function(t) {
+            if (t.commands) {
+                t.commands.forEach(function(c) {
+                    if (cmd === c || cmd.indexOf(c) === 0) {
+                        addLine(t.response, 't-ok');
+                        completeTask(t.id);
+                        taskHandled = true;
+                    }
+                });
+            }
+        });
+
+        if (!taskHandled) {
+            if (base === 'help') {
+                addLine('Available commands:', 't-info');
+                TASKS.forEach(function(t) {
+                    if (t.hint) addLine('  ' + t.hint, 't-gold');
+                });
+            } else {
+                addLine('Unknown command: ' + cmd + '. Type "help" for available commands.', 't-err');
+            }
+        }
+    }
+
+    window.finishLab = function() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pv-b-08-lab', { returnUrl: '../../index.html' });
+        } else {
+            window.location.href = '../../index.html';
+        }
+    };
+
+    document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>

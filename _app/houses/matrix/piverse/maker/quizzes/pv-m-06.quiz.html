@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ch 6 Quiz: Media Server Architecture | PiVerse Maker's Workshop</title>
+    <link rel="stylesheet" href="../../../../../styles/quiz-engine.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { min-height: 100vh; background: linear-gradient(135deg, #0d0408 0%, #1a0810 50%, #0d0408 100%); display: flex; flex-direction: column; font-family: 'Segoe UI', system-ui, sans-serif; }
+        .page-header { padding: 15px 30px; background: rgba(0,0,0,0.4); border-bottom: 1px solid rgba(197,26,74,0.2); display: flex; justify-content: space-between; align-items: center; }
+        .page-header a { color: #c51a4a; text-decoration: none; font-size: 0.9rem; transition: color 0.2s; }
+        .page-header a:hover { opacity: 0.8; }
+        .brand { font-weight: 600; color: #e0e0e0; display: flex; align-items: center; gap: 8px; }
+        .quiz-wrapper { flex: 1; display: flex; align-items: center; justify-content: center; padding: 30px 20px; }
+        #quiz-container { width: 100%; max-width: 800px; }
+    </style>
+</head>
+<body>
+    <header class="page-header">
+        <a href="../../index.html">&larr; Back to PiVerse Hub</a>
+        <span class="brand">Hexworth Prime</span>
+    </header>
+    <main class="quiz-wrapper">
+        <div id="quiz-container"></div>
+    </main>
+    <script src="../../../../../components/ProgressSystem.js"></script>
+    <script src="../../../../../components/QuizEngine.js"></script>
+    <script>
+        const quiz = new QuizEngine({
+            containerId: 'quiz-container',
+            title: 'Chapter 6: Media Server Architecture',
+            description: 'Test your understanding of transcoding, streaming protocols, Jellyfin architecture, storage strategies, and media server optimization on the Raspberry Pi.',
+            passingScore: 80,
+            showFeedback: true,
+            randomize: true,
+            theme: 'matrix',
+            achievement: 'pv-m-06-quiz',
+            moduleId: 'pv-m-06-quiz',
+            serverGrading: true,
+            houseId: 'matrix',
+            trackProgress: true,
+            questions: [
+                {
+                    question: 'What is the difference between direct play and transcoding on a media server?',
+                    options: ['Direct play converts the file to a different format; transcoding sends it as-is', 'Direct play sends the file unchanged to the client; transcoding re-encodes it in real time', 'Direct play requires more CPU than transcoding', 'There is no difference -- both terms mean the same thing'],
+                    explanation: 'Direct play sends the original file byte-for-byte to the client without any processing. The server acts as a simple file server -- zero CPU cost. Transcoding re-encodes the video or audio in real time using FFmpeg, which is extremely CPU-intensive. The Pi 5 can barely transcode one 1080p stream in software. The strategy for Pi media servers is to maximize direct play by pre-encoding your library in widely compatible formats (H.264/AAC in MP4).'
+                },
+                {
+                    question: 'What does remuxing (direct stream) do to a media file?',
+                    options: ['Re-encodes the video to a different codec', 'Changes the container format without re-encoding the audio or video streams', 'Compresses the file to reduce its size', 'Converts audio from stereo to surround sound'],
+                    explanation: 'Remuxing repackages the existing audio and video streams into a different container format. For example, moving H.264 video and AAC audio from an MKV container to an MP4 container. The actual encoded data is copied bit-for-bit -- no re-encoding occurs. This is why remuxing is nearly instant and produces an output file of identical size and quality. It is useful when a client supports the codec but not the container format.'
+                },
+                {
+                    question: 'Why is H.264/AAC in an MP4 container considered the "universal" format for Pi media servers?',
+                    options: ['It produces the smallest file sizes of any codec combination', 'It is the only format Jellyfin supports', 'Nearly every client device (smart TV, phone, browser, game console) can direct-play this combination', 'It uses the least bandwidth of any video format'],
+                    explanation: 'H.264 (AVC) is the most universally supported video codec -- every smart TV, phone, tablet, browser, game console, and streaming device made in the last 15 years can decode it natively. AAC is the equivalent universal audio codec. MP4 is the most widely supported container. When your media library is in this format, almost every client can direct-play without any server-side processing. This is critical on a Pi because the Pi cannot reliably transcode in real time.'
+                },
+                {
+                    question: 'What happens when a client requests a video with PGS (image-based) subtitles?',
+                    options: ['The subtitles are sent as a separate text file', 'The server must burn the subtitles into the video stream, triggering a full transcode', 'PGS subtitles are always rendered client-side', 'The video plays without subtitles'],
+                    explanation: 'PGS (Presentation Graphic Stream) subtitles are bitmap images, not text. Most clients cannot render image-based subtitles on their own overlay layer. The server must "burn in" the subtitle images by compositing them onto each video frame, which requires decoding the entire video, overlaying the subtitle graphics, and re-encoding the result. This is a full video transcode -- the most CPU-intensive operation a media server performs. On a Pi, this makes the stream unplayable. SRT text subtitles avoid this because clients can render text natively.'
+                },
+                {
+                    question: 'Which streaming protocol uses .m3u8 playlist files and .ts segment files?',
+                    options: ['DLNA/UPnP', 'RTSP', 'HLS (HTTP Live Streaming)', 'DASH'],
+                    explanation: 'HLS (HTTP Live Streaming) was developed by Apple and segments media into small .ts (Transport Stream) chunks, typically 6-10 seconds each. An .m3u8 playlist file lists the available segments and their URLs. For adaptive bitrate streaming, multiple .m3u8 playlists at different quality levels are provided, and the client automatically switches between them based on available bandwidth. HLS works over standard HTTP/HTTPS, making it firewall-friendly and CDN-compatible. Jellyfin uses HLS for its web player.'
+                },
+                {
+                    question: 'What is the primary advantage of DLNA for a Pi media server on a local network?',
+                    options: ['It supports adaptive bitrate streaming', 'Smart TVs and game consoles auto-discover the server without manual configuration', 'It provides user authentication and access control', 'It enables remote access from outside the network'],
+                    explanation: 'DLNA (Digital Living Network Alliance) uses UPnP (Universal Plug and Play) for automatic device discovery on the local network. When a DLNA server like Jellyfin is running, smart TVs, PlayStation, Xbox, and other DLNA clients automatically detect it and display its media library without any manual IP address configuration. The limitation is that DLNA is local-network only, has no authentication, and does not support adaptive bitrate streaming. It is best for simple local playback scenarios.'
+                },
+                {
+                    question: 'Why should media files never be stored on the Pi microSD card?',
+                    options: ['MicroSD cards cannot store files larger than 4GB', 'MicroSD cards are too slow for streaming and have limited write endurance', 'MicroSD cards are not supported by Jellyfin', 'MicroSD cards use a proprietary filesystem'],
+                    explanation: 'MicroSD cards have two problems for media serving: speed and endurance. Sequential read speeds are typically 90-100 MB/s (adequate for one stream but not many concurrent streams), but random I/O performance is poor, which affects database operations. More critically, MicroSD cards have limited write endurance -- the NAND flash cells wear out after thousands of write cycles. Jellyfin constantly writes to its metadata database, log files, and transcode cache, which accelerates wear. Use USB 3.0 external drives or NVMe SSDs for both media storage and the Jellyfin data directory.'
+                },
+                {
+                    question: 'What is the Jellyfin media naming convention for a TV show episode?',
+                    options: ['/tv/show/episode.mkv', '/media/tv/Show Name/Season 01/Show Name - S01E01.mkv', '/jellyfin/tv/S01E01 - Episode Title.mkv', '/media/shows/ShowName.S01E01.mkv'],
+                    explanation: 'Jellyfin expects TV shows organized as: /media/tv/Show Name/Season 01/Show Name - S01E01.mkv. The "Show Name" directory enables metadata matching against TMDb. The "Season 01" subdirectory groups episodes by season. The filename includes "S01E01" (season and episode numbers) which Jellyfin parses to identify the specific episode. Consistent adherence to this pattern is critical because the metadata scanner relies on filename parsing to fetch correct episode titles, descriptions, and artwork.'
+                },
+                {
+                    question: 'How much network bandwidth does a typical 1080p H.264 stream require?',
+                    options: ['About 500 Kbps', 'About 2 Mbps', 'About 8-12 Mbps', 'About 100 Mbps'],
+                    explanation: 'A well-encoded 1080p H.264 stream typically requires 8-12 Mbps of bandwidth, depending on the encoding settings (CRF value, bitrate cap) and content complexity. Action scenes with lots of motion require higher bitrates than static dialogue scenes. Gigabit Ethernet (1000 Mbps) can theoretically support 80-100 concurrent 1080p streams from a bandwidth perspective, but the Pi CPU becomes the bottleneck long before the network does -- a single software transcode maxes out the Pi 5 CPU.'
+                },
+                {
+                    question: 'What does the Pi 5 VideoCore VII GPU support in terms of media codecs?',
+                    options: ['Hardware encoding and decoding of H.264, H.265, and AV1', 'Hardware decoding of H.264 and H.265 only -- no hardware encoding', 'Hardware encoding of H.264 only', 'No hardware codec support at all'],
+                    explanation: 'The Pi 5 VideoCore VII supports hardware decoding (not encoding) of H.264 and H.265/HEVC video. This means the Pi can offload the computationally expensive task of decoding these codecs to the GPU, freeing the CPU. However, it cannot hardware-encode video, which means all transcoding output must be software-encoded on the CPU. This is why the Pi struggles with real-time transcoding -- encoding is the expensive half, and it must be done in software.'
+                },
+                {
+                    question: 'Why did Jellyfin fork from Emby in 2018?',
+                    options: ['Emby was discontinued by its developers', 'Emby switched from open-source to a proprietary license', 'Jellyfin needed different hardware support', 'Emby did not support the Raspberry Pi'],
+                    explanation: 'Emby began as an open-source project but transitioned to a proprietary license, locking key features (hardware transcoding, offline sync, and others) behind a paid Premiere subscription. A group of developers forked the last open-source version of Emby and created Jellyfin, committing to keeping all features free and open-source permanently. Jellyfin requires no account, no internet connection for authentication, and no premium tier. This makes it ideal for self-hosted deployments, especially on resource-constrained hardware like the Pi.'
+                },
+                {
+                    question: 'What mount option should be used in /etc/fstab for a USB drive that might not always be connected?',
+                    options: ['auto', 'noauto', 'nofail', 'sync'],
+                    explanation: 'The "nofail" mount option tells systemd to continue the boot process even if the specified drive is not present. Without this option, if the USB drive is disconnected or fails, the Pi will drop to an emergency shell during boot and refuse to start normally. With "nofail", the system boots successfully regardless of whether the drive is attached -- the mount point simply remains empty. This is critical for media servers where the external drive might be temporarily disconnected for maintenance.'
+                },
+                {
+                    question: 'What FFmpeg flag copies streams without re-encoding during a remux operation?',
+                    options: ['-c:v libx264', '-c copy', '-preset ultrafast', '-crf 0'],
+                    explanation: 'The FFmpeg flag "-c copy" (or equivalently "-codec copy") instructs FFmpeg to copy all streams (video, audio, subtitles) from the input to the output without any re-encoding. The data is transferred bit-for-bit -- only the container format changes. This is why remuxing is nearly instant regardless of file size. The alternative flags do different things: -c:v libx264 forces H.264 encoding, -preset ultrafast sets encoding speed, and -crf 0 sets lossless encoding quality.'
+                },
+                {
+                    question: 'What is the default web UI port for Jellyfin?',
+                    options: ['80', '443', '8080', '8096'],
+                    explanation: 'Jellyfin serves its web interface on port 8096 by default. After installation, you access the setup wizard at http://<pi-ip-address>:8096. For remote access, this port must be forwarded through your router or proxied through a reverse proxy like Caddy or nginx. HTTPS (port 8920 by default in Jellyfin) should be configured for any access outside the local network to prevent credentials and media metadata from being transmitted in plaintext.'
+                },
+                {
+                    question: 'Which Pi 5 storage option provides the best performance per dollar for a media server?',
+                    options: ['MicroSD card', 'USB 3.0 external HDD', 'NVMe SSD via M.2 HAT+', 'Network-attached storage via WiFi'],
+                    explanation: 'USB 3.0 external hard drives offer the best performance-per-dollar ratio for Pi media servers. They provide ~400 MB/s throughput over USB 3.0 (far more than needed for multiple concurrent streams), cost approximately $20-30 per terabyte, and are simple to set up. NVMe SSDs via the M.2 HAT+ are faster (~450 MB/s PCIe Gen 2) but cost 5-10x more per terabyte. For media serving, the bottleneck is never sequential read speed -- even a USB HDD at 100 MB/s can serve 10+ simultaneous 1080p streams.'
+                }
+            ]
+        });
+        quiz.start();
+    </script>
+</body>
+</html>

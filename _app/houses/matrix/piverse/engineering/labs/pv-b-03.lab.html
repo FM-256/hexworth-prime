@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab: PCB Anatomy | PiVerse Board Engineering</title>
+    <style>
+        :root { --accent: #c51a4a; --accent-dim: rgba(197,26,74,0.15); --accent-border: rgba(197,26,74,0.3); --green: #34d399; --green-dim: rgba(52,211,153,0.1); --green-border: rgba(52,211,153,0.3); --gold: #ffd700; --gold-dim: rgba(255,215,0,0.1); --gold-border: rgba(255,215,0,0.3); --bg: #0d0408; --bg2: #130810; --bg3: #1a0c12; --text: #e0d0d6; --text2: #9e8b91; --border: rgba(197,26,74,0.12); }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        .topbar { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .topbar-left { display: flex; align-items: center; gap: 14px; }
+        .back-btn { padding: 6px 14px; background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: 6px; color: var(--accent); text-decoration: none; font-size: 0.82rem; transition: background 0.2s; }
+        .back-btn:hover { background: rgba(197,26,74,0.25); }
+        .lab-title { font-size: 0.95rem; color: var(--text); }
+        .badge { padding: 3px 10px; border-radius: 10px; font-size: 0.68rem; letter-spacing: 0.06em; }
+        .badge-red { background: var(--accent-dim); border: 1px solid var(--accent-border); color: var(--accent); }
+        .topbar-right { display: flex; align-items: center; gap: 14px; font-size: 0.82rem; color: var(--text2); }
+        .prog-wrap { width: 130px; height: 5px; background: rgba(197,26,74,0.12); border-radius: 3px; overflow: hidden; }
+        .prog-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #8a1030); border-radius: 3px; transition: width 0.4s ease; }
+        .prog-label { color: var(--accent); font-weight: 500; }
+        .workspace { display: grid; grid-template-columns: 1fr 340px; flex: 1; min-height: 0; }
+        .terminal-panel { display: flex; flex-direction: column; overflow: hidden; }
+        .terminal-toolbar { flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .tb-btn { padding: 5px 14px; background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: 5px; color: var(--accent); font-size: 0.82rem; cursor: pointer; transition: background 0.2s; font-weight: 600; }
+        .tb-btn:hover:not(:disabled) { background: rgba(197,26,74,0.25); }
+        .tb-btn:disabled { opacity: 0.35; cursor: default; }
+        .tb-btn.run { background: rgba(52,211,153,0.12); border-color: var(--green-border); color: var(--green); }
+        .tb-btn.run:hover:not(:disabled) { background: rgba(52,211,153,0.22); }
+        .tb-btn.clear { background: rgba(255,215,0,0.08); border-color: var(--gold-border); color: var(--gold); }
+        .terminal-area { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+        .terminal-output { flex: 1; background: #0a0208; padding: 12px 16px; overflow-y: auto; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.82rem; line-height: 1.7; color: var(--text2); }
+        .terminal-output .t-prompt { color: var(--accent); } .terminal-output .t-ok { color: var(--green); } .terminal-output .t-err { color: #f87171; } .terminal-output .t-info { color: #60a5fa; } .terminal-output .t-gold { color: var(--gold); }
+        .terminal-input-row { display: flex; border-top: 1px solid var(--border); background: var(--bg2); }
+        .terminal-prompt { padding: 8px 4px 8px 14px; color: var(--accent); font-family: 'Consolas', monospace; font-size: 0.82rem; }
+        .terminal-input { flex: 1; background: transparent; border: none; outline: none; color: var(--text); font-family: 'Consolas', monospace; font-size: 0.82rem; padding: 8px 8px; }
+        .task-panel { background: var(--bg2); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+        .panel-header { padding: 12px 16px; font-size: 0.7rem; color: var(--text2); letter-spacing: 0.12em; text-transform: uppercase; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .task-list { flex: 1; overflow-y: auto; padding: 12px; }
+        .task-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 9px; padding: 12px 14px; margin-bottom: 8px; transition: all 0.2s; }
+        .task-card.active { border-color: var(--accent); background: rgba(197,26,74,0.06); }
+        .task-card.done { border-color: var(--green-border); background: var(--green-dim); }
+        .task-num { font-size: 0.67rem; color: var(--accent); margin-bottom: 3px; }
+        .task-name { font-size: 0.88rem; color: var(--text); margin-bottom: 3px; display: flex; align-items: center; gap: 6px; }
+        .task-name .chk { font-size: 0.75rem; color: var(--green); margin-left: auto; display: none; }
+        .task-desc { font-size: 0.77rem; color: var(--text2); line-height: 1.45; }
+        .finish-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 9000; }
+        .finish-overlay.active { display: flex; }
+        .finish-card { background: var(--bg2); border: 1px solid var(--green-border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .finish-title { font-size: 1.5rem; color: var(--gold); margin-bottom: 10px; }
+        .finish-msg { color: var(--text2); font-size: 0.95rem; margin-bottom: 24px; line-height: 1.6; }
+        .finish-btn { padding: 11px 28px; background: linear-gradient(135deg, var(--accent), #8a1030); border: none; border-radius: 8px; color: #fff; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; }
+        .finish-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+        @media (max-width: 800px) { .workspace { grid-template-columns: 1fr; } .task-panel { max-height: 200px; border-left: none; border-top: 1px solid var(--border); } }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <div class="topbar-left">
+            <a href="../../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">PV-B-03: PCB Anatomy</span>
+            <span class="badge badge-red">Board Engineering</span>
+        </div>
+        <div class="topbar-right">
+            <span>Tasks:</span>
+            <div class="prog-wrap"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+            <span class="prog-label" id="progLabel">0 / 8</span>
+        </div>
+    </header>
+    <div class="workspace">
+        <div class="terminal-panel">
+            <div class="terminal-toolbar">
+                <button class="tb-btn run" id="btnRun" onclick="runCommand()">Run</button>
+                <button class="tb-btn clear" onclick="clearTerminal()">Clear</button>
+            </div>
+            <div class="terminal-area">
+                <div class="terminal-output" id="termOutput">
+                    <div class="t-info">PiVerse Board Engineering Lab -- PCB Anatomy</div>
+                    <div class="t-info">Type commands below. Use 'help' for available commands.</div>
+                    <div>&nbsp;</div>
+                </div>
+                <div class="terminal-input-row">
+                    <span class="terminal-prompt">pv-b&gt;</span>
+                    <input class="terminal-input" id="termInput" type="text" spellcheck="false" autocomplete="off" placeholder="Type a command...">
+                </div>
+            </div>
+        </div>
+        <aside class="task-panel">
+            <div class="panel-header">Lab Tasks</div>
+            <div class="task-list" id="taskList"></div>
+        </aside>
+    </div>
+    <div class="finish-overlay" id="finishOverlay">
+        <div class="finish-card">
+            <div class="finish-title">Lab Complete</div>
+            <div class="finish-msg">You have completed all tasks for the PCB Anatomy lab. Well done.</div>
+            <button class="finish-btn" onclick="finishLab()">Return to PiVerse Hub</button>
+        </div>
+    </div>
+<script>
+(function() {
+    'use strict';
+    var TASKS = [
+    {"id":1,"name":"Inspect the layer stackup","desc":"Display the 4-layer PCB stackup.","commands":["show stackup","stackup info"],"response":"4-Layer Stackup: L1 Top Copper (signal, 35um) -> Prepreg (0.2mm) -> L2 Inner 1 (GND plane, 35um) -> Core (1.0mm) -> L3 Inner 2 (PWR plane, 35um) -> Prepreg (0.2mm) -> L4 Bottom Copper (signal, 35um). Total: 1.6mm.","hint":"show stackup -- Display the 4-layer PCB stackup"},
+    {"id":2,"name":"Calculate trace width for 1A","desc":"Find the required trace width for 1A current.","commands":["trace calc 1a","calculate trace 1a"],"response":"For 1A on outer layer, 1oz copper, 10C rise: minimum width = 0.5mm (20 mil). For inner layer: 1.0mm (40 mil). Use Saturn PCB Toolkit for precise calculations.","hint":"trace calc 1a -- Calculate trace width for 1A current"},
+    {"id":3,"name":"Check via specifications","desc":"Show standard via dimensions.","commands":["via specs","show via"],"response":"Standard through-hole via: 0.3mm drill, 0.6mm pad, ~0.5A capacity per via. Via-in-pad for QFN: filled and plated over. JLCPCB minimum: 0.2mm drill, 0.45mm pad.","hint":"via specs -- Show standard via specifications"},
+    {"id":4,"name":"Verify ground plane continuity","desc":"Check the ground plane for splits.","commands":["check ground","ground check"],"response":"Ground plane analysis: L2 (GND) is continuous with no splits. 47 stitching vias connect top and bottom ground pours. Thermal vias under RP2040 QFN pad: 3x3 array. PASS - no return path discontinuities.","hint":"check ground -- Verify ground plane has no splits"},
+    {"id":5,"name":"Inspect solder mask openings","desc":"Check solder mask for correct pad exposure.","commands":["check mask","solder mask"],"response":"Solder mask: All pads exposed with 0.05mm mask expansion. No mask slivers between fine-pitch pads. QFN-56 pads clear. Via-in-pad openings covered (tented). PASS.","hint":"check mask -- Inspect solder mask openings"},
+    {"id":6,"name":"Run design rule check","desc":"Execute the PCB DRC.","commands":["run drc","drc check"],"response":"DRC Results: 0 errors, 2 warnings. Warning 1: Silkscreen overlaps pad on J1 (cosmetic only). Warning 2: Courtyard clearance tight on C7/C8 (0.15mm, minimum 0.1mm). No electrical violations. PASS.","hint":"run drc -- Run PCB design rule check"},
+    {"id":7,"name":"Check copper pour settings","desc":"Verify copper pour configuration.","commands":["pour info","check pours"],"response":"Copper pours: Top layer GND fill (priority 0). Bottom layer GND fill (priority 0). L3 power plane split: 3V3 (85% area), VBUS (15% area). All pours use thermal relief on pads. Clearance: 0.2mm.","hint":"pour info -- Check copper pour settings"},
+    {"id":8,"name":"Measure board dimensions","desc":"Get the PCB board outline dimensions.","commands":["board size","measure board"],"response":"Board outline: 48mm x 32mm rectangular. Area: 1536 sq mm. 4 mounting holes: M2.5, 3mm from each corner. Edge clearance: 0.5mm minimum copper to edge. Board weight (estimated): 8g.","hint":"board size -- Measure PCB dimensions"}
+];
+    var TOTAL = TASKS.length;
+    var completed = {};
+    var activeTask = 1;
+
+    function init() {
+        buildTasks();
+        updateProgress();
+        highlightTask(1);
+        var input = document.getElementById('termInput');
+        input.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); runCommand(); } });
+        input.focus();
+    }
+
+    function buildTasks() {
+        var list = document.getElementById('taskList');
+        TASKS.forEach(function(t) {
+            var card = document.createElement('div');
+            card.className = 'task-card';
+            card.id = 'tc-' + t.id;
+            card.innerHTML = '<div class="task-num">Task ' + t.id + '</div><div class="task-name">' + t.name + '<span class="chk" id="ck-' + t.id + '">Done</span></div><div class="task-desc">' + t.desc + '</div>';
+            list.appendChild(card);
+        });
+    }
+
+    function updateProgress() {
+        var count = Object.keys(completed).length;
+        document.getElementById('progFill').style.width = (count / TOTAL) * 100 + '%';
+        document.getElementById('progLabel').textContent = count + ' / ' + TOTAL;
+    }
+
+    function completeTask(id) {
+        if (completed[id]) return;
+        completed[id] = true;
+        var card = document.getElementById('tc-' + id);
+        if (card) card.className = 'task-card done';
+        var chk = document.getElementById('ck-' + id);
+        if (chk) chk.style.display = 'inline';
+        updateProgress();
+        var next = TASKS.find(function(t) { return !completed[t.id]; });
+        if (next) highlightTask(next.id);
+        if (Object.keys(completed).length === TOTAL) {
+            setTimeout(function() { document.getElementById('finishOverlay').classList.add('active'); }, 600);
+        }
+    }
+
+    function highlightTask(id) {
+        activeTask = id;
+        TASKS.forEach(function(t) {
+            var card = document.getElementById('tc-' + t.id);
+            if (card && !completed[t.id]) card.className = (t.id === id) ? 'task-card active' : 'task-card';
+        });
+    }
+
+    function addLine(text, cls) {
+        var out = document.getElementById('termOutput');
+        var div = document.createElement('div');
+        if (cls) div.className = cls;
+        div.textContent = text;
+        out.appendChild(div);
+        out.scrollTop = out.scrollHeight;
+    }
+
+    window.clearTerminal = function() {
+        document.getElementById('termOutput').innerHTML = '<div class="t-info">Terminal cleared.</div>';
+    };
+
+    window.runCommand = function() {
+        var input = document.getElementById('termInput');
+        var cmd = input.value.trim().toLowerCase();
+        input.value = '';
+        if (!cmd) return;
+        addLine('pv-b> ' + cmd, 't-prompt');
+        processCommand(cmd);
+    };
+
+    function processCommand(cmd) {
+        var parts = cmd.split(/\s+/);
+        var base = parts[0];
+        var taskHandled = false;
+
+        TASKS.forEach(function(t) {
+            if (t.commands) {
+                t.commands.forEach(function(c) {
+                    if (cmd === c || cmd.indexOf(c) === 0) {
+                        addLine(t.response, 't-ok');
+                        completeTask(t.id);
+                        taskHandled = true;
+                    }
+                });
+            }
+        });
+
+        if (!taskHandled) {
+            if (base === 'help') {
+                addLine('Available commands:', 't-info');
+                TASKS.forEach(function(t) {
+                    if (t.hint) addLine('  ' + t.hint, 't-gold');
+                });
+            } else {
+                addLine('Unknown command: ' + cmd + '. Type "help" for available commands.', 't-err');
+            }
+        }
+    }
+
+    window.finishLab = function() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pv-b-03-lab', { returnUrl: '../../index.html' });
+        } else {
+            window.location.href = '../../index.html';
+        }
+    };
+
+    document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>
