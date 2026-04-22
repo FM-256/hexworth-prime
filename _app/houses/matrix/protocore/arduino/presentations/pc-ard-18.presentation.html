@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hardware Internals | ProtoCore Arduino Core 18</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #040810 0%, #081020 50%, #0a0c1a 100%); color: #e2e8f0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #0088ff; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(4, 8, 16, 0.95); border-top: 1px solid rgba(0, 136, 255, 0.15); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255, 255, 255, 0.07); color: #94a3b8; border: 1px solid rgba(255, 255, 255, 0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(0, 136, 255, 0.15); color: #0088ff; border-color: #0088ff; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s; }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #0088ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ffd700; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip { background: rgba(0, 136, 255, 0.08); border-left: 3px solid #0088ff; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #bfdbfe; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(0, 136, 255, 0.08); border: 1px solid rgba(0, 136, 255, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ffd700; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255, 255, 255, 0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #0088ff; }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-red { border-left-color: #ef4444; } .card.c-gold { border-left-color: #ffd700; }
+        .card.c-cyan { border-left-color: #06b6d4; } .card.c-purple { border-left-color: #a78bfa; } .card.c-orange { border-left-color: #f97316; } .card.c-blue { border-left-color: #0088ff; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #0088ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #ffd700; background: rgba(255, 215, 0, 0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .ic { font-family: 'Courier New', monospace; color: #ffd700; background: rgba(255, 215, 0, 0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num { background: rgba(0, 136, 255, 0.12); border: 1px solid rgba(0, 136, 255, 0.4); color: #0088ff; font-weight: 700; font-size: 0.78rem; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px; }
+        .step-text { color: #cbd5e1; line-height: 1.4; } .step-text strong { color: #f1f5f9; }
+        .code-block { background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 215, 0, 0.2); border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #ffd700; line-height: 1.6; white-space: pre; }
+        .code-block .cm { color: #64748b; } .code-block .kw { color: #5cb8ff; } .code-block .fn { color: #ffd700; } .code-block .st { color: #86efac; } .code-block .nu { color: #fdba74; }
+        .code-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .code-panel-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 5px; }
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell { background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(0, 136, 255, 0.25); border-radius: 8px; padding: 12px 14px; text-align: center; opacity: 0; animation: hexAppear 0.4s ease forwards; }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; } .hex-cell:nth-child(2) { animation-delay: 0.25s; } .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; } .hex-cell:nth-child(5) { animation-delay: 0.7s; } .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #0088ff; margin-bottom: 4px; }
+        .hex-cell .hex-desc { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes entityPop { from { opacity: 0; transform: scale(0.6) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes glowPulse { 0%, 100% { filter: drop-shadow(0 0 4px rgba(0,136,255,0.3)); } 50% { filter: drop-shadow(0 0 14px rgba(0,136,255,0.9)); } }
+        @keyframes dataFlow { 0% { stroke-dashoffset: 14; } 100% { stroke-dashoffset: 0; } }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .code-compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Hardware Internals -- ProtoCore Arduino Core 18</h1>
+
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; ProtoCore &nbsp;|&nbsp; Arduino &nbsp;|&nbsp; Core 18</div>
+        <div class="title-hero">
+            <svg width="400" height="120" viewBox="0 0 400 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- ATmega chip outline -->
+                <rect x="130" y="15" width="140" height="90" rx="6" fill="rgba(0,136,255,0.04)" stroke="#0088ff" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.1s; opacity:0;"/>
+                <!-- Chip pins left -->
+                <line x1="115" y1="30" x2="130" y2="30" stroke="rgba(255,215,0,0.5)" stroke-width="2" style="animation: fadeUp 0.3s ease forwards 0.2s; opacity:0;"/>
+                <line x1="115" y1="45" x2="130" y2="45" stroke="rgba(255,215,0,0.5)" stroke-width="2" style="animation: fadeUp 0.3s ease forwards 0.25s; opacity:0;"/>
+                <line x1="115" y1="60" x2="130" y2="60" stroke="rgba(255,215,0,0.5)" stroke-width="2" style="animation: fadeUp 0.3s ease forwards 0.3s; opacity:0;"/>
+                <line x1="115" y1="75" x2="130" y2="75" stroke="rgba(255,215,0,0.5)" stroke-width="2" style="animation: fadeUp 0.3s ease forwards 0.35s; opacity:0;"/>
+                <line x1="115" y1="90" x2="130" y2="90" stroke="rgba(255,215,0,0.5)" stroke-width="2" style="animation: fadeUp 0.3s ease forwards 0.4s; opacity:0;"/>
+                <!-- Chip pins right -->
+                <line x1="270" y1="30" x2="285" y2="30" stroke="rgba(255,215,0,0.5)" stroke-width="2" style="animation: fadeUp 0.3s ease forwards 0.2s; opacity:0;"/>
+                <line x1="270" y1="45" x2="285" y2="45" stroke="rgba(255,215,0,0.5)" stroke-width="2" style="animation: fadeUp 0.3s ease forwards 0.25s; opacity:0;"/>
+                <line x1="270" y1="60" x2="285" y2="60" stroke="rgba(255,215,0,0.5)" stroke-width="2" style="animation: fadeUp 0.3s ease forwards 0.3s; opacity:0;"/>
+                <line x1="270" y1="75" x2="285" y2="75" stroke="rgba(255,215,0,0.5)" stroke-width="2" style="animation: fadeUp 0.3s ease forwards 0.35s; opacity:0;"/>
+                <line x1="270" y1="90" x2="285" y2="90" stroke="rgba(255,215,0,0.5)" stroke-width="2" style="animation: fadeUp 0.3s ease forwards 0.4s; opacity:0;"/>
+                <!-- Labels inside chip -->
+                <text x="200" y="40" text-anchor="middle" font-size="10" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">ATmega328P</text>
+                <text x="200" y="58" text-anchor="middle" font-size="7" fill="#ffd700" font-family="monospace">PORTB | DDRB | PINB</text>
+                <text x="200" y="72" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="monospace">Timer0 | Timer1 | Timer2</text>
+                <text x="200" y="86" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="monospace">Interrupts | Fuses | WDT</text>
+                <!-- Glow -->
+                <ellipse cx="200" cy="60" rx="100" ry="50" fill="none" stroke="rgba(0,136,255,0.06)" stroke-width="1"
+                    style="animation: pulse 3s ease-in-out infinite;"/>
+            </svg>
+            <div class="big-title">Hardware <span class="accent">Internals</span></div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Registers &nbsp;|&nbsp; Port Manipulation &nbsp;|&nbsp; Timers &nbsp;|&nbsp; Sleep Modes &nbsp;|&nbsp; Fuse Bytes
+            </div>
+        </div>
+        <div class="scenario-strip">
+            The Arduino framework hides the ATmega328P's true power behind friendly functions like digitalWrite() and analogWrite(). This core strips away the abstraction and shows you the register-level architecture underneath. Direct hardware control means faster execution, precise timing, and capabilities that no Arduino function exposes.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>ProtoCore Arduino</span>
+            <span>Core 18</span>
+            <span>Matrix House</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- REGISTER ARCHITECTURE ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">ATmega328P <span class="accent">Register Architecture</span></div>
+        <div class="slide-subtitle">Every hardware feature is controlled by writing values to special memory addresses called registers.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">What Is a Register?</div>
+                <div class="card-desc">An 8-bit memory location mapped to hardware. Writing a value to a register changes how the chip behaves -- pin directions, timer speeds, interrupt enables. The ATmega328P has 224 I/O registers at addresses 0x00-0xFF, each controlling a specific hardware function.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Register Types</div>
+                <div class="card-desc"><strong>DDRx:</strong> Data Direction Register (input/output). <strong>PORTx:</strong> Output register (HIGH/LOW). <strong>PINx:</strong> Input register (read pin state). <strong>TCCRnA/B:</strong> Timer control. <strong>OCRnA/B:</strong> Timer compare values. <strong>SREG:</strong> Status register.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Why Go Direct?</div>
+                <div class="card-desc"><span class="ic">digitalWrite()</span> takes ~5 microseconds. Direct port write takes ~0.06 microseconds -- 80x faster. For time-critical operations (bit-banging protocols, high-frequency PWM, precise pulse measurement), Arduino functions are too slow. Registers are the only option.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// Arduino function: ~5us per call</span>
+<span class="fn">digitalWrite</span>(<span class="nu">13</span>, HIGH);
+
+<span class="cm">// Direct register: ~62ns per call (80x faster)</span>
+PORTB |= (<span class="nu">1</span> &lt;&lt; PB5);   <span class="cm">// Set bit 5 of PORTB = pin 13 HIGH</span>
+
+<span class="cm">// Why so much faster? digitalWrite() must:</span>
+<span class="cm">// 1. Look up the port from a table</span>
+<span class="cm">// 2. Look up the bit mask</span>
+<span class="cm">// 3. Disable interrupts</span>
+<span class="cm">// 4. Read-modify-write the port</span>
+<span class="cm">// 5. Re-enable interrupts</span>
+<span class="cm">// Direct register access skips all of that.</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- DIRECT PORT MANIPULATION ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Direct Port Manipulation: <span class="accent">PORTB, DDRB, PINB</span></div>
+        <div class="slide-subtitle">Control all 8 pins of a port simultaneously with a single instruction.</div>
+
+        <div class="diagram-center">
+            <svg width="600" height="90" viewBox="0 0 600 90" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Three register boxes -->
+                <rect x="30" y="15" width="160" height="60" rx="8" fill="rgba(0,136,255,0.08)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="110" y="38" text-anchor="middle" font-size="10" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">DDRB</text>
+                <text x="110" y="55" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Direction: 1=OUT, 0=IN</text>
+
+                <rect x="220" y="15" width="160" height="60" rx="8" fill="rgba(255,215,0,0.08)" stroke="#ffd700" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="300" y="38" text-anchor="middle" font-size="10" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">PORTB</text>
+                <text x="300" y="55" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Output: 1=HIGH, 0=LOW</text>
+
+                <rect x="410" y="15" width="160" height="60" rx="8" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="490" y="38" text-anchor="middle" font-size="10" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">PINB</text>
+                <text x="490" y="55" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Read: current pin states</text>
+            </svg>
+        </div>
+
+        <div class="code-block"><span class="cm">// Port B maps to Arduino pins 8-13 (bits 0-5)</span>
+<span class="cm">// Port D maps to Arduino pins 0-7 (bits 0-7)</span>
+<span class="cm">// Port C maps to Arduino pins A0-A5 (bits 0-5)</span>
+
+<span class="cm">// Set pin 13 (PB5) as output</span>
+DDRB |= (<span class="nu">1</span> &lt;&lt; PB5);      <span class="cm">// Same as pinMode(13, OUTPUT)</span>
+
+<span class="cm">// Set pin 13 HIGH</span>
+PORTB |= (<span class="nu">1</span> &lt;&lt; PB5);     <span class="cm">// Same as digitalWrite(13, HIGH)</span>
+
+<span class="cm">// Set pin 13 LOW</span>
+PORTB &amp;= ~(<span class="nu">1</span> &lt;&lt; PB5);    <span class="cm">// Same as digitalWrite(13, LOW)</span>
+
+<span class="cm">// Toggle pin 13</span>
+PINB |= (<span class="nu">1</span> &lt;&lt; PB5);      <span class="cm">// Writing 1 to PINx toggles the pin</span>
+
+<span class="cm">// Set ALL of port D as output at once</span>
+DDRD = <span class="nu">0xFF</span>;             <span class="cm">// All 8 pins output in one instruction</span>
+
+<span class="cm">// Read pin 8 (PB0) state</span>
+<span class="kw">bool</span> state = PINB &amp; (<span class="nu">1</span> &lt;&lt; PB0);  <span class="cm">// Same as digitalRead(8)</span></div>
+
+        <div class="box box-gold">
+            <div class="box-label">Bitwise Operations Cheat Sheet</div>
+            <span class="ic">|=</span> sets bits (OR). <span class="ic">&amp;= ~</span> clears bits (AND NOT). <span class="ic">^=</span> toggles bits (XOR). <span class="ic">&lt;&lt;</span> shifts left (selects bit position). <span class="ic">&amp;</span> masks bits for reading. These six operations are the entire vocabulary of register programming.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- PIN CHANGE INTERRUPTS ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Pin Change Interrupts <span class="accent">(PCINT)</span></div>
+        <div class="slide-subtitle">Respond to pin state changes on ANY digital pin -- not just pins 2 and 3.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">External vs Pin Change</div>
+                <div class="card-desc"><span class="ic">attachInterrupt()</span> only works on pins 2 (INT0) and 3 (INT1) and supports RISING, FALLING, CHANGE, LOW. Pin Change Interrupts (PCINT) work on ALL 24 pins but only detect CHANGE (any toggle). You must determine direction in the ISR.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Three PCINT Groups</div>
+                <div class="card-desc">PCINT0 (pins 8-13, Port B), PCINT1 (pins A0-A5, Port C), PCINT2 (pins 0-7, Port D). Each group shares one ISR. When any enabled pin in the group changes, the group ISR fires. You must read the port to determine which pin triggered it.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// Enable pin change interrupt on pin 4 (PCINT20, Port D)</span>
+PCICR |= (<span class="nu">1</span> &lt;&lt; PCIE2);     <span class="cm">// Enable PCINT group 2 (Port D)</span>
+PCMSK2 |= (<span class="nu">1</span> &lt;&lt; PCINT20);  <span class="cm">// Enable PCINT on pin 4 specifically</span>
+
+<span class="kw">volatile byte</span> lastPortD = <span class="nu">0</span>;
+
+ISR(PCINT2_vect) {
+  <span class="kw">byte</span> changed = PIND ^ lastPortD;  <span class="cm">// XOR to find which pin changed</span>
+  lastPortD = PIND;
+  <span class="kw">if</span> (changed &amp; (<span class="nu">1</span> &lt;&lt; PD4)) {
+    <span class="cm">// Pin 4 changed! Check PIND for HIGH/LOW</span>
+    <span class="kw">if</span> (PIND &amp; (<span class="nu">1</span> &lt;&lt; PD4)) {
+      <span class="cm">// Pin 4 went HIGH (rising edge)</span>
+    } <span class="kw">else</span> {
+      <span class="cm">// Pin 4 went LOW (falling edge)</span>
+    }
+  }
+}</div>
+
+        <div class="box box-red">
+            <div class="box-label">ISR Rules</div>
+            Keep interrupt service routines (ISRs) as short as possible. No <span class="ic">Serial.print()</span>, no <span class="ic">delay()</span>, no <span class="ic">millis()</span> reads inside an ISR. Set a <span class="ic">volatile</span> flag and process it in <span class="ic">loop()</span>. Long ISRs block other interrupts and break timing-dependent functions.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- TIMER CONFIGURATION ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Timer0 / Timer1 / <span class="accent">Timer2</span> Configuration</div>
+        <div class="slide-subtitle">Three hardware timers that power millis(), PWM, tone(), and custom timing.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Timer0 (8-bit)</div>
+                <div class="card-desc">Powers <span class="ic">millis()</span>, <span class="ic">micros()</span>, and <span class="ic">delay()</span>. Also drives PWM on pins 5 and 6. Modifying Timer0 breaks all time-keeping functions. Prescaler: 64. Overflow interrupt fires every ~1ms.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Timer1 (16-bit)</div>
+                <div class="card-desc">Most versatile timer. 16-bit counter (0-65535). Drives PWM on pins 9 and 10. Used by the Servo library. Supports Input Capture for measuring external pulses with high precision. CTC mode for arbitrary frequencies.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Timer2 (8-bit)</div>
+                <div class="card-desc">Drives PWM on pins 3 and 11. Used by <span class="ic">tone()</span>. Has an asynchronous mode for use with a 32.768 kHz external crystal (real-time clock applications). Safest timer to modify without side effects.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// Configure Timer1 for a 1 Hz interrupt (CTC mode)</span>
+<span class="fn">cli</span>();                           <span class="cm">// Disable interrupts during setup</span>
+TCCR1A = <span class="nu">0</span>;                      <span class="cm">// Clear control registers</span>
+TCCR1B = <span class="nu">0</span>;
+TCNT1  = <span class="nu">0</span>;                      <span class="cm">// Reset counter</span>
+OCR1A  = <span class="nu">15624</span>;                  <span class="cm">// Compare value: 16MHz/1024/1Hz - 1</span>
+TCCR1B |= (<span class="nu">1</span> &lt;&lt; WGM12);         <span class="cm">// CTC mode (Clear Timer on Compare)</span>
+TCCR1B |= (<span class="nu">1</span> &lt;&lt; CS12) | (<span class="nu">1</span> &lt;&lt; CS10);  <span class="cm">// Prescaler 1024</span>
+TIMSK1 |= (<span class="nu">1</span> &lt;&lt; OCIE1A);        <span class="cm">// Enable compare match interrupt</span>
+<span class="fn">sei</span>();                           <span class="cm">// Re-enable interrupts</span>
+
+ISR(TIMER1_COMPA_vect) {
+  <span class="cm">// This fires exactly once per second</span>
+  PINB |= (<span class="nu">1</span> &lt;&lt; PB5);  <span class="cm">// Toggle pin 13</span>
+}</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- PWM FREQUENCY VIA TIMERS ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Setting PWM Frequency via <span class="accent">Timer Registers</span></div>
+        <div class="slide-subtitle">analogWrite() defaults to ~490 Hz or ~980 Hz. Direct timer control gives you any frequency.</div>
+
+        <div class="code-compare">
+            <div>
+                <div class="code-panel-label" style="color:#ffd700;">Default PWM Frequencies</div>
+                <div class="code-block"><span class="cm">// Pins 5, 6  (Timer0): ~980 Hz</span>
+<span class="cm">// Pins 9, 10 (Timer1): ~490 Hz</span>
+<span class="cm">// Pins 3, 11 (Timer2): ~490 Hz</span>
+
+<span class="fn">analogWrite</span>(<span class="nu">9</span>, <span class="nu">128</span>);
+<span class="cm">// Outputs 490 Hz, 50% duty</span>
+<span class="cm">// Cannot change frequency</span>
+<span class="cm">// without touching registers</span></div>
+            </div>
+            <div>
+                <div class="code-panel-label" style="color:#3ab577;">Custom: 25 kHz on pin 9</div>
+                <div class="code-block"><span class="cm">// Timer1 Fast PWM, TOP = ICR1</span>
+TCCR1A = (<span class="nu">1</span>&lt;&lt;COM1A1) | (<span class="nu">1</span>&lt;&lt;WGM11);
+TCCR1B = (<span class="nu">1</span>&lt;&lt;WGM13) | (<span class="nu">1</span>&lt;&lt;WGM12)
+       | (<span class="nu">1</span>&lt;&lt;CS10);  <span class="cm">// No prescaler</span>
+ICR1 = <span class="nu">639</span>;     <span class="cm">// TOP: 16M/25k - 1</span>
+OCR1A = <span class="nu">319</span>;    <span class="cm">// 50% duty cycle</span>
+<span class="cm">// Pin 9 now outputs 25 kHz PWM</span>
+<span class="cm">// Perfect for PC fan control</span></div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Common Custom Frequencies</div>
+            25 kHz (PC fan control, motor drivers), 38 kHz (IR remote control), 1 kHz (audio tones), 20 kHz (ultrasonic range, above human hearing for silent motor control). The formula is: frequency = clock / (prescaler * (TOP + 1)). For Timer1 with no prescaler (16 MHz clock): TOP = (16,000,000 / desired_freq) - 1.
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Timer Conflicts</div>
+            Changing Timer0 breaks <span class="ic">millis()</span> and <span class="ic">delay()</span>. Changing Timer1 breaks the Servo library. Changing Timer2 breaks <span class="ic">tone()</span>. Always check which timer your libraries use before modifying prescalers or modes. Timer1 is the safest choice for custom PWM because Servo can be replaced with direct register control.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- PULSE GENERATION & MEASUREMENT ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Pulse Generation &amp; <span class="accent">Accurate Measurement</span></div>
+        <div class="slide-subtitle">Create precise output pulses and measure incoming pulse widths with hardware-level accuracy.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Pulse Generation (CTC Mode)</div>
+                <div class="card-desc">Timer1 in CTC mode with OC1A output (pin 9) toggling on compare match generates a clean, jitter-free square wave. Frequency = clock / (2 * prescaler * (OCR1A + 1)). No CPU intervention needed once configured -- the timer hardware runs autonomously.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Input Capture (ICP1 = Pin 8)</div>
+                <div class="card-desc">Timer1's Input Capture unit snapshots the 16-bit counter value the instant a signal edge arrives on pin 8 (ICP1). This gives microsecond-precision pulse measurement without the jitter of <span class="ic">pulseIn()</span>, which relies on a software polling loop.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// Measure pulse width on pin 8 using Input Capture</span>
+<span class="kw">volatile unsigned int</span> risingEdge, fallingEdge, pulseWidth;
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  TCCR1A = <span class="nu">0</span>;
+  TCCR1B = (<span class="nu">1</span>&lt;&lt;ICES1) | (<span class="nu">1</span>&lt;&lt;CS11);  <span class="cm">// Rising edge, prescaler 8</span>
+  TIMSK1 = (<span class="nu">1</span>&lt;&lt;ICIE1);               <span class="cm">// Enable input capture interrupt</span>
+}
+
+ISR(TIMER1_CAPT_vect) {
+  <span class="kw">if</span> (TCCR1B &amp; (<span class="nu">1</span>&lt;&lt;ICES1)) {
+    risingEdge = ICR1;
+    TCCR1B &amp;= ~(<span class="nu">1</span>&lt;&lt;ICES1);  <span class="cm">// Switch to falling edge</span>
+  } <span class="kw">else</span> {
+    fallingEdge = ICR1;
+    pulseWidth = fallingEdge - risingEdge;  <span class="cm">// In timer ticks</span>
+    TCCR1B |= (<span class="nu">1</span>&lt;&lt;ICES1);   <span class="cm">// Switch back to rising edge</span>
+  }
+}</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- SLEEP MODES ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Reducing Power: <span class="accent">Sleep Modes</span></div>
+        <div class="slide-subtitle">Drop power consumption from 15 mA to under 1 uA by shutting down unused hardware.</div>
+
+        <div class="hex-grid">
+            <div class="hex-cell">
+                <div class="hex-title" style="color:#ffd700;">IDLE</div>
+                <div class="hex-desc">CPU halted. Timers, UART, I2C, SPI still run. Wakes on any interrupt. ~15 mA to ~6 mA. millis() still works.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title" style="color:#0088ff;">ADC Noise Reduction</div>
+                <div class="hex-desc">CPU + most I/O halted. ADC runs for a clean reading. Wakes on ADC complete, external interrupt, or WDT.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title" style="color:#3ab577;">Power-save</div>
+                <div class="hex-desc">Only Timer2 (async) and external interrupts active. ~1 uA with 32 kHz crystal. Good for RTC wakeup.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title" style="color:#a78bfa;">Standby</div>
+                <div class="hex-desc">Main oscillator runs but CPU and peripherals halted. Fast wake-up (6 clock cycles). ~0.2 mA.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title" style="color:#ef4444;">Power-down</div>
+                <div class="hex-desc">Everything off. Wakes only on external interrupt, WDT, or TWI address match. ~0.36 uA. Maximum battery life.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title" style="color:#f97316;">Extended Standby</div>
+                <div class="hex-desc">Like Power-save but main oscillator keeps running for fast wake-up. Useful when Timer2 async and quick recovery are both needed.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">&lt;avr/sleep.h&gt;</span>
+
+<span class="fn">set_sleep_mode</span>(SLEEP_MODE_PWR_DOWN);  <span class="cm">// Deepest sleep</span>
+<span class="fn">sleep_enable</span>();
+<span class="fn">sleep_mode</span>();     <span class="cm">// CPU stops here until interrupt</span>
+<span class="fn">sleep_disable</span>(); <span class="cm">// Execution continues here after wake</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- WATCHDOG TIMER ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">The <span class="accent">Watchdog Timer</span></div>
+        <div class="slide-subtitle">A self-contained timer that resets the chip if your program freezes or enters an infinite loop.</div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">&lt;avr/wdt.h&gt;</span>
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  <span class="fn">wdt_enable</span>(WDTO_2S);  <span class="cm">// Reset if not fed within 2 seconds</span>
+  <span class="cm">// Options: WDTO_15MS, _30MS, _60MS, _120MS, _250MS,</span>
+  <span class="cm">//          _500MS, _1S, _2S, _4S, _8S</span>
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="fn">wdt_reset</span>();  <span class="cm">// "Feed" the watchdog -- must call before timeout</span>
+  <span class="cm">// ... your normal code ...</span>
+  <span class="cm">// If this loop takes longer than 2 seconds,</span>
+  <span class="cm">// or if the code hangs, the WDT resets the MCU.</span>
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Reset Mode</div>
+                <div class="card-desc">If <span class="ic">wdt_reset()</span> is not called before the timeout expires, the watchdog triggers a full MCU reset. The program restarts from <span class="ic">setup()</span>. This is critical for unattended devices -- a sensor node in the field that freezes will recover automatically instead of staying dead.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Interrupt Mode</div>
+                <div class="card-desc">The WDT can also fire an interrupt instead of resetting. This is useful as a periodic wake-up source from power-down sleep mode. Set WDIE bit in WDTCSR to enable interrupt mode. Combine with sleep for ultra-low-power periodic sensing.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Bootloader Warning</div>
+            Some older Arduino bootloaders do not clear the watchdog flag on reset, causing an infinite reset loop. The Optiboot bootloader (default on modern Uno boards) handles this correctly. If you encounter a reset loop after enabling WDT, you may need to burn a newer bootloader via ISP.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- ISP PROGRAMMING ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Uploading via <span class="accent">ISP Programmer</span></div>
+        <div class="slide-subtitle">Bypass the bootloader entirely -- program the chip directly through the ICSP header.</div>
+
+        <div class="diagram-center">
+            <svg width="300" height="100" viewBox="0 0 300 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- ICSP header 2x3 grid -->
+                <rect x="90" y="10" width="120" height="80" rx="8" fill="rgba(0,136,255,0.06)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="150" y="28" text-anchor="middle" font-size="8" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">ICSP Header (2x3)</text>
+                <circle cx="115" cy="45" r="5" fill="rgba(255,215,0,0.3)" stroke="#ffd700" stroke-width="1"/>
+                <text x="115" y="60" text-anchor="middle" font-size="5" fill="#ffd700" font-family="Segoe UI,sans-serif">MISO</text>
+                <circle cx="150" cy="45" r="5" fill="rgba(58,181,119,0.3)" stroke="#3ab577" stroke-width="1"/>
+                <text x="150" y="60" text-anchor="middle" font-size="5" fill="#3ab577" font-family="Segoe UI,sans-serif">SCK</text>
+                <circle cx="185" cy="45" r="5" fill="rgba(239,68,68,0.3)" stroke="#ef4444" stroke-width="1"/>
+                <text x="185" y="60" text-anchor="middle" font-size="5" fill="#ef4444" font-family="Segoe UI,sans-serif">RST</text>
+                <circle cx="115" cy="75" r="5" fill="rgba(167,139,250,0.3)" stroke="#a78bfa" stroke-width="1"/>
+                <text x="115" y="88" text-anchor="middle" font-size="5" fill="#a78bfa" font-family="Segoe UI,sans-serif">MOSI</text>
+                <circle cx="150" cy="75" r="5" fill="rgba(0,136,255,0.3)" stroke="#0088ff" stroke-width="1"/>
+                <text x="150" y="88" text-anchor="middle" font-size="5" fill="#0088ff" font-family="Segoe UI,sans-serif">VCC</text>
+                <circle cx="185" cy="75" r="5" fill="rgba(100,116,139,0.3)" stroke="#64748b" stroke-width="1"/>
+                <text x="185" y="88" text-anchor="middle" font-size="5" fill="#64748b" font-family="Segoe UI,sans-serif">GND</text>
+            </svg>
+        </div>
+
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Why ISP?</strong> ISP (In-System Programming) writes directly to flash without needing a bootloader. Recovers bricked boards, programs bare chips, and frees up the 512 bytes the bootloader occupies.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Programmer hardware:</strong> USBasp, AVR ISP mkII, or use another Arduino as an ISP programmer (File > Examples > ArduinoISP). Connect MISO, MOSI, SCK, RST, VCC, GND between programmer and target.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Upload via ISP:</strong> In the IDE, select Tools > Programmer > your programmer type. Then use Sketch > Upload Using Programmer (Ctrl+Shift+U). This overwrites the bootloader area.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Restore bootloader:</strong> To use USB uploading again, go to Tools > Burn Bootloader with the ISP programmer connected. This re-installs the bootloader and restores normal upload capability.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- FUSE BYTES ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title"><span class="accent">Fuse Bytes</span>: Lock Bits, Clock, Brownout</div>
+        <div class="slide-subtitle">Low-level chip configuration that persists even when you erase the program.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Low Fuse (lfuse)</div>
+                <div class="card-desc">Controls clock source and startup time. Default 0xFF: external 16 MHz crystal, maximum startup delay. Change to 0x62 for internal 8 MHz RC oscillator (no crystal needed). Wrong value = board appears dead.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">High Fuse (hfuse)</div>
+                <div class="card-desc">Controls bootloader size, EEPROM preservation on chip erase, watchdog always-on, and reset pin disable. Default 0xDE: 512-byte bootloader, EEPROM erased on chip erase. Critical for bootloader configuration.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Extended Fuse (efuse)</div>
+                <div class="card-desc">Controls brownout detection (BOD) voltage threshold. Default 0xFD: BOD at 2.7V. Options: 1.8V, 2.7V, 4.3V, or disabled. BOD resets the chip if voltage drops below threshold -- prevents corrupted operation from low battery.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// Read fuses with avrdude (via ISP programmer)</span>
+<span class="fn">avrdude</span> -c usbasp -p m328p -U lfuse:r:-:h -U hfuse:r:-:h -U efuse:r:-:h
+
+<span class="cm">// Write fuses (DANGEROUS -- wrong values can brick the chip)</span>
+<span class="fn">avrdude</span> -c usbasp -p m328p -U lfuse:w:0xFF:m -U hfuse:w:0xDE:m
+
+<span class="cm">// Lock bits: prevent reading back firmware (anti-piracy)</span>
+<span class="fn">avrdude</span> -c usbasp -p m328p -U lock:w:0x0C:m</div>
+
+        <div class="box box-red">
+            <div class="box-label">Extreme Caution</div>
+            Writing wrong fuse values can make the chip unresponsive to normal programming. If you set the clock source to "external crystal" but have no crystal connected, the chip will not run and cannot be programmed via USB. Recovery requires a high-voltage programmer or connecting the correct clock source. Always use an online fuse calculator and triple-check before writing.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- REPLACING THE BOOTLOADER ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Replacing the <span class="accent">Bootloader</span></div>
+        <div class="slide-subtitle">Install a different bootloader or remove it entirely for maximum flash space.</div>
+
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Optiboot (default):</strong> 512 bytes, 115200 baud upload speed. Ships on all modern Uno boards. Fast, reliable, handles WDT reset correctly. The standard choice for most projects.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>No bootloader:</strong> Upload via ISP only. Recovers 512 bytes of flash. Program starts instantly on power-up (no bootloader delay). Best for production devices that will never be reprogrammed via USB.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Custom bootloaders:</strong> MicroBoot (tiny, wireless update capable), DualOptiboot (two firmware slots), STK500v2 (for Mega boards). Each has trade-offs in size, speed, and features.</span></div>
+        </div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">01</span><span class="fact-text">Registers are 8-bit memory-mapped hardware controls -- the ATmega's true interface</span></div>
+            <div class="fact-row"><span class="fact-num">02</span><span class="fact-text">Direct port manipulation (<code>PORTB</code>, <code>DDRB</code>, <code>PINB</code>) is 80x faster than <code>digitalWrite()</code></span></div>
+            <div class="fact-row"><span class="fact-num">03</span><span class="fact-text">Pin Change Interrupts (PCINT) work on all 24 pins -- not just INT0/INT1</span></div>
+            <div class="fact-row"><span class="fact-num">04</span><span class="fact-text">Three timers (0/1/2) power PWM, millis(), tone(), and custom timing</span></div>
+            <div class="fact-row"><span class="fact-num">05</span><span class="fact-text">Sleep modes reduce power from 15 mA to under 1 uA for battery projects</span></div>
+            <div class="fact-row"><span class="fact-num">06</span><span class="fact-text">Watchdog timer auto-resets the chip if your program freezes</span></div>
+            <div class="fact-row"><span class="fact-num">07</span><span class="fact-text">ISP programming bypasses the bootloader for direct flash access</span></div>
+            <div class="fact-row"><span class="fact-num">08</span><span class="fact-text">Fuse bytes configure clock source, brownout detection, and security locks</span></div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; ProtoCore</button></a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+    goToSlide(1);
+</script>
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-ard-18-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>

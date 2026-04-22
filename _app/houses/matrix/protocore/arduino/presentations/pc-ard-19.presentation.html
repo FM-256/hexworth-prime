@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arduino for Security | ProtoCore Arduino Core 19</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #040810 0%, #081020 50%, #0a0c1a 100%); color: #e2e8f0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #0088ff; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(4, 8, 16, 0.95); border-top: 1px solid rgba(0, 136, 255, 0.15); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255, 255, 255, 0.07); color: #94a3b8; border: 1px solid rgba(255, 255, 255, 0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(0, 136, 255, 0.15); color: #0088ff; border-color: #0088ff; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s; }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #0088ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ffd700; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip { background: rgba(0, 136, 255, 0.08); border-left: 3px solid #0088ff; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #bfdbfe; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(0, 136, 255, 0.08); border: 1px solid rgba(0, 136, 255, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ffd700; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255, 255, 255, 0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #0088ff; }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-red { border-left-color: #ef4444; } .card.c-gold { border-left-color: #ffd700; }
+        .card.c-cyan { border-left-color: #06b6d4; } .card.c-purple { border-left-color: #a78bfa; } .card.c-orange { border-left-color: #f97316; } .card.c-blue { border-left-color: #0088ff; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #0088ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #ffd700; background: rgba(255, 215, 0, 0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .ic { font-family: 'Courier New', monospace; color: #ffd700; background: rgba(255, 215, 0, 0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num { background: rgba(0, 136, 255, 0.12); border: 1px solid rgba(0, 136, 255, 0.4); color: #0088ff; font-weight: 700; font-size: 0.78rem; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px; }
+        .step-text { color: #cbd5e1; line-height: 1.4; } .step-text strong { color: #f1f5f9; }
+        .code-block { background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 215, 0, 0.2); border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #ffd700; line-height: 1.6; white-space: pre; }
+        .code-block .cm { color: #64748b; } .code-block .kw { color: #5cb8ff; } .code-block .fn { color: #ffd700; } .code-block .st { color: #86efac; } .code-block .nu { color: #fdba74; }
+        .code-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .code-panel-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 5px; }
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell { background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(0, 136, 255, 0.25); border-radius: 8px; padding: 12px 14px; text-align: center; opacity: 0; animation: hexAppear 0.4s ease forwards; }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; } .hex-cell:nth-child(2) { animation-delay: 0.25s; } .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; } .hex-cell:nth-child(5) { animation-delay: 0.7s; } .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #0088ff; margin-bottom: 4px; }
+        .hex-cell .hex-desc { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes entityPop { from { opacity: 0; transform: scale(0.6) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes glowPulse { 0%, 100% { filter: drop-shadow(0 0 4px rgba(0,136,255,0.3)); } 50% { filter: drop-shadow(0 0 14px rgba(0,136,255,0.9)); } }
+        @keyframes dataFlow { 0% { stroke-dashoffset: 14; } 100% { stroke-dashoffset: 0; } }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .code-compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Arduino for Security -- ProtoCore Arduino Core 19</h1>
+
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; ProtoCore &nbsp;|&nbsp; Arduino &nbsp;|&nbsp; Core 19</div>
+        <div class="title-hero">
+            <svg width="400" height="120" viewBox="0 0 400 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Shield outline -->
+                <path d="M200,10 L260,30 L260,70 Q260,100 200,115 Q140,100 140,70 L140,30 Z"
+                    fill="rgba(0,136,255,0.06)" stroke="#0088ff" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.1s; opacity:0;"/>
+                <!-- Lock icon inside shield -->
+                <rect x="185" y="50" width="30" height="25" rx="4" fill="rgba(255,215,0,0.15)" stroke="#ffd700" stroke-width="1.5"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <path d="M190,50 L190,42 Q190,32 200,32 Q210,32 210,42 L210,50" fill="none" stroke="#ffd700" stroke-width="1.5"
+                    style="animation: entityPop 0.3s ease forwards 0.35s; opacity:0;"/>
+                <circle cx="200" cy="60" r="3" fill="#ffd700"
+                    style="animation: pulse 2s ease-in-out infinite;"/>
+                <!-- Data lines left -->
+                <line x1="60" y1="40" x2="135" y2="50" stroke="rgba(239,68,68,0.4)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <text x="50" y="38" text-anchor="middle" font-size="7" fill="#ef4444" font-family="Segoe UI,sans-serif">JTAG</text>
+                <line x1="60" y1="70" x2="135" y2="65" stroke="rgba(167,139,250,0.4)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.2s" repeatCount="indefinite"/>
+                </line>
+                <text x="50" y="72" text-anchor="middle" font-size="7" fill="#a78bfa" font-family="Segoe UI,sans-serif">UART</text>
+                <!-- Data lines right -->
+                <line x1="265" y1="50" x2="340" y2="40" stroke="rgba(58,181,119,0.4)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <text x="355" y="38" text-anchor="middle" font-size="7" fill="#3ab577" font-family="Segoe UI,sans-serif">USB</text>
+                <line x1="265" y1="65" x2="340" y2="70" stroke="rgba(249,115,22,0.4)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.2s" repeatCount="indefinite"/>
+                </line>
+                <text x="355" y="72" text-anchor="middle" font-size="7" fill="#f97316" font-family="Segoe UI,sans-serif">SPI</text>
+                <!-- Glow -->
+                <ellipse cx="200" cy="65" rx="110" ry="50" fill="none" stroke="rgba(0,136,255,0.05)" stroke-width="1"
+                    style="animation: pulse 3s ease-in-out infinite;"/>
+            </svg>
+            <div class="big-title">Arduino for <span class="accent">Security</span></div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Hardware Hacking &nbsp;|&nbsp; JTAG &nbsp;|&nbsp; UART Discovery &nbsp;|&nbsp; Logic Analysis &nbsp;|&nbsp; Defense
+            </div>
+        </div>
+        <div class="scenario-strip">
+            A $5 Arduino board is one of the most powerful tools in a hardware hacker's arsenal. It can enumerate JTAG pins, discover hidden UART ports, analyze bus traffic, detect rogue USB devices, and monitor physical security systems. This core bridges the gap between Arduino maker skills and real-world cybersecurity applications.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>ProtoCore Arduino</span>
+            <span>Core 19</span>
+            <span>Matrix House</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- ARDUINO IN CYBERSECURITY ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Arduino in the <span class="accent">Cybersecurity</span> Context</div>
+        <div class="slide-subtitle">Why security professionals reach for microcontrollers during hardware assessments.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Offensive</div>
+                <div class="card-desc">Enumerate debug ports (JTAG, UART, SWD). Dump firmware from flash chips. Inject signals into bus protocols. Emulate USB HID devices. Bypass physical access controls. Arduino is the Swiss army knife of hardware pentesting.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Defensive</div>
+                <div class="card-desc">Monitor for tamper events. Detect unauthorized USB devices. Log physical access attempts. Create tripwires for server rooms. Build honeypot hardware. Verify cable integrity. Arduino makes physical security programmable.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Forensic</div>
+                <div class="card-desc">Capture serial bus traffic for analysis. Record timing of signals. Extract data from damaged storage. Replicate communication protocols for testing. Arduino as a low-cost logic analyzer and protocol decoder.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Why Arduino Over Professional Tools?</div>
+            Professional hardware hacking tools (JTAGulator, Bus Pirate, Saleae) cost $50-$500+. An Arduino Uno costs $5. It runs custom firmware you write yourself -- no vendor lock-in, no feature limitations. In a CTF competition or a field assessment, the tool you can program yourself is the tool that adapts to the unknown.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- HARDWARE HACKING OVERVIEW ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Hardware Hacking <span class="accent">Overview</span></div>
+        <div class="slide-subtitle">The attack surface of any embedded device starts at its physical interfaces.</div>
+
+        <div class="hex-grid">
+            <div class="hex-cell">
+                <div class="hex-title" style="color:#ef4444;">Debug Ports</div>
+                <div class="hex-desc">JTAG, SWD, UART, SPI debug interfaces left enabled in production. Give full access to firmware, memory, and CPU control if discovered.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title" style="color:#ffd700;">Flash Chips</div>
+                <div class="hex-desc">SPI flash (25-series) and I2C EEPROM chips can be read externally. Firmware extraction reveals hardcoded credentials, encryption keys, and logic.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title" style="color:#0088ff;">Bus Sniffing</div>
+                <div class="hex-desc">SPI, I2C, and UART traffic between chips can be passively captured. Data in transit often includes unencrypted commands, passwords, and tokens.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title" style="color:#3ab577;">USB Interfaces</div>
+                <div class="hex-desc">USB devices can enumerate as keyboards (HID injection), storage (data exfiltration), or network adapters (MITM). Arduino Leonardo/Pro Micro can emulate any USB device.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title" style="color:#a78bfa;">Signal Analysis</div>
+                <div class="hex-desc">Radio signals (433 MHz, 315 MHz, NFC), IR remote codes, and proprietary wireless protocols can be captured and replayed with Arduino + appropriate receiver modules.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title" style="color:#f97316;">Voltage Glitching</div>
+                <div class="hex-desc">Brief power supply disruptions can skip security checks, bypass lock bits, or corrupt conditional branches. Arduino can generate precisely-timed glitch pulses.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Legal Notice</div>
+            Hardware hacking techniques must only be used on devices you own or have explicit written authorization to test. Unauthorized access to electronic devices is a federal crime under the Computer Fraud and Abuse Act (CFAA). All techniques in this core are taught for defensive security, CTF competitions, and authorized penetration testing.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- JTAG AND JTAGenum ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">JTAG Protocol and <span class="accent">JTAGenum</span></div>
+        <div class="slide-subtitle">The most powerful debug interface on embedded devices -- and how to find it with an Arduino.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">What Is JTAG?</div>
+                <div class="card-desc">Joint Test Action Group (IEEE 1149.1). A standard debug interface present on most microprocessors and FPGAs. Provides full read/write access to CPU registers, memory, and flash. Four signals: TDI (data in), TDO (data out), TCK (clock), TMS (mode select), plus optional TRST (reset).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">JTAGenum Tool</div>
+                <div class="card-desc">An Arduino sketch that brute-forces JTAG pin assignments on unknown PCBs. It systematically tries every combination of pins for TDI, TDO, TCK, and TMS, looking for valid JTAG responses. Upload the sketch, connect wires to test points, open Serial Monitor, and wait for results.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// JTAGenum workflow (simplified concept)</span>
+<span class="cm">// 1. Connect Arduino pins to suspected JTAG test points on target PCB</span>
+<span class="cm">// 2. Upload JTAGenum sketch from GitHub</span>
+<span class="cm">// 3. Open Serial Monitor at 115200 baud</span>
+<span class="cm">// 4. Send 's' to start scan</span>
+
+<span class="cm">// The sketch tries all pin permutations:</span>
+<span class="cm">// Pin 2=TDI, Pin 3=TDO, Pin 4=TCK, Pin 5=TMS  -- no response</span>
+<span class="cm">// Pin 2=TDI, Pin 3=TCK, Pin 4=TDO, Pin 5=TMS  -- no response</span>
+<span class="cm">// Pin 2=TCK, Pin 3=TDI, Pin 4=TMS, Pin 5=TDO  -- FOUND JTAG!</span>
+<span class="cm">// IDCODE: 0x4BA00477 (ARM Cortex-M)</span></div>
+
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Visual inspection:</strong> Look for groups of 4-5 unpopulated pads or header holes on the target PCB. JTAG headers are often 2x5 or 2x10 pin layouts near the main processor.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Identify ground:</strong> Use a multimeter in continuity mode to find ground pads (connected to the ground plane). This narrows the search by eliminating known pins.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Run JTAGenum:</strong> Connect remaining candidate pins to Arduino digital pins. The scan tests all permutations and reports which combination produces valid JTAG communication.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- UART DISCOVERY ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">UART Discovery and <span class="accent">Enumeration</span></div>
+        <div class="slide-subtitle">Finding hidden TX/RX serial ports on unknown PCBs -- the most common debug interface left enabled.</div>
+
+        <div class="diagram-center">
+            <svg width="550" height="90" viewBox="0 0 550 90" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="30" y="15" width="140" height="60" rx="8" fill="rgba(0,136,255,0.06)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="100" y="38" text-anchor="middle" font-size="9" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Target Device</text>
+                <text x="100" y="55" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Hidden UART TX/RX</text>
+
+                <line x1="175" y1="35" x2="225" y2="35" stroke="#ffd700" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.8s" repeatCount="indefinite"/>
+                </line>
+                <text x="200" y="55" text-anchor="middle" font-size="6" fill="#ffd700" font-family="Segoe UI,sans-serif">TX --&gt; RX</text>
+
+                <rect x="230" y="15" width="140" height="60" rx="8" fill="rgba(255,215,0,0.06)" stroke="#ffd700" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="300" y="38" text-anchor="middle" font-size="9" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">Arduino</text>
+                <text x="300" y="55" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">SoftwareSerial RX</text>
+
+                <line x1="375" y1="35" x2="425" y2="35" stroke="#3ab577" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.8s" repeatCount="indefinite"/>
+                </line>
+
+                <rect x="430" y="15" width="100" height="60" rx="8" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="480" y="38" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">PC</text>
+                <text x="480" y="55" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Serial Monitor</text>
+            </svg>
+        </div>
+
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Find candidate pins:</strong> Look for 3-4 pin headers or test pads labeled TX, RX, GND, VCC. Use a multimeter to identify ground and voltage pins first.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Identify TX:</strong> The transmit pin idles HIGH (3.3V or 5V) and drops LOW during data transmission. Use an oscilloscope or monitor Arduino analog input to spot the active pin during device boot.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Determine baud rate:</strong> Common rates: 9600, 19200, 38400, 57600, 115200. Try each one. Garbled output means wrong baud rate. Arduino can auto-detect by measuring pulse widths of incoming bits.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Connect and capture:</strong> Wire target TX to Arduino RX (via SoftwareSerial). Open Serial Monitor. Boot logs, shell prompts, and debug output often appear -- sometimes with root access.</span></div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">What You Might Find</div>
+            Many consumer routers, IoT devices, and embedded systems output a full Linux boot log on UART at startup. Some provide a root shell with no authentication. Others leak WiFi credentials, firmware versions, and internal IP addresses. UART is the single most commonly exploited hardware debug interface because manufacturers rarely disable it.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- RS232 AND RS232enum ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">RS232 Protocol and <span class="accent">RS232enum</span></div>
+        <div class="slide-subtitle">The industrial serial standard -- different voltage levels, same enumeration approach.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">RS232 vs TTL UART</div>
+                <div class="card-desc">UART uses 0V/3.3V or 0V/5V logic levels. RS232 uses -12V to +12V (inverted logic). <strong>Never connect RS232 directly to Arduino -- it will destroy the pin.</strong> You need a MAX3232 level shifter chip or a USB-to-RS232 adapter cable between the RS232 port and the Arduino.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Where RS232 Lives</div>
+                <div class="card-desc">Industrial control systems (SCADA/ICS), medical devices, point-of-sale terminals, older networking equipment, building management systems, and laboratory instruments. RS232 is the most common serial interface in operational technology (OT) environments -- the infrastructure that runs power grids and factories.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// RS232enum: brute-force baud rate and pin assignment</span>
+<span class="cm">// Similar approach to JTAGenum but for serial ports</span>
+
+<span class="kw">#include</span> <span class="st">&lt;SoftwareSerial.h&gt;</span>
+
+<span class="kw">int</span> bauds[] = {<span class="nu">300</span>, <span class="nu">1200</span>, <span class="nu">2400</span>, <span class="nu">4800</span>, <span class="nu">9600</span>, <span class="nu">19200</span>, <span class="nu">38400</span>, <span class="nu">57600</span>, <span class="nu">115200</span>};
+
+<span class="kw">void</span> <span class="fn">tryBaud</span>(<span class="kw">int</span> rxPin, <span class="kw">int</span> txPin, <span class="kw">long</span> baud) {
+  SoftwareSerial ss(rxPin, txPin);
+  ss.<span class="fn">begin</span>(baud);
+  <span class="fn">delay</span>(<span class="nu">2000</span>);  <span class="cm">// Wait for target boot output</span>
+  <span class="kw">while</span> (ss.<span class="fn">available</span>()) {
+    <span class="kw">char</span> c = ss.<span class="fn">read</span>();
+    <span class="kw">if</span> (c &gt;= <span class="nu">0x20</span> &amp;&amp; c &lt;= <span class="nu">0x7E</span>) {  <span class="cm">// Printable ASCII?</span>
+      <span class="fn">Serial</span>.<span class="fn">print</span>(c);  <span class="cm">// Readable = correct baud rate</span>
+    }
+  }
+}</div>
+
+        <div class="box box-red">
+            <div class="box-label">Voltage Warning</div>
+            RS232 voltages (+/-12V) will permanently damage Arduino pins rated for 0-5V. Always use a MAX3232 breakout board or equivalent level shifter. These boards cost under $2 and convert between RS232 and TTL voltage levels bidirectionally.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- BUS PIRACY CONCEPTS ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Bus Piracy <span class="accent">Concepts</span></div>
+        <div class="slide-subtitle">Intercepting and injecting data on SPI, I2C, and other communication buses.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Passive Sniffing</div>
+                <div class="card-desc">Connect Arduino to the bus as a listener. Read SPI MOSI/MISO traffic, I2C SDA/SCL messages, or UART TX data without interfering. Log everything to Serial Monitor or SD card. The target device does not know you are watching.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Active Injection</div>
+                <div class="card-desc">Send crafted messages onto the bus to impersonate a legitimate device. Write to I2C slave addresses, send SPI commands to flash chips, or inject serial commands. Requires understanding the protocol and timing.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Flash Extraction</div>
+                <div class="card-desc">SPI flash chips (W25Q series) on target PCBs can be read by connecting an Arduino directly to the chip's MISO, MOSI, SCK, and CS pins. Desolder the chip or use SOIC-8 test clips. Dump the entire firmware for offline analysis.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// I2C bus scanner -- find all devices on the bus</span>
+<span class="kw">#include</span> <span class="st">&lt;Wire.h&gt;</span>
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  <span class="fn">Wire</span>.<span class="fn">begin</span>();
+  <span class="fn">Serial</span>.<span class="fn">begin</span>(<span class="nu">115200</span>);
+  <span class="kw">for</span> (<span class="kw">byte</span> addr = <span class="nu">1</span>; addr &lt; <span class="nu">127</span>; addr++) {
+    <span class="fn">Wire</span>.<span class="fn">beginTransmission</span>(addr);
+    <span class="kw">if</span> (<span class="fn">Wire</span>.<span class="fn">endTransmission</span>() == <span class="nu">0</span>) {
+      <span class="fn">Serial</span>.<span class="fn">print</span>(<span class="fn">F</span>(<span class="st">"Device at 0x"</span>));
+      <span class="fn">Serial</span>.<span class="fn">println</span>(addr, HEX);
+    }
+  }
+}</div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Common I2C Addresses</div>
+            0x3C/0x3D: OLED displays. 0x50-0x57: EEPROM chips (AT24Cxx). 0x68: DS3231 RTC, MPU-6050 IMU. 0x76/0x77: BME280/BMP280 sensors. 0x27: PCF8574 I/O expander (LCD backpacks). Finding unexpected addresses on a target PCB reveals hidden components.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- LOGIC ANALYZER & SIGNAL GENERATOR ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Arduino as <span class="accent">Logic Analyzer</span> &amp; Signal Generator</div>
+        <div class="slide-subtitle">Capture and generate digital signals for protocol analysis and testing.</div>
+
+        <div class="code-compare">
+            <div>
+                <div class="code-panel-label" style="color:#0088ff;">Logic Analyzer (capture)</div>
+                <div class="code-block"><span class="cm">// Sample pin states at high speed</span>
+<span class="cm">// and send to PC for analysis</span>
+<span class="kw">byte</span> samples[<span class="nu">512</span>];
+<span class="kw">int</span> idx = <span class="nu">0</span>;
+
+<span class="cm">// Wait for trigger (rising edge)</span>
+<span class="kw">while</span> (!(PIND &amp; (<span class="nu">1</span>&lt;&lt;PD2)));
+
+<span class="cm">// Capture 512 samples</span>
+<span class="kw">while</span> (idx &lt; <span class="nu">512</span>) {
+  samples[idx++] = PIND;
+  <span class="cm">// ~1 MHz sample rate</span>
+}
+
+<span class="cm">// Send to PC for decoding</span>
+<span class="kw">for</span> (<span class="kw">int</span> i=<span class="nu">0</span>; i&lt;<span class="nu">512</span>; i++)
+  <span class="fn">Serial</span>.<span class="fn">println</span>(samples[i],BIN);</div>
+            </div>
+            <div>
+                <div class="code-panel-label" style="color:#ffd700;">Signal Generator (output)</div>
+                <div class="code-block"><span class="cm">// Generate test signals to</span>
+<span class="cm">// probe target device responses</span>
+
+<span class="cm">// Square wave at exact frequency</span>
+<span class="cm">// using Timer1 CTC mode</span>
+TCCR1A = (<span class="nu">1</span>&lt;&lt;COM1A0);
+TCCR1B = (<span class="nu">1</span>&lt;&lt;WGM12)|(<span class="nu">1</span>&lt;&lt;CS10);
+OCR1A = <span class="nu">159</span>; <span class="cm">// 50 kHz on pin 9</span>
+
+<span class="cm">// Bit-bang custom protocol</span>
+<span class="kw">void</span> <span class="fn">sendBit</span>(<span class="kw">bool</span> b) {
+  PORTD |= (<span class="nu">1</span>&lt;&lt;PD4);
+  <span class="fn">delayMicroseconds</span>(b?<span class="nu">600</span>:<span class="nu">200</span>);
+  PORTD &amp;= ~(<span class="nu">1</span>&lt;&lt;PD4);
+  <span class="fn">delayMicroseconds</span>(b?<span class="nu">200</span>:<span class="nu">600</span>);
+}</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Limitations</div>
+            Arduino's 16 MHz clock limits logic analysis to about 1 MHz sample rate (adequate for UART, I2C, slow SPI). For faster signals (USB, Ethernet, high-speed SPI), you need a dedicated logic analyzer. But for most embedded device protocols -- especially during hardware pentests -- 1 MHz is sufficient to decode traffic.
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">SIGROK Integration</div>
+            Flash the "OLS" (Open Logic Sniffer) firmware onto an Arduino to turn it into a SIGROK-compatible logic analyzer. SIGROK's PulseView software can then decode captured data as I2C, SPI, UART, 1-Wire, and dozens of other protocols automatically -- with a graphical waveform display.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- HARDWARE KEYLOGGER DETECTOR ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Building a Hardware <span class="accent">Keylogger Detector</span></div>
+        <div class="slide-subtitle">Detect inline USB keyloggers that intercept keyboard traffic.</div>
+
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>The threat:</strong> Hardware keyloggers are small USB devices inserted between a keyboard and a computer. They record every keystroke to internal memory. Invisible to software antivirus because they operate at the physical layer.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Detection approach:</strong> Monitor USB data lines (D+ and D-) for abnormal signal patterns. A legitimate keyboard has direct USB connection. A keylogger introduces an additional USB hub or device in the path, changing the enumeration sequence.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Arduino role:</strong> Use an Arduino with USB Host Shield to enumerate all USB devices and compare against a known-good baseline. Alert (LED, buzzer, Serial message) if an unexpected device descriptor or hub appears in the chain.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Physical inspection:</strong> Combine electronic detection with visual checks. Measure cable length (keyloggers add length). Check for unexpected weight. Compare USB connector color and branding against manufacturer specs.</span></div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Deployment</div>
+            Place the detector Arduino behind locked workstations in secure environments (SOC, SCIF, executive offices). It continuously monitors the USB bus and triggers an alert if the device topology changes -- indicating someone has inserted or removed a device. Log events with timestamps to SD card for forensic review.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- USB DEVICE IDENTIFIER ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Building a <span class="accent">USB Device Identifier</span></div>
+        <div class="slide-subtitle">Identify unknown USB devices by their descriptor data before connecting them to a real computer.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">The Problem</div>
+                <div class="card-desc">A found USB drive could be a legitimate storage device, a rubber ducky (HID injection attack), a USB killer (voltage surge device), or a data exfiltration implant. Plugging an unknown USB device into your workstation is a security risk. You need a safe way to identify it first.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">The Solution</div>
+                <div class="card-desc">Arduino Mega + USB Host Shield acts as a standalone USB analyzer. When you plug a device in, the Arduino reads the USB descriptor (VID, PID, device class, manufacturer string, product string) and displays it on an OLED or Serial Monitor. No PC involved -- no risk of execution.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// USB descriptor fields to examine:</span>
+<span class="cm">// VID:PID   -- Vendor ID : Product ID (unique per manufacturer)</span>
+<span class="cm">// bDeviceClass    -- 0x00=composite, 0x03=HID, 0x08=storage</span>
+<span class="cm">// bInterfaceClass -- 0x03=HID (keyboard/mouse), 0x08=mass storage</span>
+<span class="cm">// iManufacturer   -- "Kingston", "SanDisk", etc.</span>
+<span class="cm">// iProduct        -- "DataTraveler 3.0", etc.</span>
+
+<span class="cm">// RED FLAGS:</span>
+<span class="cm">// - Device claims to be HID (keyboard) but looks like a flash drive</span>
+<span class="cm">// - VID:PID matches known attack tools (Hak5 Rubber Ducky, etc.)</span>
+<span class="cm">// - Device enumerates as multiple device classes simultaneously</span>
+<span class="cm">// - Manufacturer string is blank or generic</span></div>
+
+        <div class="box box-blue">
+            <div class="box-label">Known Bad VID:PID Database</div>
+            Maintain a list of VID:PID values associated with attack tools. Hak5 Rubber Ducky: 0x05AC:0x0001 (spoofs Apple keyboard). O.MG Cable: various spoofed VIDs. BadUSB devices: often use 0x1B4F (SparkFun) or 0x2341 (Arduino) VIDs. Compare every plugged device against this database and flag matches.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- ARDUINO IN CTF COMPETITIONS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Arduino in <span class="accent">CTF Competitions</span></div>
+        <div class="slide-subtitle">Capture The Flag events increasingly include hardware challenges that require physical tools.</div>
+
+        <div class="hex-grid">
+            <div class="hex-cell">
+                <div class="hex-title" style="color:#ffd700;">UART Challenges</div>
+                <div class="hex-desc">Connect to a hidden serial port on the CTF hardware. Extract boot logs, find shell access, or read flag strings transmitted during startup.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title" style="color:#0088ff;">EEPROM Dumps</div>
+                <div class="hex-desc">Read I2C EEPROM chips on the target board. Flags are often stored in specific memory addresses. Arduino + Wire library reads the entire chip in seconds.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title" style="color:#3ab577;">Signal Decoding</div>
+                <div class="hex-desc">Capture IR, RF, or serial signals and decode the data. Flags encoded in Manchester encoding, Morse code, or custom bit patterns require logic analysis.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title" style="color:#a78bfa;">Side-Channel</div>
+                <div class="hex-desc">Measure power consumption or timing variations to extract secrets. Arduino's ADC can sample current draw during cryptographic operations to find key bits.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title" style="color:#ef4444;">Firmware RE</div>
+                <div class="hex-desc">Dump SPI flash containing the CTF firmware. Analyze in Ghidra/IDA to find hidden commands, backdoor passwords, or flag storage locations.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title" style="color:#f97316;">Replay Attacks</div>
+                <div class="hex-desc">Capture a valid authentication signal and replay it. Arduino records the bitstream, then transmits it back to unlock the target. Common with IR and RF challenges.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">CTF Hardware Toolkit</div>
+            Arduino Uno/Nano, USB Host Shield, logic level shifter (3.3V/5V), jumper wires, multimeter, SOIC-8 test clip, MAX3232 breakout, breadboard. Total cost: under $30. This kit covers 90% of hardware CTF challenges. The remaining 10% require an oscilloscope or SDR.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- DEFENSIVE APPLICATIONS ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Defensive Applications: <span class="accent">Tamper Detection</span></div>
+        <div class="slide-subtitle">Use Arduino for physical security monitoring and tamper-evident systems.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Tamper Detection System</div>
+                <div class="card-desc">Reed switches on server rack doors. Vibration sensors on cable conduits. Light sensors inside sealed enclosures (light = opened). Arduino monitors all sensors, logs events to EEPROM with timestamps, and sends alerts via serial or network module when tamper is detected.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Physical Security Monitor</div>
+                <div class="card-desc">PIR motion sensors for after-hours monitoring. Magnetic door contacts for entry logging. Pressure mats under server room tiles. Trip wires across restricted areas. All feeding into an Arduino data logger that creates a forensic audit trail independent of the network.</div>
+            </div>
+        </div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">01</span><span class="fact-text">Arduino is a $5 hardware hacking platform for offensive, defensive, and forensic security work</span></div>
+            <div class="fact-row"><span class="fact-num">02</span><span class="fact-text">JTAGenum brute-forces JTAG pin assignments on unknown PCBs using an Arduino</span></div>
+            <div class="fact-row"><span class="fact-num">03</span><span class="fact-text">UART discovery finds hidden serial debug ports -- the most common hardware vulnerability</span></div>
+            <div class="fact-row"><span class="fact-num">04</span><span class="fact-text">RS232 requires a MAX3232 level shifter -- never connect +/-12V directly to Arduino pins</span></div>
+            <div class="fact-row"><span class="fact-num">05</span><span class="fact-text">Bus sniffing (I2C, SPI) captures inter-chip communication for protocol analysis</span></div>
+            <div class="fact-row"><span class="fact-num">06</span><span class="fact-text">Arduino + USB Host Shield identifies unknown USB devices safely before connecting to PCs</span></div>
+            <div class="fact-row"><span class="fact-num">07</span><span class="fact-text">Hardware CTF challenges use UART dumps, EEPROM reads, signal decoding, and replay attacks</span></div>
+            <div class="fact-row"><span class="fact-num">08</span><span class="fact-text">Defensive use: tamper detection, physical security monitoring, and independent audit logging</span></div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; ProtoCore</button></a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+    goToSlide(1);
+</script>
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-ard-19-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>

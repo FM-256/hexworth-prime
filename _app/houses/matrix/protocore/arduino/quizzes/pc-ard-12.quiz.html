@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Core 12 Quiz: Timing &amp; Clocks | ProtoCore Arduino</title>
+    <link rel="stylesheet" href="../../../../../styles/quiz-engine.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #040810 0%, #081020 50%, #0a0c1a 100%);
+            display: flex; flex-direction: column;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        .page-header {
+            padding: 15px 30px; background: rgba(0, 0, 0, 0.4);
+            border-bottom: 1px solid rgba(0, 136, 255, 0.2);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .page-header a { color: #0088ff; text-decoration: none; font-size: 0.9rem; transition: color 0.2s; }
+        .page-header a:hover { opacity: 0.8; }
+        .brand { font-weight: 600; color: #e0e0e0; display: flex; align-items: center; gap: 8px; }
+        .quiz-wrapper { flex: 1; display: flex; align-items: center; justify-content: center; padding: 30px 20px; }
+        #quiz-container { width: 100%; max-width: 800px; }
+    </style>
+</head>
+<body>
+    <header class="page-header">
+        <a href="../../index.html">&larr; Back to ProtoCore Hub</a>
+        <span class="brand"><img src="/assets/images/icons/icon-brain.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Hexworth Prime</span>
+    </header>
+    <main class="quiz-wrapper">
+        <div id="quiz-container"></div>
+    </main>
+    <script src="../../../../../components/ProgressSystem.js"></script>
+    <script src="../../../../../components/QuizEngine.js"></script>
+    <script>
+        const quiz = new QuizEngine({
+            containerId: 'quiz-container',
+            title: 'Core 12: Timing & Clocks',
+            description: 'Test your knowledge of millis(), non-blocking timing, pulseIn(), micros(), RTC modules, alarm scheduling, timer interrupts, and time libraries.',
+            passingScore: 80,
+            showFeedback: true,
+            randomize: true,
+            theme: 'matrix',
+            achievement: 'pc-ard-12-quiz',
+            moduleId: 'pc-ard-12-quiz',
+            serverGrading: true,
+            houseId: 'matrix',
+            trackProgress: true,
+
+            questions: [
+                {
+                    question: 'What does millis() return?',
+                    options: [
+                        'The current time of day in milliseconds',
+                        'The number of milliseconds since the Arduino was powered on or reset',
+                        'The number of CPU clock cycles since power-on',
+                        'The delay value set by the last delay() call'
+                    ],
+                    explanation: 'millis() returns the number of milliseconds that have elapsed since the Arduino board began running the current program. It starts at 0 when the board powers on or resets and increments every millisecond. It is an unsigned long (32-bit), which means it can count up to 4,294,967,295 milliseconds before overflowing back to 0 -- approximately 49.7 days. millis() does not know what time of day it is; it only measures elapsed time since power-on. This makes it perfect for timing intervals but unsuitable for real-world timestamps.'
+                },
+                {
+                    question: 'Why is delay() considered problematic in complex Arduino projects?',
+                    options: [
+                        'It uses too much memory',
+                        'It blocks the processor, preventing any other code from running during the wait',
+                        'It resets the millis() counter',
+                        'It can only delay for up to 1 second'
+                    ],
+                    explanation: 'delay() halts all program execution for the specified number of milliseconds. During a delay(1000) call, the processor sits idle -- it cannot read sensors, check buttons, update displays, or respond to serial commands. The entire program is frozen. For a simple LED blink this is fine, but any project that needs to do multiple things simultaneously (read a sensor while blinking an LED while listening for serial input) cannot use delay(). The professional alternative is the millis()-based non-blocking pattern, where you check elapsed time each loop iteration and only act when the interval has passed.'
+                },
+                {
+                    question: 'What data type should be used for variables that store millis() values?',
+                    options: [
+                        'int',
+                        'long',
+                        'unsigned long',
+                        'float'
+                    ],
+                    explanation: 'millis() returns an unsigned long, which is a 32-bit unsigned integer capable of holding values from 0 to 4,294,967,295. Using a regular int (16-bit on AVR) would overflow after just 32.7 seconds. Using a signed long would halve the range and introduce negative number issues during subtraction. Using float would lose precision for large values and be much slower on the 8-bit AVR processor. unsigned long is the only correct choice -- it matches the return type of millis() and ensures the subtraction-based timing pattern works correctly through the 49.7-day overflow.'
+                },
+                {
+                    question: 'In the non-blocking timing pattern, what does the expression "currentMillis - previousMillis >= interval" accomplish?',
+                    options: [
+                        'It checks if the Arduino has been running for longer than the interval',
+                        'It measures how long the last function call took to execute',
+                        'It determines whether enough time has passed since the last action was performed',
+                        'It calculates the remaining time until the next overflow'
+                    ],
+                    explanation: 'The expression checks whether the elapsed time since the last action (stored in previousMillis) has reached or exceeded the desired interval. Each pass through loop(), currentMillis captures the current millis() value. Subtracting previousMillis gives the time elapsed since the action was last performed. If that elapsed time is greater than or equal to the interval, the action executes and previousMillis is updated to the current time. This pattern allows the processor to do other work between checks -- the loop keeps running freely, and the timed action only fires when its interval has passed.'
+                },
+                {
+                    question: 'What happens when millis() overflows after approximately 49.7 days?',
+                    options: [
+                        'The Arduino crashes and must be reset',
+                        'The timer stops counting permanently',
+                        'The value wraps back to 0, and the subtraction pattern still works correctly due to unsigned arithmetic',
+                        'All timing-dependent code produces incorrect results'
+                    ],
+                    explanation: 'When an unsigned long reaches its maximum value (4,294,967,295) and increments by 1, it wraps back to 0. The subtraction pattern (currentMillis - previousMillis) still produces the correct elapsed time because unsigned integer subtraction in C/C++ wraps around correctly. For example, if previousMillis is 4,294,967,290 and currentMillis wrapped to 10, the subtraction yields 15 -- the correct number of milliseconds elapsed. This is a mathematical property of modular arithmetic with unsigned types. You never need to manually handle the overflow.'
+                },
+                {
+                    question: 'What does pulseIn(echoPin, HIGH) do?',
+                    options: [
+                        'Sends a HIGH pulse on the specified pin',
+                        'Waits for the pin to go HIGH, then measures the duration in microseconds until it goes LOW',
+                        'Counts the number of HIGH pulses per second',
+                        'Sets the pin to HIGH for a measured duration'
+                    ],
+                    explanation: 'pulseIn(pin, HIGH) waits for the specified pin to transition to HIGH, starts a microsecond timer, and then stops timing when the pin transitions back to LOW. The return value is the pulse duration in microseconds. This is commonly used with ultrasonic distance sensors like the HC-SR04, where you trigger a ping and then measure how long the echo pin stays HIGH -- the duration directly corresponds to the distance of the nearest object. pulseIn() has a default timeout of 1 second; if no pulse is detected within that time, it returns 0. It is a blocking function.'
+                },
+                {
+                    question: 'What is the resolution of micros() on a standard Arduino Uno?',
+                    options: [
+                        'Exactly 1 microsecond',
+                        'Approximately 4 microseconds',
+                        'Approximately 62.5 nanoseconds',
+                        '1 millisecond'
+                    ],
+                    explanation: 'On an Arduino Uno running at 16 MHz, micros() has a resolution of 4 microseconds. This is because the Timer0 hardware counter uses a prescaler of 64, meaning it increments once every 64 clock cycles. At 16 MHz, each clock cycle is 62.5 nanoseconds, so 64 cycles equals 4 microseconds per timer increment. micros() reads this counter and converts it to microseconds. The function itself takes a few microseconds to execute. The 4-microsecond resolution is sufficient for most sensor timing applications but may be too coarse for extremely precise signal generation.'
+                },
+                {
+                    question: 'How long before micros() overflows and wraps back to 0?',
+                    options: [
+                        'Approximately 49.7 days',
+                        'Approximately 71.6 minutes',
+                        'Approximately 4.29 seconds',
+                        'It never overflows'
+                    ],
+                    explanation: 'micros() returns an unsigned long (32-bit), which maxes out at 4,294,967,295. Since micros() counts in microseconds, dividing by 1,000,000 gives seconds, then by 60 gives minutes: 4,294,967,295 / 1,000,000 / 60 = approximately 71.6 minutes. After that, it wraps back to 0. The same unsigned subtraction pattern that works for millis() also works for micros() across the overflow boundary. However, because micros() overflows so much sooner, it should only be used for timing short events -- use millis() for anything longer than a few minutes.'
+                },
+                {
+                    question: 'What advantage does the DS3231 RTC have over the DS1307?',
+                    options: [
+                        'It uses a faster I2C bus speed',
+                        'It has a built-in temperature-compensated crystal oscillator (TCXO) for much higher accuracy',
+                        'It can store more alarms (up to 10)',
+                        'It does not require a backup battery'
+                    ],
+                    explanation: 'The DS3231 contains a built-in temperature-compensated crystal oscillator (TCXO) that automatically adjusts for temperature-induced frequency drift. This gives it an accuracy of approximately +/-2 parts per million, which translates to roughly 1 minute of drift per year. The DS1307 uses an external 32.768 kHz crystal that is not temperature-compensated, resulting in drift of up to 2 seconds per day depending on ambient temperature. Both use I2C at the same address (0x68), both require a CR2032 backup battery, and both are supported by the RTClib library. The DS3231 also includes two alarm registers and a built-in temperature sensor.'
+                },
+                {
+                    question: 'What is the I2C address shared by both the DS1307 and DS3231?',
+                    options: [
+                        '0x50',
+                        '0x68',
+                        '0x27',
+                        '0x3C'
+                    ],
+                    explanation: 'Both the DS1307 and DS3231 use the fixed I2C address 0x68. This means you cannot connect both modules to the same I2C bus simultaneously without an I2C multiplexer. The address is hardwired into the chip and cannot be changed. On an Arduino Uno, the I2C bus uses pin A4 for SDA (data) and pin A5 for SCL (clock). Both RTC modules also require VCC and GND connections, plus a CR2032 coin cell battery for backup power. The 0x68 address is well-known in the I2C ecosystem; the MPU-6050 accelerometer also uses 0x68, which creates conflicts if both are on the same bus.'
+                },
+                {
+                    question: 'How does a CR2032 battery in an RTC module help?',
+                    options: [
+                        'It powers the Arduino when USB is disconnected',
+                        'It keeps the RTC chip counting time even when the Arduino has no power',
+                        'It provides a voltage reference for analog readings',
+                        'It charges from the Arduino 5V pin during normal operation'
+                    ],
+                    explanation: 'The CR2032 coin cell battery provides backup power exclusively to the RTC chip when the main power supply (the Arduino) is turned off. The DS3231 draws only about 3 microamps from the backup battery, which means a single CR2032 (230 mAh) can keep the clock running for years. When you power the Arduino back on, the RTC still has the correct time because it never stopped counting. Without the backup battery, the RTC would lose its time setting every time the Arduino was unplugged, requiring you to re-set the clock on each power cycle.'
+                },
+                {
+                    question: 'What RTClib function sets the DS3231 clock to the sketch compile time?',
+                    options: [
+                        'rtc.set(DateTime::now())',
+                        'rtc.adjust(DateTime(F(__DATE__), F(__TIME__)))',
+                        'rtc.setTime(compile_time)',
+                        'rtc.sync(DateTime::compile())'
+                    ],
+                    explanation: 'rtc.adjust(DateTime(F(__DATE__), F(__TIME__))) sets the RTC to the date and time when the sketch was compiled. __DATE__ and __TIME__ are C preprocessor macros that are replaced with the compile timestamp as strings. The F() macro stores them in flash memory to save RAM. The DateTime constructor parses these strings into a DateTime object. This line should be placed in setup() and run once to initialize the clock. After the first upload, you should either remove or comment out this line; otherwise, the RTC will be reset to the compile time every time the Arduino restarts, overwriting the correct running time.'
+                },
+                {
+                    question: 'In a cooperative multitasking sketch with three timers (500ms, 2000ms, 5000ms), how many unsigned long timer variables are needed?',
+                    options: [
+                        'One -- millis() handles everything',
+                        'Two -- one for the fast timer and one shared by the others',
+                        'Three -- each timer needs its own previousMillis variable',
+                        'Six -- each timer needs a previousMillis and an interval variable'
+                    ],
+                    explanation: 'Each independent timer needs its own previousMillis variable to track when it last fired. With three timers running at different intervals (500ms, 2000ms, 5000ms), you need three unsigned long variables: one for each timer. The interval constants can be stored as const long values, but the key is that each timer is independent. In each pass through loop(), you capture the current millis() once and compare it against each timer independently. Each timer fires, updates its own previousMillis, and has no effect on the others. Three timers, three variables, one pattern repeated.'
+                },
+                {
+                    question: 'Which ATmega328P hardware timer should you NOT modify because Arduino uses it internally?',
+                    options: [
+                        'Timer0',
+                        'Timer1',
+                        'Timer2',
+                        'Timer3'
+                    ],
+                    explanation: 'Timer0 is used by the Arduino core for millis(), micros(), delay(), and other time-related functions. Modifying Timer0 registers will break these functions, causing millis() to return incorrect values and delay() to wait for the wrong duration. Timer1 (16-bit) is available for user code and is commonly used for precise timing, Servo library, and frequency generation. Timer2 (8-bit) is used by the tone() library but can be reconfigured if tone() is not needed. The ATmega328P only has three timers (0, 1, 2); Timer3 does not exist on this chip but is available on the ATmega2560 (Arduino Mega).'
+                },
+                {
+                    question: 'What does CTC mode (Clear Timer on Compare Match) do in a hardware timer?',
+                    options: [
+                        'It clears the timer counter when it reaches a specified compare value and optionally triggers an interrupt',
+                        'It continuously transfers data via the SPI bus',
+                        'It calibrates the temperature compensation crystal',
+                        'It converts analog signals to digital counts'
+                    ],
+                    explanation: 'CTC mode configures a hardware timer to count up from 0 until it reaches the value stored in the Output Compare Register (OCRnA). When the counter matches this value, it automatically resets to 0 and can trigger an interrupt (ISR). This creates a precise, repeating timer. The frequency is determined by the formula: frequency = F_CPU / (prescaler * (OCR + 1)). For example, with a 16 MHz clock, prescaler of 1024, and OCR1A of 15624: 16,000,000 / (1024 * 15625) = 1 Hz, giving exactly one interrupt per second. CTC mode is essential for generating precise periodic events at the hardware level.'
+                }
+            ]
+        });
+        quiz.start();
+    </script>
+</body>
+</html>

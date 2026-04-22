@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory &amp; Optimization | ProtoCore Arduino Core 17</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #040810 0%, #081020 50%, #0a0c1a 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #0088ff; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(4, 8, 16, 0.95); border-top: 1px solid rgba(0, 136, 255, 0.15); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255, 255, 255, 0.07); color: #94a3b8; border: 1px solid rgba(255, 255, 255, 0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(0, 136, 255, 0.15); color: #0088ff; border-color: #0088ff; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s; }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #0088ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ffd700; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip { background: rgba(0, 136, 255, 0.08); border-left: 3px solid #0088ff; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #bfdbfe; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(0, 136, 255, 0.08); border: 1px solid rgba(0, 136, 255, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ffd700; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255, 255, 255, 0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #0088ff; }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #ffd700; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #0088ff; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #0088ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #ffd700; background: rgba(255, 215, 0, 0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .ic { font-family: 'Courier New', monospace; color: #ffd700; background: rgba(255, 215, 0, 0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .diagram-row { display: flex; gap: 16px; align-items: center; justify-content: center; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  { background: rgba(0, 136, 255, 0.12); border: 1px solid rgba(0, 136, 255, 0.4); color: #0088ff; font-weight: 700; font-size: 0.78rem; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px; }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+        .code-block { background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 215, 0, 0.2); border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #ffd700; line-height: 1.6; white-space: pre; }
+        .code-block .cm { color: #64748b; }
+        .code-block .kw { color: #5cb8ff; }
+        .code-block .fn { color: #ffd700; }
+        .code-block .st { color: #86efac; }
+        .code-block .nu { color: #fdba74; }
+        .code-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .code-panel-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 5px; }
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell { background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(0, 136, 255, 0.25); border-radius: 8px; padding: 12px 14px; text-align: center; opacity: 0; animation: hexAppear 0.4s ease forwards; }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; } .hex-cell:nth-child(2) { animation-delay: 0.25s; } .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; } .hex-cell:nth-child(5) { animation-delay: 0.7s; } .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #0088ff; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes flow { 0% { stroke-dashoffset: 20; } 100% { stroke-dashoffset: 0; } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes entityPop { from { opacity: 0; transform: scale(0.6) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes glowPulse { 0%, 100% { filter: drop-shadow(0 0 4px rgba(0,136,255,0.3)); } 50% { filter: drop-shadow(0 0 14px rgba(0,136,255,0.9)); } }
+        @keyframes dataFlow { 0% { stroke-dashoffset: 14; } 100% { stroke-dashoffset: 0; } }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .code-compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Memory and Optimization -- ProtoCore Arduino Core 17</h1>
+
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; ProtoCore &nbsp;|&nbsp; Arduino &nbsp;|&nbsp; Core 17</div>
+        <div class="title-hero">
+            <svg width="400" height="120" viewBox="0 0 400 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Memory chip layout -->
+                <rect x="100" y="15" width="200" height="90" rx="8" fill="rgba(0,136,255,0.04)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.1s; opacity:0;"/>
+                <!-- Flash segment -->
+                <rect x="115" y="28" width="55" height="64" rx="4" fill="rgba(255,215,0,0.1)" stroke="#ffd700" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="143" y="50" text-anchor="middle" font-size="9" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">Flash</text>
+                <text x="143" y="63" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">32 KB</text>
+                <text x="143" y="75" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">Program</text>
+                <!-- SRAM segment -->
+                <rect x="178" y="28" width="50" height="64" rx="4" fill="rgba(0,136,255,0.1)" stroke="#0088ff" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="203" y="50" text-anchor="middle" font-size="9" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">SRAM</text>
+                <text x="203" y="63" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">2 KB</text>
+                <text x="203" y="75" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">Runtime</text>
+                <!-- EEPROM segment -->
+                <rect x="236" y="28" width="50" height="64" rx="4" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="261" y="50" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">EEPROM</text>
+                <text x="261" y="63" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">1 KB</text>
+                <text x="261" y="75" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">Persist</text>
+                <!-- Glow -->
+                <ellipse cx="200" cy="60" rx="120" ry="50" fill="none" stroke="rgba(0,136,255,0.06)" stroke-width="1"
+                    style="animation: pulse 3s ease-in-out infinite;"/>
+            </svg>
+            <div class="big-title">Memory &amp; <span class="accent">Optimization</span></div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Build Process &nbsp;|&nbsp; Flash vs SRAM &nbsp;|&nbsp; PROGMEM &nbsp;|&nbsp; F() Macro &nbsp;|&nbsp; EEPROM
+            </div>
+        </div>
+        <div class="scenario-strip">
+            The ATmega328P has 32 KB of flash, 2 KB of SRAM, and 1 KB of EEPROM. That is less memory than a single favicon on a modern website. Every byte matters. This core teaches you where your data lives, how the build process works, and how to squeeze maximum performance out of minimal resources.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>ProtoCore Arduino</span>
+            <span>Core 17</span>
+            <span>Matrix House</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- BUILD PROCESS ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">The Arduino <span class="accent">Build Process</span></div>
+        <div class="slide-subtitle">What happens between clicking Upload and code running on the chip.</div>
+
+        <div class="diagram-center">
+            <svg width="650" height="80" viewBox="0 0 650 80" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="10" y="15" width="120" height="50" rx="8" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="70" y="38" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Preprocess</text>
+                <text x="70" y="52" text-anchor="middle" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">.ino to .cpp</text>
+
+                <line x1="135" y1="40" x2="160" y2="40" stroke="#ffd700" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.8s" repeatCount="indefinite"/>
+                </line>
+
+                <rect x="165" y="15" width="120" height="50" rx="8" fill="rgba(0,136,255,0.08)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="225" y="38" text-anchor="middle" font-size="8" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Compile</text>
+                <text x="225" y="52" text-anchor="middle" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">.cpp to .o objects</text>
+
+                <line x1="290" y1="40" x2="315" y2="40" stroke="#ffd700" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.8s" repeatCount="indefinite"/>
+                </line>
+
+                <rect x="320" y="15" width="120" height="50" rx="8" fill="rgba(255,215,0,0.08)" stroke="#ffd700" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="380" y="38" text-anchor="middle" font-size="8" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">Link</text>
+                <text x="380" y="52" text-anchor="middle" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">.o to .elf to .hex</text>
+
+                <line x1="445" y1="40" x2="470" y2="40" stroke="#ffd700" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.8s" repeatCount="indefinite"/>
+                </line>
+
+                <rect x="475" y="15" width="120" height="50" rx="8" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.4s; opacity:0;"/>
+                <text x="535" y="38" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Upload</text>
+                <text x="535" y="52" text-anchor="middle" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">.hex via bootloader</text>
+            </svg>
+        </div>
+
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Preprocess:</strong> The IDE converts your .ino file into a valid .cpp file. It adds <span class="ic">#include &lt;Arduino.h&gt;</span> at the top and generates function prototypes so you can define functions in any order.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Compile:</strong> The avr-gcc compiler translates each .cpp file into an object file (.o) containing machine code for the ATmega328P's AVR instruction set. Errors are caught here.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Link:</strong> The linker combines all .o files (your sketch + libraries + Arduino core) into a single .elf binary, then converts it to .hex format for uploading.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Upload:</strong> avrdude sends the .hex file over USB to the bootloader on the ATmega328P. The bootloader writes it to flash memory. Your program starts running immediately.</span></div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">What the Output Panel Shows</div>
+            After compilation, the IDE reports: "Sketch uses X bytes (Y%) of program storage space" (flash usage) and "Global variables use X bytes (Y%) of dynamic memory" (SRAM usage). Monitor these numbers. If flash exceeds 32,256 bytes or SRAM exceeds 2,048 bytes, the upload will fail.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- FLASH VS SRAM VS EEPROM ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Flash vs <span class="accent">SRAM</span> vs EEPROM</div>
+        <div class="slide-subtitle">Three distinct memory regions, each with different characteristics and purposes.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Flash (32 KB)</div>
+                <div class="card-desc">Stores your compiled program and constant data. Non-volatile: survives power loss. Read-only at runtime (program cannot modify itself). 10,000 write cycle limit. The bootloader occupies 0.5 KB, leaving 31.5 KB for your code.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">SRAM (2 KB)</div>
+                <div class="card-desc">Working memory for runtime variables, the stack, and the heap. Volatile: cleared on power loss. Read/write at full speed. Divided into: static data (globals), heap (dynamic allocation), and stack (function calls). When stack and heap collide, the program crashes.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">EEPROM (1 KB)</div>
+                <div class="card-desc">Persistent storage for settings and calibration data. Non-volatile like flash but slower. 100,000 write cycle limit per address. Read/write at runtime. One byte at a time. Use for data that must survive reboots but changes occasionally.</div>
+            </div>
+        </div>
+
+        <div class="diagram-center">
+            <svg width="600" height="80" viewBox="0 0 600 80" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- SRAM layout bar -->
+                <rect x="50" y="20" width="500" height="40" rx="4" fill="rgba(0,0,0,0.3)" stroke="rgba(0,136,255,0.2)" stroke-width="1"/>
+                <!-- Static data -->
+                <rect x="50" y="20" width="120" height="40" rx="4" fill="rgba(255,215,0,0.15)" stroke="#ffd700" stroke-width="1"/>
+                <text x="110" y="44" text-anchor="middle" font-size="8" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">Static Data (globals)</text>
+                <!-- Heap grows right -->
+                <rect x="170" y="20" width="80" height="40" fill="rgba(0,136,255,0.1)" stroke="#0088ff" stroke-width="1"/>
+                <text x="210" y="38" text-anchor="middle" font-size="8" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Heap --&gt;</text>
+                <text x="210" y="52" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">malloc / new</text>
+                <!-- Free space -->
+                <text x="340" y="44" text-anchor="middle" font-size="8" fill="#475569" font-family="Segoe UI,sans-serif">Free Space</text>
+                <!-- Stack grows left -->
+                <rect x="450" y="20" width="100" height="40" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1"/>
+                <text x="500" y="38" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">&lt;-- Stack</text>
+                <text x="500" y="52" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">function calls</text>
+            </svg>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">The 2 KB Trap</div>
+            2 KB of SRAM sounds tiny, and it is. A single <span class="ic">String</span> object with 200 characters consumes 10% of all available RAM. String arrays, large buffers, and deep function call chains can exhaust SRAM silently -- causing random crashes, garbled output, or reboot loops with no error message.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- CHECKING FREE RAM ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Checking <span class="accent">Free RAM</span> at Runtime</div>
+        <div class="slide-subtitle">Know exactly how much SRAM is left while your sketch runs.</div>
+
+        <div class="code-block"><span class="kw">int</span> <span class="fn">freeRam</span>() {
+  <span class="kw">extern int</span> __heap_start, *__brkval;
+  <span class="kw">int</span> v;
+  <span class="kw">return</span> (<span class="kw">int</span>) &amp;v - (__brkval == <span class="nu">0</span>
+    ? (<span class="kw">int</span>) &amp;__heap_start
+    : (<span class="kw">int</span>) __brkval);
+}
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  <span class="fn">Serial</span>.<span class="fn">begin</span>(<span class="nu">9600</span>);
+  <span class="fn">Serial</span>.<span class="fn">print</span>(<span class="st">"Free RAM: "</span>);
+  <span class="fn">Serial</span>.<span class="fn">println</span>(<span class="fn">freeRam</span>());
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">How It Works</div>
+                <div class="card-desc">The function calculates the gap between the top of the heap (<span class="ic">__brkval</span>) and the current stack pointer (address of local variable <span class="ic">v</span>). The difference is the free SRAM in bytes. Call this at different points in your sketch to track consumption over time.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Danger Thresholds</div>
+                <div class="card-desc">Below 200 bytes free: unstable. Below 100 bytes: imminent crash. Below 50 bytes: guaranteed stack corruption. Serial.print itself uses stack space, so the act of printing free RAM consumes some of it. Budget at least 300 bytes of headroom for safe operation.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Diagnostic Strategy</div>
+            Call <span class="ic">freeRam()</span> at the end of <span class="ic">setup()</span> to see your baseline. Call it again inside <span class="ic">loop()</span> during peak usage. If the number keeps decreasing each loop iteration, you have a memory leak -- likely from <span class="ic">String</span> concatenation or <span class="ic">malloc()</span> without <span class="ic">free()</span>.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- PROGMEM ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Storing Constants in <span class="accent">PROGMEM</span></div>
+        <div class="slide-subtitle">Move large constant data from SRAM to flash, freeing precious runtime memory.</div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">&lt;avr/pgmspace.h&gt;</span>
+
+<span class="cm">// WITHOUT PROGMEM -- stored in SRAM (wastes 44 bytes)</span>
+<span class="kw">const char</span> msg[] = <span class="st">"This string lives in SRAM at runtime"</span>;
+
+<span class="cm">// WITH PROGMEM -- stored in flash only (SRAM saved)</span>
+<span class="kw">const char</span> msg[] <span class="kw">PROGMEM</span> = <span class="st">"This string lives in flash only"</span>;
+
+<span class="cm">// Reading PROGMEM data requires special functions:</span>
+<span class="kw">char</span> buffer[<span class="nu">32</span>];
+<span class="fn">strcpy_P</span>(buffer, msg);  <span class="cm">// Copy from flash to SRAM buffer</span>
+
+<span class="cm">// For arrays of values:</span>
+<span class="kw">const int</span> lookupTable[] <span class="kw">PROGMEM</span> = {<span class="nu">100</span>, <span class="nu">200</span>, <span class="nu">300</span>, <span class="nu">400</span>, <span class="nu">500</span>};
+<span class="kw">int</span> val = <span class="fn">pgm_read_word</span>(&amp;lookupTable[<span class="nu">2</span>]);  <span class="cm">// Reads 300</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">When to Use PROGMEM</div>
+                <div class="card-desc">Large lookup tables, string arrays (menu text, error messages), bitmap data for displays, musical note frequencies, calibration tables. Any constant data larger than a few bytes that never changes at runtime is a candidate for PROGMEM.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Special Read Functions</div>
+                <div class="card-desc"><span class="ic">pgm_read_byte()</span> for uint8_t. <span class="ic">pgm_read_word()</span> for uint16_t/int. <span class="ic">pgm_read_dword()</span> for uint32_t. <span class="ic">pgm_read_float()</span> for float. <span class="ic">strcpy_P()</span> and <span class="ic">strcmp_P()</span> for strings. You cannot read PROGMEM data with normal pointer dereferencing.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- F() MACRO ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">The <span class="accent">F() Macro</span> for String Literals</div>
+        <div class="slide-subtitle">The single easiest optimization you can make in any Arduino sketch.</div>
+
+        <div class="code-compare">
+            <div>
+                <div class="code-panel-label" style="color:#ef4444;">Without F() -- SRAM wasted</div>
+                <div class="code-block"><span class="cm">// Every string literal is copied</span>
+<span class="cm">// from flash INTO SRAM at startup</span>
+<span class="fn">Serial</span>.<span class="fn">println</span>(<span class="st">"Sensor initialized"</span>);
+<span class="fn">Serial</span>.<span class="fn">println</span>(<span class="st">"Reading temperature..."</span>);
+<span class="fn">Serial</span>.<span class="fn">println</span>(<span class="st">"Error: sensor offline"</span>);
+<span class="cm">// ~60 bytes of SRAM consumed</span>
+<span class="cm">// for strings that never change</span></div>
+            </div>
+            <div>
+                <div class="code-panel-label" style="color:#3ab577;">With F() -- SRAM saved</div>
+                <div class="code-block"><span class="cm">// F() keeps strings in flash</span>
+<span class="cm">// and reads them at print time</span>
+<span class="fn">Serial</span>.<span class="fn">println</span>(<span class="fn">F</span>(<span class="st">"Sensor initialized"</span>));
+<span class="fn">Serial</span>.<span class="fn">println</span>(<span class="fn">F</span>(<span class="st">"Reading temperature..."</span>));
+<span class="fn">Serial</span>.<span class="fn">println</span>(<span class="fn">F</span>(<span class="st">"Error: sensor offline"</span>));
+<span class="cm">// 0 bytes of SRAM consumed</span>
+<span class="cm">// strings read directly from flash</span></div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Rule of Thumb</div>
+            Wrap every string literal inside <span class="ic">Serial.print()</span>, <span class="ic">Serial.println()</span>, <span class="ic">lcd.print()</span>, and similar functions with <span class="ic">F()</span>. This is the single most impactful SRAM optimization in Arduino programming. A sketch with 20 debug messages can save 400+ bytes of SRAM -- 20% of total memory -- just by adding <span class="ic">F()</span> around each string.
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">How F() Works Internally</div>
+            <span class="ic">F()</span> is a macro that wraps the string literal in a <span class="ic">__FlashStringHelper</span> pointer. The <span class="ic">Print</span> class (parent of Serial, LiquidCrystal, etc.) has overloaded <span class="ic">print()</span> and <span class="ic">println()</span> methods that accept this type and read characters one-by-one from flash using <span class="ic">pgm_read_byte()</span>. No SRAM buffer is needed.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- EEPROM READ/WRITE ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title"><span class="accent">EEPROM</span> Read/Write</div>
+        <div class="slide-subtitle">Persistent storage that survives power cycles -- 1,024 bytes on the ATmega328P.</div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">&lt;EEPROM.h&gt;</span>
+
+<span class="cm">// Write a single byte to address 0</span>
+<span class="fn">EEPROM</span>.<span class="fn">write</span>(<span class="nu">0</span>, <span class="nu">42</span>);
+
+<span class="cm">// Read it back</span>
+<span class="kw">byte</span> val = <span class="fn">EEPROM</span>.<span class="fn">read</span>(<span class="nu">0</span>);  <span class="cm">// val == 42</span>
+
+<span class="cm">// EEPROM.update() -- only writes if value changed (saves write cycles)</span>
+<span class="fn">EEPROM</span>.<span class="fn">update</span>(<span class="nu">0</span>, <span class="nu">42</span>);  <span class="cm">// No write if address 0 already contains 42</span>
+
+<span class="cm">// Store structs with EEPROM.put() and EEPROM.get()</span>
+<span class="kw">struct</span> Settings { <span class="kw">int</span> brightness; <span class="kw">int</span> volume; <span class="kw">bool</span> muted; };
+Settings cfg = {<span class="nu">200</span>, <span class="nu">75</span>, <span class="kw">false</span>};
+<span class="fn">EEPROM</span>.<span class="fn">put</span>(<span class="nu">10</span>, cfg);       <span class="cm">// Write struct starting at address 10</span>
+
+Settings loaded;
+<span class="fn">EEPROM</span>.<span class="fn">get</span>(<span class="nu">10</span>, loaded);    <span class="cm">// Read struct back from address 10</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Use Cases</div>
+                <div class="card-desc">Storing user preferences (brightness, volume), calibration values, boot counter, last sensor reading, WiFi credentials, device ID. Any data that needs to survive power loss but changes infrequently.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Write Cycle Limit</div>
+                <div class="card-desc">Each EEPROM address supports approximately 100,000 write cycles. Always use <span class="ic">EEPROM.update()</span> instead of <span class="ic">EEPROM.write()</span> to avoid unnecessary writes. Never write to EEPROM inside <span class="ic">loop()</span> without a condition guard -- that burns through cycles in seconds.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- #define VS const ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title"><span class="accent">#define</span> vs <span class="accent">const</span> for Memory</div>
+        <div class="slide-subtitle">Two ways to declare constants -- with very different memory implications.</div>
+
+        <div class="code-compare">
+            <div>
+                <div class="code-panel-label" style="color:#ffd700;">#define (preprocessor)</div>
+                <div class="code-block"><span class="kw">#define</span> <span class="fn">LED_PIN</span> <span class="nu">13</span>
+<span class="kw">#define</span> <span class="fn">MAX_TEMP</span> <span class="nu">100</span>
+<span class="kw">#define</span> <span class="fn">GREETING</span> <span class="st">"Hello"</span>
+
+<span class="cm">// The preprocessor does text</span>
+<span class="cm">// replacement BEFORE compilation.</span>
+<span class="cm">// No memory allocated for the</span>
+<span class="cm">// constant itself. But GREETING</span>
+<span class="cm">// creates a new string copy</span>
+<span class="cm">// each time it appears in code.</span></div>
+            </div>
+            <div>
+                <div class="code-panel-label" style="color:#0088ff;">const (compiler)</div>
+                <div class="code-block"><span class="kw">const int</span> <span class="fn">LED_PIN</span> = <span class="nu">13</span>;
+<span class="kw">const int</span> <span class="fn">MAX_TEMP</span> = <span class="nu">100</span>;
+<span class="kw">const char</span> <span class="fn">GREETING</span>[] = <span class="st">"Hello"</span>;
+
+<span class="cm">// The compiler treats const</span>
+<span class="cm">// integers as compile-time values</span>
+<span class="cm">// (no SRAM used). const arrays</span>
+<span class="cm">// and strings DO use SRAM unless</span>
+<span class="cm">// you also add PROGMEM.</span></div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Best Practice</div>
+            Use <span class="ic">const</span> for typed constants (type safety, debugger visibility). Use <span class="ic">#define</span> for conditional compilation flags and macros. For string constants, use <span class="ic">const char[] PROGMEM</span> or the <span class="ic">F()</span> macro. The compiler optimizes <span class="ic">const int</span> into immediate values (no SRAM cost), making it equivalent to <span class="ic">#define</span> for simple numbers but with type checking.
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">sizeof() for Type Safety</div>
+            Use <span class="ic">sizeof(variable)</span> to verify data size at compile time. <span class="ic">sizeof(int)</span> is 2 bytes on AVR but 4 bytes on ARM-based Arduino boards. Code that assumes <span class="ic">int</span> is 2 bytes will break silently when ported. Use <span class="ic">int16_t</span>, <span class="ic">uint8_t</span>, and other fixed-width types from <span class="ic">&lt;stdint.h&gt;</span> for portable, predictable memory usage.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- CONDITIONAL COMPILATION ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Conditional Compilation: <span class="accent">#ifdef</span></div>
+        <div class="slide-subtitle">Include or exclude code blocks at compile time -- zero runtime cost.</div>
+
+        <div class="code-block"><span class="kw">#define</span> <span class="fn">DEBUG</span>        <span class="cm">// Comment this line to disable all debug output</span>
+<span class="kw">#define</span> <span class="fn">USE_OLED</span>     <span class="cm">// Comment to compile without OLED library</span>
+
+<span class="kw">#ifdef</span> USE_OLED
+  <span class="kw">#include</span> <span class="st">&lt;Adafruit_SSD1306.h&gt;</span>
+  Adafruit_SSD1306 display(<span class="nu">128</span>, <span class="nu">64</span>);
+<span class="kw">#endif</span>
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  <span class="kw">#ifdef</span> DEBUG
+    <span class="fn">Serial</span>.<span class="fn">begin</span>(<span class="nu">9600</span>);
+    <span class="fn">Serial</span>.<span class="fn">println</span>(<span class="fn">F</span>(<span class="st">"Debug mode ON"</span>));
+  <span class="kw">#endif</span>
+
+  <span class="kw">#ifdef</span> USE_OLED
+    display.<span class="fn">begin</span>(SSD1306_SWITCHCAPVCC, <span class="nu">0x3C</span>);
+  <span class="kw">#endif</span>
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Why This Matters</div>
+                <div class="card-desc">When <span class="ic">DEBUG</span> is not defined, all Serial.print statements are completely removed from the compiled binary. Zero flash usage, zero SRAM usage, zero CPU cycles. This is not an if-statement that checks a flag at runtime -- the code literally does not exist in the binary.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Board Detection</div>
+                <div class="card-desc">Arduino defines board-specific macros automatically. <span class="ic">#ifdef __AVR_ATmega328P__</span> matches the Uno. <span class="ic">#ifdef __AVR_ATmega2560__</span> matches the Mega. Use these to write code that compiles correctly on multiple boards with different pin mappings or memory sizes.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- OPTIMIZING SKETCH SIZE ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Optimizing <span class="accent">Sketch Size</span></div>
+        <div class="slide-subtitle">Techniques to reduce flash and SRAM consumption when your sketch is too large.</div>
+
+        <div class="hex-grid">
+            <div class="hex-cell">
+                <div class="hex-title" style="color:#ffd700;">Remove Dead Code</div>
+                <div class="hex-desc">Delete unused variables, functions, and library includes. The linker removes unused library functions, but unused global variables still consume SRAM.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title" style="color:#0088ff;">Use Smaller Types</div>
+                <div class="hex-desc">Use <span class="ic">byte</span> (1B) instead of <span class="ic">int</span> (2B) for values 0-255. Use <span class="ic">uint8_t</span> for counters. Use <span class="ic">int16_t</span> instead of <span class="ic">long</span> (4B) when range permits.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title" style="color:#3ab577;">Use F() Everywhere</div>
+                <div class="hex-desc">Every string literal in <span class="ic">Serial.print()</span> without <span class="ic">F()</span> wastes SRAM. This is the single biggest optimization for most sketches.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title" style="color:#a78bfa;">Avoid String Class</div>
+                <div class="hex-desc">The Arduino <span class="ic">String</span> class uses dynamic memory (heap). Repeated concatenation fragments SRAM. Use C-style <span class="ic">char[]</span> arrays and <span class="ic">sprintf()</span> instead.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title" style="color:#f97316;">Use PROGMEM</div>
+                <div class="hex-desc">Move lookup tables, string arrays, and large constant data to flash with <span class="ic">PROGMEM</span>. Read with <span class="ic">pgm_read_byte()</span> family functions.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title" style="color:#ef4444;">Reduce Library Use</div>
+                <div class="hex-desc">Each library adds flash overhead. If you only need one function from a library, consider implementing it directly. The SD library alone adds 10 KB of flash.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- AVOIDING STRING FRAGMENTATION ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Avoiding <span class="accent">String Fragmentation</span></div>
+        <div class="slide-subtitle">How the Arduino String class silently destroys your SRAM.</div>
+
+        <div class="code-compare">
+            <div>
+                <div class="code-panel-label" style="color:#ef4444;">Dangerous -- String fragmentation</div>
+                <div class="code-block"><span class="fn">String</span> msg = <span class="st">"Temp: "</span>;
+msg += <span class="fn">String</span>(tempVal);
+msg += <span class="st">" C"</span>;
+<span class="fn">Serial</span>.<span class="fn">println</span>(msg);
+<span class="cm">// Each += allocates new memory,</span>
+<span class="cm">// copies, frees old block.</span>
+<span class="cm">// Fragments heap over time.</span>
+<span class="cm">// Eventually: crash.</span></div>
+            </div>
+            <div>
+                <div class="code-panel-label" style="color:#3ab577;">Safe -- char arrays</div>
+                <div class="code-block"><span class="kw">char</span> buf[<span class="nu">32</span>];
+<span class="fn">snprintf</span>(buf, <span class="kw">sizeof</span>(buf),
+  <span class="st">"Temp: %d C"</span>, tempVal);
+<span class="fn">Serial</span>.<span class="fn">println</span>(buf);
+<span class="cm">// Fixed-size buffer on stack.</span>
+<span class="cm">// No heap allocation.</span>
+<span class="cm">// No fragmentation.</span>
+<span class="cm">// Predictable memory usage.</span></div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Why String Is Dangerous on Arduino</div>
+            The <span class="ic">String</span> class uses <span class="ic">malloc()</span> and <span class="ic">realloc()</span> internally. On a PC with gigabytes of RAM, heap fragmentation is manageable. On an ATmega328P with 2 KB of SRAM, fragmentation can make memory unusable after just minutes of runtime. A sketch that works perfectly for 30 seconds can crash at minute 5 because the heap has been fragmented into tiny, unusable blocks.
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Memory-Efficient Data Structures</div>
+            Use fixed-size arrays instead of dynamic containers. Use circular buffers (ring buffers) for streaming data -- they never allocate or free memory. Use <span class="ic">struct</span> for grouped data with known sizes. Pre-allocate all buffers in <span class="ic">setup()</span> and reuse them. If you must use dynamic memory, allocate once and never free.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- SUMMARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Memory &amp; Optimization <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Every byte saved is a feature you can add later.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">01</span><span class="fact-text">Build process: preprocess (.ino to .cpp), compile (.cpp to .o), link (.o to .hex), upload via bootloader</span></div>
+            <div class="fact-row"><span class="fact-num">02</span><span class="fact-text">Flash (32 KB) stores program code. SRAM (2 KB) stores runtime data. EEPROM (1 KB) stores persistent settings</span></div>
+            <div class="fact-row"><span class="fact-num">03</span><span class="fact-text">Use <code>freeRam()</code> to monitor SRAM at runtime -- keep 300+ bytes headroom</span></div>
+            <div class="fact-row"><span class="fact-num">04</span><span class="fact-text"><code>PROGMEM</code> moves constant data to flash; read with <code>pgm_read_byte()</code> family</span></div>
+            <div class="fact-row"><span class="fact-num">05</span><span class="fact-text"><code>F()</code> macro keeps string literals in flash -- the single easiest SRAM optimization</span></div>
+            <div class="fact-row"><span class="fact-num">06</span><span class="fact-text"><code>EEPROM.update()</code> over <code>EEPROM.write()</code> to preserve 100K write cycle limit</span></div>
+            <div class="fact-row"><span class="fact-num">07</span><span class="fact-text"><code>#ifdef</code> eliminates code at compile time -- zero cost when disabled</span></div>
+            <div class="fact-row"><span class="fact-num">08</span><span class="fact-text">Avoid the <code>String</code> class -- use <code>char[]</code> and <code>snprintf()</code> for heap safety</span></div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Core 17 Complete</div>
+            You now understand the ATmega328P's memory architecture, the build pipeline, and every major optimization technique. When your sketch says "low memory" in the compile output, you know exactly where to look and what to fix. Memory mastery separates hobbyists from engineers.
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; ProtoCore</button></a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+    goToSlide(1);
+</script>
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-ard-17-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>
