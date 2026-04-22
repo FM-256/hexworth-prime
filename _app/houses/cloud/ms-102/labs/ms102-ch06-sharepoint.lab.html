@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SharePoint &amp; OneDrive Administration Lab -- MS-102 Chapter 6</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { height: 100vh; overflow: hidden; background: #0c0c0c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #b3cef5; display: flex; flex-direction: column; }
+        .lab-header { flex-shrink: 0; padding: 15px 30px; background: rgba(10,12,20,0.95); border-bottom: 1px solid rgba(59,130,246,0.2); display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn { padding: 8px 16px; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; color: #3b82f6; text-decoration: none; font-size: 0.85rem; transition: all 0.3s ease; }
+        .back-btn:hover { background: rgba(59,130,246,0.2); }
+        .lab-title { font-size: 1rem; color: #dbeafe; }
+        .lab-badge { padding: 4px 12px; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); border-radius: 12px; font-size: 0.7rem; color: #60a5fa; letter-spacing: 0.05em; }
+        .lab-badge-ch { padding: 4px 12px; background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.3); border-radius: 12px; font-size: 0.7rem; color: #34d399; letter-spacing: 0.05em; }
+        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #6b82a0; }
+        .task-count { color: #3b82f6; font-weight: 500; }
+        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(59,130,246,0.15); border-radius: 3px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #1d4ed8); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
+        .lab-container { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
+        .task-panel { background: rgba(10,14,22,0.95); border-right: 1px solid rgba(59,130,246,0.15); overflow-y: auto; padding: 20px; }
+        .task-section { margin-bottom: 25px; }
+        .task-section-title { font-size: 0.68rem; color: #3b5278; letter-spacing: 0.15em; margin-bottom: 12px; text-transform: uppercase; }
+        .task-card { background: rgba(12,18,32,0.8); border: 1px solid rgba(59,130,246,0.15); border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s ease; }
+        .task-card:hover { border-color: rgba(59,130,246,0.4); }
+        .task-card.active { border-color: #3b82f6; background: rgba(59,130,246,0.1); }
+        .task-card.completed { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.04); }
+        .task-card.completed .task-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; font-weight: 400; }
+        .task-number { font-size: 0.68rem; color: #3b82f6; margin-bottom: 4px; }
+        .task-name { font-size: 0.9rem; color: #dbeafe; margin-bottom: 4px; }
+        .task-desc { font-size: 0.77rem; color: #6b82a0; line-height: 1.45; }
+        .task-desc code { background: rgba(59,130,246,0.15); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; color: #60a5fa; font-family: 'Consolas', monospace; }
+        .terminal-panel { display: flex; flex-direction: column; background: #0a0a0a; position: relative; overflow: hidden; }
+        .term-toolbar { flex-shrink: 0; padding: 8px 20px; background: rgba(12,18,28,0.9); border-bottom: 1px solid rgba(59,130,246,0.15); display: flex; align-items: center; gap: 12px; }
+        .term-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .term-dot-red { background: #ff5f57; } .term-dot-amber { background: #febc2e; } .term-dot-green { background: #28c840; }
+        .term-title { flex: 1; text-align: center; font-size: 0.8rem; color: #4a6080; font-family: 'Consolas', 'Courier New', monospace; }
+        .term-vm-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #34d399; }
+        .term-status-dot { width: 7px; height: 7px; background: #34d399; border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .term-output { flex: 1; overflow-y: auto; padding: 16px 360px 8px 20px; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.875rem; line-height: 1.6; }
+        .term-input-row { flex-shrink: 0; display: flex; align-items: center; padding: 8px 360px 12px 20px; border-top: 1px solid rgba(59,130,246,0.1); gap: 0; }
+        .term-prompt-label { font-family: 'Consolas', 'Courier New', monospace; font-size: 0.875rem; white-space: nowrap; flex-shrink: 0; }
+        .term-prompt-user { color: #3b82f6; } .term-prompt-sep { color: #3b5278; } .term-prompt-path { color: #34d399; } .term-prompt-dollar { color: #dbeafe; margin-right: 6px; }
+        .term-input { flex: 1; background: transparent; border: none; outline: none; color: #dbeafe; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.875rem; caret-color: #3b82f6; }
+        .term-line { white-space: pre-wrap; word-break: break-all; }
+        .term-line-cmd { color: #b3cef5; } .term-line-out { color: #a0d4a0; } .term-line-err { color: #f87171; }
+        .term-line-info { color: #60a5fa; } .term-line-warn { color: #fbbf24; } .term-line-dim { color: #374860; }
+        .term-welcome { color: #3b82f6; }
+        .term-prompt-span { color: #3b82f6; } .term-path-span { color: #34d399; } .term-ps1-sep { color: #3b5278; }
+        .json-key { color: #60a5fa; } .json-string { color: #86efac; } .json-number { color: #fbbf24; } .json-bool { color: #93c5fd; } .json-null { color: #f87171; }
+        .instructions-panel { position: absolute; top: 20px; right: 20px; width: 320px; background: rgba(10,16,28,0.97); border: 1px solid rgba(59,130,246,0.3); border-radius: 12px; padding: 20px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.4); transition: all 0.3s ease; }
+        .instructions-panel.collapsed { width: auto; padding: 10px 14px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-body { display: none; }
+        .instructions-panel.collapsed .instructions-toggle { transform: rotate(180deg); }
+        .instructions-title { font-size: 1rem; color: #3b82f6; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-title { margin-bottom: 0; font-size: 0.85rem; }
+        .instructions-toggle { margin-left: auto; width: 28px; height: 28px; background: rgba(59,130,246,0.2); border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; color: #3b82f6; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; flex-shrink: 0; }
+        .instructions-toggle:hover { background: rgba(59,130,246,0.4); }
+        .instructions-step { font-size: 0.88rem; color: #b3cef5; line-height: 1.65; margin-bottom: 14px; }
+        .instructions-step code { background: rgba(59,130,246,0.2); padding: 2px 7px; border-radius: 4px; font-family: 'Consolas', monospace; color: #60a5fa; font-size: 0.85em; }
+        .instructions-hint { font-size: 0.78rem; color: #3b5278; font-style: italic; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(59,130,246,0.15); line-height: 1.5; }
+        .hint-btn { margin-top: 12px; padding: 6px 12px; background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.25); border-radius: 5px; color: #3b82f6; font-size: 0.75rem; cursor: pointer; font-family: 'Segoe UI', sans-serif; transition: all 0.2s ease; width: 100%; text-align: center; }
+        .hint-btn:hover { background: rgba(59,130,246,0.22); }
+        .hint-command { display: none; margin-top: 10px; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(59,130,246,0.25); border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.78rem; color: #86efac; line-height: 1.55; white-space: pre-wrap; word-break: break-all; }
+        .hint-command.visible { display: block; }
+        .success-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 2000; }
+        .success-overlay.active { display: flex; }
+        .success-card { background: rgba(10,16,28,0.97); border: 1px solid rgba(52,211,153,0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .success-icon { margin-bottom: 20px; }
+        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
+        .success-message { color: #b3cef5; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
+        .success-btn { padding: 12px 30px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; transition: all 0.3s ease; }
+        .success-btn:hover { box-shadow: 0 5px 20px rgba(59,130,246,0.35); transform: translateY(-1px); }
+        .tab-suggestions { display: none; position: absolute; bottom: 52px; left: 20px; background: rgba(10,16,28,0.97); border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; padding: 4px 0; z-index: 200; font-family: 'Consolas', monospace; font-size: 0.8rem; }
+        .tab-suggestions.visible { display: block; }
+        .tab-option { padding: 4px 14px; color: #86efac; cursor: pointer; }
+        .tab-option:hover, .tab-option.selected { background: rgba(59,130,246,0.15); color: #dbeafe; }
+        @media (max-width: 1024px) { .lab-container { grid-template-columns: 1fr; } .task-panel { display: none; } .term-output, .term-input-row { padding-right: 20px; } .instructions-panel { position: absolute; bottom: 60px; top: auto; right: 10px; left: 10px; width: auto; } }
+    </style>
+</head>
+<body>
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">SharePoint &amp; OneDrive Administration</span>
+            <span class="lab-badge">MS-102</span>
+            <span class="lab-badge-ch">CH.6</span>
+        </div>
+        <div class="task-progress">
+            <span>Progress:</span>
+            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBarFill"></div></div>
+            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
+        </div>
+    </header>
+
+    <div class="lab-container">
+        <aside class="task-panel" id="taskPanel">
+            <div class="task-section">
+                <div class="task-section-title">Phase 1 -- Site Management</div>
+                <div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)"><div class="task-number">Task 1</div><div class="task-name">List Site Collections</div><div class="task-desc">Run <code>m365 spo site list</code> to view all SharePoint site collections in the tenant.</div></div>
+                <div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)"><div class="task-number">Task 2</div><div class="task-name">Get Site Details</div><div class="task-desc">Run <code>m365 spo site get --url https://contoso.sharepoint.com/sites/marketing</code> to inspect a specific site.</div></div>
+                <div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)"><div class="task-number">Task 3</div><div class="task-name">Create Communication Site</div><div class="task-desc">Run <code>m365 spo site add --type CommunicationSite --title "Company News" --url https://contoso.sharepoint.com/sites/news</code> to create a new communication site.</div></div>
+            </div>
+            <div class="task-section">
+                <div class="task-section-title">Phase 2 -- Sharing Configuration</div>
+                <div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)"><div class="task-number">Task 4</div><div class="task-name">View Tenant Sharing Settings</div><div class="task-desc">Run <code>m365 spo tenant settings list</code> to view org-level sharing and access control settings.</div></div>
+                <div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)"><div class="task-number">Task 5</div><div class="task-name">Set Site Sharing Level</div><div class="task-desc">Run <code>m365 spo site set --url https://contoso.sharepoint.com/sites/hr --sharingCapability Disabled</code> to restrict sharing on the HR site.</div></div>
+            </div>
+            <div class="task-section">
+                <div class="task-section-title">Phase 3 -- Storage and OneDrive</div>
+                <div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)"><div class="task-number">Task 6</div><div class="task-name">Check Storage Quota</div><div class="task-desc">Run <code>m365 spo tenant settings list --query storageQuota</code> to view the tenant storage pool allocation.</div></div>
+                <div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)"><div class="task-number">Task 7</div><div class="task-name">Set Site Storage Limit</div><div class="task-desc">Run <code>m365 spo site set --url https://contoso.sharepoint.com/sites/marketing --storageQuota 5120</code> to set a 5 GB storage limit.</div></div>
+            </div>
+            <div class="task-section">
+                <div class="task-section-title">Phase 4 -- Permissions and Hub</div>
+                <div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)"><div class="task-number">Task 8</div><div class="task-name">Register Hub Site</div><div class="task-desc">Run <code>m365 spo hubsite register --url https://contoso.sharepoint.com/sites/marketing</code> to register the marketing site as a hub.</div></div>
+                <div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)"><div class="task-number">Task 9</div><div class="task-name">List Site Permissions</div><div class="task-desc">Run <code>m365 spo site groupmember list --url https://contoso.sharepoint.com/sites/marketing --group Owners</code> to view site owners.</div></div>
+                <div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)"><div class="task-number">Task 10</div><div class="task-name">Set OneDrive Retention</div><div class="task-desc">Run <code>m365 spo tenant settings set --orphanedPersonalSitesRetentionPeriod 365</code> to set OneDrive retention to 1 year for deleted users.</div></div>
+            </div>
+        </aside>
+
+        <main class="terminal-panel" id="terminalPanel">
+            <div class="term-toolbar">
+                <div class="term-dot term-dot-red"></div><div class="term-dot term-dot-amber"></div><div class="term-dot term-dot-green"></div>
+                <div class="term-title">spadmin@cloud-shell -- bash</div>
+                <div class="term-vm-status"><div class="term-status-dot"></div>SharePoint Online Connected</div>
+            </div>
+            <div class="term-output" id="termOutput"></div>
+            <div class="term-input-row">
+                <span class="term-prompt-label"><span class="term-prompt-user">spadmin@cloud-shell</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span></span>
+                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
+            </div>
+            <div class="tab-suggestions" id="tabSuggestions"></div>
+            <div class="instructions-panel" id="instructionsPanel">
+                <div class="instructions-title" onclick="toggleInstructions()">
+                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+                    Task Instructions
+                    <button class="instructions-toggle" id="instructionsToggle" title="Collapse instructions">&#9660;</button>
+                </div>
+                <div class="instructions-body" id="instructionsBody">
+                    <div class="instructions-step" id="instructionsStep">Type the command in the terminal and press Enter.</div>
+                    <div class="instructions-hint" id="instructionsHint"><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block"> Hint text loads when you select a task.</div>
+                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
+                    <div class="hint-command" id="hintCommand"></div>
+                </div>
+            </div>
+            <div class="success-overlay" id="successOverlay">
+                <div class="success-card">
+                    <div class="success-icon"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:3rem;height:3rem;object-fit:contain"></div>
+                    <div class="success-title">MS-102 Chapter 6 Lab Complete!</div>
+                    <div class="success-message">You managed SharePoint site collections, configured sharing settings at org and site levels, set storage quotas, registered a hub site, reviewed site permissions, and configured OneDrive retention. These are core SharePoint and OneDrive administration skills for the MS-102 exam.</div>
+                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+    (function () {
+        'use strict';
+        var USER = 'spadmin', HOST = 'cloud-shell', HOME = '/home/spadmin';
+        var TENANT_URL = 'https://contoso.sharepoint.com';
+        var cwd = HOME, cmdHistory = [], histIdx = -1, currentTask = 1;
+        var taskDone = {1:false,2:false,3:false,4:false,5:false,6:false,7:false,8:false,9:false,10:false};
+        var TOTAL_TASKS = 10;
+
+        var outputEl, inputEl, ps1PathEl;
+        function promptPath(){return cwd===HOME?'~':cwd;}
+        function addLine(t,c){var d=document.createElement('div');d.className='term-line'+(c?' '+c:'');d.textContent=t;outputEl.appendChild(d);outputEl.scrollTop=outputEl.scrollHeight;}
+        function addHTML(h,c){var d=document.createElement('div');d.className='term-line'+(c?' '+c:'');d.innerHTML=h;outputEl.appendChild(d);outputEl.scrollTop=outputEl.scrollHeight;}
+        function addBlank(){addLine('','');}
+        function addPromptLine(cmd){addHTML('<span class="term-prompt-span">'+USER+'@'+HOST+'</span><span class="term-ps1-sep">:</span><span class="term-path-span">'+esc(promptPath())+'</span><span class="term-ps1-sep">$ </span>'+esc(cmd),'term-line-cmd');}
+        function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+        function printJSON(obj){var r=JSON.stringify(obj,null,2);var h=r.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"([^"]+)":/g,'<span class="json-key">"$1"</span>:').replace(/: "([^"]*)"/g,': <span class="json-string">"$1"</span>').replace(/: (true|false)/g,': <span class="json-bool">$1</span>').replace(/: null/g,': <span class="json-null">null</span>').replace(/: (-?\d+\.?\d*)/g,': <span class="json-number">$1</span>');h.split('\n').forEach(function(l){addHTML(l,'term-line-out');});}
+
+        var taskInstructions = {
+            1: {step:'Run <code>m365 spo site list</code> to view all SharePoint site collections including their URLs, templates, and storage usage.',hint:'m365 spo site list'},
+            2: {step:'Run <code>m365 spo site get --url https://contoso.sharepoint.com/sites/marketing</code> to view detailed information about the marketing site.',hint:'m365 spo site get --url https://contoso.sharepoint.com/sites/marketing'},
+            3: {step:'Run <code>m365 spo site add --type CommunicationSite --title "Company News" --url https://contoso.sharepoint.com/sites/news</code> to create a communication site.',hint:'m365 spo site add --type CommunicationSite --title "Company News" --url https://contoso.sharepoint.com/sites/news'},
+            4: {step:'Run <code>m365 spo tenant settings list</code> to view the tenant-level sharing settings and access control configuration.',hint:'m365 spo tenant settings list'},
+            5: {step:'Run <code>m365 spo site set --url https://contoso.sharepoint.com/sites/hr --sharingCapability Disabled</code> to block all external sharing on the HR site.',hint:'m365 spo site set --url https://contoso.sharepoint.com/sites/hr --sharingCapability Disabled'},
+            6: {step:'Run <code>m365 spo tenant settings list --query storageQuota</code> to check the tenant storage pool total and used amounts.',hint:'m365 spo tenant settings list --query storageQuota'},
+            7: {step:'Run <code>m365 spo site set --url https://contoso.sharepoint.com/sites/marketing --storageQuota 5120</code> to set a 5 GB quota on the marketing site.',hint:'m365 spo site set --url https://contoso.sharepoint.com/sites/marketing --storageQuota 5120'},
+            8: {step:'Run <code>m365 spo hubsite register --url https://contoso.sharepoint.com/sites/marketing</code> to register marketing as a hub site.',hint:'m365 spo hubsite register --url https://contoso.sharepoint.com/sites/marketing'},
+            9: {step:'Run <code>m365 spo site groupmember list --url https://contoso.sharepoint.com/sites/marketing --group Owners</code> to list the site owners.',hint:'m365 spo site groupmember list --url https://contoso.sharepoint.com/sites/marketing --group Owners'},
+            10:{step:'Run <code>m365 spo tenant settings set --orphanedPersonalSitesRetentionPeriod 365</code> to set OneDrive retention to 365 days for deleted users.',hint:'m365 spo tenant settings set --orphanedPersonalSitesRetentionPeriod 365'}
+        };
+
+        function selectTask(n){currentTask=n;document.querySelectorAll('.task-card').forEach(function(c){c.classList.remove('active');});var card=document.getElementById('task-card-'+n);if(card)card.classList.add('active');var info=taskInstructions[n];if(info){document.getElementById('instructionsStep').innerHTML=info.step;document.getElementById('hintCommand').textContent=info.hint;document.getElementById('hintCommand').classList.remove('visible');}}
+
+        function completeTask(n){if(taskDone[n])return;taskDone[n]=true;var card=document.getElementById('task-card-'+n);if(card)card.classList.add('completed');var done=Object.keys(taskDone).filter(function(k){return taskDone[k];}).length;document.getElementById('taskProgress').textContent=done+' / '+TOTAL_TASKS+' Tasks';document.getElementById('progressBarFill').style.width=(done/TOTAL_TASKS*100)+'%';if(done===TOTAL_TASKS){setTimeout(function(){document.getElementById('successOverlay').classList.add('active');},600);}}
+
+        function processCommand(raw){var cmd=raw.trim();if(!cmd)return;addPromptLine(cmd);cmdHistory.unshift(cmd);histIdx=-1;
+
+            if(cmd==='clear'){outputEl.innerHTML='';return;}
+            if(cmd==='help'){addLine('Available commands: m365 spo site list, m365 spo site get, m365 spo site add, m365 spo site set, m365 spo tenant settings list, m365 spo tenant settings set, m365 spo hubsite register, m365 spo site groupmember list, help, clear','term-line-info');return;}
+
+            if(cmd==='m365 spo site list'){
+                printJSON([{title:'Marketing',url:TENANT_URL+'/sites/marketing',template:'Group#0',storageUsageMB:2340,storageQuotaMB:25600,lastModified:'2026-04-18T14:22:00Z',owner:'admin@contoso.com'},{title:'HR Portal',url:TENANT_URL+'/sites/hr',template:'SITEPAGEPUBLISHING#0',storageUsageMB:890,storageQuotaMB:25600,lastModified:'2026-04-15T09:10:00Z',owner:'hr-admin@contoso.com'},{title:'Engineering',url:TENANT_URL+'/sites/engineering',template:'Group#0',storageUsageMB:8750,storageQuotaMB:25600,lastModified:'2026-04-21T11:45:00Z',owner:'eng-lead@contoso.com'},{title:'Executive Comms',url:TENANT_URL+'/sites/exec-comms',template:'SITEPAGEPUBLISHING#0',storageUsageMB:320,storageQuotaMB:25600,lastModified:'2026-04-10T16:30:00Z',owner:'admin@contoso.com'}]);
+                addBlank();addLine('  4 site collections found. Total storage used: 12,300 MB.','term-line-info');
+                completeTask(1);return;
+            }
+            if(cmd==='m365 spo site get --url https://contoso.sharepoint.com/sites/marketing'){
+                printJSON({title:'Marketing',url:TENANT_URL+'/sites/marketing',template:'Group#0',hubSiteId:'00000000-0000-0000-0000-000000000000',isHubSite:false,sharingCapability:'ExternalUserAndGuestSharing',storageUsageMB:2340,storageQuotaMB:25600,storageWarningLevelMB:24576,owner:'admin@contoso.com',groupId:'a1b2c3d4-e5f6-7890-abcd-ef1234567890',lastModified:'2026-04-18T14:22:00Z',lockState:'Unlock',conditionalAccessPolicy:'AllowFullAccess',sensibilityLabel:null});
+                addBlank();addLine('  Marketing site: Group-connected | Sharing: External + Guest | Storage: 2.3 GB / 25 GB','term-line-info');
+                completeTask(2);return;
+            }
+            if(cmd.indexOf('m365 spo site add')===0&&cmd.indexOf('CommunicationSite')>=0&&cmd.indexOf('Company News')>=0){
+                addLine('Creating communication site "Company News"...','term-line-info');
+                printJSON({title:'Company News',url:TENANT_URL+'/sites/news',template:'SITEPAGEPUBLISHING#0',sharingCapability:'ExternalUserAndGuestSharing',storageQuotaMB:25600,owner:'admin@contoso.com',created:'2026-04-21T16:00:00Z'});
+                addBlank();addLine('  Communication site created successfully at '+TENANT_URL+'/sites/news','term-line-out');
+                completeTask(3);return;
+            }
+            if(cmd==='m365 spo tenant settings list'){
+                printJSON({sharingCapability:'ExternalUserAndGuestSharing',defaultSharingLinkType:'Internal',defaultLinkPermission:'View',requireAcceptingAccountMatchInvitedAccount:true,externalUserExpirationRequired:true,externalUserExpireInDays:30,allowAnonymousLinks:true,anonymousLinkExpirationInDays:30,filePickerExternalImageSearchEnabled:true,oneDriveStorageQuota:1048576,orphanedPersonalSitesRetentionPeriod:30,disallowInfectedFileDownload:true,conditionalAccessPolicy:'AllowLimitedAccess',blockDownloadLinksFileType:'WebPreviewableFiles'});
+                addBlank();addLine('  Org sharing: External + Guest | Anon links: 30-day expiry | OneDrive quota: 1 TB | Deleted user retention: 30 days','term-line-info');
+                completeTask(4);return;
+            }
+            if(cmd.indexOf('m365 spo site set')===0&&cmd.indexOf('/sites/hr')>=0&&cmd.indexOf('Disabled')>=0){
+                addLine('Updating sharing settings for HR Portal...','term-line-info');
+                addLine('  Sharing capability changed: ExternalUserAndGuestSharing -> Disabled','term-line-out');
+                printJSON({url:TENANT_URL+'/sites/hr',sharingCapability:'Disabled',status:'Updated'});
+                addBlank();addLine('  HR site sharing is now restricted to internal users only.','term-line-warn');
+                completeTask(5);return;
+            }
+            if(cmd.indexOf('m365 spo tenant settings list')===0&&cmd.indexOf('storageQuota')>=0){
+                printJSON({storageQuotaTotalMB:6291456,storageQuotaUsedMB:1228800,storageQuotaAvailableMB:5062656,licensedUsers:500,baseStorageMB:1048576,perUserStorageMB:10240});
+                addBlank();addLine('  Tenant pool: 6 TB total (1 TB base + 5 TB from 500 users) | Used: 1.2 TB | Available: 4.8 TB','term-line-info');
+                completeTask(6);return;
+            }
+            if(cmd.indexOf('m365 spo site set')===0&&cmd.indexOf('/sites/marketing')>=0&&cmd.indexOf('storageQuota')>=0&&cmd.indexOf('5120')>=0){
+                addLine('Setting storage quota for Marketing site...','term-line-info');
+                addLine('  Storage quota changed: 25,600 MB -> 5,120 MB (5 GB)','term-line-out');
+                printJSON({url:TENANT_URL+'/sites/marketing',storageQuotaMB:5120,storageWarningLevelMB:4608,status:'Updated'});
+                addBlank();addLine('  Warning: Current usage (2,340 MB) is within the new 5 GB limit.','term-line-info');
+                completeTask(7);return;
+            }
+            if(cmd.indexOf('m365 spo hubsite register')===0&&cmd.indexOf('/sites/marketing')>=0){
+                addLine('Registering hub site...','term-line-info');
+                printJSON({title:'Marketing',url:TENANT_URL+'/sites/marketing',hubSiteId:'b2c3d4e5-f6a7-8901-bcde-f12345678901',isHubSite:true,associatedSites:0,registeredBy:'admin@contoso.com',registeredDateTime:'2026-04-21T16:05:00Z'});
+                addBlank();addLine('  Marketing is now a hub site. Other sites can associate with it for shared navigation and theme.','term-line-out');
+                completeTask(8);return;
+            }
+            if(cmd.indexOf('m365 spo site groupmember list')===0&&cmd.indexOf('/sites/marketing')>=0&&cmd.indexOf('Owners')>=0){
+                printJSON([{loginName:'i:0#.f|membership|admin@contoso.com',title:'Contoso Admin',email:'admin@contoso.com',userPrincipalName:'admin@contoso.com',isSiteAdmin:true},{loginName:'i:0#.f|membership|mkt-lead@contoso.com',title:'Marketing Lead',email:'mkt-lead@contoso.com',userPrincipalName:'mkt-lead@contoso.com',isSiteAdmin:false}]);
+                addBlank();addLine('  2 owners found for Marketing site. admin@contoso.com is the primary site admin.','term-line-info');
+                completeTask(9);return;
+            }
+            if(cmd.indexOf('m365 spo tenant settings set')===0&&cmd.indexOf('orphanedPersonalSitesRetentionPeriod')>=0&&cmd.indexOf('365')>=0){
+                addLine('Updating OneDrive retention policy...','term-line-info');
+                addLine('  Retention period changed: 30 days -> 365 days','term-line-out');
+                printJSON({orphanedPersonalSitesRetentionPeriod:365,status:'Updated'});
+                addBlank();addLine('  Deleted user OneDrive data will now be retained for 1 year before automatic deletion.','term-line-info');
+                completeTask(10);return;
+            }
+            if(cmd==='pwd'){addLine(cwd,'term-line-out');return;}
+            if(cmd.split(/\s+/)[0]==='cd'){cwd=cmd.split(/\s+/)[1]||HOME;if(ps1PathEl)ps1PathEl.textContent=promptPath();return;}
+            addLine('Command not recognized: '+cmd.split(/\s+/)[0]+'. Type "help" for available commands.','term-line-err');
+        }
+
+        window.selectTask=selectTask;
+        window.toggleInstructions=function(){document.getElementById('instructionsPanel').classList.toggle('collapsed');};
+        window.revealHint=function(){document.getElementById('hintCommand').classList.toggle('visible');};
+        window.finishLab=function(){if(typeof ModuleProgress!=='undefined'){ModuleProgress.complete('cloud','ms102-ch06-lab',{returnUrl:'../index.html'});}else{window.location.href='../index.html';}};
+
+        document.addEventListener('DOMContentLoaded',function(){
+            outputEl=document.getElementById('termOutput');inputEl=document.getElementById('termInput');ps1PathEl=document.getElementById('termPS1Path');
+            addLine('Microsoft 365 CLI v7.5.0 -- Connected to SharePoint Online: contoso.sharepoint.com','term-welcome');
+            addLine('Role: SharePoint Administrator | Type "help" to see available commands.','term-line-dim');addBlank();
+            selectTask(1);
+            inputEl.addEventListener('keydown',function(e){
+                if(e.key==='Enter'){e.preventDefault();processCommand(inputEl.value);inputEl.value='';}
+                else if(e.key==='ArrowUp'){e.preventDefault();if(histIdx<cmdHistory.length-1){histIdx++;inputEl.value=cmdHistory[histIdx];}}
+                else if(e.key==='ArrowDown'){e.preventDefault();if(histIdx>0){histIdx--;inputEl.value=cmdHistory[histIdx];}else{histIdx=-1;inputEl.value='';}}
+            });
+            inputEl.focus();
+        });
+    })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

