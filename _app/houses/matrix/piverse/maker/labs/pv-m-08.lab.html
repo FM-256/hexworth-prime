@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edge AI Lab | PiVerse Maker's Workshop</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { height: 100vh; overflow: hidden; background: #0c0408; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #d4a0b0; display: flex; flex-direction: column; }
+        .lab-header { flex-shrink: 0; padding: 15px 30px; background: rgba(13, 4, 8, 0.95); border-bottom: 1px solid rgba(197, 26, 74, 0.2); display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn { padding: 8px 16px; background: rgba(197, 26, 74, 0.1); border: 1px solid rgba(197, 26, 74, 0.3); border-radius: 6px; color: #c51a4a; text-decoration: none; font-size: 0.85rem; }
+        .lab-title { font-size: 1rem; color: #f0c0d0; }
+        .lab-badge { padding: 4px 12px; background: rgba(197, 26, 74, 0.15); border: 1px solid rgba(197, 26, 74, 0.3); border-radius: 12px; font-size: 0.7rem; color: #c51a4a; }
+        .lab-badge-ch { padding: 4px 12px; background: rgba(255, 215, 0, 0.15); border: 1px solid rgba(255, 215, 0, 0.3); border-radius: 12px; font-size: 0.7rem; color: #ffd700; }
+        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #6b4a55; }
+        .task-count { color: #c51a4a; font-weight: 500; }
+        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(197, 26, 74, 0.15); border-radius: 3px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #c51a4a, #8b1232); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
+        .lab-container { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
+        .task-panel { background: rgba(13, 4, 8, 0.95); border-right: 1px solid rgba(197, 26, 74, 0.15); overflow-y: auto; padding: 20px; }
+        .task-section { margin-bottom: 25px; }
+        .task-section-title { font-size: 0.68rem; color: #3a1a25; letter-spacing: 0.15em; margin-bottom: 12px; text-transform: uppercase; }
+        .task-card { background: rgba(13, 8, 10, 0.8); border: 1px solid rgba(197, 26, 74, 0.15); border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s; }
+        .task-card:hover { border-color: rgba(197, 26, 74, 0.4); }
+        .task-card.active { border-color: #c51a4a; background: rgba(197, 26, 74, 0.1); }
+        .task-card.completed { border-color: rgba(52, 211, 153, 0.4); background: rgba(52, 211, 153, 0.04); }
+        .task-card.completed .task-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; }
+        .task-number { font-size: 0.68rem; color: #c51a4a; margin-bottom: 4px; }
+        .task-name { font-size: 0.9rem; color: #f0c0d0; margin-bottom: 4px; }
+        .task-desc { font-size: 0.77rem; color: #6b4a55; line-height: 1.45; }
+        .task-desc code { background: rgba(197, 26, 74, 0.15); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; color: #c51a4a; font-family: 'Consolas', monospace; }
+        .terminal-panel { display: flex; flex-direction: column; background: #0a0406; position: relative; overflow: hidden; }
+        .term-toolbar { flex-shrink: 0; padding: 8px 20px; background: rgba(13, 8, 10, 0.9); border-bottom: 1px solid rgba(197, 26, 74, 0.15); display: flex; align-items: center; gap: 12px; }
+        .term-dot { width: 12px; height: 12px; border-radius: 50%; } .term-dot-red { background: #ff5f57; } .term-dot-amber { background: #febc2e; } .term-dot-green { background: #28c840; }
+        .term-title { flex: 1; text-align: center; font-size: 0.8rem; color: #4a3040; font-family: 'Consolas', monospace; }
+        .term-vm-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #c51a4a; }
+        .term-status-dot { width: 7px; height: 7px; background: #c51a4a; border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .term-output { flex: 1; overflow-y: auto; padding: 16px 360px 8px 20px; font-family: 'Consolas', monospace; font-size: 0.875rem; line-height: 1.6; }
+        .term-input-row { flex-shrink: 0; display: flex; align-items: center; padding: 8px 360px 12px 20px; border-top: 1px solid rgba(197, 26, 74, 0.1); }
+        .term-prompt-label { font-family: 'Consolas', monospace; font-size: 0.875rem; white-space: nowrap; flex-shrink: 0; }
+        .term-prompt-user { color: #c51a4a; } .term-prompt-sep { color: #3a1a25; } .term-prompt-path { color: #ffd700; } .term-prompt-dollar { color: #f0c0d0; margin-right: 6px; }
+        .term-input { flex: 1; background: transparent; border: none; outline: none; color: #f0c0d0; font-family: 'Consolas', monospace; font-size: 0.875rem; caret-color: #c51a4a; }
+        .term-line { white-space: pre-wrap; word-break: break-all; }
+        .term-line-cmd { color: #d4a0b0; } .term-line-out { color: #a0d4a0; } .term-line-err { color: #f87171; } .term-line-info { color: #c51a4a; } .term-line-warn { color: #ffd700; } .term-line-dim { color: #3a2030; }
+        .term-prompt-span { color: #c51a4a; } .term-path-span { color: #ffd700; } .term-ps1-sep { color: #3a1a25; }
+        .instructions-panel { position: absolute; top: 20px; right: 20px; width: 320px; background: rgba(13, 8, 10, 0.97); border: 1px solid rgba(197, 26, 74, 0.3); border-radius: 12px; padding: 20px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
+        .instructions-panel.collapsed { width: auto; padding: 10px 14px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-body { display: none; }
+        .instructions-panel.collapsed .instructions-toggle { transform: rotate(180deg); }
+        .instructions-title { font-size: 1rem; color: #c51a4a; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-title { margin-bottom: 0; font-size: 0.85rem; }
+        .instructions-toggle { margin-left: auto; width: 28px; height: 28px; background: rgba(197, 26, 74, 0.2); border: 1px solid rgba(197, 26, 74, 0.3); border-radius: 6px; color: #c51a4a; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .instructions-step { font-size: 0.88rem; color: #d4a0b0; line-height: 1.65; margin-bottom: 14px; }
+        .instructions-step code { background: rgba(197, 26, 74, 0.2); padding: 2px 7px; border-radius: 4px; font-family: 'Consolas', monospace; color: #c51a4a; font-size: 0.85em; }
+        .instructions-hint { font-size: 0.78rem; color: #3a1a25; font-style: italic; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(197, 26, 74, 0.15); line-height: 1.5; }
+        .hint-btn { margin-top: 12px; padding: 6px 12px; background: rgba(197, 26, 74, 0.12); border: 1px solid rgba(197, 26, 74, 0.25); border-radius: 5px; color: #c51a4a; font-size: 0.75rem; cursor: pointer; width: 100%; text-align: center; }
+        .hint-command { display: none; margin-top: 10px; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(197, 26, 74, 0.25); border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.78rem; color: #86efac; white-space: pre-wrap; }
+        .hint-command.visible { display: block; }
+        .success-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 2000; }
+        .success-overlay.active { display: flex; }
+        .success-card { background: rgba(13, 8, 10, 0.97); border: 1px solid rgba(52, 211, 153, 0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
+        .success-message { color: #d4a0b0; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
+        .success-btn { padding: 12px 30px; background: linear-gradient(135deg, #c51a4a, #8b1232); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; }
+        @media (max-width: 1024px) { .lab-container { grid-template-columns: 1fr; } .task-panel { display: none; } .term-output, .term-input-row { padding-right: 20px; } .instructions-panel { bottom: 60px; top: auto; right: 10px; left: 10px; width: auto; } }
+    </style>
+</head>
+<body>
+    <header class="lab-header"><div class="header-left"><a href="../../index.html" class="back-btn">Exit Lab</a><span class="lab-title">Edge AI Lab</span><span class="lab-badge">PiVerse</span><span class="lab-badge-ch">Ch 8</span></div><div class="task-progress"><span>Progress:</span><div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBarFill"></div></div><span class="task-count" id="taskProgress">0 / 8 Tasks</span></div></header>
+    <div class="lab-container">
+        <aside class="task-panel">
+            <div class="task-section"><div class="task-section-title">Phase 1 -- Setup</div>
+                <div class="task-card" id="task-card-1" onclick="selectTask(1)"><div class="task-number">Task 1</div><div class="task-name">Install TFLite</div><div class="task-desc">Install the TensorFlow Lite runtime for Python. Use <code>ai install</code>.</div></div>
+                <div class="task-card" id="task-card-2" onclick="selectTask(2)"><div class="task-number">Task 2</div><div class="task-name">Download Model</div><div class="task-desc">Download a pre-trained MobileNet detection model. Use <code>ai model</code>.</div></div>
+            </div>
+            <div class="task-section"><div class="task-section-title">Phase 2 -- Inference</div>
+                <div class="task-card" id="task-card-3" onclick="selectTask(3)"><div class="task-number">Task 3</div><div class="task-name">Load and Inspect Model</div><div class="task-desc">Load the .tflite model and inspect tensor shapes. Use <code>ai inspect</code>.</div></div>
+                <div class="task-card" id="task-card-4" onclick="selectTask(4)"><div class="task-number">Task 4</div><div class="task-name">Classify an Image</div><div class="task-desc">Run image classification on a sample photo. Use <code>ai classify</code>.</div></div>
+                <div class="task-card" id="task-card-5" onclick="selectTask(5)"><div class="task-number">Task 5</div><div class="task-name">Detect Objects</div><div class="task-desc">Run object detection and read bounding boxes. Use <code>ai detect</code>.</div></div>
+                <div class="task-card" id="task-card-6" onclick="selectTask(6)"><div class="task-number">Task 6</div><div class="task-name">Benchmark Speed</div><div class="task-desc">Measure inference time across 100 frames. Use <code>ai benchmark</code>.</div></div>
+            </div>
+            <div class="task-section"><div class="task-section-title">Phase 3 -- Optimization</div>
+                <div class="task-card" id="task-card-7" onclick="selectTask(7)"><div class="task-number">Task 7</div><div class="task-name">Quantize Model</div><div class="task-desc">Apply post-training quantization to reduce model size. Use <code>ai quantize</code>.</div></div>
+                <div class="task-card" id="task-card-8" onclick="selectTask(8)"><div class="task-number">Task 8</div><div class="task-name">Live Camera Detection</div><div class="task-desc">Run real-time detection on the Pi camera feed. Use <code>ai live</code>.</div></div>
+            </div>
+        </aside>
+        <main class="terminal-panel">
+            <div class="term-toolbar"><div class="term-dot term-dot-red"></div><div class="term-dot term-dot-amber"></div><div class="term-dot term-dot-green"></div><div class="term-title">pi@edgeai -- TFLite Lab</div><div class="term-vm-status"><div class="term-status-dot"></div>Pi Sim Online</div></div>
+            <div class="term-output" id="termOutput"></div>
+            <div class="term-input-row"><span class="term-prompt-label"><span class="term-prompt-user">pi</span><span class="term-prompt-sep">:</span><span class="term-prompt-path">~/ai</span><span class="term-prompt-dollar">$</span></span><input class="term-input" id="termInput" type="text" autocomplete="off" spellcheck="false" aria-label="Terminal input" /></div>
+            <div class="instructions-panel" id="instructionsPanel"><div class="instructions-title" onclick="toggleInstructions()">Task Instructions<button class="instructions-toggle" id="instructionsToggle">&#9660;</button></div><div class="instructions-body" id="instructionsBody"><div class="instructions-step" id="instructionsStep">Type <code>help</code> to see available commands.</div><div class="instructions-hint" id="instructionsHint">Hint loads on task select.</div><button class="hint-btn" onclick="revealHint()">Show command hint</button><div class="hint-command" id="hintCommand"></div></div></div>
+            <div class="success-overlay" id="successOverlay"><div class="success-card"><div class="success-title">Edge AI Lab Complete!</div><div class="success-message">You installed TFLite, downloaded a pre-trained model, inspected tensor shapes, classified images, detected objects with bounding boxes, benchmarked inference speed, applied quantization, and ran live camera detection. These are the foundations of deploying machine learning on edge hardware.</div><button class="success-btn" onclick="finishLab()">Complete Lab</button></div></div>
+        </main>
+    </div>
+    <script>
+    (function(){
+        'use strict';
+        var T=8,td={},ct=1,ch=[],hi=-1,oE,iE;for(var i=1;i<=T;i++)td[i]=false;
+        function aL(t,c){var d=document.createElement('div');d.className='term-line'+(c?' '+c:'');d.textContent=t;oE.appendChild(d);oE.scrollTop=oE.scrollHeight;}
+        function aH(h,c){var d=document.createElement('div');d.className='term-line'+(c?' '+c:'');d.innerHTML=h;oE.appendChild(d);oE.scrollTop=oE.scrollHeight;}
+        function aB(){aL('','');}
+        function aP(cmd){aH('<span class="term-prompt-span">pi</span><span class="term-ps1-sep">:</span><span class="term-path-span">~/ai</span><span class="term-ps1-sep">$ </span>'+eH(cmd),'term-line-cmd');}
+        function eH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+        var ti={
+            1:{step:'Install the TensorFlow Lite runtime.\n<code>ai install</code>',hint:'pip install tflite-runtime installs only the inference engine, not full TensorFlow. Much smaller and faster to install on ARM.',cmd:'ai install'},
+            2:{step:'Download a pre-trained SSD MobileNet model.\n<code>ai model</code>',hint:'The model comes as a .tflite file (~4MB quantized) with a labels.txt file mapping class indices to human-readable names.',cmd:'ai model'},
+            3:{step:'Load the model and inspect input/output tensor shapes.\n<code>ai inspect</code>',hint:'Input shape tells you the expected image dimensions. Output tensors contain bounding boxes, class indices, confidence scores, and detection count.',cmd:'ai inspect'},
+            4:{step:'Run image classification on a sample image.\n<code>ai classify</code>',hint:'Preprocess: resize to model input size, normalize pixel values. The output is a probability distribution across all classes.',cmd:'ai classify'},
+            5:{step:'Run object detection and decode bounding boxes.\n<code>ai detect</code>',hint:'Detection outputs 4 tensors: boxes (normalized coordinates), classes (integer indices), scores (confidence), and count. Filter by score threshold (0.5).',cmd:'ai detect'},
+            6:{step:'Benchmark inference speed over 100 frames.\n<code>ai benchmark</code>',hint:'Run invoke() 100 times and measure total elapsed time. Divide by 100 for per-frame latency. Invert for frames per second.',cmd:'ai benchmark'},
+            7:{step:'Apply post-training quantization to the model.\n<code>ai quantize</code>',hint:'Quantization converts float32 weights to int8. Model size drops by ~4x. Inference speed improves 2-3x on ARM NEON. Accuracy loss is typically <1%.',cmd:'ai quantize'},
+            8:{step:'Run real-time object detection on the Pi camera.\n<code>ai live</code>',hint:'Capture frames from Picamera2, preprocess, invoke, postprocess, render bounding boxes on the preview overlay. Target: 10+ fps.',cmd:'ai live'}
+        };
+        var tn={1:'Install TFLite',2:'Download Model',3:'Load and Inspect',4:'Classify Image',5:'Detect Objects',6:'Benchmark Speed',7:'Quantize Model',8:'Live Camera Detection'};
+        function exec(raw){var t=raw.trim();aP(t);if(!t)return;var p=t.split(/\s+/),c=p[0],s=p[1]||'';
+            if(c==='help'){aL('Edge AI Lab -- Commands','term-line-info');aB();aL('AI TASKS:','term-line-warn');aL('  ai install    ai model      ai inspect','term-line-dim');aL('  ai classify   ai detect     ai benchmark','term-line-dim');aL('  ai quantize   ai live','term-line-dim');aB();aL('  help / clear','term-line-dim');aB();}
+            else if(c==='clear'){oE.innerHTML='';}
+            else if(c==='ai'){runAI(s);}
+            else{aL('bash: '+c+': command not found.','term-line-err');}
+        }
+        function runAI(s){
+            if(s==='install'){aL('Installing TensorFlow Lite runtime...','term-line-info');aB();aL('$ pip3 install tflite-runtime','term-line-out');aL('Collecting tflite-runtime','term-line-out');aL('  Downloading tflite_runtime-2.14.0-cp311-cp311-linux_aarch64.whl (2.4MB)','term-line-out');aL('Successfully installed tflite-runtime-2.14.0','term-line-out');aB();aL('$ python3 -c "import tflite_runtime; print(tflite_runtime.__version__)"','term-line-out');aL('2.14.0','term-line-out');aB();aL('[VERIFY] TFLite runtime 2.14.0 installed for ARM64 Python 3.11.','term-line-info');cT(1);}
+            else if(s==='model'){aL('Downloading SSD MobileNet v2...','term-line-info');aB();aL('$ wget https://tfhub.dev/tensorflow/lite-model/ssd_mobilenet_v2/1/default/1?lite-format=tflite','term-line-out');aL('  detect.tflite  ............... 4.3MB  [downloaded]','term-line-out');aL('  labelmap.txt   ............... 2KB    [downloaded]','term-line-out');aB();aL('Model: SSD MobileNet v2 (COCO, 80 classes)','term-line-out');aL('Format: Quantized INT8','term-line-out');aL('Size:   4.3MB','term-line-out');aB();aL('[VERIFY] Model and labels downloaded. 80 COCO object classes.','term-line-info');cT(2);}
+            else if(s==='inspect'){aL('Loading and inspecting model tensors...','term-line-info');aB();aL('Input Tensor:','term-line-warn');aL('  Name:  serving_default_input:0','term-line-out');aL('  Shape: [1, 320, 320, 3]  (batch, height, width, channels)','term-line-out');aL('  Type:  uint8  (0-255, no normalization needed)','term-line-out');aB();aL('Output Tensors:','term-line-warn');aL('  [0] Boxes:   [1, 10, 4]   float32  (ymin, xmin, ymax, xmax normalized)','term-line-out');aL('  [1] Classes: [1, 10]      float32  (class index into labelmap)','term-line-out');aL('  [2] Scores:  [1, 10]      float32  (confidence 0.0-1.0)','term-line-out');aL('  [3] Count:   [1]          float32  (number of detections)','term-line-out');aB();aL('[VERIFY] Model loaded. Input: 320x320 uint8. Max 10 detections per frame.','term-line-info');cT(3);}
+            else if(s==='classify'){aL('Running image classification...','term-line-info');aB();aL('Input: sample_bird.jpg (640x480)','term-line-out');aL('Preprocessing: resize 320x320, RGB, uint8','term-line-out');aL('Inference time: 34ms','term-line-out');aB();aL('Top-5 Results:','term-line-warn');aL('  1. bird           92.3%','term-line-out');aL('  2. kite           3.1%','term-line-out');aL('  3. airplane       1.8%','term-line-out');aL('  4. person         0.9%','term-line-out');aL('  5. frisbee        0.4%','term-line-out');aB();aL('[VERIFY] Classification complete. Top prediction: bird (92.3%) in 34ms.','term-line-info');cT(4);}
+            else if(s==='detect'){aL('Running object detection...','term-line-info');aB();aL('Input: sample_park.jpg (640x480)','term-line-out');aL('Preprocessing: resize 320x320, RGB, uint8','term-line-out');aL('Inference time: 98ms','term-line-out');aB();aL('Detections (score > 0.5):','term-line-warn');aL('  [1] person    87%  box: [0.12, 0.34, 0.85, 0.58]','term-line-out');aL('  [2] dog       81%  box: [0.45, 0.60, 0.72, 0.88]','term-line-out');aL('  [3] bench     63%  box: [0.05, 0.70, 0.35, 0.95]','term-line-out');aB();aL('3 objects detected. Annotated image saved: output_annotated.jpg','term-line-out');aB();aL('[VERIFY] Detection complete. 3 objects found with bounding boxes.','term-line-info');cT(5);}
+            else if(s==='benchmark'){aL('Benchmarking inference speed (100 iterations)...','term-line-info');aB();aL('Model: SSD MobileNet v2 (INT8, 320x320)','term-line-out');aL('Device: Raspberry Pi 5 (Cortex-A76 @ 2.4GHz)','term-line-out');aL('Delegate: XNNPACK (4 threads)','term-line-out');aB();aL('Running 100 iterations...','term-line-out');aL('  Total time:    9.82 seconds','term-line-out');aL('  Per frame:     98.2ms average','term-line-out');aL('  FPS:           10.2 fps','term-line-out');aL('  Min latency:   92ms','term-line-out');aL('  Max latency:   118ms','term-line-out');aB();aL('[VERIFY] Benchmark complete. ~10 fps detection on Pi 5 CPU.','term-line-info');cT(6);}
+            else if(s==='quantize'){aL('Applying post-training quantization...','term-line-info');aB();aL('Input model:  detect_float32.tflite (17.1MB)','term-line-out');aL('Calibration:  100 representative images','term-line-out');aB();aL('Quantizing weights: float32 -> int8...','term-line-out');aL('Quantizing activations: float32 -> int8...','term-line-out');aL('Validating accuracy on test set...','term-line-out');aB();aL('Results:','term-line-warn');aL('  Original:   17.1MB  mAP: 0.312  Latency: 280ms','term-line-out');aL('  Quantized:   4.3MB  mAP: 0.305  Latency:  98ms','term-line-out');aL('  Size reduction: 4.0x','term-line-out');aL('  Speed improvement: 2.9x','term-line-out');aL('  Accuracy loss: 0.007 mAP (2.2%)','term-line-out');aB();aL('[VERIFY] Quantization complete. 4x smaller, 2.9x faster, <2.5% accuracy loss.','term-line-info');cT(7);}
+            else if(s==='live'){aL('Starting live camera detection...','term-line-info');aB();aL('Camera: Pi Camera Module v3 (640x480 @ 30fps)','term-line-out');aL('Model:  SSD MobileNet v2 INT8 (320x320)','term-line-out');aL('Pipeline: capture -> resize -> invoke -> annotate -> preview','term-line-out');aB();aL('Frame  1: person (89%), cat (76%)  -- 96ms','term-line-out');aL('Frame  2: person (91%), cat (72%)  -- 94ms','term-line-out');aL('Frame  3: person (88%), cat (78%)  -- 99ms','term-line-out');aL('...','term-line-dim');aL('Frame 30: person (90%), cat (74%)  -- 95ms','term-line-out');aB();aL('Average FPS: 10.4  |  Detections logged: 30 frames','term-line-out');aB();aL('[VERIFY] Live detection running at 10.4 fps. Bounding boxes rendered on preview.','term-line-info');cT(8);}
+            else{aL('Unknown ai command: '+s,'term-line-err');}
+        }
+        function cT(n){if(td[n])return;td[n]=true;aB();aL('[TASK '+n+' COMPLETE] '+tn[n],'term-line-info');aB();var c=document.getElementById('task-card-'+n);if(c)c.classList.add('completed');uP();var a=true;for(var i=1;i<=T;i++)if(!td[i]){a=false;break;}if(a)setTimeout(function(){document.getElementById('successOverlay').classList.add('active');},500);}
+        function uP(){var d=0;for(var i=1;i<=T;i++)if(td[i])d++;document.getElementById('taskProgress').textContent=d+' / '+T+' Tasks';document.getElementById('progressBarFill').style.width=(d/T*100)+'%';}
+        window.selectTask=function(n){ct=n;document.querySelectorAll('.task-card').forEach(function(c){c.classList.remove('active');});var c=document.getElementById('task-card-'+n);if(c)c.classList.add('active');var info=ti[n];if(info){document.getElementById('instructionsStep').innerHTML=info.step;document.getElementById('instructionsHint').textContent=info.hint;document.getElementById('hintCommand').textContent=info.cmd;document.getElementById('hintCommand').classList.remove('visible');}};
+        window.toggleInstructions=function(){document.getElementById('instructionsPanel').classList.toggle('collapsed');};
+        window.revealHint=function(){document.getElementById('hintCommand').classList.toggle('visible');};
+        window.finishLab=function(){if(typeof ModuleProgress!=='undefined')ModuleProgress.complete('matrix','pv-m-08-lab',{returnUrl:'../../index.html'});};
+        document.addEventListener('DOMContentLoaded',function(){oE=document.getElementById('termOutput');iE=document.getElementById('termInput');iE.addEventListener('keydown',function(e){if(e.key==='Enter'){var v=iE.value;iE.value='';if(v.trim()){ch.push(v);hi=ch.length;}exec(v);}else if(e.key==='ArrowUp'){e.preventDefault();if(hi>0){hi--;iE.value=ch[hi];}}else if(e.key==='ArrowDown'){e.preventDefault();if(hi<ch.length-1){hi++;iE.value=ch[hi];}else{hi=ch.length;iE.value='';}}});aL('Welcome to the Edge AI Lab -- PiVerse Maker\'s Workshop','term-line-info');aL('Type "help" for available commands.','term-line-dim');aB();selectTask(1);iE.focus();});
+    })();
+    </script>
+</body>
+</html>

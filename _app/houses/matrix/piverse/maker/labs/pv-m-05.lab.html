@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab 5: MQTT Sensor Pipeline | PiVerse Maker's Workshop</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --bg-dark: #0d0408; --bg-card: #130810; --accent: #c51a4a; --accent-dim: rgba(197,26,74,0.12); --accent-bright: #e8305e; --text-primary: #e0e0e0; --text-secondary: #9e8b91; --border: rgba(197,26,74,0.18); }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.7; }
+        .ne-header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 14px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .ne-header-left { display: flex; align-items: center; gap: 15px; }
+        .ne-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+        .ne-header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent-bright); }
+        .ne-back { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .ne-back:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .ne-content { max-width: 1100px; margin: 0 auto; padding: 30px 25px 60px; }
+        .ne-objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 30px; }
+        .ne-objectives h2 { color: var(--accent-bright); margin-bottom: 10px; font-size: 1rem; }
+        .ne-objectives ul { list-style: none; }
+        .ne-objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.92rem; }
+        .ne-objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .ne-section { margin-bottom: 35px; }
+        .ne-section-title { font-size: 1.3rem; color: var(--accent-bright); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .ne-section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .ne-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+        .ne-code { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; overflow-x: auto; color: var(--text-secondary); white-space: pre-wrap; }
+        .ne-code .prompt { color: var(--accent); } .ne-code .comment { color: #6e4a55; } .ne-code .highlight { color: var(--accent-bright); } .ne-code .value { color: #f0883e; }
+        .ne-callout { background: rgba(197,26,74,0.06); border: 1px solid rgba(197,26,74,0.25); border-radius: 8px; padding: 16px 20px; margin: 18px 0; }
+        .ne-callout strong { color: var(--accent-bright); }
+        .ne-callout p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; }
+        .ne-inline-code { background: #0d1117; padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--accent-bright); }
+        .ne-complete { text-align: center; padding: 28px 0 8px; }
+        #completeBtn { background: transparent; border: 2px solid var(--accent); color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; padding: 12px 36px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        #completeBtn:hover:not(:disabled) { background: var(--accent-dim); }
+        #completeBtn:disabled { cursor: default; opacity: 0.85; }
+        @media (max-width: 700px) { .ne-content { padding: 20px 15px 40px; } }
+    </style>
+</head>
+<body>
+    <header class="ne-header">
+        <div class="ne-header-left">
+            <span class="ne-badge">LAB</span>
+            <h1>Lab 5: MQTT Sensor Pipeline</h1>
+        </div>
+        <a href="../../index.html" class="ne-back">&lt; Back to PiVerse</a>
+    </header>
+
+    <div class="ne-content">
+        <div class="ne-objectives">
+            <h2>Lab Objectives</h2>
+            <ul>
+                <li>Install and configure Mosquitto MQTT broker with authentication</li>
+                <li>Build a Python MQTT publisher that simulates sensor readings</li>
+                <li>Build a Python MQTT subscriber that logs incoming data</li>
+                <li>Create a threshold-based automation that publishes alert messages</li>
+                <li>Secure the broker with password authentication</li>
+            </ul>
+        </div>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Task 1: Install and Start Mosquitto</h2>
+            <p class="ne-text">Install the Mosquitto MQTT broker and client tools. Start the service and verify it is running.</p>
+            <div class="ne-code"><span class="comment"># Install Mosquitto broker and CLI clients</span>
+<span class="prompt">$</span> sudo apt update
+<span class="prompt">$</span> sudo apt install -y mosquitto mosquitto-clients
+
+<span class="comment"># Enable and start the service</span>
+<span class="prompt">$</span> sudo systemctl enable mosquitto
+<span class="prompt">$</span> sudo systemctl start mosquitto
+
+<span class="comment"># Verify it is running</span>
+<span class="prompt">$</span> sudo systemctl status mosquitto
+<span class="comment"># Should show: active (running)</span>
+
+<span class="comment"># Quick test: publish and subscribe from the command line</span>
+<span class="comment"># Terminal 1:</span>
+<span class="prompt">$</span> mosquitto_sub -h localhost -t <span class="value">"test/hello"</span> -v
+
+<span class="comment"># Terminal 2:</span>
+<span class="prompt">$</span> mosquitto_pub -h localhost -t <span class="value">"test/hello"</span> -m <span class="value">"world"</span>
+
+<span class="comment"># Terminal 1 should display: test/hello world</span></div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Task 2: Python Sensor Publisher</h2>
+            <p class="ne-text">Create a Python script that simulates a temperature sensor. It publishes a reading every 2 seconds to an MQTT topic with slight random variation.</p>
+            <div class="ne-code"><span class="comment"># sensor_pub.py</span>
+<span class="prompt">$</span> pip3 install paho-mqtt
+
+<span class="highlight">import</span> paho.mqtt.client <span class="highlight">as</span> mqtt
+<span class="highlight">import</span> time
+<span class="highlight">import</span> random
+
+BROKER = <span class="value">"localhost"</span>
+PORT = <span class="value">1883</span>
+TOPIC = <span class="value">"home/office/temp"</span>
+
+client = mqtt.Client()
+client.connect(BROKER, PORT)
+
+base_temp = <span class="value">22.0</span>
+
+<span class="highlight">while True</span>:
+    <span class="comment"># Simulate temperature with slight drift</span>
+    reading = base_temp + random.uniform(-<span class="value">1.5</span>, <span class="value">1.5</span>)
+    payload = f<span class="value">"{reading:.1f}"</span>
+    client.publish(TOPIC, payload, qos=<span class="value">1</span>, retain=<span class="highlight">True</span>)
+    print(f<span class="value">"Published: {TOPIC} = {payload}"</span>)
+    time.sleep(<span class="value">2</span>)</div>
+            <p class="ne-text">Run with: <span class="ne-inline-code">python3 sensor_pub.py</span> -- you should see "Published" messages every 2 seconds.</p>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Task 3: Python Data Logger Subscriber</h2>
+            <p class="ne-text">Create a subscriber script that listens to all home/# topics and logs messages with timestamps to a file.</p>
+            <div class="ne-code"><span class="comment"># data_logger.py</span>
+<span class="highlight">import</span> paho.mqtt.client <span class="highlight">as</span> mqtt
+<span class="highlight">from</span> datetime <span class="highlight">import</span> datetime
+
+LOG_FILE = <span class="value">"sensor_log.csv"</span>
+
+<span class="highlight">def</span> on_connect(client, userdata, flags, rc):
+    print(f<span class="value">"Connected (rc={rc})"</span>)
+    client.subscribe(<span class="value">"home/#"</span>)
+
+<span class="highlight">def</span> on_message(client, userdata, msg):
+    ts = datetime.now().isoformat()
+    line = f<span class="value">"{ts},{msg.topic},{msg.payload.decode()}"</span>
+    print(line)
+    <span class="highlight">with</span> open(LOG_FILE, <span class="value">"a"</span>) <span class="highlight">as</span> f:
+        f.write(line + <span class="value">"\n"</span>)
+
+client = mqtt.Client()
+client.on_connect = on_connect
+client.on_message = on_message
+client.connect(<span class="value">"localhost"</span>, <span class="value">1883</span>)
+client.loop_forever()</div>
+            <p class="ne-text">Run both scripts simultaneously. The logger should display timestamped temperature readings and write them to <span class="ne-inline-code">sensor_log.csv</span>.</p>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Task 4: Threshold Alert Automation</h2>
+            <p class="ne-text">Create a script that subscribes to the temperature topic and publishes an alert to a separate topic when the temperature exceeds a threshold.</p>
+            <div class="ne-code"><span class="comment"># alert_monitor.py</span>
+<span class="highlight">import</span> paho.mqtt.client <span class="highlight">as</span> mqtt
+
+THRESHOLD = <span class="value">23.0</span>
+alert_active = <span class="highlight">False</span>
+
+<span class="highlight">def</span> on_connect(client, userdata, flags, rc):
+    client.subscribe(<span class="value">"home/office/temp"</span>)
+
+<span class="highlight">def</span> on_message(client, userdata, msg):
+    <span class="highlight">global</span> alert_active
+    temp = float(msg.payload.decode())
+
+    <span class="highlight">if</span> temp > THRESHOLD <span class="highlight">and not</span> alert_active:
+        client.publish(<span class="value">"home/alerts/temp_high"</span>,
+            f<span class="value">"ALERT: Office temp {temp:.1f}C exceeds {THRESHOLD}C"</span>,
+            qos=<span class="value">1</span>)
+        alert_active = <span class="highlight">True</span>
+        print(f<span class="value">"ALERT TRIGGERED: {temp:.1f}C"</span>)
+
+    <span class="highlight">elif</span> temp &lt;= THRESHOLD <span class="highlight">and</span> alert_active:
+        client.publish(<span class="value">"home/alerts/temp_high"</span>,
+            f<span class="value">"CLEARED: Office temp {temp:.1f}C back to normal"</span>,
+            qos=<span class="value">1</span>)
+        alert_active = <span class="highlight">False</span>
+        print(f<span class="value">"ALERT CLEARED: {temp:.1f}C"</span>)
+
+client = mqtt.Client()
+client.on_connect = on_connect
+client.on_message = on_message
+client.connect(<span class="value">"localhost"</span>, <span class="value">1883</span>)
+client.loop_forever()</div>
+            <p class="ne-text">Run all three scripts. Monitor the alert topic in a fourth terminal: <span class="ne-inline-code">mosquitto_sub -h localhost -t "home/alerts/#" -v</span></p>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Task 5: Secure the Broker</h2>
+            <p class="ne-text">Add password authentication to Mosquitto so only authorized clients can connect.</p>
+            <div class="ne-code"><span class="comment"># Create a password file with a user</span>
+<span class="prompt">$</span> sudo mosquitto_passwd -c /etc/mosquitto/passwd piuser
+<span class="comment"># Enter and confirm a password when prompted</span>
+
+<span class="comment"># Edit the Mosquitto configuration</span>
+<span class="prompt">$</span> sudo nano /etc/mosquitto/conf.d/auth.conf
+
+<span class="comment"># Add these lines:</span>
+allow_anonymous false
+password_file /etc/mosquitto/passwd
+
+<span class="comment"># Restart Mosquitto</span>
+<span class="prompt">$</span> sudo systemctl restart mosquitto
+
+<span class="comment"># Test -- this should FAIL (no credentials):</span>
+<span class="prompt">$</span> mosquitto_pub -h localhost -t <span class="value">"test"</span> -m <span class="value">"hello"</span>
+
+<span class="comment"># This should SUCCEED:</span>
+<span class="prompt">$</span> mosquitto_pub -h localhost -t <span class="value">"test"</span> -m <span class="value">"hello"</span> -u piuser -P yourpassword</div>
+            <p class="ne-text">Update your Python scripts to include credentials:</p>
+            <div class="ne-code">client.username_pw_set(<span class="value">"piuser"</span>, <span class="value">"yourpassword"</span>)
+client.connect(<span class="value">"localhost"</span>, <span class="value">1883</span>)</div>
+            <div class="ne-callout">
+                <strong>Challenge:</strong>
+                <p>Add a second simulated sensor (humidity) publishing to home/office/humidity. Modify the alert monitor to trigger on BOTH conditions: temp > 23 AND humidity > 60. This requires tracking two state variables and only alerting when both exceed their thresholds simultaneously.</p>
+            </div>
+        </section>
+
+        <div class="ne-complete">
+            <button id="completeBtn" onclick="completeLab()">MARK COMPLETE</button>
+        </div>
+    </div>
+
+    <script>
+        function completeLab() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('matrix', 'pv-m-05-lab', { returnUrl: '../../index.html' });
+            }
+        }
+    </script>
+</body>
+</html>

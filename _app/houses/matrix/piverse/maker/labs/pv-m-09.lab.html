@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Environmental Sensing Lab | PiVerse Maker's Workshop</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { height: 100vh; overflow: hidden; background: #0c0408; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #d4a0b0; display: flex; flex-direction: column; }
+        .lab-header { flex-shrink: 0; padding: 15px 30px; background: rgba(13,4,8,0.95); border-bottom: 1px solid rgba(197,26,74,0.2); display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn { padding: 8px 16px; background: rgba(197,26,74,0.1); border: 1px solid rgba(197,26,74,0.3); border-radius: 6px; color: #c51a4a; text-decoration: none; font-size: 0.85rem; }
+        .lab-title { font-size: 1rem; color: #f0c0d0; }
+        .lab-badge { padding: 4px 12px; background: rgba(197,26,74,0.15); border: 1px solid rgba(197,26,74,0.3); border-radius: 12px; font-size: 0.7rem; color: #c51a4a; }
+        .lab-badge-ch { padding: 4px 12px; background: rgba(255,215,0,0.15); border: 1px solid rgba(255,215,0,0.3); border-radius: 12px; font-size: 0.7rem; color: #ffd700; }
+        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #6b4a55; }
+        .task-count { color: #c51a4a; font-weight: 500; }
+        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(197,26,74,0.15); border-radius: 3px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg,#c51a4a,#8b1232); border-radius: 3px; width: 0%; transition: width 0.4s; }
+        .lab-container { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
+        .task-panel { background: rgba(13,4,8,0.95); border-right: 1px solid rgba(197,26,74,0.15); overflow-y: auto; padding: 20px; }
+        .task-section { margin-bottom: 25px; }
+        .task-section-title { font-size: 0.68rem; color: #3a1a25; letter-spacing: 0.15em; margin-bottom: 12px; text-transform: uppercase; }
+        .task-card { background: rgba(13,8,10,0.8); border: 1px solid rgba(197,26,74,0.15); border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s; }
+        .task-card:hover { border-color: rgba(197,26,74,0.4); }
+        .task-card.active { border-color: #c51a4a; background: rgba(197,26,74,0.1); }
+        .task-card.completed { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.04); }
+        .task-card.completed .task-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; }
+        .task-number { font-size: 0.68rem; color: #c51a4a; margin-bottom: 4px; }
+        .task-name { font-size: 0.9rem; color: #f0c0d0; margin-bottom: 4px; }
+        .task-desc { font-size: 0.77rem; color: #6b4a55; line-height: 1.45; }
+        .task-desc code { background: rgba(197,26,74,0.15); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; color: #c51a4a; font-family: 'Consolas', monospace; }
+        .terminal-panel { display: flex; flex-direction: column; background: #0a0406; position: relative; overflow: hidden; }
+        .term-toolbar { flex-shrink: 0; padding: 8px 20px; background: rgba(13,8,10,0.9); border-bottom: 1px solid rgba(197,26,74,0.15); display: flex; align-items: center; gap: 12px; }
+        .term-dot { width: 12px; height: 12px; border-radius: 50%; } .term-dot-red { background: #ff5f57; } .term-dot-amber { background: #febc2e; } .term-dot-green { background: #28c840; }
+        .term-title { flex: 1; text-align: center; font-size: 0.8rem; color: #4a3040; font-family: 'Consolas', monospace; }
+        .term-vm-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #c51a4a; }
+        .term-status-dot { width: 7px; height: 7px; background: #c51a4a; border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+        .term-output { flex: 1; overflow-y: auto; padding: 16px 360px 8px 20px; font-family: 'Consolas', monospace; font-size: 0.875rem; line-height: 1.6; }
+        .term-input-row { flex-shrink: 0; display: flex; align-items: center; padding: 8px 360px 12px 20px; border-top: 1px solid rgba(197,26,74,0.1); }
+        .term-prompt-label { font-family: 'Consolas', monospace; font-size: 0.875rem; white-space: nowrap; flex-shrink: 0; }
+        .term-prompt-user { color: #c51a4a; } .term-prompt-sep { color: #3a1a25; } .term-prompt-path { color: #ffd700; } .term-prompt-dollar { color: #f0c0d0; margin-right: 6px; }
+        .term-input { flex: 1; background: transparent; border: none; outline: none; color: #f0c0d0; font-family: 'Consolas', monospace; font-size: 0.875rem; caret-color: #c51a4a; }
+        .term-line { white-space: pre-wrap; word-break: break-all; }
+        .term-line-cmd { color: #d4a0b0; } .term-line-out { color: #a0d4a0; } .term-line-err { color: #f87171; } .term-line-info { color: #c51a4a; } .term-line-warn { color: #ffd700; } .term-line-dim { color: #3a2030; }
+        .term-prompt-span { color: #c51a4a; } .term-path-span { color: #ffd700; } .term-ps1-sep { color: #3a1a25; }
+        .instructions-panel { position: absolute; top: 20px; right: 20px; width: 320px; background: rgba(13,8,10,0.97); border: 1px solid rgba(197,26,74,0.3); border-radius: 12px; padding: 20px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
+        .instructions-panel.collapsed { width: auto; padding: 10px 14px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-body { display: none; }
+        .instructions-panel.collapsed .instructions-toggle { transform: rotate(180deg); }
+        .instructions-title { font-size: 1rem; color: #c51a4a; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-title { margin-bottom: 0; font-size: 0.85rem; }
+        .instructions-toggle { margin-left: auto; width: 28px; height: 28px; background: rgba(197,26,74,0.2); border: 1px solid rgba(197,26,74,0.3); border-radius: 6px; color: #c51a4a; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .instructions-step { font-size: 0.88rem; color: #d4a0b0; line-height: 1.65; margin-bottom: 14px; }
+        .instructions-step code { background: rgba(197,26,74,0.2); padding: 2px 7px; border-radius: 4px; font-family: 'Consolas', monospace; color: #c51a4a; font-size: 0.85em; }
+        .instructions-hint { font-size: 0.78rem; color: #3a1a25; font-style: italic; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(197,26,74,0.15); line-height: 1.5; }
+        .hint-btn { margin-top: 12px; padding: 6px 12px; background: rgba(197,26,74,0.12); border: 1px solid rgba(197,26,74,0.25); border-radius: 5px; color: #c51a4a; font-size: 0.75rem; cursor: pointer; width: 100%; text-align: center; }
+        .hint-command { display: none; margin-top: 10px; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(197,26,74,0.25); border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.78rem; color: #86efac; white-space: pre-wrap; }
+        .hint-command.visible { display: block; }
+        .success-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 2000; }
+        .success-overlay.active { display: flex; }
+        .success-card { background: rgba(13,8,10,0.97); border: 1px solid rgba(52,211,153,0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
+        .success-message { color: #d4a0b0; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
+        .success-btn { padding: 12px 30px; background: linear-gradient(135deg,#c51a4a,#8b1232); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; }
+        @media (max-width: 1024px) { .lab-container { grid-template-columns: 1fr; } .task-panel { display: none; } .term-output, .term-input-row { padding-right: 20px; } .instructions-panel { bottom: 60px; top: auto; right: 10px; left: 10px; width: auto; } }
+    </style>
+</head>
+<body>
+    <header class="lab-header"><div class="header-left"><a href="../../index.html" class="back-btn">Exit Lab</a><span class="lab-title">Environmental Sensing Lab</span><span class="lab-badge">PiVerse</span><span class="lab-badge-ch">Ch 9</span></div><div class="task-progress"><span>Progress:</span><div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBarFill"></div></div><span class="task-count" id="taskProgress">0 / 8 Tasks</span></div></header>
+    <div class="lab-container">
+        <aside class="task-panel">
+            <div class="task-section"><div class="task-section-title">Phase 1 -- Audio Capture</div>
+                <div class="task-card" id="task-card-1" onclick="selectTask(1)"><div class="task-number">Task 1</div><div class="task-name">Detect USB Microphone</div><div class="task-desc">List ALSA capture devices and identify the USB mic. Use <code>env detect</code>.</div></div>
+                <div class="task-card" id="task-card-2" onclick="selectTask(2)"><div class="task-number">Task 2</div><div class="task-name">Record Audio</div><div class="task-desc">Record a 10-second WAV file from the USB mic. Use <code>env record</code>.</div></div>
+                <div class="task-card" id="task-card-3" onclick="selectTask(3)"><div class="task-number">Task 3</div><div class="task-name">Generate Spectrogram</div><div class="task-desc">Create a Mel spectrogram from the recording. Use <code>env spectrogram</code>.</div></div>
+            </div>
+            <div class="task-section"><div class="task-section-title">Phase 2 -- Classification</div>
+                <div class="task-card" id="task-card-4" onclick="selectTask(4)"><div class="task-number">Task 4</div><div class="task-name">Run YAMNet</div><div class="task-desc">Classify environmental sounds with YAMNet. Use <code>env yamnet</code>.</div></div>
+                <div class="task-card" id="task-card-5" onclick="selectTask(5)"><div class="task-number">Task 5</div><div class="task-name">Run BirdNET</div><div class="task-desc">Identify bird species from an audio recording. Use <code>env birdnet</code>.</div></div>
+            </div>
+            <div class="task-section"><div class="task-section-title">Phase 3 -- Sensors and Pipeline</div>
+                <div class="task-card" id="task-card-6" onclick="selectTask(6)"><div class="task-number">Task 6</div><div class="task-name">Read BME280 Sensor</div><div class="task-desc">Read temperature, humidity, and pressure via I2C. Use <code>env bme280</code>.</div></div>
+                <div class="task-card" id="task-card-7" onclick="selectTask(7)"><div class="task-number">Task 7</div><div class="task-name">Log to SQLite</div><div class="task-desc">Store detection and sensor data in a local database. Use <code>env database</code>.</div></div>
+                <div class="task-card" id="task-card-8" onclick="selectTask(8)"><div class="task-number">Task 8</div><div class="task-name">MQTT Publish</div><div class="task-desc">Publish sensor readings via MQTT telemetry. Use <code>env mqtt</code>.</div></div>
+            </div>
+        </aside>
+        <main class="terminal-panel">
+            <div class="term-toolbar"><div class="term-dot term-dot-red"></div><div class="term-dot term-dot-amber"></div><div class="term-dot term-dot-green"></div><div class="term-title">pi@fieldstation -- Sensing Lab</div><div class="term-vm-status"><div class="term-status-dot"></div>Pi Sim Online</div></div>
+            <div class="term-output" id="termOutput"></div>
+            <div class="term-input-row"><span class="term-prompt-label"><span class="term-prompt-user">pi</span><span class="term-prompt-sep">:</span><span class="term-prompt-path">~/sensing</span><span class="term-prompt-dollar">$</span></span><input class="term-input" id="termInput" type="text" autocomplete="off" spellcheck="false" aria-label="Terminal input" /></div>
+            <div class="instructions-panel" id="instructionsPanel"><div class="instructions-title" onclick="toggleInstructions()">Task Instructions<button class="instructions-toggle" id="instructionsToggle">&#9660;</button></div><div class="instructions-body" id="instructionsBody"><div class="instructions-step" id="instructionsStep">Type <code>help</code> to see available commands.</div><div class="instructions-hint" id="instructionsHint">Hint loads on task select.</div><button class="hint-btn" onclick="revealHint()">Show command hint</button><div class="hint-command" id="hintCommand"></div></div></div>
+            <div class="success-overlay" id="successOverlay"><div class="success-card"><div class="success-title">Environmental Sensing Lab Complete!</div><div class="success-message">You detected a USB microphone, recorded audio, generated spectrograms, classified sounds with YAMNet and BirdNET, read I2C environmental sensors, logged data to SQLite, and published telemetry via MQTT. These are the building blocks of an autonomous environmental monitoring station.</div><button class="success-btn" onclick="finishLab()">Complete Lab</button></div></div>
+        </main>
+    </div>
+    <script>
+    (function(){
+        'use strict';
+        var T=8,td={},ct=1,ch=[],hi=-1,oE,iE;for(var i=1;i<=T;i++)td[i]=false;
+        function aL(t,c){var d=document.createElement('div');d.className='term-line'+(c?' '+c:'');d.textContent=t;oE.appendChild(d);oE.scrollTop=oE.scrollHeight;}
+        function aH(h,c){var d=document.createElement('div');d.className='term-line'+(c?' '+c:'');d.innerHTML=h;oE.appendChild(d);oE.scrollTop=oE.scrollHeight;}
+        function aB(){aL('','');}
+        function aP(cmd){aH('<span class="term-prompt-span">pi</span><span class="term-ps1-sep">:</span><span class="term-path-span">~/sensing</span><span class="term-ps1-sep">$ </span>'+eH(cmd),'term-line-cmd');}
+        function eH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+        var ti={
+            1:{step:'Detect the USB microphone via ALSA.\n<code>env detect</code>',hint:'arecord -l lists all capture-capable sound cards. USB mics appear as "USB Audio Device" or similar.',cmd:'env detect'},
+            2:{step:'Record 10 seconds of audio to a WAV file.\n<code>env record</code>',hint:'arecord -D plughw:1,0 -f S16_LE -r 44100 -d 10 captures 16-bit, 44.1kHz mono audio.',cmd:'env record'},
+            3:{step:'Generate a Mel spectrogram from the recording.\n<code>env spectrogram</code>',hint:'librosa.feature.melspectrogram converts audio to a 2D frequency-time representation suitable for ML classification.',cmd:'env spectrogram'},
+            4:{step:'Classify sounds using Google YAMNet.\n<code>env yamnet</code>',hint:'YAMNet processes 0.96-second windows and returns scores for 521 AudioSet classes. It runs on Mel spectrograms internally.',cmd:'env yamnet'},
+            5:{step:'Identify bird species using BirdNET.\n<code>env birdnet</code>',hint:'BirdNET analyzes 3-second windows and returns species predictions with confidence scores. It recognizes 6,000+ bird species worldwide.',cmd:'env birdnet'},
+            6:{step:'Read the BME280 environmental sensor via I2C.\n<code>env bme280</code>',hint:'The BME280 at I2C address 0x76 provides temperature (C), relative humidity (%), and barometric pressure (hPa) in a single read.',cmd:'env bme280'},
+            7:{step:'Store detections and sensor data in SQLite.\n<code>env database</code>',hint:'SQLite stores data locally without a server. Create tables for detections (timestamp, species, confidence) and readings (timestamp, temp, humidity, pressure).',cmd:'env database'},
+            8:{step:'Publish sensor readings via MQTT.\n<code>env mqtt</code>',hint:'paho-mqtt publishes JSON payloads to topic-based channels. A Mosquitto broker routes messages to subscribers (dashboards, databases).',cmd:'env mqtt'}
+        };
+        var tn={1:'Detect USB Mic',2:'Record Audio',3:'Generate Spectrogram',4:'Run YAMNet',5:'Run BirdNET',6:'Read BME280',7:'Log to SQLite',8:'MQTT Publish'};
+        function exec(raw){var t=raw.trim();aP(t);if(!t)return;var p=t.split(/\s+/),c=p[0],s=p[1]||'';
+            if(c==='help'){aL('Environmental Sensing Lab -- Commands','term-line-info');aB();aL('ENV TASKS:','term-line-warn');aL('  env detect   env record     env spectrogram','term-line-dim');aL('  env yamnet   env birdnet    env bme280','term-line-dim');aL('  env database env mqtt','term-line-dim');aB();aL('  help / clear','term-line-dim');aB();}
+            else if(c==='clear'){oE.innerHTML='';}
+            else if(c==='env'){runEnv(s);}
+            else{aL('bash: '+c+': command not found.','term-line-err');}
+        }
+        function runEnv(s){
+            if(s==='detect'){aL('Detecting audio capture devices...','term-line-info');aB();aL('$ arecord -l','term-line-out');aL('**** List of CAPTURE Hardware Devices ****','term-line-out');aL('card 1: Device [USB Audio Device], device 0: USB Audio [USB Audio]','term-line-out');aL('  Subdevices: 1/1','term-line-out');aL('  Subdevice #0: subdevice #0','term-line-out');aB();aL('$ arecord -D plughw:1,0 --dump-hw-params /dev/null 2>&1 | head -5','term-line-out');aL('  FORMAT: S16_LE S24_LE','term-line-out');aL('  CHANNELS: 1 2','term-line-out');aL('  RATE: 44100 48000 96000','term-line-out');aB();aL('[VERIFY] USB mic detected as card 1. Supports 44.1/48/96kHz, 16/24-bit.','term-line-info');cT(1);}
+            else if(s==='record'){aL('Recording 10 seconds of audio...','term-line-info');aB();aL('$ arecord -D plughw:1,0 -f S16_LE -r 44100 -d 10 -c 1 recording.wav','term-line-out');aL('Recording WAVE \'recording.wav\' : Signed 16 bit LE, Rate 44100 Hz, Mono','term-line-out');aL('  Duration: 10.0 seconds','term-line-out');aL('  Samples:  441,000','term-line-out');aL('  File size: 882 KB','term-line-out');aB();aL('[VERIFY] recording.wav saved. 44.1kHz, 16-bit, mono, 882KB.','term-line-info');cT(2);}
+            else if(s==='spectrogram'){aL('Generating Mel spectrogram...','term-line-info');aB();aL('$ python3 spectrogram.py recording.wav','term-line-out');aL('  Loading: recording.wav (44100Hz, 10.0s)','term-line-out');aL('  FFT window: 2048 samples (46ms)','term-line-out');aL('  Hop length: 512 samples (11.6ms)','term-line-out');aL('  Mel bands: 128 (20Hz - 8000Hz)','term-line-out');aL('  Output shape: (128, 862) -- 128 frequency bins x 862 time frames','term-line-out');aL('  Saved: spectrogram.png (1024x512 pixels)','term-line-out');aB();aL('[VERIFY] Mel spectrogram generated. 128 bands, 862 time frames.','term-line-info');cT(3);}
+            else if(s==='yamnet'){aL('Classifying with YAMNet...','term-line-info');aB();aL('$ python3 yamnet_classify.py recording.wav','term-line-out');aL('  Model: yamnet.tflite (3.7MB, MobileNet v1 backbone)','term-line-out');aL('  Analyzing 10 windows (0.96s each)...','term-line-out');aB();aL('Window  1: Bird              0.87','term-line-out');aL('Window  2: Bird vocalization  0.82','term-line-out');aL('Window  3: Chirp/tweet        0.79','term-line-out');aL('Window  4: Silence            0.94','term-line-out');aL('Window  5: Wind               0.71','term-line-out');aL('Window  6: Bird              0.85','term-line-out');aL('Window  7: Rustle             0.66','term-line-out');aL('Window  8: Bird vocalization  0.88','term-line-out');aL('Window  9: Silence            0.91','term-line-out');aL('Window 10: Bird              0.83','term-line-out');aB();aL('[VERIFY] YAMNet classified 10 windows. Dominant: Bird (5/10 windows).','term-line-info');cT(4);}
+            else if(s==='birdnet'){aL('Identifying species with BirdNET...','term-line-info');aB();aL('$ python3 birdnet_analyze.py recording.wav --lat 28.6 --lon -81.2','term-line-out');aL('  Model: BirdNET-Lite v2.4 (TFLite, 20MB)','term-line-out');aL('  Location filter: Florida, USA (28.6N, 81.2W)','term-line-out');aL('  Analyzing 3 segments (3s each)...','term-line-out');aB();aL('Segment 0.0-3.0s:','term-line-warn');aL('  Northern Cardinal (Cardinalis cardinalis)   0.91','term-line-out');aL('  Tufted Titmouse (Baeolophus bicolor)         0.12','term-line-out');aB();aL('Segment 3.0-6.0s:','term-line-warn');aL('  Northern Cardinal (Cardinalis cardinalis)   0.85','term-line-out');aB();aL('Segment 6.0-9.0s:','term-line-warn');aL('  Carolina Wren (Thryothorus ludovicianus)    0.78','term-line-out');aL('  Northern Cardinal (Cardinalis cardinalis)   0.34','term-line-out');aB();aL('[VERIFY] BirdNET identified 2 species: Northern Cardinal, Carolina Wren.','term-line-info');cT(5);}
+            else if(s==='bme280'){aL('Reading BME280 sensor via I2C...','term-line-info');aB();aL('$ i2cdetect -y 1','term-line-out');aL('     0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f','term-line-out');aL('70: -- -- -- -- -- -- 76 --','term-line-out');aB();aL('$ python3 read_bme280.py','term-line-out');aL('  Device: BME280 at 0x76','term-line-out');aL('  Temperature:  24.3 C (75.7 F)','term-line-out');aL('  Humidity:     62.1 %','term-line-out');aL('  Pressure:     1013.25 hPa','term-line-out');aL('  Altitude:     ~0m (sea level reference)','term-line-out');aB();aL('[VERIFY] BME280 read successful. Temp: 24.3C, Humidity: 62.1%, Pressure: 1013.25hPa.','term-line-info');cT(6);}
+            else if(s==='database'){aL('Creating SQLite database and logging data...','term-line-info');aB();aL('$ python3 init_db.py','term-line-out');aL('  Created: station.db','term-line-out');aL('  Table: detections (timestamp, species, confidence, audio_file)','term-line-out');aL('  Table: readings (timestamp, temperature, humidity, pressure)','term-line-out');aB();aL('Inserting sample data...','term-line-out');aL('  INSERT detections: Northern Cardinal, 0.91, 2026-04-21 06:15:00','term-line-out');aL('  INSERT detections: Carolina Wren, 0.78, 2026-04-21 06:15:06','term-line-out');aL('  INSERT readings: 24.3, 62.1, 1013.25, 2026-04-21 06:15:00','term-line-out');aB();aL('$ sqlite3 station.db "SELECT COUNT(*) FROM detections"','term-line-out');aL('2','term-line-out');aB();aL('[VERIFY] SQLite database created. 2 detections, 1 reading logged.','term-line-info');cT(7);}
+            else if(s==='mqtt'){aL('Publishing sensor data via MQTT...','term-line-info');aB();aL('$ python3 mqtt_publish.py','term-line-out');aL('  Broker: localhost:1883 (Mosquitto)','term-line-out');aL('  Connected: OK','term-line-out');aB();aL('Publishing to sensors/station-01/environment:','term-line-warn');aL('  {"temperature": 24.3, "humidity": 62.1, "pressure": 1013.25,','term-line-out');aL('   "timestamp": "2026-04-21T06:15:00Z"}','term-line-out');aB();aL('Publishing to sensors/station-01/detections:','term-line-warn');aL('  {"species": "Northern Cardinal", "confidence": 0.91,','term-line-out');aL('   "timestamp": "2026-04-21T06:15:00Z"}','term-line-out');aB();aL('  QoS: 1 (at least once delivery)','term-line-out');aL('  Retained: false','term-line-out');aB();aL('[VERIFY] MQTT messages published. 2 topics, QoS 1.','term-line-info');cT(8);}
+            else{aL('Unknown env command: '+s,'term-line-err');}
+        }
+        function cT(n){if(td[n])return;td[n]=true;aB();aL('[TASK '+n+' COMPLETE] '+tn[n],'term-line-info');aB();var c=document.getElementById('task-card-'+n);if(c)c.classList.add('completed');uP();var a=true;for(var i=1;i<=T;i++)if(!td[i]){a=false;break;}if(a)setTimeout(function(){document.getElementById('successOverlay').classList.add('active');},500);}
+        function uP(){var d=0;for(var i=1;i<=T;i++)if(td[i])d++;document.getElementById('taskProgress').textContent=d+' / '+T+' Tasks';document.getElementById('progressBarFill').style.width=(d/T*100)+'%';}
+        window.selectTask=function(n){ct=n;document.querySelectorAll('.task-card').forEach(function(c){c.classList.remove('active');});var c=document.getElementById('task-card-'+n);if(c)c.classList.add('active');var info=ti[n];if(info){document.getElementById('instructionsStep').innerHTML=info.step;document.getElementById('instructionsHint').textContent=info.hint;document.getElementById('hintCommand').textContent=info.cmd;document.getElementById('hintCommand').classList.remove('visible');}};
+        window.toggleInstructions=function(){document.getElementById('instructionsPanel').classList.toggle('collapsed');};
+        window.revealHint=function(){document.getElementById('hintCommand').classList.toggle('visible');};
+        window.finishLab=function(){if(typeof ModuleProgress!=='undefined')ModuleProgress.complete('matrix','pv-m-09-lab',{returnUrl:'../../index.html'});};
+        document.addEventListener('DOMContentLoaded',function(){oE=document.getElementById('termOutput');iE=document.getElementById('termInput');iE.addEventListener('keydown',function(e){if(e.key==='Enter'){var v=iE.value;iE.value='';if(v.trim()){ch.push(v);hi=ch.length;}exec(v);}else if(e.key==='ArrowUp'){e.preventDefault();if(hi>0){hi--;iE.value=ch[hi];}}else if(e.key==='ArrowDown'){e.preventDefault();if(hi<ch.length-1){hi++;iE.value=ch[hi];}else{hi=ch.length;iE.value='';}}});aL('Welcome to the Environmental Sensing Lab -- PiVerse Maker\'s Workshop','term-line-info');aL('Type "help" for available commands.','term-line-dim');aB();selectTask(1);iE.focus();});
+    })();
+    </script>
+</body>
+</html>

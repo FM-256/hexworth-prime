@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Computational Photography Lab | PiVerse Maker's Workshop</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { height: 100vh; overflow: hidden; background: #0c0408; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #d4a0b0; display: flex; flex-direction: column; }
+        .lab-header { flex-shrink: 0; padding: 15px 30px; background: rgba(13, 4, 8, 0.95); border-bottom: 1px solid rgba(197, 26, 74, 0.2); display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn { padding: 8px 16px; background: rgba(197, 26, 74, 0.1); border: 1px solid rgba(197, 26, 74, 0.3); border-radius: 6px; color: #c51a4a; text-decoration: none; font-size: 0.85rem; transition: all 0.3s ease; }
+        .back-btn:hover { background: rgba(197, 26, 74, 0.2); }
+        .lab-title { font-size: 1rem; color: #f0c0d0; }
+        .lab-badge { padding: 4px 12px; background: rgba(197, 26, 74, 0.15); border: 1px solid rgba(197, 26, 74, 0.3); border-radius: 12px; font-size: 0.7rem; color: #c51a4a; letter-spacing: 0.05em; }
+        .lab-badge-ch { padding: 4px 12px; background: rgba(255, 215, 0, 0.15); border: 1px solid rgba(255, 215, 0, 0.3); border-radius: 12px; font-size: 0.7rem; color: #ffd700; letter-spacing: 0.05em; }
+        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #6b4a55; }
+        .task-count { color: #c51a4a; font-weight: 500; }
+        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(197, 26, 74, 0.15); border-radius: 3px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #c51a4a, #8b1232); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
+        .lab-container { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
+        .task-panel { background: rgba(13, 4, 8, 0.95); border-right: 1px solid rgba(197, 26, 74, 0.15); overflow-y: auto; padding: 20px; }
+        .task-section { margin-bottom: 25px; }
+        .task-section-title { font-size: 0.68rem; color: #3a1a25; letter-spacing: 0.15em; margin-bottom: 12px; text-transform: uppercase; }
+        .task-card { background: rgba(13, 8, 10, 0.8); border: 1px solid rgba(197, 26, 74, 0.15); border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s ease; }
+        .task-card:hover { border-color: rgba(197, 26, 74, 0.4); }
+        .task-card.active { border-color: #c51a4a; background: rgba(197, 26, 74, 0.1); }
+        .task-card.completed { border-color: rgba(52, 211, 153, 0.4); background: rgba(52, 211, 153, 0.04); }
+        .task-card.completed .task-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; font-weight: 400; }
+        .task-number { font-size: 0.68rem; color: #c51a4a; margin-bottom: 4px; }
+        .task-name { font-size: 0.9rem; color: #f0c0d0; margin-bottom: 4px; }
+        .task-desc { font-size: 0.77rem; color: #6b4a55; line-height: 1.45; }
+        .task-desc code { background: rgba(197, 26, 74, 0.15); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; color: #c51a4a; font-family: 'Consolas', monospace; }
+        .terminal-panel { display: flex; flex-direction: column; background: #0a0406; position: relative; overflow: hidden; }
+        .term-toolbar { flex-shrink: 0; padding: 8px 20px; background: rgba(13, 8, 10, 0.9); border-bottom: 1px solid rgba(197, 26, 74, 0.15); display: flex; align-items: center; gap: 12px; }
+        .term-dot { width: 12px; height: 12px; border-radius: 50%; } .term-dot-red { background: #ff5f57; } .term-dot-amber { background: #febc2e; } .term-dot-green { background: #28c840; }
+        .term-title { flex: 1; text-align: center; font-size: 0.8rem; color: #4a3040; font-family: 'Consolas', 'Courier New', monospace; }
+        .term-vm-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #c51a4a; }
+        .term-status-dot { width: 7px; height: 7px; background: #c51a4a; border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .term-output { flex: 1; overflow-y: auto; padding: 16px 360px 8px 20px; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.875rem; line-height: 1.6; }
+        .term-input-row { flex-shrink: 0; display: flex; align-items: center; padding: 8px 360px 12px 20px; border-top: 1px solid rgba(197, 26, 74, 0.1); gap: 0; }
+        .term-prompt-label { font-family: 'Consolas', monospace; font-size: 0.875rem; white-space: nowrap; flex-shrink: 0; }
+        .term-prompt-user { color: #c51a4a; } .term-prompt-sep { color: #3a1a25; } .term-prompt-path { color: #ffd700; } .term-prompt-dollar { color: #f0c0d0; margin-right: 6px; }
+        .term-input { flex: 1; background: transparent; border: none; outline: none; color: #f0c0d0; font-family: 'Consolas', monospace; font-size: 0.875rem; caret-color: #c51a4a; }
+        .term-line { white-space: pre-wrap; word-break: break-all; }
+        .term-line-cmd { color: #d4a0b0; } .term-line-out { color: #a0d4a0; } .term-line-err { color: #f87171; } .term-line-info { color: #c51a4a; } .term-line-warn { color: #ffd700; } .term-line-dim { color: #3a2030; }
+        .term-prompt-span { color: #c51a4a; } .term-path-span { color: #ffd700; } .term-ps1-sep { color: #3a1a25; }
+        .instructions-panel { position: absolute; top: 20px; right: 20px; width: 320px; background: rgba(13, 8, 10, 0.97); border: 1px solid rgba(197, 26, 74, 0.3); border-radius: 12px; padding: 20px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
+        .instructions-panel.collapsed { width: auto; padding: 10px 14px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-body { display: none; }
+        .instructions-panel.collapsed .instructions-toggle { transform: rotate(180deg); }
+        .instructions-title { font-size: 1rem; color: #c51a4a; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-title { margin-bottom: 0; font-size: 0.85rem; }
+        .instructions-toggle { margin-left: auto; width: 28px; height: 28px; background: rgba(197, 26, 74, 0.2); border: 1px solid rgba(197, 26, 74, 0.3); border-radius: 6px; color: #c51a4a; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .instructions-step { font-size: 0.88rem; color: #d4a0b0; line-height: 1.65; margin-bottom: 14px; }
+        .instructions-step code { background: rgba(197, 26, 74, 0.2); padding: 2px 7px; border-radius: 4px; font-family: 'Consolas', monospace; color: #c51a4a; font-size: 0.85em; }
+        .instructions-hint { font-size: 0.78rem; color: #3a1a25; font-style: italic; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(197, 26, 74, 0.15); line-height: 1.5; }
+        .hint-btn { margin-top: 12px; padding: 6px 12px; background: rgba(197, 26, 74, 0.12); border: 1px solid rgba(197, 26, 74, 0.25); border-radius: 5px; color: #c51a4a; font-size: 0.75rem; cursor: pointer; width: 100%; text-align: center; }
+        .hint-command { display: none; margin-top: 10px; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(197, 26, 74, 0.25); border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.78rem; color: #86efac; line-height: 1.55; white-space: pre-wrap; }
+        .hint-command.visible { display: block; }
+        .success-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 2000; }
+        .success-overlay.active { display: flex; }
+        .success-card { background: rgba(13, 8, 10, 0.97); border: 1px solid rgba(52, 211, 153, 0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
+        .success-message { color: #d4a0b0; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
+        .success-btn { padding: 12px 30px; background: linear-gradient(135deg, #c51a4a, #8b1232); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; }
+        @media (max-width: 1024px) { .lab-container { grid-template-columns: 1fr; } .task-panel { display: none; } .term-output, .term-input-row { padding-right: 20px; } .instructions-panel { position: absolute; bottom: 60px; top: auto; right: 10px; left: 10px; width: auto; } }
+    </style>
+</head>
+<body>
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Computational Photography Lab</span>
+            <span class="lab-badge">PiVerse</span>
+            <span class="lab-badge-ch">Ch 7</span>
+        </div>
+        <div class="task-progress"><span>Progress:</span><div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBarFill"></div></div><span class="task-count" id="taskProgress">0 / 8 Tasks</span></div>
+    </header>
+    <div class="lab-container">
+        <aside class="task-panel" id="taskPanel">
+            <div class="task-section">
+                <div class="task-section-title">Phase 1 -- Camera Setup</div>
+                <div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)"><div class="task-number">Task 1</div><div class="task-name">Detect Camera</div><div class="task-desc">Verify the Pi camera is connected and detected by libcamera. Use <code>cam detect</code>.</div></div>
+                <div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)"><div class="task-number">Task 2</div><div class="task-name">Manual Exposure Capture</div><div class="task-desc">Take a photo with manual exposure and gain settings. Use <code>cam manual</code>.</div></div>
+                <div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)"><div class="task-number">Task 3</div><div class="task-name">Raw DNG Capture</div><div class="task-desc">Capture raw sensor data in DNG format. Use <code>cam raw</code>.</div></div>
+            </div>
+            <div class="task-section">
+                <div class="task-section-title">Phase 2 -- Computational Techniques</div>
+                <div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)"><div class="task-number">Task 4</div><div class="task-name">HDR Bracket Capture</div><div class="task-desc">Capture 3 bracketed exposures for HDR merge. Use <code>cam hdr</code>.</div></div>
+                <div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)"><div class="task-number">Task 5</div><div class="task-name">Image Stacking</div><div class="task-desc">Stack 16 frames for noise reduction. Use <code>cam stack</code>.</div></div>
+                <div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)"><div class="task-number">Task 6</div><div class="task-name">Long Exposure</div><div class="task-desc">Take a 30-second long exposure. Use <code>cam longexp</code>.</div></div>
+            </div>
+            <div class="task-section">
+                <div class="task-section-title">Phase 3 -- Time-Lapse</div>
+                <div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)"><div class="task-number">Task 7</div><div class="task-name">Time-Lapse Capture</div><div class="task-desc">Configure and run a time-lapse sequence. Use <code>cam timelapse</code>.</div></div>
+                <div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)"><div class="task-number">Task 8</div><div class="task-name">Compile to Video</div><div class="task-desc">Assemble time-lapse frames into an MP4 video with FFmpeg. Use <code>cam compile</code>.</div></div>
+            </div>
+        </aside>
+        <main class="terminal-panel" id="terminalPanel">
+            <div class="term-toolbar"><div class="term-dot term-dot-red"></div><div class="term-dot term-dot-amber"></div><div class="term-dot term-dot-green"></div><div class="term-title">pi@picam -- Photography Lab</div><div class="term-vm-status"><div class="term-status-dot"></div>Pi Sim Online</div></div>
+            <div class="term-output" id="termOutput"></div>
+            <div class="term-input-row"><span class="term-prompt-label"><span class="term-prompt-user">pi</span><span class="term-prompt-sep">:</span><span class="term-prompt-path">~/photos</span><span class="term-prompt-dollar">$</span></span><input class="term-input" id="termInput" type="text" autocomplete="off" spellcheck="false" aria-label="Terminal input" /></div>
+            <div class="instructions-panel" id="instructionsPanel">
+                <div class="instructions-title" onclick="toggleInstructions()">Task Instructions<button class="instructions-toggle" id="instructionsToggle">&#9660;</button></div>
+                <div class="instructions-body" id="instructionsBody">
+                    <div class="instructions-step" id="instructionsStep">Type a command and press Enter. Type <code>help</code> to see available commands.</div>
+                    <div class="instructions-hint" id="instructionsHint">Hint text loads when you select a task.</div>
+                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
+                    <div class="hint-command" id="hintCommand"></div>
+                </div>
+            </div>
+            <div class="success-overlay" id="successOverlay"><div class="success-card"><div class="success-title">Photography Lab Complete!</div><div class="success-message">You detected the camera hardware, captured with manual exposure controls, saved raw DNG data, created HDR brackets, stacked frames for noise reduction, performed a long exposure, ran a time-lapse sequence, and compiled frames into video. These are the core computational photography techniques for the Pi camera system.</div><button class="success-btn" onclick="finishLab()">Complete Lab</button></div></div>
+        </main>
+    </div>
+    <script>
+    (function () {
+        'use strict';
+        var TOTAL_TASKS = 8, taskDone = {}, currentTask = 1, cmdHistory = [], histIdx = -1, outputEl, inputEl;
+        for (var i = 1; i <= TOTAL_TASKS; i++) taskDone[i] = false;
+        function addLine(t, c) { var d = document.createElement('div'); d.className = 'term-line' + (c ? ' ' + c : ''); d.textContent = t; outputEl.appendChild(d); outputEl.scrollTop = outputEl.scrollHeight; }
+        function addHTML(h, c) { var d = document.createElement('div'); d.className = 'term-line' + (c ? ' ' + c : ''); d.innerHTML = h; outputEl.appendChild(d); outputEl.scrollTop = outputEl.scrollHeight; }
+        function addBlank() { addLine('', ''); }
+        function addPromptLine(cmd) { addHTML('<span class="term-prompt-span">pi</span><span class="term-ps1-sep">:</span><span class="term-path-span">~/photos</span><span class="term-ps1-sep">$ </span>' + escH(cmd), 'term-line-cmd'); }
+        function escH(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        var taskInstructions = {
+            1: { step: 'Verify the Pi camera module is detected.\n<code>cam detect</code>\n\nThis checks the CSI connection and identifies the sensor model.', hint: 'libcamera-hello --list-cameras enumerates all connected cameras and reports sensor model, resolution, and supported pixel formats.', cmd: 'cam detect' },
+            2: { step: 'Capture a photo with manual exposure settings.\n<code>cam manual</code>\n\nSet shutter speed to 1/100s and gain to 1.0 (ISO 100).', hint: 'ExposureTime is in microseconds. 1/100s = 10000us. AnalogueGain 1.0 = ISO 100. Disabling AWB gives you full color control.', cmd: 'cam manual' },
+            3: { step: 'Capture raw Bayer sensor data in DNG format.\n<code>cam raw</code>\n\nRaw capture preserves all 12-bit sensor data for post-processing.', hint: 'The -r flag or .dng extension triggers raw capture. Raw files contain unprocessed Bayer mosaic data -- no demosaicing, no white balance, no compression.', cmd: 'cam raw' },
+            4: { step: 'Capture 3 bracketed exposures for HDR merging.\n<code>cam hdr</code>\n\nTake under-exposed, normal, and over-exposed frames.', hint: 'Bracket at -2EV, 0EV, +2EV by changing shutter speed (not gain). Keep gain constant to minimize noise. Each stop doubles or halves the shutter time.', cmd: 'cam hdr' },
+            5: { step: 'Stack 16 frames and compute median for noise reduction.\n<code>cam stack</code>\n\nMedian stacking eliminates random noise while preserving signal.', hint: 'Capture 16 identical frames (same exposure, gain, focus). Compute per-pixel median across the stack. Noise reduces by factor of sqrt(16) = 4x.', cmd: 'cam stack' },
+            6: { step: 'Perform a 30-second long exposure.\n<code>cam longexp</code>\n\nExtended exposure captures light trails and low-light scenes.', hint: 'Set shutter to 30000000us (30 seconds). Disable noise reduction to preserve fine detail. Use gain 1.0 to minimize sensor noise. Tripod required.', cmd: 'cam longexp' },
+            7: { step: 'Run a time-lapse capture sequence.\n<code>cam timelapse</code>\n\nCapture frames at regular intervals with locked exposure.', hint: 'Lock exposure and white balance before starting to prevent flicker. libcamera-still --timelapse N captures every N milliseconds. Plan storage: 12MP JPEG = ~4MB per frame.', cmd: 'cam timelapse' },
+            8: { step: 'Compile time-lapse frames into an MP4 video.\n<code>cam compile</code>\n\nFFmpeg assembles sequential images into a video file.', hint: 'ffmpeg -framerate 30 compiles 30 frames per second of video. Use -pattern_type glob for flexible filename matching. libx264 + yuv420p ensures compatibility.', cmd: 'cam compile' }
+        };
+        var taskNames = { 1:'Detect Camera', 2:'Manual Exposure Capture', 3:'Raw DNG Capture', 4:'HDR Bracket Capture', 5:'Image Stacking', 6:'Long Exposure', 7:'Time-Lapse Capture', 8:'Compile to Video' };
+        function execLine(raw) {
+            var t = raw.trim(); addPromptLine(t); if (!t) return;
+            var p = t.split(/\s+/), cmd = p[0], sub = p[1] || '';
+            if (cmd === 'help') { addLine('Photography Lab -- Available Commands','term-line-info'); addBlank(); addLine('CAM TASKS:','term-line-warn'); addLine('  cam detect     -- Task 1','term-line-dim'); addLine('  cam manual     -- Task 2','term-line-dim'); addLine('  cam raw        -- Task 3','term-line-dim'); addLine('  cam hdr        -- Task 4','term-line-dim'); addLine('  cam stack      -- Task 5','term-line-dim'); addLine('  cam longexp    -- Task 6','term-line-dim'); addLine('  cam timelapse  -- Task 7','term-line-dim'); addLine('  cam compile    -- Task 8','term-line-dim'); addBlank(); addLine('GENERAL:','term-line-warn'); addLine('  help / clear','term-line-dim'); addBlank();
+            } else if (cmd === 'clear') { outputEl.innerHTML = '';
+            } else if (cmd === 'cam') { runCamTask(sub);
+            } else { addLine('bash: ' + cmd + ': command not found.','term-line-err'); }
+        }
+        function runCamTask(sub) {
+            if (sub === 'detect') { addLine('Detecting camera hardware...','term-line-info'); addBlank(); addLine('$ libcamera-hello --list-cameras','term-line-out'); addLine('Available cameras:','term-line-out'); addLine('  0: imx477 [4056x3040 12-bit RGGB] (/base/soc/i2c0mux/i2c@1/imx477@1a)','term-line-out'); addLine('     Modes: 1332x990 [120.05 fps], 2028x1080 [50.03 fps],','term-line-out'); addLine('            2028x1520 [40.01 fps], 4056x3040 [10.00 fps]','term-line-out'); addBlank(); addLine('[VERIFY] Pi HQ Camera (IMX477) detected on CSI port 0. Max: 4056x3040 @ 10fps.','term-line-info'); completeTask(1);
+            } else if (sub === 'manual') { addLine('Capturing with manual exposure...','term-line-info'); addBlank(); addLine('$ libcamera-still --shutter 10000 --gain 1.0 --awb auto -o manual.jpg','term-line-out'); addLine('  Shutter: 10000us (1/100s)','term-line-out'); addLine('  Gain:    1.0 (ISO 100)','term-line-out'); addLine('  Output:  manual.jpg (4056x3040, 3.8MB)','term-line-out'); addBlank(); addLine('[VERIFY] Manual capture saved. Exposure 1/100s, ISO 100. No auto-exposure.','term-line-info'); completeTask(2);
+            } else if (sub === 'raw') { addLine('Capturing raw DNG...','term-line-info'); addBlank(); addLine('$ libcamera-still --shutter 10000 --gain 1.0 -r -o capture.dng','term-line-out'); addLine('  Sensor:  IMX477 12-bit Bayer RGGB','term-line-out'); addLine('  Output:  capture.dng (23.5MB, uncompressed raw)','term-line-out'); addLine('  Also:    capture.jpg (3.8MB, processed JPEG)','term-line-out'); addBlank(); addLine('[VERIFY] Raw DNG saved. 12-bit Bayer data, no demosaicing applied.','term-line-info'); addLine('         Process with rawpy, darktable, or RawTherapee.','term-line-dim'); completeTask(3);
+            } else if (sub === 'hdr') { addLine('Capturing HDR bracket sequence...','term-line-info'); addBlank(); addLine('Bracket 1/3: -2EV (underexposed, highlight detail)','term-line-out'); addLine('  $ libcamera-still --shutter 2500 --gain 1.0 -o bracket_under.dng -r','term-line-out'); addLine('  Saved: bracket_under.dng (23.5MB)','term-line-out'); addBlank(); addLine('Bracket 2/3: 0EV (normal exposure)','term-line-out'); addLine('  $ libcamera-still --shutter 10000 --gain 1.0 -o bracket_normal.dng -r','term-line-out'); addLine('  Saved: bracket_normal.dng (23.5MB)','term-line-out'); addBlank(); addLine('Bracket 3/3: +2EV (overexposed, shadow detail)','term-line-out'); addLine('  $ libcamera-still --shutter 40000 --gain 1.0 -o bracket_over.dng -r','term-line-out'); addLine('  Saved: bracket_over.dng (23.5MB)','term-line-out'); addBlank(); addLine('[VERIFY] 3 brackets captured at 2500/10000/40000us. Gain constant at 1.0.','term-line-info'); addLine('         Merge with OpenCV createMergeDebevec() + createTonemap().','term-line-dim'); completeTask(4);
+            } else if (sub === 'stack') { addLine('Capturing and stacking 16 frames...','term-line-info'); addBlank(); addLine('Capturing: frame_001.png ... frame_016.png','term-line-out'); addLine('  Settings: shutter=50000us, gain=4.0, locked focus','term-line-out'); addLine('  16 frames captured in 4.2 seconds','term-line-out'); addBlank(); addLine('Computing per-pixel median across 16 frames...','term-line-out'); addLine('  Loading 16 x 4056x3040 arrays (1.87GB total)','term-line-out'); addLine('  Median computation: 12.3 seconds on Pi 5','term-line-out'); addLine('  Result: stacked_result.png (4056x3040, 11.7MB)','term-line-out'); addBlank(); addLine('Noise reduction: sqrt(16) = 4x improvement','term-line-warn'); addLine('[VERIFY] Stack complete. 4x noise reduction from 16-frame median.','term-line-info'); completeTask(5);
+            } else if (sub === 'longexp') { addLine('Starting 30-second long exposure...','term-line-info'); addBlank(); addLine('$ libcamera-still -t 1 --shutter 30000000 --gain 1.0 \\','term-line-out'); addLine('    --denoise off --awb daylight -o long_exposure.dng -r','term-line-out'); addBlank(); addLine('  Exposure: 30,000,000us (30 seconds)','term-line-out'); addLine('  Gain: 1.0 (minimum noise)','term-line-out'); addLine('  Denoise: OFF (preserves star points)','term-line-out'); addLine('  Output: long_exposure.dng (23.5MB)','term-line-out'); addBlank(); addLine('[VERIFY] 30s long exposure captured. Sensor temperature rose 3C during exposure.','term-line-info'); addLine('         Hot pixels visible at edges -- subtract a dark frame to remove.','term-line-dim'); completeTask(6);
+            } else if (sub === 'timelapse') { addLine('Running time-lapse sequence...','term-line-info'); addBlank(); addLine('$ libcamera-still -t 300000 --timelapse 10000 \\','term-line-out'); addLine('    --shutter 5000 --gain 1.0 --awb daylight \\','term-line-out'); addLine('    -o timelapse_%04d.jpg','term-line-out'); addBlank(); addLine('  Duration: 300s (5 minutes)','term-line-out'); addLine('  Interval: 10000ms (10 seconds)','term-line-out'); addLine('  Frames: 30 captured','term-line-out'); addLine('  Storage: 30 x 3.8MB = 114MB','term-line-out'); addLine('  Exposure/WB: LOCKED (no flicker between frames)','term-line-warn'); addBlank(); addLine('[VERIFY] 30 time-lapse frames captured. Exposure locked. No flicker.','term-line-info'); completeTask(7);
+            } else if (sub === 'compile') { addLine('Compiling time-lapse to MP4...','term-line-info'); addBlank(); addLine('$ ffmpeg -framerate 30 -pattern_type glob -i \'timelapse_*.jpg\' \\','term-line-out'); addLine('    -c:v libx264 -pix_fmt yuv420p -crf 20 timelapse.mp4','term-line-out'); addBlank(); addLine('  Input: 30 JPEG frames','term-line-out'); addLine('  Framerate: 30fps (5 min real time = 1 second video)','term-line-out'); addLine('  Codec: H.264, CRF 20','term-line-out'); addLine('  Output: timelapse.mp4 (2.1MB, 1 second)','term-line-out'); addBlank(); addLine('[VERIFY] Time-lapse compiled. 30 frames at 30fps = 1s of smooth video.','term-line-info'); addLine('         For longer time-lapse: 8640 frames (24hr @ 10s) = 4m48s video.','term-line-dim'); completeTask(8);
+            } else { addLine('Unknown cam command: ' + sub,'term-line-err'); }
+        }
+        function completeTask(n) { if (taskDone[n]) return; taskDone[n] = true; addBlank(); addLine('[TASK ' + n + ' COMPLETE] ' + taskNames[n],'term-line-info'); addBlank(); var c = document.getElementById('task-card-' + n); if (c) c.classList.add('completed'); updateProgress(); var all = true; for (var i = 1; i <= TOTAL_TASKS; i++) { if (!taskDone[i]) { all = false; break; } } if (all) setTimeout(function(){ document.getElementById('successOverlay').classList.add('active'); }, 500); }
+        function updateProgress() { var d = 0; for (var i = 1; i <= TOTAL_TASKS; i++) if (taskDone[i]) d++; document.getElementById('taskProgress').textContent = d + ' / ' + TOTAL_TASKS + ' Tasks'; document.getElementById('progressBarFill').style.width = (d/TOTAL_TASKS*100)+'%'; }
+        window.selectTask = function(n) { currentTask = n; document.querySelectorAll('.task-card').forEach(function(c){ c.classList.remove('active'); }); var c = document.getElementById('task-card-' + n); if (c) c.classList.add('active'); var info = taskInstructions[n]; if (info) { document.getElementById('instructionsStep').innerHTML = info.step; document.getElementById('instructionsHint').textContent = info.hint; document.getElementById('hintCommand').textContent = info.cmd; document.getElementById('hintCommand').classList.remove('visible'); } };
+        window.toggleInstructions = function(){ document.getElementById('instructionsPanel').classList.toggle('collapsed'); };
+        window.revealHint = function(){ document.getElementById('hintCommand').classList.toggle('visible'); };
+        window.finishLab = function(){ if (typeof ModuleProgress !== 'undefined') ModuleProgress.complete('matrix','pv-m-07-lab',{returnUrl:'../../index.html'}); };
+        document.addEventListener('DOMContentLoaded', function() { outputEl = document.getElementById('termOutput'); inputEl = document.getElementById('termInput'); inputEl.addEventListener('keydown', function(e) { if (e.key === 'Enter') { var v = inputEl.value; inputEl.value = ''; if (v.trim()) { cmdHistory.push(v); histIdx = cmdHistory.length; } execLine(v); } else if (e.key === 'ArrowUp') { e.preventDefault(); if (histIdx > 0) { histIdx--; inputEl.value = cmdHistory[histIdx]; } } else if (e.key === 'ArrowDown') { e.preventDefault(); if (histIdx < cmdHistory.length-1) { histIdx++; inputEl.value = cmdHistory[histIdx]; } else { histIdx = cmdHistory.length; inputEl.value = ''; } } }); addLine('Welcome to the Computational Photography Lab -- PiVerse Maker\'s Workshop','term-line-info'); addLine('Type "help" for available commands. Complete all 8 tasks to finish.','term-line-dim'); addBlank(); selectTask(1); inputEl.focus(); });
+    })();
+    </script>
+</body>
+</html>
