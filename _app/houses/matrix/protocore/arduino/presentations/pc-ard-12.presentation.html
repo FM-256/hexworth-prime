@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timing &amp; Clocks | ProtoCore Arduino Core 12</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #040810 0%, #081020 50%, #0a0c1a 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Electric blue progress bar */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #0088ff; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(4, 8, 16, 0.95);
+            border-top: 1px solid rgba(0, 136, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(0, 136, 255, 0.15); color: #0088ff; border-color: #0088ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #0088ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ffd700; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip */
+        .scenario-strip {
+            background: rgba(0, 136, 255, 0.08); border-left: 3px solid #0088ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(0, 136, 255, 0.08); border: 1px solid rgba(0, 136, 255, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ffd700; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #0088ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #ffd700; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #0088ff; }
+
+        /* Section label */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #0088ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Inline code */
+        .ic {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* SVG diagram containers */
+        .diagram-row { display: flex; gap: 16px; align-items: center; justify-content: center; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        /* Step-by-step flow list */
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(0, 136, 255, 0.12); border: 1px solid rgba(0, 136, 255, 0.4);
+            color: #0088ff; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        /* Code block */
+        .code-block {
+            background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #ffd700; line-height: 1.6; white-space: pre;
+        }
+        .code-block .cm { color: #64748b; }
+        .code-block .kw { color: #5cb8ff; }
+        .code-block .fn { color: #ffd700; }
+        .code-block .st { color: #86efac; }
+        .code-block .nu { color: #fdba74; }
+
+        /* Two-column code compare */
+        .code-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .code-panel-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.07em; margin-bottom: 5px; }
+
+        /* Hex grid cells */
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(0, 136, 255, 0.25);
+            border-radius: 8px; padding: 12px 14px; text-align: center;
+            opacity: 0; animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #0088ff; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        /* Shared animation keyframes */
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes flow {
+            0%   { stroke-dashoffset: 20; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes boxGrow {
+            from { opacity: 0; transform: scale(0.7); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes entityPop {
+            from { opacity: 0; transform: scale(0.6) translateY(6px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes sparkTravel {
+            0%   { offset-distance: 0%; opacity: 0; }
+            10%  { opacity: 1; }
+            90%  { opacity: 1; }
+            100% { offset-distance: 100%; opacity: 0; }
+        }
+        @keyframes glowPulse {
+            0%, 100% { filter: drop-shadow(0 0 4px rgba(0,136,255,0.3)); }
+            50%       { filter: drop-shadow(0 0 14px rgba(0,136,255,0.9)); }
+        }
+        @keyframes tickTock {
+            0%   { transform: rotate(-30deg); }
+            50%  { transform: rotate(30deg); }
+            100% { transform: rotate(-30deg); }
+        }
+        @keyframes dataFlow {
+            0%   { stroke-dashoffset: 14; }
+            100% { stroke-dashoffset: 0; }
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .code-compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Timing and Clocks -- ProtoCore Arduino Core 12</h1>
+
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; ProtoCore &nbsp;|&nbsp; Arduino &nbsp;|&nbsp; Core 12</div>
+        <div class="title-hero">
+            <svg width="360" height="140" viewBox="0 0 360 140" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Clock face -->
+                <circle cx="180" cy="70" r="55" fill="rgba(0,136,255,0.06)" stroke="#0088ff" stroke-width="2"
+                    style="animation: glowPulse 2.5s ease-in-out infinite;"/>
+                <circle cx="180" cy="70" r="3" fill="#ffd700"/>
+                <!-- Hour marks -->
+                <line x1="180" y1="20" x2="180" y2="28" stroke="#0088ff" stroke-width="2"/>
+                <line x1="180" y1="112" x2="180" y2="120" stroke="#0088ff" stroke-width="2"/>
+                <line x1="130" y1="70" x2="138" y2="70" stroke="#0088ff" stroke-width="2"/>
+                <line x1="222" y1="70" x2="230" y2="70" stroke="#0088ff" stroke-width="2"/>
+                <!-- Minute hand -->
+                <line x1="180" y1="70" x2="180" y2="30" stroke="#ffd700" stroke-width="2" stroke-linecap="round"
+                    style="transform-origin: 180px 70px; animation: tickTock 3s ease-in-out infinite;"/>
+                <!-- Hour hand -->
+                <line x1="180" y1="70" x2="200" y2="50" stroke="#0088ff" stroke-width="2.5" stroke-linecap="round"/>
+                <!-- millis() label left -->
+                <rect x="20" y="45" width="70" height="50" rx="6" fill="rgba(255,215,0,0.06)" stroke="rgba(255,215,0,0.25)" stroke-width="1"
+                    style="animation: boxGrow 0.4s ease forwards 0.3s; opacity:0;"/>
+                <text x="55" y="66" text-anchor="middle" font-size="8" fill="#ffd700" font-weight="700" font-family="Courier New,monospace">millis()</text>
+                <text x="55" y="80" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Software</text>
+                <!-- RTC label right -->
+                <rect x="270" y="45" width="70" height="50" rx="6" fill="rgba(0,136,255,0.06)" stroke="rgba(0,136,255,0.25)" stroke-width="1"
+                    style="animation: boxGrow 0.4s ease forwards 0.4s; opacity:0;"/>
+                <text x="305" y="66" text-anchor="middle" font-size="8" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">DS3231</text>
+                <text x="305" y="80" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Hardware RTC</text>
+                <!-- Connecting arcs -->
+                <line x1="90" y1="70" x2="125" y2="70" stroke="rgba(255,215,0,0.3)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <line x1="235" y1="70" x2="270" y2="70" stroke="rgba(0,136,255,0.3)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+            </svg>
+            <div class="big-title">
+                <span class="accent">Timing</span> &amp; Clocks
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                millis() &nbsp;|&nbsp; Non-Blocking Timing &nbsp;|&nbsp; RTC Modules &nbsp;|&nbsp; Alarm Scheduling
+            </div>
+        </div>
+        <div class="scenario-strip">
+            delay() freezes your entire program. Every millisecond spent blocking is a millisecond your Arduino cannot read sensors, check buttons, or respond to events. This core teaches you how to master time without losing control -- using millis(), hardware clocks, and scheduling techniques that keep your code responsive.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>ProtoCore Arduino</span>
+            <span>Core 12</span>
+            <span>Matrix House</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- millis() vs delay() ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title"><span class="accent">millis()</span> vs delay()</div>
+        <div class="slide-subtitle">delay() blocks. millis() liberates. Understanding the difference is the single biggest upgrade in your Arduino programming.</div>
+
+        <div class="diagram-center">
+            <svg width="620" height="100" viewBox="0 0 620 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- delay() timeline -->
+                <rect x="20" y="10" width="280" height="35" rx="6" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="160" y="24" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">delay(1000) -- BLOCKING</text>
+                <rect x="40" y="30" width="100" height="10" rx="2" fill="rgba(239,68,68,0.3)"/>
+                <rect x="160" y="30" width="100" height="10" rx="2" fill="rgba(239,68,68,0.3)"/>
+                <text x="90" y="38" text-anchor="middle" font-size="6" fill="#fee2e2" font-family="Segoe UI,sans-serif">FROZEN</text>
+                <text x="210" y="38" text-anchor="middle" font-size="6" fill="#fee2e2" font-family="Segoe UI,sans-serif">FROZEN</text>
+
+                <!-- millis() timeline -->
+                <rect x="320" y="10" width="280" height="35" rx="6" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="460" y="24" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">millis() -- NON-BLOCKING</text>
+                <rect x="340" y="30" width="30" height="10" rx="2" fill="rgba(58,181,119,0.3)"/>
+                <rect x="380" y="30" width="30" height="10" rx="2" fill="rgba(0,136,255,0.3)"/>
+                <rect x="420" y="30" width="30" height="10" rx="2" fill="rgba(255,215,0,0.3)"/>
+                <rect x="460" y="30" width="30" height="10" rx="2" fill="rgba(58,181,119,0.3)"/>
+                <rect x="500" y="30" width="30" height="10" rx="2" fill="rgba(0,136,255,0.3)"/>
+                <rect x="540" y="30" width="30" height="10" rx="2" fill="rgba(255,215,0,0.3)"/>
+                <text x="460" y="38" text-anchor="middle" font-size="5" fill="#d1fae5" font-family="Segoe UI,sans-serif">TASKS INTERLEAVED</text>
+
+                <!-- Labels -->
+                <text x="160" y="62" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">CPU idle during delay -- nothing else can run</text>
+                <text x="460" y="62" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">CPU runs all tasks -- checks time each loop</text>
+
+                <!-- Bottom comparison -->
+                <text x="160" y="82" text-anchor="middle" font-size="7.5" fill="#ef4444" font-weight="600" font-family="Segoe UI,sans-serif">Cannot multitask</text>
+                <text x="460" y="82" text-anchor="middle" font-size="7.5" fill="#3ab577" font-weight="600" font-family="Segoe UI,sans-serif">Cooperative multitasking</text>
+            </svg>
+        </div>
+
+        <div class="code-compare">
+            <div>
+                <div class="code-panel-label" style="color:#ef4444;">Blocking (Bad for Complex Projects)</div>
+                <div class="code-block"><span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="fn">digitalWrite</span>(<span class="nu">13</span>, HIGH);
+  <span class="fn">delay</span>(<span class="nu">1000</span>);        <span class="cm">// CPU frozen 1 sec</span>
+  <span class="fn">digitalWrite</span>(<span class="nu">13</span>, LOW);
+  <span class="fn">delay</span>(<span class="nu">1000</span>);        <span class="cm">// CPU frozen 1 sec</span>
+}</div>
+            </div>
+            <div>
+                <div class="code-panel-label" style="color:#3ab577;">Non-Blocking (Professional)</div>
+                <div class="code-block"><span class="kw">unsigned long</span> prev = <span class="nu">0</span>;
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="kw">if</span> (<span class="fn">millis</span>() - prev >= <span class="nu">1000</span>) {
+    prev = <span class="fn">millis</span>();
+    <span class="fn">toggleLED</span>();     <span class="cm">// instant, no freeze</span>
+  }
+  <span class="fn">checkSensors</span>();    <span class="cm">// runs every loop</span>
+}</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Key Insight</div>
+            <span class="ic">millis()</span> returns the number of milliseconds since the Arduino powered on. It is an unsigned long (32 bits), which overflows after approximately 49.7 days. The non-blocking pattern stores the previous timestamp and checks whether enough time has elapsed on every pass through loop(). The CPU stays free to do other work between checks.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- NON-BLOCKING TIMING ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Non-Blocking Timing <span class="accent">Pattern</span></div>
+        <div class="slide-subtitle">The fundamental pattern that replaces every delay() in professional Arduino code.</div>
+
+        <div class="diagram-center">
+            <svg width="580" height="110" viewBox="0 0 580 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Flow boxes -->
+                <rect x="10" y="30" width="100" height="50" rx="8" fill="rgba(0,136,255,0.08)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="60" y="52" text-anchor="middle" font-size="8" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">loop() starts</text>
+                <text x="60" y="64" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Every iteration</text>
+
+                <rect x="140" y="30" width="120" height="50" rx="8" fill="rgba(255,215,0,0.08)" stroke="#ffd700" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="200" y="49" text-anchor="middle" font-size="7.5" fill="#ffd700" font-weight="700" font-family="Courier New,monospace">millis() - prev</text>
+                <text x="200" y="62" text-anchor="middle" font-size="7.5" fill="#ffd700" font-family="Courier New,monospace">>= interval?</text>
+
+                <rect x="290" y="10" width="120" height="40" rx="8" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="350" y="27" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">YES: Execute</text>
+                <text x="350" y="40" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Update prev</text>
+
+                <rect x="290" y="60" width="120" height="40" rx="8" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.4)" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.35s; opacity:0;"/>
+                <text x="350" y="77" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="600" font-family="Segoe UI,sans-serif">NO: Skip</text>
+                <text x="350" y="90" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Continue loop</text>
+
+                <rect x="440" y="30" width="120" height="50" rx="8" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.4s; opacity:0;"/>
+                <text x="500" y="52" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Other Tasks</text>
+                <text x="500" y="64" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Sensors, buttons...</text>
+
+                <!-- Arrows -->
+                <line x1="110" y1="55" x2="138" y2="55" stroke="#475569" stroke-width="1" marker-end="url(#arrowGray)"/>
+                <line x1="260" y1="45" x2="288" y2="30" stroke="#3ab577" stroke-width="1"/>
+                <line x1="260" y1="65" x2="288" y2="80" stroke="#ef4444" stroke-width="1"/>
+                <line x1="410" y1="30" x2="438" y2="45" stroke="#475569" stroke-width="1"/>
+                <line x1="410" y1="80" x2="438" y2="65" stroke="#475569" stroke-width="1"/>
+                <defs><marker id="arrowGray" markerWidth="6" markerHeight="4" refX="6" refY="2" orient="auto"><path d="M0,0 L6,2 L0,4" fill="#475569"/></marker></defs>
+            </svg>
+        </div>
+
+        <div class="code-block"><span class="kw">unsigned long</span> previousMillis = <span class="nu">0</span>;
+<span class="kw">const long</span> interval = <span class="nu">1000</span>;  <span class="cm">// 1 second</span>
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="kw">unsigned long</span> currentMillis = <span class="fn">millis</span>();
+
+  <span class="kw">if</span> (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;   <span class="cm">// reset the timer</span>
+    <span class="cm">// --- Your periodic action goes here ---</span>
+    <span class="fn">digitalWrite</span>(LED_BUILTIN, !<span class="fn">digitalRead</span>(LED_BUILTIN));
+  }
+
+  <span class="cm">// Other code runs freely here every loop iteration</span>
+  <span class="fn">readButton</span>();
+  <span class="fn">updateDisplay</span>();
+}</div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Overflow Safety</div>
+            The subtraction <span class="ic">currentMillis - previousMillis</span> handles the 49.7-day overflow correctly because unsigned arithmetic wraps around. You never need to reset millis(). The pattern works indefinitely.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- MEASURING PULSE DURATION ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Measuring <span class="accent">Pulse Duration</span></div>
+        <div class="slide-subtitle">pulseIn() waits for a pin to change state and measures how long it stays there.</div>
+
+        <div class="diagram-center">
+            <svg width="560" height="100" viewBox="0 0 560 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Signal waveform -->
+                <polyline points="30,70 80,70 80,25 280,25 280,70 400,70" fill="none" stroke="#0088ff" stroke-width="2"/>
+                <!-- Duration arrow -->
+                <line x1="80" y1="15" x2="280" y2="15" stroke="#ffd700" stroke-width="1.5" marker-end="url(#arrGold)" marker-start="url(#arrGoldR)"/>
+                <text x="180" y="12" text-anchor="middle" font-size="8" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">pulseIn() measures this</text>
+                <!-- Labels -->
+                <text x="55" y="85" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">LOW</text>
+                <text x="180" y="40" text-anchor="middle" font-size="7" fill="#0088ff" font-family="Segoe UI,sans-serif">HIGH</text>
+                <text x="340" y="85" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">LOW</text>
+                <!-- Use cases -->
+                <rect x="420" y="10" width="130" height="80" rx="8" fill="rgba(255,215,0,0.06)" stroke="rgba(255,215,0,0.25)" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="485" y="30" text-anchor="middle" font-size="7.5" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">Use Cases</text>
+                <text x="485" y="46" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">HC-SR04 ultrasonic</text>
+                <text x="485" y="58" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">IR receivers</text>
+                <text x="485" y="70" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">RC servo signals</text>
+                <text x="485" y="82" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">PWM decode</text>
+                <defs>
+                    <marker id="arrGold" markerWidth="6" markerHeight="4" refX="6" refY="2" orient="auto"><path d="M0,0 L6,2 L0,4" fill="#ffd700"/></marker>
+                    <marker id="arrGoldR" markerWidth="6" markerHeight="4" refX="0" refY="2" orient="auto"><path d="M6,0 L0,2 L6,4" fill="#ffd700"/></marker>
+                </defs>
+            </svg>
+        </div>
+
+        <div class="code-block"><span class="cm">// HC-SR04 ultrasonic distance sensor</span>
+<span class="fn">digitalWrite</span>(trigPin, HIGH);
+<span class="fn">delayMicroseconds</span>(<span class="nu">10</span>);
+<span class="fn">digitalWrite</span>(trigPin, LOW);
+
+<span class="kw">long</span> duration = <span class="fn">pulseIn</span>(echoPin, HIGH);  <span class="cm">// microseconds</span>
+<span class="kw">float</span> distanceCm = duration * <span class="nu">0.034</span> / <span class="nu">2</span>;  <span class="cm">// speed of sound / 2 (round trip)</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">pulseIn(pin, HIGH)</div>
+                <div class="card-desc">Waits for the pin to go HIGH, starts a timer, then stops when the pin goes LOW. Returns the duration in microseconds. Has a default timeout of 1 second. If no pulse arrives, returns 0.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">pulseIn(pin, LOW)</div>
+                <div class="card-desc">Same concept but measures the LOW portion. Waits for LOW, times it until it goes HIGH. Useful for measuring PWM duty cycles or decoding signals where the LOW duration carries the information.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Warning</div>
+            <span class="ic">pulseIn()</span> is a blocking function -- it halts execution while waiting for and measuring the pulse. For time-critical applications, consider using interrupts with <span class="ic">micros()</span> to measure pulse durations without blocking.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- PERIODIC CALLBACKS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Periodic Callbacks <span class="accent">Without delay()</span></div>
+        <div class="slide-subtitle">Run multiple tasks at different intervals -- the foundation of real-time Arduino systems.</div>
+
+        <div class="code-block"><span class="kw">unsigned long</span> ledTimer = <span class="nu">0</span>;
+<span class="kw">unsigned long</span> sensorTimer = <span class="nu">0</span>;
+<span class="kw">unsigned long</span> serialTimer = <span class="nu">0</span>;
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="kw">unsigned long</span> now = <span class="fn">millis</span>();
+
+  <span class="kw">if</span> (now - ledTimer >= <span class="nu">500</span>) {     <span class="cm">// blink every 500ms</span>
+    ledTimer = now;
+    <span class="fn">toggleLED</span>();
+  }
+  <span class="kw">if</span> (now - sensorTimer >= <span class="nu">2000</span>) { <span class="cm">// read sensor every 2s</span>
+    sensorTimer = now;
+    <span class="fn">readTemperature</span>();
+  }
+  <span class="kw">if</span> (now - serialTimer >= <span class="nu">5000</span>) { <span class="cm">// report every 5s</span>
+    serialTimer = now;
+    <span class="fn">printReport</span>();
+  }
+}</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Task 1: LED</div>
+                <div class="card-desc">Blinks every 500ms. The LED toggle takes microseconds, then control immediately returns to loop() so other tasks can run.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Task 2: Sensor</div>
+                <div class="card-desc">Reads temperature every 2 seconds. The sensor reading is independent of LED timing. Both run without interfering with each other.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Task 3: Report</div>
+                <div class="card-desc">Prints a Serial report every 5 seconds. A third independent timer. All three tasks coexist peacefully in a single loop().</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Pattern Name</div>
+            This is called "cooperative multitasking." Each task cooperates by checking its timer and returning quickly. No task hogs the CPU. This is how professional embedded systems handle multiple concurrent operations on a single-threaded processor.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- ARDUINO AS A CLOCK ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Arduino as a <span class="accent">Clock</span></div>
+        <div class="slide-subtitle">millis() counts time since power-on, but it does not know what day or year it is. Understanding its limits.</div>
+
+        <div class="diagram-center">
+            <svg width="600" height="90" viewBox="0 0 600 90" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Timeline -->
+                <line x1="30" y1="45" x2="570" y2="45" stroke="rgba(0,136,255,0.3)" stroke-width="1"/>
+                <circle cx="30" cy="45" r="4" fill="#0088ff"/>
+                <text x="30" y="68" text-anchor="middle" font-size="7" fill="#0088ff" font-family="Segoe UI,sans-serif">Power On</text>
+                <text x="30" y="78" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">millis() = 0</text>
+
+                <circle cx="180" cy="45" r="3" fill="#ffd700"/>
+                <text x="180" y="30" text-anchor="middle" font-size="7" fill="#ffd700" font-family="Segoe UI,sans-serif">1 hour</text>
+                <text x="180" y="78" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">3,600,000</text>
+
+                <circle cx="330" cy="45" r="3" fill="#ffd700"/>
+                <text x="330" y="30" text-anchor="middle" font-size="7" fill="#ffd700" font-family="Segoe UI,sans-serif">1 day</text>
+                <text x="330" y="78" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">86,400,000</text>
+
+                <circle cx="480" cy="45" r="3" fill="#ef4444"/>
+                <text x="480" y="30" text-anchor="middle" font-size="7" fill="#ef4444" font-weight="600" font-family="Segoe UI,sans-serif">~49.7 days</text>
+                <text x="480" y="78" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">4,294,967,295</text>
+
+                <text x="540" y="45" text-anchor="middle" font-size="9" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">OVERFLOW</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">What millis() Can Do</div>
+                <div class="card-desc">Measure elapsed time. Schedule periodic tasks. Create timeouts and debounce windows. Time events relative to power-on. Works perfectly for short and medium-duration projects.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">What millis() Cannot Do</div>
+                <div class="card-desc">Tell you the current date or time of day. Survive a power cycle (resets to 0). Maintain accuracy over weeks (crystal drift ~50ppm = 4.3 seconds/day). Track real-world time.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Crystal Accuracy</div>
+            The Arduino Uno uses a 16 MHz ceramic resonator, not a crystal oscillator. Resonators drift roughly 0.5% -- that is 7 minutes per day. For projects that need real-world time (data logging, alarms, scheduling), you need an external Real-Time Clock module with its own crystal and battery backup.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- RTC MODULES ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">RTC Modules: <span class="accent">DS1307 &amp; DS3231</span></div>
+        <div class="slide-subtitle">External Real-Time Clock chips that keep time even when the Arduino is powered off.</div>
+
+        <div class="diagram-center">
+            <svg width="600" height="120" viewBox="0 0 600 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Arduino box -->
+                <rect x="30" y="25" width="120" height="70" rx="8" fill="rgba(0,136,255,0.06)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="90" y="50" text-anchor="middle" font-size="9" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Arduino</text>
+                <text x="90" y="65" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">I2C Master</text>
+                <text x="90" y="78" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">A4=SDA, A5=SCL</text>
+
+                <!-- I2C bus lines -->
+                <line x1="150" y1="50" x2="230" y2="50" stroke="#ffd700" stroke-width="1.5" stroke-dasharray="5,3">
+                    <animate attributeName="stroke-dashoffset" values="16;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <line x1="150" y1="70" x2="230" y2="70" stroke="#0088ff" stroke-width="1.5" stroke-dasharray="5,3">
+                    <animate attributeName="stroke-dashoffset" values="16;0" dur="1s" repeatCount="indefinite" begin="0.15s"/>
+                </line>
+                <text x="190" y="44" text-anchor="middle" font-size="6" fill="#ffd700" font-family="Segoe UI,sans-serif">SDA</text>
+                <text x="190" y="84" text-anchor="middle" font-size="6" fill="#0088ff" font-family="Segoe UI,sans-serif">SCL</text>
+
+                <!-- DS1307 -->
+                <rect x="230" y="10" width="140" height="45" rx="8" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="300" y="28" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">DS1307</text>
+                <text x="300" y="42" text-anchor="middle" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">+/-2 sec/day | Addr 0x68</text>
+
+                <!-- DS3231 -->
+                <rect x="230" y="65" width="140" height="45" rx="8" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="300" y="83" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">DS3231</text>
+                <text x="300" y="97" text-anchor="middle" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">+/-2 ppm | Addr 0x68</text>
+
+                <!-- Battery -->
+                <rect x="420" y="35" width="80" height="50" rx="8" fill="rgba(255,215,0,0.06)" stroke="rgba(255,215,0,0.3)" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.4s; opacity:0;"/>
+                <text x="460" y="55" text-anchor="middle" font-size="8" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">CR2032</text>
+                <text x="460" y="70" text-anchor="middle" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">Backup battery</text>
+
+                <line x1="370" y1="60" x2="418" y2="60" stroke="rgba(255,215,0,0.3)" stroke-width="1" stroke-dasharray="3,3"/>
+
+                <!-- Comparison -->
+                <rect x="520" y="10" width="70" height="100" rx="6" fill="rgba(0,136,255,0.04)" stroke="rgba(0,136,255,0.2)" stroke-width="1"/>
+                <text x="555" y="28" text-anchor="middle" font-size="6.5" fill="#0088ff" font-weight="600" font-family="Segoe UI,sans-serif">Winner</text>
+                <text x="555" y="50" text-anchor="middle" font-size="14" fill="#3ab577" font-weight="800" font-family="Segoe UI,sans-serif">DS3231</text>
+                <text x="555" y="68" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">TCXO crystal</text>
+                <text x="555" y="80" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">Temp compensated</text>
+                <text x="555" y="92" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">~1 min/year drift</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">DS1307 -- Budget</div>
+                <div class="card-desc">Uses an external 32.768 kHz crystal. Drifts up to 2 seconds per day depending on temperature. No temperature compensation. Good for hobby projects where a few minutes of drift per month is acceptable. Very cheap (~$1).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">DS3231 -- Precision</div>
+                <div class="card-desc">Built-in temperature-compensated crystal oscillator (TCXO). Drifts only 2 ppm -- roughly 1 minute per year. Has a built-in temperature sensor and two alarm registers. The professional choice for data logging, scheduling, and anything time-critical.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Both Share</div>
+            I2C interface at address 0x68. CR2032 coin cell battery backup (keeps time for years without main power). BCD-encoded time registers for year, month, day, day-of-week, hours, minutes, seconds. Both work with the RTClib library.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- ALARM SCHEDULING ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Alarm <span class="accent">Scheduling</span></div>
+        <div class="slide-subtitle">The DS3231 has two hardware alarm registers that can trigger an interrupt pin -- wake-up without polling.</div>
+
+        <div class="diagram-center">
+            <svg width="560" height="100" viewBox="0 0 560 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- DS3231 chip -->
+                <rect x="200" y="15" width="160" height="70" rx="10" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="280" y="35" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">DS3231</text>
+                <text x="240" y="55" text-anchor="middle" font-size="7" fill="#ffd700" font-family="Segoe UI,sans-serif">Alarm 1</text>
+                <text x="320" y="55" text-anchor="middle" font-size="7" fill="#0088ff" font-family="Segoe UI,sans-serif">Alarm 2</text>
+                <text x="280" y="72" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">SQW/INT pin</text>
+
+                <!-- Arrow to Arduino -->
+                <line x1="280" y1="85" x2="280" y2="95" stroke="#ffd700" stroke-width="1.5"/>
+                <rect x="230" y="95" width="100" height="5" rx="2" fill="#ffd700" style="animation: pulse 1.5s ease-in-out infinite;"/>
+
+                <!-- Alarm 1 details -->
+                <rect x="20" y="15" width="150" height="70" rx="8" fill="rgba(255,215,0,0.06)" stroke="rgba(255,215,0,0.25)" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="95" y="32" text-anchor="middle" font-size="7.5" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">Alarm 1 (Precise)</text>
+                <text x="95" y="48" text-anchor="middle" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">Match: sec, min, hr, day</text>
+                <text x="95" y="60" text-anchor="middle" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">Once per second to</text>
+                <text x="95" y="72" text-anchor="middle" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">once per month</text>
+                <line x1="170" y1="50" x2="198" y2="50" stroke="rgba(255,215,0,0.3)" stroke-width="1"/>
+
+                <!-- Alarm 2 details -->
+                <rect x="390" y="15" width="150" height="70" rx="8" fill="rgba(0,136,255,0.06)" stroke="rgba(0,136,255,0.25)" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="465" y="32" text-anchor="middle" font-size="7.5" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Alarm 2 (Minute)</text>
+                <text x="465" y="48" text-anchor="middle" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">Match: min, hr, day</text>
+                <text x="465" y="60" text-anchor="middle" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">No seconds precision</text>
+                <text x="465" y="72" text-anchor="middle" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">Once/min to once/month</text>
+                <line x1="362" y1="50" x2="388" y2="50" stroke="rgba(0,136,255,0.3)" stroke-width="1"/>
+            </svg>
+        </div>
+
+        <div class="code-block"><span class="cm">// Set Alarm 1 to fire at 07:30:00 every day</span>
+<span class="fn">rtc.setAlarm1</span>(DateTime(<span class="nu">0</span>, <span class="nu">0</span>, <span class="nu">0</span>, <span class="nu">7</span>, <span class="nu">30</span>, <span class="nu">0</span>), DS3231_A1_Hour);
+<span class="fn">rtc.writeSqwPinMode</span>(DS3231_OFF);  <span class="cm">// enable interrupt mode</span>
+
+<span class="cm">// In your ISR or poll the alarm flag:</span>
+<span class="kw">if</span> (<span class="fn">rtc.alarmFired</span>(<span class="nu">1</span>)) {
+  <span class="fn">rtc.clearAlarm</span>(<span class="nu">1</span>);
+  <span class="fn">triggerMorningRoutine</span>();  <span class="cm">// water plants, turn on lights, etc.</span>
+}</div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Power Saving</div>
+            The SQW/INT pin can be connected to an Arduino interrupt pin (D2 or D3). Combined with sleep modes, the Arduino can go into deep sleep and wake up only when the alarm fires. This enables battery-powered projects that run for months on a single charge -- the Arduino draws microamps while sleeping, and the DS3231 draws only 3 microamps with its backup battery.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- TIME LIBRARIES ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Time <span class="accent">Libraries</span></div>
+        <div class="slide-subtitle">Arduino libraries that make working with dates, times, and RTC modules straightforward.</div>
+
+        <div class="hex-grid">
+            <div class="hex-cell">
+                <div class="hex-title">RTClib</div>
+                <div class="hex-desc">Adafruit's library. Works with DS1307 and DS3231. DateTime class with year, month, day, hour, minute, second. <span class="ic">rtc.now()</span> returns current time.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">TimeLib</div>
+                <div class="hex-desc">Software-only time tracking. Uses <span class="ic">now()</span>, <span class="ic">hour()</span>, <span class="ic">minute()</span>. Can sync to an RTC or GPS as a time source. Unix epoch based.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">DS3232RTC</div>
+                <div class="hex-desc">Specialized DS3231 library with full alarm support, temperature reading, and EEPROM access. More features than RTClib for DS3231-specific projects.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">DateTime Class</div>
+                <div class="hex-desc"><span class="ic">DateTime now = rtc.now();</span> gives you <span class="ic">now.year()</span>, <span class="ic">now.month()</span>, <span class="ic">now.day()</span>, <span class="ic">now.hour()</span>, <span class="ic">now.minute()</span>, <span class="ic">now.second()</span>.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Unix Timestamp</div>
+                <div class="hex-desc"><span class="ic">now.unixtime()</span> returns seconds since 1970-01-01. Ideal for time math -- add 3600 for one hour, 86400 for one day. One number, no date parsing.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Setting the Clock</div>
+                <div class="hex-desc"><span class="ic">rtc.adjust(DateTime(F(__DATE__), F(__TIME__)))</span> sets the RTC to the compile time. Run once, then remove the line or it resets every upload.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Install</div>
+            In Arduino IDE: Sketch -> Include Library -> Manage Libraries. Search "RTClib" by Adafruit. Install. Then <span class="ic">#include "RTClib.h"</span> at the top of your sketch. Create an RTC object: <span class="ic">RTC_DS3231 rtc;</span> and call <span class="ic">rtc.begin()</span> in setup().
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- USING MICROS ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title"><span class="accent">micros()</span> &amp; High-Resolution Timing</div>
+        <div class="slide-subtitle">When milliseconds are not precise enough -- microsecond timing for fast signals and precise control.</div>
+
+        <div class="diagram-center">
+            <svg width="580" height="90" viewBox="0 0 580 90" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- millis scale -->
+                <rect x="20" y="10" width="250" height="30" rx="6" fill="rgba(0,136,255,0.08)" stroke="#0088ff" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="145" y="30" text-anchor="middle" font-size="8" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">millis() -- 1ms resolution, overflows at 49.7 days</text>
+
+                <!-- micros scale -->
+                <rect x="300" y="10" width="260" height="30" rx="6" fill="rgba(255,215,0,0.08)" stroke="#ffd700" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="430" y="30" text-anchor="middle" font-size="8" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">micros() -- 4us resolution, overflows at ~71.6 min</text>
+
+                <!-- 4us explanation -->
+                <text x="290" y="65" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">16 MHz clock = 62.5ns per tick. Timer0 prescaler 64 = 4us per increment.</text>
+                <text x="290" y="80" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">micros() gives you 250,000 readings per second -- enough for most sensor work.</text>
+            </svg>
+        </div>
+
+        <div class="code-compare">
+            <div>
+                <div class="code-panel-label" style="color:#ffd700;">Timing a Function (Profiling)</div>
+                <div class="code-block"><span class="kw">unsigned long</span> start = <span class="fn">micros</span>();
+<span class="fn">readAccelerometer</span>();
+<span class="kw">unsigned long</span> elapsed = <span class="fn">micros</span>() - start;
+Serial.<span class="fn">print</span>(<span class="st">"Read took: "</span>);
+Serial.<span class="fn">print</span>(elapsed);
+Serial.<span class="fn">println</span>(<span class="st">" us"</span>);</div>
+            </div>
+            <div>
+                <div class="code-panel-label" style="color:#0088ff;">Non-Blocking Microsecond Timer</div>
+                <div class="code-block"><span class="kw">unsigned long</span> prevUs = <span class="nu">0</span>;
+<span class="kw">const long</span> intervalUs = <span class="nu">500</span>; <span class="cm">// 500us</span>
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="kw">if</span> (<span class="fn">micros</span>() - prevUs >= intervalUs) {
+    prevUs += intervalUs;
+    <span class="fn">togglePin</span>(); <span class="cm">// 1kHz signal</span>
+  }
+}</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Overflow Warning</div>
+            <span class="ic">micros()</span> overflows after approximately 71.6 minutes (2^32 microseconds). The same unsigned subtraction pattern handles this correctly, but be aware that micros() is not suitable for timing events longer than about an hour. For long durations, use millis(). For short, precise measurements, use micros().
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- TIMER INTERRUPTS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Hardware Timer <span class="accent">Interrupts</span></div>
+        <div class="slide-subtitle">When cooperative multitasking is not precise enough -- hardware timers fire ISRs at exact intervals.</div>
+
+        <div class="diagram-center">
+            <svg width="600" height="100" viewBox="0 0 600 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Timer block -->
+                <rect x="200" y="10" width="200" height="80" rx="10" fill="rgba(0,136,255,0.06)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="300" y="32" text-anchor="middle" font-size="9" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">ATmega328P Timers</text>
+                <text x="230" y="55" text-anchor="middle" font-size="7" fill="#ffd700" font-family="Segoe UI,sans-serif">Timer0 (8-bit)</text>
+                <text x="300" y="55" text-anchor="middle" font-size="7" fill="#3ab577" font-family="Segoe UI,sans-serif">Timer1 (16-bit)</text>
+                <text x="370" y="55" text-anchor="middle" font-size="7" fill="#a78bfa" font-family="Segoe UI,sans-serif">Timer2 (8-bit)</text>
+                <text x="230" y="68" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">millis/delay</text>
+                <text x="300" y="68" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">Servo/free</text>
+                <text x="370" y="68" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">tone()</text>
+                <text x="300" y="82" text-anchor="middle" font-size="6.5" fill="#ef4444" font-family="Segoe UI,sans-serif">Timer0 reserved -- do not modify</text>
+
+                <!-- Arrow to ISR -->
+                <rect x="20" y="25" width="140" height="50" rx="8" fill="rgba(255,215,0,0.06)" stroke="rgba(255,215,0,0.3)" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="90" y="45" text-anchor="middle" font-size="8" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">CTC Mode</text>
+                <text x="90" y="60" text-anchor="middle" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">Clear Timer on Compare</text>
+                <line x1="160" y1="50" x2="198" y2="50" stroke="rgba(255,215,0,0.3)" stroke-width="1"/>
+
+                <rect x="440" y="25" width="140" height="50" rx="8" fill="rgba(58,181,119,0.06)" stroke="rgba(58,181,119,0.3)" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="510" y="45" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">ISR fires</text>
+                <text x="510" y="60" text-anchor="middle" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">Exact interval</text>
+                <line x1="402" y1="50" x2="438" y2="50" stroke="rgba(58,181,119,0.3)" stroke-width="1"/>
+            </svg>
+        </div>
+
+        <div class="code-block"><span class="cm">// Timer1 CTC interrupt at exactly 1 Hz (1 second)</span>
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  <span class="fn">cli</span>();                      <span class="cm">// disable interrupts</span>
+  TCCR1A = <span class="nu">0</span>; TCCR1B = <span class="nu">0</span>;    <span class="cm">// clear timer registers</span>
+  TCNT1 = <span class="nu">0</span>;                   <span class="cm">// reset counter</span>
+  OCR1A = <span class="nu">15624</span>;               <span class="cm">// compare value: 16MHz / 1024 / 1Hz - 1</span>
+  TCCR1B |= (<span class="nu">1</span> << WGM12);     <span class="cm">// CTC mode</span>
+  TCCR1B |= (<span class="nu">1</span> << CS12) | (<span class="nu">1</span> << CS10); <span class="cm">// prescaler 1024</span>
+  TIMSK1 |= (<span class="nu">1</span> << OCIE1A);    <span class="cm">// enable compare interrupt</span>
+  <span class="fn">sei</span>();                      <span class="cm">// enable interrupts</span>
+}
+
+ISR(TIMER1_COMPA_vect) {      <span class="cm">// fires exactly every 1 second</span>
+  <span class="fn">toggleLED</span>();                 <span class="cm">// runs in interrupt context</span>
+}</div>
+
+        <div class="box box-gold">
+            <div class="box-label">When to Use</div>
+            Timer interrupts are for hard real-time tasks: generating precise frequencies, sampling ADC at exact rates, driving stepper motors at constant speed. For most projects, millis()-based cooperative timing is simpler and sufficient. Use hardware timers only when precision matters more than simplicity.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- KEY TAKEAWAYS ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Key Takeaways: <span class="accent">Timing Mastered</span></div>
+        <div class="slide-subtitle">Time is the foundation of every embedded system. Master these concepts and every project improves.</div>
+
+        <div class="diagram-center">
+            <svg width="400" height="90" viewBox="0 0 400 90" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <circle cx="200" cy="45" r="35" fill="rgba(0,136,255,0.06)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: glowPulse 2s ease-in-out infinite;"/>
+                <circle cx="200" cy="45" r="3" fill="#ffd700"/>
+                <line x1="200" y1="45" x2="200" y2="20" stroke="#ffd700" stroke-width="2" stroke-linecap="round"
+                    style="transform-origin: 200px 45px; animation: tickTock 2s ease-in-out infinite;"/>
+                <line x1="200" y1="45" x2="220" y2="35" stroke="#0088ff" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="200" cy="45" r="55" fill="none" stroke="rgba(0,136,255,0.08)" stroke-width="1"
+                    style="animation: pulse 2.5s ease-in-out infinite;"/>
+                <text x="80" y="42" text-anchor="middle" font-size="10" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Time is</text>
+                <text x="80" y="56" text-anchor="middle" font-size="10" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">yours.</text>
+                <text x="320" y="42" text-anchor="middle" font-size="10" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">Never block</text>
+                <text x="320" y="56" text-anchor="middle" font-size="10" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">again.</text>
+            </svg>
+        </div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong><code>millis()</code> replaces <code>delay()</code> for responsive code.</strong> Store the previous timestamp, check elapsed time each loop, execute when the interval passes. The CPU stays free for other tasks between checks. This pattern is the single most important upgrade from beginner to intermediate Arduino programming.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Multiple timers run independent tasks.</strong> Each task gets its own <code>previousMillis</code> variable and interval. They coexist in the same loop() without interfering. This is cooperative multitasking on a single-threaded processor.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong><code>micros()</code> for microsecond precision.</strong> 4-microsecond resolution, overflows after ~71.6 minutes. Use for profiling function execution time, generating precise signals, or measuring fast pulses with <code>pulseIn()</code>.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>RTC modules keep real-world time.</strong> DS3231 is the gold standard -- temperature-compensated, battery-backed, drifts only 1 minute per year. Communicates over I2C. Use RTClib for easy access to DateTime objects.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Hardware timer interrupts for hard real-time.</strong> Timer1 CTC mode fires an ISR at mathematically exact intervals. Use for precise frequency generation, constant-rate sampling, and stepper motor control. Keep ISRs short and avoid Serial inside them.</span></div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Core 13 -- Bus Protocols I2C &amp; SPI</strong> &nbsp;|&nbsp; Wire Library, SPI.transfer(), Multi-Device Communication
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; ProtoCore</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-ard-12-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Core 10 Quiz: Remote Control | ProtoCore Arduino</title>
+    <link rel="stylesheet" href="../../../../../styles/quiz-engine.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #040810 0%, #081020 50%, #0a0c1a 100%);
+            display: flex;
+            flex-direction: column;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        .page-header {
+            padding: 15px 30px;
+            background: rgba(0, 0, 0, 0.4);
+            border-bottom: 1px solid rgba(0, 136, 255, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .page-header a {
+            color: #0088ff;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+        .page-header a:hover { opacity: 0.8; }
+        .brand {
+            font-weight: 600;
+            color: #e0e0e0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .quiz-wrapper {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 30px 20px;
+        }
+        #quiz-container { width: 100%; max-width: 800px; }
+    </style>
+</head>
+<body>
+    <header class="page-header">
+        <a href="../../index.html">&larr; Back to ProtoCore Hub</a>
+        <span class="brand"><img src="/assets/images/icons/icon-brain.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Hexworth Prime</span>
+    </header>
+    <main class="quiz-wrapper">
+        <div id="quiz-container"></div>
+    </main>
+    <script src="../../../../../components/ProgressSystem.js"></script>
+    <script src="../../../../../components/QuizEngine.js"></script>
+    <script>
+        const quiz = new QuizEngine({
+            containerId: 'quiz-container',
+            title: 'Core 10: Remote Control',
+            description: 'Test your understanding of infrared communication, IR protocols, transmitting and receiving IR signals, RF communication, relay control, and security considerations.',
+            passingScore: 80,
+            showFeedback: true,
+            randomize: true,
+            theme: 'matrix',
+            achievement: 'pc-ard-10-quiz',
+            moduleId: 'pc-ard-10-quiz',
+            serverGrading: true,
+            houseId: 'matrix',
+            trackProgress: true,
+
+            questions: [
+                {
+                    question: 'What wavelength does a typical infrared LED used in remote controls emit?',
+                    options: [
+                        '450nm (blue visible light)',
+                        '940nm (near-infrared, invisible)',
+                        '2400nm (mid-infrared, thermal)',
+                        '10nm (X-ray range)'
+                    ],
+                    explanation: 'IR remote control LEDs emit light at approximately 940nm wavelength, which is in the near-infrared spectrum -- just below what the human eye can see. The visible spectrum ends at roughly 700nm (deep red), so 940nm is invisible to humans but easily detected by silicon photodiodes in IR receivers. This wavelength was chosen because silicon-based detectors are highly sensitive to it, IR LEDs at this wavelength are cheap to manufacture, and it is far enough from visible light to minimize interference from room lighting. You can sometimes see a faint glow from an IR LED through a phone camera, since phone camera sensors are sensitive to near-IR light that the human eye cannot detect.'
+                },
+                {
+                    question: 'Why do IR remotes modulate their signal at 38kHz instead of just turning the LED on and off?',
+                    options: [
+                        'To increase the range to over 100 meters',
+                        'To allow the receiver to filter out ambient light interference',
+                        'To encrypt the signal so other devices cannot read it',
+                        'To make the signal visible to the human eye'
+                    ],
+                    explanation: 'The 38kHz carrier frequency is used specifically to allow the IR receiver to distinguish between intentional IR remote signals and ambient infrared light from sunlight, incandescent bulbs, and other sources. The TSOP38238 receiver has a bandpass filter tuned to 38kHz -- it only responds to IR light that is blinking at exactly that frequency. Ambient light sources produce constant or low-frequency IR light that the filter rejects. Without this carrier modulation, the receiver would constantly trigger from room lighting, making reliable communication impossible. The 38kHz frequency was chosen as a good balance between filtering effectiveness and LED efficiency.'
+                },
+                {
+                    question: 'What are the three pins on a TSOP38238 IR receiver module?',
+                    options: [
+                        'TX, RX, and GND',
+                        'VCC, GND, and DATA OUT',
+                        'MOSI, MISO, and SCK',
+                        'SDA, SCL, and INT'
+                    ],
+                    explanation: 'The TSOP38238 has three pins: VCC (power, typically 3.3-5V), GND (ground), and OUT (the demodulated digital signal output). The OUT pin goes LOW when it detects a 38kHz modulated IR signal and stays HIGH when no signal is present (active-low output). Internally, the TSOP38238 contains a photodiode to detect IR light, an automatic gain control circuit, a bandpass filter tuned to 38kHz, a demodulator that strips the carrier, and an output driver. All of this complexity is handled in the 3-pin package, so your Arduino only needs to read digital transitions on the OUT pin.'
+                },
+                {
+                    question: 'In the NEC IR protocol, how is a logical "1" bit encoded?',
+                    options: [
+                        'A 562us mark followed by a 1687us space',
+                        'A 1687us mark followed by a 562us space',
+                        'A 9ms mark followed by a 4.5ms space',
+                        'Two consecutive 562us marks with no space'
+                    ],
+                    explanation: 'NEC uses pulse-distance encoding where the mark (burst) duration is always the same -- 562 microseconds of 38kHz carrier signal. The difference between a 0 and a 1 is in the space (silence) duration that follows the mark. A logical 0 is 562us mark + 562us space (total 1.125ms). A logical 1 is 562us mark + 1687us space (total 2.25ms, exactly twice as long). This means you can identify bits by measuring the space duration after each mark. The 9ms mark + 4.5ms space is not a data bit -- it is the leader pulse that signals the start of a new NEC frame and allows the receiver AGC to calibrate.'
+                },
+                {
+                    question: 'Which Arduino pin does the IRremote library use for IR transmission on the Uno?',
+                    options: [
+                        'Pin 2 (interrupt pin)',
+                        'Pin 3 (hardware PWM)',
+                        'Pin 13 (built-in LED)',
+                        'Pin A0 (analog input)'
+                    ],
+                    explanation: 'The IRremote library uses pin 3 on the Arduino Uno for IR transmission because it needs hardware PWM to generate the precise 38kHz carrier wave. Pin 3 is connected to Timer2 on the ATmega328P, which the library configures to output a 38kHz square wave. Software-generated PWM (using digitalWrite and delayMicroseconds) is not accurate enough for reliable IR transmission because any interrupt or other processing would distort the timing. Different Arduino boards use different default send pins depending on their timer configurations. Always check the IRremote documentation for your specific board.'
+                },
+                {
+                    question: 'What function call resumes the IR receiver after successfully decoding a signal?',
+                    options: [
+                        'IrReceiver.resume()',
+                        'IrReceiver.reset()',
+                        'IrReceiver.listen()',
+                        'IrReceiver.start()'
+                    ],
+                    explanation: 'After IrReceiver.decode() returns true and you have processed the decoded data, you must call IrReceiver.resume() to tell the receiver to start listening for the next IR signal. Without this call, the receiver stays in the "decoded" state and will not capture any new signals. This is a deliberate design choice -- it gives your code time to process the decoded data before the receiver buffer is overwritten by new incoming data. The pattern is: check decode() in loop(), read the decoded data, process it, then call resume() to re-arm the receiver.'
+                },
+                {
+                    question: 'Which IR protocol uses Manchester (bi-phase) encoding and a toggle bit?',
+                    options: [
+                        'NEC',
+                        'Sony SIRC',
+                        'RC5 (Philips)',
+                        'Samsung'
+                    ],
+                    explanation: 'RC5, developed by Philips, uses Manchester encoding (also called bi-phase encoding) where each bit period has a transition in the middle. A low-to-high transition represents a 1, and a high-to-low transition represents a 0. This is different from NEC pulse-distance encoding. RC5 also includes a toggle bit that changes state every time a button is pressed. When a button is held down, the same code is repeated with the same toggle bit value. When the button is released and pressed again, the toggle bit flips. This allows the receiver to distinguish between a held button and two separate presses -- a feature NEC handles differently using a special repeat code.'
+                },
+                {
+                    question: 'How does a relay module allow an Arduino to control mains AC devices?',
+                    options: [
+                        'The Arduino directly switches 120V/240V through its digital pins',
+                        'The relay uses an electromagnet coil to mechanically switch a high-voltage contact',
+                        'The Arduino converts AC to DC and controls the DC version',
+                        'The relay reduces 120V to 5V so the Arduino can handle it'
+                    ],
+                    explanation: 'A relay is an electromagnetically operated switch. When the Arduino sets a digital pin HIGH (5V), this energizes a small coil inside the relay module, creating a magnetic field. The magnetic field pulls a metal armature that physically closes (or opens) a separate high-voltage contact. This contact can carry mains AC power (120V/240V) at currents typically up to 10A. The key safety feature is galvanic isolation -- there is no electrical connection between the low-voltage Arduino circuit (5V) and the high-voltage AC circuit (120V/240V). The magnetic field transfers the switching command across the isolation barrier. The Arduino never touches mains voltage.'
+                },
+                {
+                    question: 'What is the effective range of 433MHz RF modules compared to IR?',
+                    options: [
+                        'RF: 1-2m, IR: 50-100m',
+                        'RF: 20-200m (through walls), IR: 5-10m (line of sight)',
+                        'Both have the same range of about 10m',
+                        'RF: 5-10m, IR: 20-200m'
+                    ],
+                    explanation: 'The 433MHz RF modules have a significantly longer range than IR: 20-200 meters depending on antenna quality and environment, and they can penetrate walls, floors, and other solid objects. IR remote control is limited to about 5-10 meters and requires line of sight -- the emitter must be pointed at the receiver with no obstacles in between. RF waves at 433MHz propagate well through building materials (they are the same frequency range used by garage door openers). The tradeoff is that RF is more susceptible to interference from other 433MHz devices operating in the same area, while IR is naturally isolated to a single room.'
+                },
+                {
+                    question: 'What is a replay attack in the context of IR remote control?',
+                    options: [
+                        'Playing a recorded TV show from a DVR',
+                        'Recording a valid IR signal and retransmitting it later to control the device',
+                        'Using a faster microcontroller to send signals more quickly',
+                        'Connecting two IR receivers to the same Arduino'
+                    ],
+                    explanation: 'A replay attack involves three steps: (1) Record a valid IR signal being sent from a legitimate remote to a device using an IR receiver. (2) Store the raw timing data or decoded hex code. (3) Retransmit the recorded signal using an IR LED at a later time. The target device (TV, AC unit, IR-controlled lock) cannot distinguish between the original signal from the real remote and the replayed signal from the attacker. This works because IR codes are static -- the power button on your TV remote sends the exact same code every single time, with no sequence number, no timestamp, and no encryption. This is a fundamental vulnerability of all fixed-code IR and simple RF systems.'
+                },
+                {
+                    question: 'How do rolling codes (like KeeLoq) prevent replay attacks?',
+                    options: [
+                        'By encrypting the IR signal with AES-256',
+                        'By generating a new unique code for each transmission using a synchronized PRNG',
+                        'By changing the carrier frequency to a random value each time',
+                        'By requiring a fingerprint scan before each button press'
+                    ],
+                    explanation: 'Rolling code systems use a pseudo-random number generator (PRNG) that is synchronized between the transmitter (key fob) and receiver (garage door, car). Both sides share a secret key and maintain a counter. Each time you press the button, the transmitter generates a new code by feeding the counter value through a cryptographic function (like the KeeLoq cipher), increments the counter, and transmits the result. The receiver runs the same calculation and checks if the received code matches. If an attacker records and replays an old code, the receiver rejects it because its counter has already moved past that value. The code is only valid once.'
+                },
+                {
+                    question: 'What does the IRremote library function IrSender.sendNEC(address, command, repeats) do?',
+                    options: [
+                        'Receives and decodes an NEC IR signal',
+                        'Transmits an NEC-encoded IR signal with the specified address, command, and repeat count',
+                        'Converts an NEC code to a Sony SIRC code',
+                        'Measures the distance to the nearest IR receiver'
+                    ],
+                    explanation: 'IrSender.sendNEC(address, command, repeats) generates and transmits a complete NEC-format IR signal through the IR LED connected to pin 3. The address parameter (8-bit) identifies the target device (e.g., a specific TV model). The command parameter (8-bit) identifies the specific action (power, volume up, etc.). The repeats parameter specifies how many additional repeat frames to send after the initial frame (0 = send once). The library handles all the low-level details: generating the 9ms leader mark, 4.5ms leader space, encoding each bit with the correct mark/space timing, adding the inverted address and command for error checking, and modulating the entire signal at 38kHz.'
+                },
+                {
+                    question: 'Why is raw timing data useful when working with unknown IR protocols?',
+                    options: [
+                        'Raw timing is faster to transmit than protocol-specific codes',
+                        'It allows recording and replaying any IR signal without knowing the protocol',
+                        'Raw timing data uses less memory than decoded hex values',
+                        'It automatically converts between different protocol formats'
+                    ],
+                    explanation: 'When the IRremote library cannot identify the protocol of a received IR signal (it reports "UNKNOWN"), you can still capture the raw mark/space timing data -- an array of microsecond durations alternating between marks and spaces. By storing this raw array, you can later replay the exact timing pattern using IrSender.sendRaw() without ever knowing what protocol was used. This is how commercial universal remotes handle obscure or proprietary protocols. The tradeoff is that raw timing arrays are larger (40-100+ values vs a single hex code) and more fragile (small timing variations can cause failures), but they provide universal compatibility with any IR device.'
+                },
+                {
+                    question: 'What is the purpose of storing learned IR codes in EEPROM?',
+                    options: [
+                        'EEPROM is faster than SRAM for reading IR codes',
+                        'EEPROM retains data across power cycles, so learned codes survive reboot',
+                        'EEPROM can store more data than the flash memory chip',
+                        'EEPROM provides encryption for stored IR codes'
+                    ],
+                    explanation: 'EEPROM (Electrically Erasable Programmable Read-Only Memory) retains its stored data even when power is removed, unlike SRAM which loses all data when the Arduino is unpowered. By storing learned IR codes in the ATmega328P 1KB EEPROM using EEPROM.write() and EEPROM.read(), your remote control project remembers its programmed codes across power cycles and even across new sketch uploads (EEPROM is separate from flash program memory). Without EEPROM storage, users would need to re-learn all their remote codes every time the Arduino lost power. The 1KB capacity is enough for dozens of IR codes, and the 100,000 write-cycle endurance per byte means it lasts practically forever for this use case.'
+                },
+                {
+                    question: 'Which modern wireless technology is commonly used to bridge legacy IR devices into smart home ecosystems?',
+                    options: [
+                        'Bluetooth Classic (SPP profile)',
+                        'WiFi with an IR blaster (network commands translated to IR codes)',
+                        'USB-C direct connection',
+                        'NFC (Near Field Communication)'
+                    ],
+                    explanation: 'The WiFi-to-IR blaster pattern is one of the most popular DIY smart home solutions. An ESP8266 or ESP32 connects to your WiFi network and runs a small web server or MQTT client. When it receives a command over the network (from a phone app, voice assistant, or home automation server), it translates that command into the appropriate IR code and transmits it through an IR LED. This bridges old IR-only devices (TVs, air conditioners, receivers) into modern smart home ecosystems. Commercial products like the Broadlink RM Mini and Logitech Harmony Hub use this same principle. The key advantage is that you keep your existing IR devices but control them through WiFi, voice commands, or automation routines.'
+                }
+            ]
+        });
+        quiz.start();
+    </script>
+</body>
+</html>
