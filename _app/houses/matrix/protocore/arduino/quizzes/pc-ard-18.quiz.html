@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Core 18 Quiz: Hardware Internals | ProtoCore Arduino</title>
+    <link rel="stylesheet" href="../../../../../styles/quiz-engine.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { min-height: 100vh; background: linear-gradient(135deg, #040810 0%, #081020 50%, #0a0c1a 100%); display: flex; flex-direction: column; font-family: 'Segoe UI', system-ui, sans-serif; }
+        .page-header { padding: 15px 30px; background: rgba(0, 0, 0, 0.4); border-bottom: 1px solid rgba(0, 136, 255, 0.2); display: flex; justify-content: space-between; align-items: center; }
+        .page-header a { color: #0088ff; text-decoration: none; font-size: 0.9rem; } .page-header a:hover { opacity: 0.8; }
+        .brand { font-weight: 600; color: #e0e0e0; display: flex; align-items: center; gap: 8px; }
+        .quiz-wrapper { flex: 1; display: flex; align-items: center; justify-content: center; padding: 30px 20px; }
+        #quiz-container { width: 100%; max-width: 800px; }
+    </style>
+</head>
+<body>
+    <header class="page-header">
+        <a href="../../index.html">&larr; Back to ProtoCore Hub</a>
+        <span class="brand"><img src="/assets/images/icons/icon-brain.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Hexworth Prime</span>
+    </header>
+    <main class="quiz-wrapper"><div id="quiz-container"></div></main>
+    <script src="../../../../../components/ProgressSystem.js"></script>
+    <script src="../../../../../components/QuizEngine.js"></script>
+    <script>
+        const quiz = new QuizEngine({
+            containerId: 'quiz-container',
+            title: 'Core 18: Hardware Internals',
+            description: 'Test your understanding of ATmega328P registers, direct port manipulation, timers, interrupts, sleep modes, watchdog timer, ISP programming, and fuse bytes.',
+            passingScore: 80,
+            showFeedback: true,
+            randomize: true,
+            theme: 'matrix',
+            achievement: 'pc-ard-18-quiz',
+            moduleId: 'pc-ard-18-quiz',
+            serverGrading: true,
+            houseId: 'matrix',
+            trackProgress: true,
+
+            questions: [
+                {
+                    question: 'How much faster is direct port manipulation (PORTB |= (1 << PB5)) compared to digitalWrite(13, HIGH)?',
+                    options: [
+                        'About 2x faster',
+                        'About 10x faster',
+                        'About 80x faster',
+                        'About 1000x faster'
+                    ],
+                    explanation: 'Direct port manipulation is approximately 80 times faster than digitalWrite(). A single PORTB write executes in about 62.5 nanoseconds (one clock cycle at 16 MHz). The digitalWrite() function takes approximately 5 microseconds because it must: look up the port register from a pin-to-port mapping table, look up the bit mask, disable interrupts to prevent read-modify-write race conditions, perform the actual port write, and re-enable interrupts. For non-time-critical code, the convenience of digitalWrite() is worth the overhead. For bit-banging protocols, high-frequency PWM, or precise timing, direct register access is the only option.'
+                },
+                {
+                    question: 'What does DDRB |= (1 << PB5) do?',
+                    options: [
+                        'Sets pin 13 to OUTPUT mode (equivalent to pinMode(13, OUTPUT))',
+                        'Sets pin 13 to HIGH voltage',
+                        'Reads the current state of pin 13',
+                        'Toggles pin 13 between HIGH and LOW'
+                    ],
+                    explanation: 'DDRB is the Data Direction Register for Port B. Setting a bit to 1 makes that pin an output; clearing it to 0 makes it an input. PB5 corresponds to Arduino pin 13 (Port B, bit 5). The expression (1 << PB5) creates a bitmask with only bit 5 set (0b00100000). The |= (OR-equals) operator sets that specific bit without changing any other bits in the register. This is functionally identical to pinMode(13, OUTPUT) but executes in a single clock cycle instead of the ~50 cycles that pinMode() requires for its lookup and safety operations.'
+                },
+                {
+                    question: 'Which port register do you write to in order to toggle a pin without reading its current state?',
+                    options: [
+                        'DDRB (Data Direction Register)',
+                        'PORTB (Output Register)',
+                        'PINB (Input Register) -- writing a 1 to PINx toggles the corresponding output bit',
+                        'SREG (Status Register)'
+                    ],
+                    explanation: 'Writing a 1 to a bit in the PINx register toggles the corresponding bit in PORTx. This is a hardware feature of the ATmega328P that enables atomic pin toggling without a read-modify-write sequence. PINB |= (1 << PB5) toggles pin 13 in a single instruction. Without this feature, toggling would require reading PORTB, XORing the bit, and writing back -- three operations that could be interrupted. This PINx toggle feature is documented in the ATmega328P datasheet and is one of the most useful register tricks for generating fast, jitter-free square waves.'
+                },
+                {
+                    question: 'Which Arduino digital pins are mapped to Port B on the ATmega328P?',
+                    options: [
+                        'Pins 0-7',
+                        'Pins 8-13 (bits 0-5 of Port B)',
+                        'Pins A0-A5',
+                        'Pins 14-19'
+                    ],
+                    explanation: 'Port B maps to Arduino digital pins 8 through 13, using bits 0 through 5 of the 8-bit register. Pin 8 = PB0, Pin 9 = PB1, Pin 10 = PB2, Pin 11 = PB3, Pin 12 = PB4, Pin 13 = PB5. Bits 6 and 7 of Port B are connected to the crystal oscillator and are not available as I/O. Port D maps to pins 0-7 (the lower digital pins). Port C maps to the analog pins A0-A5 (bits 0-5). Knowing the port mapping is essential for direct register manipulation because you must use the correct register (PORTB/PORTD/PORTC) and bit position for each pin.'
+                },
+                {
+                    question: 'What is the key limitation of Pin Change Interrupts (PCINT) compared to External Interrupts (INT0/INT1)?',
+                    options: [
+                        'PCINT only works on analog pins, not digital pins',
+                        'PCINT can only detect CHANGE (any toggle), not specifically RISING or FALLING edges -- you must determine direction in the ISR',
+                        'PCINT has a maximum response time of 10 milliseconds',
+                        'PCINT can only be used when the CPU is in sleep mode'
+                    ],
+                    explanation: 'Pin Change Interrupts fire on ANY state change (both rising and falling edges) and cannot be configured for edge-specific detection like INT0/INT1 (which support RISING, FALLING, CHANGE, and LOW). Additionally, PCINT pins are grouped: PCINT0 (pins 8-13), PCINT1 (pins A0-A5), PCINT2 (pins 0-7). Each group shares a single ISR. When the ISR fires, you must read the port register and compare it to the previous state (using XOR) to determine which specific pin changed and whether it went HIGH or LOW. Despite this complexity, PCINT enables interrupts on all 24 I/O pins, not just pins 2 and 3.'
+                },
+                {
+                    question: 'Which timer does the Arduino use internally for millis(), micros(), and delay()?',
+                    options: [
+                        'Timer1 (16-bit)',
+                        'Timer2 (8-bit)',
+                        'Timer0 (8-bit)',
+                        'The watchdog timer'
+                    ],
+                    explanation: 'Timer0 is used by the Arduino core for timekeeping functions: millis(), micros(), and delay(). Timer0 is configured with a prescaler of 64, causing an overflow interrupt approximately every 1.024 milliseconds. The overflow ISR increments an internal counter that millis() reads. This is why modifying Timer0\'s prescaler or mode breaks all time-dependent Arduino functions. Timer0 also drives PWM on pins 5 and 6. Timer1 (16-bit) drives PWM on pins 9/10 and is used by the Servo library. Timer2 (8-bit) drives PWM on pins 3/11 and is used by tone(). Timer2 is generally the safest to modify for custom purposes.'
+                },
+                {
+                    question: 'In Timer1 CTC mode, what determines the output frequency?',
+                    options: [
+                        'The value of the TCNT1 counter register',
+                        'The value of OCR1A (compare register), combined with the clock prescaler: frequency = clock / (2 * prescaler * (OCR1A + 1))',
+                        'The TCCR1A register bits exclusively',
+                        'The number of interrupts enabled in TIMSK1'
+                    ],
+                    explanation: 'In CTC (Clear Timer on Compare) mode, Timer1 counts from 0 up to the value in OCR1A, then resets to 0 and starts again. If OC1A output toggle is enabled, the pin toggles at each compare match. The output frequency formula is: f = F_CPU / (2 * prescaler * (OCR1A + 1)). For example, with a 16 MHz clock, prescaler of 1, and OCR1A = 159: f = 16,000,000 / (2 * 1 * 160) = 50,000 Hz (50 kHz). The factor of 2 accounts for the pin toggling (it takes two compare matches for one complete cycle: LOW-to-HIGH-to-LOW). CTC mode is the standard approach for generating precise, arbitrary frequencies.'
+                },
+                {
+                    question: 'What happens if you modify Timer1 while the Servo library is active?',
+                    options: [
+                        'Nothing -- the Servo library uses software PWM only',
+                        'The Servo library stops working correctly because it depends on Timer1 for generating servo control pulses',
+                        'The board resets automatically to protect the servo from damage',
+                        'Timer1 is locked by the Servo library and cannot be modified'
+                    ],
+                    explanation: 'The Servo library configures Timer1 to generate precisely-timed PWM pulses (1-2 ms within a 20 ms period) for servo motor control. If you modify Timer1 registers (TCCR1A, TCCR1B, ICR1, OCR1A) while the Servo library is active, you will corrupt the servo timing. Servos may jitter, move to incorrect positions, or stop responding entirely. The same conflict applies to analogWrite() on pins 9 and 10, which also use Timer1. If you need custom timer functionality alongside servo control, either use Timer2 (which controls pins 3/11) or replace the Servo library with direct register-level servo control.'
+                },
+                {
+                    question: 'Which sleep mode provides the lowest power consumption on the ATmega328P?',
+                    options: [
+                        'IDLE mode',
+                        'ADC Noise Reduction mode',
+                        'Standby mode',
+                        'Power-down mode (SLEEP_MODE_PWR_DOWN)'
+                    ],
+                    explanation: 'Power-down mode (SLEEP_MODE_PWR_DOWN) provides the absolute lowest power consumption at approximately 0.36 microamps. In this mode, everything is shut off: the CPU, all timers, all I/O modules, the ADC, the analog comparator, the main oscillator, and the BOD (if disabled). The only way to wake the chip is through an external interrupt (INT0/INT1), a pin change interrupt, a TWI address match, or the watchdog timer. Power-down mode is essential for battery-powered projects where the device sleeps for long periods and wakes periodically to take measurements or check sensors.'
+                },
+                {
+                    question: 'What does the watchdog timer do when wdt_reset() is not called before its timeout expires?',
+                    options: [
+                        'It sends an error message over Serial',
+                        'It resets the entire MCU, restarting the program from setup()',
+                        'It puts the MCU into sleep mode to conserve power',
+                        'It disables all interrupts until the sketch is re-uploaded'
+                    ],
+                    explanation: 'When the watchdog timer (WDT) times out without being "fed" by wdt_reset(), it triggers a full hardware reset of the ATmega328P. The program restarts from the beginning: setup() runs, then loop() begins. This is a critical safety mechanism for unattended devices. If your code enters an infinite loop, deadlocks on a communication bus, or freezes due to a bug, the watchdog automatically recovers the system. Timeout periods range from 15 ms to 8 seconds. The WDT can also be configured for interrupt mode (fires an ISR instead of resetting) or combined interrupt+reset mode.'
+                },
+                {
+                    question: 'What is the purpose of the ICSP (In-Circuit Serial Programming) header on the Arduino?',
+                    options: [
+                        'It provides additional Serial communication ports',
+                        'It allows programming the ATmega328P directly via ISP, bypassing the bootloader',
+                        'It connects to an external oscilloscope for debugging',
+                        'It provides power output for external circuits at higher voltage'
+                    ],
+                    explanation: 'The ICSP (In-Circuit Serial Programming) header is a 2x3 pin connector that provides direct access to the SPI programming interface of the ATmega328P: MISO, MOSI, SCK, RST, VCC, and GND. Using an ISP programmer (USBasp, AVR ISP mkII, or another Arduino running ArduinoISP), you can program the chip directly without needing a bootloader. This is used to: burn or replace the bootloader, recover a bricked board, program bare ATmega chips, or free up the 512 bytes of flash that the bootloader normally occupies. ISP also allows reading and writing fuse bytes for chip configuration.'
+                },
+                {
+                    question: 'What could happen if you write incorrect fuse byte values to the ATmega328P?',
+                    options: [
+                        'The fuse values are automatically corrected on the next power cycle',
+                        'The chip becomes unresponsive to normal programming and may require a high-voltage programmer to recover',
+                        'The Arduino IDE displays a fuse error and reverts the change',
+                        'The incorrect values are stored but have no effect until explicitly activated'
+                    ],
+                    explanation: 'Fuse bytes control fundamental chip behavior: clock source, startup time, brownout detection, bootloader configuration, and security locks. Writing wrong fuse values can make the chip completely unresponsive. The most common brick scenario: setting the clock source fuse to "external crystal" when no crystal is connected. The chip expects a clock signal that never arrives, so it cannot run any code, including the bootloader, and cannot be reprogrammed via USB or ISP. Recovery requires either connecting the expected clock source or using a high-voltage parallel programmer (HVPP) that can reset fuse bytes regardless of clock configuration. Always use an online fuse calculator and verify values before writing.'
+                },
+                {
+                    question: 'What is the brownout detection (BOD) feature controlled by the extended fuse byte?',
+                    options: [
+                        'It detects when the board overheats and shuts down the CPU',
+                        'It monitors supply voltage and resets the chip if voltage drops below a threshold, preventing corrupted operation',
+                        'It detects when the USB cable is disconnected and saves data to EEPROM',
+                        'It monitors EEPROM wear and disables writes when the limit is reached'
+                    ],
+                    explanation: 'Brownout detection (BOD) monitors the supply voltage (VCC) and triggers a hardware reset if it drops below a configured threshold. Available thresholds on the ATmega328P: 1.8V, 2.7V, 4.3V, or disabled. Without BOD, a slowly declining voltage (e.g., dying battery) could cause the CPU to execute instructions incorrectly -- writing garbage to EEPROM, corrupting flash, or producing wrong outputs -- because the transistors inside the chip need minimum voltage to switch reliably. BOD prevents this by cleanly resetting the chip before voltage drops to dangerous levels. For battery-powered projects, setting BOD to 2.7V is the standard safe choice.'
+                },
+                {
+                    question: 'What advantage does removing the bootloader provide?',
+                    options: [
+                        'It makes the Arduino run 10x faster',
+                        'It recovers 512 bytes of flash memory and eliminates the bootloader startup delay, but requires ISP for all future uploads',
+                        'It allows the Arduino to run two programs simultaneously',
+                        'It enables the chip to use external RAM for additional memory'
+                    ],
+                    explanation: 'Removing the bootloader frees 512 bytes of flash memory (the Optiboot bootloader size on the Uno) and eliminates the ~1 second bootloader delay on power-up. Without a bootloader, the program starts executing instantly when power is applied. The trade-off is that all future programming must be done via ISP (In-System Programming) using an external programmer connected to the ICSP header -- USB upload through the Arduino IDE no longer works. This is ideal for production devices that will never be reprogrammed in the field, or for projects where every byte of flash and instant startup are critical.'
+                },
+                {
+                    question: 'What does cli() do in AVR programming?',
+                    options: [
+                        'Opens the command-line interface for the ATmega chip',
+                        'Clears the interrupt flag in SREG, globally disabling all interrupts',
+                        'Closes the last open I2C connection',
+                        'Clears the LCD display buffer'
+                    ],
+                    explanation: 'cli() (Clear Interrupt flag) sets the I-bit in the SREG (Status Register) to 0, globally disabling all maskable interrupts. No ISR will execute until interrupts are re-enabled with sei() (Set Interrupt flag). This is essential when configuring timer registers: if an interrupt fires mid-configuration, it could read partially-written register values, causing unpredictable behavior. The standard pattern is: cli() to disable interrupts, configure all related registers atomically, then sei() to re-enable. Keep the cli/sei window as short as possible -- while interrupts are disabled, millis() stops counting and serial data can be lost.'
+                }
+            ]
+        });
+        quiz.start();
+    </script>
+</body>
+</html>

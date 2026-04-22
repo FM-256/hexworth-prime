@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WiFi &amp; IoT | ProtoCore Arduino Core 15</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #040810 0%, #081020 50%, #0a0c1a 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #0088ff; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(4, 8, 16, 0.95); border-top: 1px solid rgba(0, 136, 255, 0.15); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255, 255, 255, 0.07); color: #94a3b8; border: 1px solid rgba(255, 255, 255, 0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(0, 136, 255, 0.15); color: #0088ff; border-color: #0088ff; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s; }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #0088ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ffd700; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip { background: rgba(0, 136, 255, 0.08); border-left: 3px solid #0088ff; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #bfdbfe; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(0, 136, 255, 0.08); border: 1px solid rgba(0, 136, 255, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ffd700; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255, 255, 255, 0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #0088ff; }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #ffd700; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #0088ff; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #0088ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #ffd700; background: rgba(255, 215, 0, 0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .ic { font-family: 'Courier New', monospace; color: #ffd700; background: rgba(255, 215, 0, 0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .diagram-row { display: flex; gap: 16px; align-items: center; justify-content: center; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  { background: rgba(0, 136, 255, 0.12); border: 1px solid rgba(0, 136, 255, 0.4); color: #0088ff; font-weight: 700; font-size: 0.78rem; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px; }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+        .code-block { background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 215, 0, 0.2); border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #ffd700; line-height: 1.6; white-space: pre; }
+        .code-block .cm { color: #64748b; }
+        .code-block .kw { color: #5cb8ff; }
+        .code-block .fn { color: #ffd700; }
+        .code-block .st { color: #86efac; }
+        .code-block .nu { color: #fdba74; }
+        .code-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .code-panel-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 5px; }
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell { background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(0, 136, 255, 0.25); border-radius: 8px; padding: 12px 14px; text-align: center; opacity: 0; animation: hexAppear 0.4s ease forwards; }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #0088ff; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes flow { 0% { stroke-dashoffset: 20; } 100% { stroke-dashoffset: 0; } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes entityPop { from { opacity: 0; transform: scale(0.6) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes glowPulse { 0%, 100% { filter: drop-shadow(0 0 4px rgba(0,136,255,0.3)); } 50% { filter: drop-shadow(0 0 14px rgba(0,136,255,0.9)); } }
+        @keyframes dataFlow { 0% { stroke-dashoffset: 14; } 100% { stroke-dashoffset: 0; } }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .code-compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">WiFi &amp; IoT -- ProtoCore Arduino Core 15</h1>
+
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; ProtoCore &nbsp;|&nbsp; Arduino &nbsp;|&nbsp; Core 15</div>
+        <div class="title-hero">
+            <svg width="360" height="140" viewBox="0 0 360 140" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Globe/cloud shape -->
+                <ellipse cx="180" cy="70" rx="70" ry="45" fill="none" stroke="rgba(0,136,255,0.15)" stroke-width="1.5"/>
+                <ellipse cx="180" cy="70" rx="70" ry="45" fill="none" stroke="rgba(0,136,255,0.3)" stroke-width="1" stroke-dasharray="6,4">
+                    <animate attributeName="stroke-dashoffset" values="20;0" dur="3s" repeatCount="indefinite"/>
+                </ellipse>
+                <!-- Horizontal lines (latitude) -->
+                <ellipse cx="180" cy="55" rx="55" ry="10" fill="none" stroke="rgba(0,136,255,0.1)" stroke-width="0.8"/>
+                <ellipse cx="180" cy="85" rx="55" ry="10" fill="none" stroke="rgba(0,136,255,0.1)" stroke-width="0.8"/>
+                <!-- Vertical line (longitude) -->
+                <ellipse cx="180" cy="70" rx="25" ry="45" fill="none" stroke="rgba(0,136,255,0.1)" stroke-width="0.8"/>
+                <!-- Center label -->
+                <text x="180" y="66" text-anchor="middle" font-size="11" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">IoT</text>
+                <text x="180" y="80" text-anchor="middle" font-size="7" fill="#5cb8ff" font-family="Segoe UI,sans-serif">Internet of Things</text>
+                <!-- Arduino on left -->
+                <rect x="20" y="50" width="70" height="40" rx="6" fill="rgba(0,136,255,0.06)" stroke="rgba(0,136,255,0.25)" stroke-width="1"
+                    style="animation: boxGrow 0.4s ease forwards 0.3s; opacity:0;"/>
+                <text x="55" y="68" text-anchor="middle" font-size="7.5" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Arduino</text>
+                <text x="55" y="80" text-anchor="middle" font-size="6.5" fill="#5cb8ff" font-family="Segoe UI,sans-serif">+ WiFi</text>
+                <!-- Cloud on right -->
+                <rect x="270" y="50" width="70" height="40" rx="6" fill="rgba(255,215,0,0.06)" stroke="rgba(255,215,0,0.25)" stroke-width="1"
+                    style="animation: boxGrow 0.4s ease forwards 0.4s; opacity:0;"/>
+                <text x="305" y="68" text-anchor="middle" font-size="7.5" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">Cloud</text>
+                <text x="305" y="80" text-anchor="middle" font-size="6.5" fill="#ffd700" font-family="Segoe UI,sans-serif">MQTT / HTTP</text>
+                <!-- Data flow arrows -->
+                <line x1="90" y1="70" x2="110" y2="70" stroke="rgba(0,136,255,0.4)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <line x1="250" y1="70" x2="270" y2="70" stroke="rgba(255,215,0,0.4)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+            </svg>
+            <div class="big-title">
+                <span class="accent">WiFi</span> &amp; IoT
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Ethernet &nbsp;|&nbsp; ESP8266 &nbsp;|&nbsp; HTTP Client &nbsp;|&nbsp; Web Server &nbsp;|&nbsp; MQTT &nbsp;|&nbsp; NTP
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Your Arduino has been talking to things on the same table -- sensors, LEDs, serial monitors. Now it reaches through the wall, across the city, around the planet. An HTTP request, an MQTT message, and suddenly your microcontroller is part of the Internet of Things.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>ProtoCore Arduino</span>
+            <span>Core 15</span>
+            <span>Matrix House</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- ARDUINO + NETWORKING ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Arduino + <span class="accent">Networking</span></div>
+        <div class="slide-subtitle">An Arduino alone cannot reach the internet. It needs an Ethernet shield, a WiFi module, or a board with networking built in. Each approach has different tradeoffs.</div>
+
+        <div class="diagram-center">
+            <svg width="600" height="110" viewBox="0 0 600 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="20" y="10" width="160" height="90" rx="10" fill="rgba(0,136,255,0.08)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="100" y="32" text-anchor="middle" font-size="10" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Ethernet Shield</text>
+                <text x="100" y="48" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">W5100/W5500 chip</text>
+                <text x="100" y="60" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">Wired, reliable</text>
+                <text x="100" y="72" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">SPI interface</text>
+                <text x="100" y="84" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">Full TCP/IP stack</text>
+
+                <rect x="220" y="10" width="160" height="90" rx="10" fill="rgba(255,215,0,0.08)" stroke="#ffd700" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="300" y="32" text-anchor="middle" font-size="10" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">WiFi Co-Processor</text>
+                <text x="300" y="48" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">ESP8266 / ESP32</text>
+                <text x="300" y="60" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">AT commands via UART</text>
+                <text x="300" y="72" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">WiFi b/g/n</text>
+                <text x="300" y="84" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">$2-5 modules</text>
+
+                <rect x="420" y="10" width="160" height="90" rx="10" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="500" y="32" text-anchor="middle" font-size="10" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Built-in WiFi</text>
+                <text x="500" y="48" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">MKR WiFi 1010</text>
+                <text x="500" y="60" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">Nano 33 IoT</text>
+                <text x="500" y="72" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">WiFiNINA library</text>
+                <text x="500" y="84" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">Cleanest integration</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Why Connect?</div>
+                <div class="card-desc">Log sensor data to a cloud dashboard. Control outputs from a phone anywhere in the world. Send alerts via email or Slack when conditions change. Synchronize time from NTP servers. Pull weather data from APIs. The internet transforms a local sensor into a global data source.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Limitations</div>
+                <div class="card-desc">An ATmega328P has 2KB of RAM. HTTP responses, JSON payloads, and HTML pages eat memory fast. You cannot run a full web framework. Connections must be short-lived. Every byte matters. This constraint shapes how Arduino does networking.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- ETHERNET SHIELD ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Ethernet Shield: <span class="accent">Wired Reliability</span></div>
+        <div class="slide-subtitle">The W5100 (original) or W5500 (modern) Ethernet shield gives Arduino a wired TCP/IP connection via SPI. Plug in a cable, get an IP.</div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">&lt;SPI.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;Ethernet.h&gt;</span>
+
+<span class="kw">byte</span> mac[] = { <span class="nu">0xDE</span>, <span class="nu">0xAD</span>, <span class="nu">0xBE</span>, <span class="nu">0xEF</span>, <span class="nu">0xFE</span>, <span class="nu">0xED</span> };
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  <span class="fn">Serial.begin</span>(<span class="nu">9600</span>);
+  <span class="kw">if</span> (<span class="fn">Ethernet.begin</span>(mac) == <span class="nu">0</span>) {
+    <span class="fn">Serial.println</span>(<span class="st">"DHCP failed"</span>);
+    <span class="kw">while</span> (<span class="nu">1</span>);
+  }
+  <span class="fn">Serial.print</span>(<span class="st">"IP: "</span>);
+  <span class="fn">Serial.println</span>(<span class="fn">Ethernet.localIP</span>());
+}</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">DHCP</div>
+                <div class="card-desc"><span class="ic">Ethernet.begin(mac)</span> requests an IP via DHCP from your router. No IP configuration needed. If DHCP fails, use <span class="ic">Ethernet.begin(mac, ip)</span> with a static IP as fallback.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">SPI Bus</div>
+                <div class="card-desc">The Ethernet shield uses SPI pins (10, 11, 12, 13 on Uno). Pin 10 is chip select. If you also use an SD card on the shield, manage chip selects carefully -- only one SPI device active at a time.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">W5100 vs W5500</div>
+                <div class="card-desc">W5100: 4 simultaneous sockets, 10/100 Mbps, older. W5500: 8 sockets, better performance, lower power, hardware TCP offload. Both use the same Ethernet library API. W5500 is preferred for new projects.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- WIFI MODULES ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">WiFi Modules: <span class="accent">ESP8266 as Co-Processor</span></div>
+        <div class="slide-subtitle">The ESP8266 is a $2 WiFi chip with a full TCP/IP stack. Connected to Arduino via UART, it handles all wireless networking through AT commands.</div>
+
+        <div class="code-block"><span class="cm">// ESP8266 AT command sequence to connect to WiFi</span>
+<span class="cm">// Send these via Serial to the ESP8266</span>
+
+AT+RST                         <span class="cm">// Reset module</span>
+AT+CWMODE=1                    <span class="cm">// Station mode (client)</span>
+AT+CWJAP="<span class="st">MyNetwork</span>","<span class="st">password</span>"  <span class="cm">// Join access point</span>
+AT+CIFSR                       <span class="cm">// Get assigned IP</span>
+AT+CIPMUX=0                    <span class="cm">// Single connection mode</span>
+AT+CIPSTART="TCP","<span class="st">api.example.com</span>",<span class="nu">80</span>  <span class="cm">// Open TCP connection</span>
+AT+CIPSEND=<span class="nu">18</span>                  <span class="cm">// Send 18 bytes</span>
+GET / HTTP/1.1\r\n\r\n         <span class="cm">// HTTP request</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">ESP8266 as WiFi Shield</div>
+                <div class="card-desc">Arduino sends AT commands via SoftwareSerial (or Serial1 on Mega). The ESP8266 handles WiFi association, TCP/IP, DNS resolution, and TLS. Arduino focuses on sensor logic. This division of labor keeps both processors doing what they do best.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">ESP32 Upgrade</div>
+                <div class="card-desc">ESP32 adds dual-core CPU, Bluetooth, BLE, more GPIO, and better security. When used as a co-processor for Arduino, it works the same way via AT commands but offers more capability. For new projects, ESP32 is the better choice.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Voltage Warning</div>
+            ESP8266 and ESP32 run on 3.3V logic. Arduino Uno outputs 5V on TX. You need a level shifter or voltage divider (two resistors) on the Arduino TX to ESP RX line. The ESP TX to Arduino RX is safe -- 3.3V is high enough for the ATmega to read as HIGH.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- BUILT-IN WIFI ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Built-in WiFi: <span class="accent">WiFiNINA Boards</span></div>
+        <div class="slide-subtitle">Arduino MKR WiFi 1010 and Nano 33 IoT have WiFi built into the board. One library, one include, no external modules.</div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">&lt;WiFiNINA.h&gt;</span>
+
+<span class="kw">char</span> ssid[] = <span class="st">"MyNetwork"</span>;
+<span class="kw">char</span> pass[] = <span class="st">"MyPassword"</span>;
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  <span class="fn">Serial.begin</span>(<span class="nu">9600</span>);
+  <span class="kw">while</span> (<span class="fn">WiFi.begin</span>(ssid, pass) != WL_CONNECTED) {
+    <span class="fn">Serial.print</span>(<span class="st">"."</span>);
+    <span class="fn">delay</span>(<span class="nu">5000</span>);
+  }
+  <span class="fn">Serial.print</span>(<span class="st">"Connected! IP: "</span>);
+  <span class="fn">Serial.println</span>(<span class="fn">WiFi.localIP</span>());
+}</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">MKR WiFi 1010</div>
+                <div class="card-desc">SAMD21 (32-bit ARM) + NINA-W102 WiFi module. 3.3V logic, 256KB flash, 32KB SRAM. Built for IoT: low power modes, crypto chip, compact form factor. Uses the WiFiNINA library.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Nano 33 IoT</div>
+                <div class="card-desc">Same NINA-W102 module in a Nano form factor. Drop-in replacement for Nano with WiFi and BLE added. IMU sensor on board. Ideal for connected wearables and small sensor nodes.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">WiFiNINA Library</div>
+                <div class="card-desc">Unified API: <span class="ic">WiFi.begin()</span>, <span class="ic">WiFi.localIP()</span>, <span class="ic">WiFiClient</span>, <span class="ic">WiFiServer</span>. Supports WPA2, TLS 1.2, and firmware updates via Arduino IDE. The cleanest Arduino networking experience.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- HTTP CLIENT ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">HTTP Client: <span class="accent">GET Requests &amp; JSON</span></div>
+        <div class="slide-subtitle">Your Arduino can fetch data from any web API. Weather, time, stock prices, control commands -- if it has a URL, Arduino can read it.</div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">&lt;WiFiNINA.h&gt;</span>
+
+<span class="fn">WiFiClient</span> client;
+
+<span class="kw">void</span> <span class="fn">fetchData</span>() {
+  <span class="kw">if</span> (<span class="fn">client.connect</span>(<span class="st">"api.example.com"</span>, <span class="nu">80</span>)) {
+    <span class="fn">client.println</span>(<span class="st">"GET /sensor/latest HTTP/1.1"</span>);
+    <span class="fn">client.println</span>(<span class="st">"Host: api.example.com"</span>);
+    <span class="fn">client.println</span>(<span class="st">"Connection: close"</span>);
+    <span class="fn">client.println</span>();
+
+    <span class="kw">while</span> (<span class="fn">client.connected</span>()) {
+      <span class="kw">if</span> (<span class="fn">client.available</span>()) {
+        <span class="kw">char</span> c = <span class="fn">client.read</span>();
+        <span class="fn">Serial.print</span>(c);
+      }
+    }
+    <span class="fn">client.stop</span>();
+  }
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Parsing JSON</div>
+                <div class="card-desc">The ArduinoJson library (by Benoit Blanchon) parses JSON responses in limited RAM. Use <span class="ic">StaticJsonDocument</span> for stack allocation or <span class="ic">DynamicJsonDocument</span> for heap. Always calculate buffer size with the ArduinoJson Assistant tool.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Memory Constraints</div>
+                <div class="card-desc">A typical API response can be 500+ bytes. With 2KB SRAM on an Uno, you cannot buffer the entire response. Read and parse incrementally, or use the ArduinoJson <span class="ic">deserializeJson()</span> stream parser that reads directly from the WiFiClient.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">HTTPS / TLS</div>
+            Modern APIs require HTTPS. WiFiNINA supports TLS 1.2 natively. For ESP8266, use <span class="ic">WiFiClientSecure</span> with fingerprint verification. TLS adds memory overhead and connection time. For constrained boards, prefer APIs that still support HTTP or use MQTT over TLS instead.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- WEB SERVER ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Arduino as <span class="accent">Web Server</span></div>
+        <div class="slide-subtitle">Flip the model: instead of Arduino fetching data, a browser fetches data from Arduino. Open a browser, type the Arduino's IP, and see live sensor readings.</div>
+
+        <div class="code-block"><span class="fn">WiFiServer</span> server(<span class="nu">80</span>);
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  <span class="cm">// ... WiFi connect code ...</span>
+  <span class="fn">server.begin</span>();
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="fn">WiFiClient</span> client = <span class="fn">server.available</span>();
+  <span class="kw">if</span> (client) {
+    <span class="fn">client.println</span>(<span class="st">"HTTP/1.1 200 OK"</span>);
+    <span class="fn">client.println</span>(<span class="st">"Content-Type: text/html"</span>);
+    <span class="fn">client.println</span>();
+    <span class="fn">client.print</span>(<span class="st">"&lt;h1&gt;Temperature: "</span>);
+    <span class="fn">client.print</span>(<span class="fn">readTemp</span>());
+    <span class="fn">client.println</span>(<span class="st">"&amp;deg;C&lt;/h1&gt;"</span>);
+    <span class="fn">client.stop</span>();
+  }
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">How It Works</div>
+                <div class="card-desc">Arduino listens on port 80. When a browser connects, Arduino sends raw HTTP response headers and HTML body. The browser renders it. No framework, no template engine -- you build the response string by string. Auto-refresh with <span class="ic">&lt;meta http-equiv="refresh" content="5"&gt;</span>.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Limitations</div>
+                <div class="card-desc">One client at a time (Uno has limited sockets). No persistent connections. No WebSocket support on basic boards. Every page refresh is a new TCP connection. Keep HTML minimal -- every byte comes from your 2KB RAM budget.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- HANDLING FORMS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Handling Forms: <span class="accent">Control from the Browser</span></div>
+        <div class="slide-subtitle">A web server that only shows data is one-way. Add an HTML form, and the browser can send commands back to the Arduino -- toggle LEDs, set thresholds, change modes.</div>
+
+        <div class="code-compare">
+            <div>
+                <div class="code-panel-label" style="color: #0088ff;">HTML Form (served by Arduino)</div>
+                <div class="code-block"><span class="st">&lt;form method="GET" action="/"&gt;</span>
+  <span class="st">&lt;button name="led" value="on"&gt;</span>
+    LED ON
+  <span class="st">&lt;/button&gt;</span>
+  <span class="st">&lt;button name="led" value="off"&gt;</span>
+    LED OFF
+  <span class="st">&lt;/button&gt;</span>
+<span class="st">&lt;/form&gt;</span></div>
+            </div>
+            <div>
+                <div class="code-panel-label" style="color: #ffd700;">Arduino Parsing</div>
+                <div class="code-block"><span class="cm">// Read the HTTP request line</span>
+<span class="kw">String</span> req = <span class="fn">client.readStringUntil</span>(<span class="st">'\r'</span>);
+
+<span class="kw">if</span> (<span class="fn">req.indexOf</span>(<span class="st">"led=on"</span>) != -<span class="nu">1</span>) {
+  <span class="fn">digitalWrite</span>(<span class="nu">9</span>, <span class="kw">HIGH</span>);
+}
+<span class="kw">if</span> (<span class="fn">req.indexOf</span>(<span class="st">"led=off"</span>) != -<span class="nu">1</span>) {
+  <span class="fn">digitalWrite</span>(<span class="nu">9</span>, <span class="kw">LOW</span>);
+}</div>
+            </div>
+        </div>
+
+        <div class="step-list">
+            <div class="step-row">
+                <span class="step-num">1</span>
+                <span class="step-text"><strong>Browser sends GET:</strong> When the user clicks "LED ON," the browser requests <span class="ic">/?led=on</span>. The query string is part of the HTTP request line that Arduino reads.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">2</span>
+                <span class="step-text"><strong>Arduino parses:</strong> Read the first line of the request, search for <span class="ic">led=on</span> or <span class="ic">led=off</span> using <span class="ic">indexOf()</span>. No URL parsing library needed -- simple string search works for basic forms.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">3</span>
+                <span class="step-text"><strong>Arduino responds:</strong> After processing the command, serve the HTML page again with updated status. The user sees the result immediately.</span>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">POST vs GET</div>
+            GET puts parameters in the URL (visible, bookmarkable, limited length). POST puts them in the request body (hidden, no length limit). For Arduino, GET is simpler to parse. Use POST only when sending sensitive data or large payloads. Both work -- GET is the pragmatic choice for microcontrollers.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- MQTT ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">MQTT: <span class="accent">Pub/Sub for IoT</span></div>
+        <div class="slide-subtitle">HTTP is request-response. MQTT is publish-subscribe. Devices publish to topics, and any subscriber gets the message instantly. The protocol that powers IoT at scale.</div>
+
+        <div class="diagram-center">
+            <svg width="560" height="130" viewBox="0 0 560 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Broker -->
+                <rect x="210" y="15" width="140" height="50" rx="8" fill="rgba(255,215,0,0.1)" stroke="#ffd700" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="280" y="37" text-anchor="middle" font-size="10" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">MQTT Broker</text>
+                <text x="280" y="52" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Mosquitto / HiveMQ</text>
+                <!-- Publishers -->
+                <rect x="20" y="85" width="100" height="35" rx="6" fill="rgba(0,136,255,0.08)" stroke="#0088ff" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="70" y="105" text-anchor="middle" font-size="7.5" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Arduino Sensor</text>
+                <rect x="150" y="85" width="100" height="35" rx="6" fill="rgba(0,136,255,0.08)" stroke="#0088ff" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="200" y="105" text-anchor="middle" font-size="7.5" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Weather API</text>
+                <!-- Subscribers -->
+                <rect x="310" y="85" width="100" height="35" rx="6" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="360" y="105" text-anchor="middle" font-size="7.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Dashboard</text>
+                <rect x="440" y="85" width="100" height="35" rx="6" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.5s; opacity:0;"/>
+                <text x="490" y="105" text-anchor="middle" font-size="7.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Phone App</text>
+                <!-- Arrows -->
+                <line x1="70" y1="85" x2="220" y2="65" stroke="rgba(0,136,255,0.3)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="12;0" dur="1.2s" repeatCount="indefinite"/>
+                </line>
+                <line x1="200" y1="85" x2="260" y2="65" stroke="rgba(0,136,255,0.3)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="12;0" dur="1.2s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <line x1="300" y1="65" x2="360" y2="85" stroke="rgba(58,181,119,0.3)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="12;0" dur="1.2s" repeatCount="indefinite" begin="0.4s"/>
+                </line>
+                <line x1="340" y1="65" x2="490" y2="85" stroke="rgba(58,181,119,0.3)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="12;0" dur="1.2s" repeatCount="indefinite" begin="0.6s"/>
+                </line>
+                <!-- Labels -->
+                <text x="130" y="78" text-anchor="middle" font-size="6.5" fill="#5cb8ff" font-family="Segoe UI,sans-serif">PUBLISH</text>
+                <text x="430" y="78" text-anchor="middle" font-size="6.5" fill="#3ab577" font-family="Segoe UI,sans-serif">SUBSCRIBE</text>
+            </svg>
+        </div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">&lt;PubSubClient.h&gt;</span>
+
+<span class="fn">WiFiClient</span> espClient;
+<span class="fn">PubSubClient</span> mqtt(espClient);
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  <span class="fn">mqtt.setServer</span>(<span class="st">"broker.hivemq.com"</span>, <span class="nu">1883</span>);
+  <span class="fn">mqtt.setCallback</span>(onMessage);
+  <span class="fn">mqtt.connect</span>(<span class="st">"arduino-sensor-01"</span>);
+  <span class="fn">mqtt.subscribe</span>(<span class="st">"home/commands"</span>);
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="fn">mqtt.loop</span>();  <span class="cm">// Process incoming messages</span>
+  <span class="fn">mqtt.publish</span>(<span class="st">"home/temp"</span>, <span class="st">"23.5"</span>);
+  <span class="fn">delay</span>(<span class="nu">10000</span>);
+}
+
+<span class="kw">void</span> <span class="fn">onMessage</span>(<span class="kw">char</span>* topic, <span class="kw">byte</span>* payload, <span class="kw">unsigned int</span> len) {
+  <span class="cm">// Handle incoming commands</span>
+}</div>
+
+        <div class="box box-blue">
+            <div class="box-label">QoS Levels</div>
+            QoS 0: fire and forget (no guarantee). QoS 1: at least once (may duplicate). QoS 2: exactly once (highest overhead). For sensor data, QoS 0 is usually fine -- a missed reading is replaced by the next one. For commands (turn off heater), use QoS 1 minimum.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- IOT PLATFORMS ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">IoT Platforms: <span class="accent">Cloud Dashboards</span></div>
+        <div class="slide-subtitle">Instead of building your own server, use a platform that receives data, stores it, visualizes it, and triggers alerts. Arduino sends readings -- the platform handles the rest.</div>
+
+        <div class="hex-grid">
+            <div class="hex-cell">
+                <div class="hex-title">ThingSpeak</div>
+                <div class="hex-desc">By MathWorks. Free tier: 8 fields per channel, 15-second update interval. Arduino sends HTTP GET with API key. Built-in charts and MATLAB analytics.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Adafruit IO</div>
+                <div class="hex-desc">MQTT-based. Free tier: 30 data points/minute, 5 feeds. Dashboards with gauges, charts, maps, toggles. Arduino library available. Best for quick prototypes.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Blynk</div>
+                <div class="hex-desc">Mobile-first IoT platform. Drag-and-drop phone dashboard builder. Arduino library sends data to the app in real time. Free tier has limits on widgets and devices.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Arduino IoT Cloud</div>
+                <div class="hex-desc">Official Arduino platform. Tight integration with WiFiNINA boards. Properties sync automatically. Dashboard builder included. Free tier: 2 things, 100 MB storage.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Custom Server</div>
+                <div class="hex-desc">Run Node.js, Python Flask, or InfluxDB + Grafana on your own server. Full control, no limits, no vendor lock-in. Requires server administration skills.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Data Visualization</div>
+                <div class="hex-desc">All platforms chart time-series data: temperature over 24 hours, humidity trends, power consumption. Set threshold alerts: email when temp exceeds 30 degrees C.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Platform Choice</div>
+            For learning: ThingSpeak (simple HTTP GET, free, charts in seconds). For phone control: Blynk. For MQTT projects: Adafruit IO. For production: Arduino IoT Cloud or custom server. Start simple, migrate later.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- NTP TIME SYNC ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">NTP Time Sync: <span class="accent">Accurate Time from the Internet</span></div>
+        <div class="slide-subtitle">Arduino has no real-time clock by default. millis() counts from boot, not from midnight. NTP gives you actual wall-clock time accurate to milliseconds.</div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">&lt;WiFiNINA.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;WiFiUdp.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;NTPClient.h&gt;</span>
+
+<span class="fn">WiFiUDP</span> ntpUDP;
+<span class="fn">NTPClient</span> timeClient(ntpUDP, <span class="st">"pool.ntp.org"</span>, -<span class="nu">18000</span>); <span class="cm">// EST = UTC-5</span>
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  <span class="cm">// ... WiFi connect ...</span>
+  <span class="fn">timeClient.begin</span>();
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="fn">timeClient.update</span>();
+  <span class="fn">Serial.print</span>(<span class="st">"Current time: "</span>);
+  <span class="fn">Serial.println</span>(<span class="fn">timeClient.getFormattedTime</span>());
+  <span class="fn">delay</span>(<span class="nu">1000</span>);
+}</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">How NTP Works</div>
+                <div class="card-desc">Arduino sends a UDP packet to an NTP server (pool.ntp.org). The server responds with the current UTC time as a 64-bit timestamp (seconds since January 1, 1900). The NTPClient library handles the protocol, offset calculation, and periodic resync.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Time Zones</div>
+                <div class="card-desc">NTP returns UTC. Apply your time zone offset in seconds: EST = -18000 (-5 hours), PST = -28800 (-8 hours). Daylight saving time must be handled manually -- NTP does not know your local rules. Some libraries handle DST with timezone databases.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Why It Matters</div>
+                <div class="card-desc">Timestamped sensor logs. Scheduled actions (turn on lights at sunset). Correlation between events on different devices. Data logging with actual dates. Without NTP, your Arduino only knows "time since last reboot" -- useless for real-world logging.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- KEY TAKEAWAYS ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Key Takeaways: <span class="accent">Connected Arduino</span></div>
+        <div class="slide-subtitle">Your Arduino is no longer a standalone device. It speaks HTTP, serves web pages, publishes MQTT, and knows what time it is.</div>
+
+        <div class="diagram-center">
+            <svg width="400" height="80" viewBox="0 0 400 80" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <ellipse cx="200" cy="40" rx="50" ry="30" fill="none" stroke="rgba(0,136,255,0.2)" stroke-width="1.5" style="animation: pulse 2s ease-in-out infinite;"/>
+                <ellipse cx="200" cy="40" rx="80" ry="40" fill="none" stroke="rgba(0,136,255,0.1)" stroke-width="1" style="animation: pulse 2.5s ease-in-out infinite;"/>
+                <text x="200" y="38" text-anchor="middle" font-size="11" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">IoT</text>
+                <text x="200" y="52" text-anchor="middle" font-size="7" fill="#5cb8ff" font-family="Segoe UI,sans-serif">Connected</text>
+                <text x="60" y="38" text-anchor="middle" font-size="10" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Local</text>
+                <text x="60" y="52" text-anchor="middle" font-size="10" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">sensor.</text>
+                <text x="340" y="38" text-anchor="middle" font-size="10" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">Global</text>
+                <text x="340" y="52" text-anchor="middle" font-size="10" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">data.</text>
+            </svg>
+        </div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Three ways to connect Arduino to the network:</strong> Ethernet shield (wired, reliable, SPI), ESP8266/ESP32 co-processor (WiFi via AT commands, $2-5), or built-in WiFi boards like MKR WiFi 1010 and Nano 33 IoT (WiFiNINA library, cleanest integration).</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Arduino can be an HTTP client or server.</strong> As a client, it fetches data from APIs with <code>WiFiClient</code> and parses JSON with ArduinoJson. As a server, it listens on port 80 and serves HTML pages with live sensor data and control forms.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>MQTT is the IoT protocol.</strong> Publish sensor data to topics, subscribe to command topics. PubSubClient library handles connections to brokers like Mosquitto or HiveMQ. QoS levels trade reliability for overhead. <code>mqtt.loop()</code> must be called regularly.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>IoT platforms eliminate backend work.</strong> ThingSpeak (HTTP, charts), Adafruit IO (MQTT, dashboards), Blynk (phone control), Arduino IoT Cloud (official). Start with a free tier, focus on the sensor logic, let the platform handle storage and visualization.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>NTP gives real-world timestamps.</strong> The NTPClient library fetches UTC time via UDP from pool.ntp.org. Apply time zone offsets manually. Without NTP, sensor logs have no meaningful time axis. With NTP, your Arduino knows the exact time to the second.</span></div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Core 16 -- Power Management</strong> &nbsp;|&nbsp; Sleep Modes, Battery Selection, Solar, Voltage Regulators
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; ProtoCore</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-ard-15-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>
