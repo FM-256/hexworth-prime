@@ -4,232 +4,1525 @@
     <meta charset="UTF-8">
     <script src="../../../../components/AccessGuard.js"></script>
     <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
     <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
     <script src="../../../../components/FirebaseAuth.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sentinel Response Lab -- SC-200 Chapter 8</title>
+    <title>Sentinel Incident Response Lab | SC-200 Chapter 8</title>
     <style>
+        :root {
+            --shield-red:   #ef4444;
+            --shield-red2:  #991b1b;
+            --shield-green: #34d399;
+            --bg-0:  #080b12;
+            --bg-1:  #0c0f1a;
+            --bg-2:  #111623;
+            --bg-3:  #161d2e;
+            --border: rgba(239,68,68,0.18);
+            --border-hi: rgba(239,68,68,0.45);
+            --text-1: #f0d4d4;
+            --text-2: #b07070;
+            --text-3: #5a2828;
+            --sev-high:   #ef4444;
+            --sev-med:    #f59e0b;
+            --sev-low:    #3b82f6;
+            --sev-info:   #6b7280;
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { height: 100vh; overflow: hidden; background: #0c0c0c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #f5b3b3; display: flex; flex-direction: column; }
-        .lab-header { flex-shrink: 0; padding: 15px 30px; background: rgba(10,6,8,0.95); border-bottom: 1px solid rgba(239,68,68,0.2); display: flex; justify-content: space-between; align-items: center; }
-        .header-left { display: flex; align-items: center; gap: 20px; }
-        .back-btn { padding: 8px 16px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; color: #ef4444; text-decoration: none; font-size: 0.85rem; transition: all 0.3s ease; }
-        .back-btn:hover { background: rgba(239,68,68,0.2); }
-        .lab-title { font-size: 1rem; color: #fde2e2; }
-        .lab-badge { padding: 4px 12px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; font-size: 0.7rem; color: #f87171; letter-spacing: 0.05em; }
-        .lab-badge-ch { padding: 4px 12px; background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.3); border-radius: 12px; font-size: 0.7rem; color: #34d399; letter-spacing: 0.05em; }
-        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #7a4040; }
-        .task-count { color: #ef4444; font-weight: 500; }
-        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(239,68,68,0.15); border-radius: 3px; overflow: hidden; }
-        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #ef4444, #991b1b); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
-        .lab-container { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
-        .task-panel { background: rgba(10,6,8,0.95); border-right: 1px solid rgba(239,68,68,0.15); overflow-y: auto; padding: 20px; }
-        .task-section { margin-bottom: 25px; }
-        .task-section-title { font-size: 0.68rem; color: #5a2020; letter-spacing: 0.15em; margin-bottom: 12px; text-transform: uppercase; }
-        .task-card { background: rgba(20,10,16,0.8); border: 1px solid rgba(239,68,68,0.15); border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s ease; }
-        .task-card:hover { border-color: rgba(239,68,68,0.4); }
-        .task-card.active { border-color: #ef4444; background: rgba(239,68,68,0.1); }
-        .task-card.completed { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.04); }
-        .task-card.completed .task-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; font-weight: 400; }
-        .task-number { font-size: 0.68rem; color: #ef4444; margin-bottom: 4px; }
-        .task-name { font-size: 0.9rem; color: #fde2e2; margin-bottom: 4px; }
-        .task-desc { font-size: 0.77rem; color: #7a4040; line-height: 1.45; }
-        .task-desc code { background: rgba(239,68,68,0.15); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; color: #f87171; font-family: 'Consolas', monospace; }
-        .terminal-panel { display: flex; flex-direction: column; background: #0a0a0a; position: relative; overflow: hidden; }
-        .term-toolbar { flex-shrink: 0; padding: 8px 20px; background: rgba(20,10,16,0.9); border-bottom: 1px solid rgba(239,68,68,0.15); display: flex; align-items: center; gap: 12px; }
-        .term-dot { width: 12px; height: 12px; border-radius: 50%; } .term-dot-red { background: #ff5f57; } .term-dot-amber { background: #febc2e; } .term-dot-green { background: #28c840; }
-        .term-title { flex: 1; text-align: center; font-size: 0.8rem; color: #5a3030; font-family: 'Consolas', monospace; }
-        .term-vm-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #34d399; }
-        .term-status-dot { width: 7px; height: 7px; background: #34d399; border-radius: 50%; animation: pulse 2s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-        .term-output { flex: 1; overflow-y: auto; padding: 16px 360px 8px 20px; font-family: 'Consolas', monospace; font-size: 0.875rem; line-height: 1.6; }
-        .term-input-row { flex-shrink: 0; display: flex; align-items: center; padding: 8px 360px 12px 20px; border-top: 1px solid rgba(239,68,68,0.1); gap: 0; }
-        .term-prompt-label { font-family: 'Consolas', monospace; font-size: 0.875rem; white-space: nowrap; flex-shrink: 0; }
-        .term-prompt-user { color: #ef4444; } .term-prompt-sep { color: #5a2020; } .term-prompt-path { color: #34d399; } .term-prompt-dollar { color: #fde2e2; margin-right: 6px; }
-        .term-input { flex: 1; background: transparent; border: none; outline: none; color: #fde2e2; font-family: 'Consolas', monospace; font-size: 0.875rem; caret-color: #ef4444; }
-        .term-line { white-space: pre-wrap; word-break: break-all; }
-        .term-line-cmd { color: #f5b3b3; } .term-line-out { color: #a0d4a0; } .term-line-err { color: #f87171; } .term-line-info { color: #f87171; } .term-line-warn { color: #fbbf24; } .term-line-dim { color: #4a2020; } .term-welcome { color: #ef4444; }
-        .term-prompt-span { color: #ef4444; } .term-path-span { color: #34d399; } .term-ps1-sep { color: #5a2020; }
-        .json-key { color: #f87171; } .json-string { color: #86efac; } .json-number { color: #fbbf24; } .json-bool { color: #93c5fd; } .json-null { color: #f87171; }
-        .instructions-panel { position: absolute; top: 20px; right: 20px; width: 320px; background: rgba(10,6,8,0.97); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; padding: 20px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.4); transition: all 0.3s ease; }
-        .instructions-panel.collapsed { width: auto; padding: 10px 14px; cursor: pointer; }
-        .instructions-panel.collapsed .instructions-body { display: none; }
-        .instructions-title { font-size: 1rem; color: #ef4444; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
-        .instructions-panel.collapsed .instructions-title { margin-bottom: 0; font-size: 0.85rem; }
-        .instructions-toggle { margin-left: auto; width: 28px; height: 28px; background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; color: #ef4444; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .instructions-step { font-size: 0.88rem; color: #f5b3b3; line-height: 1.65; margin-bottom: 14px; }
-        .instructions-step code { background: rgba(239,68,68,0.2); padding: 2px 7px; border-radius: 4px; font-family: 'Consolas', monospace; color: #f87171; font-size: 0.85em; }
-        .instructions-hint { font-size: 0.78rem; color: #5a2020; font-style: italic; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(239,68,68,0.15); line-height: 1.5; }
-        .hint-btn { margin-top: 12px; padding: 6px 12px; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); border-radius: 5px; color: #ef4444; font-size: 0.75rem; cursor: pointer; font-family: 'Segoe UI', sans-serif; width: 100%; text-align: center; }
-        .hint-command { display: none; margin-top: 10px; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(239,68,68,0.25); border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.78rem; color: #86efac; line-height: 1.55; white-space: pre-wrap; }
-        .hint-command.visible { display: block; }
-        .success-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 2000; }
-        .success-overlay.active { display: flex; }
-        .success-card { background: rgba(10,6,8,0.97); border: 1px solid rgba(52,211,153,0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
-        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
-        .success-message { color: #f5b3b3; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
-        .success-btn { padding: 12px 30px; background: linear-gradient(135deg, #ef4444, #991b1b); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; }
-        @media (max-width: 1024px) { .lab-container { grid-template-columns: 1fr; } .task-panel { display: none; } .term-output, .term-input-row { padding-right: 20px; } .instructions-panel { position: absolute; bottom: 60px; top: auto; right: 10px; left: 10px; width: auto; } }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-0);
+            color: var(--text-1);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ---- TOP BAR ---- */
+        .top-bar {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem 1.5rem;
+            background: var(--bg-1);
+            border-bottom: 1px solid var(--border);
+        }
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.4rem 0.9rem;
+            background: rgba(239,68,68,0.08);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--shield-red);
+            text-decoration: none;
+            font-size: 0.8rem;
+            transition: background 0.2s;
+        }
+        .back-link:hover { background: rgba(239,68,68,0.18); }
+        .top-bar-title {
+            font-size: 0.95rem;
+            color: var(--text-1);
+            font-weight: 500;
+        }
+        .top-bar-badges { display: flex; gap: 0.5rem; margin-left: 0.25rem; }
+        .badge {
+            padding: 0.2rem 0.65rem;
+            border-radius: 20px;
+            font-size: 0.68rem;
+            letter-spacing: 0.06em;
+            font-weight: 600;
+        }
+        .badge-red   { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); color: #f87171; }
+        .badge-green { background: rgba(52,211,153,0.1);  border: 1px solid rgba(52,211,153,0.25); color: #34d399; }
+        .top-bar-progress { margin-left: auto; display: flex; align-items: center; gap: 0.75rem; }
+        .progress-label { font-size: 0.8rem; color: var(--text-2); }
+        .progress-track { width: 130px; height: 5px; background: rgba(239,68,68,0.12); border-radius: 3px; overflow: hidden; }
+        .progress-fill  { height: 100%; background: linear-gradient(90deg, var(--shield-red), var(--shield-red2)); border-radius: 3px; width: 0%; transition: width 0.45s ease; }
+        .progress-count { font-size: 0.8rem; color: var(--shield-red); font-weight: 600; white-space: nowrap; }
+
+        /* ---- LAYOUT ---- */
+        .lab-body {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 280px 1fr 340px;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        /* ---- LEFT: TASK PANEL ---- */
+        .task-panel {
+            background: var(--bg-1);
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+            padding: 1rem;
+        }
+        .task-group-label {
+            font-size: 0.63rem;
+            color: var(--text-3);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin: 1rem 0 0.5rem;
+        }
+        .task-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.6rem;
+            padding: 0.65rem 0.75rem;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            margin-bottom: 0.35rem;
+            transition: all 0.2s;
+        }
+        .task-item:hover { background: rgba(239,68,68,0.06); border-color: var(--border); }
+        .task-item.active { background: rgba(239,68,68,0.1); border-color: var(--border-hi); }
+        .task-item.done   { border-color: rgba(52,211,153,0.25); background: rgba(52,211,153,0.04); }
+        .task-num {
+            flex-shrink: 0;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: rgba(239,68,68,0.15);
+            border: 1px solid rgba(239,68,68,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            color: var(--shield-red);
+            font-weight: 700;
+            margin-top: 1px;
+        }
+        .task-item.done .task-num {
+            background: rgba(52,211,153,0.15);
+            border-color: rgba(52,211,153,0.35);
+            color: var(--shield-green);
+        }
+        .task-info { flex: 1; min-width: 0; }
+        .task-name { font-size: 0.82rem; color: var(--text-1); line-height: 1.3; }
+        .task-desc-short { font-size: 0.72rem; color: var(--text-2); margin-top: 0.2rem; line-height: 1.4; }
+
+        /* ---- CENTER: PORTAL VIEWPORT ---- */
+        .portal-area {
+            overflow-y: auto;
+            background: var(--bg-0);
+            position: relative;
+        }
+
+        /* Microsoft Sentinel portal shell */
+        .sentinel-shell {
+            min-height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        .sentinel-nav {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            padding: 0;
+            background: #1a1f2e;
+            border-bottom: 1px solid rgba(255,255,255,0.07);
+            overflow-x: auto;
+        }
+        .sentinel-nav-item {
+            padding: 0.65rem 1.1rem;
+            font-size: 0.8rem;
+            color: #8090b0;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+        .sentinel-nav-item:hover { color: #c0d0f0; background: rgba(255,255,255,0.04); }
+        .sentinel-nav-item.nav-active { color: #60a5fa; border-bottom-color: #60a5fa; background: rgba(96,165,250,0.06); }
+
+        .portal-view { flex: 1; padding: 1.25rem; display: none; }
+        .portal-view.view-active { display: block; }
+
+        /* Portal section header */
+        .portal-section-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        .portal-section-header h2 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #c0d0f0;
+        }
+        .portal-section-header .sub { font-size: 0.78rem; color: #607090; margin-left: auto; }
+
+        /* Incident queue table */
+        .incident-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+        }
+        .incident-table th {
+            text-align: left;
+            padding: 0.5rem 0.75rem;
+            color: #607090;
+            font-size: 0.7rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            border-bottom: 1px solid rgba(255,255,255,0.07);
+            font-weight: 500;
+        }
+        .incident-table td {
+            padding: 0.6rem 0.75rem;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            color: #c0d0f0;
+            vertical-align: middle;
+        }
+        .incident-table tr:hover td { background: rgba(255,255,255,0.03); }
+        .incident-table tr.row-selected td { background: rgba(96,165,250,0.07); }
+        .incident-table tr { cursor: pointer; transition: background 0.15s; }
+
+        .sev-badge {
+            display: inline-block;
+            padding: 0.15rem 0.55rem;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+        }
+        .sev-high   { background: rgba(239,68,68,0.18);  color: #f87171; border: 1px solid rgba(239,68,68,0.35); }
+        .sev-medium { background: rgba(245,158,11,0.18); color: #fbbf24; border: 1px solid rgba(245,158,11,0.35); }
+        .sev-low    { background: rgba(59,130,246,0.18); color: #93c5fd; border: 1px solid rgba(59,130,246,0.3); }
+        .sev-info   { background: rgba(107,114,128,0.2); color: #9ca3af; border: 1px solid rgba(107,114,128,0.3); }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.15rem 0.55rem;
+            border-radius: 10px;
+            font-size: 0.68rem;
+            font-weight: 600;
+        }
+        .status-new    { background: rgba(96,165,250,0.12); color: #93c5fd; border: 1px solid rgba(96,165,250,0.25); }
+        .status-active { background: rgba(245,158,11,0.12); color: #fbbf24; border: 1px solid rgba(245,158,11,0.25); }
+        .status-closed { background: rgba(52,211,153,0.1);  color: #34d399; border: 1px solid rgba(52,211,153,0.25); }
+
+        /* Incident detail panel */
+        .incident-detail {
+            background: var(--bg-2);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 10px;
+            padding: 1.25rem;
+            margin-top: 1rem;
+            display: none;
+        }
+        .incident-detail.detail-visible { display: block; }
+        .detail-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid rgba(255,255,255,0.07);
+        }
+        .detail-title { font-size: 0.95rem; color: #e0ecff; font-weight: 600; }
+        .detail-meta  { font-size: 0.75rem; color: #607090; margin-top: 0.2rem; }
+        .detail-badges { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.4rem; }
+        .detail-section { margin-top: 0.9rem; }
+        .detail-section-label {
+            font-size: 0.67rem;
+            color: #607090;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }
+        .alert-row {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.5rem 0.75rem;
+            background: var(--bg-3);
+            border-radius: 6px;
+            margin-bottom: 0.35rem;
+            border-left: 3px solid transparent;
+            font-size: 0.8rem;
+        }
+        .alert-row.high { border-left-color: #ef4444; }
+        .alert-row.medium { border-left-color: #f59e0b; }
+        .alert-row-title { flex: 1; color: #c0d0f0; }
+        .alert-row-time  { font-size: 0.7rem; color: #607090; }
+
+        /* Entity cards */
+        .entity-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.35rem;
+        }
+        .entity-card {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.3rem 0.7rem;
+            background: var(--bg-3);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 6px;
+            font-size: 0.75rem;
+            color: #c0d0f0;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .entity-card:hover { border-color: rgba(96,165,250,0.4); }
+        .entity-type { font-size: 0.65rem; color: #607090; }
+
+        /* Attack story SVG graph */
+        .attack-graph-wrap {
+            background: var(--bg-3);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 0.35rem;
+            overflow-x: auto;
+        }
+        .attack-graph-wrap svg { display: block; min-width: 480px; }
+
+        /* UEBA panel */
+        .ueba-score-ring {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            margin-bottom: 0.75rem;
+        }
+        .score-ring-svg { flex-shrink: 0; }
+        .score-ring-detail h3 { font-size: 0.9rem; color: #e0ecff; }
+        .score-ring-detail p  { font-size: 0.78rem; color: #607090; margin-top: 0.2rem; }
+        .anomaly-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.55rem 0.75rem;
+            background: var(--bg-3);
+            border-radius: 6px;
+            margin-bottom: 0.35rem;
+            font-size: 0.8rem;
+        }
+        .anomaly-name { flex: 1; color: #c0d0f0; }
+        .anomaly-score {
+            font-weight: 700;
+            font-size: 0.82rem;
+            padding: 0.15rem 0.45rem;
+            border-radius: 5px;
+        }
+        .score-critical { background: rgba(239,68,68,0.2); color: #f87171; }
+        .score-high     { background: rgba(245,158,11,0.2); color: #fbbf24; }
+
+        /* Playbook execution log */
+        .playbook-log {
+            background: var(--bg-3);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.78rem;
+            margin-top: 0.5rem;
+        }
+        .log-line {
+            padding: 0.2rem 0;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            color: #8090b0;
+            display: flex;
+            gap: 0.75rem;
+        }
+        .log-line:last-child { border-bottom: none; }
+        .log-status-ok  { color: #34d399; }
+        .log-status-run { color: #f59e0b; }
+        .log-time { flex-shrink: 0; color: #3a4a60; }
+
+        /* Automation rules list */
+        .auto-rule-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.6rem 0.85rem;
+            background: var(--bg-3);
+            border-radius: 7px;
+            margin-bottom: 0.4rem;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .rule-order {
+            width: 26px;
+            height: 26px;
+            border-radius: 6px;
+            background: rgba(96,165,250,0.12);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.72rem;
+            color: #93c5fd;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .rule-name  { flex: 1; font-size: 0.82rem; color: #c0d0f0; }
+        .rule-trigger { font-size: 0.7rem; color: #607090; }
+        .rule-action-badge {
+            padding: 0.15rem 0.55rem;
+            background: rgba(52,211,153,0.1);
+            border: 1px solid rgba(52,211,153,0.2);
+            border-radius: 10px;
+            font-size: 0.68rem;
+            color: #34d399;
+        }
+
+        /* ---- RIGHT: INSTRUCTION PANEL ---- */
+        .instruction-panel {
+            background: var(--bg-1);
+            border-left: 1px solid var(--border);
+            overflow-y: auto;
+            padding: 1.25rem;
+        }
+        .instr-task-num {
+            font-size: 0.68rem;
+            color: var(--shield-red);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 0.35rem;
+        }
+        .instr-task-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-1);
+            margin-bottom: 0.75rem;
+        }
+        .instr-body {
+            font-size: 0.83rem;
+            color: var(--text-2);
+            line-height: 1.65;
+        }
+        .instr-body p { margin-bottom: 0.65rem; }
+        .instr-body strong { color: var(--text-1); }
+        .instr-divider { height: 1px; background: var(--border); margin: 1rem 0; }
+        .instr-action-label {
+            font-size: 0.7rem;
+            color: var(--text-3);
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }
+        .action-btn {
+            width: 100%;
+            padding: 0.65rem 1rem;
+            background: rgba(239,68,68,0.1);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-1);
+            font-size: 0.83rem;
+            font-weight: 500;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+            margin-bottom: 0.4rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .action-btn:hover { background: rgba(239,68,68,0.18); border-color: var(--border-hi); }
+        .action-btn.btn-primary {
+            background: linear-gradient(135deg, rgba(239,68,68,0.25), rgba(153,27,27,0.25));
+            border-color: rgba(239,68,68,0.45);
+            color: #fde2e2;
+        }
+        .action-btn.btn-primary:hover {
+            background: linear-gradient(135deg, rgba(239,68,68,0.35), rgba(153,27,27,0.35));
+        }
+        .action-btn.btn-done {
+            background: rgba(52,211,153,0.08);
+            border-color: rgba(52,211,153,0.3);
+            color: #34d399;
+            cursor: default;
+        }
+        .action-btn img { width: 1em; height: 1em; vertical-align: middle; }
+        .instr-concept {
+            background: rgba(96,165,250,0.07);
+            border: 1px solid rgba(96,165,250,0.18);
+            border-radius: 8px;
+            padding: 0.75rem;
+            font-size: 0.78rem;
+            color: #93c5fd;
+            line-height: 1.55;
+            margin-top: 0.75rem;
+        }
+        .instr-concept strong { color: #bfdbfe; }
+
+        /* ---- SUCCESS OVERLAY ---- */
+        .success-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.82);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9000;
+        }
+        .success-overlay.show { display: flex; }
+        .success-card {
+            background: var(--bg-2);
+            border: 1px solid rgba(52,211,153,0.35);
+            border-radius: 16px;
+            padding: 2.5rem;
+            max-width: 480px;
+            width: 90%;
+            text-align: center;
+        }
+        .success-card h2 { font-size: 1.35rem; color: var(--shield-green); margin-bottom: 0.5rem; }
+        .success-card p  { font-size: 0.88rem; color: var(--text-2); line-height: 1.65; margin-bottom: 1.5rem; }
+        .complete-btn {
+            padding: 0.75rem 2rem;
+            background: linear-gradient(135deg, var(--shield-red), var(--shield-red2));
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* tooltip-style highlight for portal elements when task directs attention */
+        .portal-highlight {
+            outline: 2px solid #f59e0b;
+            outline-offset: 2px;
+            border-radius: 4px;
+        }
+
+        /* Dropdown / select within the action panel */
+        .action-select {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            background: rgba(0,0,0,0.35);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-1);
+            font-size: 0.82rem;
+            margin-bottom: 0.4rem;
+        }
+        .action-select:focus { outline: none; border-color: var(--border-hi); }
+
+        /* Scrollbars */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(239,68,68,0.25); border-radius: 3px; }
     </style>
 </head>
 <body>
-    <header class="lab-header">
-        <div class="header-left">
-            <a href="../index.html" class="back-btn">Exit Lab</a>
-            <span class="lab-title">Sentinel Response Lab</span>
-            <span class="lab-badge">SC-200</span>
-            <span class="lab-badge-ch">CH.8</span>
-        </div>
-        <div class="task-progress">
-            <span>Progress:</span>
-            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBarFill"></div></div>
-            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
-        </div>
-    </header>
-    <div class="lab-container">
-        <aside class="task-panel" id="taskPanel"><div class="task-section"><div class="task-section-title">Phase 1 -- Automation and Playbooks</div><div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)"><div class="task-number">Task 1</div><div class="task-name">List Automation Rules</div><div class="task-desc">Run <code>sentinel-auto list --status active</code> to view all active automation rules and their trigger conditions.</div></div><div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)"><div class="task-number">Task 2</div><div class="task-name">Inspect Automation Rule</div><div class="task-desc">Run <code>sentinel-auto show --id AUTO-0012</code> to review the trigger conditions, action ordering, and attached playbook.</div></div><div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)"><div class="task-number">Task 3</div><div class="task-name">List Playbooks</div><div class="task-desc">Run <code>sentinel-playbook list</code> to display all configured playbooks with their Logic Apps status and last run time.</div></div></div><div class="task-section"><div class="task-section-title">Phase 2 -- Incident Management</div><div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)"><div class="task-number">Task 4</div><div class="task-name">View Incident Queue</div><div class="task-desc">Run <code>sentinel-incident list --status new</code> to display unassigned incidents in the queue sorted by severity.</div></div><div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)"><div class="task-number">Task 5</div><div class="task-name">Investigate Incident</div><div class="task-desc">Run <code>sentinel-incident show --id INC-4821</code> to view full incident details including alerts, entities, and enrichment comments.</div></div><div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)"><div class="task-number">Task 6</div><div class="task-name">Assign and Activate</div><div class="task-desc">Run <code>sentinel-incident assign --id INC-4821 --owner socanalyst --status active</code> to take ownership and begin investigation.</div></div></div><div class="task-section"><div class="task-section-title">Phase 3 -- UEBA</div><div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)"><div class="task-number">Task 7</div><div class="task-name">Check Entity Behavior</div><div class="task-desc">Run <code>sentinel-ueba show --entity rjones@contoso.com</code> to view the behavioral profile, anomalies, and investigation priority score.</div></div><div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)"><div class="task-number">Task 8</div><div class="task-name">List UEBA Anomalies</div><div class="task-desc">Run <code>sentinel-ueba anomalies --timerange 7d --min-score 7</code> to list high-score behavioral anomalies from the past week.</div></div></div><div class="task-section"><div class="task-section-title">Phase 4 -- Response Actions</div><div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)"><div class="task-number">Task 9</div><div class="task-name">Run Containment Playbook</div><div class="task-desc">Run <code>sentinel-playbook run --name user-containment --incident INC-4821</code> to execute the user containment playbook on the active incident.</div></div><div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)"><div class="task-number">Task 10</div><div class="task-name">Close Incident</div><div class="task-desc">Run <code>sentinel-incident close --id INC-4821 --classification true-positive --comment "Confirmed C2 activity. User disabled. Endpoint isolated."</code> to resolve the incident.</div></div></div></aside>
-        <main class="terminal-panel" id="terminalPanel">
-            <div class="term-toolbar">
-                <div class="term-dot term-dot-red"></div><div class="term-dot term-dot-amber"></div><div class="term-dot term-dot-green"></div>
-                <div class="term-title">socanalyst@sentinel-lab -- bash</div>
-                <div class="term-vm-status"><div class="term-status-dot"></div>Sentinel Lab Online</div>
-            </div>
-            <div class="term-output" id="termOutput"></div>
-            <div class="term-input-row">
-                <span class="term-prompt-label"><span class="term-prompt-user">socanalyst@sentinel-lab</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span></span>
-                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
-            </div>
-            <div class="instructions-panel" id="instructionsPanel">
-                <div class="instructions-title" onclick="toggleInstructions()">
-                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
-                    Task Instructions
-                    <button class="instructions-toggle" id="instructionsToggle">&#9660;</button>
-                </div>
-                <div class="instructions-body" id="instructionsBody">
-                    <div class="instructions-step" id="instructionsStep">Type the command in the terminal and press Enter.</div>
-                    <div class="instructions-hint" id="instructionsHint">Hint text loads when you select a task.</div>
-                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
-                    <div class="hint-command" id="hintCommand"></div>
-                </div>
-            </div>
-            <div class="success-overlay" id="successOverlay">
-                <div class="success-card">
-                    <div class="success-title">SC-200 Chapter 8 Lab Complete!</div>
-                    <div class="success-message">You reviewed automation rules and playbooks, triaged and investigated an incident, analyzed UEBA behavioral anomalies, executed a containment playbook, and closed the incident with proper classification. These are the core Sentinel SOAR and incident management workflows for the SC-200 exam.</div>
-                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
-                </div>
-            </div>
-        </main>
+
+<!-- ============================================================
+     TOP BAR
+     ============================================================ -->
+<header class="top-bar">
+    <a href="../index.html" class="back-link">
+        <img src="/assets/images/icons/icon-arrow-left.webp" alt="" style="width:1em;height:1em">
+        Exit Lab
+    </a>
+    <span class="top-bar-title">Microsoft Sentinel — Incident Response</span>
+    <div class="top-bar-badges">
+        <span class="badge badge-red">SC-200</span>
+        <span class="badge badge-green">CH.8</span>
     </div>
-    <script>
-    (function(){
-        'use strict';
-        var TOTAL_TASKS = 10;
-        var taskDone = {}; for(var i=1;i<=TOTAL_TASKS;i++) taskDone[i]=false;
-        var currentTask = 1;
-        var cmdHistory = [], histIdx = -1;
-        var outputEl, inputEl, ps1PathEl;
+    <div class="top-bar-progress">
+        <span class="progress-label">Progress</span>
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+        <span class="progress-count" id="progressCount">0 / 10</span>
+    </div>
+</header>
 
-        var TASK_INSTRUCTIONS = {1:{step:"List all active automation rules:\n<code>sentinel-auto list --status active</code>\n\nReview trigger types, conditions, and action ordering.",hint:"Automation rules run before playbooks. They are evaluated in numeric order (1-512). Use them for simple actions like assigning owners and changing severity.",cmd:"sentinel-auto list --status active"},2:{step:"Inspect a specific automation rule:\n<code>sentinel-auto show --id AUTO-0012</code>\n\nReview trigger conditions, actions, and the attached playbook.",hint:"Automation rules can change severity, assign owners, add tags, run playbooks, or suppress incidents. Multiple rules can fire on the same trigger.",cmd:"sentinel-auto show --id AUTO-0012"},3:{step:"List all configured playbooks:\n<code>sentinel-playbook list</code>\n\nPlaybooks are Logic Apps workflows triggered by automation rules.",hint:"Playbooks use managed identity for authentication. The managed identity needs the Microsoft Sentinel Responder role on the workspace.",cmd:"sentinel-playbook list"},4:{step:"View unassigned incidents:\n<code>sentinel-incident list --status new</code>\n\nReview severity, alert count, and entities for triage.",hint:"Incident statuses: New (unassigned), Active (under investigation), Closed (resolved). Closing requires a classification.",cmd:"sentinel-incident list --status new"},5:{step:"Investigate a specific incident:\n<code>sentinel-incident show --id INC-4821</code>\n\nReview alerts, entities, playbook enrichment comments, and MITRE mapping.",hint:"Entity pages show the timeline of all events for a user/host/IP. The investigation graph visualizes relationships between entities.",cmd:"sentinel-incident show --id INC-4821"},6:{step:"Assign the incident and set status to active:\n<code>sentinel-incident assign --id INC-4821 --owner socanalyst --status active</code>",hint:"Assigning ownership ensures accountability. Use automation rules to auto-assign based on severity or analytics rule name.",cmd:"sentinel-incident assign --id INC-4821 --owner socanalyst --status active"},7:{step:"Check UEBA behavioral profile:\n<code>sentinel-ueba show --entity rjones@contoso.com</code>\n\nReview anomalies and investigation priority score.",hint:"UEBA must be enabled manually in Sentinel settings. Microsoft Entra ID is the required minimum data source. Anomalies appear in the BehaviorAnalytics table.",cmd:"sentinel-ueba show --entity rjones@contoso.com"},8:{step:"List high-score UEBA anomalies:\n<code>sentinel-ueba anomalies --timerange 7d --min-score 7</code>",hint:"Investigation priority scores range 0-10. High scores indicate multiple anomalies or high-severity deviations. Focus investigation on entities with the highest scores.",cmd:"sentinel-ueba anomalies --timerange 7d --min-score 7"},9:{step:"Run the user containment playbook:\n<code>sentinel-playbook run --name user-containment --incident INC-4821</code>\n\nThis Logic Apps workflow disables the user, revokes sessions, and posts to Teams.",hint:"Start automation with enrichment playbooks (low risk). Add containment playbooks with human-in-the-loop approval for destructive actions like disabling accounts.",cmd:"sentinel-playbook run --name user-containment --incident INC-4821"},10:{step:"Close the incident with classification:\n<code>sentinel-incident close --id INC-4821 --classification true-positive --comment \"Confirmed C2 activity. User disabled. Endpoint isolated.\"</code>",hint:"Closing classifications: True Positive, Benign Positive, False Positive, Undetermined. Classification data feeds SOC metrics and detection tuning.",cmd:"sentinel-incident close --id INC-4821 --classification true-positive --comment \"Confirmed C2 activity. User disabled. Endpoint isolated.\""}};
+<!-- ============================================================
+     THREE-COLUMN BODY
+     ============================================================ -->
+<div class="lab-body">
 
-        var TASK_NAMES = {};
-        TASK_NAMES[1]="List Automation Rules";
-        TASK_NAMES[2]="Inspect Automation Rule";
-        TASK_NAMES[3]="List Playbooks";
-        TASK_NAMES[4]="View Incident Queue";
-        TASK_NAMES[5]="Investigate Incident";
-        TASK_NAMES[6]="Assign and Activate";
-        TASK_NAMES[7]="Check Entity Behavior";
-        TASK_NAMES[8]="List UEBA Anomalies";
-        TASK_NAMES[9]="Run Containment Playbook";
-        TASK_NAMES[10]="Close Incident";
+    <!-- LEFT: TASK PANEL -->
+    <aside class="task-panel" id="taskPanel">
+        <div class="task-group-label">Phase 1 — Triage</div>
 
-        var CMD_RESPONSES = {"sentinel-auto list --status active":{"lines":[{"text":"=== Active Automation Rules ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Order  ID           Trigger              Condition                        Action","cls":"term-line-warn"},{"text":"  1      AUTO-0010    Incident created     Severity = High                  Assign to Tier2-SOC","cls":"term-line-out"},{"text":"  2      AUTO-0011    Incident created     Rule = \"Brute Force\"             Add tag: brute-force","cls":"term-line-out"},{"text":"  3      AUTO-0012    Incident created     Severity = High AND tag exists   Run playbook: ip-enrichment","cls":"term-line-out"},{"text":"  4      AUTO-0015    Incident created     Rule = \"TI Match\"                Run playbook: ti-enrichment","cls":"term-line-out"},{"text":"  5      AUTO-0020    Incident updated     Status changed to Closed         Run playbook: ticket-sync","cls":"term-line-out"},{"text":"  10     AUTO-0050    Alert created        Rule = \"Known FP Pattern\"        Suppress incident","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  6 active automation rules | Evaluated in order 1-10","cls":"term-line-dim"}],"completesTask":1},"sentinel-auto show --id AUTO-0012":{"lines":[{"text":"=== Automation Rule: AUTO-0012 ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Name:      High Severity IP Enrichment","cls":"term-line-out"},{"text":"  Order:     3 (runs after AUTO-0010 and AUTO-0011)","cls":"term-line-out"},{"text":"  Status:    Active","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Trigger:   When incident is created","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  Conditions:","cls":"term-line-warn"},{"text":"    Severity equals High","cls":"term-line-out"},{"text":"    AND incident contains IP entity","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Actions (executed in order):","cls":"term-line-warn"},{"text":"    1. Add tag: needs-enrichment","cls":"term-line-out"},{"text":"    2. Run playbook: ip-enrichment (Logic App)","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Playbook Details:","cls":"term-line-warn"},{"text":"    Logic App:        sentinel-playbook-ip-enrichment","cls":"term-line-out"},{"text":"    Auth:             Managed Identity (Sentinel Responder role)","cls":"term-line-out"},{"text":"    Avg Runtime:      8 seconds","cls":"term-line-dim"},{"text":"    Last Triggered:   2026-04-21 09:32 UTC","cls":"term-line-dim"}],"completesTask":2},"sentinel-playbook list":{"lines":[{"text":"=== Sentinel Playbooks ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Name                    Logic App Status   Auth              Last Run             Avg Time","cls":"term-line-warn"},{"text":"  ip-enrichment           Enabled            Managed Identity  2026-04-21 09:32     8s","cls":"term-line-out"},{"text":"  ti-enrichment           Enabled            Managed Identity  2026-04-21 09:32     12s","cls":"term-line-out"},{"text":"  user-containment        Enabled            Managed Identity  2026-04-20 14:15     15s","cls":"term-line-out"},{"text":"  endpoint-isolation      Enabled            Managed Identity  2026-04-18 11:22     22s","cls":"term-line-out"},{"text":"  teams-notification      Enabled            Managed Identity  2026-04-21 09:32     3s","cls":"term-line-out"},{"text":"  ticket-sync             Enabled            Managed Identity  2026-04-20 16:45     5s","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  6 playbooks configured | All using Managed Identity authentication","cls":"term-line-dim"},{"text":"  Managed Identity requires Microsoft Sentinel Responder role on the workspace","cls":"term-line-dim"}],"completesTask":3},"sentinel-incident list --status new":{"lines":[{"text":"=== Incident Queue: New (Unassigned) ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  ID          Severity   Alerts   Title                                  Created","cls":"term-line-warn"},{"text":"  INC-4821    High       3        Multi-stage: TI Match + Suspicious PS  2026-04-21 09:33","cls":"term-line-err"},{"text":"  INC-4819    Medium     1        Anomalous Sign-In from New Location    2026-04-21 08:15","cls":"term-line-warn"},{"text":"  INC-4817    Medium     2        Unusual Data Download Volume           2026-04-21 07:44","cls":"term-line-warn"},{"text":"  INC-4815    Low        1        New User Agent Detected                2026-04-21 06:30","cls":"term-line-out"},{"text":"  INC-4812    Low        1        Service Account Logon Outside Hours    2026-04-20 23:15","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  5 unassigned incidents | 1 High | 2 Medium | 2 Low","cls":"term-line-err"},{"text":"  Priority: Investigate INC-4821 first (High severity, multi-stage)","cls":"term-line-warn"}],"completesTask":4},"sentinel-incident show --id INC-4821":{"lines":[{"text":"=== Incident INC-4821 ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Title:     Multi-stage: TI Match + Suspicious PowerShell","cls":"term-line-out"},{"text":"  Severity:  High","cls":"term-line-err"},{"text":"  Status:    New (Unassigned)","cls":"term-line-out"},{"text":"  Created:   2026-04-21 09:33 UTC","cls":"term-line-out"},{"text":"  MITRE:     Initial Access (T1078) + Execution (T1059.001) + C2 (T1071)","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Alerts (3):","cls":"term-line-warn"},{"text":"    1. TI Map IP to SigninLogs -- 203.0.113.47 matched (High)","cls":"term-line-err"},{"text":"    2. Brute Force Against Admin Accounts (High)","cls":"term-line-err"},{"text":"    3. Suspicious PowerShell: Encoded command + download from C2 (High)","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  Entities:","cls":"term-line-warn"},{"text":"    Account:  contoso\\rjones, contoso\\admin-test","cls":"term-line-out"},{"text":"    Host:     DESKTOP-MKT07, SRV-DC01","cls":"term-line-out"},{"text":"    IP:       203.0.113.47 (C2 -- APT29)","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  Playbook Enrichment (auto):","cls":"term-line-warn"},{"text":"    [ip-enrichment] 203.0.113.47: VirusTotal 47/88 malicious, AbuseIPDB 100% confidence","cls":"term-line-err"},{"text":"    [ti-enrichment] IP tagged: APT29 C2 infrastructure, active since 2026-03-15","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  Tasks: 0 assigned | Comments: 2 (from playbook enrichment)","cls":"term-line-dim"}],"completesTask":5},"sentinel-incident assign --id INC-4821 --owner socanalyst --status active":{"lines":[{"text":"=== Incident INC-4821 Updated ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Owner:     socanalyst (was: Unassigned)","cls":"term-line-out"},{"text":"  Status:    Active (was: New)","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Investigation tasks added:","cls":"term-line-warn"},{"text":"    [ ] Review entity pages for rjones and admin-test","cls":"term-line-out"},{"text":"    [ ] Check UEBA anomalies for rjones","cls":"term-line-out"},{"text":"    [ ] Verify if admin-test is a legitimate account","cls":"term-line-out"},{"text":"    [ ] Determine scope of compromise on DESKTOP-MKT07","cls":"term-line-out"},{"text":"    [ ] Execute containment if confirmed malicious","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Incident assigned to socanalyst. Investigation timer started.","cls":"term-line-dim"}],"completesTask":6},"sentinel-ueba show --entity rjones@contoso.com":{"lines":[{"text":"=== UEBA Profile: rjones@contoso.com ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Investigation Priority: 9/10","cls":"term-line-err"},{"text":"  Department: Marketing | Title: Marketing Analyst","cls":"term-line-out"},{"text":"  Baseline Period: 90 days (sufficient data)","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Anomalies (last 7 days):","cls":"term-line-warn"},{"text":"    Anomalous Logon              Score: 8   First logon from 203.0.113.47","cls":"term-line-err"},{"text":"    First-Time PowerShell Use    Score: 7   Never ran PowerShell before 2026-04-21","cls":"term-line-err"},{"text":"    Anomalous Resource Access    Score: 6   Accessed admin tools (never before)","cls":"term-line-warn"},{"text":"    Peer Group Deviation         Score: 8   Behavior deviates from Marketing peers","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  Peer Group: Marketing department users (22 members)","cls":"term-line-out"},{"text":"  Normal Pattern: Browser-based apps (Outlook, SharePoint, Teams)","cls":"term-line-out"},{"text":"  Current Pattern: PowerShell, encoded commands, external IP communication","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  CONCLUSION: Behavior strongly deviates from baseline. Likely compromised account.","cls":"term-line-err"}],"completesTask":7},"sentinel-ueba anomalies --timerange 7d --min-score 7":{"lines":[{"text":"=== UEBA Anomalies: Score >= 7 (Last 7 Days) ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Entity                    Score   Anomaly Type              Detail","cls":"term-line-warn"},{"text":"  rjones@contoso.com        9       Multiple (4 anomalies)    C2 comms + PowerShell + peer deviation","cls":"term-line-err"},{"text":"  admin-test@contoso.com    8       Anomalous Logon           87 failed logons from known C2 IP","cls":"term-line-err"},{"text":"  svc-backup@contoso.com    7       First-Time Activity       First interactive logon (service acct)","cls":"term-line-warn"},{"text":"  DESKTOP-MKT07             8       Anomalous Process         First-time Mimikatz-like process","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  4 entities with high anomaly scores","cls":"term-line-err"},{"text":"  rjones and admin-test are linked to INC-4821","cls":"term-line-warn"},{"text":"  svc-backup anomaly may be related -- investigate separately","cls":"term-line-dim"}],"completesTask":8},"sentinel-playbook run --name user-containment --incident INC-4821":{"lines":[{"text":"=== Playbook Execution: user-containment ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Incident:    INC-4821","cls":"term-line-out"},{"text":"  Target:      rjones@contoso.com (extracted from incident entities)","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  Logic Apps Workflow Steps:","cls":"term-line-warn"},{"text":"  [1/5] Get incident entities from Sentinel API...              OK","cls":"term-line-out"},{"text":"  [2/5] Disable user in Microsoft Entra ID...                   OK","cls":"term-line-out"},{"text":"  [3/5] Revoke all refresh tokens and active sessions...        OK","cls":"term-line-out"},{"text":"  [4/5] Post containment notification to SOC Teams channel...   OK","cls":"term-line-out"},{"text":"  [5/5] Add containment log as incident comment...              OK","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Playbook completed in 14 seconds","cls":"term-line-dim"},{"text":"  User rjones@contoso.com is disabled. All sessions revoked.","cls":"term-line-err"},{"text":"  Teams notification sent to #soc-alerts channel.","cls":"term-line-dim"},{"text":"  Incident comment added: \"User containment executed by socanalyst\"","cls":"term-line-dim"}],"completesTask":9},"sentinel-incident close --id INC-4821 --classification true-positive --comment \"Confirmed C2 activity. User disabled. Endpoint isolated.\"":{"lines":[{"text":"=== Incident INC-4821 Closed ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Status:          Closed (was: Active)","cls":"term-line-out"},{"text":"  Classification:  True Positive - Suspicious activity","cls":"term-line-out"},{"text":"  Closing Comment: Confirmed C2 activity. User disabled. Endpoint isolated.","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  Summary:","cls":"term-line-warn"},{"text":"    Duration:       Active for 47 minutes","cls":"term-line-out"},{"text":"    Alerts:         3 (all confirmed True Positive)","cls":"term-line-out"},{"text":"    Entities:       2 accounts, 2 hosts, 1 IP","cls":"term-line-out"},{"text":"    Actions Taken:  User disabled, sessions revoked, endpoint flagged","cls":"term-line-out"},{"text":"    Playbooks Run:  ip-enrichment, ti-enrichment, user-containment","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Classification recorded. SOC metrics updated.","cls":"term-line-dim"},{"text":"  MTTA: 3 min | MTTR: 47 min | True Positive rate: 100%","cls":"term-line-dim"}],"completesTask":10}};
+        <div class="task-item active" id="tc-1" onclick="selectTask(1)">
+            <div class="task-num" id="tn-1">1</div>
+            <div class="task-info">
+                <div class="task-name">View Incident Queue</div>
+                <div class="task-desc-short">Open the incident queue and review severity distribution</div>
+            </div>
+        </div>
+        <div class="task-item" id="tc-2" onclick="selectTask(2)">
+            <div class="task-num" id="tn-2">2</div>
+            <div class="task-info">
+                <div class="task-name">Select Priority Incident</div>
+                <div class="task-desc-short">Open INC-4821 and read the alert correlation details</div>
+            </div>
+        </div>
+        <div class="task-item" id="tc-3" onclick="selectTask(3)">
+            <div class="task-num" id="tn-3">3</div>
+            <div class="task-info">
+                <div class="task-name">Change Severity</div>
+                <div class="task-desc-short">Escalate INC-4821 from High to Critical after review</div>
+            </div>
+        </div>
+        <div class="task-item" id="tc-4" onclick="selectTask(4)">
+            <div class="task-num" id="tn-4">4</div>
+            <div class="task-info">
+                <div class="task-name">Assign Incident</div>
+                <div class="task-desc-short">Take ownership and set status to Active</div>
+            </div>
+        </div>
 
-        function escH(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-        function addLine(t,c) { var d=document.createElement('div'); d.className='term-line'+(c?' '+c:''); d.textContent=t; outputEl.appendChild(d); outputEl.scrollTop=outputEl.scrollHeight; }
-        function addHTML(h,c) { var d=document.createElement('div'); d.className='term-line'+(c?' '+c:''); d.innerHTML=h; outputEl.appendChild(d); outputEl.scrollTop=outputEl.scrollHeight; }
-        function addBlank() { addLine('',''); }
-        function addPromptLine(cmd) { addHTML('<span class="term-prompt-span">socanalyst@sentinel-lab</span><span class="term-ps1-sep">:</span><span class="term-path-span">~</span><span class="term-ps1-sep">$ </span>'+escH(cmd),'term-line-cmd'); }
+        <div class="task-group-label" style="margin-top:1rem">Phase 2 — Investigation</div>
 
-        function execLine(raw) {
-            var trimmed = raw.trim();
-            addPromptLine(trimmed);
-            if (!trimmed) return;
-            var matched = false;
-            for (var key in CMD_RESPONSES) {
-                if (trimmed === key || trimmed.indexOf(key) === 0) {
-                    var resp = CMD_RESPONSES[key];
-                    resp.lines.forEach(function(l) { addLine(l.text, l.cls); });
-                    addBlank();
-                    if (resp.completesTask) { completeTask(resp.completesTask); }
-                    matched = true;
-                    break;
+        <div class="task-item" id="tc-5" onclick="selectTask(5)">
+            <div class="task-num" id="tn-5">5</div>
+            <div class="task-info">
+                <div class="task-name">Explore Attack Story</div>
+                <div class="task-desc-short">Review the alert correlation graph and MITRE mapping</div>
+            </div>
+        </div>
+        <div class="task-item" id="tc-6" onclick="selectTask(6)">
+            <div class="task-num" id="tn-6">6</div>
+            <div class="task-info">
+                <div class="task-name">Investigate Entity</div>
+                <div class="task-desc-short">Review the entity page for rjones@contoso.com</div>
+            </div>
+        </div>
+        <div class="task-item" id="tc-7" onclick="selectTask(7)">
+            <div class="task-num" id="tn-7">7</div>
+            <div class="task-info">
+                <div class="task-name">Review UEBA Score</div>
+                <div class="task-desc-short">Read the anomaly profile and investigation priority score</div>
+            </div>
+        </div>
+
+        <div class="task-group-label" style="margin-top:1rem">Phase 3 — Response</div>
+
+        <div class="task-item" id="tc-8" onclick="selectTask(8)">
+            <div class="task-num" id="tn-8">8</div>
+            <div class="task-info">
+                <div class="task-name">Review Automation Rules</div>
+                <div class="task-desc-short">Check which automation rules fired on INC-4821</div>
+            </div>
+        </div>
+        <div class="task-item" id="tc-9" onclick="selectTask(9)">
+            <div class="task-num" id="tn-9">9</div>
+            <div class="task-info">
+                <div class="task-name">Run Containment Playbook</div>
+                <div class="task-desc-short">Execute user-containment and review the execution log</div>
+            </div>
+        </div>
+        <div class="task-item" id="tc-10" onclick="selectTask(10)">
+            <div class="task-num" id="tn-10">10</div>
+            <div class="task-info">
+                <div class="task-name">Close with Classification</div>
+                <div class="task-desc-short">Close INC-4821 as True Positive with a closing comment</div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- CENTER: SIMULATED SENTINEL PORTAL -->
+    <main class="portal-area" id="portalArea">
+        <div class="sentinel-shell">
+            <!-- Portal nav tabs -->
+            <nav class="sentinel-nav">
+                <div class="sentinel-nav-item nav-active" id="nav-incidents" onclick="switchView('incidents')">Incidents</div>
+                <div class="sentinel-nav-item" id="nav-investigation" onclick="switchView('investigation')">Investigation</div>
+                <div class="sentinel-nav-item" id="nav-entities" onclick="switchView('entities')">Entities</div>
+                <div class="sentinel-nav-item" id="nav-ueba" onclick="switchView('ueba')">UEBA</div>
+                <div class="sentinel-nav-item" id="nav-automation" onclick="switchView('automation')">Automation</div>
+                <div class="sentinel-nav-item" id="nav-playbooks" onclick="switchView('playbooks')">Playbooks</div>
+            </nav>
+
+            <!-- VIEW: INCIDENTS -->
+            <div class="portal-view view-active" id="view-incidents">
+                <div class="portal-section-header">
+                    <h2>Incidents</h2>
+                    <span class="sub">5 New &nbsp;|&nbsp; All time ranges</span>
+                </div>
+                <table class="incident-table" id="incidentTable">
+                    <thead>
+                        <tr>
+                            <th>Severity</th>
+                            <th>ID</th>
+                            <th>Title</th>
+                            <th>Alerts</th>
+                            <th>Status</th>
+                            <th>Created (UTC)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr onclick="openIncident('INC-4821')" id="row-INC-4821">
+                            <td><span class="sev-badge sev-high" id="sev-4821">HIGH</span></td>
+                            <td style="color:#93c5fd;font-family:monospace;font-size:0.78rem">INC-4821</td>
+                            <td>Multi-stage: TI Match + Suspicious PowerShell</td>
+                            <td>3</td>
+                            <td><span class="status-badge status-new" id="status-4821">New</span></td>
+                            <td style="color:#607090;font-size:0.75rem">2026-04-21 09:33</td>
+                        </tr>
+                        <tr onclick="openIncident('INC-4819')">
+                            <td><span class="sev-badge sev-medium">MEDIUM</span></td>
+                            <td style="color:#93c5fd;font-family:monospace;font-size:0.78rem">INC-4819</td>
+                            <td>Anomalous Sign-In from New Location</td>
+                            <td>1</td>
+                            <td><span class="status-badge status-new">New</span></td>
+                            <td style="color:#607090;font-size:0.75rem">2026-04-21 08:15</td>
+                        </tr>
+                        <tr onclick="openIncident('INC-4817')">
+                            <td><span class="sev-badge sev-medium">MEDIUM</span></td>
+                            <td style="color:#93c5fd;font-family:monospace;font-size:0.78rem">INC-4817</td>
+                            <td>Unusual Data Download Volume</td>
+                            <td>2</td>
+                            <td><span class="status-badge status-new">New</span></td>
+                            <td style="color:#607090;font-size:0.75rem">2026-04-21 07:44</td>
+                        </tr>
+                        <tr onclick="openIncident('INC-4815')">
+                            <td><span class="sev-badge sev-low">LOW</span></td>
+                            <td style="color:#93c5fd;font-family:monospace;font-size:0.78rem">INC-4815</td>
+                            <td>New User Agent Detected</td>
+                            <td>1</td>
+                            <td><span class="status-badge status-new">New</span></td>
+                            <td style="color:#607090;font-size:0.75rem">2026-04-21 06:30</td>
+                        </tr>
+                        <tr onclick="openIncident('INC-4812')">
+                            <td><span class="sev-badge sev-low">LOW</span></td>
+                            <td style="color:#93c5fd;font-family:monospace;font-size:0.78rem">INC-4812</td>
+                            <td>Service Account Logon Outside Hours</td>
+                            <td>1</td>
+                            <td><span class="status-badge status-new">New</span></td>
+                            <td style="color:#607090;font-size:0.75rem">2026-04-20 23:15</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Incident detail expands below table when row is clicked -->
+                <div class="incident-detail" id="incidentDetail">
+                    <div class="detail-header">
+                        <div>
+                            <div class="detail-title" id="detail-title">INC-4821 — Multi-stage: TI Match + Suspicious PowerShell</div>
+                            <div class="detail-meta" id="detail-meta">Created: 2026-04-21 09:33 UTC &nbsp;|&nbsp; Owner: Unassigned &nbsp;|&nbsp; MITRE: T1078, T1059.001, T1071</div>
+                            <div class="detail-badges" id="detail-badges">
+                                <span class="sev-badge sev-high" id="detail-sev-badge">HIGH</span>
+                                <span class="status-badge status-new" id="detail-status-badge">New</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="detail-section">
+                        <div class="detail-section-label">Correlated Alerts</div>
+                        <div class="alert-row high">
+                            <span class="sev-badge sev-high" style="font-size:0.65rem">HIGH</span>
+                            <span class="alert-row-title">TI Map IP to SigninLogs — 203.0.113.47 matched known C2</span>
+                            <span class="alert-row-time">09:33</span>
+                        </div>
+                        <div class="alert-row high">
+                            <span class="sev-badge sev-high" style="font-size:0.65rem">HIGH</span>
+                            <span class="alert-row-title">Brute Force Against Admin Accounts — 87 failed attempts</span>
+                            <span class="alert-row-time">09:31</span>
+                        </div>
+                        <div class="alert-row high">
+                            <span class="sev-badge sev-high" style="font-size:0.65rem">HIGH</span>
+                            <span class="alert-row-title">Suspicious PowerShell: Encoded command + download from C2</span>
+                            <span class="alert-row-time">09:34</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-section">
+                        <div class="detail-section-label">Entities</div>
+                        <div class="entity-grid">
+                            <div class="entity-card" onclick="switchView('entities')">
+                                <img src="/assets/images/icons/icon-user.webp" alt="" style="width:0.9em;height:0.9em">
+                                <span>rjones@contoso.com</span>
+                                <span class="entity-type">Account</span>
+                            </div>
+                            <div class="entity-card" onclick="switchView('entities')">
+                                <img src="/assets/images/icons/icon-user.webp" alt="" style="width:0.9em;height:0.9em">
+                                <span>admin-test@contoso.com</span>
+                                <span class="entity-type">Account</span>
+                            </div>
+                            <div class="entity-card">
+                                <img src="/assets/images/icons/icon-network.webp" alt="" style="width:0.9em;height:0.9em">
+                                <span>DESKTOP-MKT07</span>
+                                <span class="entity-type">Host</span>
+                            </div>
+                            <div class="entity-card">
+                                <img src="/assets/images/icons/icon-globe.webp" alt="" style="width:0.9em;height:0.9em">
+                                <span>203.0.113.47</span>
+                                <span class="entity-type">IP (C2)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="detail-section">
+                        <div class="detail-section-label">Playbook Enrichment Comments</div>
+                        <div class="alert-row high">
+                            <span style="font-family:monospace;font-size:0.72rem;color:#607090;flex-shrink:0">[ip-enrichment]</span>
+                            <span class="alert-row-title" style="font-size:0.77rem">203.0.113.47: VirusTotal 47/88 malicious, AbuseIPDB 100% confidence</span>
+                        </div>
+                        <div class="alert-row high">
+                            <span style="font-family:monospace;font-size:0.72rem;color:#607090;flex-shrink:0">[ti-enrichment]</span>
+                            <span class="alert-row-title" style="font-size:0.77rem">IP tagged: APT29 C2 infrastructure, active since 2026-03-15</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: INVESTIGATION (attack story graph) -->
+            <div class="portal-view" id="view-investigation">
+                <div class="portal-section-header">
+                    <h2>Investigation — INC-4821 Attack Story</h2>
+                    <span class="sub">3 alerts correlated &nbsp;|&nbsp; MITRE ATT&amp;CK mapped</span>
+                </div>
+                <div class="attack-graph-wrap">
+                    <!-- SVG attack story graph -->
+                    <svg viewBox="0 0 600 260" width="600" height="260" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Attack story correlation graph">
+                        <!-- Connector lines -->
+                        <line x1="100" y1="80"  x2="240" y2="80"  stroke="#3a4a60" stroke-width="1.5" stroke-dasharray="4,3"/>
+                        <line x1="360" y1="80"  x2="500" y2="80"  stroke="#3a4a60" stroke-width="1.5" stroke-dasharray="4,3"/>
+                        <line x1="300" y1="95"  x2="300" y2="165" stroke="#3a4a60" stroke-width="1.5" stroke-dasharray="4,3"/>
+                        <line x1="100" y1="80"  x2="300" y2="80"  stroke="none"/>
+
+                        <!-- Node: External IP (APT29 C2) -->
+                        <rect x="20"  y="55" width="80" height="50" rx="7" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="1.5"/>
+                        <text x="60"  y="76"  fill="#f87171" font-size="9"  text-anchor="middle" font-family="Segoe UI,sans-serif" font-weight="600">203.0.113.47</text>
+                        <text x="60"  y="88"  fill="#607090" font-size="8"  text-anchor="middle" font-family="Segoe UI,sans-serif">APT29 C2</text>
+                        <text x="60"  y="98"  fill="#ef4444" font-size="7.5" text-anchor="middle" font-family="Segoe UI,sans-serif">T1078</text>
+
+                        <!-- Arrow: C2 to brute force -->
+                        <path d="M100 80 L130 80" stroke="#ef4444" stroke-width="1.5" marker-end="url(#arr)"/>
+
+                        <!-- Node: Brute Force Alert -->
+                        <rect x="130" y="55" width="115" height="50" rx="7" fill="rgba(245,158,11,0.1)" stroke="#f59e0b" stroke-width="1.5"/>
+                        <text x="187" y="76"  fill="#fbbf24" font-size="9"  text-anchor="middle" font-family="Segoe UI,sans-serif" font-weight="600">Brute Force Alert</text>
+                        <text x="187" y="87"  fill="#607090" font-size="7.5" text-anchor="middle" font-family="Segoe UI,sans-serif">87 failed logons</text>
+                        <text x="187" y="97"  fill="#f59e0b" font-size="7.5" text-anchor="middle" font-family="Segoe UI,sans-serif">T1110</text>
+
+                        <!-- Arrow: brute force to account compromise -->
+                        <path d="M245 80 L275 80" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+                        <!-- Node: Account Compromised -->
+                        <rect x="275" y="55" width="90" height="50" rx="7" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5"/>
+                        <text x="320" y="76"  fill="#f87171" font-size="9"  text-anchor="middle" font-family="Segoe UI,sans-serif" font-weight="600">rjones (acct)</text>
+                        <text x="320" y="87"  fill="#607090" font-size="7.5" text-anchor="middle" font-family="Segoe UI,sans-serif">Compromised</text>
+                        <text x="320" y="97"  fill="#ef4444" font-size="7.5" text-anchor="middle" font-family="Segoe UI,sans-serif">T1078.004</text>
+
+                        <!-- Arrow: account to PS exec -->
+                        <path d="M365 80 L395 80" stroke="#ef4444" stroke-width="1.5" marker-end="url(#arr)"/>
+
+                        <!-- Node: PowerShell Execution -->
+                        <rect x="395" y="55" width="115" height="50" rx="7" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="1.5"/>
+                        <text x="452" y="76"  fill="#c084fc" font-size="9"  text-anchor="middle" font-family="Segoe UI,sans-serif" font-weight="600">Suspicious PS</text>
+                        <text x="452" y="87"  fill="#607090" font-size="7.5" text-anchor="middle" font-family="Segoe UI,sans-serif">Encoded + Download</text>
+                        <text x="452" y="97"  fill="#a855f7" font-size="7.5" text-anchor="middle" font-family="Segoe UI,sans-serif">T1059.001</text>
+
+                        <!-- Vertical arrow: account to C2 comms -->
+                        <path d="M320 105 L320 155" stroke="#ef4444" stroke-width="1.5" marker-end="url(#arr)"/>
+
+                        <!-- Node: C2 Communication -->
+                        <rect x="255" y="155" width="130" height="50" rx="7" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="2"/>
+                        <text x="320" y="176"  fill="#f87171" font-size="9"  text-anchor="middle" font-family="Segoe UI,sans-serif" font-weight="600">C2 Communication</text>
+                        <text x="320" y="188" fill="#607090" font-size="7.5" text-anchor="middle" font-family="Segoe UI,sans-serif">DESKTOP-MKT07</text>
+                        <text x="320" y="198" fill="#ef4444" font-size="7.5" text-anchor="middle" font-family="Segoe UI,sans-serif">T1071 — Active</text>
+
+                        <!-- Arrowhead defs -->
+                        <defs>
+                            <marker id="arr"  markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                                <polygon points="0 0, 7 3.5, 0 7" fill="#ef4444"/>
+                            </marker>
+                            <marker id="arr2" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                                <polygon points="0 0, 7 3.5, 0 7" fill="#f59e0b"/>
+                            </marker>
+                        </defs>
+
+                        <!-- MITRE legend -->
+                        <text x="20"  y="240" fill="#3a4a60" font-size="8" font-family="Segoe UI,sans-serif">MITRE ATT&amp;CK: Initial Access (T1078) → Execution (T1059.001) → C2 (T1071)</text>
+                    </svg>
+                </div>
+                <div style="margin-top:0.75rem;padding:0.75rem;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.18);border-radius:8px;font-size:0.8rem;color:#b07070;line-height:1.6">
+                    <strong style="color:#f87171">Threat Intelligence Match:</strong> 203.0.113.47 confirmed APT29 C2 infrastructure.
+                    rjones@contoso.com executed encoded PowerShell post-compromise.
+                    Lateral movement to DESKTOP-MKT07 observed. Active C2 channel present.
+                </div>
+            </div>
+
+            <!-- VIEW: ENTITIES -->
+            <div class="portal-view" id="view-entities">
+                <div class="portal-section-header">
+                    <h2>Entity — rjones@contoso.com</h2>
+                    <span class="sub">Account &nbsp;|&nbsp; Marketing department</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.85rem">
+                    <div style="background:var(--bg-2);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:0.85rem">
+                        <div class="detail-section-label">Account Details</div>
+                        <div style="font-size:0.8rem;color:#c0d0f0;line-height:2">
+                            <div><span style="color:#607090;min-width:120px;display:inline-block">Display name:</span> Rachel Jones</div>
+                            <div><span style="color:#607090;min-width:120px;display:inline-block">UPN:</span> rjones@contoso.com</div>
+                            <div><span style="color:#607090;min-width:120px;display:inline-block">Department:</span> Marketing</div>
+                            <div><span style="color:#607090;min-width:120px;display:inline-block">Title:</span> Marketing Analyst</div>
+                            <div><span style="color:#607090;min-width:120px;display:inline-block">Account status:</span> <span style="color:#ef4444" id="entity-acct-status">Active</span></div>
+                        </div>
+                    </div>
+                    <div style="background:var(--bg-2);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:0.85rem">
+                        <div class="detail-section-label">Linked Incidents (30 days)</div>
+                        <div class="alert-row high" style="font-size:0.78rem">
+                            <span class="sev-badge sev-high" style="font-size:0.65rem">HIGH</span>
+                            INC-4821 — Multi-stage TI Match
+                        </div>
+                        <div style="font-size:0.75rem;color:#607090;margin-top:0.5rem">No prior incidents in the last 30 days</div>
+                    </div>
+                </div>
+                <div style="margin-top:0.85rem;background:var(--bg-2);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:0.85rem">
+                    <div class="detail-section-label">Activity Timeline (last 24 hours)</div>
+                    <div class="alert-row high" style="font-size:0.78rem">
+                        <span style="color:#607090;font-size:0.7rem;flex-shrink:0">09:34</span>
+                        PowerShell (encoded) executed on DESKTOP-MKT07
+                    </div>
+                    <div class="alert-row high" style="font-size:0.78rem">
+                        <span style="color:#607090;font-size:0.7rem;flex-shrink:0">09:33</span>
+                        Successful logon from 203.0.113.47 (never-before-seen)
+                    </div>
+                    <div class="alert-row high" style="font-size:0.78rem">
+                        <span style="color:#607090;font-size:0.7rem;flex-shrink:0">09:31</span>
+                        87 failed authentication attempts detected
+                    </div>
+                    <div class="alert-row" style="font-size:0.78rem;border-left-color:#607090">
+                        <span style="color:#607090;font-size:0.7rem;flex-shrink:0">07:15</span>
+                        Normal Teams + Outlook activity (last normal session)
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: UEBA -->
+            <div class="portal-view" id="view-ueba">
+                <div class="portal-section-header">
+                    <h2>UEBA — rjones@contoso.com</h2>
+                    <span class="sub">Investigation Priority Score &nbsp;|&nbsp; Anomaly Analysis</span>
+                </div>
+                <div class="ueba-score-ring">
+                    <!-- SVG ring chart for investigation priority score 9/10 -->
+                    <svg class="score-ring-svg" width="90" height="90" viewBox="0 0 90 90" role="img" aria-label="Investigation priority score 9 out of 10">
+                        <circle cx="45" cy="45" r="36" fill="none" stroke="rgba(239,68,68,0.12)" stroke-width="9"/>
+                        <circle cx="45" cy="45" r="36" fill="none" stroke="#ef4444" stroke-width="9"
+                            stroke-dasharray="203.6 226.2" stroke-dashoffset="56.6"
+                            stroke-linecap="round" transform="rotate(-90 45 45)"/>
+                        <text x="45" y="49" fill="#f87171" font-size="18" font-weight="700" text-anchor="middle" font-family="Segoe UI,sans-serif">9</text>
+                        <text x="45" y="60" fill="#607090" font-size="7.5" text-anchor="middle" font-family="Segoe UI,sans-serif">/10</text>
+                    </svg>
+                    <div class="score-ring-detail">
+                        <h3>Investigation Priority: Critical</h3>
+                        <p>4 behavioral anomalies detected in the last 7 days.<br>Strongly deviates from Marketing department baseline.</p>
+                    </div>
+                </div>
+                <div class="detail-section-label">Behavioral Anomalies</div>
+                <div class="anomaly-row">
+                    <img src="/assets/images/icons/icon-warning.webp" alt="" style="width:0.85em;height:0.85em;flex-shrink:0">
+                    <span class="anomaly-name">Anomalous Logon — First sign-in from 203.0.113.47 (C2 IP)</span>
+                    <span class="anomaly-score score-critical">8 / 10</span>
+                </div>
+                <div class="anomaly-row">
+                    <img src="/assets/images/icons/icon-warning.webp" alt="" style="width:0.85em;height:0.85em;flex-shrink:0">
+                    <span class="anomaly-name">First-Time PowerShell Use — Never executed PS before 2026-04-21</span>
+                    <span class="anomaly-score score-critical">7 / 10</span>
+                </div>
+                <div class="anomaly-row">
+                    <img src="/assets/images/icons/icon-warning.webp" alt="" style="width:0.85em;height:0.85em;flex-shrink:0">
+                    <span class="anomaly-name">Anomalous Resource Access — Admin tools accessed (no prior history)</span>
+                    <span class="anomaly-score score-high">6 / 10</span>
+                </div>
+                <div class="anomaly-row">
+                    <img src="/assets/images/icons/icon-warning.webp" alt="" style="width:0.85em;height:0.85em;flex-shrink:0">
+                    <span class="anomaly-name">Peer Group Deviation — Significant deviation from 22 Marketing peers</span>
+                    <span class="anomaly-score score-critical">8 / 10</span>
+                </div>
+                <div style="margin-top:0.85rem;padding:0.75rem;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:8px;font-size:0.8rem;color:#b07070;line-height:1.6">
+                    <strong style="color:#f87171">UEBA Conclusion:</strong> Account behavior is strongly inconsistent with established baseline.
+                    Normal pattern: browser-based apps (Outlook, SharePoint, Teams).
+                    Current pattern: PowerShell, encoded commands, external IP communication.
+                    <strong style="color:#f87171">Likely compromised account.</strong>
+                </div>
+            </div>
+
+            <!-- VIEW: AUTOMATION RULES -->
+            <div class="portal-view" id="view-automation">
+                <div class="portal-section-header">
+                    <h2>Automation Rules</h2>
+                    <span class="sub">6 active &nbsp;|&nbsp; Evaluated in order</span>
+                </div>
+                <div class="auto-rule-row">
+                    <div class="rule-order">1</div>
+                    <div style="flex:1">
+                        <div class="rule-name">AUTO-0010 — High Severity Auto-Assign</div>
+                        <div class="rule-trigger">Trigger: Incident created &nbsp;·&nbsp; Condition: Severity = High</div>
+                    </div>
+                    <span class="rule-action-badge">Assign: Tier2-SOC</span>
+                </div>
+                <div class="auto-rule-row">
+                    <div class="rule-order">2</div>
+                    <div style="flex:1">
+                        <div class="rule-name">AUTO-0011 — Brute Force Tag</div>
+                        <div class="rule-trigger">Trigger: Incident created &nbsp;·&nbsp; Condition: Rule = "Brute Force"</div>
+                    </div>
+                    <span class="rule-action-badge">Tag: brute-force</span>
+                </div>
+                <div class="auto-rule-row" style="border-color:rgba(239,68,68,0.25)">
+                    <div class="rule-order" style="background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.3)">3</div>
+                    <div style="flex:1">
+                        <div class="rule-name" style="color:#f87171">AUTO-0012 — High Severity IP Enrichment <span style="font-size:0.7rem;color:#607090;font-weight:400">[fired on INC-4821]</span></div>
+                        <div class="rule-trigger">Trigger: Incident created &nbsp;·&nbsp; Condition: Severity = High AND contains IP entity</div>
+                    </div>
+                    <span class="rule-action-badge">Run: ip-enrichment</span>
+                </div>
+                <div class="auto-rule-row">
+                    <div class="rule-order">4</div>
+                    <div style="flex:1">
+                        <div class="rule-name">AUTO-0015 — Threat Intel Enrichment</div>
+                        <div class="rule-trigger">Trigger: Incident created &nbsp;·&nbsp; Condition: Rule = "TI Match"</div>
+                    </div>
+                    <span class="rule-action-badge">Run: ti-enrichment</span>
+                </div>
+                <div class="auto-rule-row">
+                    <div class="rule-order">5</div>
+                    <div style="flex:1">
+                        <div class="rule-name">AUTO-0020 — Ticket Sync on Close</div>
+                        <div class="rule-trigger">Trigger: Incident updated &nbsp;·&nbsp; Condition: Status changed to Closed</div>
+                    </div>
+                    <span class="rule-action-badge">Run: ticket-sync</span>
+                </div>
+                <div class="auto-rule-row">
+                    <div class="rule-order" style="color:#fbbf24">10</div>
+                    <div style="flex:1">
+                        <div class="rule-name">AUTO-0050 — Known FP Suppression</div>
+                        <div class="rule-trigger">Trigger: Alert created &nbsp;·&nbsp; Condition: Rule = "Known FP Pattern"</div>
+                    </div>
+                    <span class="rule-action-badge">Suppress incident</span>
+                </div>
+            </div>
+
+            <!-- VIEW: PLAYBOOKS -->
+            <div class="portal-view" id="view-playbooks">
+                <div class="portal-section-header">
+                    <h2>Playbooks</h2>
+                    <span class="sub">6 configured &nbsp;|&nbsp; All using Managed Identity</span>
+                </div>
+                <table class="incident-table">
+                    <thead>
+                        <tr>
+                            <th>Playbook</th>
+                            <th>Logic App Status</th>
+                            <th>Auth</th>
+                            <th>Last Run</th>
+                            <th>Avg Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="color:#93c5fd;font-family:monospace;font-size:0.78rem">ip-enrichment</td>
+                            <td><span class="status-badge status-closed">Enabled</span></td>
+                            <td style="font-size:0.75rem;color:#607090">Managed Identity</td>
+                            <td style="font-size:0.75rem;color:#607090">2026-04-21 09:32</td>
+                            <td style="font-size:0.75rem;color:#607090">8s</td>
+                        </tr>
+                        <tr>
+                            <td style="color:#93c5fd;font-family:monospace;font-size:0.78rem">ti-enrichment</td>
+                            <td><span class="status-badge status-closed">Enabled</span></td>
+                            <td style="font-size:0.75rem;color:#607090">Managed Identity</td>
+                            <td style="font-size:0.75rem;color:#607090">2026-04-21 09:32</td>
+                            <td style="font-size:0.75rem;color:#607090">12s</td>
+                        </tr>
+                        <tr id="pb-row-containment">
+                            <td style="color:#93c5fd;font-family:monospace;font-size:0.78rem">user-containment</td>
+                            <td><span class="status-badge status-closed">Enabled</span></td>
+                            <td style="font-size:0.75rem;color:#607090">Managed Identity</td>
+                            <td style="font-size:0.75rem;color:#607090" id="pb-last-run">2026-04-20 14:15</td>
+                            <td style="font-size:0.75rem;color:#607090">15s</td>
+                        </tr>
+                        <tr>
+                            <td style="color:#93c5fd;font-family:monospace;font-size:0.78rem">endpoint-isolation</td>
+                            <td><span class="status-badge status-closed">Enabled</span></td>
+                            <td style="font-size:0.75rem;color:#607090">Managed Identity</td>
+                            <td style="font-size:0.75rem;color:#607090">2026-04-18 11:22</td>
+                            <td style="font-size:0.75rem;color:#607090">22s</td>
+                        </tr>
+                        <tr>
+                            <td style="color:#93c5fd;font-family:monospace;font-size:0.78rem">teams-notification</td>
+                            <td><span class="status-badge status-closed">Enabled</span></td>
+                            <td style="font-size:0.75rem;color:#607090">Managed Identity</td>
+                            <td style="font-size:0.75rem;color:#607090">2026-04-21 09:32</td>
+                            <td style="font-size:0.75rem;color:#607090">3s</td>
+                        </tr>
+                        <tr>
+                            <td style="color:#93c5fd;font-family:monospace;font-size:0.78rem">ticket-sync</td>
+                            <td><span class="status-badge status-closed">Enabled</span></td>
+                            <td style="font-size:0.75rem;color:#607090">Managed Identity</td>
+                            <td style="font-size:0.75rem;color:#607090">2026-04-20 16:45</td>
+                            <td style="font-size:0.75rem;color:#607090">5s</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Execution log — shown when playbook is run in Task 9 -->
+                <div id="pbExecutionLog" style="display:none;margin-top:1rem">
+                    <div class="detail-section-label">Execution Log — user-containment (INC-4821)</div>
+                    <div class="playbook-log">
+                        <div class="log-line"><span class="log-time">09:41:02</span><span class="log-status-ok">[1/5]</span><span>Get incident entities from Sentinel API</span><span class="log-status-ok" style="margin-left:auto">OK</span></div>
+                        <div class="log-line"><span class="log-time">09:41:03</span><span class="log-status-ok">[2/5]</span><span>Disable user rjones@contoso.com in Microsoft Entra ID</span><span class="log-status-ok" style="margin-left:auto">OK</span></div>
+                        <div class="log-line"><span class="log-time">09:41:04</span><span class="log-status-ok">[3/5]</span><span>Revoke all refresh tokens and active sessions</span><span class="log-status-ok" style="margin-left:auto">OK</span></div>
+                        <div class="log-line"><span class="log-time">09:41:05</span><span class="log-status-ok">[4/5]</span><span>Post containment notification to #soc-alerts (Teams)</span><span class="log-status-ok" style="margin-left:auto">OK</span></div>
+                        <div class="log-line"><span class="log-time">09:41:06</span><span class="log-status-ok">[5/5]</span><span>Add containment comment to incident INC-4821</span><span class="log-status-ok" style="margin-left:auto">OK</span></div>
+                        <div class="log-line" style="padding-top:0.4rem;border-top:1px solid rgba(255,255,255,0.06)">
+                            <span class="log-time">09:41:06</span>
+                            <span style="color:#34d399">Playbook completed in 14 seconds. User disabled. All sessions revoked.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /sentinel-shell -->
+    </main>
+
+    <!-- RIGHT: INSTRUCTION PANEL -->
+    <aside class="instruction-panel" id="instructionPanel">
+        <div class="instr-task-num" id="instrTaskNum">TASK 1 OF 10</div>
+        <div class="instr-task-title" id="instrTaskTitle">View Incident Queue</div>
+        <div class="instr-body" id="instrBody">
+            <p>The <strong>Incidents</strong> view is your primary triage workspace in Microsoft Sentinel. It shows all incidents generated by analytics rules, sorted by severity.</p>
+            <p>Scan the incident queue. Note the <strong>severity distribution</strong> — 1 High, 2 Medium, 2 Low — and identify which incident requires immediate attention.</p>
+        </div>
+        <div class="instr-divider"></div>
+        <div class="instr-action-label">Your Action</div>
+        <button class="action-btn btn-primary" id="primaryActionBtn" onclick="handleTaskAction()">
+            <img src="/assets/images/icons/icon-eye.webp" alt=""> Review incident queue
+        </button>
+        <div class="instr-concept" id="instrConcept">
+            <strong>Exam concept:</strong> In Sentinel, all incidents are correlated groupings of alerts. A single high-severity incident with multiple correlated alerts is higher priority than multiple separate low-severity incidents.
+        </div>
+    </aside>
+
+</div><!-- /lab-body -->
+
+<!-- Success overlay -->
+<div class="success-overlay" id="successOverlay">
+    <div class="success-card">
+        <h2>SC-200 Ch.8 Lab Complete</h2>
+        <p>You triaged the incident queue, escalated severity, assigned ownership, explored the attack story graph, analyzed UEBA behavioral anomalies, reviewed automation rules, executed a containment playbook, and closed the incident with classification. These are the core Sentinel SOAR and incident management workflows for SC-200.</p>
+        <button class="complete-btn" id="completeFinalBtn" onclick="finishLab()">Complete Lab</button>
+    </div>
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    /* ------------------------------------------------------------------ */
+    /* State                                                                */
+    /* ------------------------------------------------------------------ */
+    var TOTAL = 10;
+    var taskDone = {};
+    for (var i = 1; i <= TOTAL; i++) { taskDone[i] = false; }
+    var currentTask = 1;
+
+    /* Per-task portal navigation targets and action configs */
+    var TASK_CONFIG = {
+        1: {
+            view: 'incidents',
+            nav:  'nav-incidents',
+            taskNum: 'TASK 1 OF 10',
+            title: 'View Incident Queue',
+            body:  'The <strong>Incidents</strong> view is your primary triage workspace in Microsoft Sentinel. It shows all incidents generated by analytics rules, sorted by severity.<br><br>Scan the incident queue. Note the <strong>severity distribution</strong> — 1 High, 2 Medium, 2 Low — and identify which incident requires immediate attention.',
+            actionLabel: 'Review incident queue',
+            actionIcon: 'icon-eye.webp',
+            concept: '<strong>Exam concept:</strong> Sentinel incidents are correlated groupings of alerts. A High-severity multi-alert incident takes priority over several separate low-severity incidents regardless of creation time.'
+        },
+        2: {
+            view: 'incidents',
+            nav:  'nav-incidents',
+            taskNum: 'TASK 2 OF 10',
+            title: 'Select Priority Incident',
+            body:  'Click the <strong>INC-4821</strong> row in the incident table to expand the detail panel. Review the three correlated alerts, the entity list, and the playbook enrichment comments.<br><br>INC-4821 is a multi-stage incident: a threat intelligence IP match, a brute force campaign, and a suspicious PowerShell execution all occurred in the same short window against the same user.',
+            actionLabel: 'Open INC-4821 detail',
+            actionIcon: 'icon-list.webp',
+            concept: '<strong>Exam concept:</strong> Multi-stage incidents are created when Sentinel analytics rules correlate multiple alerts with shared entities within a fusion detection window. This reduces alert fatigue and shows the full attack chain.'
+        },
+        3: {
+            view: 'incidents',
+            nav:  'nav-incidents',
+            taskNum: 'TASK 3 OF 10',
+            title: 'Change Severity',
+            body:  'After reviewing the playbook enrichment (VirusTotal 47/88 malicious, APT29 attribution), you determine the original High severity should be escalated to <strong>Critical</strong>.<br><br>Analysts can manually override severity when threat intelligence confirms the incident is more dangerous than the rule originally assessed.',
+            actionLabel: 'Escalate to Critical',
+            actionIcon: 'icon-warning.webp',
+            concept: '<strong>Exam concept:</strong> Severity in Sentinel comes from the analytics rule definition, but analysts can override it. Automation rules can also change severity based on conditions — allowing dynamic escalation without manual intervention.'
+        },
+        4: {
+            view: 'incidents',
+            nav:  'nav-incidents',
+            taskNum: 'TASK 4 OF 10',
+            title: 'Assign Incident',
+            body:  'Assign <strong>INC-4821</strong> to yourself (socanalyst) and change the status from <strong>New</strong> to <strong>Active</strong>. This signals to the SOC that the incident is under active investigation and removes it from the unassigned queue.',
+            actionLabel: 'Assign to socanalyst',
+            actionIcon: 'icon-user.webp',
+            concept: '<strong>Exam concept:</strong> Incident lifecycle in Sentinel: New → Active → Closed. Closing requires a classification: True Positive, Benign Positive, False Positive, or Undetermined. Classifications feed SOC metrics and help tune detection rules.'
+        },
+        5: {
+            view: 'investigation',
+            nav:  'nav-investigation',
+            taskNum: 'TASK 5 OF 10',
+            title: 'Explore Attack Story',
+            body:  'Switch to the <strong>Investigation</strong> view to see the attack story correlation graph. Sentinel automatically maps correlated alerts to a visual timeline showing entity relationships and MITRE ATT&CK technique IDs.<br><br>Trace the attack chain: C2 IP → brute force → account compromise → PowerShell execution → active C2 channel.',
+            actionLabel: 'Review attack story graph',
+            actionIcon: 'icon-network.webp',
+            concept: '<strong>Exam concept:</strong> The Sentinel investigation graph shows entity relationships across all correlated alerts. It is a key differentiator from raw SIEM logs — the graph reveals the full attack narrative automatically.'
+        },
+        6: {
+            view: 'entities',
+            nav:  'nav-entities',
+            taskNum: 'TASK 6 OF 10',
+            title: 'Investigate Entity',
+            body:  'Open the <strong>Entities</strong> view to review the entity page for <strong>rjones@contoso.com</strong>. The entity page aggregates all activity for this account across all linked incidents.<br><br>Review the activity timeline — the last normal session was at 07:15. The compromise indicators begin at 09:31.',
+            actionLabel: 'View entity timeline',
+            actionIcon: 'icon-user.webp',
+            concept: '<strong>Exam concept:</strong> Entity pages in Sentinel aggregate all alerts, incidents, and activity for a user or host across a configurable time window. This is the primary investigation surface for account compromise scenarios.'
+        },
+        7: {
+            view: 'ueba',
+            nav:  'nav-ueba',
+            taskNum: 'TASK 7 OF 10',
+            title: 'Review UEBA Score',
+            body:  'Navigate to <strong>UEBA</strong> and review the investigation priority score for rjones@contoso.com. The score of <strong>9/10</strong> reflects four high-severity behavioral anomalies, all deviating from the Marketing department baseline.<br><br>UEBA data comes from the BehaviorAnalytics table and requires Microsoft Entra ID as a minimum data source.',
+            actionLabel: 'Review anomaly profile',
+            actionIcon: 'icon-chart.webp',
+            concept: '<strong>Exam concept:</strong> UEBA investigation priority scores range 0–10. Scores above 7 indicate multiple serious anomalies. The score is calculated relative to the entity\'s peer group — a Marketing analyst running PowerShell is highly anomalous even if PowerShell itself is normal elsewhere.'
+        },
+        8: {
+            view: 'automation',
+            nav:  'nav-automation',
+            taskNum: 'TASK 8 OF 10',
+            title: 'Review Automation Rules',
+            body:  'Navigate to the <strong>Automation</strong> view to see which automation rules fired on INC-4821. Rule AUTO-0012 (highlighted) matched the High severity + IP entity conditions and automatically triggered the ip-enrichment playbook.<br><br>This is why the enrichment data appeared in the incident before you even opened it.',
+            actionLabel: 'Review AUTO-0012',
+            actionIcon: 'icon-gear.webp',
+            concept: '<strong>Exam concept:</strong> Automation rules execute before playbooks and are evaluated in order (1–512). They can change severity, assign owners, add tags, or run playbooks. Multiple rules can fire on the same incident trigger.'
+        },
+        9: {
+            view: 'playbooks',
+            nav:  'nav-playbooks',
+            taskNum: 'TASK 9 OF 10',
+            title: 'Run Containment Playbook',
+            body:  'Navigate to <strong>Playbooks</strong> and execute the <strong>user-containment</strong> playbook against INC-4821. The playbook is a Logic Apps workflow that disables the user in Entra ID, revokes all sessions, and posts a Teams notification.<br><br>Review the execution log that appears after the playbook runs.',
+            actionLabel: 'Execute user-containment',
+            actionIcon: 'icon-play.webp',
+            concept: '<strong>Exam concept:</strong> Playbooks in Sentinel are Azure Logic Apps triggered via automation rules or manually. They use Managed Identity for authentication and need the Microsoft Sentinel Responder role on the workspace.'
+        },
+        10: {
+            view: 'incidents',
+            nav:  'nav-incidents',
+            taskNum: 'TASK 10 OF 10',
+            title: 'Close with Classification',
+            body:  'Return to the <strong>Incidents</strong> view to close INC-4821. Select classification <strong>True Positive</strong> and enter a closing comment confirming the scope of compromise and actions taken.<br><br>Closing with classification is required — Undetermined closings are flagged in SOC metrics.',
+            actionLabel: 'Close as True Positive',
+            actionIcon: 'icon-checkmark.webp',
+            concept: '<strong>Exam concept:</strong> Closing classifications: True Positive (confirmed malicious), Benign Positive (expected behavior), False Positive (rule error), Undetermined. Classification data is used to calculate true positive rate and tune analytics rules.'
+        }
+    };
+
+    /* ------------------------------------------------------------------ */
+    /* Portal navigation                                                    */
+    /* ------------------------------------------------------------------ */
+    function switchView(viewId) {
+        /* Deactivate all views and nav items */
+        var views = document.querySelectorAll('.portal-view');
+        views.forEach(function (v) { v.classList.remove('view-active'); });
+        var navItems = document.querySelectorAll('.sentinel-nav-item');
+        navItems.forEach(function (n) { n.classList.remove('nav-active'); });
+
+        /* Activate target view */
+        var targetView = document.getElementById('view-' + viewId);
+        if (targetView) { targetView.classList.add('view-active'); }
+        var targetNav = document.getElementById('nav-' + viewId);
+        if (targetNav) { targetNav.classList.add('nav-active'); }
+
+        /* Scroll portal back to top */
+        var portal = document.getElementById('portalArea');
+        if (portal) { portal.scrollTop = 0; }
+    }
+
+    /* Make switchView accessible from inline onclick in nav items */
+    window.switchView = switchView;
+
+    /* ------------------------------------------------------------------ */
+    /* Incident row click                                                   */
+    /* ------------------------------------------------------------------ */
+    function openIncident(id) {
+        /* Deselect all rows */
+        var rows = document.querySelectorAll('#incidentTable tr');
+        rows.forEach(function (r) { r.classList.remove('row-selected'); });
+
+        /* Select clicked row */
+        var row = document.getElementById('row-' + id);
+        if (row) { row.classList.add('row-selected'); }
+
+        /* Show detail panel only for INC-4821 (the incident this lab focuses on) */
+        var detail = document.getElementById('incidentDetail');
+        if (id === 'INC-4821') {
+            detail.classList.add('detail-visible');
+            /* Complete task 2 if open */
+            if (currentTask === 2 && !taskDone[2]) { completeTask(2); }
+        } else {
+            detail.classList.remove('detail-visible');
+        }
+    }
+    window.openIncident = openIncident;
+
+    /* ------------------------------------------------------------------ */
+    /* Task progression                                                     */
+    /* ------------------------------------------------------------------ */
+    function selectTask(num) {
+        currentTask = num;
+
+        /* Update task panel active state */
+        for (var j = 1; j <= TOTAL; j++) {
+            var card = document.getElementById('tc-' + j);
+            if (!card) { continue; }
+            card.classList.remove('active');
+            if (j === num) { card.classList.add('active'); }
+        }
+
+        /* Update instruction panel */
+        var cfg = TASK_CONFIG[num];
+        if (!cfg) { return; }
+        document.getElementById('instrTaskNum').textContent   = cfg.taskNum;
+        document.getElementById('instrTaskTitle').textContent = cfg.title;
+        document.getElementById('instrBody').innerHTML        = cfg.body;
+        document.getElementById('instrConcept').innerHTML     = cfg.concept;
+
+        var btn = document.getElementById('primaryActionBtn');
+        if (taskDone[num]) {
+            btn.className = 'action-btn btn-done';
+            btn.innerHTML = '<img src="/assets/images/icons/icon-checkmark.webp" alt="" style="width:1em;height:1em"> Task completed';
+        } else {
+            btn.className = 'action-btn btn-primary';
+            btn.innerHTML = '<img src="/assets/images/icons/icon-' + cfg.actionIcon.replace('icon-','') + '" alt="" style="width:1em;height:1em"> ' + cfg.actionLabel;
+        }
+
+        /* Navigate the portal to the relevant view */
+        switchView(cfg.view);
+    }
+    window.selectTask = selectTask;
+
+    /* ------------------------------------------------------------------ */
+    /* Primary action button handler                                        */
+    /* ------------------------------------------------------------------ */
+    function handleTaskAction() {
+        if (taskDone[currentTask]) { return; }
+
+        switch (currentTask) {
+            case 1:
+                /* Navigate to incidents — already there, just complete */
+                switchView('incidents');
+                completeTask(1);
+                break;
+            case 2:
+                /* Force-open the INC-4821 row */
+                openIncident('INC-4821');
+                /* completeTask called inside openIncident */
+                break;
+            case 3:
+                /* Escalate INC-4821 to Critical */
+                var sevBadge = document.getElementById('sev-4821');
+                if (sevBadge) {
+                    sevBadge.textContent = 'CRITICAL';
+                    sevBadge.className = 'sev-badge';
+                    sevBadge.style.background = 'rgba(168,85,247,0.18)';
+                    sevBadge.style.color = '#c084fc';
+                    sevBadge.style.border = '1px solid rgba(168,85,247,0.35)';
                 }
+                var detailSev = document.getElementById('detail-sev-badge');
+                if (detailSev) {
+                    detailSev.textContent = 'CRITICAL';
+                    detailSev.style.background = 'rgba(168,85,247,0.18)';
+                    detailSev.style.color = '#c084fc';
+                    detailSev.style.border = '1px solid rgba(168,85,247,0.35)';
+                }
+                completeTask(3);
+                break;
+            case 4:
+                /* Assign incident to socanalyst */
+                var statusBadge = document.getElementById('status-4821');
+                if (statusBadge) {
+                    statusBadge.textContent = 'Active';
+                    statusBadge.className = 'status-badge status-active';
+                }
+                var detailStatus = document.getElementById('detail-status-badge');
+                if (detailStatus) {
+                    detailStatus.textContent = 'Active';
+                    detailStatus.className = 'status-badge status-active';
+                }
+                var detailMeta = document.getElementById('detail-meta');
+                if (detailMeta) {
+                    detailMeta.textContent = 'Created: 2026-04-21 09:33 UTC  |  Owner: socanalyst  |  MITRE: T1078, T1059.001, T1071';
+                }
+                completeTask(4);
+                break;
+            case 5:
+                switchView('investigation');
+                completeTask(5);
+                break;
+            case 6:
+                switchView('entities');
+                completeTask(6);
+                break;
+            case 7:
+                switchView('ueba');
+                completeTask(7);
+                break;
+            case 8:
+                switchView('automation');
+                completeTask(8);
+                break;
+            case 9:
+                /* Show playbook execution log */
+                switchView('playbooks');
+                var log = document.getElementById('pbExecutionLog');
+                if (log) { log.style.display = 'block'; }
+                var lastRun = document.getElementById('pb-last-run');
+                if (lastRun) { lastRun.textContent = '2026-04-21 09:41'; }
+                /* Update entity status — user now disabled */
+                var acctStatus = document.getElementById('entity-acct-status');
+                if (acctStatus) {
+                    acctStatus.textContent = 'Disabled (containment)';
+                    acctStatus.style.color = '#34d399';
+                }
+                completeTask(9);
+                break;
+            case 10:
+                /* Close INC-4821 as True Positive */
+                var statusBadge10 = document.getElementById('status-4821');
+                if (statusBadge10) {
+                    statusBadge10.textContent = 'Closed';
+                    statusBadge10.className = 'status-badge status-closed';
+                }
+                var detailStatus10 = document.getElementById('detail-status-badge');
+                if (detailStatus10) {
+                    detailStatus10.textContent = 'Closed';
+                    detailStatus10.className = 'status-badge status-closed';
+                }
+                var detailMeta10 = document.getElementById('detail-meta');
+                if (detailMeta10) {
+                    detailMeta10.textContent = 'Closed: 2026-04-21 09:42 UTC  |  Owner: socanalyst  |  Classification: True Positive';
+                }
+                switchView('incidents');
+                completeTask(10);
+                break;
+        }
+    }
+    window.handleTaskAction = handleTaskAction;
+
+    /* ------------------------------------------------------------------ */
+    /* Task completion engine                                               */
+    /* ------------------------------------------------------------------ */
+    function completeTask(num) {
+        if (taskDone[num]) { return; }
+        taskDone[num] = true;
+
+        /* Mark task card done */
+        var card = document.getElementById('tc-' + num);
+        if (card) {
+            card.classList.add('done');
+            card.classList.remove('active');
+        }
+        var numEl = document.getElementById('tn-' + num);
+        if (numEl) { numEl.textContent = '\u2713'; }
+
+        /* Update progress bar */
+        var doneCount = 0;
+        for (var k = 1; k <= TOTAL; k++) { if (taskDone[k]) { doneCount++; } }
+        var pct = Math.round((doneCount / TOTAL) * 100);
+        document.getElementById('progressFill').style.width  = pct + '%';
+        document.getElementById('progressCount').textContent = doneCount + ' / ' + TOTAL;
+
+        /* Update action button in instruction panel if this task is current */
+        if (currentTask === num) {
+            var btn = document.getElementById('primaryActionBtn');
+            btn.className = 'action-btn btn-done';
+            btn.innerHTML = '<img src="/assets/images/icons/icon-checkmark.webp" alt="" style="width:1em;height:1em"> Task completed';
+        }
+
+        /* Auto-advance to next undone task */
+        if (doneCount < TOTAL) {
+            var next = null;
+            for (var n = 1; n <= TOTAL; n++) {
+                if (!taskDone[n]) { next = n; break; }
             }
-            if (!matched) {
-                if (trimmed === 'help') { addLine('Type the commands shown in the task instructions.', 'term-line-info'); addLine('Each task provides the exact command to run.', 'term-line-dim'); }
-                else if (trimmed === 'clear') { outputEl.innerHTML = ''; }
-                else { addLine('Command not recognized in this lab simulation. Check the task instructions.', 'term-line-err'); }
+            if (next && next !== currentTask) {
+                setTimeout(function () { selectTask(next); }, 350);
             }
+        } else {
+            /* All tasks done — show success overlay */
+            setTimeout(function () {
+                document.getElementById('successOverlay').classList.add('show');
+            }, 600);
         }
+    }
 
-        function completeTask(num) {
-            if (taskDone[num]) return;
-            taskDone[num] = true;
-            var card = document.getElementById('task-card-' + num);
-            if (card) { card.classList.add('completed'); card.classList.remove('active'); }
-            var doneCount = Object.keys(taskDone).filter(function(k){return taskDone[k];}).length;
-            document.getElementById('taskProgress').textContent = doneCount + ' / ' + TOTAL_TASKS + ' Tasks';
-            document.getElementById('progressBarFill').style.width = Math.round((doneCount/TOTAL_TASKS)*100) + '%';
-            addBlank();
-            addHTML('  <span style="color:#34d399">[Task ' + num + ' complete]</span> <span style="color:#5a2020">' + escH(TASK_NAMES[num]||'') + '</span>', 'term-line-info');
-            addBlank();
-            if (doneCount === TOTAL_TASKS) { setTimeout(function(){ document.getElementById('successOverlay').classList.add('active'); }, 700); return; }
-            var next = null; for (var j=1;j<=TOTAL_TASKS;j++) { if (!taskDone[j]) { next=j; break; } }
-            if (next) selectTask(next);
+    /* ------------------------------------------------------------------ */
+    /* Finish / ModuleProgress                                              */
+    /* ------------------------------------------------------------------ */
+    function finishLab() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'sc200-ch08-lab', { returnUrl: '../index.html' });
+        } else {
+            window.location.href = '../index.html';
         }
+    }
+    window.finishLab = finishLab;
 
-        function selectTask(num) {
-            currentTask = num;
-            for (var i=1;i<=TOTAL_TASKS;i++) { var c=document.getElementById('task-card-'+i); if(c){c.classList.remove('active'); if(i===num) c.classList.add('active');} }
-            var info = TASK_INSTRUCTIONS[num]; if (!info) return;
-            var stepEl=document.getElementById('instructionsStep'); var hintEl=document.getElementById('instructionsHint'); var hintCmd=document.getElementById('hintCommand');
-            if (stepEl) stepEl.innerHTML = info.step.replace(/\n/g,'<br>');
-            if (hintEl) hintEl.textContent = info.hint;
-            if (hintCmd) { hintCmd.textContent = info.cmd; hintCmd.classList.remove('visible'); }
-            var panel=document.getElementById('instructionsPanel'); if(panel&&panel.classList.contains('collapsed')) panel.classList.remove('collapsed');
-        }
+    /* ------------------------------------------------------------------ */
+    /* Init                                                                 */
+    /* ------------------------------------------------------------------ */
+    selectTask(1);
 
-        window.selectTask = selectTask;
-        window.toggleInstructions = function() { document.getElementById('instructionsPanel').classList.toggle('collapsed'); };
-        window.revealHint = function() { var h=document.getElementById('hintCommand'); if(h) h.classList.toggle('visible'); };
-        window.finishLab = function() { if (typeof ModuleProgress !== 'undefined') { ModuleProgress.complete('shield', 'sc200-ch08-lab', { returnUrl: '../index.html' }); } else { window.location.href = '../index.html'; } };
+})();
+</script>
 
-        function init() {
-            outputEl = document.getElementById('termOutput');
-            inputEl = document.getElementById('termInput');
-            ps1PathEl = document.getElementById('termPS1Path');
-            if (!outputEl || !inputEl) return;
-            addLine("Sentinel Response Lab -- SC-200 Chapter 8", "term-welcome");
-            addLine("Shield House SOAR and Incident Management Terminal", "term-welcome");
-            addLine("", "term-line-out");
-            addLine("Manage automation rules, investigate incidents, analyze UEBA anomalies, and execute containment playbooks.", "term-line-info");
-            addLine("Type \"help\" for guidance. Complete 10 tasks to finish the lab.", "term-line-info");
-            addBlank();
-            inputEl.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') { var cmd=inputEl.value; inputEl.value=''; if(cmd.trim()){cmdHistory.push(cmd);histIdx=cmdHistory.length;} execLine(cmd); }
-                else if (e.key === 'ArrowUp') { e.preventDefault(); if(histIdx>0){histIdx--;inputEl.value=cmdHistory[histIdx];} }
-                else if (e.key === 'ArrowDown') { e.preventDefault(); if(histIdx<cmdHistory.length-1){histIdx++;inputEl.value=cmdHistory[histIdx];}else{histIdx=cmdHistory.length;inputEl.value='';} }
-            });
-            outputEl.addEventListener('click', function(){ inputEl.focus(); });
-            inputEl.focus();
-            selectTask(1);
-        }
-        if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
-    })();
-    </script>
-    <script src="../../../../components/AchievementManager.js"></script>
-    <script src="../../../../components/FluxCapacitor.js"></script>
+<script src="../../../../components/FluxCapacitor.js"></script>
 </body>
 </html>

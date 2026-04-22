@@ -4,195 +4,872 @@
     <meta charset="UTF-8">
     <script src="../../../../components/AccessGuard.js"></script>
     <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
     <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
     <script src="../../../../components/FirebaseAuth.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Exchange Online Administration Lab -- MS-102 Chapter 5</title>
+    <title>Exchange Admin Center Lab | MS-102 Chapter 5</title>
     <style>
+        :root {
+            --cloud-primary: #3b82f6;
+            --cloud-secondary: #1d4ed8;
+            --cloud-glow: rgba(59,130,246,0.25);
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #0f1623;
+            --bg-tertiary: #161f30;
+            --bg-panel: #0c1220;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #4a6080;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --border: rgba(59,130,246,0.18);
+            --sidebar-w: 220px;
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { height: 100vh; overflow: hidden; background: #0c0c0c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #b3cef5; display: flex; flex-direction: column; }
-        .lab-header { flex-shrink: 0; padding: 15px 30px; background: rgba(10,12,20,0.95); border-bottom: 1px solid rgba(59,130,246,0.2); display: flex; justify-content: space-between; align-items: center; }
-        .header-left { display: flex; align-items: center; gap: 20px; }
-        .back-btn { padding: 8px 16px; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; color: #3b82f6; text-decoration: none; font-size: 0.85rem; transition: all 0.3s ease; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-primary); color: var(--text-primary); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+        /* ---- Top bar ---- */
+        .topbar { height: 52px; background: var(--bg-panel); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 16px; flex-shrink: 0; }
+        .topbar-logo { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; font-weight: 600; color: var(--cloud-primary); letter-spacing: 0.02em; }
+        .topbar-logo-icon { width: 28px; height: 28px; background: linear-gradient(135deg, var(--cloud-primary), var(--cloud-secondary)); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; color: #fff; }
+        .topbar-sep { width: 1px; height: 22px; background: var(--border); }
+        .topbar-title { font-size: 0.85rem; color: var(--text-secondary); }
+        .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+        .back-btn { padding: 6px 14px; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; color: var(--cloud-primary); text-decoration: none; font-size: 0.8rem; transition: background 0.2s; }
         .back-btn:hover { background: rgba(59,130,246,0.2); }
-        .lab-title { font-size: 1rem; color: #dbeafe; }
-        .lab-badge { padding: 4px 12px; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); border-radius: 12px; font-size: 0.7rem; color: #60a5fa; letter-spacing: 0.05em; }
-        .lab-badge-ch { padding: 4px 12px; background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.3); border-radius: 12px; font-size: 0.7rem; color: #34d399; letter-spacing: 0.05em; }
-        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #6b82a0; }
-        .task-count { color: #3b82f6; font-weight: 500; }
-        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(59,130,246,0.15); border-radius: 3px; overflow: hidden; }
-        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #1d4ed8); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
-        .lab-container { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
-        .task-panel { background: rgba(10,14,22,0.95); border-right: 1px solid rgba(59,130,246,0.15); overflow-y: auto; padding: 20px; }
-        .task-section { margin-bottom: 25px; }
-        .task-section-title { font-size: 0.68rem; color: #3b5278; letter-spacing: 0.15em; margin-bottom: 12px; text-transform: uppercase; }
-        .task-card { background: rgba(12,18,32,0.8); border: 1px solid rgba(59,130,246,0.15); border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s ease; }
-        .task-card:hover { border-color: rgba(59,130,246,0.4); }
-        .task-card.active { border-color: #3b82f6; background: rgba(59,130,246,0.1); }
-        .task-card.completed { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.04); }
-        .task-card.completed .task-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; font-weight: 400; }
-        .task-number { font-size: 0.68rem; color: #3b82f6; margin-bottom: 4px; }
-        .task-name { font-size: 0.9rem; color: #dbeafe; margin-bottom: 4px; }
-        .task-desc { font-size: 0.77rem; color: #6b82a0; line-height: 1.45; }
-        .task-desc code { background: rgba(59,130,246,0.15); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; color: #60a5fa; font-family: 'Consolas', monospace; }
-        .terminal-panel { display: flex; flex-direction: column; background: #0a0a0a; position: relative; overflow: hidden; }
-        .term-toolbar { flex-shrink: 0; padding: 8px 20px; background: rgba(12,18,28,0.9); border-bottom: 1px solid rgba(59,130,246,0.15); display: flex; align-items: center; gap: 12px; }
-        .term-dot { width: 12px; height: 12px; border-radius: 50%; } .term-dot-red { background: #ff5f57; } .term-dot-amber { background: #febc2e; } .term-dot-green { background: #28c840; }
-        .term-title { flex: 1; text-align: center; font-size: 0.8rem; color: #4a6080; font-family: 'Consolas', monospace; }
-        .term-vm-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #34d399; }
-        .term-status-dot { width: 7px; height: 7px; background: #34d399; border-radius: 50%; animation: pulse 2s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-        .term-output { flex: 1; overflow-y: auto; padding: 16px 360px 8px 20px; font-family: 'Consolas', monospace; font-size: 0.875rem; line-height: 1.6; }
-        .term-input-row { flex-shrink: 0; display: flex; align-items: center; padding: 8px 360px 12px 20px; border-top: 1px solid rgba(59,130,246,0.1); gap: 0; }
-        .term-prompt-label { font-family: 'Consolas', monospace; font-size: 0.875rem; white-space: nowrap; flex-shrink: 0; }
-        .term-prompt-user { color: #3b82f6; } .term-prompt-sep { color: #3b5278; } .term-prompt-path { color: #34d399; } .term-prompt-dollar { color: #dbeafe; margin-right: 6px; }
-        .term-input { flex: 1; background: transparent; border: none; outline: none; color: #dbeafe; font-family: 'Consolas', monospace; font-size: 0.875rem; caret-color: #3b82f6; }
-        .term-line { white-space: pre-wrap; word-break: break-all; }
-        .term-line-cmd { color: #b3cef5; } .term-line-out { color: #a0d4a0; } .term-line-err { color: #f87171; } .term-line-info { color: #60a5fa; } .term-line-warn { color: #fbbf24; } .term-line-dim { color: #374860; } .term-welcome { color: #3b82f6; }
-        .term-prompt-span { color: #3b82f6; } .term-path-span { color: #34d399; } .term-ps1-sep { color: #3b5278; }
-        .json-key { color: #60a5fa; } .json-string { color: #86efac; } .json-number { color: #fbbf24; } .json-bool { color: #93c5fd; } .json-null { color: #f87171; }
-        .instructions-panel { position: absolute; top: 20px; right: 20px; width: 320px; background: rgba(10,16,28,0.97); border: 1px solid rgba(59,130,246,0.3); border-radius: 12px; padding: 20px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.4); transition: all 0.3s ease; }
-        .instructions-panel.collapsed { width: auto; padding: 10px 14px; cursor: pointer; }
-        .instructions-panel.collapsed .instructions-body { display: none; }
-        .instructions-title { font-size: 1rem; color: #3b82f6; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
-        .instructions-panel.collapsed .instructions-title { margin-bottom: 0; font-size: 0.85rem; }
-        .instructions-toggle { margin-left: auto; width: 28px; height: 28px; background: rgba(59,130,246,0.2); border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; color: #3b82f6; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .instructions-step { font-size: 0.88rem; color: #b3cef5; line-height: 1.65; margin-bottom: 14px; }
-        .instructions-step code { background: rgba(59,130,246,0.2); padding: 2px 7px; border-radius: 4px; font-family: 'Consolas', monospace; color: #60a5fa; font-size: 0.85em; }
-        .instructions-hint { font-size: 0.78rem; color: #3b5278; font-style: italic; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(59,130,246,0.15); line-height: 1.5; }
-        .hint-btn { margin-top: 12px; padding: 6px 12px; background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.25); border-radius: 5px; color: #3b82f6; font-size: 0.75rem; cursor: pointer; font-family: 'Segoe UI', sans-serif; width: 100%; text-align: center; }
-        .hint-command { display: none; margin-top: 10px; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(59,130,246,0.25); border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.78rem; color: #86efac; line-height: 1.55; white-space: pre-wrap; }
-        .hint-command.visible { display: block; }
-        .success-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 2000; }
-        .success-overlay.active { display: flex; }
-        .success-card { background: rgba(10,16,28,0.97); border: 1px solid rgba(52,211,153,0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
-        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
-        .success-message { color: #b3cef5; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
-        .success-btn { padding: 12px 30px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; }
-        @media (max-width: 1024px) { .lab-container { grid-template-columns: 1fr; } .task-panel { display: none; } .term-output, .term-input-row { padding-right: 20px; } .instructions-panel { position: absolute; bottom: 60px; top: auto; right: 10px; left: 10px; width: auto; } }
+        .progress-wrap { display: flex; align-items: center; gap: 10px; font-size: 0.8rem; color: var(--text-muted); }
+        .progress-bar { width: 120px; height: 5px; background: rgba(59,130,246,0.15); border-radius: 3px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--cloud-primary), var(--cloud-secondary)); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
+        .progress-label { color: var(--cloud-primary); font-weight: 500; min-width: 42px; text-align: right; }
+
+        /* ---- Main layout ---- */
+        .main-layout { display: flex; flex: 1; min-height: 0; }
+
+        /* ---- Admin sidebar ---- */
+        .admin-sidebar { width: var(--sidebar-w); background: var(--bg-panel); border-right: 1px solid var(--border); overflow-y: auto; flex-shrink: 0; padding: 12px 0; }
+        .sidebar-section-label { font-size: 0.65rem; color: var(--text-muted); letter-spacing: 0.12em; text-transform: uppercase; padding: 8px 16px 4px; }
+        .sidebar-item { display: flex; align-items: center; gap: 10px; padding: 9px 16px; font-size: 0.82rem; color: var(--text-secondary); cursor: pointer; transition: all 0.2s; border-left: 3px solid transparent; }
+        .sidebar-item:hover { background: rgba(59,130,246,0.07); color: var(--text-primary); }
+        .sidebar-item.active { background: rgba(59,130,246,0.12); color: var(--cloud-primary); border-left-color: var(--cloud-primary); }
+        .sidebar-icon { width: 18px; text-align: center; font-size: 0.85rem; opacity: 0.7; }
+        .sidebar-item.active .sidebar-icon { opacity: 1; }
+
+        /* ---- Portal content area ---- */
+        .portal-area { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+        .portal-toolbar { height: 44px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 12px; flex-shrink: 0; }
+        .portal-breadcrumb { font-size: 0.8rem; color: var(--text-muted); }
+        .portal-breadcrumb span { color: var(--text-secondary); }
+        .portal-breadcrumb .crumb-active { color: var(--text-primary); }
+        .toolbar-actions { margin-left: auto; display: flex; gap: 8px; }
+        .btn-portal { padding: 5px 14px; border-radius: 5px; font-size: 0.78rem; cursor: pointer; transition: all 0.2s; border: 1px solid transparent; font-family: inherit; }
+        .btn-primary-p { background: var(--cloud-primary); color: #fff; border-color: var(--cloud-secondary); }
+        .btn-primary-p:hover { background: var(--cloud-secondary); }
+        .btn-secondary-p { background: rgba(59,130,246,0.1); color: var(--cloud-primary); border-color: rgba(59,130,246,0.3); }
+        .btn-secondary-p:hover { background: rgba(59,130,246,0.2); }
+        .btn-danger-p { background: rgba(239,68,68,0.1); color: var(--danger); border-color: rgba(239,68,68,0.3); }
+        .btn-danger-p:hover { background: rgba(239,68,68,0.2); }
+
+        /* ---- Content panels ---- */
+        .portal-content { flex: 1; overflow-y: auto; padding: 20px; display: none; }
+        .portal-content.active { display: block; }
+
+        /* ---- Data table ---- */
+        .data-table-wrap { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-top: 16px; }
+        .table-header-row { display: flex; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--border); gap: 12px; }
+        .table-search { flex: 1; padding: 7px 12px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); font-size: 0.82rem; font-family: inherit; outline: none; transition: border-color 0.2s; }
+        .table-search:focus { border-color: var(--cloud-primary); }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .data-table th { padding: 9px 14px; background: var(--bg-tertiary); color: var(--text-muted); font-weight: 500; text-align: left; font-size: 0.73rem; letter-spacing: 0.06em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+        .data-table td { padding: 10px 14px; border-bottom: 1px solid rgba(59,130,246,0.07); color: var(--text-secondary); vertical-align: middle; }
+        .data-table tr:last-child td { border-bottom: none; }
+        .data-table tr:hover td { background: rgba(59,130,246,0.04); }
+        .badge { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 0.7rem; font-weight: 500; }
+        .badge-blue { background: rgba(59,130,246,0.15); color: #60a5fa; }
+        .badge-green { background: rgba(34,197,94,0.15); color: #4ade80; }
+        .badge-yellow { background: rgba(245,158,11,0.15); color: #fbbf24; }
+        .badge-red { background: rgba(239,68,68,0.15); color: #f87171; }
+        .row-action { padding: 3px 10px; border-radius: 4px; font-size: 0.73rem; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); font-family: inherit; transition: all 0.2s; }
+        .row-action:hover { border-color: var(--cloud-primary); color: var(--cloud-primary); background: rgba(59,130,246,0.08); }
+
+        /* ---- Section title ---- */
+        .section-title { font-size: 1.05rem; color: var(--text-primary); font-weight: 600; margin-bottom: 4px; }
+        .section-subtitle { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 16px; }
+
+        /* ---- Form panels ---- */
+        .form-panel { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-top: 16px; }
+        .form-panel h3 { font-size: 0.9rem; color: var(--cloud-primary); margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .form-row { margin-bottom: 14px; }
+        .form-label { font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 5px; display: block; }
+        .form-input, .form-select, .form-textarea { width: 100%; padding: 8px 12px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); font-size: 0.83rem; font-family: inherit; outline: none; transition: border-color 0.2s; }
+        .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--cloud-primary); }
+        .form-select option { background: var(--bg-tertiary); }
+        .form-textarea { resize: vertical; min-height: 80px; }
+        .form-row-inline { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(59,130,246,0.07); }
+        .toggle-row:last-child { border-bottom: none; }
+        .toggle-label { font-size: 0.83rem; color: var(--text-secondary); }
+        .toggle-desc { font-size: 0.73rem; color: var(--text-muted); margin-top: 2px; }
+        .toggle-switch { position: relative; width: 42px; height: 22px; flex-shrink: 0; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider { position: absolute; cursor: pointer; inset: 0; background: rgba(255,255,255,0.1); border-radius: 22px; transition: 0.3s; }
+        .toggle-slider:before { content: ''; position: absolute; height: 16px; width: 16px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.3s; }
+        .toggle-switch input:checked + .toggle-slider { background: var(--cloud-primary); }
+        .toggle-switch input:checked + .toggle-slider:before { transform: translateX(20px); }
+
+        /* ---- Task panel (right side) ---- */
+        .task-rail { width: 290px; background: var(--bg-panel); border-left: 1px solid var(--border); overflow-y: auto; flex-shrink: 0; padding: 16px; }
+        .task-rail-title { font-size: 0.75rem; color: var(--text-muted); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 12px; }
+        .task-item { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s; }
+        .task-item:hover { border-color: rgba(59,130,246,0.35); }
+        .task-item.active { border-color: var(--cloud-primary); background: rgba(59,130,246,0.07); }
+        .task-item.done { border-color: rgba(34,197,94,0.35); background: rgba(34,197,94,0.04); }
+        .task-item-header { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+        .task-num { font-size: 0.68rem; color: var(--cloud-primary); font-weight: 600; }
+        .task-check { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--border); margin-left: auto; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; flex-shrink: 0; transition: all 0.3s; }
+        .task-item.done .task-check { background: var(--success); border-color: var(--success); color: #fff; }
+        .task-item-name { font-size: 0.82rem; color: var(--text-primary); font-weight: 500; }
+        .task-item-desc { font-size: 0.73rem; color: var(--text-muted); margin-top: 4px; line-height: 1.5; }
+        .task-item.active .task-item-name { color: var(--cloud-primary); }
+
+        /* ---- Info / action area ---- */
+        .action-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin-top: 12px; }
+        .action-card h4 { font-size: 0.85rem; color: var(--text-primary); margin-bottom: 8px; }
+        .action-card p { font-size: 0.8rem; color: var(--text-muted); line-height: 1.55; margin-bottom: 12px; }
+        .action-steps { list-style: none; margin-bottom: 12px; }
+        .action-steps li { font-size: 0.8rem; color: var(--text-secondary); padding: 4px 0; padding-left: 16px; position: relative; }
+        .action-steps li::before { content: counter(step-counter); counter-increment: step-counter; position: absolute; left: 0; color: var(--cloud-primary); font-weight: 600; font-size: 0.72rem; }
+        .action-steps { counter-reset: step-counter; }
+
+        /* ---- Stats row ---- */
+        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+        .stat-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+        .stat-label { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.08em; }
+        .stat-value { font-size: 1.5rem; font-weight: 700; color: var(--cloud-primary); }
+        .stat-sub { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+
+        /* ---- Success toast ---- */
+        .toast { position: fixed; bottom: 24px; right: 24px; background: rgba(22,197,94,0.15); border: 1px solid rgba(34,197,94,0.35); border-radius: 8px; padding: 12px 18px; font-size: 0.83rem; color: var(--success); display: none; z-index: 9999; max-width: 320px; line-height: 1.45; }
+        .toast.visible { display: block; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        /* ---- Completion overlay ---- */
+        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 8000; }
+        .overlay.active { display: flex; }
+        .overlay-card { background: var(--bg-secondary); border: 1px solid rgba(34,197,94,0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 460px; width: 90%; }
+        .overlay-title { font-size: 1.4rem; color: var(--success); margin-bottom: 10px; }
+        .overlay-msg { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.65; margin-bottom: 24px; }
+        .overlay-btn { padding: 11px 28px; background: linear-gradient(135deg, var(--cloud-primary), var(--cloud-secondary)); border: none; border-radius: 8px; color: #fff; font-size: 0.9rem; cursor: pointer; font-family: inherit; }
+
+        @media (max-width: 1100px) { .task-rail { display: none; } }
+        @media (max-width: 768px) { .admin-sidebar { display: none; } .stats-row { grid-template-columns: 1fr 1fr; } }
     </style>
 </head>
 <body>
-    <header class="lab-header">
-        <div class="header-left">
-            <a href="../index.html" class="back-btn">Exit Lab</a>
-            <span class="lab-title">Exchange Online Administration</span>
-            <span class="lab-badge">MS-102</span>
-            <span class="lab-badge-ch">CH.5</span>
-        </div>
-        <div class="task-progress">
-            <span>Progress:</span>
-            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBarFill"></div></div>
-            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
-        </div>
-    </header>
-    <div class="lab-container">
-        <aside class="task-panel" id="taskPanel">
-            <div class="task-section"><div class="task-section-title">Phase 1 -- Mailbox Management</div><div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)"><div class="task-number">Task 1</div><div class="task-name">List User Mailboxes</div><div class="task-desc">Run <code>m365 exo mailbox list --type user</code> to view all user mailboxes with size and last logon information.</div></div><div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)"><div class="task-number">Task 2</div><div class="task-name">Create a Shared Mailbox</div><div class="task-desc">Run <code>m365 exo mailbox create --name "IT Help Desk" --type shared --alias ithelpdesk</code> to provision a shared mailbox.</div></div><div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)"><div class="task-number">Task 3</div><div class="task-name">Set Mailbox Permissions</div><div class="task-desc">Run <code>m365 exo mailbox permission add --mailbox ithelpdesk --user jsmith --access FullAccess</code> to grant mailbox access.</div></div></div>
-            <div class="task-section"><div class="task-section-title">Phase 2 -- Mail Flow Rules</div><div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)"><div class="task-number">Task 4</div><div class="task-name">List Mail Flow Rules</div><div class="task-desc">Run <code>m365 exo mailflow list-rules</code> to view all transport rules and their current state.</div></div><div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)"><div class="task-number">Task 5</div><div class="task-name">Create a Disclaimer Rule</div><div class="task-desc">Run <code>m365 exo mailflow create-rule --name "External Disclaimer" --scope outbound --action appendDisclaimer</code> to add a legal disclaimer to outbound mail.</div></div></div>
-            <div class="task-section"><div class="task-section-title">Phase 3 -- Connectors and Routing</div><div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)"><div class="task-number">Task 6</div><div class="task-name">List Connectors</div><div class="task-desc">Run <code>m365 exo connector list</code> to view inbound and outbound connectors for mail routing.</div></div><div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)"><div class="task-number">Task 7</div><div class="task-name">Create an Outbound Connector</div><div class="task-desc">Run <code>m365 exo connector create --name "Partner TLS" --direction outbound --domain partner.com --requireTLS true</code> to enforce TLS for a partner domain.</div></div></div>
-            <div class="task-section"><div class="task-section-title">Phase 4 -- Protection and Quarantine</div><div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)"><div class="task-number">Task 8</div><div class="task-name">View Anti-Spam Policies</div><div class="task-desc">Run <code>m365 exo protection list-antispam</code> to review inbound and outbound spam filter policies.</div></div><div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)"><div class="task-number">Task 9</div><div class="task-name">Check Quarantine</div><div class="task-desc">Run <code>m365 exo quarantine list --days 7</code> to view quarantined messages from the last 7 days.</div></div><div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)"><div class="task-number">Task 10</div><div class="task-name">Release a Quarantined Message</div><div class="task-desc">Run <code>m365 exo quarantine release --id QM-20260421-0003 --reportFalsePositive true</code> to release a false positive from quarantine.</div></div></div>
-        </aside>
-        <main class="terminal-panel" id="terminalPanel">
-            <div class="term-toolbar">
-                <div class="term-dot term-dot-red"></div><div class="term-dot term-dot-amber"></div><div class="term-dot term-dot-green"></div>
-                <div class="term-title">exchangeadmin@cloud-shell -- bash</div>
-                <div class="term-vm-status"><div class="term-status-dot"></div>EXO Connected</div>
-            </div>
-            <div class="term-output" id="termOutput"></div>
-            <div class="term-input-row">
-                <span class="term-prompt-label"><span class="term-prompt-user">exchangeadmin@cloud-shell</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span></span>
-                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
-            </div>
-            <div class="instructions-panel" id="instructionsPanel">
-                <div class="instructions-title" onclick="toggleInstructions()">
-                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
-                    Task Instructions
-                    <button class="instructions-toggle" id="instructionsToggle">&#9660;</button>
-                </div>
-                <div class="instructions-body" id="instructionsBody">
-                    <div class="instructions-step" id="instructionsStep">Type the command in the terminal and press Enter.</div>
-                    <div class="instructions-hint" id="instructionsHint">Hint text loads when you select a task.</div>
-                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
-                    <div class="hint-command" id="hintCommand"></div>
-                </div>
-            </div>
-            <div class="success-overlay" id="successOverlay">
-                <div class="success-card">
-                    <div class="success-title">MS-102 Chapter 5 Lab Complete!</div>
-                    <div class="success-message">You managed user and shared mailboxes, configured mail flow rules, created outbound connectors with TLS enforcement, reviewed anti-spam policies, and handled quarantine operations. These are core Exchange Online administration skills for the MS-102 exam.</div>
-                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
-                </div>
-            </div>
-        </main>
+
+<!-- Top bar -->
+<header class="topbar">
+    <div class="topbar-logo">
+        <div class="topbar-logo-icon">EX</div>
+        Exchange Admin Center
     </div>
-    <script>
-    (function(){
-        'use strict';
-        var TOTAL_TASKS = 10;
-        var taskDone = {}; for(var i=1;i<=TOTAL_TASKS;i++) taskDone[i]=false;
-        var currentTask = 1, cmdHistory = [], histIdx = -1;
-        var outputEl, inputEl, ps1PathEl;
-        var USER = 'exchangeadmin', HOST = 'cloud-shell';
+    <div class="topbar-sep"></div>
+    <span class="topbar-title">contoso.onmicrosoft.com</span>
+    <div class="topbar-right">
+        <div class="progress-wrap">
+            <span id="progressLabel" class="progress-label">0 / 10</span>
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        </div>
+        <a href="../index.html" class="back-btn">Exit Lab</a>
+    </div>
+</header>
 
-        var taskInstructions = {
-            1:{step:'Run <code>m365 exo mailbox list --type user</code> to view all user mailboxes.',hint:'m365 exo mailbox list --type user'},
-            2:{step:'Run <code>m365 exo mailbox create --name "IT Help Desk" --type shared --alias ithelpdesk</code> to create a shared mailbox.',hint:'m365 exo mailbox create --name "IT Help Desk" --type shared --alias ithelpdesk'},
-            3:{step:'Run <code>m365 exo mailbox permission add --mailbox ithelpdesk --user jsmith --access FullAccess</code> to grant Full Access.',hint:'m365 exo mailbox permission add --mailbox ithelpdesk --user jsmith --access FullAccess'},
-            4:{step:'Run <code>m365 exo mailflow list-rules</code> to list all transport rules.',hint:'m365 exo mailflow list-rules'},
-            5:{step:'Run <code>m365 exo mailflow create-rule --name "External Disclaimer" --scope outbound --action appendDisclaimer</code> to add a legal disclaimer.',hint:'m365 exo mailflow create-rule --name "External Disclaimer" --scope outbound --action appendDisclaimer'},
-            6:{step:'Run <code>m365 exo connector list</code> to view all mail connectors.',hint:'m365 exo connector list'},
-            7:{step:'Run <code>m365 exo connector create --name "Partner TLS" --direction outbound --domain partner.com --requireTLS true</code> to enforce TLS.',hint:'m365 exo connector create --name "Partner TLS" --direction outbound --domain partner.com --requireTLS true'},
-            8:{step:'Run <code>m365 exo protection list-antispam</code> to review spam filter policies.',hint:'m365 exo protection list-antispam'},
-            9:{step:'Run <code>m365 exo quarantine list --days 7</code> to view quarantined messages.',hint:'m365 exo quarantine list --days 7'},
-            10:{step:'Run <code>m365 exo quarantine release --id QM-20260421-0003 --reportFalsePositive true</code> to release a false positive.',hint:'m365 exo quarantine release --id QM-20260421-0003 --reportFalsePositive true'}
-        };
+<div class="main-layout">
 
-        function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-        function addLine(t,c){var d=document.createElement('div');d.className='term-line'+(c?' '+c:'');d.textContent=t;outputEl.appendChild(d);outputEl.scrollTop=outputEl.scrollHeight;}
-        function addHTML(h,c){var d=document.createElement('div');d.className='term-line'+(c?' '+c:'');d.innerHTML=h;outputEl.appendChild(d);outputEl.scrollTop=outputEl.scrollHeight;}
-        function addBlank(){addLine('','');}
-        function addPromptLine(cmd){addHTML('<span class="term-prompt-span">'+USER+'@'+HOST+'</span><span class="term-ps1-sep">:</span><span class="term-path-span">~</span><span class="term-ps1-sep">$ </span>'+esc(cmd),'term-line-cmd');}
+    <!-- Admin sidebar nav -->
+    <nav class="admin-sidebar">
+        <div class="sidebar-section-label">Mail Management</div>
+        <div class="sidebar-item active" onclick="showPanel('recipients')" id="nav-recipients">
+            <img src="/assets/images/icons/icon-email.webp" alt="" class="sidebar-icon" style="width:16px;height:16px;vertical-align:middle;"> Recipients
+        </div>
+        <div class="sidebar-item" onclick="showPanel('mailflow')" id="nav-mailflow">
+            <img src="/assets/images/icons/icon-redirect.webp" alt="" class="sidebar-icon" style="width:16px;height:16px;vertical-align:middle;"> Mail Flow
+        </div>
+        <div class="sidebar-section-label">Security</div>
+        <div class="sidebar-item" onclick="showPanel('protection')" id="nav-protection">
+            <img src="/assets/images/icons/icon-shield.webp" alt="" class="sidebar-icon" style="width:16px;height:16px;vertical-align:middle;"> Protection
+        </div>
+        <div class="sidebar-item" onclick="showPanel('compliance')" id="nav-compliance">
+            <img src="/assets/images/icons/icon-clipboard.webp" alt="" class="sidebar-icon" style="width:16px;height:16px;vertical-align:middle;"> Compliance
+        </div>
+        <div class="sidebar-section-label">Monitoring</div>
+        <div class="sidebar-item" onclick="showPanel('reports')" id="nav-reports">
+            <img src="/assets/images/icons/icon-barchart.webp" alt="" class="sidebar-icon" style="width:16px;height:16px;vertical-align:middle;"> Reports
+        </div>
+    </nav>
 
-        function selectTask(n){currentTask=n;document.querySelectorAll('.task-card').forEach(function(c){c.classList.remove('active');});var card=document.getElementById('task-card-'+n);if(card)card.classList.add('active');var info=taskInstructions[n];if(info){document.getElementById('instructionsStep').innerHTML=info.step;document.getElementById('hintCommand').textContent=info.hint;document.getElementById('hintCommand').classList.remove('visible');}}
+    <!-- Portal content -->
+    <div class="portal-area">
 
-        function completeTask(n){if(taskDone[n])return;taskDone[n]=true;var card=document.getElementById('task-card-'+n);if(card)card.classList.add('completed');var done=Object.keys(taskDone).filter(function(k){return taskDone[k];}).length;document.getElementById('taskProgress').textContent=done+' / '+TOTAL_TASKS+' Tasks';document.getElementById('progressBarFill').style.width=(done/TOTAL_TASKS*100)+'%';addBlank();addHTML('  <span style="color:#34d399">[Task '+n+' complete]</span>','term-line-info');addBlank();if(done===TOTAL_TASKS){setTimeout(function(){document.getElementById('successOverlay').classList.add('active');},600);return;}var next=null;for(var j=1;j<=TOTAL_TASKS;j++){if(!taskDone[j]){next=j;break;}}if(next)selectTask(next);}
+        <!-- Toolbar -->
+        <div class="portal-toolbar">
+            <div class="portal-breadcrumb">
+                Exchange Admin Center <span>&rsaquo;</span> <span id="breadcrumbActive" class="crumb-active">Recipients</span>
+            </div>
+            <div class="toolbar-actions" id="toolbarActions">
+                <button class="btn-portal btn-primary-p" onclick="openNewMailbox()">+ New Shared Mailbox</button>
+                <button class="btn-portal btn-secondary-p" onclick="refreshTable()">Refresh</button>
+            </div>
+        </div>
 
-        function processCommand(raw){var cmd=raw.trim();if(!cmd)return;addPromptLine(cmd);cmdHistory.unshift(cmd);histIdx=-1;
-            if(cmd==='clear'){outputEl.innerHTML='';return;}
-            if(cmd==='help'){addLine('Available commands: m365 exo mailbox list, m365 exo mailbox create, m365 exo mailbox permission add, m365 exo mailflow list-rules, m365 exo mailflow create-rule, m365 exo connector list, m365 exo connector create, m365 exo protection list-antispam, m365 exo quarantine list, m365 exo quarantine release','term-line-info');return;}
-            if(cmd==='m365 exo mailbox list --type user'){addLine('=== User Mailboxes ===','term-line-info');addBlank();addLine('  Display Name           UPN                          Size       Last Logon','term-line-warn');addLine('  Alex Brown             abrown@contoso.com           2.4 GB     2026-04-21 09:15','term-line-out');addLine('  John Smith             jsmith@contoso.com           4.1 GB     2026-04-21 08:44','term-line-out');addLine('  Sarah Lee              slee@contoso.com             1.8 GB     2026-04-20 17:30','term-line-out');addLine('  Mike Chen              mchen@contoso.com            3.2 GB     2026-04-21 07:22','term-line-out');addLine('  Priya Patel            ppatel@contoso.com           5.7 GB     2026-04-21 09:01','term-line-warn');addBlank();addLine('  5 user mailboxes | Default quota: 50 GB | 1 above 5 GB warning threshold','term-line-dim');completeTask(1);return;}
-            if(cmd==='m365 exo mailbox create --name "IT Help Desk" --type shared --alias ithelpdesk'){addLine('=== Creating Shared Mailbox ===','term-line-info');addBlank();addLine('  Name:        IT Help Desk','term-line-out');addLine('  Alias:       ithelpdesk','term-line-out');addLine('  Email:       ithelpdesk@contoso.com','term-line-out');addLine('  Type:        Shared (no license required)','term-line-warn');addLine('  Auto-Map:    Enabled','term-line-out');addBlank();addLine('  [OK] Shared mailbox created. Grant permissions to allow user access.','term-line-out');completeTask(2);return;}
-            if(cmd==='m365 exo mailbox permission add --mailbox ithelpdesk --user jsmith --access FullAccess'){addLine('=== Mailbox Permission Added ===','term-line-info');addBlank();addLine('  Mailbox:     ithelpdesk@contoso.com (IT Help Desk)','term-line-out');addLine('  User:        jsmith@contoso.com','term-line-out');addLine('  Permission:  FullAccess','term-line-warn');addLine('  Auto-Map:    Yes (mailbox auto-appears in Outlook)','term-line-out');addBlank();addLine('  Permission types: FullAccess (read/send), SendAs (send from address), SendOnBehalf','term-line-dim');completeTask(3);return;}
-            if(cmd==='m365 exo mailflow list-rules'){addLine('=== Mail Flow Rules (Transport Rules) ===','term-line-info');addBlank();addLine('  Priority  Name                          State     Scope','term-line-warn');addLine('  0         Block Executable Attachments   Enabled   Inbound','term-line-out');addLine('  1         Encrypt External PII           Enabled   Outbound','term-line-out');addLine('  2         BCC Compliance on Legal Mail   Enabled   Outbound','term-line-out');addBlank();addLine('  3 rules active. Rules process in priority order (lowest number first).','term-line-dim');completeTask(4);return;}
-            if(cmd==='m365 exo mailflow create-rule --name "External Disclaimer" --scope outbound --action appendDisclaimer'){addLine('=== Creating Mail Flow Rule ===','term-line-info');addBlank();addLine('  Name:        External Disclaimer','term-line-out');addLine('  Priority:    3','term-line-out');addLine('  Scope:       Outbound (messages sent outside organization)','term-line-warn');addLine('  Condition:   Sender is inside the organization','term-line-out');addLine('  Action:      Append HTML disclaimer to message body','term-line-out');addLine('  Fallback:    Wrap (if disclaimer cannot be appended)','term-line-dim');addBlank();addLine('  [OK] Rule created and enabled. All outbound mail now includes the legal disclaimer.','term-line-out');completeTask(5);return;}
-            if(cmd==='m365 exo connector list'){addLine('=== Mail Connectors ===','term-line-info');addBlank();addLine('  Direction   Name                     Status    Partner Domain     TLS','term-line-warn');addLine('  Inbound     On-Premises Relay        Enabled   --                 Required','term-line-out');addLine('  Outbound    Smart Host Route         Enabled   --                 Opportunistic','term-line-out');addBlank();addLine('  2 connectors configured. Inbound connectors accept mail from specific sources.','term-line-dim');addLine('  Outbound connectors route mail to specific destinations with optional TLS enforcement.','term-line-dim');completeTask(6);return;}
-            if(cmd==='m365 exo connector create --name "Partner TLS" --direction outbound --domain partner.com --requireTLS true'){addLine('=== Creating Outbound Connector ===','term-line-info');addBlank();addLine('  Name:        Partner TLS','term-line-out');addLine('  Direction:   Outbound','term-line-out');addLine('  Domain:      partner.com','term-line-warn');addLine('  TLS:         Required (reject if TLS negotiation fails)','term-line-err');addLine('  Certificate: Validate partner domain certificate','term-line-out');addBlank();addLine('  [OK] Connector created. Mail to partner.com now requires TLS encryption.','term-line-out');completeTask(7);return;}
-            if(cmd==='m365 exo protection list-antispam'){addLine('=== Anti-Spam Policies ===','term-line-info');addBlank();addLine('  Policy                     Direction   Spam Action          High Conf Action','term-line-warn');addLine('  Default Inbound Policy     Inbound     Move to Junk         Quarantine','term-line-out');addLine('  Default Outbound Policy    Outbound    Notify admin         Block sender','term-line-err');addLine('  Strict Preset Policy       Inbound     Quarantine           Quarantine','term-line-warn');addBlank();addLine('  Spam confidence levels: SCL 5-6 (Spam), SCL 7-8 (High confidence spam), SCL 9 (Phishing)','term-line-dim');addLine('  Bulk complaint level (BCL): 0-9. Default threshold: 7.','term-line-dim');completeTask(8);return;}
-            if(cmd==='m365 exo quarantine list --days 7'){addLine('=== Quarantine -- Last 7 Days ===','term-line-info');addBlank();addLine('  ID                    Date          Sender                     Subject                    Reason','term-line-warn');addLine('  QM-20260421-0001      04/21 08:12   attacker@evil.com          Urgent Wire Transfer       Phishing','term-line-err');addLine('  QM-20260421-0002      04/21 06:45   spam@bulk-sender.net       You Won a Prize            High Conf Spam','term-line-out');addLine('  QM-20260421-0003      04/20 15:30   billing@vendor.com         Invoice March 2026         False Positive','term-line-warn');addLine('  QM-20260420-0004      04/20 09:15   newsletter@service.com     Weekly Digest              Bulk (BCL 8)','term-line-out');addBlank();addLine('  4 messages quarantined in last 7 days. 1 flagged as likely false positive.','term-line-dim');completeTask(9);return;}
-            if(cmd==='m365 exo quarantine release --id QM-20260421-0003 --reportFalsePositive true'){addLine('=== Releasing Quarantined Message ===','term-line-info');addBlank();addLine('  ID:          QM-20260421-0003','term-line-out');addLine('  Subject:     Invoice March 2026','term-line-out');addLine('  Sender:      billing@vendor.com','term-line-out');addLine('  Recipient:   finance@contoso.com','term-line-out');addLine('  Action:      Release to recipient inbox','term-line-warn');addLine('  Report:      Submitted as false positive to Microsoft','term-line-out');addBlank();addLine('  [OK] Message released. False positive report submitted to improve filtering.','term-line-out');completeTask(10);return;}
-            addLine('Command not recognized: '+cmd.split(/\s+/)[0]+'. Type "help" for available commands.','term-line-err');
-        }
+        <!-- Panel: Recipients -->
+        <div class="portal-content active" id="panel-recipients">
+            <div style="display:flex; gap:20px; height:100%;">
+                <div style="flex:1; min-width:0; overflow-y:auto; padding: 4px 0;">
+                    <div class="section-title">Mailboxes</div>
+                    <div class="section-subtitle">Manage user, shared, and resource mailboxes in your Exchange Online organization</div>
 
-        window.selectTask=selectTask;
-        window.toggleInstructions=function(){document.getElementById('instructionsPanel').classList.toggle('collapsed');};
-        window.revealHint=function(){document.getElementById('hintCommand').classList.toggle('visible');};
-        window.finishLab=function(){if(typeof ModuleProgress!=='undefined'){ModuleProgress.complete('cloud','ms102-ch05-lab',{returnUrl:'../index.html'});}else{window.location.href='../index.html';}};
+                    <div class="stats-row">
+                        <div class="stat-card"><div class="stat-label">User Mailboxes</div><div class="stat-value">247</div><div class="stat-sub">Active</div></div>
+                        <div class="stat-card"><div class="stat-label">Shared Mailboxes</div><div class="stat-value" id="sharedCount">12</div><div class="stat-sub">No license needed</div></div>
+                        <div class="stat-card"><div class="stat-label">Resource Mailboxes</div><div class="stat-value">8</div><div class="stat-sub">Rooms &amp; Equipment</div></div>
+                        <div class="stat-card"><div class="stat-label">Storage Used</div><div class="stat-value">1.4 TB</div><div class="stat-sub">of 50 TB quota</div></div>
+                    </div>
 
-        document.addEventListener('DOMContentLoaded',function(){
-            outputEl=document.getElementById('termOutput');inputEl=document.getElementById('termInput');ps1PathEl=document.getElementById('termPS1Path');
-            addLine('Exchange Online Management v3.4.0 -- Connected to tenant: Contoso','term-welcome');
-            addLine('Role: Exchange Administrator | Type "help" to see available commands.','term-line-dim');addBlank();
-            selectTask(1);
-            inputEl.addEventListener('keydown',function(e){
-                if(e.key==='Enter'){e.preventDefault();processCommand(inputEl.value);inputEl.value='';}
-                else if(e.key==='ArrowUp'){e.preventDefault();if(histIdx<cmdHistory.length-1){histIdx++;inputEl.value=cmdHistory[histIdx];}}
-                else if(e.key==='ArrowDown'){e.preventDefault();if(histIdx>0){histIdx--;inputEl.value=cmdHistory[histIdx];}else{histIdx=-1;inputEl.value='';}}
-            });
-            inputEl.focus();
-        });
+                    <!-- Task 1: Create shared mailbox form -->
+                    <div class="form-panel" id="newMailboxForm" style="display:none;">
+                        <h3>New Shared Mailbox</h3>
+                        <div class="form-row-inline">
+                            <div class="form-row">
+                                <label class="form-label">Display Name</label>
+                                <input type="text" class="form-input" id="mbDisplayName" placeholder="e.g. IT Support Team">
+                            </div>
+                            <div class="form-row">
+                                <label class="form-label">Email Address</label>
+                                <input type="text" class="form-input" id="mbEmail" placeholder="e.g. itsupport">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <label class="form-label">Members (Full Access)</label>
+                            <input type="text" class="form-input" id="mbMembers" placeholder="e.g. admin@contoso.com, helpdesk@contoso.com">
+                        </div>
+                        <div style="display:flex; gap:8px; margin-top:4px;">
+                            <button class="btn-portal btn-primary-p" onclick="createSharedMailbox()">Create Mailbox</button>
+                            <button class="btn-portal btn-secondary-p" onclick="document.getElementById('newMailboxForm').style.display='none'">Cancel</button>
+                        </div>
+                    </div>
+
+                    <!-- Task 2: Permissions panel -->
+                    <div class="form-panel" id="permissionsForm" style="display:none;">
+                        <h3>Edit Mailbox Permissions — IT Support Team</h3>
+                        <div class="form-row">
+                            <label class="form-label">Full Access Members</label>
+                            <input type="text" class="form-input" id="fullAccessInput" value="admin@contoso.com">
+                        </div>
+                        <div class="toggle-row">
+                            <div>
+                                <div class="toggle-label">Send As Permission</div>
+                                <div class="toggle-desc">Members can send mail as "IT Support Team"</div>
+                            </div>
+                            <label class="toggle-switch"><input type="checkbox" id="toggleSendAs" onchange="checkTask2()"><span class="toggle-slider"></span></label>
+                        </div>
+                        <div class="toggle-row">
+                            <div>
+                                <div class="toggle-label">Send on Behalf</div>
+                                <div class="toggle-desc">Recipients see "Helpdesk on behalf of IT Support"</div>
+                            </div>
+                            <label class="toggle-switch"><input type="checkbox"><span class="toggle-slider"></span></label>
+                        </div>
+                        <div style="margin-top:14px; display:flex; gap:8px;">
+                            <button class="btn-portal btn-primary-p" onclick="savePermissions()">Save</button>
+                            <button class="btn-portal btn-secondary-p" onclick="document.getElementById('permissionsForm').style.display='none'">Close</button>
+                        </div>
+                    </div>
+
+                    <div class="data-table-wrap">
+                        <div class="table-header-row">
+                            <input type="text" class="table-search" placeholder="Search mailboxes..." oninput="filterMailboxes(this.value)">
+                            <select class="form-select" style="width:140px;" onchange="filterType(this.value)">
+                                <option value="all">All Types</option>
+                                <option value="user">User</option>
+                                <option value="shared">Shared</option>
+                                <option value="resource">Resource</option>
+                            </select>
+                        </div>
+                        <table class="data-table" id="mailboxTable">
+                            <thead>
+                                <tr>
+                                    <th>Display Name</th>
+                                    <th>Email Address</th>
+                                    <th>Type</th>
+                                    <th>Storage</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mailboxBody">
+                                <tr><td>Alex Johnson</td><td>alexj@contoso.com</td><td><span class="badge badge-blue">User</span></td><td>12.4 GB</td><td><button class="row-action">Edit</button></td></tr>
+                                <tr><td>Finance Team</td><td>finance@contoso.com</td><td><span class="badge badge-yellow">Shared</span></td><td>3.2 GB</td><td><button class="row-action" onclick="openPermissions()">Permissions</button></td></tr>
+                                <tr><td>HR Department</td><td>hr@contoso.com</td><td><span class="badge badge-yellow">Shared</span></td><td>1.8 GB</td><td><button class="row-action" onclick="openPermissions()">Permissions</button></td></tr>
+                                <tr><td>Conference Room A</td><td>confrooma@contoso.com</td><td><span class="badge badge-green">Resource</span></td><td>0.2 GB</td><td><button class="row-action">Edit</button></td></tr>
+                                <tr><td>Maria Garcia</td><td>mariag@contoso.com</td><td><span class="badge badge-blue">User</span></td><td>28.1 GB</td><td><button class="row-action">Edit</button></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel: Mail Flow -->
+        <div class="portal-content" id="panel-mailflow">
+            <div style="overflow-y:auto; height:100%; padding:4px 0;">
+                <div class="section-title">Mail Flow Rules</div>
+                <div class="section-subtitle">Create and manage transport rules that apply actions when messages match specified conditions</div>
+
+                <!-- Task 3: Create mail flow rule -->
+                <div class="form-panel" id="mailflowForm" style="display:none;">
+                    <h3>New Mail Flow Rule</h3>
+                    <div class="form-row">
+                        <label class="form-label">Rule Name</label>
+                        <input type="text" class="form-input" id="ruleNameInput" placeholder="e.g. Block External Attachments Over 10MB">
+                    </div>
+                    <div class="form-row-inline">
+                        <div class="form-row">
+                            <label class="form-label">Apply this rule if...</label>
+                            <select class="form-select" id="ruleCondition">
+                                <option value="">Select condition</option>
+                                <option value="sender">Sender is outside the organization</option>
+                                <option value="recipient">Recipient is a member of</option>
+                                <option value="attachment">Attachment size is greater than</option>
+                                <option value="subject">Subject contains words</option>
+                                <option value="domain">Sender domain is</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label class="form-label">Do the following...</label>
+                            <select class="form-select" id="ruleAction">
+                                <option value="">Select action</option>
+                                <option value="reject">Reject the message</option>
+                                <option value="redirect">Redirect to</option>
+                                <option value="encrypt">Apply message encryption</option>
+                                <option value="disclaimer">Append disclaimer</option>
+                                <option value="bcc">Add BCC recipient</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">Priority</label>
+                        <select class="form-select" style="width:120px;">
+                            <option>0 (Highest)</option><option>1</option><option>2</option><option>3</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; gap:8px; margin-top:4px;">
+                        <button class="btn-portal btn-primary-p" onclick="createMailFlowRule()">Create Rule</button>
+                        <button class="btn-portal btn-secondary-p" onclick="document.getElementById('mailflowForm').style.display='none'">Cancel</button>
+                    </div>
+                </div>
+
+                <div style="margin-bottom:14px;">
+                    <button class="btn-portal btn-primary-p" onclick="document.getElementById('mailflowForm').style.display='block'; scrollTo(0,0)">+ New Rule</button>
+                </div>
+
+                <div class="data-table-wrap">
+                    <table class="data-table" id="rulesTable">
+                        <thead><tr><th>Priority</th><th>Rule Name</th><th>State</th><th>Conditions</th><th>Actions</th></tr></thead>
+                        <tbody id="rulesBody">
+                            <tr><td>0</td><td>Encrypt External Finance Mail</td><td><span class="badge badge-green">Enabled</span></td><td>Recipient domain: finance.com</td><td>Apply OME encryption</td></tr>
+                            <tr><td>1</td><td>Add Legal Disclaimer</td><td><span class="badge badge-green">Enabled</span></td><td>All messages</td><td>Append footer text</td></tr>
+                            <tr><td>2</td><td>Block Macro Attachments</td><td><span class="badge badge-yellow">Disabled</span></td><td>Attachment has .xlsm/.docm</td><td>Reject with explanation</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel: Protection -->
+        <div class="portal-content" id="panel-protection">
+            <div style="overflow-y:auto; height:100%; padding:4px 0;">
+                <div class="section-title">Anti-Spam &amp; Protection</div>
+                <div class="section-subtitle">Review quarantine, configure anti-spam policies, and manage safe sender/blocked sender lists</div>
+
+                <!-- Task 4: Quarantine review -->
+                <div class="stats-row" style="margin-bottom:14px;">
+                    <div class="stat-card"><div class="stat-label">Quarantined (7d)</div><div class="stat-value">142</div><div class="stat-sub">Awaiting review</div></div>
+                    <div class="stat-card"><div class="stat-label">Spam Blocked</div><div class="stat-value">8,431</div><div class="stat-sub">Last 7 days</div></div>
+                    <div class="stat-card"><div class="stat-label">Phishing Blocked</div><div class="stat-value">312</div><div class="stat-sub">Last 7 days</div></div>
+                    <div class="stat-card"><div class="stat-label">Malware Blocked</div><div class="stat-value">27</div><div class="stat-sub">Last 7 days</div></div>
+                </div>
+
+                <div class="section-title" style="font-size:0.9rem; margin-bottom:8px;">Quarantine Review</div>
+                <div class="data-table-wrap" style="margin-bottom:20px;">
+                    <div class="table-header-row">
+                        <input type="text" class="table-search" placeholder="Search quarantine...">
+                        <select class="form-select" style="width:130px;"><option>All Reasons</option><option>Spam</option><option>Phishing</option><option>Malware</option><option>Bulk</option></select>
+                        <button class="btn-portal btn-secondary-p" onclick="markQuarantineReviewed()">Mark Reviewed</button>
+                    </div>
+                    <table class="data-table">
+                        <thead><tr><th><input type="checkbox" id="selectAll" onclick="toggleAll()"></th><th>Sender</th><th>Subject</th><th>Received</th><th>Reason</th><th>Actions</th></tr></thead>
+                        <tbody id="quarantineBody">
+                            <tr><td><input type="checkbox" class="qcheck"></td><td>promo@bulk-sender.net</td><td>Congratulations! You Won...</td><td>2026-04-21</td><td><span class="badge badge-yellow">Bulk</span></td><td><button class="row-action">Release</button> <button class="row-action">Delete</button></td></tr>
+                            <tr><td><input type="checkbox" class="qcheck"></td><td>noreply@suspicious-domain.ru</td><td>Your account has been compromised</td><td>2026-04-20</td><td><span class="badge badge-red">Phishing</span></td><td><button class="row-action">Delete</button></td></tr>
+                            <tr><td><input type="checkbox" class="qcheck"></td><td>invoice@legit-vendor.com</td><td>Invoice #4521 for April</td><td>2026-04-20</td><td><span class="badge badge-yellow">Spam</span></td><td><button class="row-action" onclick="releaseQuarantine(this)">Release</button> <button class="row-action">Delete</button></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Task 5: Anti-spam policy -->
+                <div class="section-title" style="font-size:0.9rem; margin-bottom:8px;">Anti-Spam Policy Configuration</div>
+                <div class="form-panel">
+                    <h3>Default Anti-Spam Inbound Policy</h3>
+                    <div class="toggle-row">
+                        <div><div class="toggle-label">Spam Detection</div><div class="toggle-desc">Score-based spam filtering</div></div>
+                        <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="toggle-row">
+                        <div><div class="toggle-label">High-Confidence Spam</div><div class="toggle-desc">Quarantine instead of junk folder</div></div>
+                        <label class="toggle-switch"><input type="checkbox" id="hcSpamToggle" onchange="checkTask5()"><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="toggle-row">
+                        <div><div class="toggle-label">Phishing Detection</div><div class="toggle-desc">Quarantine phishing messages immediately</div></div>
+                        <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="toggle-row">
+                        <div><div class="toggle-label">Bulk Compliant Level (BCL)</div><div class="toggle-desc">Threshold: 6 — treat bulk above 6 as spam</div></div>
+                        <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                    </div>
+                    <div style="margin-top:14px;">
+                        <button class="btn-portal btn-primary-p" onclick="saveAntiSpam()">Save Policy</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel: Compliance -->
+        <div class="portal-content" id="panel-compliance">
+            <div style="overflow-y:auto; height:100%; padding:4px 0;">
+                <div class="section-title">Compliance &amp; Retention</div>
+                <div class="section-subtitle">Manage message compliance, audit logs, and retention policies for Exchange Online</div>
+                <div class="data-table-wrap">
+                    <table class="data-table">
+                        <thead><tr><th>Policy Name</th><th>Type</th><th>Retention</th><th>Status</th></tr></thead>
+                        <tbody>
+                            <tr><td>Default Retention</td><td>Retention</td><td>7 years</td><td><span class="badge badge-green">Active</span></td></tr>
+                            <tr><td>Finance Compliance Hold</td><td>Litigation Hold</td><td>Indefinite</td><td><span class="badge badge-green">Active</span></td></tr>
+                            <tr><td>Executive 90-Day Archive</td><td>Archive</td><td>90 days</td><td><span class="badge badge-blue">Scheduled</span></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel: Reports -->
+        <div class="portal-content" id="panel-reports">
+            <div style="overflow-y:auto; height:100%; padding:4px 0;">
+                <div class="section-title">Mail Flow Reports</div>
+                <div class="section-subtitle">Monitor message volumes, delays, and delivery failures across your organization</div>
+                <div class="stats-row">
+                    <div class="stat-card"><div class="stat-label">Messages Sent (7d)</div><div class="stat-value">42,104</div></div>
+                    <div class="stat-card"><div class="stat-label">Delivered</div><div class="stat-value">41,820</div></div>
+                    <div class="stat-card"><div class="stat-label">Failed</div><div class="stat-value">284</div></div>
+                    <div class="stat-card"><div class="stat-label">Avg. Delivery</div><div class="stat-value">1.2s</div></div>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- end portal-area -->
+
+    <!-- Task rail -->
+    <aside class="task-rail">
+        <div class="task-rail-title">Lab Tasks</div>
+
+        <div class="task-item active" id="task1" onclick="focusTask(1)">
+            <div class="task-item-header">
+                <span class="task-num">TASK 01</span>
+                <div class="task-check" id="check1">&#10003;</div>
+            </div>
+            <div class="task-item-name">Create Shared Mailbox</div>
+            <div class="task-item-desc">Create a new shared mailbox named "IT Support Team" with address itsupport@contoso.com</div>
+        </div>
+
+        <div class="task-item" id="task2" onclick="focusTask(2)">
+            <div class="task-item-header">
+                <span class="task-num">TASK 02</span>
+                <div class="task-check" id="check2">&#10003;</div>
+            </div>
+            <div class="task-item-name">Set Mailbox Permissions</div>
+            <div class="task-item-desc">Enable Send As permission on the Finance Team mailbox</div>
+        </div>
+
+        <div class="task-item" id="task3" onclick="focusTask(3)">
+            <div class="task-item-header">
+                <span class="task-num">TASK 03</span>
+                <div class="task-check" id="check3">&#10003;</div>
+            </div>
+            <div class="task-item-name">Create Mail Flow Rule</div>
+            <div class="task-item-desc">Create a transport rule with at least one condition and action configured</div>
+        </div>
+
+        <div class="task-item" id="task4" onclick="focusTask(4)">
+            <div class="task-item-header">
+                <span class="task-num">TASK 04</span>
+                <div class="task-check" id="check4">&#10003;</div>
+            </div>
+            <div class="task-item-name">Review Quarantine</div>
+            <div class="task-item-desc">Navigate to Protection and release the legitimate vendor invoice from quarantine</div>
+        </div>
+
+        <div class="task-item" id="task5" onclick="focusTask(5)">
+            <div class="task-item-header">
+                <span class="task-num">TASK 05</span>
+                <div class="task-check" id="check5">&#10003;</div>
+            </div>
+            <div class="task-item-name">Configure Anti-Spam Policy</div>
+            <div class="task-item-desc">Enable High-Confidence Spam quarantine in the default anti-spam policy and save</div>
+        </div>
+
+        <div class="task-item" id="task6" onclick="focusTask(6)">
+            <div class="task-item-header">
+                <span class="task-num">TASK 06</span>
+                <div class="task-check" id="check6">&#10003;</div>
+            </div>
+            <div class="task-item-name">Verify Mailbox Count</div>
+            <div class="task-item-desc">Confirm the shared mailbox count increased after creation — check the Recipients dashboard</div>
+        </div>
+
+        <div class="task-item" id="task7" onclick="focusTask(7)">
+            <div class="task-item-header">
+                <span class="task-num">TASK 07</span>
+                <div class="task-check" id="check7">&#10003;</div>
+            </div>
+            <div class="task-item-name">Search Mailbox Table</div>
+            <div class="task-item-desc">Use the search field on Recipients to filter mailboxes by type "Shared"</div>
+        </div>
+
+        <div class="task-item" id="task8" onclick="focusTask(8)">
+            <div class="task-item-header">
+                <span class="task-num">TASK 08</span>
+                <div class="task-check" id="check8">&#10003;</div>
+            </div>
+            <div class="task-item-name">Inspect Mail Flow Rules</div>
+            <div class="task-item-desc">Navigate to Mail Flow and identify which rule is currently disabled</div>
+        </div>
+
+        <div class="task-item" id="task9" onclick="focusTask(9)">
+            <div class="task-item-header">
+                <span class="task-num">TASK 09</span>
+                <div class="task-check" id="check9">&#10003;</div>
+            </div>
+            <div class="task-item-name">Review Spam Statistics</div>
+            <div class="task-item-desc">Navigate to Protection and note the total number of phishing messages blocked in 7 days</div>
+        </div>
+
+        <div class="task-item" id="task10" onclick="focusTask(10)">
+            <div class="task-item-header">
+                <span class="task-num">TASK 10</span>
+                <div class="task-check" id="check10">&#10003;</div>
+            </div>
+            <div class="task-item-name">View Compliance Policies</div>
+            <div class="task-item-desc">Navigate to Compliance and identify the retention duration for the Finance Compliance Hold</div>
+        </div>
+    </aside>
+
+</div><!-- end main-layout -->
+
+<div class="toast" id="toast"></div>
+<div class="overlay" id="completionOverlay">
+    <div class="overlay-card">
+        <div class="overlay-title">Lab Complete</div>
+        <div class="overlay-msg">You have completed all 10 Exchange Admin Center tasks. You can now manage shared mailboxes, mail flow rules, quarantine, and anti-spam policies in Exchange Online.</div>
+        <button class="overlay-btn" onclick="window.location.href='../index.html'">Return to Hub</button>
+    </div>
+</div>
+
+<script>
+    /* --------------------------------------------------
+       State
+    -------------------------------------------------- */
+    var STORAGE_KEY = 'ms102_ch05_exchange_progress';
+    var TOTAL_TASKS  = 10;
+    var completed    = {};   /* { taskNum: true } */
+
+    /* --------------------------------------------------
+       Boot
+    -------------------------------------------------- */
+    (function init() {
+        var saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) { try { completed = JSON.parse(saved); } catch(e) {} }
+        Object.keys(completed).forEach(function(n) { markDone(parseInt(n), true); });
+        updateProgress();
     })();
-    </script>
-    <script src="../../../../components/FluxCapacitor.js"></script>
+
+    /* --------------------------------------------------
+       Navigation
+    -------------------------------------------------- */
+    var panelBreadcrumbs = {
+        recipients: 'Recipients',
+        mailflow:   'Mail Flow',
+        protection: 'Protection',
+        compliance: 'Compliance',
+        reports:    'Reports'
+    };
+
+    var panelToolbars = {
+        recipients: '<button class="btn-portal btn-primary-p" onclick="openNewMailbox()">+ New Shared Mailbox</button><button class="btn-portal btn-secondary-p" onclick="refreshTable()">Refresh</button>',
+        mailflow:   '<button class="btn-portal btn-primary-p" onclick="document.getElementById(\'mailflowForm\').style.display=\'block\'">+ New Rule</button>',
+        protection: '<button class="btn-portal btn-secondary-p" onclick="checkTask9()">Refresh Stats</button>',
+        compliance: '',
+        reports:    '<button class="btn-portal btn-secondary-p">Export</button>'
+    };
+
+    function showPanel(name) {
+        /* Hide all panels and deactivate nav items */
+        document.querySelectorAll('.portal-content').forEach(function(el) { el.classList.remove('active'); });
+        document.querySelectorAll('.sidebar-item').forEach(function(el) { el.classList.remove('active'); });
+
+        document.getElementById('panel-' + name).classList.add('active');
+        document.getElementById('nav-' + name).classList.add('active');
+        document.getElementById('breadcrumbActive').textContent = panelBreadcrumbs[name] || name;
+        document.getElementById('toolbarActions').innerHTML = panelToolbars[name] || '';
+
+        /* Auto-complete navigation tasks */
+        if (name === 'mailflow')   { checkTask8(); }
+        if (name === 'protection') { checkTask9(); }
+        if (name === 'compliance') { checkTask10(); }
+        if (name === 'recipients') { checkTask7auto(); }
+    }
+
+    /* --------------------------------------------------
+       Task 1: Create shared mailbox
+    -------------------------------------------------- */
+    function openNewMailbox() {
+        var form = document.getElementById('newMailboxForm');
+        form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function createSharedMailbox() {
+        var name  = document.getElementById('mbDisplayName').value.trim();
+        var email = document.getElementById('mbEmail').value.trim();
+        if (!name || !email) { showToast('Enter both Display Name and Email Address.'); return; }
+
+        /* Add row to mailbox table */
+        var tbody = document.getElementById('mailboxBody');
+        var tr = document.createElement('tr');
+        tr.innerHTML = '<td>' + sanitize(name) + '</td><td>' + sanitize(email) + '@contoso.com</td><td><span class="badge badge-yellow">Shared</span></td><td>0 GB</td><td><button class="row-action" onclick="openPermissions()">Permissions</button></td>';
+        tbody.appendChild(tr);
+
+        /* Update shared count */
+        var cnt = document.getElementById('sharedCount');
+        cnt.textContent = parseInt(cnt.textContent) + 1;
+
+        document.getElementById('newMailboxForm').style.display = 'none';
+        document.getElementById('mbDisplayName').value = '';
+        document.getElementById('mbEmail').value = '';
+        document.getElementById('mbMembers').value = '';
+
+        showToast('Shared mailbox "' + name + '" created successfully.');
+        markDone(1);
+        checkTask6();
+    }
+
+    /* --------------------------------------------------
+       Task 2: Set permissions
+    -------------------------------------------------- */
+    function openPermissions() {
+        document.getElementById('permissionsForm').style.display = 'block';
+    }
+
+    function checkTask2() {
+        /* User toggled Send As — fire on save */
+    }
+
+    function savePermissions() {
+        var sendAs = document.getElementById('toggleSendAs').checked;
+        if (!sendAs) { showToast('Enable Send As permission before saving.'); return; }
+        document.getElementById('permissionsForm').style.display = 'none';
+        showToast('Permissions saved. Send As enabled for Finance Team mailbox.');
+        markDone(2);
+    }
+
+    /* --------------------------------------------------
+       Task 3: Mail flow rule
+    -------------------------------------------------- */
+    function createMailFlowRule() {
+        var name      = document.getElementById('ruleNameInput').value.trim();
+        var condition = document.getElementById('ruleCondition').value;
+        var action    = document.getElementById('ruleAction').value;
+        if (!name || !condition || !action) { showToast('Provide a rule name, condition, and action.'); return; }
+
+        var tbody = document.getElementById('rulesBody');
+        var rows  = tbody.querySelectorAll('tr').length;
+        var tr = document.createElement('tr');
+        tr.innerHTML = '<td>' + rows + '</td><td>' + sanitize(name) + '</td><td><span class="badge badge-green">Enabled</span></td><td>' + condition + '</td><td>' + action + '</td>';
+        tbody.appendChild(tr);
+
+        document.getElementById('mailflowForm').style.display = 'none';
+        document.getElementById('ruleNameInput').value = '';
+        showToast('Mail flow rule "' + name + '" created.');
+        markDone(3);
+    }
+
+    /* --------------------------------------------------
+       Task 4: Quarantine release
+    -------------------------------------------------- */
+    function releaseQuarantine(btn) {
+        var row = btn.closest('tr');
+        row.style.opacity = '0.4';
+        row.querySelector('td:nth-child(5)').innerHTML = '<span class="badge badge-green">Released</span>';
+        btn.disabled = true;
+        showToast('Message released from quarantine to recipient inbox.');
+        markDone(4);
+    }
+
+    function markQuarantineReviewed() {
+        showToast('Selected messages reviewed.');
+        markDone(4);
+    }
+
+    function toggleAll() {
+        var checked = document.getElementById('selectAll').checked;
+        document.querySelectorAll('.qcheck').forEach(function(cb) { cb.checked = checked; });
+    }
+
+    /* --------------------------------------------------
+       Task 5: Anti-spam policy save
+    -------------------------------------------------- */
+    function saveAntiSpam() {
+        var hc = document.getElementById('hcSpamToggle').checked;
+        if (!hc) { showToast('Enable High-Confidence Spam quarantine first.'); return; }
+        showToast('Anti-spam policy saved. High-Confidence Spam will now be quarantined.');
+        markDone(5);
+    }
+
+    function checkTask5() { /* called on toggle change — actual completion on save */ }
+
+    /* --------------------------------------------------
+       Task 6: Mailbox count verification (auto after task 1)
+    -------------------------------------------------- */
+    function checkTask6() {
+        if (completed[1]) { markDone(6); }
+    }
+
+    /* --------------------------------------------------
+       Task 7: Search recipients (auto on filter use)
+    -------------------------------------------------- */
+    function filterMailboxes(val) {
+        var rows = document.querySelectorAll('#mailboxBody tr');
+        rows.forEach(function(row) {
+            row.style.display = row.textContent.toLowerCase().includes(val.toLowerCase()) ? '' : 'none';
+        });
+        if (val.length > 0) { markDone(7); }
+    }
+
+    function filterType(val) {
+        var rows = document.querySelectorAll('#mailboxBody tr');
+        rows.forEach(function(row) {
+            if (val === 'all') { row.style.display = ''; return; }
+            var badge = row.querySelector('.badge');
+            var type  = badge ? badge.textContent.toLowerCase() : '';
+            row.style.display = type.includes(val) ? '' : 'none';
+        });
+        if (val !== 'all') { markDone(7); }
+    }
+
+    function checkTask7auto() {
+        /* Recipient panel was visited — user can now interact with search */
+    }
+
+    function refreshTable() {
+        showToast('Mailbox list refreshed.');
+    }
+
+    /* --------------------------------------------------
+       Task 8: Navigate to Mail Flow (auto)
+    -------------------------------------------------- */
+    function checkTask8() {
+        markDone(8);
+    }
+
+    /* --------------------------------------------------
+       Task 9: Navigate to Protection (auto)
+    -------------------------------------------------- */
+    function checkTask9() {
+        markDone(9);
+    }
+
+    /* --------------------------------------------------
+       Task 10: Navigate to Compliance (auto)
+    -------------------------------------------------- */
+    function checkTask10() {
+        markDone(10);
+    }
+
+    /* --------------------------------------------------
+       Focus a task from task rail click
+    -------------------------------------------------- */
+    function focusTask(num) {
+        document.querySelectorAll('.task-item').forEach(function(el) { el.classList.remove('active'); });
+        document.getElementById('task' + num).classList.add('active');
+
+        /* Navigate to the relevant panel */
+        var panelMap = { 1:'recipients', 2:'recipients', 3:'mailflow', 4:'protection', 5:'protection', 6:'recipients', 7:'recipients', 8:'mailflow', 9:'protection', 10:'compliance' };
+        showPanel(panelMap[num] || 'recipients');
+    }
+
+    /* --------------------------------------------------
+       Progress tracking
+    -------------------------------------------------- */
+    function markDone(num, silent) {
+        if (completed[num]) return;
+        completed[num] = true;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(completed));
+
+        var item  = document.getElementById('task' + num);
+        var check = document.getElementById('check' + num);
+        if (item)  { item.classList.add('done'); }
+        if (check) { check.style.background = 'var(--success)'; check.style.borderColor = 'var(--success)'; check.style.color = '#fff'; }
+
+        updateProgress();
+
+        var count = Object.keys(completed).length;
+        if (!silent && count === TOTAL_TASKS) {
+            setTimeout(function() {
+                document.getElementById('completionOverlay').classList.add('active');
+                if (typeof ModuleProgress !== 'undefined') {
+                    ModuleProgress.complete('cloud', 'ms102-ch05-lab', { returnUrl: '../index.html' });
+                }
+            }, 600);
+        }
+    }
+
+    function updateProgress() {
+        var count = Object.keys(completed).length;
+        var pct   = (count / TOTAL_TASKS) * 100;
+        document.getElementById('progressFill').style.width = pct + '%';
+        document.getElementById('progressLabel').textContent = count + ' / ' + TOTAL_TASKS;
+    }
+
+    /* --------------------------------------------------
+       Toast notification
+    -------------------------------------------------- */
+    function showToast(msg) {
+        var t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('visible');
+        clearTimeout(t._timer);
+        t._timer = setTimeout(function() { t.classList.remove('visible'); }, 3500);
+    }
+
+    /* --------------------------------------------------
+       Sanitize user input before inserting into DOM
+    -------------------------------------------------- */
+    function sanitize(str) {
+        var div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+</script>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
 </body>
 </html>

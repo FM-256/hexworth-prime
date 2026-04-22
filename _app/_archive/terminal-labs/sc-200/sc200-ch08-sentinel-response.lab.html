@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentinel Response Lab -- SC-200 Chapter 8</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { height: 100vh; overflow: hidden; background: #0c0c0c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #f5b3b3; display: flex; flex-direction: column; }
+        .lab-header { flex-shrink: 0; padding: 15px 30px; background: rgba(10,6,8,0.95); border-bottom: 1px solid rgba(239,68,68,0.2); display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn { padding: 8px 16px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; color: #ef4444; text-decoration: none; font-size: 0.85rem; transition: all 0.3s ease; }
+        .back-btn:hover { background: rgba(239,68,68,0.2); }
+        .lab-title { font-size: 1rem; color: #fde2e2; }
+        .lab-badge { padding: 4px 12px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; font-size: 0.7rem; color: #f87171; letter-spacing: 0.05em; }
+        .lab-badge-ch { padding: 4px 12px; background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.3); border-radius: 12px; font-size: 0.7rem; color: #34d399; letter-spacing: 0.05em; }
+        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #7a4040; }
+        .task-count { color: #ef4444; font-weight: 500; }
+        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(239,68,68,0.15); border-radius: 3px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #ef4444, #991b1b); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
+        .lab-container { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
+        .task-panel { background: rgba(10,6,8,0.95); border-right: 1px solid rgba(239,68,68,0.15); overflow-y: auto; padding: 20px; }
+        .task-section { margin-bottom: 25px; }
+        .task-section-title { font-size: 0.68rem; color: #5a2020; letter-spacing: 0.15em; margin-bottom: 12px; text-transform: uppercase; }
+        .task-card { background: rgba(20,10,16,0.8); border: 1px solid rgba(239,68,68,0.15); border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s ease; }
+        .task-card:hover { border-color: rgba(239,68,68,0.4); }
+        .task-card.active { border-color: #ef4444; background: rgba(239,68,68,0.1); }
+        .task-card.completed { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.04); }
+        .task-card.completed .task-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; font-weight: 400; }
+        .task-number { font-size: 0.68rem; color: #ef4444; margin-bottom: 4px; }
+        .task-name { font-size: 0.9rem; color: #fde2e2; margin-bottom: 4px; }
+        .task-desc { font-size: 0.77rem; color: #7a4040; line-height: 1.45; }
+        .task-desc code { background: rgba(239,68,68,0.15); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; color: #f87171; font-family: 'Consolas', monospace; }
+        .terminal-panel { display: flex; flex-direction: column; background: #0a0a0a; position: relative; overflow: hidden; }
+        .term-toolbar { flex-shrink: 0; padding: 8px 20px; background: rgba(20,10,16,0.9); border-bottom: 1px solid rgba(239,68,68,0.15); display: flex; align-items: center; gap: 12px; }
+        .term-dot { width: 12px; height: 12px; border-radius: 50%; } .term-dot-red { background: #ff5f57; } .term-dot-amber { background: #febc2e; } .term-dot-green { background: #28c840; }
+        .term-title { flex: 1; text-align: center; font-size: 0.8rem; color: #5a3030; font-family: 'Consolas', monospace; }
+        .term-vm-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #34d399; }
+        .term-status-dot { width: 7px; height: 7px; background: #34d399; border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .term-output { flex: 1; overflow-y: auto; padding: 16px 360px 8px 20px; font-family: 'Consolas', monospace; font-size: 0.875rem; line-height: 1.6; }
+        .term-input-row { flex-shrink: 0; display: flex; align-items: center; padding: 8px 360px 12px 20px; border-top: 1px solid rgba(239,68,68,0.1); gap: 0; }
+        .term-prompt-label { font-family: 'Consolas', monospace; font-size: 0.875rem; white-space: nowrap; flex-shrink: 0; }
+        .term-prompt-user { color: #ef4444; } .term-prompt-sep { color: #5a2020; } .term-prompt-path { color: #34d399; } .term-prompt-dollar { color: #fde2e2; margin-right: 6px; }
+        .term-input { flex: 1; background: transparent; border: none; outline: none; color: #fde2e2; font-family: 'Consolas', monospace; font-size: 0.875rem; caret-color: #ef4444; }
+        .term-line { white-space: pre-wrap; word-break: break-all; }
+        .term-line-cmd { color: #f5b3b3; } .term-line-out { color: #a0d4a0; } .term-line-err { color: #f87171; } .term-line-info { color: #f87171; } .term-line-warn { color: #fbbf24; } .term-line-dim { color: #4a2020; } .term-welcome { color: #ef4444; }
+        .term-prompt-span { color: #ef4444; } .term-path-span { color: #34d399; } .term-ps1-sep { color: #5a2020; }
+        .json-key { color: #f87171; } .json-string { color: #86efac; } .json-number { color: #fbbf24; } .json-bool { color: #93c5fd; } .json-null { color: #f87171; }
+        .instructions-panel { position: absolute; top: 20px; right: 20px; width: 320px; background: rgba(10,6,8,0.97); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; padding: 20px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.4); transition: all 0.3s ease; }
+        .instructions-panel.collapsed { width: auto; padding: 10px 14px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-body { display: none; }
+        .instructions-title { font-size: 1rem; color: #ef4444; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-title { margin-bottom: 0; font-size: 0.85rem; }
+        .instructions-toggle { margin-left: auto; width: 28px; height: 28px; background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; color: #ef4444; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .instructions-step { font-size: 0.88rem; color: #f5b3b3; line-height: 1.65; margin-bottom: 14px; }
+        .instructions-step code { background: rgba(239,68,68,0.2); padding: 2px 7px; border-radius: 4px; font-family: 'Consolas', monospace; color: #f87171; font-size: 0.85em; }
+        .instructions-hint { font-size: 0.78rem; color: #5a2020; font-style: italic; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(239,68,68,0.15); line-height: 1.5; }
+        .hint-btn { margin-top: 12px; padding: 6px 12px; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); border-radius: 5px; color: #ef4444; font-size: 0.75rem; cursor: pointer; font-family: 'Segoe UI', sans-serif; width: 100%; text-align: center; }
+        .hint-command { display: none; margin-top: 10px; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(239,68,68,0.25); border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.78rem; color: #86efac; line-height: 1.55; white-space: pre-wrap; }
+        .hint-command.visible { display: block; }
+        .success-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 2000; }
+        .success-overlay.active { display: flex; }
+        .success-card { background: rgba(10,6,8,0.97); border: 1px solid rgba(52,211,153,0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
+        .success-message { color: #f5b3b3; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
+        .success-btn { padding: 12px 30px; background: linear-gradient(135deg, #ef4444, #991b1b); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; }
+        @media (max-width: 1024px) { .lab-container { grid-template-columns: 1fr; } .task-panel { display: none; } .term-output, .term-input-row { padding-right: 20px; } .instructions-panel { position: absolute; bottom: 60px; top: auto; right: 10px; left: 10px; width: auto; } }
+    </style>
+</head>
+<body>
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Sentinel Response Lab</span>
+            <span class="lab-badge">SC-200</span>
+            <span class="lab-badge-ch">CH.8</span>
+        </div>
+        <div class="task-progress">
+            <span>Progress:</span>
+            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBarFill"></div></div>
+            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
+        </div>
+    </header>
+    <div class="lab-container">
+        <aside class="task-panel" id="taskPanel"><div class="task-section"><div class="task-section-title">Phase 1 -- Automation and Playbooks</div><div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)"><div class="task-number">Task 1</div><div class="task-name">List Automation Rules</div><div class="task-desc">Run <code>sentinel-auto list --status active</code> to view all active automation rules and their trigger conditions.</div></div><div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)"><div class="task-number">Task 2</div><div class="task-name">Inspect Automation Rule</div><div class="task-desc">Run <code>sentinel-auto show --id AUTO-0012</code> to review the trigger conditions, action ordering, and attached playbook.</div></div><div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)"><div class="task-number">Task 3</div><div class="task-name">List Playbooks</div><div class="task-desc">Run <code>sentinel-playbook list</code> to display all configured playbooks with their Logic Apps status and last run time.</div></div></div><div class="task-section"><div class="task-section-title">Phase 2 -- Incident Management</div><div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)"><div class="task-number">Task 4</div><div class="task-name">View Incident Queue</div><div class="task-desc">Run <code>sentinel-incident list --status new</code> to display unassigned incidents in the queue sorted by severity.</div></div><div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)"><div class="task-number">Task 5</div><div class="task-name">Investigate Incident</div><div class="task-desc">Run <code>sentinel-incident show --id INC-4821</code> to view full incident details including alerts, entities, and enrichment comments.</div></div><div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)"><div class="task-number">Task 6</div><div class="task-name">Assign and Activate</div><div class="task-desc">Run <code>sentinel-incident assign --id INC-4821 --owner socanalyst --status active</code> to take ownership and begin investigation.</div></div></div><div class="task-section"><div class="task-section-title">Phase 3 -- UEBA</div><div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)"><div class="task-number">Task 7</div><div class="task-name">Check Entity Behavior</div><div class="task-desc">Run <code>sentinel-ueba show --entity rjones@contoso.com</code> to view the behavioral profile, anomalies, and investigation priority score.</div></div><div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)"><div class="task-number">Task 8</div><div class="task-name">List UEBA Anomalies</div><div class="task-desc">Run <code>sentinel-ueba anomalies --timerange 7d --min-score 7</code> to list high-score behavioral anomalies from the past week.</div></div></div><div class="task-section"><div class="task-section-title">Phase 4 -- Response Actions</div><div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)"><div class="task-number">Task 9</div><div class="task-name">Run Containment Playbook</div><div class="task-desc">Run <code>sentinel-playbook run --name user-containment --incident INC-4821</code> to execute the user containment playbook on the active incident.</div></div><div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)"><div class="task-number">Task 10</div><div class="task-name">Close Incident</div><div class="task-desc">Run <code>sentinel-incident close --id INC-4821 --classification true-positive --comment "Confirmed C2 activity. User disabled. Endpoint isolated."</code> to resolve the incident.</div></div></div></aside>
+        <main class="terminal-panel" id="terminalPanel">
+            <div class="term-toolbar">
+                <div class="term-dot term-dot-red"></div><div class="term-dot term-dot-amber"></div><div class="term-dot term-dot-green"></div>
+                <div class="term-title">socanalyst@sentinel-lab -- bash</div>
+                <div class="term-vm-status"><div class="term-status-dot"></div>Sentinel Lab Online</div>
+            </div>
+            <div class="term-output" id="termOutput"></div>
+            <div class="term-input-row">
+                <span class="term-prompt-label"><span class="term-prompt-user">socanalyst@sentinel-lab</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span></span>
+                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
+            </div>
+            <div class="instructions-panel" id="instructionsPanel">
+                <div class="instructions-title" onclick="toggleInstructions()">
+                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+                    Task Instructions
+                    <button class="instructions-toggle" id="instructionsToggle">&#9660;</button>
+                </div>
+                <div class="instructions-body" id="instructionsBody">
+                    <div class="instructions-step" id="instructionsStep">Type the command in the terminal and press Enter.</div>
+                    <div class="instructions-hint" id="instructionsHint">Hint text loads when you select a task.</div>
+                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
+                    <div class="hint-command" id="hintCommand"></div>
+                </div>
+            </div>
+            <div class="success-overlay" id="successOverlay">
+                <div class="success-card">
+                    <div class="success-title">SC-200 Chapter 8 Lab Complete!</div>
+                    <div class="success-message">You reviewed automation rules and playbooks, triaged and investigated an incident, analyzed UEBA behavioral anomalies, executed a containment playbook, and closed the incident with proper classification. These are the core Sentinel SOAR and incident management workflows for the SC-200 exam.</div>
+                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script>
+    (function(){
+        'use strict';
+        var TOTAL_TASKS = 10;
+        var taskDone = {}; for(var i=1;i<=TOTAL_TASKS;i++) taskDone[i]=false;
+        var currentTask = 1;
+        var cmdHistory = [], histIdx = -1;
+        var outputEl, inputEl, ps1PathEl;
+
+        var TASK_INSTRUCTIONS = {1:{step:"List all active automation rules:\n<code>sentinel-auto list --status active</code>\n\nReview trigger types, conditions, and action ordering.",hint:"Automation rules run before playbooks. They are evaluated in numeric order (1-512). Use them for simple actions like assigning owners and changing severity.",cmd:"sentinel-auto list --status active"},2:{step:"Inspect a specific automation rule:\n<code>sentinel-auto show --id AUTO-0012</code>\n\nReview trigger conditions, actions, and the attached playbook.",hint:"Automation rules can change severity, assign owners, add tags, run playbooks, or suppress incidents. Multiple rules can fire on the same trigger.",cmd:"sentinel-auto show --id AUTO-0012"},3:{step:"List all configured playbooks:\n<code>sentinel-playbook list</code>\n\nPlaybooks are Logic Apps workflows triggered by automation rules.",hint:"Playbooks use managed identity for authentication. The managed identity needs the Microsoft Sentinel Responder role on the workspace.",cmd:"sentinel-playbook list"},4:{step:"View unassigned incidents:\n<code>sentinel-incident list --status new</code>\n\nReview severity, alert count, and entities for triage.",hint:"Incident statuses: New (unassigned), Active (under investigation), Closed (resolved). Closing requires a classification.",cmd:"sentinel-incident list --status new"},5:{step:"Investigate a specific incident:\n<code>sentinel-incident show --id INC-4821</code>\n\nReview alerts, entities, playbook enrichment comments, and MITRE mapping.",hint:"Entity pages show the timeline of all events for a user/host/IP. The investigation graph visualizes relationships between entities.",cmd:"sentinel-incident show --id INC-4821"},6:{step:"Assign the incident and set status to active:\n<code>sentinel-incident assign --id INC-4821 --owner socanalyst --status active</code>",hint:"Assigning ownership ensures accountability. Use automation rules to auto-assign based on severity or analytics rule name.",cmd:"sentinel-incident assign --id INC-4821 --owner socanalyst --status active"},7:{step:"Check UEBA behavioral profile:\n<code>sentinel-ueba show --entity rjones@contoso.com</code>\n\nReview anomalies and investigation priority score.",hint:"UEBA must be enabled manually in Sentinel settings. Microsoft Entra ID is the required minimum data source. Anomalies appear in the BehaviorAnalytics table.",cmd:"sentinel-ueba show --entity rjones@contoso.com"},8:{step:"List high-score UEBA anomalies:\n<code>sentinel-ueba anomalies --timerange 7d --min-score 7</code>",hint:"Investigation priority scores range 0-10. High scores indicate multiple anomalies or high-severity deviations. Focus investigation on entities with the highest scores.",cmd:"sentinel-ueba anomalies --timerange 7d --min-score 7"},9:{step:"Run the user containment playbook:\n<code>sentinel-playbook run --name user-containment --incident INC-4821</code>\n\nThis Logic Apps workflow disables the user, revokes sessions, and posts to Teams.",hint:"Start automation with enrichment playbooks (low risk). Add containment playbooks with human-in-the-loop approval for destructive actions like disabling accounts.",cmd:"sentinel-playbook run --name user-containment --incident INC-4821"},10:{step:"Close the incident with classification:\n<code>sentinel-incident close --id INC-4821 --classification true-positive --comment \"Confirmed C2 activity. User disabled. Endpoint isolated.\"</code>",hint:"Closing classifications: True Positive, Benign Positive, False Positive, Undetermined. Classification data feeds SOC metrics and detection tuning.",cmd:"sentinel-incident close --id INC-4821 --classification true-positive --comment \"Confirmed C2 activity. User disabled. Endpoint isolated.\""}};
+
+        var TASK_NAMES = {};
+        TASK_NAMES[1]="List Automation Rules";
+        TASK_NAMES[2]="Inspect Automation Rule";
+        TASK_NAMES[3]="List Playbooks";
+        TASK_NAMES[4]="View Incident Queue";
+        TASK_NAMES[5]="Investigate Incident";
+        TASK_NAMES[6]="Assign and Activate";
+        TASK_NAMES[7]="Check Entity Behavior";
+        TASK_NAMES[8]="List UEBA Anomalies";
+        TASK_NAMES[9]="Run Containment Playbook";
+        TASK_NAMES[10]="Close Incident";
+
+        var CMD_RESPONSES = {"sentinel-auto list --status active":{"lines":[{"text":"=== Active Automation Rules ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Order  ID           Trigger              Condition                        Action","cls":"term-line-warn"},{"text":"  1      AUTO-0010    Incident created     Severity = High                  Assign to Tier2-SOC","cls":"term-line-out"},{"text":"  2      AUTO-0011    Incident created     Rule = \"Brute Force\"             Add tag: brute-force","cls":"term-line-out"},{"text":"  3      AUTO-0012    Incident created     Severity = High AND tag exists   Run playbook: ip-enrichment","cls":"term-line-out"},{"text":"  4      AUTO-0015    Incident created     Rule = \"TI Match\"                Run playbook: ti-enrichment","cls":"term-line-out"},{"text":"  5      AUTO-0020    Incident updated     Status changed to Closed         Run playbook: ticket-sync","cls":"term-line-out"},{"text":"  10     AUTO-0050    Alert created        Rule = \"Known FP Pattern\"        Suppress incident","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  6 active automation rules | Evaluated in order 1-10","cls":"term-line-dim"}],"completesTask":1},"sentinel-auto show --id AUTO-0012":{"lines":[{"text":"=== Automation Rule: AUTO-0012 ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Name:      High Severity IP Enrichment","cls":"term-line-out"},{"text":"  Order:     3 (runs after AUTO-0010 and AUTO-0011)","cls":"term-line-out"},{"text":"  Status:    Active","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Trigger:   When incident is created","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  Conditions:","cls":"term-line-warn"},{"text":"    Severity equals High","cls":"term-line-out"},{"text":"    AND incident contains IP entity","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Actions (executed in order):","cls":"term-line-warn"},{"text":"    1. Add tag: needs-enrichment","cls":"term-line-out"},{"text":"    2. Run playbook: ip-enrichment (Logic App)","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Playbook Details:","cls":"term-line-warn"},{"text":"    Logic App:        sentinel-playbook-ip-enrichment","cls":"term-line-out"},{"text":"    Auth:             Managed Identity (Sentinel Responder role)","cls":"term-line-out"},{"text":"    Avg Runtime:      8 seconds","cls":"term-line-dim"},{"text":"    Last Triggered:   2026-04-21 09:32 UTC","cls":"term-line-dim"}],"completesTask":2},"sentinel-playbook list":{"lines":[{"text":"=== Sentinel Playbooks ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Name                    Logic App Status   Auth              Last Run             Avg Time","cls":"term-line-warn"},{"text":"  ip-enrichment           Enabled            Managed Identity  2026-04-21 09:32     8s","cls":"term-line-out"},{"text":"  ti-enrichment           Enabled            Managed Identity  2026-04-21 09:32     12s","cls":"term-line-out"},{"text":"  user-containment        Enabled            Managed Identity  2026-04-20 14:15     15s","cls":"term-line-out"},{"text":"  endpoint-isolation      Enabled            Managed Identity  2026-04-18 11:22     22s","cls":"term-line-out"},{"text":"  teams-notification      Enabled            Managed Identity  2026-04-21 09:32     3s","cls":"term-line-out"},{"text":"  ticket-sync             Enabled            Managed Identity  2026-04-20 16:45     5s","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  6 playbooks configured | All using Managed Identity authentication","cls":"term-line-dim"},{"text":"  Managed Identity requires Microsoft Sentinel Responder role on the workspace","cls":"term-line-dim"}],"completesTask":3},"sentinel-incident list --status new":{"lines":[{"text":"=== Incident Queue: New (Unassigned) ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  ID          Severity   Alerts   Title                                  Created","cls":"term-line-warn"},{"text":"  INC-4821    High       3        Multi-stage: TI Match + Suspicious PS  2026-04-21 09:33","cls":"term-line-err"},{"text":"  INC-4819    Medium     1        Anomalous Sign-In from New Location    2026-04-21 08:15","cls":"term-line-warn"},{"text":"  INC-4817    Medium     2        Unusual Data Download Volume           2026-04-21 07:44","cls":"term-line-warn"},{"text":"  INC-4815    Low        1        New User Agent Detected                2026-04-21 06:30","cls":"term-line-out"},{"text":"  INC-4812    Low        1        Service Account Logon Outside Hours    2026-04-20 23:15","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  5 unassigned incidents | 1 High | 2 Medium | 2 Low","cls":"term-line-err"},{"text":"  Priority: Investigate INC-4821 first (High severity, multi-stage)","cls":"term-line-warn"}],"completesTask":4},"sentinel-incident show --id INC-4821":{"lines":[{"text":"=== Incident INC-4821 ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Title:     Multi-stage: TI Match + Suspicious PowerShell","cls":"term-line-out"},{"text":"  Severity:  High","cls":"term-line-err"},{"text":"  Status:    New (Unassigned)","cls":"term-line-out"},{"text":"  Created:   2026-04-21 09:33 UTC","cls":"term-line-out"},{"text":"  MITRE:     Initial Access (T1078) + Execution (T1059.001) + C2 (T1071)","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Alerts (3):","cls":"term-line-warn"},{"text":"    1. TI Map IP to SigninLogs -- 203.0.113.47 matched (High)","cls":"term-line-err"},{"text":"    2. Brute Force Against Admin Accounts (High)","cls":"term-line-err"},{"text":"    3. Suspicious PowerShell: Encoded command + download from C2 (High)","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  Entities:","cls":"term-line-warn"},{"text":"    Account:  contoso\\rjones, contoso\\admin-test","cls":"term-line-out"},{"text":"    Host:     DESKTOP-MKT07, SRV-DC01","cls":"term-line-out"},{"text":"    IP:       203.0.113.47 (C2 -- APT29)","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  Playbook Enrichment (auto):","cls":"term-line-warn"},{"text":"    [ip-enrichment] 203.0.113.47: VirusTotal 47/88 malicious, AbuseIPDB 100% confidence","cls":"term-line-err"},{"text":"    [ti-enrichment] IP tagged: APT29 C2 infrastructure, active since 2026-03-15","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  Tasks: 0 assigned | Comments: 2 (from playbook enrichment)","cls":"term-line-dim"}],"completesTask":5},"sentinel-incident assign --id INC-4821 --owner socanalyst --status active":{"lines":[{"text":"=== Incident INC-4821 Updated ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Owner:     socanalyst (was: Unassigned)","cls":"term-line-out"},{"text":"  Status:    Active (was: New)","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Investigation tasks added:","cls":"term-line-warn"},{"text":"    [ ] Review entity pages for rjones and admin-test","cls":"term-line-out"},{"text":"    [ ] Check UEBA anomalies for rjones","cls":"term-line-out"},{"text":"    [ ] Verify if admin-test is a legitimate account","cls":"term-line-out"},{"text":"    [ ] Determine scope of compromise on DESKTOP-MKT07","cls":"term-line-out"},{"text":"    [ ] Execute containment if confirmed malicious","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Incident assigned to socanalyst. Investigation timer started.","cls":"term-line-dim"}],"completesTask":6},"sentinel-ueba show --entity rjones@contoso.com":{"lines":[{"text":"=== UEBA Profile: rjones@contoso.com ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Investigation Priority: 9/10","cls":"term-line-err"},{"text":"  Department: Marketing | Title: Marketing Analyst","cls":"term-line-out"},{"text":"  Baseline Period: 90 days (sufficient data)","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Anomalies (last 7 days):","cls":"term-line-warn"},{"text":"    Anomalous Logon              Score: 8   First logon from 203.0.113.47","cls":"term-line-err"},{"text":"    First-Time PowerShell Use    Score: 7   Never ran PowerShell before 2026-04-21","cls":"term-line-err"},{"text":"    Anomalous Resource Access    Score: 6   Accessed admin tools (never before)","cls":"term-line-warn"},{"text":"    Peer Group Deviation         Score: 8   Behavior deviates from Marketing peers","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  Peer Group: Marketing department users (22 members)","cls":"term-line-out"},{"text":"  Normal Pattern: Browser-based apps (Outlook, SharePoint, Teams)","cls":"term-line-out"},{"text":"  Current Pattern: PowerShell, encoded commands, external IP communication","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  CONCLUSION: Behavior strongly deviates from baseline. Likely compromised account.","cls":"term-line-err"}],"completesTask":7},"sentinel-ueba anomalies --timerange 7d --min-score 7":{"lines":[{"text":"=== UEBA Anomalies: Score >= 7 (Last 7 Days) ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Entity                    Score   Anomaly Type              Detail","cls":"term-line-warn"},{"text":"  rjones@contoso.com        9       Multiple (4 anomalies)    C2 comms + PowerShell + peer deviation","cls":"term-line-err"},{"text":"  admin-test@contoso.com    8       Anomalous Logon           87 failed logons from known C2 IP","cls":"term-line-err"},{"text":"  svc-backup@contoso.com    7       First-Time Activity       First interactive logon (service acct)","cls":"term-line-warn"},{"text":"  DESKTOP-MKT07             8       Anomalous Process         First-time Mimikatz-like process","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  4 entities with high anomaly scores","cls":"term-line-err"},{"text":"  rjones and admin-test are linked to INC-4821","cls":"term-line-warn"},{"text":"  svc-backup anomaly may be related -- investigate separately","cls":"term-line-dim"}],"completesTask":8},"sentinel-playbook run --name user-containment --incident INC-4821":{"lines":[{"text":"=== Playbook Execution: user-containment ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Incident:    INC-4821","cls":"term-line-out"},{"text":"  Target:      rjones@contoso.com (extracted from incident entities)","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  Logic Apps Workflow Steps:","cls":"term-line-warn"},{"text":"  [1/5] Get incident entities from Sentinel API...              OK","cls":"term-line-out"},{"text":"  [2/5] Disable user in Microsoft Entra ID...                   OK","cls":"term-line-out"},{"text":"  [3/5] Revoke all refresh tokens and active sessions...        OK","cls":"term-line-out"},{"text":"  [4/5] Post containment notification to SOC Teams channel...   OK","cls":"term-line-out"},{"text":"  [5/5] Add containment log as incident comment...              OK","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Playbook completed in 14 seconds","cls":"term-line-dim"},{"text":"  User rjones@contoso.com is disabled. All sessions revoked.","cls":"term-line-err"},{"text":"  Teams notification sent to #soc-alerts channel.","cls":"term-line-dim"},{"text":"  Incident comment added: \"User containment executed by socanalyst\"","cls":"term-line-dim"}],"completesTask":9},"sentinel-incident close --id INC-4821 --classification true-positive --comment \"Confirmed C2 activity. User disabled. Endpoint isolated.\"":{"lines":[{"text":"=== Incident INC-4821 Closed ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Status:          Closed (was: Active)","cls":"term-line-out"},{"text":"  Classification:  True Positive - Suspicious activity","cls":"term-line-out"},{"text":"  Closing Comment: Confirmed C2 activity. User disabled. Endpoint isolated.","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  Summary:","cls":"term-line-warn"},{"text":"    Duration:       Active for 47 minutes","cls":"term-line-out"},{"text":"    Alerts:         3 (all confirmed True Positive)","cls":"term-line-out"},{"text":"    Entities:       2 accounts, 2 hosts, 1 IP","cls":"term-line-out"},{"text":"    Actions Taken:  User disabled, sessions revoked, endpoint flagged","cls":"term-line-out"},{"text":"    Playbooks Run:  ip-enrichment, ti-enrichment, user-containment","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Classification recorded. SOC metrics updated.","cls":"term-line-dim"},{"text":"  MTTA: 3 min | MTTR: 47 min | True Positive rate: 100%","cls":"term-line-dim"}],"completesTask":10}};
+
+        function escH(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        function addLine(t,c) { var d=document.createElement('div'); d.className='term-line'+(c?' '+c:''); d.textContent=t; outputEl.appendChild(d); outputEl.scrollTop=outputEl.scrollHeight; }
+        function addHTML(h,c) { var d=document.createElement('div'); d.className='term-line'+(c?' '+c:''); d.innerHTML=h; outputEl.appendChild(d); outputEl.scrollTop=outputEl.scrollHeight; }
+        function addBlank() { addLine('',''); }
+        function addPromptLine(cmd) { addHTML('<span class="term-prompt-span">socanalyst@sentinel-lab</span><span class="term-ps1-sep">:</span><span class="term-path-span">~</span><span class="term-ps1-sep">$ </span>'+escH(cmd),'term-line-cmd'); }
+
+        function execLine(raw) {
+            var trimmed = raw.trim();
+            addPromptLine(trimmed);
+            if (!trimmed) return;
+            var matched = false;
+            for (var key in CMD_RESPONSES) {
+                if (trimmed === key || trimmed.indexOf(key) === 0) {
+                    var resp = CMD_RESPONSES[key];
+                    resp.lines.forEach(function(l) { addLine(l.text, l.cls); });
+                    addBlank();
+                    if (resp.completesTask) { completeTask(resp.completesTask); }
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                if (trimmed === 'help') { addLine('Type the commands shown in the task instructions.', 'term-line-info'); addLine('Each task provides the exact command to run.', 'term-line-dim'); }
+                else if (trimmed === 'clear') { outputEl.innerHTML = ''; }
+                else { addLine('Command not recognized in this lab simulation. Check the task instructions.', 'term-line-err'); }
+            }
+        }
+
+        function completeTask(num) {
+            if (taskDone[num]) return;
+            taskDone[num] = true;
+            var card = document.getElementById('task-card-' + num);
+            if (card) { card.classList.add('completed'); card.classList.remove('active'); }
+            var doneCount = Object.keys(taskDone).filter(function(k){return taskDone[k];}).length;
+            document.getElementById('taskProgress').textContent = doneCount + ' / ' + TOTAL_TASKS + ' Tasks';
+            document.getElementById('progressBarFill').style.width = Math.round((doneCount/TOTAL_TASKS)*100) + '%';
+            addBlank();
+            addHTML('  <span style="color:#34d399">[Task ' + num + ' complete]</span> <span style="color:#5a2020">' + escH(TASK_NAMES[num]||'') + '</span>', 'term-line-info');
+            addBlank();
+            if (doneCount === TOTAL_TASKS) { setTimeout(function(){ document.getElementById('successOverlay').classList.add('active'); }, 700); return; }
+            var next = null; for (var j=1;j<=TOTAL_TASKS;j++) { if (!taskDone[j]) { next=j; break; } }
+            if (next) selectTask(next);
+        }
+
+        function selectTask(num) {
+            currentTask = num;
+            for (var i=1;i<=TOTAL_TASKS;i++) { var c=document.getElementById('task-card-'+i); if(c){c.classList.remove('active'); if(i===num) c.classList.add('active');} }
+            var info = TASK_INSTRUCTIONS[num]; if (!info) return;
+            var stepEl=document.getElementById('instructionsStep'); var hintEl=document.getElementById('instructionsHint'); var hintCmd=document.getElementById('hintCommand');
+            if (stepEl) stepEl.innerHTML = info.step.replace(/\n/g,'<br>');
+            if (hintEl) hintEl.textContent = info.hint;
+            if (hintCmd) { hintCmd.textContent = info.cmd; hintCmd.classList.remove('visible'); }
+            var panel=document.getElementById('instructionsPanel'); if(panel&&panel.classList.contains('collapsed')) panel.classList.remove('collapsed');
+        }
+
+        window.selectTask = selectTask;
+        window.toggleInstructions = function() { document.getElementById('instructionsPanel').classList.toggle('collapsed'); };
+        window.revealHint = function() { var h=document.getElementById('hintCommand'); if(h) h.classList.toggle('visible'); };
+        window.finishLab = function() { if (typeof ModuleProgress !== 'undefined') { ModuleProgress.complete('shield', 'sc200-ch08-lab', { returnUrl: '../index.html' }); } else { window.location.href = '../index.html'; } };
+
+        function init() {
+            outputEl = document.getElementById('termOutput');
+            inputEl = document.getElementById('termInput');
+            ps1PathEl = document.getElementById('termPS1Path');
+            if (!outputEl || !inputEl) return;
+            addLine("Sentinel Response Lab -- SC-200 Chapter 8", "term-welcome");
+            addLine("Shield House SOAR and Incident Management Terminal", "term-welcome");
+            addLine("", "term-line-out");
+            addLine("Manage automation rules, investigate incidents, analyze UEBA anomalies, and execute containment playbooks.", "term-line-info");
+            addLine("Type \"help\" for guidance. Complete 10 tasks to finish the lab.", "term-line-info");
+            addBlank();
+            inputEl.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') { var cmd=inputEl.value; inputEl.value=''; if(cmd.trim()){cmdHistory.push(cmd);histIdx=cmdHistory.length;} execLine(cmd); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); if(histIdx>0){histIdx--;inputEl.value=cmdHistory[histIdx];} }
+                else if (e.key === 'ArrowDown') { e.preventDefault(); if(histIdx<cmdHistory.length-1){histIdx++;inputEl.value=cmdHistory[histIdx];}else{histIdx=cmdHistory.length;inputEl.value='';} }
+            });
+            outputEl.addEventListener('click', function(){ inputEl.focus(); });
+            inputEl.focus();
+            selectTask(1);
+        }
+        if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
+    })();
+    </script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

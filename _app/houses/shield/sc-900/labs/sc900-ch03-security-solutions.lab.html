@@ -4,234 +4,1176 @@
     <meta charset="UTF-8">
     <script src="../../../../components/AccessGuard.js"></script>
     <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
     <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
     <script src="../../../../components/FirebaseAuth.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Security Solutions Lab -- SC-900 Chapter 3</title>
+    <title>Microsoft 365 Defender Portal Lab | SC-900 Chapter 3</title>
     <style>
+        :root {
+            --shield-red:   #ef4444;
+            --shield-red2:  #991b1b;
+            --shield-green: #34d399;
+            --bg-0:  #080b12;
+            --bg-1:  #0c0f1a;
+            --bg-2:  #111623;
+            --bg-3:  #161d2e;
+            --border: rgba(239,68,68,0.18);
+            --border-hi: rgba(239,68,68,0.45);
+            --text-1: #f0d4d4;
+            --text-2: #b07070;
+            --text-3: #5a2828;
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { height: 100vh; overflow: hidden; background: #0c0c0c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #f5b3b3; display: flex; flex-direction: column; }
-        .lab-header { flex-shrink: 0; padding: 15px 30px; background: rgba(10,6,8,0.95); border-bottom: 1px solid rgba(239,68,68,0.2); display: flex; justify-content: space-between; align-items: center; }
-        .header-left { display: flex; align-items: center; gap: 20px; }
-        .back-btn { padding: 8px 16px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; color: #ef4444; text-decoration: none; font-size: 0.85rem; transition: all 0.3s ease; }
-        .back-btn:hover { background: rgba(239,68,68,0.2); }
-        .lab-title { font-size: 1rem; color: #fde2e2; }
-        .lab-badge { padding: 4px 12px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; font-size: 0.7rem; color: #f87171; letter-spacing: 0.05em; }
-        .lab-badge-ch { padding: 4px 12px; background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.3); border-radius: 12px; font-size: 0.7rem; color: #34d399; letter-spacing: 0.05em; }
-        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #7a4040; }
-        .task-count { color: #ef4444; font-weight: 500; }
-        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(239,68,68,0.15); border-radius: 3px; overflow: hidden; }
-        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #ef4444, #991b1b); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
-        .lab-container { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
-        .task-panel { background: rgba(10,6,8,0.95); border-right: 1px solid rgba(239,68,68,0.15); overflow-y: auto; padding: 20px; }
-        .task-section { margin-bottom: 25px; }
-        .task-section-title { font-size: 0.68rem; color: #5a2020; letter-spacing: 0.15em; margin-bottom: 12px; text-transform: uppercase; }
-        .task-card { background: rgba(20,10,16,0.8); border: 1px solid rgba(239,68,68,0.15); border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s ease; }
-        .task-card:hover { border-color: rgba(239,68,68,0.4); }
-        .task-card.active { border-color: #ef4444; background: rgba(239,68,68,0.1); }
-        .task-card.completed { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.04); }
-        .task-card.completed .task-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; font-weight: 400; }
-        .task-number { font-size: 0.68rem; color: #ef4444; margin-bottom: 4px; }
-        .task-name { font-size: 0.9rem; color: #fde2e2; margin-bottom: 4px; }
-        .task-desc { font-size: 0.77rem; color: #7a4040; line-height: 1.45; }
-        .task-desc code { background: rgba(239,68,68,0.15); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; color: #f87171; font-family: 'Consolas', monospace; }
-        .terminal-panel { display: flex; flex-direction: column; background: #0a0a0a; position: relative; overflow: hidden; }
-        .term-toolbar { flex-shrink: 0; padding: 8px 20px; background: rgba(20,10,16,0.9); border-bottom: 1px solid rgba(239,68,68,0.15); display: flex; align-items: center; gap: 12px; }
-        .term-dot { width: 12px; height: 12px; border-radius: 50%; } .term-dot-red { background: #ff5f57; } .term-dot-amber { background: #febc2e; } .term-dot-green { background: #28c840; }
-        .term-title { flex: 1; text-align: center; font-size: 0.8rem; color: #5a3030; font-family: 'Consolas', monospace; }
-        .term-vm-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #34d399; }
-        .term-status-dot { width: 7px; height: 7px; background: #34d399; border-radius: 50%; animation: pulse 2s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-        .term-output { flex: 1; overflow-y: auto; padding: 16px 360px 8px 20px; font-family: 'Consolas', monospace; font-size: 0.875rem; line-height: 1.6; }
-        .term-input-row { flex-shrink: 0; display: flex; align-items: center; padding: 8px 360px 12px 20px; border-top: 1px solid rgba(239,68,68,0.1); gap: 0; }
-        .term-prompt-label { font-family: 'Consolas', monospace; font-size: 0.875rem; white-space: nowrap; flex-shrink: 0; }
-        .term-prompt-user { color: #ef4444; } .term-prompt-sep { color: #5a2020; } .term-prompt-path { color: #34d399; } .term-prompt-dollar { color: #fde2e2; margin-right: 6px; }
-        .term-input { flex: 1; background: transparent; border: none; outline: none; color: #fde2e2; font-family: 'Consolas', monospace; font-size: 0.875rem; caret-color: #ef4444; }
-        .term-line { white-space: pre-wrap; word-break: break-all; }
-        .term-line-cmd { color: #f5b3b3; } .term-line-out { color: #a0d4a0; } .term-line-err { color: #f87171; } .term-line-info { color: #f87171; } .term-line-warn { color: #fbbf24; } .term-line-dim { color: #4a2020; } .term-welcome { color: #ef4444; }
-        .term-prompt-span { color: #ef4444; } .term-path-span { color: #34d399; } .term-ps1-sep { color: #5a2020; }
-        .json-key { color: #f87171; } .json-string { color: #86efac; } .json-number { color: #fbbf24; } .json-bool { color: #93c5fd; } .json-null { color: #f87171; }
-        .instructions-panel { position: absolute; top: 20px; right: 20px; width: 320px; background: rgba(10,6,8,0.97); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; padding: 20px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.4); transition: all 0.3s ease; }
-        .instructions-panel.collapsed { width: auto; padding: 10px 14px; cursor: pointer; }
-        .instructions-panel.collapsed .instructions-body { display: none; }
-        .instructions-title { font-size: 1rem; color: #ef4444; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
-        .instructions-panel.collapsed .instructions-title { margin-bottom: 0; font-size: 0.85rem; }
-        .instructions-toggle { margin-left: auto; width: 28px; height: 28px; background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; color: #ef4444; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .instructions-step { font-size: 0.88rem; color: #f5b3b3; line-height: 1.65; margin-bottom: 14px; }
-        .instructions-step code { background: rgba(239,68,68,0.2); padding: 2px 7px; border-radius: 4px; font-family: 'Consolas', monospace; color: #f87171; font-size: 0.85em; }
-        .instructions-hint { font-size: 0.78rem; color: #5a2020; font-style: italic; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(239,68,68,0.15); line-height: 1.5; }
-        .hint-btn { margin-top: 12px; padding: 6px 12px; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); border-radius: 5px; color: #ef4444; font-size: 0.75rem; cursor: pointer; font-family: 'Segoe UI', sans-serif; width: 100%; text-align: center; }
-        .hint-command { display: none; margin-top: 10px; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(239,68,68,0.25); border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.78rem; color: #86efac; line-height: 1.55; white-space: pre-wrap; }
-        .hint-command.visible { display: block; }
-        .success-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 2000; }
-        .success-overlay.active { display: flex; }
-        .success-card { background: rgba(10,6,8,0.97); border: 1px solid rgba(52,211,153,0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
-        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
-        .success-message { color: #f5b3b3; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
-        .success-btn { padding: 12px 30px; background: linear-gradient(135deg, #ef4444, #991b1b); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; }
-        @media (max-width: 1024px) { .lab-container { grid-template-columns: 1fr; } .task-panel { display: none; } .term-output, .term-input-row { padding-right: 20px; } .instructions-panel { position: absolute; bottom: 60px; top: auto; right: 10px; left: 10px; width: auto; } }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-0);
+            color: var(--text-1);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ---- TOP BAR ---- */
+        .top-bar {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem 1.5rem;
+            background: var(--bg-1);
+            border-bottom: 1px solid var(--border);
+        }
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.4rem 0.9rem;
+            background: rgba(239,68,68,0.08);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--shield-red);
+            text-decoration: none;
+            font-size: 0.8rem;
+            transition: background 0.2s;
+        }
+        .back-link:hover { background: rgba(239,68,68,0.18); }
+        .top-bar-title { font-size: 0.95rem; color: var(--text-1); font-weight: 500; }
+        .top-bar-badges { display: flex; gap: 0.5rem; }
+        .badge { padding: 0.2rem 0.65rem; border-radius: 20px; font-size: 0.68rem; letter-spacing: 0.06em; font-weight: 600; }
+        .badge-red   { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); color: #f87171; }
+        .badge-green { background: rgba(52,211,153,0.1);  border: 1px solid rgba(52,211,153,0.25); color: #34d399; }
+        .top-bar-progress { margin-left: auto; display: flex; align-items: center; gap: 0.75rem; }
+        .progress-label { font-size: 0.8rem; color: var(--text-2); }
+        .progress-track { width: 130px; height: 5px; background: rgba(239,68,68,0.12); border-radius: 3px; overflow: hidden; }
+        .progress-fill  { height: 100%; background: linear-gradient(90deg, var(--shield-red), var(--shield-red2)); border-radius: 3px; width: 0%; transition: width 0.45s ease; }
+        .progress-count { font-size: 0.8rem; color: var(--shield-red); font-weight: 600; white-space: nowrap; }
+
+        /* ---- LAYOUT ---- */
+        .lab-body { flex: 1; display: grid; grid-template-columns: 260px 1fr 320px; min-height: 0; overflow: hidden; }
+
+        /* ---- LEFT: TASK PANEL ---- */
+        .task-panel { background: var(--bg-1); border-right: 1px solid var(--border); overflow-y: auto; padding: 1rem; }
+        .task-group-label { font-size: 0.63rem; color: var(--text-3); letter-spacing: 0.15em; text-transform: uppercase; margin: 1rem 0 0.5rem; }
+        .task-item {
+            display: flex; align-items: flex-start; gap: 0.6rem;
+            padding: 0.65rem 0.75rem; border-radius: 8px;
+            border: 1px solid transparent; cursor: pointer;
+            margin-bottom: 0.35rem; transition: all 0.2s;
+        }
+        .task-item:hover { background: rgba(239,68,68,0.06); border-color: var(--border); }
+        .task-item.active { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.45); }
+        .task-item.done   { border-color: rgba(52,211,153,0.25); background: rgba(52,211,153,0.04); }
+        .task-num {
+            flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
+            background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.7rem; color: var(--shield-red); font-weight: 700; margin-top: 1px;
+        }
+        .task-item.done .task-num { background: rgba(52,211,153,0.15); border-color: rgba(52,211,153,0.35); color: var(--shield-green); }
+        .task-info { flex: 1; min-width: 0; }
+        .task-name { font-size: 0.82rem; color: var(--text-1); line-height: 1.3; }
+        .task-desc-short { font-size: 0.72rem; color: var(--text-2); margin-top: 0.2rem; line-height: 1.4; }
+
+        /* ---- CENTER: PORTAL ---- */
+        .portal-area { overflow-y: auto; background: var(--bg-0); }
+        .defender-shell { min-height: 100%; display: flex; flex-direction: column; }
+
+        /* Portal sidebar + content layout inside center panel */
+        .defender-layout { display: grid; grid-template-columns: 200px 1fr; flex: 1; }
+
+        /* Defender sidebar */
+        .def-sidebar {
+            background: #10141f;
+            border-right: 1px solid rgba(255,255,255,0.06);
+            padding: 0.75rem 0;
+        }
+        .def-sidebar-logo {
+            padding: 0.5rem 1rem 0.75rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #60a5fa;
+            letter-spacing: 0.04em;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            margin-bottom: 0.5rem;
+        }
+        .def-nav-group { padding: 0.4rem 0; }
+        .def-nav-label {
+            font-size: 0.6rem; color: #3a4a60; letter-spacing: 0.15em;
+            text-transform: uppercase; padding: 0.25rem 1rem 0.2rem;
+        }
+        .def-nav-item {
+            display: flex; align-items: center; gap: 0.5rem;
+            padding: 0.45rem 1rem; font-size: 0.78rem; color: #607090;
+            cursor: pointer; transition: all 0.18s; border-left: 2px solid transparent;
+        }
+        .def-nav-item:hover { color: #c0d0f0; background: rgba(255,255,255,0.04); }
+        .def-nav-item.nav-active { color: #60a5fa; background: rgba(96,165,250,0.07); border-left-color: #60a5fa; }
+        .def-nav-item img { width: 0.85em; height: 0.85em; opacity: 0.7; }
+        .def-nav-item.nav-active img { opacity: 1; }
+
+        /* Portal content area */
+        .def-content { padding: 1.25rem; overflow-y: auto; }
+        .portal-view { display: none; }
+        .portal-view.view-active { display: block; }
+        .portal-section-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+        .portal-section-header h2 { font-size: 1rem; font-weight: 600; color: #c0d0f0; }
+        .portal-section-header .sub { font-size: 0.78rem; color: #607090; margin-left: auto; }
+
+        /* ---- SECURE SCORE GAUGE ---- */
+        .score-dashboard {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 1.5rem;
+            align-items: start;
+            margin-bottom: 1.25rem;
+        }
+        .score-gauge-wrap {
+            background: var(--bg-2);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px;
+            padding: 1.25rem 1.5rem;
+            text-align: center;
+            min-width: 180px;
+        }
+        .score-gauge-label { font-size: 0.68rem; color: #607090; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.5rem; }
+        .score-pct { font-size: 2.5rem; font-weight: 700; color: #34d399; line-height: 1; }
+        .score-pct-sub { font-size: 0.78rem; color: #607090; margin-top: 0.25rem; }
+        .score-change-up { color: #34d399; font-size: 0.75rem; margin-top: 0.35rem; }
+        .score-breakdown { display: flex; flex-direction: column; gap: 0.5rem; }
+        .score-cat-row { display: flex; align-items: center; gap: 0.75rem; }
+        .score-cat-label { font-size: 0.78rem; color: #c0d0f0; min-width: 130px; }
+        .score-cat-bar { flex: 1; height: 7px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; }
+        .score-cat-fill { height: 100%; border-radius: 4px; }
+        .score-cat-pct { font-size: 0.72rem; color: #607090; min-width: 36px; text-align: right; }
+
+        /* ---- ACTIVE INCIDENTS WIDGET ---- */
+        .widget-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-bottom: 1rem; }
+        .widget-card {
+            background: var(--bg-2);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 10px;
+            padding: 0.9rem 1rem;
+        }
+        .widget-val { font-size: 2rem; font-weight: 700; line-height: 1; margin-bottom: 0.25rem; }
+        .widget-label { font-size: 0.72rem; color: #607090; }
+        .widget-sub   { font-size: 0.7rem; margin-top: 0.3rem; }
+
+        /* ---- THREAT ANALYTICS ---- */
+        .threat-cards { display: flex; flex-direction: column; gap: 0.5rem; }
+        .threat-card {
+            display: flex; align-items: center; gap: 0.75rem;
+            padding: 0.75rem 0.9rem;
+            background: var(--bg-2);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 8px;
+            cursor: pointer; transition: border-color 0.2s;
+        }
+        .threat-card:hover { border-color: rgba(96,165,250,0.3); }
+        .threat-card.selected { border-color: rgba(96,165,250,0.5); background: rgba(96,165,250,0.05); }
+        .threat-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .threat-info { flex: 1; min-width: 0; }
+        .threat-name { font-size: 0.83rem; color: #c0d0f0; font-weight: 500; }
+        .threat-desc { font-size: 0.72rem; color: #607090; margin-top: 0.15rem; }
+        .threat-impact {
+            padding: 0.2rem 0.6rem; border-radius: 10px; font-size: 0.68rem; font-weight: 600;
+        }
+        .impact-high { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+        .impact-med  { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+        .impact-low  { background: rgba(59,130,246,0.15); color: #93c5fd; border: 1px solid rgba(59,130,246,0.3); }
+
+        /* Threat detail panel */
+        .threat-detail-panel {
+            background: var(--bg-2);
+            border: 1px solid rgba(96,165,250,0.2);
+            border-radius: 10px;
+            padding: 1rem;
+            margin-top: 0.75rem;
+            display: none;
+        }
+        .threat-detail-panel.visible { display: block; }
+
+        /* ---- ENDPOINTS TABLE ---- */
+        .endpoints-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+        .endpoints-table th {
+            text-align: left; padding: 0.5rem 0.75rem; color: #607090;
+            font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase;
+            border-bottom: 1px solid rgba(255,255,255,0.06); font-weight: 500;
+        }
+        .endpoints-table td { padding: 0.55rem 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.04); color: #c0d0f0; }
+        .endpoints-table tr:hover td { background: rgba(255,255,255,0.025); }
+        .health-badge {
+            display: inline-block; padding: 0.15rem 0.55rem; border-radius: 10px; font-size: 0.68rem; font-weight: 600;
+        }
+        .health-ok   { background: rgba(52,211,153,0.1);  color: #34d399; border: 1px solid rgba(52,211,153,0.25); }
+        .health-risk { background: rgba(245,158,11,0.12); color: #fbbf24; border: 1px solid rgba(245,158,11,0.25); }
+        .health-crit { background: rgba(239,68,68,0.12);  color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+
+        /* ---- EMAIL QUARANTINE ---- */
+        .email-row {
+            display: flex; align-items: center; gap: 0.75rem;
+            padding: 0.6rem 0.85rem;
+            background: var(--bg-2); border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 7px; margin-bottom: 0.4rem; font-size: 0.8rem;
+        }
+        .email-row:hover { border-color: rgba(255,255,255,0.1); }
+        .email-sender  { min-width: 180px; color: #93c5fd; font-family: monospace; font-size: 0.75rem; }
+        .email-subject { flex: 1; color: #c0d0f0; }
+        .email-reason  { font-size: 0.7rem; color: #607090; }
+
+        /* ---- IMPROVEMENT ACTIONS ---- */
+        .action-list { display: flex; flex-direction: column; gap: 0.45rem; margin-top: 0.5rem; }
+        .action-row {
+            display: flex; align-items: center; gap: 0.75rem;
+            padding: 0.7rem 0.9rem;
+            background: var(--bg-2); border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 8px; cursor: pointer; transition: border-color 0.2s;
+        }
+        .action-row:hover { border-color: rgba(96,165,250,0.3); }
+        .action-row.completed-action { border-color: rgba(52,211,153,0.25); background: rgba(52,211,153,0.04); }
+        .action-pts {
+            min-width: 42px; height: 42px; border-radius: 8px; display: flex;
+            align-items: center; justify-content: center; font-size: 0.8rem;
+            font-weight: 700; color: #60a5fa; background: rgba(96,165,250,0.1);
+            border: 1px solid rgba(96,165,250,0.2); flex-shrink: 0;
+        }
+        .action-row.completed-action .action-pts { color: #34d399; background: rgba(52,211,153,0.1); border-color: rgba(52,211,153,0.2); }
+        .action-info { flex: 1; min-width: 0; }
+        .action-name { font-size: 0.82rem; color: #c0d0f0; }
+        .action-product { font-size: 0.7rem; color: #607090; margin-top: 0.15rem; }
+        .action-status-badge {
+            padding: 0.15rem 0.55rem; border-radius: 10px; font-size: 0.68rem; font-weight: 600;
+        }
+        .asbadge-todo  { background: rgba(245,158,11,0.12); color: #fbbf24; border: 1px solid rgba(245,158,11,0.25); }
+        .asbadge-done  { background: rgba(52,211,153,0.1);  color: #34d399; border: 1px solid rgba(52,211,153,0.25); }
+
+        /* ---- RIGHT: INSTRUCTION PANEL ---- */
+        .instruction-panel { background: var(--bg-1); border-left: 1px solid var(--border); overflow-y: auto; padding: 1.25rem; }
+        .instr-task-num   { font-size: 0.68rem; color: var(--shield-red); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.35rem; }
+        .instr-task-title { font-size: 1rem; font-weight: 600; color: var(--text-1); margin-bottom: 0.75rem; }
+        .instr-body       { font-size: 0.83rem; color: var(--text-2); line-height: 1.65; }
+        .instr-body p     { margin-bottom: 0.65rem; }
+        .instr-body strong { color: var(--text-1); }
+        .instr-divider    { height: 1px; background: var(--border); margin: 1rem 0; }
+        .instr-action-label { font-size: 0.7rem; color: var(--text-3); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 0.5rem; }
+        .action-btn {
+            width: 100%; padding: 0.65rem 1rem;
+            background: rgba(239,68,68,0.1); border: 1px solid var(--border);
+            border-radius: 8px; color: var(--text-1); font-size: 0.83rem; font-weight: 500;
+            cursor: pointer; text-align: left; transition: all 0.2s;
+            margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.5rem;
+        }
+        .action-btn:hover { background: rgba(239,68,68,0.18); border-color: var(--border-hi); }
+        .action-btn.btn-primary {
+            background: linear-gradient(135deg, rgba(239,68,68,0.25), rgba(153,27,27,0.25));
+            border-color: rgba(239,68,68,0.45); color: #fde2e2;
+        }
+        .action-btn.btn-primary:hover { background: linear-gradient(135deg, rgba(239,68,68,0.35), rgba(153,27,27,0.35)); }
+        .action-btn.btn-done { background: rgba(52,211,153,0.08); border-color: rgba(52,211,153,0.3); color: #34d399; cursor: default; }
+        .action-btn img { width: 1em; height: 1em; vertical-align: middle; }
+        .instr-concept {
+            background: rgba(96,165,250,0.07); border: 1px solid rgba(96,165,250,0.18);
+            border-radius: 8px; padding: 0.75rem; font-size: 0.78rem; color: #93c5fd;
+            line-height: 1.55; margin-top: 0.75rem;
+        }
+        .instr-concept strong { color: #bfdbfe; }
+
+        /* ---- SUCCESS ---- */
+        .success-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 9000; }
+        .success-overlay.show { display: flex; }
+        .success-card { background: var(--bg-2); border: 1px solid rgba(52,211,153,0.35); border-radius: 16px; padding: 2.5rem; max-width: 480px; width: 90%; text-align: center; }
+        .success-card h2 { font-size: 1.35rem; color: var(--shield-green); margin-bottom: 0.5rem; }
+        .success-card p  { font-size: 0.88rem; color: var(--text-2); line-height: 1.65; margin-bottom: 1.5rem; }
+        .complete-btn { padding: 0.75rem 2rem; background: linear-gradient(135deg, var(--shield-red), var(--shield-red2)); border: none; border-radius: 8px; color: white; font-size: 0.9rem; font-weight: 600; cursor: pointer; }
+
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(239,68,68,0.25); border-radius: 3px; }
     </style>
 </head>
 <body>
-    <header class="lab-header">
-        <div class="header-left">
-            <a href="../index.html" class="back-btn">Exit Lab</a>
-            <span class="lab-title">Security Solutions Lab</span>
-            <span class="lab-badge">SC-900</span>
-            <span class="lab-badge-ch">CH.3</span>
-        </div>
-        <div class="task-progress">
-            <span>Progress:</span>
-            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBarFill"></div></div>
-            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
-        </div>
-    </header>
-    <div class="lab-container">
-        <aside class="task-panel" id="taskPanel"><div class="task-section"><div class="task-section-title">Phase 1 -- Defender for Cloud</div><div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)"><div class="task-number">Task 1</div><div class="task-name">Check Defender for Cloud Status</div><div class="task-desc">Run <code>az-defender status show</code> to display Defender for Cloud status, secure score, and enabled plans.</div></div><div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)"><div class="task-number">Task 2</div><div class="task-name">View Security Recommendations</div><div class="task-desc">Run <code>az-defender recommendations list</code> to review security recommendations and their severity levels.</div></div><div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)"><div class="task-number">Task 3</div><div class="task-name">Enable Defender for Servers</div><div class="task-desc">Run <code>az-defender plan enable --plan servers</code> to activate workload protection for virtual machines.</div></div></div><div class="task-section"><div class="task-section-title">Phase 2 -- Microsoft Sentinel</div><div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)"><div class="task-number">Task 4</div><div class="task-name">Create a Sentinel Workspace</div><div class="task-desc">Run <code>az-sentinel workspace create --name shield-sentinel-ws</code> to create a Log Analytics workspace for Sentinel.</div></div><div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)"><div class="task-number">Task 5</div><div class="task-name">Add a Data Connector</div><div class="task-desc">Run <code>az-sentinel connector add --type entra-id</code> to connect Microsoft Entra ID sign-in logs to Sentinel.</div></div><div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)"><div class="task-number">Task 6</div><div class="task-name">Create an Analytics Rule</div><div class="task-desc">Run <code>az-sentinel rule create --name "Brute Force Detection" --severity high</code> to create a threat detection rule.</div></div></div><div class="task-section"><div class="task-section-title">Phase 3 -- Network Security</div><div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)"><div class="task-number">Task 7</div><div class="task-name">Configure an NSG Rule</div><div class="task-desc">Run <code>az-nsg rule create --nsg shield-nsg --name DenySSH --priority 100 --action Deny --port 22</code> to block SSH from the internet.</div></div><div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)"><div class="task-number">Task 8</div><div class="task-name">Review Security Alerts</div><div class="task-desc">Run <code>az-defender alerts list</code> to display active security alerts across Defender products.</div></div></div><div class="task-section"><div class="task-section-title">Phase 4 -- Review</div><div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)"><div class="task-number">Task 9</div><div class="task-name">Check DDoS Protection Status</div><div class="task-desc">Run <code>az-ddos show --plan standard</code> to verify DDoS Protection Standard is enabled for the virtual network.</div></div><div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)"><div class="task-number">Task 10</div><div class="task-name">Review Defender for Endpoint Status</div><div class="task-desc">Run <code>az-defender endpoint status</code> to check endpoint protection coverage and device health across managed devices.</div></div></div></aside>
-        <main class="terminal-panel" id="terminalPanel">
-            <div class="term-toolbar">
-                <div class="term-dot term-dot-red"></div><div class="term-dot term-dot-amber"></div><div class="term-dot term-dot-green"></div>
-                <div class="term-title">secadmin@shield-lab -- bash</div>
-                <div class="term-vm-status"><div class="term-status-dot"></div>Shield Lab Online</div>
-            </div>
-            <div class="term-output" id="termOutput"></div>
-            <div class="term-input-row">
-                <span class="term-prompt-label"><span class="term-prompt-user">secadmin@shield-lab</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span></span>
-                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
-            </div>
-            <div class="instructions-panel" id="instructionsPanel">
-                <div class="instructions-title" onclick="toggleInstructions()">
-                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
-                    Task Instructions
-                    <button class="instructions-toggle" id="instructionsToggle">&#9660;</button>
-                </div>
-                <div class="instructions-body" id="instructionsBody">
-                    <div class="instructions-step" id="instructionsStep">Type the command in the terminal and press Enter.</div>
-                    <div class="instructions-hint" id="instructionsHint">Hint text loads when you select a task.</div>
-                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
-                    <div class="hint-command" id="hintCommand"></div>
-                </div>
-            </div>
-            <div class="success-overlay" id="successOverlay">
-                <div class="success-card">
-                    <div class="success-title">SC-900 Chapter 3 Lab Complete!</div>
-                    <div class="success-message">You configured Defender for Cloud, enabled Defender plans, created Sentinel workspaces and analytics rules, configured NSG rules, and reviewed security alerts across the Microsoft security portfolio.</div>
-                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
-                </div>
-            </div>
-        </main>
+
+<!-- TOP BAR -->
+<header class="top-bar">
+    <a href="../index.html" class="back-link">
+        <img src="/assets/images/icons/icon-arrow-left.webp" alt="" style="width:1em;height:1em">
+        Exit Lab
+    </a>
+    <span class="top-bar-title">Microsoft 365 Defender Portal</span>
+    <div class="top-bar-badges">
+        <span class="badge badge-red">SC-900</span>
+        <span class="badge badge-green">CH.3</span>
     </div>
-    <script>
-    (function(){
-        'use strict';
-        var TOTAL_TASKS = 10;
-        var taskDone = {}; for(var i=1;i<=TOTAL_TASKS;i++) taskDone[i]=false;
-        var currentTask = 1;
-        var cmdHistory = [], histIdx = -1;
-        var outputEl, inputEl, ps1PathEl;
+    <div class="top-bar-progress">
+        <span class="progress-label">Progress</span>
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+        <span class="progress-count" id="progressCount">0 / 10</span>
+    </div>
+</header>
 
-        var TASK_INSTRUCTIONS = {1:{step:"Run the command shown in the task panel.\n<code>az-defender status show</code>",hint:"Each command simulates a real Microsoft security operations action.",cmd:"az-defender status show"},2:{step:"Run the command shown in the task panel.\n<code>az-defender recommendations list</code>",hint:"Each command simulates a real Microsoft security operations action.",cmd:"az-defender recommendations list"},3:{step:"Run the command shown in the task panel.\n<code>az-defender plan enable --plan servers</code>",hint:"Each command simulates a real Microsoft security operations action.",cmd:"az-defender plan enable --plan servers"},4:{step:"Run the command shown in the task panel.\n<code>az-sentinel workspace create --name shield-sentinel-ws</code>",hint:"Each command simulates a real Microsoft security operations action.",cmd:"az-sentinel workspace create --name shield-sentinel-ws"},5:{step:"Run the command shown in the task panel.\n<code>az-sentinel connector add --type entra-id</code>",hint:"Each command simulates a real Microsoft security operations action.",cmd:"az-sentinel connector add --type entra-id"},6:{step:"Run the command shown in the task panel.\n<code>az-sentinel rule create --name \"Brute Force Detection\" --severity high</code>",hint:"Each command simulates a real Microsoft security operations action.",cmd:"az-sentinel rule create --name \"Brute Force Detection\" --severity high"},7:{step:"Run the command shown in the task panel.\n<code>az-nsg rule create --nsg shield-nsg --name DenySSH --priority 100 --action Deny --port 22</code>",hint:"Each command simulates a real Microsoft security operations action.",cmd:"az-nsg rule create --nsg shield-nsg --name DenySSH --priority 100 --action Deny --port 22"},8:{step:"Run the command shown in the task panel.\n<code>az-defender alerts list</code>",hint:"Each command simulates a real Microsoft security operations action.",cmd:"az-defender alerts list"},9:{step:"Run the command shown in the task panel.\n<code>az-ddos show --plan standard</code>",hint:"Each command simulates a real Microsoft security operations action.",cmd:"az-ddos show --plan standard"},10:{step:"Run the command shown in the task panel.\n<code>az-defender endpoint status</code>",hint:"Each command simulates a real Microsoft security operations action.",cmd:"az-defender endpoint status"}};
+<!-- THREE-COLUMN BODY -->
+<div class="lab-body">
 
-        var TASK_NAMES = {};
-        TASK_NAMES[1]="Check Defender for Cloud Status";
-        TASK_NAMES[2]="View Security Recommendations";
-        TASK_NAMES[3]="Enable Defender for Servers";
-        TASK_NAMES[4]="Create a Sentinel Workspace";
-        TASK_NAMES[5]="Add a Data Connector";
-        TASK_NAMES[6]="Create an Analytics Rule";
-        TASK_NAMES[7]="Configure an NSG Rule";
-        TASK_NAMES[8]="Review Security Alerts";
-        TASK_NAMES[9]="Check DDoS Protection Status";
-        TASK_NAMES[10]="Review Defender for Endpoint Status";
+    <!-- LEFT: TASK PANEL -->
+    <aside class="task-panel" id="taskPanel">
+        <div class="task-group-label">Phase 1 — Dashboard</div>
 
-        // Simulated command responses
-        var CMD_RESPONSES = {"az-defender status show":{"lines":[{"text":"=== Microsoft Defender for Cloud ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Secure Score:     72% (36/50 points)","cls":"term-line-out"},{"text":"  Recommendations:  14 open (3 high, 7 medium, 4 low)","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Enabled Plans:","cls":"term-line-warn"},{"text":"    Defender for Servers:     Disabled","cls":"term-line-err"},{"text":"    Defender for Storage:     Enabled (Plan 2)","cls":"term-line-out"},{"text":"    Defender for SQL:         Enabled","cls":"term-line-out"},{"text":"    Defender for Containers:  Disabled","cls":"term-line-err"},{"text":"    Defender for Key Vault:   Enabled","cls":"term-line-out"}],"completesTask":1},"az-defender recommendations list":{"lines":[{"text":"=== Security Recommendations ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  [HIGH]   Enable MFA for accounts with owner permissions","cls":"term-line-err"},{"text":"  [HIGH]   Restrict management port access (close port 3389/22)","cls":"term-line-err"},{"text":"  [HIGH]   Enable Defender for Servers","cls":"term-line-err"},{"text":"  [MEDIUM] Enable encryption at rest for storage accounts","cls":"term-line-warn"},{"text":"  [MEDIUM] Configure NSG rules on all subnets","cls":"term-line-warn"},{"text":"  [MEDIUM] Enable diagnostic logging for Key Vault","cls":"term-line-warn"},{"text":"  [LOW]    Add tags to resources for governance","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  14 recommendations. Fixing HIGH items first improves score the most.","cls":"term-line-dim"}],"completesTask":2},"az-defender plan enable --plan servers":{"lines":[{"text":"Enabling Defender for Servers...","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Plan:     Defender for Servers (Plan 2)","cls":"term-line-out"},{"text":"  Coverage: All VMs in subscription","cls":"term-line-out"},{"text":"  Features: Vulnerability assessment, JIT VM access, Adaptive application controls","cls":"term-line-out"},{"text":"  Agent:    Azure Monitor Agent (auto-deployed)","cls":"term-line-out"},{"text":"  Status:   Enabled","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Defender for Servers activated. Secure score improved to 78%.","cls":"term-line-warn"}],"completesTask":3},"az-sentinel workspace create --name shield-sentinel-ws":{"lines":[{"text":"Creating Log Analytics workspace for Sentinel...","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Workspace:  shield-sentinel-ws","cls":"term-line-out"},{"text":"  Region:     East US","cls":"term-line-out"},{"text":"  Retention:  90 days (default)","cls":"term-line-out"},{"text":"  Sentinel:   Enabled","cls":"term-line-out"},{"text":"  Pricing:    Pay-per-GB ingestion","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Sentinel workspace created. Add data connectors next.","cls":"term-line-info"}],"completesTask":4},"az-sentinel connector add --type entra-id":{"lines":[{"text":"Adding Entra ID data connector...","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Connector:  Microsoft Entra ID","cls":"term-line-out"},{"text":"  Log Types:  Sign-in logs, Audit logs, Provisioning logs","cls":"term-line-out"},{"text":"  Status:     Connected","cls":"term-line-out"},{"text":"  Latency:    ~5 minutes","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Entra ID logs now flowing into Sentinel. Build analytics rules to detect threats.","cls":"term-line-warn"}],"completesTask":5},"az-sentinel rule create --name \"Brute Force Detection\" --severity high":{"lines":[{"text":"Creating analytics rule...","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Rule Name:    Brute Force Detection","cls":"term-line-out"},{"text":"  Severity:     High","cls":"term-line-out"},{"text":"  Query:        SigninLogs | where ResultType != 0 | summarize count() by UserPrincipalName | where count_ > 10","cls":"term-line-out"},{"text":"  Frequency:    Every 5 minutes","cls":"term-line-out"},{"text":"  Lookback:     1 hour","cls":"term-line-out"},{"text":"  Action:       Create incident","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Rule created. Failed sign-ins exceeding threshold will generate incidents.","cls":"term-line-warn"}],"completesTask":6},"az-nsg rule create --nsg shield-nsg --name DenySSH --priority 100 --action Deny --port 22":{"lines":[{"text":"Creating NSG rule...","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  NSG:       shield-nsg","cls":"term-line-out"},{"text":"  Rule:      DenySSH","cls":"term-line-out"},{"text":"  Priority:  100","cls":"term-line-out"},{"text":"  Direction: Inbound","cls":"term-line-out"},{"text":"  Source:    Internet (Any)","cls":"term-line-out"},{"text":"  Port:      22 (SSH)","cls":"term-line-out"},{"text":"  Action:    Deny","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  SSH from internet blocked. Use Azure Bastion for secure management access.","cls":"term-line-warn"}],"completesTask":7},"az-defender alerts list":{"lines":[{"text":"=== Active Security Alerts ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  [HIGH]   Suspicious authentication activity on vm-web-01","cls":"term-line-err"},{"text":"           Source: Defender for Servers | Time: 2026-04-21 08:15 UTC","cls":"term-line-dim"},{"text":"  [MEDIUM] Anomalous access to Key Vault secrets","cls":"term-line-warn"},{"text":"           Source: Defender for Key Vault | Time: 2026-04-21 07:42 UTC","cls":"term-line-dim"},{"text":"  [LOW]    Port scan detected from external IP","cls":"term-line-out"},{"text":"           Source: Azure Firewall | Time: 2026-04-21 06:30 UTC","cls":"term-line-dim"},{"text":"","cls":"term-line-out"},{"text":"  3 alerts. Investigate HIGH severity first.","cls":"term-line-err"}],"completesTask":8},"az-ddos show --plan standard":{"lines":[{"text":"=== Azure DDoS Protection ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Plan:       DDoS Protection Standard","cls":"term-line-out"},{"text":"  Status:     Enabled","cls":"term-line-out"},{"text":"  Protected VNets: 2 (vnet-prod, vnet-dmz)","cls":"term-line-out"},{"text":"  Mitigations (last 30d): 3 attacks mitigated","cls":"term-line-out"},{"text":"  Telemetry:  Flowing to Azure Monitor","cls":"term-line-out"},{"text":"  DRR:        DDoS Rapid Response team available","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Standard tier provides adaptive tuning and cost protection.","cls":"term-line-dim"}],"completesTask":9},"az-defender endpoint status":{"lines":[{"text":"=== Defender for Endpoint ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Total Devices:   156","cls":"term-line-out"},{"text":"  Healthy:         142 (91%)","cls":"term-line-out"},{"text":"  At Risk:         8 (5%)","cls":"term-line-warn"},{"text":"  Critical:        2 (1%)","cls":"term-line-err"},{"text":"  Inactive:        4 (3%)","cls":"term-line-dim"},{"text":"","cls":"term-line-out"},{"text":"  Active Threats:  3 (2 malware, 1 suspicious behavior)","cls":"term-line-err"},{"text":"  Attack Surface:  12 ASR rules active","cls":"term-line-out"},{"text":"  EDR:             Enabled on all managed devices","cls":"term-line-out"}],"completesTask":10}}; Customer owns OS, Apps, Data, Identity","cls":"term-line-out"},{"text":"  PaaS:         Microsoft owns Infra + OS + Runtime; Customer owns Apps, Data, Identity","cls":"term-line-out"},{"text":"  SaaS:         Microsoft owns nearly everything; Customer owns Data, Identity, Devices","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  ALWAYS Customer Responsibility: Data classification, Identity management, Device security","cls":"term-line-warn"},{"text":"  ALWAYS Microsoft Responsibility: Physical datacenter, Physical network, Physical hosts","cls":"term-line-warn"}],"completesTask":1},"security-model show zero-trust":{"lines":[{"text":"=== Zero Trust Model ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Principle 1: VERIFY EXPLICITLY","cls":"term-line-out"},{"text":"    Always authenticate based on all signals: identity, location, device, risk","cls":"term-line-dim"},{"text":"  Principle 2: LEAST PRIVILEGE ACCESS","cls":"term-line-out"},{"text":"    Just-in-time, just-enough-access. Risk-based adaptive policies.","cls":"term-line-dim"},{"text":"  Principle 3: ASSUME BREACH","cls":"term-line-out"},{"text":"    Minimize blast radius. Micro-segment. End-to-end encryption.","cls":"term-line-dim"},{"text":"","cls":"term-line-out"},{"text":"  Six Pillars: Identity, Devices, Applications, Data, Infrastructure, Network","cls":"term-line-warn"}],"completesTask":2},"security-model show cia-triad":{"lines":[{"text":"=== CIA Triad ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  CONFIDENTIALITY: Only authorized access to data","cls":"term-line-out"},{"text":"    Controls: Encryption, Access Controls, Sensitivity Labels","cls":"term-line-dim"},{"text":"  INTEGRITY: Data has not been tampered with","cls":"term-line-out"},{"text":"    Controls: Hashing (SHA-256), Digital Signatures, Audit Logs","cls":"term-line-dim"},{"text":"  AVAILABILITY: Systems accessible when needed","cls":"term-line-out"},{"text":"    Controls: Redundancy, DDoS Protection, Backup/DR","cls":"term-line-dim"}],"completesTask":3},"threat-classify --type phishing":{"lines":[{"text":"=== Threat Analysis: Phishing ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Category: Social Engineering","cls":"term-line-out"},{"text":"  Vector: Email, SMS, Voice","cls":"term-line-out"},{"text":"  CIA Impact: Confidentiality (credential theft)","cls":"term-line-out"},{"text":"  Variants: Spear phishing (targeted), Whaling (executives), Vishing (voice)","cls":"term-line-out"},{"text":"  Indicators: Urgency, spoofed sender, suspicious URLs, unexpected attachments","cls":"term-line-warn"},{"text":"  Defenses: MFA, Security Awareness Training, Safe Links, Anti-phishing AI","cls":"term-line-dim"}],"completesTask":4},"threat-classify --type ransomware":{"lines":[{"text":"=== Threat Analysis: Ransomware ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Category: Malware","cls":"term-line-out"},{"text":"  Vector: Phishing emails, vulnerability exploitation, RDP brute force","cls":"term-line-out"},{"text":"  CIA Impact: Availability (file encryption), Confidentiality (data exfiltration)","cls":"term-line-out"},{"text":"  Kill Chain: Initial access > Lateral movement > Data exfil > Encryption > Ransom note","cls":"term-line-warn"},{"text":"  Defenses: Backups, Endpoint Protection, Patch Management, Network Segmentation","cls":"term-line-dim"},{"text":"  Policy: NEVER pay the ransom","cls":"term-line-err"}],"completesTask":5},"threat-classify --type ddos":{"lines":[{"text":"=== Threat Analysis: DDoS ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Category: Denial of Service","cls":"term-line-out"},{"text":"  CIA Impact: Availability","cls":"term-line-out"},{"text":"  Volumetric: UDP floods, DNS amplification (overwhelm bandwidth)","cls":"term-line-out"},{"text":"  Protocol: SYN floods, Ping of Death (exploit protocol weaknesses)","cls":"term-line-out"},{"text":"  Application: HTTP floods, Slowloris (target web app layer)","cls":"term-line-warn"},{"text":"  Defenses: Azure DDoS Protection Standard, Azure Firewall, CDN, WAF","cls":"term-line-dim"}],"completesTask":6},"crypto-lab encrypt --method symmetric --data \"Sensitive data\"":{"lines":[{"text":"=== Symmetric Encryption (AES-256) ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Plaintext:  \"Sensitive data\"","cls":"term-line-out"},{"text":"  Key:        a7f2c9e4...b3d1 (256-bit AES key)","cls":"term-line-out"},{"text":"  Ciphertext: 4f8a2c1e...9d3b","cls":"term-line-out"},{"text":"  Decrypted:  \"Sensitive data\"","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Same key used for encrypt AND decrypt","cls":"term-line-warn"},{"text":"  Fast, efficient for bulk data. Challenge: secure key distribution.","cls":"term-line-dim"}],"completesTask":7},"crypto-lab encrypt --method asymmetric --data \"Sensitive data\"":{"lines":[{"text":"=== Asymmetric Encryption (RSA-2048) ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Plaintext:    \"Sensitive data\"","cls":"term-line-out"},{"text":"  Public Key:   MIIBIjAN...AQAB (shareable)","cls":"term-line-out"},{"text":"  Private Key:  MIIEpAIB...== (secret)","cls":"term-line-out"},{"text":"  Encrypted with PUBLIC key:  7c3e9f1a...2b4d","cls":"term-line-out"},{"text":"  Decrypted with PRIVATE key: \"Sensitive data\"","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Two different keys. Solves key distribution problem.","cls":"term-line-warn"},{"text":"  Slower than symmetric. Used for key exchange and digital signatures.","cls":"term-line-dim"}],"completesTask":8},"crypto-lab hash --algorithm sha256 --data \"Integrity check\"":{"lines":[{"text":"=== SHA-256 Hash ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Input:  \"Integrity check\"","cls":"term-line-out"},{"text":"  Hash:   e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  One-way function: CANNOT reverse hash back to input","cls":"term-line-warn"},{"text":"  Same input always produces same hash (deterministic)","cls":"term-line-dim"},{"text":"  Any change to input produces completely different hash","cls":"term-line-dim"},{"text":"  Used for: password storage, file integrity, digital signatures","cls":"term-line-dim"}],"completesTask":9},"security-model show defense-in-depth":{"lines":[{"text":"=== Defense in Depth -- 7 Layers ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Layer 1: PHYSICAL SECURITY    -- Datacenter access controls, biometrics","cls":"term-line-out"},{"text":"  Layer 2: IDENTITY & ACCESS     -- Entra ID, MFA, Conditional Access","cls":"term-line-out"},{"text":"  Layer 3: PERIMETER             -- DDoS Protection, Azure Firewall","cls":"term-line-out"},{"text":"  Layer 4: NETWORK               -- NSGs, VNet segmentation, private endpoints","cls":"term-line-out"},{"text":"  Layer 5: COMPUTE               -- OS patching, endpoint protection","cls":"term-line-out"},{"text":"  Layer 6: APPLICATION           -- Secure coding, WAF, vulnerability scanning","cls":"term-line-out"},{"text":"  Layer 7: DATA                  -- Encryption, sensitivity labels, DLP","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  If one layer fails, the next layer catches the attacker.","cls":"term-line-warn"}],"completesTask":10}};
+        <div class="task-item active" id="tc-1" onclick="selectTask(1)">
+            <div class="task-num" id="tn-1">1</div>
+            <div class="task-info">
+                <div class="task-name">Review Secure Score</div>
+                <div class="task-desc-short">Read the Secure Score gauge and category breakdown</div>
+            </div>
+        </div>
+        <div class="task-item" id="tc-2" onclick="selectTask(2)">
+            <div class="task-num" id="tn-2">2</div>
+            <div class="task-info">
+                <div class="task-name">Check Active Incidents</div>
+                <div class="task-desc-short">Review the active incidents count and severity summary</div>
+            </div>
+        </div>
 
-        function escH(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-        function addLine(t,c) { var d=document.createElement('div'); d.className='term-line'+(c?' '+c:''); d.textContent=t; outputEl.appendChild(d); outputEl.scrollTop=outputEl.scrollHeight; }
-        function addHTML(h,c) { var d=document.createElement('div'); d.className='term-line'+(c?' '+c:''); d.innerHTML=h; outputEl.appendChild(d); outputEl.scrollTop=outputEl.scrollHeight; }
-        function addBlank() { addLine('',''); }
-        function addPromptLine(cmd) { addHTML('<span class="term-prompt-span">secadmin@shield-lab</span><span class="term-ps1-sep">:</span><span class="term-path-span">~</span><span class="term-ps1-sep">$ </span>'+escH(cmd),'term-line-cmd'); }
+        <div class="task-group-label" style="margin-top:0.75rem">Phase 2 — Threat Analytics</div>
 
-        function execLine(raw) {
-            var trimmed = raw.trim();
-            addPromptLine(trimmed);
-            if (!trimmed) return;
-            var matched = false;
-            for (var key in CMD_RESPONSES) {
-                if (trimmed === key || trimmed.indexOf(key) === 0) {
-                    var resp = CMD_RESPONSES[key];
-                    resp.lines.forEach(function(l) { addLine(l.text, l.cls); });
-                    addBlank();
-                    if (resp.completesTask) { completeTask(resp.completesTask); }
-                    matched = true;
-                    break;
-                }
+        <div class="task-item" id="tc-3" onclick="selectTask(3)">
+            <div class="task-num" id="tn-3">3</div>
+            <div class="task-info">
+                <div class="task-name">Explore Threat Report</div>
+                <div class="task-desc-short">Open a threat analytics report and review analyst findings</div>
+            </div>
+        </div>
+        <div class="task-item" id="tc-4" onclick="selectTask(4)">
+            <div class="task-num" id="tn-4">4</div>
+            <div class="task-info">
+                <div class="task-name">Assess Exposure Status</div>
+                <div class="task-desc-short">Review mitigation status for the selected threat report</div>
+            </div>
+        </div>
+
+        <div class="task-group-label" style="margin-top:0.75rem">Phase 3 — Endpoints</div>
+
+        <div class="task-item" id="tc-5" onclick="selectTask(5)">
+            <div class="task-num" id="tn-5">5</div>
+            <div class="task-info">
+                <div class="task-name">Review Endpoint Health</div>
+                <div class="task-desc-short">Check onboarding status and health for the device inventory</div>
+            </div>
+        </div>
+        <div class="task-item" id="tc-6" onclick="selectTask(6)">
+            <div class="task-num" id="tn-6">6</div>
+            <div class="task-info">
+                <div class="task-name">Isolate Compromised Device</div>
+                <div class="task-desc-short">Take response action to isolate DESKTOP-MKT07</div>
+            </div>
+        </div>
+
+        <div class="task-group-label" style="margin-top:0.75rem">Phase 4 — Email</div>
+
+        <div class="task-item" id="tc-7" onclick="selectTask(7)">
+            <div class="task-num" id="tn-7">7</div>
+            <div class="task-info">
+                <div class="task-name">Review Email Quarantine</div>
+                <div class="task-desc-short">Inspect quarantined messages and their detection reason</div>
+            </div>
+        </div>
+        <div class="task-item" id="tc-8" onclick="selectTask(8)">
+            <div class="task-num" id="tn-8">8</div>
+            <div class="task-info">
+                <div class="task-name">Release False Positive</div>
+                <div class="task-desc-short">Release a quarantined message identified as a false positive</div>
+            </div>
+        </div>
+
+        <div class="task-group-label" style="margin-top:0.75rem">Phase 5 — Improvement</div>
+
+        <div class="task-item" id="tc-9" onclick="selectTask(9)">
+            <div class="task-num" id="tn-9">9</div>
+            <div class="task-info">
+                <div class="task-name">Complete an Improvement Action</div>
+                <div class="task-desc-short">Mark an improvement action as completed to raise Secure Score</div>
+            </div>
+        </div>
+        <div class="task-item" id="tc-10" onclick="selectTask(10)">
+            <div class="task-num" id="tn-10">10</div>
+            <div class="task-info">
+                <div class="task-name">Verify Score Increase</div>
+                <div class="task-desc-short">Return to Secure Score and verify the point increase</div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- CENTER: SIMULATED M365 DEFENDER PORTAL -->
+    <main class="portal-area" id="portalArea">
+        <div class="defender-shell">
+            <div class="defender-layout">
+
+                <!-- Defender sidebar -->
+                <nav class="def-sidebar">
+                    <div class="def-sidebar-logo">Microsoft 365 Defender</div>
+
+                    <div class="def-nav-group">
+                        <div class="def-nav-label">Overview</div>
+                        <div class="def-nav-item nav-active" id="nav-home" onclick="switchView('home')">
+                            <img src="/assets/images/icons/icon-home.webp" alt=""> Home
+                        </div>
+                    </div>
+
+                    <div class="def-nav-group">
+                        <div class="def-nav-label">Incidents &amp; Alerts</div>
+                        <div class="def-nav-item" id="nav-incidents" onclick="switchView('incidents')">
+                            <img src="/assets/images/icons/icon-alert.webp" alt=""> Incidents
+                        </div>
+                        <div class="def-nav-item" id="nav-threat" onclick="switchView('threat')">
+                            <img src="/assets/images/icons/icon-target.webp" alt=""> Threat Analytics
+                        </div>
+                    </div>
+
+                    <div class="def-nav-group">
+                        <div class="def-nav-label">Assets</div>
+                        <div class="def-nav-item" id="nav-endpoints" onclick="switchView('endpoints')">
+                            <img src="/assets/images/icons/icon-network.webp" alt=""> Endpoints
+                        </div>
+                        <div class="def-nav-item" id="nav-email" onclick="switchView('email')">
+                            <img src="/assets/images/icons/icon-email.webp" alt=""> Email &amp; Collab
+                        </div>
+                    </div>
+
+                    <div class="def-nav-group">
+                        <div class="def-nav-label">Secure Score</div>
+                        <div class="def-nav-item" id="nav-score" onclick="switchView('score')">
+                            <img src="/assets/images/icons/icon-chart.webp" alt=""> Secure Score
+                        </div>
+                    </div>
+                </nav>
+
+                <!-- Defender content -->
+                <div class="def-content" id="defContent">
+
+                    <!-- VIEW: HOME DASHBOARD -->
+                    <div class="portal-view view-active" id="view-home">
+                        <div class="portal-section-header">
+                            <h2>Home</h2>
+                            <span class="sub">contoso.com &nbsp;|&nbsp; Updated: 2026-04-21 09:40 UTC</span>
+                        </div>
+
+                        <!-- Stat widgets -->
+                        <div class="widget-grid" style="grid-template-columns:repeat(4,1fr)">
+                            <div class="widget-card">
+                                <div class="widget-val" style="color:#ef4444" id="incident-count">5</div>
+                                <div class="widget-label">Active Incidents</div>
+                                <div class="widget-sub" style="color:#f87171;font-size:0.7rem">1 High severity</div>
+                            </div>
+                            <div class="widget-card">
+                                <div class="widget-val" style="color:#34d399" id="score-widget-val">62%</div>
+                                <div class="widget-label">Secure Score</div>
+                                <div class="widget-sub" style="color:#34d399;font-size:0.7rem">+2 pts this week</div>
+                            </div>
+                            <div class="widget-card">
+                                <div class="widget-val" style="color:#fbbf24">3</div>
+                                <div class="widget-label">At-risk Devices</div>
+                                <div class="widget-sub" style="color:#607090;font-size:0.7rem">Pending remediation</div>
+                            </div>
+                            <div class="widget-card">
+                                <div class="widget-val" style="color:#a78bfa">24</div>
+                                <div class="widget-label">Quarantined Emails</div>
+                                <div class="widget-sub" style="color:#607090;font-size:0.7rem">Last 7 days</div>
+                            </div>
+                        </div>
+
+                        <!-- Recent incidents summary -->
+                        <div style="margin-top:0.75rem">
+                            <div style="font-size:0.7rem;color:#607090;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.5rem">Recent Incidents</div>
+                            <div class="email-row" style="border-left:3px solid #ef4444">
+                                <span class="health-badge health-crit" style="font-size:0.65rem">HIGH</span>
+                                <span style="flex:1;font-size:0.8rem;color:#c0d0f0">INC-4821 — Multi-stage: TI Match + Suspicious PowerShell</span>
+                                <span style="font-size:0.72rem;color:#607090">09:33</span>
+                            </div>
+                            <div class="email-row" style="border-left:3px solid #f59e0b">
+                                <span class="health-badge health-risk" style="font-size:0.65rem">MED</span>
+                                <span style="flex:1;font-size:0.8rem;color:#c0d0f0">INC-4819 — Anomalous Sign-In from New Location</span>
+                                <span style="font-size:0.72rem;color:#607090">08:15</span>
+                            </div>
+                            <div class="email-row" style="border-left:3px solid #f59e0b">
+                                <span class="health-badge health-risk" style="font-size:0.65rem">MED</span>
+                                <span style="flex:1;font-size:0.8rem;color:#c0d0f0">INC-4817 — Unusual Data Download Volume</span>
+                                <span style="font-size:0.72rem;color:#607090">07:44</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- VIEW: INCIDENTS -->
+                    <div class="portal-view" id="view-incidents">
+                        <div class="portal-section-header">
+                            <h2>Incidents</h2>
+                            <span class="sub">5 Active</span>
+                        </div>
+                        <div class="email-row" style="border-left:3px solid #ef4444">
+                            <span class="health-badge health-crit">HIGH</span>
+                            <span style="flex:1;font-size:0.8rem;color:#c0d0f0">INC-4821 — Multi-stage: TI Match + Suspicious PowerShell</span>
+                            <span class="health-badge" style="background:rgba(96,165,250,0.1);color:#93c5fd;border:1px solid rgba(96,165,250,0.25);font-size:0.65rem">New</span>
+                        </div>
+                        <div class="email-row" style="border-left:3px solid #f59e0b">
+                            <span class="health-badge health-risk">MED</span>
+                            <span style="flex:1;font-size:0.8rem;color:#c0d0f0">INC-4819 — Anomalous Sign-In from New Location</span>
+                            <span class="health-badge" style="background:rgba(96,165,250,0.1);color:#93c5fd;border:1px solid rgba(96,165,250,0.25);font-size:0.65rem">New</span>
+                        </div>
+                        <div class="email-row" style="border-left:3px solid #f59e0b">
+                            <span class="health-badge health-risk">MED</span>
+                            <span style="flex:1;font-size:0.8rem;color:#c0d0f0">INC-4817 — Unusual Data Download Volume</span>
+                            <span class="health-badge" style="background:rgba(96,165,250,0.1);color:#93c5fd;border:1px solid rgba(96,165,250,0.25);font-size:0.65rem">New</span>
+                        </div>
+                    </div>
+
+                    <!-- VIEW: THREAT ANALYTICS -->
+                    <div class="portal-view" id="view-threat">
+                        <div class="portal-section-header">
+                            <h2>Threat Analytics</h2>
+                            <span class="sub">4 active reports</span>
+                        </div>
+                        <div class="threat-cards">
+                            <div class="threat-card" id="threat-apt29" onclick="selectThreat('apt29')">
+                                <div class="threat-icon" style="background:rgba(239,68,68,0.15)">
+                                    <img src="/assets/images/icons/icon-skull-crossbones.webp" alt="" style="width:1.1em;height:1.1em;opacity:0.8">
+                                </div>
+                                <div class="threat-info">
+                                    <div class="threat-name">APT29 — Cozy Bear C2 Infrastructure</div>
+                                    <div class="threat-desc">Active C2 infrastructure observed in contoso.com tenant. Known IP 203.0.113.47 matched.</div>
+                                </div>
+                                <span class="threat-impact impact-high">HIGH</span>
+                            </div>
+                            <div class="threat-card" id="threat-phish" onclick="selectThreat('phish')">
+                                <div class="threat-icon" style="background:rgba(245,158,11,0.12)">
+                                    <img src="/assets/images/icons/icon-email.webp" alt="" style="width:1.1em;height:1.1em;opacity:0.8">
+                                </div>
+                                <div class="threat-info">
+                                    <div class="threat-name">Business Email Compromise (BEC) Wave</div>
+                                    <div class="threat-desc">Ongoing spear-phishing campaign targeting Finance department.</div>
+                                </div>
+                                <span class="threat-impact impact-med">MEDIUM</span>
+                            </div>
+                            <div class="threat-card" id="threat-ransomware" onclick="selectThreat('ransomware')">
+                                <div class="threat-icon" style="background:rgba(239,68,68,0.12)">
+                                    <img src="/assets/images/icons/icon-lock.webp" alt="" style="width:1.1em;height:1.1em;opacity:0.8">
+                                </div>
+                                <div class="threat-info">
+                                    <div class="threat-name">BlackCat Ransomware — Pre-Encryption Indicators</div>
+                                    <div class="threat-desc">Reconnaissance and credential harvesting TTPs observed in the wild.</div>
+                                </div>
+                                <span class="threat-impact impact-high">HIGH</span>
+                            </div>
+                            <div class="threat-card" id="threat-vuln" onclick="selectThreat('vuln')">
+                                <div class="threat-icon" style="background:rgba(59,130,246,0.12)">
+                                    <img src="/assets/images/icons/icon-warning.webp" alt="" style="width:1.1em;height:1.1em;opacity:0.8">
+                                </div>
+                                <div class="threat-info">
+                                    <div class="threat-name">CVE-2026-0812 — Exchange Server RCE</div>
+                                    <div class="threat-desc">Critical Exchange vulnerability. 3 unpatched servers detected in inventory.</div>
+                                </div>
+                                <span class="threat-impact impact-high">HIGH</span>
+                            </div>
+                        </div>
+                        <div class="threat-detail-panel" id="threatDetailPanel">
+                            <div style="font-size:0.68rem;color:#607090;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.5rem">Analyst Report</div>
+                            <div id="threatDetailContent" style="font-size:0.82rem;color:#c0d0f0;line-height:1.6"></div>
+                        </div>
+                    </div>
+
+                    <!-- VIEW: ENDPOINTS -->
+                    <div class="portal-view" id="view-endpoints">
+                        <div class="portal-section-header">
+                            <h2>Device Inventory</h2>
+                            <span class="sub">24 devices &nbsp;|&nbsp; 21 onboarded</span>
+                        </div>
+                        <table class="endpoints-table" id="endpointTable">
+                            <thead>
+                                <tr>
+                                    <th>Device Name</th>
+                                    <th>OS</th>
+                                    <th>Onboarding</th>
+                                    <th>Risk</th>
+                                    <th>Last Seen</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr id="ep-mkt07">
+                                    <td style="color:#93c5fd;font-family:monospace;font-size:0.78rem">DESKTOP-MKT07</td>
+                                    <td style="color:#607090;font-size:0.75rem">Win 11 22H2</td>
+                                    <td><span class="health-badge health-ok">Onboarded</span></td>
+                                    <td><span class="health-badge health-crit" id="mkt07-risk">Critical</span></td>
+                                    <td style="color:#607090;font-size:0.75rem">09:34 UTC</td>
+                                    <td><button class="action-btn" onclick="isolateDevice()" style="width:auto;padding:0.25rem 0.65rem;font-size:0.72rem;margin:0" id="isolate-btn">Isolate</button></td>
+                                </tr>
+                                <tr>
+                                    <td style="color:#93c5fd;font-family:monospace;font-size:0.78rem">SRV-DC01</td>
+                                    <td style="color:#607090;font-size:0.75rem">Win Server 2022</td>
+                                    <td><span class="health-badge health-ok">Onboarded</span></td>
+                                    <td><span class="health-badge health-risk">Medium</span></td>
+                                    <td style="color:#607090;font-size:0.75rem">09:33 UTC</td>
+                                    <td><button class="action-btn" style="width:auto;padding:0.25rem 0.65rem;font-size:0.72rem;margin:0">Investigate</button></td>
+                                </tr>
+                                <tr>
+                                    <td style="color:#93c5fd;font-family:monospace;font-size:0.78rem">DESKTOP-FIN01</td>
+                                    <td style="color:#607090;font-size:0.75rem">Win 11 22H2</td>
+                                    <td><span class="health-badge health-ok">Onboarded</span></td>
+                                    <td><span class="health-badge health-ok">Healthy</span></td>
+                                    <td style="color:#607090;font-size:0.75rem">09:28 UTC</td>
+                                    <td><span style="font-size:0.72rem;color:#607090">—</span></td>
+                                </tr>
+                                <tr>
+                                    <td style="color:#93c5fd;font-family:monospace;font-size:0.78rem">DESKTOP-HR02</td>
+                                    <td style="color:#607090;font-size:0.75rem">Win 10 21H2</td>
+                                    <td><span class="health-badge health-ok">Onboarded</span></td>
+                                    <td><span class="health-badge health-ok">Healthy</span></td>
+                                    <td style="color:#607090;font-size:0.75rem">09:10 UTC</td>
+                                    <td><span style="font-size:0.72rem;color:#607090">—</span></td>
+                                </tr>
+                                <tr>
+                                    <td style="color:#93c5fd;font-family:monospace;font-size:0.78rem">LAPTOP-EXEC01</td>
+                                    <td style="color:#607090;font-size:0.75rem">Win 11 23H2</td>
+                                    <td><span class="health-badge health-risk">Not onboarded</span></td>
+                                    <td><span class="health-badge health-risk">Unknown</span></td>
+                                    <td style="color:#607090;font-size:0.75rem">—</td>
+                                    <td><button class="action-btn" style="width:auto;padding:0.25rem 0.65rem;font-size:0.72rem;margin:0">Onboard</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div id="isolatedMsg" style="display:none;margin-top:0.75rem;padding:0.75rem;background:rgba(52,211,153,0.07);border:1px solid rgba(52,211,153,0.25);border-radius:8px;font-size:0.8rem;color:#34d399">
+                            DESKTOP-MKT07 has been isolated. Network connectivity blocked except for Defender telemetry. Device will remain isolated until released by a SOC analyst.
+                        </div>
+                    </div>
+
+                    <!-- VIEW: EMAIL & COLLAB -->
+                    <div class="portal-view" id="view-email">
+                        <div class="portal-section-header">
+                            <h2>Email Quarantine</h2>
+                            <span class="sub">24 messages quarantined (last 7 days)</span>
+                        </div>
+                        <div id="emailList">
+                            <div class="email-row" id="email-fp">
+                                <div class="email-sender">billing@contoso-vendors.com</div>
+                                <div class="email-subject">Q1 Invoice — please review #4421</div>
+                                <div class="email-reason"><span class="health-badge health-risk" style="font-size:0.65rem">Phish suspect</span></div>
+                                <button onclick="releaseEmail()" class="action-btn" style="width:auto;padding:0.2rem 0.6rem;font-size:0.7rem;margin:0" id="release-btn">Release</button>
+                            </div>
+                            <div class="email-row">
+                                <div class="email-sender">noreply@malicious-site.ru</div>
+                                <div class="email-subject">Your account requires immediate action</div>
+                                <div class="email-reason"><span class="health-badge health-crit" style="font-size:0.65rem">Malware</span></div>
+                                <button class="action-btn" style="width:auto;padding:0.2rem 0.6rem;font-size:0.7rem;margin:0">Delete</button>
+                            </div>
+                            <div class="email-row">
+                                <div class="email-sender">invoice@fake-domain.com</div>
+                                <div class="email-subject">Wire transfer confirmation — urgent</div>
+                                <div class="email-reason"><span class="health-badge health-crit" style="font-size:0.65rem">BEC</span></div>
+                                <button class="action-btn" style="width:auto;padding:0.2rem 0.6rem;font-size:0.7rem;margin:0">Delete</button>
+                            </div>
+                            <div class="email-row">
+                                <div class="email-sender">hr-newsletter@contoso.com</div>
+                                <div class="email-subject">Benefits enrollment reminder — April 2026</div>
+                                <div class="email-reason"><span class="health-badge health-risk" style="font-size:0.65rem">Bulk mail</span></div>
+                                <button class="action-btn" style="width:auto;padding:0.2rem 0.6rem;font-size:0.7rem;margin:0">Review</button>
+                            </div>
+                            <div class="email-row">
+                                <div class="email-sender">update@linux-kernel.org</div>
+                                <div class="email-subject">Linux 6.9 release notes and changelog</div>
+                                <div class="email-reason"><span class="health-badge health-risk" style="font-size:0.65rem">URL match</span></div>
+                                <button class="action-btn" style="width:auto;padding:0.2rem 0.6rem;font-size:0.7rem;margin:0">Review</button>
+                            </div>
+                        </div>
+                        <div id="emailReleasedMsg" style="display:none;margin-top:0.75rem;padding:0.75rem;background:rgba(52,211,153,0.07);border:1px solid rgba(52,211,153,0.25);border-radius:8px;font-size:0.8rem;color:#34d399">
+                            Message from billing@contoso-vendors.com released to recipient inbox. Sender added to safe senders list.
+                        </div>
+                    </div>
+
+                    <!-- VIEW: SECURE SCORE -->
+                    <div class="portal-view" id="view-score">
+                        <div class="portal-section-header">
+                            <h2>Microsoft Secure Score</h2>
+                            <span class="sub">contoso.com</span>
+                        </div>
+                        <div class="score-dashboard">
+                            <div class="score-gauge-wrap">
+                                <div class="score-gauge-label">Overall Score</div>
+                                <div class="score-pct" id="scoreGaugeVal">62%</div>
+                                <div class="score-pct-sub" id="scoreGaugePts">310 / 500 pts</div>
+                                <div class="score-change-up" id="scoreChangeEl">+2 pts this week</div>
+                                <!-- SVG arc gauge -->
+                                <svg viewBox="0 0 120 70" width="120" style="margin-top:0.75rem">
+                                    <path d="M10,65 A55,55 0 0,1 110,65" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="10"/>
+                                    <path id="scoreArcFill" d="M10,65 A55,55 0 0,1 110,65" fill="none" stroke="#34d399" stroke-width="10"
+                                        stroke-dasharray="172.8 172.8" stroke-dashoffset="65.7" stroke-linecap="round"/>
+                                </svg>
+                            </div>
+                            <div class="score-breakdown" id="scoreBreakdown">
+                                <div style="font-size:0.7rem;color:#607090;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.25rem">Category Breakdown</div>
+                                <div class="score-cat-row">
+                                    <span class="score-cat-label">Identity</span>
+                                    <div class="score-cat-bar"><div class="score-cat-fill" style="width:78%;background:#60a5fa"></div></div>
+                                    <span class="score-cat-pct">78%</span>
+                                </div>
+                                <div class="score-cat-row">
+                                    <span class="score-cat-label">Devices</span>
+                                    <div class="score-cat-bar"><div class="score-cat-fill" style="width:55%;background:#34d399"></div></div>
+                                    <span class="score-cat-pct">55%</span>
+                                </div>
+                                <div class="score-cat-row">
+                                    <span class="score-cat-label">Apps</span>
+                                    <div class="score-cat-bar"><div class="score-cat-fill" style="width:70%;background:#a78bfa"></div></div>
+                                    <span class="score-cat-pct">70%</span>
+                                </div>
+                                <div class="score-cat-row">
+                                    <span class="score-cat-label">Data</span>
+                                    <div class="score-cat-bar"><div class="score-cat-fill" style="width:42%;background:#f59e0b"></div></div>
+                                    <span class="score-cat-pct">42%</span>
+                                </div>
+                                <div class="score-cat-row">
+                                    <span class="score-cat-label">Infrastructure</span>
+                                    <div class="score-cat-bar"><div class="score-cat-fill" style="width:60%;background:#ef4444"></div></div>
+                                    <span class="score-cat-pct">60%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="font-size:0.7rem;color:#607090;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.5rem;margin-top:0.5rem">Recommended Improvement Actions</div>
+                        <div class="action-list" id="improvementList">
+                            <div class="action-row" id="action-mfa" onclick="completeImprovementAction('mfa')">
+                                <div class="action-pts" id="pts-mfa">+15</div>
+                                <div class="action-info">
+                                    <div class="action-name">Require MFA for all administrators</div>
+                                    <div class="action-product">Microsoft Entra ID &nbsp;·&nbsp; Identity</div>
+                                </div>
+                                <span class="action-status-badge asbadge-todo" id="status-mfa">To address</span>
+                            </div>
+                            <div class="action-row" id="action-cap" onclick="completeImprovementAction('cap')">
+                                <div class="action-pts" id="pts-cap">+10</div>
+                                <div class="action-info">
+                                    <div class="action-name">Enable Conditional Access for guest users</div>
+                                    <div class="action-product">Microsoft Entra ID &nbsp;·&nbsp; Identity</div>
+                                </div>
+                                <span class="action-status-badge asbadge-todo" id="status-cap">To address</span>
+                            </div>
+                            <div class="action-row" id="action-dlp" onclick="completeImprovementAction('dlp')">
+                                <div class="action-pts" id="pts-dlp">+8</div>
+                                <div class="action-info">
+                                    <div class="action-name">Create DLP policy for sensitive data types</div>
+                                    <div class="action-product">Microsoft Purview &nbsp;·&nbsp; Data</div>
+                                </div>
+                                <span class="action-status-badge asbadge-todo" id="status-dlp">To address</span>
+                            </div>
+                            <div class="action-row" id="action-atp" onclick="completeImprovementAction('atp')">
+                                <div class="action-pts" id="pts-atp">+12</div>
+                                <div class="action-info">
+                                    <div class="action-name">Enable Microsoft Defender for all endpoints</div>
+                                    <div class="action-product">Defender for Endpoint &nbsp;·&nbsp; Devices</div>
+                                </div>
+                                <span class="action-status-badge asbadge-todo" id="status-atp">To address</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div><!-- /def-content -->
+            </div><!-- /defender-layout -->
+        </div><!-- /defender-shell -->
+    </main>
+
+    <!-- RIGHT: INSTRUCTION PANEL -->
+    <aside class="instruction-panel" id="instructionPanel">
+        <div class="instr-task-num"  id="instrTaskNum">TASK 1 OF 10</div>
+        <div class="instr-task-title" id="instrTaskTitle">Review Secure Score</div>
+        <div class="instr-body" id="instrBody">
+            <p>Navigate to <strong>Secure Score</strong> in the sidebar. The Microsoft Secure Score is a measurement of your organization's security posture across identity, devices, apps, data, and infrastructure.</p>
+            <p>Review the overall percentage, the point breakdown, and identify which category has the lowest score.</p>
+        </div>
+        <div class="instr-divider"></div>
+        <div class="instr-action-label">Your Action</div>
+        <button class="action-btn btn-primary" id="primaryActionBtn" onclick="handleTaskAction()">
+            <img src="/assets/images/icons/icon-chart.webp" alt=""> Open Secure Score
+        </button>
+        <div class="instr-concept" id="instrConcept">
+            <strong>Exam concept:</strong> Microsoft Secure Score ranges from 0 to the maximum possible points for your tenant. A higher score does not mean zero risk — it means you have implemented more recommended security controls.
+        </div>
+    </aside>
+
+</div>
+
+<!-- SUCCESS OVERLAY -->
+<div class="success-overlay" id="successOverlay">
+    <div class="success-card">
+        <h2>SC-900 Ch.3 Lab Complete</h2>
+        <p>You reviewed Secure Score and improvement actions, investigated active incidents, explored threat analytics reports, checked endpoint health, isolated a compromised device, reviewed email quarantine, and verified a score increase. You have explored the full breadth of the Microsoft 365 Defender portal.</p>
+        <button class="complete-btn" onclick="finishLab()">Complete Lab</button>
+    </div>
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    var TOTAL = 10;
+    var taskDone = {};
+    for (var i = 1; i <= TOTAL; i++) { taskDone[i] = false; }
+    var currentTask = 1;
+    var threatSelected = null;
+    var improvementDone = null;
+    var scoreRaised = false;
+
+    /* Per-task configuration */
+    var TASK_CONFIG = {
+        1: {
+            view: 'score', nav: 'nav-score',
+            taskNum: 'TASK 1 OF 10', title: 'Review Secure Score',
+            body: 'Navigate to <strong>Secure Score</strong> in the left sidebar. The Microsoft Secure Score is a measurement of your organization\'s security posture across identity, devices, apps, data, and infrastructure.<br><br>Review the overall percentage, the point breakdown, and identify which category has the lowest score. <strong>Data (42%)</strong> is the lowest — remember that for the improvement actions later.',
+            actionLabel: 'Open Secure Score', actionIcon: 'icon-chart.webp',
+            concept: '<strong>Exam concept:</strong> Microsoft Secure Score ranges from 0 to the maximum possible points. Higher score = more recommended controls implemented, not zero risk. Scores are tenant-specific and updated within 24 hours of implementing a control.'
+        },
+        2: {
+            view: 'home', nav: 'nav-home',
+            taskNum: 'TASK 2 OF 10', title: 'Check Active Incidents',
+            body: 'Return to the <strong>Home</strong> dashboard and review the four summary widgets at the top. Note the <strong>5 Active Incidents</strong> count with 1 High severity, the Secure Score of 62%, and the 3 at-risk devices.<br><br>The dashboard provides a quick operational view of the tenant\'s current security state.',
+            actionLabel: 'View Home dashboard', actionIcon: 'icon-home.webp',
+            concept: '<strong>Exam concept:</strong> The M365 Defender Home dashboard aggregates data from Defender for Endpoint, Defender for Office 365, Defender for Identity, and Defender for Cloud Apps into a single unified view. This is the XDR console.'
+        },
+        3: {
+            view: 'threat', nav: 'nav-threat',
+            taskNum: 'TASK 3 OF 10', title: 'Explore Threat Report',
+            body: 'Navigate to <strong>Threat Analytics</strong>. These reports are written by Microsoft security researchers and describe active threat campaigns in the wild.<br><br>Click the <strong>APT29 — Cozy Bear C2 Infrastructure</strong> report to expand the analyst summary. Review the threat description and exposure indicators.',
+            actionLabel: 'Open Threat Analytics', actionIcon: 'icon-target.webp',
+            concept: '<strong>Exam concept:</strong> Threat Analytics reports show: analyst report (narrative), related alerts in your tenant, and mitigation status (how many recommended mitigations have been applied). They help you understand your exposure to a specific threat.'
+        },
+        4: {
+            view: 'threat', nav: 'nav-threat',
+            taskNum: 'TASK 4 OF 10', title: 'Assess Exposure Status',
+            body: 'Still in <strong>Threat Analytics</strong>, review the mitigation status section in the APT29 report detail. This tells you which recommended controls are in place and which are missing relative to this specific threat.<br><br>The exposure status is specific to the selected threat — it differs from Secure Score, which is an aggregate measure.',
+            actionLabel: 'Check APT29 mitigations', actionIcon: 'icon-shield.webp',
+            concept: '<strong>Exam concept:</strong> In Threat Analytics, "Impacted assets" shows how many devices and users in your tenant have been affected. "Mitigation status" shows whether the recommended controls for that specific threat are active — even if your overall Secure Score is high.'
+        },
+        5: {
+            view: 'endpoints', nav: 'nav-endpoints',
+            taskNum: 'TASK 5 OF 10', title: 'Review Endpoint Health',
+            body: 'Navigate to <strong>Endpoints</strong> (Device Inventory). Review the onboarding status and risk level for each device.<br><br>DESKTOP-MKT07 shows <strong>Critical</strong> risk — it is the device linked to INC-4821. LAPTOP-EXEC01 is <strong>not onboarded</strong>, which means Defender for Endpoint has no visibility into that device.',
+            actionLabel: 'View Device Inventory', actionIcon: 'icon-network.webp',
+            concept: '<strong>Exam concept:</strong> Defender for Endpoint requires devices to be "onboarded" before they are monitored. Onboarding can be done via Intune, Group Policy, SCCM, or local script. Unonboarded devices have zero EDR coverage — a critical blind spot.'
+        },
+        6: {
+            view: 'endpoints', nav: 'nav-endpoints',
+            taskNum: 'TASK 6 OF 10', title: 'Isolate Compromised Device',
+            body: 'With the device inventory open, click <strong>Isolate</strong> on <strong>DESKTOP-MKT07</strong>. Device isolation via Defender for Endpoint blocks all network traffic except Defender telemetry and management channels.<br><br>This is a remote response action — no physical access to the machine is required.',
+            actionLabel: 'Isolate DESKTOP-MKT07', actionIcon: 'icon-lock.webp',
+            concept: '<strong>Exam concept:</strong> Defender for Endpoint response actions include: Isolate device, Restrict app execution, Run antivirus scan, Collect investigation package, Live response session. These actions are available from the device page without requiring local admin access.'
+        },
+        7: {
+            view: 'email', nav: 'nav-email',
+            taskNum: 'TASK 7 OF 10', title: 'Review Email Quarantine',
+            body: 'Navigate to <strong>Email &amp; Collab</strong> to review the email quarantine. Messages are quarantined by Defender for Office 365 when they match phishing, malware, bulk, or policy conditions.<br><br>Review each quarantined message and its detection reason. Notice that the first message (billing invoice) may be a false positive from a legitimate vendor.',
+            actionLabel: 'Open Email Quarantine', actionIcon: 'icon-email.webp',
+            concept: '<strong>Exam concept:</strong> Defender for Office 365 Plan 1 includes: anti-phishing policies, anti-malware, safe links, safe attachments, and anti-spam. Plan 2 adds: attack simulation training, threat explorer, automated investigation and response (AIR), and Secure Score integration.'
+        },
+        8: {
+            view: 'email', nav: 'nav-email',
+            taskNum: 'TASK 8 OF 10', title: 'Release False Positive',
+            body: 'The message from <strong>billing@contoso-vendors.com</strong> was quarantined as "Phish suspect" but is from a known legitimate vendor. Click <strong>Release</strong> to deliver it to the recipient\'s inbox.<br><br>You can also add the sender to the safe senders list to prevent future false positives from that domain.',
+            actionLabel: 'Release false positive email', actionIcon: 'icon-unlock.webp',
+            concept: '<strong>Exam concept:</strong> Quarantine admin actions: Release (deliver to inbox), Delete (permanent removal), Preview (view content without delivery), Report as not junk (submission to Microsoft). Tenant admins can manage quarantine for all users.'
+        },
+        9: {
+            view: 'score', nav: 'nav-score',
+            taskNum: 'TASK 9 OF 10', title: 'Complete an Improvement Action',
+            body: 'Return to <strong>Secure Score</strong> and review the Recommended Improvement Actions. Click <strong>Require MFA for all administrators</strong> to mark it as completed.<br><br>In a real tenant, this action requires you to implement the control in Entra ID first, then return to Secure Score where it will be automatically detected and credited.',
+            actionLabel: 'Complete MFA improvement action', actionIcon: 'icon-checkmark.webp',
+            concept: '<strong>Exam concept:</strong> Improvement actions have three states: "To address" (not implemented), "Resolved through third party" (implemented via non-Microsoft tool), and "Accepted risk" (consciously not implementing due to business exception).'
+        },
+        10: {
+            view: 'score', nav: 'nav-score',
+            taskNum: 'TASK 10 OF 10', title: 'Verify Score Increase',
+            body: 'Still on the <strong>Secure Score</strong> page, verify that completing the MFA improvement action has raised the overall score from <strong>62%</strong> to a higher value.<br><br>The score increase reflects the 15 points credited for requiring MFA for administrators — one of the highest-value single controls in Microsoft Secure Score.',
+            actionLabel: 'Verify updated score', actionIcon: 'icon-chart.webp',
+            concept: '<strong>Exam concept:</strong> Requiring MFA for administrators is consistently the highest-impact single control in Microsoft Secure Score. Microsoft recommends it as a Tier 1 immediate action for any tenant because compromised admin accounts are the most common initial access vector in cloud breaches.'
+        }
+    };
+
+    /* ------------------------------------------------------------------ */
+    /* Portal navigation                                                    */
+    /* ------------------------------------------------------------------ */
+    function switchView(viewId) {
+        var views = document.querySelectorAll('.portal-view');
+        views.forEach(function (v) { v.classList.remove('view-active'); });
+        var navItems = document.querySelectorAll('.def-nav-item');
+        navItems.forEach(function (n) { n.classList.remove('nav-active'); });
+
+        var targetView = document.getElementById('view-' + viewId);
+        if (targetView) { targetView.classList.add('view-active'); }
+        var targetNav = document.getElementById('nav-' + viewId);
+        if (targetNav) { targetNav.classList.add('nav-active'); }
+
+        var portal = document.getElementById('portalArea');
+        if (portal) { portal.scrollTop = 0; }
+    }
+    window.switchView = switchView;
+
+    /* ------------------------------------------------------------------ */
+    /* Threat card selection                                                */
+    /* ------------------------------------------------------------------ */
+    var THREAT_DETAILS = {
+        apt29: '<strong>APT29 (Cozy Bear)</strong> is a Russian nation-state threat actor attributed to SVR intelligence services. This report confirms active C2 infrastructure (203.0.113.47) matched in your SigninLogs. Affected user: rjones@contoso.com.<br><br><strong>Mitigations in place:</strong> MFA (partial), Sentinel TI enrichment playbook. <strong>Missing:</strong> Privileged Identity Management, Conditional Access for risky sign-ins.',
+        phish: '<strong>Business Email Compromise (BEC)</strong> campaign targeting Finance. Attackers impersonate vendors using lookalike domains. Three Finance users received spear-phishing emails in the past 30 days. Two were quarantined; one was delivered before policy update.<br><br><strong>Mitigations:</strong> Anti-phishing policy active. <strong>Missing:</strong> Attack simulation training, DMARC enforcement on contoso.com.',
+        ransomware: '<strong>BlackCat (ALPHV)</strong> ransomware precursor TTPs detected in global telemetry. Indicators include: Cobalt Strike beacons, credential harvesting via Mimikatz, and lateral movement via PsExec. No active indicators in your tenant.<br><br><strong>Exposure:</strong> 3 devices running unpatched Exchange. Patch immediately.',
+        vuln: '<strong>CVE-2026-0812</strong> is a Critical (CVSS 9.8) RCE vulnerability in Exchange Server. Exploit code is publicly available. 3 on-premises Exchange servers in your inventory are unpatched (SRV-EXCH01, SRV-EXCH02, SRV-EXCH03).<br><br><strong>Action required:</strong> Apply CU16 + January 2026 SU within 72 hours.'
+    };
+
+    function selectThreat(id) {
+        /* Clear previous selection */
+        var cards = document.querySelectorAll('.threat-card');
+        cards.forEach(function (c) { c.classList.remove('selected'); });
+
+        /* Select this card */
+        var card = document.getElementById('threat-' + id);
+        if (card) { card.classList.add('selected'); }
+
+        /* Show detail */
+        var panel = document.getElementById('threatDetailPanel');
+        var content = document.getElementById('threatDetailContent');
+        if (panel && content) {
+            content.innerHTML = THREAT_DETAILS[id] || '';
+            panel.classList.add('visible');
+        }
+
+        threatSelected = id;
+
+        /* Complete task 3 on first threat open */
+        if (currentTask === 3 && !taskDone[3]) {
+            if (id === 'apt29') { completeTask(3); }
+        }
+        /* Complete task 4 on revisit with exposure review */
+        if (currentTask === 4 && !taskDone[4]) {
+            if (id === 'apt29') { completeTask(4); }
+        }
+    }
+    window.selectThreat = selectThreat;
+
+    /* ------------------------------------------------------------------ */
+    /* Device isolation                                                     */
+    /* ------------------------------------------------------------------ */
+    function isolateDevice() {
+        var riskBadge = document.getElementById('mkt07-risk');
+        if (riskBadge) {
+            riskBadge.textContent = 'Isolated';
+            riskBadge.className = 'health-badge health-ok';
+        }
+        var isolateBtn = document.getElementById('isolate-btn');
+        if (isolateBtn) {
+            isolateBtn.textContent = 'Isolated';
+            isolateBtn.disabled = true;
+            isolateBtn.style.color = '#34d399';
+        }
+        var msg = document.getElementById('isolatedMsg');
+        if (msg) { msg.style.display = 'block'; }
+        if (currentTask === 6 && !taskDone[6]) { completeTask(6); }
+    }
+    window.isolateDevice = isolateDevice;
+
+    /* ------------------------------------------------------------------ */
+    /* Email release                                                        */
+    /* ------------------------------------------------------------------ */
+    function releaseEmail() {
+        var emailRow = document.getElementById('email-fp');
+        if (emailRow) { emailRow.style.opacity = '0.4'; emailRow.style.pointerEvents = 'none'; }
+        var msg = document.getElementById('emailReleasedMsg');
+        if (msg) { msg.style.display = 'block'; }
+        if (currentTask === 8 && !taskDone[8]) { completeTask(8); }
+    }
+    window.releaseEmail = releaseEmail;
+
+    /* ------------------------------------------------------------------ */
+    /* Improvement action completion                                        */
+    /* ------------------------------------------------------------------ */
+    function completeImprovementAction(id) {
+        if (improvementDone) { return; }
+        improvementDone = id;
+
+        var row = document.getElementById('action-' + id);
+        if (row) { row.classList.add('completed-action'); }
+        var statusBadge = document.getElementById('status-' + id);
+        if (statusBadge) {
+            statusBadge.textContent = 'Completed';
+            statusBadge.className = 'action-status-badge asbadge-done';
+        }
+
+        if (currentTask === 9 && !taskDone[9]) { completeTask(9); }
+    }
+    window.completeImprovementAction = completeImprovementAction;
+
+    /* ------------------------------------------------------------------ */
+    /* Score raise (Task 10)                                                */
+    /* ------------------------------------------------------------------ */
+    function raiseScore() {
+        scoreRaised = true;
+        /* Update score gauge and widget */
+        var gaugeVal = document.getElementById('scoreGaugeVal');
+        var gaugePts = document.getElementById('scoreGaugePts');
+        var changeEl = document.getElementById('scoreChangeEl');
+        var widgetVal = document.getElementById('score-widget-val');
+        if (gaugeVal) { gaugeVal.textContent = '65%'; }
+        if (gaugePts) { gaugePts.textContent = '325 / 500 pts'; }
+        if (changeEl) { changeEl.textContent = '+15 pts (MFA action completed)'; }
+        if (widgetVal) { widgetVal.textContent = '65%'; }
+
+        /* Update SVG arc (65% of 172.8 dash = 112.3, offset = 172.8 - 112.3 = 60.5) */
+        var arc = document.getElementById('scoreArcFill');
+        if (arc) { arc.setAttribute('stroke-dashoffset', '60.5'); }
+
+        /* Update identity category bar */
+        var identityBar = document.querySelector('.score-cat-fill');
+        if (identityBar) { identityBar.style.width = '93%'; }
+        var identityPct = document.querySelector('.score-cat-pct');
+        if (identityPct) { identityPct.textContent = '93%'; }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Task progression                                                     */
+    /* ------------------------------------------------------------------ */
+    function selectTask(num) {
+        currentTask = num;
+        for (var j = 1; j <= TOTAL; j++) {
+            var card = document.getElementById('tc-' + j);
+            if (!card) { continue; }
+            card.classList.remove('active');
+            if (j === num) { card.classList.add('active'); }
+        }
+
+        var cfg = TASK_CONFIG[num];
+        if (!cfg) { return; }
+        document.getElementById('instrTaskNum').textContent   = cfg.taskNum;
+        document.getElementById('instrTaskTitle').textContent = cfg.title;
+        document.getElementById('instrBody').innerHTML        = cfg.body;
+        document.getElementById('instrConcept').innerHTML     = cfg.concept;
+
+        var btn = document.getElementById('primaryActionBtn');
+        if (taskDone[num]) {
+            btn.className = 'action-btn btn-done';
+            btn.innerHTML = '<img src="/assets/images/icons/icon-checkmark.webp" alt="" style="width:1em;height:1em"> Task completed';
+        } else {
+            btn.className = 'action-btn btn-primary';
+            btn.innerHTML = '<img src="/assets/images/icons/icon-' + cfg.actionIcon.replace('icon-','') + '" alt="" style="width:1em;height:1em"> ' + cfg.actionLabel;
+        }
+
+        switchView(cfg.view);
+    }
+    window.selectTask = selectTask;
+
+    /* ------------------------------------------------------------------ */
+    /* Primary action handler                                               */
+    /* ------------------------------------------------------------------ */
+    function handleTaskAction() {
+        if (taskDone[currentTask]) { return; }
+        var cfg = TASK_CONFIG[currentTask];
+        switchView(cfg.view);
+
+        switch (currentTask) {
+            case 1:  completeTask(1); break;
+            case 2:  completeTask(2); break;
+            case 3:
+                switchView('threat');
+                selectThreat('apt29');
+                /* completeTask fired inside selectThreat */
+                break;
+            case 4:
+                switchView('threat');
+                selectThreat('apt29');
+                /* completeTask fired inside selectThreat for task 4 */
+                if (!taskDone[4]) { setTimeout(function(){ completeTask(4); }, 300); }
+                break;
+            case 5:  completeTask(5); break;
+            case 6:  isolateDevice(); break;
+            case 7:  completeTask(7); break;
+            case 8:  releaseEmail(); break;
+            case 9:  completeImprovementAction('mfa'); break;
+            case 10:
+                raiseScore();
+                completeTask(10);
+                break;
+        }
+    }
+    window.handleTaskAction = handleTaskAction;
+
+    /* ------------------------------------------------------------------ */
+    /* Task completion engine                                               */
+    /* ------------------------------------------------------------------ */
+    function completeTask(num) {
+        if (taskDone[num]) { return; }
+        taskDone[num] = true;
+
+        var card = document.getElementById('tc-' + num);
+        if (card) { card.classList.add('done'); card.classList.remove('active'); }
+        var numEl = document.getElementById('tn-' + num);
+        if (numEl) { numEl.textContent = '\u2713'; }
+
+        var doneCount = 0;
+        for (var k = 1; k <= TOTAL; k++) { if (taskDone[k]) { doneCount++; } }
+        var pct = Math.round((doneCount / TOTAL) * 100);
+        document.getElementById('progressFill').style.width  = pct + '%';
+        document.getElementById('progressCount').textContent = doneCount + ' / ' + TOTAL;
+
+        if (currentTask === num) {
+            var btn = document.getElementById('primaryActionBtn');
+            btn.className = 'action-btn btn-done';
+            btn.innerHTML = '<img src="/assets/images/icons/icon-checkmark.webp" alt="" style="width:1em;height:1em"> Task completed';
+        }
+
+        if (doneCount < TOTAL) {
+            var next = null;
+            for (var n = 1; n <= TOTAL; n++) {
+                if (!taskDone[n]) { next = n; break; }
             }
-            if (!matched) {
-                if (trimmed === 'help') { addLine('Type the commands shown in the task instructions.', 'term-line-info'); addLine('Each task provides the exact command to run.', 'term-line-dim'); }
-                else if (trimmed === 'clear') { outputEl.innerHTML = ''; }
-                else { addLine('Command not recognized in this lab simulation. Check the task instructions.', 'term-line-err'); }
+            if (next && next !== currentTask) {
+                setTimeout(function () { selectTask(next); }, 350);
             }
+        } else {
+            setTimeout(function () {
+                document.getElementById('successOverlay').classList.add('show');
+            }, 600);
         }
+    }
 
-        function completeTask(num) {
-            if (taskDone[num]) return;
-            taskDone[num] = true;
-            var card = document.getElementById('task-card-' + num);
-            if (card) { card.classList.add('completed'); card.classList.remove('active'); }
-            var doneCount = Object.keys(taskDone).filter(function(k){return taskDone[k];}).length;
-            document.getElementById('taskProgress').textContent = doneCount + ' / ' + TOTAL_TASKS + ' Tasks';
-            document.getElementById('progressBarFill').style.width = Math.round((doneCount/TOTAL_TASKS)*100) + '%';
-            addBlank();
-            addHTML('  <span style="color:#34d399">[Task ' + num + ' complete]</span> <span style="color:#5a2020">' + escH(TASK_NAMES[num]||'') + '</span>', 'term-line-info');
-            addBlank();
-            if (doneCount === TOTAL_TASKS) { setTimeout(function(){ document.getElementById('successOverlay').classList.add('active'); }, 700); return; }
-            var next = null; for (var j=1;j<=TOTAL_TASKS;j++) { if (!taskDone[j]) { next=j; break; } }
-            if (next) selectTask(next);
+    /* ------------------------------------------------------------------ */
+    /* Finish                                                               */
+    /* ------------------------------------------------------------------ */
+    function finishLab() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'sc900-ch03-lab', { returnUrl: '../index.html' });
+        } else {
+            window.location.href = '../index.html';
         }
+    }
+    window.finishLab = finishLab;
 
-        function selectTask(num) {
-            currentTask = num;
-            for (var i=1;i<=TOTAL_TASKS;i++) { var c=document.getElementById('task-card-'+i); if(c){c.classList.remove('active'); if(i===num) c.classList.add('active');} }
-            var info = TASK_INSTRUCTIONS[num]; if (!info) return;
-            var stepEl=document.getElementById('instructionsStep'); var hintEl=document.getElementById('instructionsHint'); var hintCmd=document.getElementById('hintCommand');
-            if (stepEl) stepEl.innerHTML = info.step.replace(/
-/g,'<br>');
-            if (hintEl) hintEl.textContent = info.hint;
-            if (hintCmd) { hintCmd.textContent = info.cmd; hintCmd.classList.remove('visible'); }
-            var panel=document.getElementById('instructionsPanel'); if(panel&&panel.classList.contains('collapsed')) panel.classList.remove('collapsed');
-        }
+    /* Init */
+    selectTask(1);
 
-        window.selectTask = selectTask;
-        window.toggleInstructions = function() { document.getElementById('instructionsPanel').classList.toggle('collapsed'); };
-        window.revealHint = function() { var h=document.getElementById('hintCommand'); if(h) h.classList.toggle('visible'); };
-        window.finishLab = function() { if (typeof ModuleProgress !== 'undefined') { ModuleProgress.complete('shield', 'sc900-ch03-lab', { returnUrl: '../index.html' }); } else { window.location.href = '../index.html'; } };
+})();
+</script>
 
-        function init() {
-            outputEl = document.getElementById('termOutput');
-            inputEl = document.getElementById('termInput');
-            ps1PathEl = document.getElementById('termPS1Path');
-            if (!outputEl || !inputEl) return;
-            addLine("Security Solutions Lab -- SC-900 Chapter 3", "term-welcome");
-            addLine("Shield House Security Terminal Simulation", "term-welcome");
-            addLine("", "term-line-out");
-            addLine("Explore foundational security models, classify threats, and test encryption.", "term-line-info");
-            addLine("Type \"help\" for guidance. Complete 10 tasks to finish the lab.", "term-line-info");
-            addBlank();
-            inputEl.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') { var cmd=inputEl.value; inputEl.value=''; if(cmd.trim()){cmdHistory.push(cmd);histIdx=cmdHistory.length;} execLine(cmd); }
-                else if (e.key === 'ArrowUp') { e.preventDefault(); if(histIdx>0){histIdx--;inputEl.value=cmdHistory[histIdx];} }
-                else if (e.key === 'ArrowDown') { e.preventDefault(); if(histIdx<cmdHistory.length-1){histIdx++;inputEl.value=cmdHistory[histIdx];}else{histIdx=cmdHistory.length;inputEl.value='';} }
-            });
-            outputEl.addEventListener('click', function(){ inputEl.focus(); });
-            inputEl.focus();
-            selectTask(1);
-        }
-        if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
-    })();
-    </script>
-    <script src="../../../../components/AchievementManager.js"></script>
-    <script src="../../../../components/FluxCapacitor.js"></script>
+<script src="../../../../components/FluxCapacitor.js"></script>
 </body>
 </html>

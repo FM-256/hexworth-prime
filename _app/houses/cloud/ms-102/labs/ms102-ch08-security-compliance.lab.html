@@ -4,304 +4,689 @@
     <meta charset="UTF-8">
     <script src="../../../../components/AccessGuard.js"></script>
     <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
     <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
     <script src="../../../../components/FirebaseAuth.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Security and Compliance Lab -- MS-102 Chapter 8</title>
+    <title>Microsoft Purview Portal Lab | MS-102 Chapter 8</title>
     <style>
+        :root {
+            --cloud-primary: #3b82f6;
+            --cloud-secondary: #1d4ed8;
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #0f1623;
+            --bg-tertiary: #161f30;
+            --bg-panel: #0c1220;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #4a6080;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --border: rgba(59,130,246,0.18);
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { height: 100vh; overflow: hidden; background: #0c0c0c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #b3cef5; display: flex; flex-direction: column; }
-        .lab-header { flex-shrink: 0; padding: 15px 30px; background: rgba(10,12,20,0.95); border-bottom: 1px solid rgba(59,130,246,0.2); display: flex; justify-content: space-between; align-items: center; }
-        .header-left { display: flex; align-items: center; gap: 20px; }
-        .back-btn { padding: 8px 16px; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; color: #3b82f6; text-decoration: none; font-size: 0.85rem; transition: all 0.3s ease; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-primary); color: var(--text-primary); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        .topbar { height: 52px; background: var(--bg-panel); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 16px; flex-shrink: 0; }
+        .topbar-logo { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; font-weight: 600; color: var(--cloud-primary); }
+        .topbar-logo-icon { width: 28px; height: 28px; background: linear-gradient(135deg, #7c3aed, #5b21b6); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; color: #fff; }
+        .topbar-sep { width: 1px; height: 22px; background: var(--border); }
+        .topbar-title { font-size: 0.85rem; color: var(--text-secondary); }
+        .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+        .back-btn { padding: 6px 14px; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; color: var(--cloud-primary); text-decoration: none; font-size: 0.8rem; transition: background 0.2s; }
         .back-btn:hover { background: rgba(59,130,246,0.2); }
-        .lab-title { font-size: 1rem; color: #dbeafe; }
-        .lab-badge { padding: 4px 12px; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); border-radius: 12px; font-size: 0.7rem; color: #60a5fa; letter-spacing: 0.05em; }
-        .lab-badge-ch { padding: 4px 12px; background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.3); border-radius: 12px; font-size: 0.7rem; color: #34d399; letter-spacing: 0.05em; }
-        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #6b82a0; }
-        .task-count { color: #3b82f6; font-weight: 500; }
-        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(59,130,246,0.15); border-radius: 3px; overflow: hidden; }
-        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #1d4ed8); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
-        .lab-container { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
-        .task-panel { background: rgba(10,14,22,0.95); border-right: 1px solid rgba(59,130,246,0.15); overflow-y: auto; padding: 20px; }
-        .task-section { margin-bottom: 25px; }
-        .task-section-title { font-size: 0.68rem; color: #3b5278; letter-spacing: 0.15em; margin-bottom: 12px; text-transform: uppercase; }
-        .task-card { background: rgba(12,18,32,0.8); border: 1px solid rgba(59,130,246,0.15); border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s ease; }
-        .task-card:hover { border-color: rgba(59,130,246,0.4); }
-        .task-card.active { border-color: #3b82f6; background: rgba(59,130,246,0.1); }
-        .task-card.completed { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.04); }
-        .task-card.completed .task-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; font-weight: 400; }
-        .task-number { font-size: 0.68rem; color: #3b82f6; margin-bottom: 4px; }
-        .task-name { font-size: 0.9rem; color: #dbeafe; margin-bottom: 4px; }
-        .task-desc { font-size: 0.77rem; color: #6b82a0; line-height: 1.45; }
-        .task-desc code { background: rgba(59,130,246,0.15); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; color: #60a5fa; font-family: 'Consolas', monospace; }
-        .terminal-panel { display: flex; flex-direction: column; background: #0a0a0a; position: relative; overflow: hidden; }
-        .term-toolbar { flex-shrink: 0; padding: 8px 20px; background: rgba(12,18,28,0.9); border-bottom: 1px solid rgba(59,130,246,0.15); display: flex; align-items: center; gap: 12px; }
-        .term-dot { width: 12px; height: 12px; border-radius: 50%; }
-        .term-dot-red { background: #ff5f57; } .term-dot-amber { background: #febc2e; } .term-dot-green { background: #28c840; }
-        .term-title { flex: 1; text-align: center; font-size: 0.8rem; color: #4a6080; font-family: 'Consolas', 'Courier New', monospace; }
-        .term-vm-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #34d399; }
-        .term-status-dot { width: 7px; height: 7px; background: #34d399; border-radius: 50%; animation: pulse 2s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-        .term-output { flex: 1; overflow-y: auto; padding: 16px 360px 8px 20px; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.875rem; line-height: 1.6; }
-        .term-input-row { flex-shrink: 0; display: flex; align-items: center; padding: 8px 360px 12px 20px; border-top: 1px solid rgba(59,130,246,0.1); gap: 0; }
-        .term-prompt-label { font-family: 'Consolas', 'Courier New', monospace; font-size: 0.875rem; white-space: nowrap; flex-shrink: 0; }
-        .term-prompt-user { color: #3b82f6; } .term-prompt-sep { color: #3b5278; } .term-prompt-path { color: #34d399; } .term-prompt-dollar { color: #dbeafe; margin-right: 6px; }
-        .term-input { flex: 1; background: transparent; border: none; outline: none; color: #dbeafe; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.875rem; caret-color: #3b82f6; }
-        .term-line { white-space: pre-wrap; word-break: break-all; }
-        .term-line-cmd { color: #b3cef5; } .term-line-out { color: #a0d4a0; } .term-line-err { color: #f87171; }
-        .term-line-info { color: #60a5fa; } .term-line-warn { color: #fbbf24; } .term-line-dim { color: #374860; }
-        .term-welcome { color: #3b82f6; }
-        .term-prompt-span { color: #3b82f6; } .term-path-span { color: #34d399; } .term-ps1-sep { color: #3b5278; }
-        .json-key { color: #60a5fa; } .json-string { color: #86efac; } .json-number { color: #fbbf24; } .json-bool { color: #93c5fd; } .json-null { color: #f87171; }
-        .instructions-panel { position: absolute; top: 20px; right: 20px; width: 320px; background: rgba(10,16,28,0.97); border: 1px solid rgba(59,130,246,0.3); border-radius: 12px; padding: 20px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.4); transition: all 0.3s ease; }
-        .instructions-panel.collapsed { width: auto; padding: 10px 14px; cursor: pointer; }
-        .instructions-panel.collapsed .instructions-body { display: none; }
-        .instructions-panel.collapsed .instructions-toggle { transform: rotate(180deg); }
-        .instructions-title { font-size: 1rem; color: #3b82f6; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
-        .instructions-panel.collapsed .instructions-title { margin-bottom: 0; font-size: 0.85rem; }
-        .instructions-toggle { margin-left: auto; width: 28px; height: 28px; background: rgba(59,130,246,0.2); border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; color: #3b82f6; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; flex-shrink: 0; }
-        .instructions-toggle:hover { background: rgba(59,130,246,0.4); }
-        .instructions-step { font-size: 0.88rem; color: #b3cef5; line-height: 1.65; margin-bottom: 14px; }
-        .instructions-step code { background: rgba(59,130,246,0.2); padding: 2px 7px; border-radius: 4px; font-family: 'Consolas', monospace; color: #60a5fa; font-size: 0.85em; }
-        .instructions-hint { font-size: 0.78rem; color: #3b5278; font-style: italic; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(59,130,246,0.15); line-height: 1.5; }
-        .hint-btn { margin-top: 12px; padding: 6px 12px; background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.25); border-radius: 5px; color: #3b82f6; font-size: 0.75rem; cursor: pointer; font-family: 'Segoe UI', sans-serif; transition: all 0.2s ease; width: 100%; text-align: center; }
-        .hint-btn:hover { background: rgba(59,130,246,0.22); }
-        .hint-command { display: none; margin-top: 10px; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(59,130,246,0.25); border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.78rem; color: #86efac; line-height: 1.55; white-space: pre-wrap; word-break: break-all; }
-        .hint-command.visible { display: block; }
-        .success-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 2000; }
-        .success-overlay.active { display: flex; }
-        .success-card { background: rgba(10,16,28,0.97); border: 1px solid rgba(52,211,153,0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
-        .success-icon { margin-bottom: 20px; }
-        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
-        .success-message { color: #b3cef5; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
-        .success-btn { padding: 12px 30px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; transition: all 0.3s ease; }
-        .success-btn:hover { box-shadow: 0 5px 20px rgba(59,130,246,0.35); transform: translateY(-1px); }
-        .tab-suggestions { display: none; position: absolute; bottom: 52px; left: 20px; background: rgba(10,16,28,0.97); border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; padding: 4px 0; z-index: 200; font-family: 'Consolas', monospace; font-size: 0.8rem; }
-        .tab-suggestions.visible { display: block; }
-        .tab-option { padding: 4px 14px; color: #86efac; cursor: pointer; }
-        .tab-option:hover, .tab-option.selected { background: rgba(59,130,246,0.15); color: #dbeafe; }
-        @media (max-width: 1024px) { .lab-container { grid-template-columns: 1fr; } .task-panel { display: none; } .term-output, .term-input-row { padding-right: 20px; } .instructions-panel { position: absolute; bottom: 60px; top: auto; right: 10px; left: 10px; width: auto; } }
+        .progress-wrap { display: flex; align-items: center; gap: 10px; font-size: 0.8rem; color: var(--text-muted); }
+        .progress-bar { width: 120px; height: 5px; background: rgba(59,130,246,0.15); border-radius: 3px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--cloud-primary), var(--cloud-secondary)); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
+        .progress-label { color: var(--cloud-primary); font-weight: 500; min-width: 42px; text-align: right; }
+        .main-layout { display: flex; flex: 1; min-height: 0; }
+        .admin-sidebar { width: 220px; background: var(--bg-panel); border-right: 1px solid var(--border); overflow-y: auto; flex-shrink: 0; padding: 12px 0; }
+        .sidebar-section-label { font-size: 0.65rem; color: var(--text-muted); letter-spacing: 0.12em; text-transform: uppercase; padding: 8px 16px 4px; }
+        .sidebar-item { display: flex; align-items: center; gap: 10px; padding: 9px 16px; font-size: 0.82rem; color: var(--text-secondary); cursor: pointer; transition: all 0.2s; border-left: 3px solid transparent; }
+        .sidebar-item:hover { background: rgba(59,130,246,0.07); color: var(--text-primary); }
+        .sidebar-item.active { background: rgba(59,130,246,0.12); color: var(--cloud-primary); border-left-color: var(--cloud-primary); }
+        .sidebar-icon { width: 18px; text-align: center; font-size: 0.85rem; opacity: 0.7; }
+        .sidebar-item.active .sidebar-icon { opacity: 1; }
+        .portal-area { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+        .portal-toolbar { height: 44px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 12px; flex-shrink: 0; }
+        .portal-breadcrumb { font-size: 0.8rem; color: var(--text-muted); }
+        .portal-breadcrumb span { color: var(--text-secondary); }
+        .crumb-active { color: var(--text-primary); }
+        .toolbar-actions { margin-left: auto; display: flex; gap: 8px; }
+        .btn-portal { padding: 5px 14px; border-radius: 5px; font-size: 0.78rem; cursor: pointer; transition: all 0.2s; border: 1px solid transparent; font-family: inherit; }
+        .btn-primary-p { background: var(--cloud-primary); color: #fff; border-color: var(--cloud-secondary); }
+        .btn-primary-p:hover { background: var(--cloud-secondary); }
+        .btn-secondary-p { background: rgba(59,130,246,0.1); color: var(--cloud-primary); border-color: rgba(59,130,246,0.3); }
+        .btn-secondary-p:hover { background: rgba(59,130,246,0.2); }
+        .portal-content { flex: 1; overflow-y: auto; padding: 20px; display: none; }
+        .portal-content.active { display: block; }
+        .data-table-wrap { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-top: 16px; }
+        .table-header-row { display: flex; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--border); gap: 12px; }
+        .table-search { flex: 1; padding: 7px 12px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); font-size: 0.82rem; font-family: inherit; outline: none; transition: border-color 0.2s; }
+        .table-search:focus { border-color: var(--cloud-primary); }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .data-table th { padding: 9px 14px; background: var(--bg-tertiary); color: var(--text-muted); font-weight: 500; text-align: left; font-size: 0.73rem; letter-spacing: 0.06em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+        .data-table td { padding: 10px 14px; border-bottom: 1px solid rgba(59,130,246,0.07); color: var(--text-secondary); vertical-align: middle; }
+        .data-table tr:last-child td { border-bottom: none; }
+        .data-table tr:hover td { background: rgba(59,130,246,0.04); }
+        .badge { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 0.7rem; font-weight: 500; }
+        .badge-blue { background: rgba(59,130,246,0.15); color: #60a5fa; }
+        .badge-green { background: rgba(34,197,94,0.15); color: #4ade80; }
+        .badge-yellow { background: rgba(245,158,11,0.15); color: #fbbf24; }
+        .badge-red { background: rgba(239,68,68,0.15); color: #f87171; }
+        .badge-purple { background: rgba(124,58,237,0.2); color: #a78bfa; }
+        .row-action { padding: 3px 10px; border-radius: 4px; font-size: 0.73rem; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); font-family: inherit; transition: all 0.2s; }
+        .row-action:hover { border-color: var(--cloud-primary); color: var(--cloud-primary); background: rgba(59,130,246,0.08); }
+        .section-title { font-size: 1.05rem; color: var(--text-primary); font-weight: 600; margin-bottom: 4px; }
+        .section-subtitle { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 16px; }
+        .form-panel { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-top: 16px; }
+        .form-panel h3 { font-size: 0.9rem; color: var(--cloud-primary); margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .form-row { margin-bottom: 14px; }
+        .form-label { font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 5px; display: block; }
+        .form-input, .form-select, .form-textarea { width: 100%; padding: 8px 12px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); font-size: 0.83rem; font-family: inherit; outline: none; transition: border-color 0.2s; }
+        .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--cloud-primary); }
+        .form-select option { background: var(--bg-tertiary); }
+        .form-textarea { resize: vertical; min-height: 70px; }
+        .form-row-inline { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(59,130,246,0.07); }
+        .toggle-row:last-child { border-bottom: none; }
+        .toggle-label { font-size: 0.83rem; color: var(--text-secondary); }
+        .toggle-desc { font-size: 0.73rem; color: var(--text-muted); margin-top: 2px; }
+        .toggle-switch { position: relative; width: 42px; height: 22px; flex-shrink: 0; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider { position: absolute; cursor: pointer; inset: 0; background: rgba(255,255,255,0.1); border-radius: 22px; transition: 0.3s; }
+        .toggle-slider:before { content: ''; position: absolute; height: 16px; width: 16px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.3s; }
+        .toggle-switch input:checked + .toggle-slider { background: var(--cloud-primary); }
+        .toggle-switch input:checked + .toggle-slider:before { transform: translateX(20px); }
+        .task-rail { width: 290px; background: var(--bg-panel); border-left: 1px solid var(--border); overflow-y: auto; flex-shrink: 0; padding: 16px; }
+        .task-rail-title { font-size: 0.75rem; color: var(--text-muted); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 12px; }
+        .task-item { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s; }
+        .task-item:hover { border-color: rgba(59,130,246,0.35); }
+        .task-item.active { border-color: var(--cloud-primary); background: rgba(59,130,246,0.07); }
+        .task-item.done { border-color: rgba(34,197,94,0.35); background: rgba(34,197,94,0.04); }
+        .task-item-header { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+        .task-num { font-size: 0.68rem; color: var(--cloud-primary); font-weight: 600; }
+        .task-check { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--border); margin-left: auto; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; flex-shrink: 0; transition: all 0.3s; }
+        .task-item-name { font-size: 0.82rem; color: var(--text-primary); font-weight: 500; }
+        .task-item-desc { font-size: 0.73rem; color: var(--text-muted); margin-top: 4px; line-height: 1.5; }
+        .task-item.active .task-item-name { color: var(--cloud-primary); }
+        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+        .stat-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+        .stat-label { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.08em; }
+        .stat-value { font-size: 1.5rem; font-weight: 700; color: var(--cloud-primary); }
+        .stat-sub { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+        /* Compliance score ring */
+        .score-ring { display: flex; align-items: center; gap: 24px; padding: 20px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 16px; }
+        .ring-container { position: relative; width: 90px; height: 90px; flex-shrink: 0; }
+        .ring-svg { transform: rotate(-90deg); }
+        .ring-track { fill: none; stroke: rgba(59,130,246,0.15); stroke-width: 8; }
+        .ring-fill { fill: none; stroke: var(--cloud-primary); stroke-width: 8; stroke-linecap: round; stroke-dasharray: 226; stroke-dashoffset: 68; transition: stroke-dashoffset 1s ease; }
+        .ring-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: 700; color: var(--cloud-primary); }
+        .ring-info { flex: 1; }
+        .ring-info h3 { font-size: 1rem; color: var(--text-primary); margin-bottom: 6px; }
+        .ring-info p { font-size: 0.8rem; color: var(--text-muted); line-height: 1.55; }
+        .ring-info .improve-btn { display: inline-block; margin-top: 10px; padding: 5px 14px; background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.3); border-radius: 5px; font-size: 0.78rem; color: var(--cloud-primary); cursor: pointer; font-family: inherit; }
+        .toast { position: fixed; bottom: 24px; right: 24px; background: rgba(22,197,94,0.15); border: 1px solid rgba(34,197,94,0.35); border-radius: 8px; padding: 12px 18px; font-size: 0.83rem; color: var(--success); display: none; z-index: 9999; max-width: 320px; line-height: 1.45; }
+        .toast.visible { display: block; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 8000; }
+        .overlay.active { display: flex; }
+        .overlay-card { background: var(--bg-secondary); border: 1px solid rgba(34,197,94,0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 460px; width: 90%; }
+        .overlay-title { font-size: 1.4rem; color: var(--success); margin-bottom: 10px; }
+        .overlay-msg { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.65; margin-bottom: 24px; }
+        .overlay-btn { padding: 11px 28px; background: linear-gradient(135deg, var(--cloud-primary), var(--cloud-secondary)); border: none; border-radius: 8px; color: #fff; font-size: 0.9rem; cursor: pointer; font-family: inherit; }
+        @media (max-width: 1100px) { .task-rail { display: none; } }
+        @media (max-width: 768px) { .admin-sidebar { display: none; } .stats-row { grid-template-columns: 1fr 1fr; } }
     </style>
 </head>
 <body>
-    <header class="lab-header">
-        <div class="header-left">
-            <a href="../index.html" class="back-btn">Exit Lab</a>
-            <span class="lab-title">Security and Compliance</span>
-            <span class="lab-badge">MS-102</span>
-            <span class="lab-badge-ch">CH.8</span>
-        </div>
-        <div class="task-progress">
-            <span>Progress:</span>
-            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBarFill"></div></div>
-            <span class="task-count" id="taskProgress">0 / 12 Tasks</span>
-        </div>
-    </header>
 
-    <div class="lab-container">
-        <aside class="task-panel" id="taskPanel">
-            <div class="task-section">
-                <div class="task-section-title">Phase 1 -- Compliance Manager</div>
-                <div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)"><div class="task-number">Task 1</div><div class="task-name">View Compliance Score</div><div class="task-desc">Run <code>purview compliance-manager score get</code> to inspect the current compliance score and assessment summary.</div></div>
-                <div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)"><div class="task-number">Task 2</div><div class="task-name">List Improvement Actions</div><div class="task-desc">Run <code>purview compliance-manager actions list</code> to see pending improvement actions sorted by impact.</div></div>
-            </div>
-            <div class="task-section">
-                <div class="task-section-title">Phase 2 -- DLP Policies</div>
-                <div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)"><div class="task-number">Task 3</div><div class="task-name">List DLP Policies</div><div class="task-desc">Run <code>purview dlp policy list</code> to view all active DLP policies and their enforcement status.</div></div>
-                <div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)"><div class="task-number">Task 4</div><div class="task-name">Create a DLP Policy</div><div class="task-desc">Run <code>purview dlp policy create --name "Block External SSN Sharing" --sit "U.S. SSN" --action block --locations Exchange,SharePoint,OneDrive</code> to create a new DLP policy.</div></div>
-                <div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)"><div class="task-number">Task 5</div><div class="task-name">View DLP Alerts</div><div class="task-desc">Run <code>purview dlp alerts list</code> to see recent DLP policy match alerts.</div></div>
-            </div>
-            <div class="task-section">
-                <div class="task-section-title">Phase 3 -- Sensitivity Labels</div>
-                <div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)"><div class="task-number">Task 6</div><div class="task-name">List Sensitivity Labels</div><div class="task-desc">Run <code>purview sensitivity-label list</code> to view published sensitivity labels and their priority order.</div></div>
-                <div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)"><div class="task-number">Task 7</div><div class="task-name">Create a Sensitivity Label</div><div class="task-desc">Run <code>purview sensitivity-label create --name "Highly Confidential" --encryption true --marking "HIGHLY CONFIDENTIAL" --priority 4</code> to create a new label with encryption.</div></div>
-            </div>
-            <div class="task-section">
-                <div class="task-section-title">Phase 4 -- Retention and eDiscovery</div>
-                <div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)"><div class="task-number">Task 8</div><div class="task-name">List Retention Policies</div><div class="task-desc">Run <code>purview retention policy list</code> to view active retention policies and their settings.</div></div>
-                <div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)"><div class="task-number">Task 9</div><div class="task-name">Create eDiscovery Case</div><div class="task-desc">Run <code>purview ediscovery case create --name "HR Investigation 2026" --type standard</code> to create a new eDiscovery case.</div></div>
-                <div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)"><div class="task-number">Task 10</div><div class="task-name">Place a Hold</div><div class="task-desc">Run <code>purview ediscovery hold create --case "HR Investigation 2026" --mailboxes "jsmith@contoso.com" --query "project alpha"</code> to place a query-based hold.</div></div>
-            </div>
-            <div class="task-section">
-                <div class="task-section-title">Phase 5 -- Audit and Insider Risk</div>
-                <div class="task-card" id="task-card-11" data-task="11" onclick="selectTask(11)"><div class="task-number">Task 11</div><div class="task-name">Search Audit Log</div><div class="task-desc">Run <code>purview audit search --activities FileDownloaded,FileUploaded --startDate 2026-04-14 --endDate 2026-04-21</code> to search for file activity.</div></div>
-                <div class="task-card" id="task-card-12" data-task="12" onclick="selectTask(12)"><div class="task-number">Task 12</div><div class="task-name">View Insider Risk Alerts</div><div class="task-desc">Run <code>purview insider-risk alerts list</code> to view active insider risk management alerts.</div></div>
-            </div>
-        </aside>
-
-        <main class="terminal-panel" id="terminalPanel">
-            <div class="term-toolbar">
-                <div class="term-dot term-dot-red"></div><div class="term-dot term-dot-amber"></div><div class="term-dot term-dot-green"></div>
-                <div class="term-title">complianceadmin@cloud-shell -- bash</div>
-                <div class="term-vm-status"><div class="term-status-dot"></div>Purview CLI Connected</div>
-            </div>
-            <div class="term-output" id="termOutput"></div>
-            <div class="term-input-row">
-                <span class="term-prompt-label"><span class="term-prompt-user">complianceadmin@cloud-shell</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span></span>
-                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
-            </div>
-            <div class="tab-suggestions" id="tabSuggestions"></div>
-            <div class="instructions-panel" id="instructionsPanel">
-                <div class="instructions-title" onclick="toggleInstructions()">
-                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
-                    Task Instructions
-                    <button class="instructions-toggle" id="instructionsToggle" title="Collapse instructions">&#9660;</button>
-                </div>
-                <div class="instructions-body" id="instructionsBody">
-                    <div class="instructions-step" id="instructionsStep">Type the command in the terminal and press Enter.</div>
-                    <div class="instructions-hint" id="instructionsHint"><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block"> Hint text loads when you select a task.</div>
-                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
-                    <div class="hint-command" id="hintCommand"></div>
-                </div>
-            </div>
-            <div class="success-overlay" id="successOverlay">
-                <div class="success-card">
-                    <div class="success-icon"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:3rem;height:3rem;object-fit:contain"></div>
-                    <div class="success-title">MS-102 Chapter 8 Lab Complete!</div>
-                    <div class="success-message">You reviewed Compliance Manager scores and improvement actions, created DLP policies with sensitive info type conditions, configured sensitivity labels with encryption, managed retention policies, created an eDiscovery case with query-based holds, searched the unified audit log, and reviewed insider risk alerts. These are core compliance administration skills for the MS-102 exam.</div>
-                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
-                </div>
-            </div>
-        </main>
+<header class="topbar">
+    <div class="topbar-logo">
+        <div class="topbar-logo-icon">PV</div>
+        Microsoft Purview
     </div>
+    <div class="topbar-sep"></div>
+    <span class="topbar-title">contoso.onmicrosoft.com</span>
+    <div class="topbar-right">
+        <div class="progress-wrap">
+            <span id="progressLabel" class="progress-label">0 / 10</span>
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        </div>
+        <a href="../index.html" class="back-btn">Exit Lab</a>
+    </div>
+</header>
 
-    <script>
-    (function () {
-        'use strict';
-        var USER = 'complianceadmin', HOST = 'cloud-shell', HOME = '/home/complianceadmin';
-        var TENANT_ID = '72f988bf-86f1-41af-91ab-2d7cd011db47', TENANT_NAME = 'Contoso';
-        var cwd = HOME, cmdHistory = [], histIdx = -1, currentTask = 1;
-        var taskDone = {1:false,2:false,3:false,4:false,5:false,6:false,7:false,8:false,9:false,10:false,11:false,12:false};
-        var TOTAL_TASKS = 12;
+<div class="main-layout">
 
-        var outputEl, inputEl, ps1PathEl;
-        function promptPath(){return cwd===HOME?'~':cwd;}
-        function addLine(t,c){var d=document.createElement('div');d.className='term-line'+(c?' '+c:'');d.textContent=t;outputEl.appendChild(d);outputEl.scrollTop=outputEl.scrollHeight;}
-        function addHTML(h,c){var d=document.createElement('div');d.className='term-line'+(c?' '+c:'');d.innerHTML=h;outputEl.appendChild(d);outputEl.scrollTop=outputEl.scrollHeight;}
-        function addBlank(){addLine('','');}
-        function addPromptLine(cmd){addHTML('<span class="term-prompt-span">'+USER+'@'+HOST+'</span><span class="term-ps1-sep">:</span><span class="term-path-span">'+esc(promptPath())+'</span><span class="term-ps1-sep">$ </span>'+esc(cmd),'term-line-cmd');}
-        function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+    <nav class="admin-sidebar">
+        <div class="sidebar-section-label">Overview</div>
+        <div class="sidebar-item active" onclick="showPanel('compliance')" id="nav-compliance">
+            <img src="/assets/images/icons/icon-barchart.webp" alt="" class="sidebar-icon" style="width:16px;height:16px;vertical-align:middle;"> Compliance Manager
+        </div>
+        <div class="sidebar-section-label">Data Loss Prevention</div>
+        <div class="sidebar-item" onclick="showPanel('dlp')" id="nav-dlp">
+            <img src="/assets/images/icons/icon-shield.webp" alt="" class="sidebar-icon" style="width:16px;height:16px;vertical-align:middle;"> DLP
+        </div>
+        <div class="sidebar-section-label">Information Protection</div>
+        <div class="sidebar-item" onclick="showPanel('labels')" id="nav-labels">
+            <img src="/assets/images/icons/icon-gear.webp" alt="" class="sidebar-icon" style="width:16px;height:16px;vertical-align:middle;"> Sensitivity Labels
+        </div>
+        <div class="sidebar-section-label">Records Management</div>
+        <div class="sidebar-item" onclick="showPanel('retention')" id="nav-retention">
+            <img src="/assets/images/icons/icon-clipboard.webp" alt="" class="sidebar-icon" style="width:16px;height:16px;vertical-align:middle;"> Retention
+        </div>
+        <div class="sidebar-section-label">eDiscovery</div>
+        <div class="sidebar-item" onclick="showPanel('ediscovery')" id="nav-ediscovery">
+            <img src="/assets/images/icons/icon-gear.webp" alt="" class="sidebar-icon" style="width:16px;height:16px;vertical-align:middle;"> eDiscovery
+        </div>
+    </nav>
 
-        function printJSON(obj){var r=JSON.stringify(obj,null,2);var h=r.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"([^"]+)":/g,'<span class="json-key">"$1"</span>:').replace(/: "([^"]*)"/g,': <span class="json-string">"$1"</span>').replace(/: (true|false)/g,': <span class="json-bool">$1</span>').replace(/: null/g,': <span class="json-null">null</span>').replace(/: (-?\d+\.?\d*)/g,': <span class="json-number">$1</span>');h.split('\n').forEach(function(l){addHTML(l,'term-line-out');});}
+    <div class="portal-area">
 
-        var taskInstructions = {
-            1: {step:'Run <code>purview compliance-manager score get</code> to view the current compliance score, total points, and assessment breakdown.',hint:'purview compliance-manager score get'},
-            2: {step:'Run <code>purview compliance-manager actions list</code> to see improvement actions sorted by impact, with implementation status and assigned owners.',hint:'purview compliance-manager actions list'},
-            3: {step:'Run <code>purview dlp policy list</code> to view all DLP policies, their enforcement mode, and which locations they cover.',hint:'purview dlp policy list'},
-            4: {step:'Run <code>purview dlp policy create --name "Block External SSN Sharing" --sit "U.S. SSN" --action block --locations Exchange,SharePoint,OneDrive</code> to create a DLP policy that blocks external sharing of content containing SSNs.',hint:'purview dlp policy create --name "Block External SSN Sharing" --sit "U.S. SSN" --action block --locations Exchange,SharePoint,OneDrive'},
-            5: {step:'Run <code>purview dlp alerts list</code> to see recent DLP policy match alerts with severity, user, and matched rule details.',hint:'purview dlp alerts list'},
-            6: {step:'Run <code>purview sensitivity-label list</code> to view all published sensitivity labels, their priority order, and protection settings.',hint:'purview sensitivity-label list'},
-            7: {step:'Run <code>purview sensitivity-label create --name "Highly Confidential" --encryption true --marking "HIGHLY CONFIDENTIAL" --priority 4</code> to create a new sensitivity label with encryption and content marking.',hint:'purview sensitivity-label create --name "Highly Confidential" --encryption true --marking "HIGHLY CONFIDENTIAL" --priority 4'},
-            8: {step:'Run <code>purview retention policy list</code> to view all retention policies, their scope, retention period, and action (retain/delete).',hint:'purview retention policy list'},
-            9: {step:'Run <code>purview ediscovery case create --name "HR Investigation 2026" --type standard</code> to create a new Standard eDiscovery case.',hint:'purview ediscovery case create --name "HR Investigation 2026" --type standard'},
-            10:{step:'Run <code>purview ediscovery hold create --case "HR Investigation 2026" --mailboxes "jsmith@contoso.com" --query "project alpha"</code> to place a query-based hold on a mailbox within the case.',hint:'purview ediscovery hold create --case "HR Investigation 2026" --mailboxes "jsmith@contoso.com" --query "project alpha"'},
-            11:{step:'Run <code>purview audit search --activities FileDownloaded,FileUploaded --startDate 2026-04-14 --endDate 2026-04-21</code> to search the audit log for file activity in the past week.',hint:'purview audit search --activities FileDownloaded,FileUploaded --startDate 2026-04-14 --endDate 2026-04-21'},
-            12:{step:'Run <code>purview insider-risk alerts list</code> to view active insider risk alerts with risk level, user, and triggering indicators.',hint:'purview insider-risk alerts list'}
-        };
+        <div class="portal-toolbar">
+            <div class="portal-breadcrumb">
+                Microsoft Purview <span>&rsaquo;</span> <span id="breadcrumbActive" class="crumb-active">Compliance Manager</span>
+            </div>
+            <div class="toolbar-actions" id="toolbarActions">
+                <button class="btn-portal btn-secondary-p" onclick="refreshScore()">Refresh Score</button>
+            </div>
+        </div>
 
-        function selectTask(n){currentTask=n;document.querySelectorAll('.task-card').forEach(function(c){c.classList.remove('active');});var card=document.getElementById('task-card-'+n);if(card)card.classList.add('active');var info=taskInstructions[n];if(info){document.getElementById('instructionsStep').innerHTML=info.step;document.getElementById('hintCommand').textContent=info.hint;document.getElementById('hintCommand').classList.remove('visible');}}
+        <!-- Panel: Compliance Manager -->
+        <div class="portal-content active" id="panel-compliance">
+            <div style="overflow-y:auto; height:100%; padding:4px 0;">
+                <div class="section-title">Compliance Manager</div>
+                <div class="section-subtitle">Track your organization's compliance posture against regulatory frameworks</div>
 
-        function completeTask(n){if(taskDone[n])return;taskDone[n]=true;var card=document.getElementById('task-card-'+n);if(card)card.classList.add('completed');var done=Object.keys(taskDone).filter(function(k){return taskDone[k];}).length;document.getElementById('taskProgress').textContent=done+' / '+TOTAL_TASKS+' Tasks';document.getElementById('progressBarFill').style.width=(done/TOTAL_TASKS*100)+'%';if(done===TOTAL_TASKS){setTimeout(function(){document.getElementById('successOverlay').classList.add('active');},600);}}
+                <div class="score-ring">
+                    <div class="ring-container">
+                        <svg class="ring-svg" viewBox="0 0 90 90" width="90" height="90">
+                            <circle class="ring-track" cx="45" cy="45" r="36"/>
+                            <circle class="ring-fill" id="scoreRing" cx="45" cy="45" r="36"/>
+                        </svg>
+                        <div class="ring-text" id="scoreText">70%</div>
+                    </div>
+                    <div class="ring-info">
+                        <h3>Compliance Score: 70 / 100</h3>
+                        <p>Your organization has completed 70 of 100 recommended improvement actions. Address the remaining actions to improve your posture against Microsoft 365 data protection baseline.</p>
+                        <button class="improve-btn" onclick="viewImprovements()">View Improvement Actions</button>
+                    </div>
+                </div>
 
-        function processCommand(raw){var cmd=raw.trim();if(!cmd)return;addPromptLine(cmd);cmdHistory.unshift(cmd);histIdx=-1;
+                <div class="stats-row">
+                    <div class="stat-card"><div class="stat-label">Assessments</div><div class="stat-value">3</div><div class="stat-sub">Active</div></div>
+                    <div class="stat-card"><div class="stat-label">Completed Actions</div><div class="stat-value">70</div></div>
+                    <div class="stat-card"><div class="stat-label">Pending Actions</div><div class="stat-value" style="color:var(--warning);">30</div></div>
+                    <div class="stat-card"><div class="stat-label">Risk Score</div><div class="stat-value" style="color:var(--success);">Low</div></div>
+                </div>
 
-            if(cmd==='clear'){outputEl.innerHTML='';return;}
-            if(cmd==='help'){addLine('Available commands: purview compliance-manager score get, purview compliance-manager actions list, purview dlp policy list, purview dlp policy create, purview dlp alerts list, purview sensitivity-label list, purview sensitivity-label create, purview retention policy list, purview ediscovery case create, purview ediscovery hold create, purview audit search, purview insider-risk alerts list, help, clear','term-line-info');return;}
+                <div class="data-table-wrap">
+                    <table class="data-table">
+                        <thead><tr><th>Assessment</th><th>Framework</th><th>Score</th><th>Status</th><th>Last Updated</th></tr></thead>
+                        <tbody>
+                            <tr><td>Microsoft 365 Data Protection Baseline</td><td>M365</td><td>70/100</td><td><span class="badge badge-yellow">In Progress</span></td><td>2026-04-21</td></tr>
+                            <tr><td>NIST 800-53</td><td>NIST</td><td>58/100</td><td><span class="badge badge-yellow">In Progress</span></td><td>2026-04-20</td></tr>
+                            <tr><td>GDPR</td><td>EU Regulation</td><td>82/100</td><td><span class="badge badge-green">Good</span></td><td>2026-04-18</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
 
-            if(cmd==='purview compliance-manager score get'){
-                printJSON({tenantId:TENANT_ID,complianceScore:72,totalPoints:480,achievedPoints:346,microsoftManagedPoints:198,yourManagedPoints:148,assessments:[{name:"Microsoft 365 Data Protection Baseline",score:78,controls:42},{name:"NIST 800-53 Rev 5",score:65,controls:156},{name:"GDPR",score:71,controls:89}]});
-                addBlank();addLine('  Compliance Score: 72% (346/480 points). 3 active assessments.','term-line-info');
-                completeTask(1);return;
-            }
-            if(cmd==='purview compliance-manager actions list'){
-                printJSON([{action:"Enable MFA for all users",category:"Preventive",impact:"High",status:"Implemented",points:27,owner:"IT Security"},{action:"Configure DLP policies for financial data",category:"Preventive",impact:"High",status:"In Progress",points:22,owner:"Compliance Team"},{action:"Enable audit logging for all mailboxes",category:"Detective",impact:"Medium",status:"Implemented",points:15,owner:"IT Security"},{action:"Create sensitivity labels for classified data",category:"Preventive",impact:"High",status:"Not Implemented",points:20,owner:"Unassigned"},{action:"Configure retention policies for email",category:"Corrective",impact:"Medium",status:"In Progress",points:12,owner:"Records Management"},{action:"Enable insider risk management policies",category:"Detective",impact:"Medium",status:"Not Implemented",points:18,owner:"Unassigned"}]);
-                addBlank();addLine('  6 improvement actions. 2 implemented, 2 in progress, 2 not started. 77 points available.','term-line-warn');
-                completeTask(2);return;
-            }
-            if(cmd==='purview dlp policy list'){
-                printJSON([{name:"Default Credit Card Policy",mode:"Enforce",locations:["Exchange","SharePoint","OneDrive"],sensitiveInfoTypes:["Credit Card Number"],action:"Block external + notify user",createdDate:"2025-08-12"},{name:"PII Protection - US",mode:"TestWithNotifications",locations:["Exchange","SharePoint","OneDrive","Teams"],sensitiveInfoTypes:["U.S. SSN","U.S. Passport Number","U.S. Driver License"],action:"Block external + policy tip",createdDate:"2026-01-20"},{name:"Healthcare Data",mode:"Enforce",locations:["Exchange","SharePoint"],sensitiveInfoTypes:["International Classification of Diseases (ICD-9)","Drug Enforcement Agency (DEA) Number"],action:"Block + alert compliance officer",createdDate:"2026-03-05"}]);
-                addBlank();addLine('  3 DLP policies active. 2 enforcing, 1 in test mode (PII Protection - US).','term-line-info');
-                completeTask(3);return;
-            }
-            if(cmd.indexOf('purview dlp policy create')===0&&cmd.indexOf('Block External SSN')>=0&&cmd.indexOf('block')>=0){
-                addLine('Creating DLP policy "Block External SSN Sharing"...','term-line-info');
-                printJSON({name:"Block External SSN Sharing",id:"dlp-pol-004",mode:"TestWithNotifications",locations:["Exchange","SharePoint","OneDrive"],sensitiveInfoTypes:["U.S. Social Security Number (SSN)"],confidenceLevel:"High",instanceCount:1,actions:{blockExternalSharing:true,notifyUser:true,policyTipMessage:"This content contains SSN data and cannot be shared externally.",alertAdmin:true,alertSeverity:"High"},status:"Created - Test Mode"});
-                addBlank();addLine('  Policy created in Test mode. Review DLP alerts before switching to Enforce mode.','term-line-warn');
-                completeTask(4);return;
-            }
-            if(cmd==='purview dlp alerts list'){
-                printJSON([{alertId:"DLP-2026-04-18-001",policyName:"Default Credit Card Policy",severity:"High",user:"mwilson@contoso.com",activity:"Email sent to external recipient",matchedSIT:"Credit Card Number",instanceCount:3,timestamp:"2026-04-18T14:23:00Z",action:"Blocked",override:false},{alertId:"DLP-2026-04-19-002",policyName:"PII Protection - US",severity:"Medium",user:"jdoe@contoso.com",activity:"File shared via OneDrive link",matchedSIT:"U.S. SSN",instanceCount:1,timestamp:"2026-04-19T09:15:00Z",action:"User notified (test mode)",override:false},{alertId:"DLP-2026-04-20-003",policyName:"Default Credit Card Policy",severity:"Medium",user:"alee@contoso.com",activity:"File uploaded to SharePoint",matchedSIT:"Credit Card Number",instanceCount:2,timestamp:"2026-04-20T16:42:00Z",action:"Blocked",override:true,overrideJustification:"Approved by finance manager for quarterly report"}]);
-                addBlank();addLine('  3 DLP alerts in the past 7 days. 2 blocked, 1 test-mode notification. 1 override with justification.','term-line-warn');
-                completeTask(5);return;
-            }
-            if(cmd==='purview sensitivity-label list'){
-                printJSON([{name:"Public",priority:0,encryption:false,contentMarking:false,autoLabeling:false,scope:"Files, Emails"},{name:"General",priority:1,encryption:false,contentMarking:false,autoLabeling:false,scope:"Files, Emails"},{name:"Confidential",priority:2,encryption:true,contentMarking:{header:"CONFIDENTIAL",watermark:false},autoLabeling:{clientSide:true,serviceSide:false},scope:"Files, Emails, Groups"},{name:"Highly Confidential",priority:3,encryption:true,contentMarking:{header:"HIGHLY CONFIDENTIAL",watermark:true,footer:"Internal Use Only"},autoLabeling:{clientSide:true,serviceSide:true},scope:"Files, Emails, Groups"}]);
-                addBlank();addLine('  4 sensitivity labels published (priority 0-3). 2 with encryption, 1 with service-side auto-labeling.','term-line-info');
-                completeTask(6);return;
-            }
-            if(cmd.indexOf('purview sensitivity-label create')===0&&cmd.indexOf('Highly Confidential')>=0&&cmd.indexOf('encryption')>=0){
-                addLine('Creating sensitivity label "Highly Confidential"...','term-line-info');
-                printJSON({name:"Highly Confidential",id:"lbl-005",priority:4,encryption:{enabled:true,permissions:"Organization - Co-Author",offlineAccess:"7 days",expiration:"Never"},contentMarking:{header:"HIGHLY CONFIDENTIAL",headerColor:"#ef4444",watermark:true,watermarkText:"HIGHLY CONFIDENTIAL",footer:false},autoLabeling:{clientSide:false,serviceSide:false},scope:"Files, Emails",status:"Created - publish via label policy to make visible to users"});
-                addBlank();addLine('  Label created with priority 4. Publish via a label policy to make it available in Office apps.','term-line-warn');
-                completeTask(7);return;
-            }
-            if(cmd==='purview retention policy list'){
-                printJSON([{name:"Exchange 7-Year Retention",locations:["Exchange - All Mailboxes"],retainFor:"7 years",retainFrom:"Date received",deleteAfterRetention:true,status:"Active",createdDate:"2025-06-10"},{name:"SharePoint Legal Hold",locations:["SharePoint - Legal Department Site"],retainFor:"Indefinite",retainFrom:"N/A",deleteAfterRetention:false,status:"Active",createdDate:"2025-09-22"},{name:"Teams Chat 1-Year",locations:["Teams - All Users"],retainFor:"1 year",retainFrom:"Date created",deleteAfterRetention:true,status:"Active",createdDate:"2026-01-15"}]);
-                addBlank();addLine('  3 retention policies active. Exchange (7yr retain+delete), SharePoint Legal (indefinite hold), Teams Chat (1yr retain+delete).','term-line-info');
-                completeTask(8);return;
-            }
-            if(cmd.indexOf('purview ediscovery case create')===0&&cmd.indexOf('HR Investigation 2026')>=0){
-                addLine('Creating eDiscovery case "HR Investigation 2026"...','term-line-info');
-                printJSON({caseId:"EDC-2026-042",name:"HR Investigation 2026",type:"Standard",status:"Active",createdBy:"complianceadmin@contoso.com",createdDate:"2026-04-21T10:00:00Z",members:["complianceadmin@contoso.com"],holds:0,searches:0});
-                addBlank();addLine('  Case created. Add holds and run searches to collect relevant content.','term-line-info');
-                completeTask(9);return;
-            }
-            if(cmd.indexOf('purview ediscovery hold create')===0&&cmd.indexOf('HR Investigation 2026')>=0&&cmd.indexOf('jsmith')>=0){
-                addLine('Creating hold in case "HR Investigation 2026"...','term-line-info');
-                addLine('  Adding mailbox: jsmith@contoso.com','term-line-dim');
-                addLine('  Applying query filter: "project alpha"','term-line-dim');
-                printJSON({holdId:"HOLD-042-001",caseName:"HR Investigation 2026",type:"Query-based",mailboxes:["jsmith@contoso.com"],sharePointSites:[],query:"project alpha",status:"Active",estimatedItems:847,createdDate:"2026-04-21T10:05:00Z"});
-                addBlank();addLine('  Hold active. 847 estimated items match the query. Content is preserved and cannot be permanently deleted.','term-line-out');
-                completeTask(10);return;
-            }
-            if(cmd.indexOf('purview audit search')===0&&cmd.indexOf('FileDownloaded')>=0){
-                addLine('Searching unified audit log...','term-line-info');
-                addLine('  Date range: 2026-04-14 to 2026-04-21','term-line-dim');
-                addLine('  Activities: FileDownloaded, FileUploaded','term-line-dim');
-                printJSON({totalResults:1247,returnedResults:10,results:[{timestamp:"2026-04-20T16:45:00Z",user:"mwilson@contoso.com",activity:"FileDownloaded",item:"Q4-Financial-Report.xlsx",site:"https://contoso.sharepoint.com/sites/finance",ipAddress:"198.51.100.42",userAgent:"Edge/120"},{timestamp:"2026-04-20T14:12:00Z",user:"jdoe@contoso.com",activity:"FileUploaded",item:"Employee-Records-2026.csv",site:"https://contoso.sharepoint.com/sites/hr",ipAddress:"203.0.113.15",userAgent:"Chrome/124"},{timestamp:"2026-04-19T11:30:00Z",user:"alee@contoso.com",activity:"FileDownloaded",item:"Product-Roadmap-Confidential.pptx",site:"https://contoso.sharepoint.com/sites/engineering",ipAddress:"198.51.100.88",userAgent:"Teams/1.7"},{timestamp:"2026-04-18T09:22:00Z",user:"bchen@contoso.com",activity:"FileDownloaded",item:"Customer-List-Full.xlsx",site:"https://contoso.sharepoint.com/sites/sales",ipAddress:"10.0.0.55",userAgent:"Edge/120"}]});
-                addBlank();addLine('  1,247 total results. Showing top 10. Export to CSV for full dataset.','term-line-info');
-                completeTask(11);return;
-            }
-            if(cmd==='purview insider-risk alerts list'){
-                printJSON([{alertId:"IRM-2026-04-19-001",user:"User-7 (pseudonymized)",riskLevel:"High",policyTemplate:"Data theft by departing users",triggeringEvent:"HR Connector: resignation submitted 2026-04-15",indicators:["50+ files downloaded from SharePoint in 2 hours","Files copied to USB drive","Large email attachment sent to personal email"],status:"Needs Triage",createdDate:"2026-04-19T13:00:00Z"},{alertId:"IRM-2026-04-20-002",user:"User-12 (pseudonymized)",riskLevel:"Medium",policyTemplate:"General data leaks",triggeringEvent:"DLP policy match",indicators:["Shared 3 files with external users via OneDrive link","Files contained credit card data"],status:"Needs Triage",createdDate:"2026-04-20T08:45:00Z"}]);
-                addBlank();addLine('  2 insider risk alerts. 1 high-risk (departing user with data exfiltration signals), 1 medium (external sharing of sensitive data).','term-line-warn');
-                completeTask(12);return;
-            }
-            if(cmd==='pwd'){addLine(cwd,'term-line-out');return;}
-            if(cmd.split(/\s+/)[0]==='cd'){cwd=cmd.split(/\s+/)[1]||HOME;if(ps1PathEl)ps1PathEl.textContent=promptPath();return;}
-            addLine('Command not recognized: '+cmd.split(/\s+/)[0]+'. Type "help" for available commands.','term-line-err');
-        }
+        <!-- Panel: DLP -->
+        <div class="portal-content" id="panel-dlp">
+            <div style="overflow-y:auto; height:100%; padding:4px 0;">
+                <div class="section-title">Data Loss Prevention</div>
+                <div class="section-subtitle">Create and manage policies to protect sensitive information from unauthorized sharing</div>
 
-        window.selectTask=selectTask;
-        window.toggleInstructions=function(){document.getElementById('instructionsPanel').classList.toggle('collapsed');};
-        window.revealHint=function(){document.getElementById('hintCommand').classList.toggle('visible');};
-        window.finishLab=function(){if(typeof ModuleProgress!=='undefined'){ModuleProgress.complete('cloud','ms102-ch08-lab',{returnUrl:'../index.html'});}else{window.location.href='../index.html';}};
+                <!-- Task 2: Create DLP policy -->
+                <div class="form-panel" id="newDlpForm" style="display:none;">
+                    <h3>New DLP Policy</h3>
+                    <div class="form-row">
+                        <label class="form-label">Policy Name</label>
+                        <input type="text" class="form-input" id="dlpPolicyName" placeholder="e.g. Protect Credit Card Numbers">
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">Template</label>
+                        <select class="form-select" id="dlpTemplate">
+                            <option value="">Select a template</option>
+                            <option value="financial">U.S. Financial Data</option>
+                            <option value="pii">U.S. Personally Identifiable Information</option>
+                            <option value="hipaa">U.S. Health Insurance (HIPAA)</option>
+                            <option value="gdpr">General Data Protection Regulation (GDPR)</option>
+                            <option value="custom">Custom Policy</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">Locations to protect</label>
+                        <select class="form-select" id="dlpLocations">
+                            <option value="all">All M365 services</option>
+                            <option value="exchange">Exchange email</option>
+                            <option value="sharepoint">SharePoint sites</option>
+                            <option value="teams">Teams messages</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">Action when policy matches</label>
+                        <select class="form-select" id="dlpAction">
+                            <option value="">Select action</option>
+                            <option value="notify">Send notification to user</option>
+                            <option value="block">Block sharing and notify</option>
+                            <option value="audit">Audit only (no user action)</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; gap:8px; margin-top:4px;">
+                        <button class="btn-portal btn-primary-p" onclick="createDlpPolicy()">Create Policy</button>
+                        <button class="btn-portal btn-secondary-p" onclick="document.getElementById('newDlpForm').style.display='none'">Cancel</button>
+                    </div>
+                </div>
 
-        document.addEventListener('DOMContentLoaded',function(){
-            outputEl=document.getElementById('termOutput');inputEl=document.getElementById('termInput');ps1PathEl=document.getElementById('termPS1Path');
-            addLine('Microsoft Purview CLI v3.2.0 -- Connected to tenant: '+TENANT_NAME+' ('+TENANT_ID+')','term-welcome');
-            addLine('Role: Compliance Administrator | Type "help" to see available commands.','term-line-dim');addBlank();
-            selectTask(1);
-            inputEl.addEventListener('keydown',function(e){
-                if(e.key==='Enter'){e.preventDefault();processCommand(inputEl.value);inputEl.value='';}
-                else if(e.key==='ArrowUp'){e.preventDefault();if(histIdx<cmdHistory.length-1){histIdx++;inputEl.value=cmdHistory[histIdx];}}
-                else if(e.key==='ArrowDown'){e.preventDefault();if(histIdx>0){histIdx--;inputEl.value=cmdHistory[histIdx];}else{histIdx=-1;inputEl.value='';}}
-            });
-            inputEl.focus();
-        });
+                <div style="margin-bottom:14px;">
+                    <button class="btn-portal btn-primary-p" onclick="document.getElementById('newDlpForm').style.display='block'">+ Create Policy</button>
+                </div>
+
+                <div class="data-table-wrap">
+                    <table class="data-table">
+                        <thead><tr><th>Policy Name</th><th>Locations</th><th>Status</th><th>Policy Matches (7d)</th><th>Actions</th></tr></thead>
+                        <tbody id="dlpBody">
+                            <tr><td>Protect SSN &amp; Financial Data</td><td>Exchange, SharePoint</td><td><span class="badge badge-green">On</span></td><td>14</td><td><button class="row-action">Edit</button></td></tr>
+                            <tr><td>GDPR Personal Data</td><td>All M365 services</td><td><span class="badge badge-green">On</span></td><td>32</td><td><button class="row-action">Edit</button></td></tr>
+                            <tr><td>Block External Credit Card Sharing</td><td>Teams, OneDrive</td><td><span class="badge badge-yellow">Simulation</span></td><td>6</td><td><button class="row-action">Edit</button></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel: Sensitivity Labels -->
+        <div class="portal-content" id="panel-labels">
+            <div style="overflow-y:auto; height:100%; padding:4px 0;">
+                <div class="section-title">Sensitivity Labels</div>
+                <div class="section-subtitle">Create labels to classify and protect content based on sensitivity level</div>
+
+                <!-- Task 3: Create sensitivity label -->
+                <div class="form-panel" id="newLabelForm" style="display:none;">
+                    <h3>New Sensitivity Label</h3>
+                    <div class="form-row-inline">
+                        <div class="form-row">
+                            <label class="form-label">Label Name</label>
+                            <input type="text" class="form-input" id="labelName" placeholder="e.g. Confidential - Finance">
+                        </div>
+                        <div class="form-row">
+                            <label class="form-label">Tooltip for users</label>
+                            <input type="text" class="form-input" id="labelTooltip" placeholder="Short description shown to users">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">Protection actions</label>
+                        <select class="form-select" id="labelProtection">
+                            <option value="">No encryption</option>
+                            <option value="encrypt">Apply encryption</option>
+                            <option value="mark">Add content marking (header/footer)</option>
+                            <option value="both">Encryption + content marking</option>
+                        </select>
+                    </div>
+                    <div class="toggle-row" style="padding:10px 0;">
+                        <div><div class="toggle-label">Auto-labeling</div><div class="toggle-desc">Automatically apply this label when conditions are detected</div></div>
+                        <label class="toggle-switch"><input type="checkbox"><span class="toggle-slider"></span></label>
+                    </div>
+                    <div style="display:flex; gap:8px; margin-top:10px;">
+                        <button class="btn-portal btn-primary-p" onclick="createSensitivityLabel()">Create Label</button>
+                        <button class="btn-portal btn-secondary-p" onclick="document.getElementById('newLabelForm').style.display='none'">Cancel</button>
+                    </div>
+                </div>
+
+                <div style="margin-bottom:14px;">
+                    <button class="btn-portal btn-primary-p" onclick="document.getElementById('newLabelForm').style.display='block'">+ Create Label</button>
+                </div>
+
+                <div class="data-table-wrap">
+                    <table class="data-table">
+                        <thead><tr><th>Label</th><th>Priority</th><th>Encryption</th><th>Content Marking</th><th>Actions</th></tr></thead>
+                        <tbody id="labelsBody">
+                            <tr><td><span class="badge badge-red">Highly Confidential</span></td><td>0</td><td><span class="badge badge-green">Yes</span></td><td>Header + Footer</td><td><button class="row-action">Edit</button></td></tr>
+                            <tr><td><span class="badge badge-yellow">Confidential</span></td><td>1</td><td><span class="badge badge-green">Yes</span></td><td>Footer only</td><td><button class="row-action">Edit</button></td></tr>
+                            <tr><td><span class="badge badge-blue">Internal Use Only</span></td><td>2</td><td><span class="badge badge-red">No</span></td><td>Header only</td><td><button class="row-action">Edit</button></td></tr>
+                            <tr><td><span class="badge" style="background:rgba(255,255,255,0.08);color:var(--text-secondary);">Public</span></td><td>3</td><td><span class="badge badge-red">No</span></td><td>None</td><td><button class="row-action">Edit</button></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel: Retention -->
+        <div class="portal-content" id="panel-retention">
+            <div style="overflow-y:auto; height:100%; padding:4px 0;">
+                <div class="section-title">Retention Policies</div>
+                <div class="section-subtitle">Configure how long content is kept or deleted across Microsoft 365 workloads</div>
+
+                <!-- Task 4: Configure retention -->
+                <div class="form-panel" id="newRetentionForm" style="display:none;">
+                    <h3>New Retention Policy</h3>
+                    <div class="form-row">
+                        <label class="form-label">Policy Name</label>
+                        <input type="text" class="form-input" id="retentionName" placeholder="e.g. Legal Hold — 7 Year Retention">
+                    </div>
+                    <div class="form-row-inline">
+                        <div class="form-row">
+                            <label class="form-label">Locations</label>
+                            <select class="form-select" id="retentionLocations">
+                                <option>All M365 locations</option>
+                                <option>Exchange mailboxes</option>
+                                <option>SharePoint sites</option>
+                                <option>Teams channel messages</option>
+                                <option>OneDrive accounts</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label class="form-label">Retention Period</label>
+                            <select class="form-select" id="retentionPeriod">
+                                <option value="">Select period</option>
+                                <option value="1">1 year</option>
+                                <option value="3">3 years</option>
+                                <option value="5">5 years</option>
+                                <option value="7">7 years</option>
+                                <option value="10">10 years</option>
+                                <option value="indefinite">Indefinitely</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:8px; margin-top:4px;">
+                        <button class="btn-portal btn-primary-p" onclick="createRetentionPolicy()">Create Policy</button>
+                        <button class="btn-portal btn-secondary-p" onclick="document.getElementById('newRetentionForm').style.display='none'">Cancel</button>
+                    </div>
+                </div>
+
+                <div style="margin-bottom:14px;">
+                    <button class="btn-portal btn-primary-p" onclick="document.getElementById('newRetentionForm').style.display='block'">+ New Policy</button>
+                </div>
+
+                <div class="data-table-wrap">
+                    <table class="data-table">
+                        <thead><tr><th>Policy Name</th><th>Locations</th><th>Retention</th><th>Delete After?</th><th>Status</th></tr></thead>
+                        <tbody id="retentionBody">
+                            <tr><td>Default M365 Retention</td><td>All M365</td><td>7 years</td><td>Yes</td><td><span class="badge badge-green">Active</span></td></tr>
+                            <tr><td>Finance Litigation Hold</td><td>Exchange, SharePoint</td><td>Indefinite</td><td>No</td><td><span class="badge badge-green">Active</span></td></tr>
+                            <tr><td>Teams Message Retention</td><td>Teams</td><td>3 years</td><td>Yes</td><td><span class="badge badge-blue">Pending</span></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel: eDiscovery -->
+        <div class="portal-content" id="panel-ediscovery">
+            <div style="overflow-y:auto; height:100%; padding:4px 0;">
+                <div class="section-title">eDiscovery</div>
+                <div class="section-subtitle">Create cases and run content searches across Exchange, SharePoint, Teams, and OneDrive</div>
+
+                <!-- Task 5: Run eDiscovery search -->
+                <div class="form-panel" id="eDiscoverySearchForm" style="display:none;">
+                    <h3>New eDiscovery Search</h3>
+                    <div class="form-row">
+                        <label class="form-label">Case Name</label>
+                        <input type="text" class="form-input" id="eDiscoveryCase" placeholder="e.g. HR Investigation Q2 2026">
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">Keywords / Query</label>
+                        <input type="text" class="form-input" id="eDiscoveryKeywords" placeholder='e.g. "salary" AND "confidential"'>
+                    </div>
+                    <div class="form-row-inline">
+                        <div class="form-row">
+                            <label class="form-label">Date Range Start</label>
+                            <input type="date" class="form-input" id="eDiscoveryStart" value="2026-01-01">
+                        </div>
+                        <div class="form-row">
+                            <label class="form-label">Date Range End</label>
+                            <input type="date" class="form-input" id="eDiscoveryEnd" value="2026-04-21">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">Locations to search</label>
+                        <select class="form-select">
+                            <option>All M365 locations</option>
+                            <option>Exchange mailboxes only</option>
+                            <option>SharePoint + OneDrive</option>
+                            <option>Teams messages only</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; gap:8px; margin-top:4px;">
+                        <button class="btn-portal btn-primary-p" onclick="runEDiscoverySearch()">Run Search</button>
+                        <button class="btn-portal btn-secondary-p" onclick="document.getElementById('eDiscoverySearchForm').style.display='none'">Cancel</button>
+                    </div>
+                </div>
+
+                <div style="margin-bottom:14px;">
+                    <button class="btn-portal btn-primary-p" onclick="document.getElementById('eDiscoverySearchForm').style.display='block'">+ New Search</button>
+                </div>
+
+                <div class="data-table-wrap">
+                    <table class="data-table">
+                        <thead><tr><th>Case Name</th><th>Status</th><th>Items Found</th><th>Size</th><th>Created</th></tr></thead>
+                        <tbody id="eDiscoveryBody">
+                            <tr><td>Compliance Audit 2026-Q1</td><td><span class="badge badge-green">Complete</span></td><td>4,218</td><td>2.1 GB</td><td>2026-04-10</td></tr>
+                            <tr><td>Legal Hold Review</td><td><span class="badge badge-yellow">In Progress</span></td><td>--</td><td>--</td><td>2026-04-20</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- end portal-area -->
+
+    <aside class="task-rail">
+        <div class="task-rail-title">Lab Tasks</div>
+        <div class="task-item active" id="task1" onclick="focusTask(1)">
+            <div class="task-item-header"><span class="task-num">TASK 01</span><div class="task-check" id="check1">&#10003;</div></div>
+            <div class="task-item-name">Review Compliance Score</div>
+            <div class="task-item-desc">Navigate to Compliance Manager and click View Improvement Actions</div>
+        </div>
+        <div class="task-item" id="task2" onclick="focusTask(2)">
+            <div class="task-item-header"><span class="task-num">TASK 02</span><div class="task-check" id="check2">&#10003;</div></div>
+            <div class="task-item-name">Create DLP Policy</div>
+            <div class="task-item-desc">Create a new DLP policy with a template, location, and action configured</div>
+        </div>
+        <div class="task-item" id="task3" onclick="focusTask(3)">
+            <div class="task-item-header"><span class="task-num">TASK 03</span><div class="task-check" id="check3">&#10003;</div></div>
+            <div class="task-item-name">Create Sensitivity Label</div>
+            <div class="task-item-desc">Create a new sensitivity label with a name and protection action specified</div>
+        </div>
+        <div class="task-item" id="task4" onclick="focusTask(4)">
+            <div class="task-item-header"><span class="task-num">TASK 04</span><div class="task-check" id="check4">&#10003;</div></div>
+            <div class="task-item-name">Configure Retention Policy</div>
+            <div class="task-item-desc">Create a new retention policy with location and retention period filled in</div>
+        </div>
+        <div class="task-item" id="task5" onclick="focusTask(5)">
+            <div class="task-item-header"><span class="task-num">TASK 05</span><div class="task-check" id="check5">&#10003;</div></div>
+            <div class="task-item-name">Run eDiscovery Search</div>
+            <div class="task-item-desc">Create a new eDiscovery case with keywords and date range, then run the search</div>
+        </div>
+        <div class="task-item" id="task6" onclick="focusTask(6)">
+            <div class="task-item-header"><span class="task-num">TASK 06</span><div class="task-check" id="check6">&#10003;</div></div>
+            <div class="task-item-name">Review Active Assessments</div>
+            <div class="task-item-desc">Navigate to Compliance Manager and note the score for the GDPR assessment</div>
+        </div>
+        <div class="task-item" id="task7" onclick="focusTask(7)">
+            <div class="task-item-header"><span class="task-num">TASK 07</span><div class="task-check" id="check7">&#10003;</div></div>
+            <div class="task-item-name">Review DLP Policy Matches</div>
+            <div class="task-item-desc">Navigate to DLP and identify which policy had the most matches in the last 7 days</div>
+        </div>
+        <div class="task-item" id="task8" onclick="focusTask(8)">
+            <div class="task-item-header"><span class="task-num">TASK 08</span><div class="task-check" id="check8">&#10003;</div></div>
+            <div class="task-item-name">Review Sensitivity Label Hierarchy</div>
+            <div class="task-item-desc">Navigate to Sensitivity Labels and identify the highest-priority label</div>
+        </div>
+        <div class="task-item" id="task9" onclick="focusTask(9)">
+            <div class="task-item-header"><span class="task-num">TASK 09</span><div class="task-check" id="check9">&#10003;</div></div>
+            <div class="task-item-name">Inspect Retention Policies</div>
+            <div class="task-item-desc">Navigate to Retention and identify which policy holds content indefinitely</div>
+        </div>
+        <div class="task-item" id="task10" onclick="focusTask(10)">
+            <div class="task-item-header"><span class="task-num">TASK 10</span><div class="task-check" id="check10">&#10003;</div></div>
+            <div class="task-item-name">Check eDiscovery Results</div>
+            <div class="task-item-desc">Navigate to eDiscovery and note the item count for the completed Compliance Audit case</div>
+        </div>
+    </aside>
+
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="overlay" id="completionOverlay">
+    <div class="overlay-card">
+        <div class="overlay-title">Lab Complete</div>
+        <div class="overlay-msg">You completed all 10 Microsoft Purview tasks. You can now review compliance scores, create DLP policies, configure sensitivity labels, manage retention, and run eDiscovery searches.</div>
+        <button class="overlay-btn" onclick="window.location.href='../index.html'">Return to Hub</button>
+    </div>
+</div>
+
+<script>
+    var STORAGE_KEY = 'ms102_ch08_purview_progress';
+    var TOTAL_TASKS  = 10;
+    var completed    = {};
+
+    (function init() {
+        var saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) { try { completed = JSON.parse(saved); } catch(e) {} }
+        Object.keys(completed).forEach(function(n) { markDone(parseInt(n), true); });
+        updateProgress();
     })();
-    </script>
-    <script src="../../../../components/FluxCapacitor.js"></script>
+
+    var breadcrumbs = { compliance:'Compliance Manager', dlp:'DLP', labels:'Sensitivity Labels', retention:'Retention', ediscovery:'eDiscovery' };
+
+    function showPanel(name) {
+        document.querySelectorAll('.portal-content').forEach(function(el) { el.classList.remove('active'); });
+        document.querySelectorAll('.sidebar-item').forEach(function(el) { el.classList.remove('active'); });
+        document.getElementById('panel-' + name).classList.add('active');
+        document.getElementById('nav-' + name).classList.add('active');
+        document.getElementById('breadcrumbActive').textContent = breadcrumbs[name] || name;
+        if (name === 'compliance') { markDone(6); }
+        if (name === 'dlp')        { markDone(7); }
+        if (name === 'labels')     { markDone(8); }
+        if (name === 'retention')  { markDone(9); }
+        if (name === 'ediscovery') { markDone(10); }
+    }
+
+    function refreshScore() {
+        showToast('Compliance score refreshed. Score: 70 / 100.');
+    }
+
+    function viewImprovements() {
+        showToast('Improvement actions loaded — 30 actions available to address.');
+        markDone(1);
+    }
+
+    function createDlpPolicy() {
+        var name     = document.getElementById('dlpPolicyName').value.trim();
+        var template = document.getElementById('dlpTemplate').value;
+        var action   = document.getElementById('dlpAction').value;
+        if (!name || !template || !action) { showToast('Fill in policy name, template, and action.'); return; }
+        var tbody = document.getElementById('dlpBody');
+        var loc = document.getElementById('dlpLocations');
+        var tr = document.createElement('tr');
+        tr.innerHTML = '<td>' + sanitize(name) + '</td><td>' + sanitize(loc.options[loc.selectedIndex].text) + '</td><td><span class="badge badge-green">On</span></td><td>0</td><td><button class="row-action">Edit</button></td>';
+        tbody.appendChild(tr);
+        document.getElementById('newDlpForm').style.display = 'none';
+        document.getElementById('dlpPolicyName').value = '';
+        showToast('DLP policy "' + name + '" created.');
+        markDone(2);
+    }
+
+    function createSensitivityLabel() {
+        var name       = document.getElementById('labelName').value.trim();
+        var protection = document.getElementById('labelProtection').value;
+        if (!name || !protection) { showToast('Enter a label name and select a protection action.'); return; }
+        var tbody = document.getElementById('labelsBody');
+        var tr = document.createElement('tr');
+        var hasEnc = protection === 'encrypt' || protection === 'both';
+        var hasMark = protection === 'mark' || protection === 'both';
+        tr.innerHTML = '<td><span class="badge badge-purple">' + sanitize(name) + '</span></td><td>' + tbody.querySelectorAll('tr').length + '</td><td><span class="badge ' + (hasEnc ? 'badge-green">Yes' : 'badge-red">No') + '</span></td><td>' + (hasMark ? 'Header + Footer' : 'None') + '</td><td><button class="row-action">Edit</button></td>';
+        tbody.appendChild(tr);
+        document.getElementById('newLabelForm').style.display = 'none';
+        document.getElementById('labelName').value = '';
+        showToast('Sensitivity label "' + name + '" created.');
+        markDone(3);
+    }
+
+    function createRetentionPolicy() {
+        var name   = document.getElementById('retentionName').value.trim();
+        var period = document.getElementById('retentionPeriod').value;
+        if (!name || !period) { showToast('Enter a policy name and retention period.'); return; }
+        var tbody = document.getElementById('retentionBody');
+        var loc = document.getElementById('retentionLocations');
+        var tr = document.createElement('tr');
+        var periodLabel = period === 'indefinite' ? 'Indefinite' : period + ' years';
+        tr.innerHTML = '<td>' + sanitize(name) + '</td><td>' + sanitize(loc.options[loc.selectedIndex].text) + '</td><td>' + periodLabel + '</td><td>' + (period === 'indefinite' ? 'No' : 'Yes') + '</td><td><span class="badge badge-green">Active</span></td>';
+        tbody.appendChild(tr);
+        document.getElementById('newRetentionForm').style.display = 'none';
+        document.getElementById('retentionName').value = '';
+        showToast('Retention policy "' + name + '" created.');
+        markDone(4);
+    }
+
+    function runEDiscoverySearch() {
+        var caseName = document.getElementById('eDiscoveryCase').value.trim();
+        var keywords = document.getElementById('eDiscoveryKeywords').value.trim();
+        if (!caseName || !keywords) { showToast('Enter a case name and at least one keyword.'); return; }
+        var tbody = document.getElementById('eDiscoveryBody');
+        var tr = document.createElement('tr');
+        tr.innerHTML = '<td>' + sanitize(caseName) + '</td><td><span class="badge badge-yellow">Running</span></td><td>--</td><td>--</td><td>2026-04-21</td>';
+        tbody.insertBefore(tr, tbody.firstChild);
+        document.getElementById('eDiscoverySearchForm').style.display = 'none';
+        document.getElementById('eDiscoveryCase').value = '';
+        document.getElementById('eDiscoveryKeywords').value = '';
+        showToast('eDiscovery search "' + caseName + '" submitted. Results will appear when complete.');
+        markDone(5);
+    }
+
+    function focusTask(num) {
+        document.querySelectorAll('.task-item').forEach(function(el) { el.classList.remove('active'); });
+        document.getElementById('task' + num).classList.add('active');
+        var map = { 1:'compliance', 2:'dlp', 3:'labels', 4:'retention', 5:'ediscovery', 6:'compliance', 7:'dlp', 8:'labels', 9:'retention', 10:'ediscovery' };
+        showPanel(map[num] || 'compliance');
+    }
+
+    function markDone(num, silent) {
+        if (completed[num]) return;
+        completed[num] = true;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(completed));
+        var item  = document.getElementById('task' + num);
+        var check = document.getElementById('check' + num);
+        if (item)  { item.classList.add('done'); }
+        if (check) { check.style.background = 'var(--success)'; check.style.borderColor = 'var(--success)'; check.style.color = '#fff'; }
+        updateProgress();
+        if (!silent && Object.keys(completed).length === TOTAL_TASKS) {
+            setTimeout(function() {
+                document.getElementById('completionOverlay').classList.add('active');
+                if (typeof ModuleProgress !== 'undefined') {
+                    ModuleProgress.complete('cloud', 'ms102-ch08-lab', { returnUrl: '../index.html' });
+                }
+            }, 600);
+        }
+    }
+
+    function updateProgress() {
+        var count = Object.keys(completed).length;
+        document.getElementById('progressFill').style.width = (count / TOTAL_TASKS * 100) + '%';
+        document.getElementById('progressLabel').textContent = count + ' / ' + TOTAL_TASKS;
+    }
+
+    function showToast(msg) {
+        var t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('visible');
+        clearTimeout(t._timer);
+        t._timer = setTimeout(function() { t.classList.remove('visible'); }, 3500);
+    }
+
+    function sanitize(str) {
+        var div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+</script>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
 </body>
 </html>

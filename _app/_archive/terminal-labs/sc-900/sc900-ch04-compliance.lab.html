@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compliance Solutions Lab -- SC-900 Chapter 4</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { height: 100vh; overflow: hidden; background: #0c0c0c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #f5b3b3; display: flex; flex-direction: column; }
+        .lab-header { flex-shrink: 0; padding: 15px 30px; background: rgba(10,6,8,0.95); border-bottom: 1px solid rgba(239,68,68,0.2); display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn { padding: 8px 16px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; color: #ef4444; text-decoration: none; font-size: 0.85rem; transition: all 0.3s ease; }
+        .back-btn:hover { background: rgba(239,68,68,0.2); }
+        .lab-title { font-size: 1rem; color: #fde2e2; }
+        .lab-badge { padding: 4px 12px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; font-size: 0.7rem; color: #f87171; letter-spacing: 0.05em; }
+        .lab-badge-ch { padding: 4px 12px; background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.3); border-radius: 12px; font-size: 0.7rem; color: #34d399; letter-spacing: 0.05em; }
+        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #7a4040; }
+        .task-count { color: #ef4444; font-weight: 500; }
+        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(239,68,68,0.15); border-radius: 3px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #ef4444, #991b1b); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
+        .lab-container { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
+        .task-panel { background: rgba(10,6,8,0.95); border-right: 1px solid rgba(239,68,68,0.15); overflow-y: auto; padding: 20px; }
+        .task-section { margin-bottom: 25px; }
+        .task-section-title { font-size: 0.68rem; color: #5a2020; letter-spacing: 0.15em; margin-bottom: 12px; text-transform: uppercase; }
+        .task-card { background: rgba(20,10,16,0.8); border: 1px solid rgba(239,68,68,0.15); border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s ease; }
+        .task-card:hover { border-color: rgba(239,68,68,0.4); }
+        .task-card.active { border-color: #ef4444; background: rgba(239,68,68,0.1); }
+        .task-card.completed { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.04); }
+        .task-card.completed .task-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; font-weight: 400; }
+        .task-number { font-size: 0.68rem; color: #ef4444; margin-bottom: 4px; }
+        .task-name { font-size: 0.9rem; color: #fde2e2; margin-bottom: 4px; }
+        .task-desc { font-size: 0.77rem; color: #7a4040; line-height: 1.45; }
+        .task-desc code { background: rgba(239,68,68,0.15); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; color: #f87171; font-family: 'Consolas', monospace; }
+        .terminal-panel { display: flex; flex-direction: column; background: #0a0a0a; position: relative; overflow: hidden; }
+        .term-toolbar { flex-shrink: 0; padding: 8px 20px; background: rgba(20,10,16,0.9); border-bottom: 1px solid rgba(239,68,68,0.15); display: flex; align-items: center; gap: 12px; }
+        .term-dot { width: 12px; height: 12px; border-radius: 50%; } .term-dot-red { background: #ff5f57; } .term-dot-amber { background: #febc2e; } .term-dot-green { background: #28c840; }
+        .term-title { flex: 1; text-align: center; font-size: 0.8rem; color: #5a3030; font-family: 'Consolas', monospace; }
+        .term-vm-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #34d399; }
+        .term-status-dot { width: 7px; height: 7px; background: #34d399; border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .term-output { flex: 1; overflow-y: auto; padding: 16px 360px 8px 20px; font-family: 'Consolas', monospace; font-size: 0.875rem; line-height: 1.6; }
+        .term-input-row { flex-shrink: 0; display: flex; align-items: center; padding: 8px 360px 12px 20px; border-top: 1px solid rgba(239,68,68,0.1); gap: 0; }
+        .term-prompt-label { font-family: 'Consolas', monospace; font-size: 0.875rem; white-space: nowrap; flex-shrink: 0; }
+        .term-prompt-user { color: #ef4444; } .term-prompt-sep { color: #5a2020; } .term-prompt-path { color: #34d399; } .term-prompt-dollar { color: #fde2e2; margin-right: 6px; }
+        .term-input { flex: 1; background: transparent; border: none; outline: none; color: #fde2e2; font-family: 'Consolas', monospace; font-size: 0.875rem; caret-color: #ef4444; }
+        .term-line { white-space: pre-wrap; word-break: break-all; }
+        .term-line-cmd { color: #f5b3b3; } .term-line-out { color: #a0d4a0; } .term-line-err { color: #f87171; } .term-line-info { color: #f87171; } .term-line-warn { color: #fbbf24; } .term-line-dim { color: #4a2020; } .term-welcome { color: #ef4444; }
+        .term-prompt-span { color: #ef4444; } .term-path-span { color: #34d399; } .term-ps1-sep { color: #5a2020; }
+        .json-key { color: #f87171; } .json-string { color: #86efac; } .json-number { color: #fbbf24; } .json-bool { color: #93c5fd; } .json-null { color: #f87171; }
+        .instructions-panel { position: absolute; top: 20px; right: 20px; width: 320px; background: rgba(10,6,8,0.97); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; padding: 20px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.4); transition: all 0.3s ease; }
+        .instructions-panel.collapsed { width: auto; padding: 10px 14px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-body { display: none; }
+        .instructions-title { font-size: 1rem; color: #ef4444; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-title { margin-bottom: 0; font-size: 0.85rem; }
+        .instructions-toggle { margin-left: auto; width: 28px; height: 28px; background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; color: #ef4444; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .instructions-step { font-size: 0.88rem; color: #f5b3b3; line-height: 1.65; margin-bottom: 14px; }
+        .instructions-step code { background: rgba(239,68,68,0.2); padding: 2px 7px; border-radius: 4px; font-family: 'Consolas', monospace; color: #f87171; font-size: 0.85em; }
+        .instructions-hint { font-size: 0.78rem; color: #5a2020; font-style: italic; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(239,68,68,0.15); line-height: 1.5; }
+        .hint-btn { margin-top: 12px; padding: 6px 12px; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); border-radius: 5px; color: #ef4444; font-size: 0.75rem; cursor: pointer; font-family: 'Segoe UI', sans-serif; width: 100%; text-align: center; }
+        .hint-command { display: none; margin-top: 10px; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(239,68,68,0.25); border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.78rem; color: #86efac; line-height: 1.55; white-space: pre-wrap; }
+        .hint-command.visible { display: block; }
+        .success-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 2000; }
+        .success-overlay.active { display: flex; }
+        .success-card { background: rgba(10,6,8,0.97); border: 1px solid rgba(52,211,153,0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
+        .success-message { color: #f5b3b3; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
+        .success-btn { padding: 12px 30px; background: linear-gradient(135deg, #ef4444, #991b1b); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; }
+        @media (max-width: 1024px) { .lab-container { grid-template-columns: 1fr; } .task-panel { display: none; } .term-output, .term-input-row { padding-right: 20px; } .instructions-panel { position: absolute; bottom: 60px; top: auto; right: 10px; left: 10px; width: auto; } }
+    </style>
+</head>
+<body>
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Compliance Solutions Lab</span>
+            <span class="lab-badge">SC-900</span>
+            <span class="lab-badge-ch">CH.4</span>
+        </div>
+        <div class="task-progress">
+            <span>Progress:</span>
+            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBarFill"></div></div>
+            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
+        </div>
+    </header>
+    <div class="lab-container">
+        <aside class="task-panel" id="taskPanel"><div class="task-section"><div class="task-section-title">Phase 1 -- Compliance Manager</div><div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)"><div class="task-number">Task 1</div><div class="task-name">Open Compliance Manager</div><div class="task-desc">Run <code>purview compliance-manager show</code> to display your compliance score and active assessments.</div></div><div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)"><div class="task-number">Task 2</div><div class="task-name">View Improvement Actions</div><div class="task-desc">Run <code>purview compliance-manager actions list</code> to review recommended compliance improvement actions.</div></div></div><div class="task-section"><div class="task-section-title">Phase 2 -- Data Protection</div><div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)"><div class="task-number">Task 3</div><div class="task-name">Create a Sensitivity Label</div><div class="task-desc">Run <code>purview label create --name "Confidential" --encryption on --watermark "CONFIDENTIAL"</code> to create a sensitivity label with protection.</div></div><div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)"><div class="task-number">Task 4</div><div class="task-name">Publish the Label</div><div class="task-desc">Run <code>purview label-policy create --name "All Users Policy" --labels "Confidential" --target all-users</code> to publish the label to all users.</div></div><div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)"><div class="task-number">Task 5</div><div class="task-name">Create a DLP Policy</div><div class="task-desc">Run <code>purview dlp-policy create --name "Block SSN Sharing" --type "U.S. Social Security Number" --action block</code> to prevent sensitive data sharing.</div></div></div><div class="task-section"><div class="task-section-title">Phase 3 -- Lifecycle and Legal</div><div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)"><div class="task-number">Task 6</div><div class="task-name">Configure a Retention Policy</div><div class="task-desc">Run <code>purview retention-policy create --name "7 Year Retention" --duration 7years --location exchange</code> to enforce email retention.</div></div><div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)"><div class="task-number">Task 7</div><div class="task-name">Create an eDiscovery Case</div><div class="task-desc">Run <code>purview ediscovery case create --name "Investigation-2026-04" --hold "j.smith@shieldlab.com"</code> to create a legal hold.</div></div></div><div class="task-section"><div class="task-section-title">Phase 4 -- Azure Governance and Risk</div><div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)"><div class="task-number">Task 8</div><div class="task-name">Apply an Azure Policy</div><div class="task-desc">Run <code>az-policy assign --name "Require Tag on Resources" --scope subscription --effect deny</code> to enforce tagging governance.</div></div><div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)"><div class="task-number">Task 9</div><div class="task-name">Create a Resource Lock</div><div class="task-desc">Run <code>az-lock create --name "Prod-NoDelete" --type CanNotDelete --scope rg-production</code> to protect production resources from deletion.</div></div><div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)"><div class="task-number">Task 10</div><div class="task-name">Review Insider Risk Alerts</div><div class="task-desc">Run <code>purview insider-risk alerts show</code> to review detected insider risk activities and investigation status.</div></div></div></aside>
+        <main class="terminal-panel" id="terminalPanel">
+            <div class="term-toolbar">
+                <div class="term-dot term-dot-red"></div><div class="term-dot term-dot-amber"></div><div class="term-dot term-dot-green"></div>
+                <div class="term-title">secadmin@shield-lab -- bash</div>
+                <div class="term-vm-status"><div class="term-status-dot"></div>Shield Lab Online</div>
+            </div>
+            <div class="term-output" id="termOutput"></div>
+            <div class="term-input-row">
+                <span class="term-prompt-label"><span class="term-prompt-user">secadmin@shield-lab</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span></span>
+                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
+            </div>
+            <div class="instructions-panel" id="instructionsPanel">
+                <div class="instructions-title" onclick="toggleInstructions()">
+                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+                    Task Instructions
+                    <button class="instructions-toggle" id="instructionsToggle">&#9660;</button>
+                </div>
+                <div class="instructions-body" id="instructionsBody">
+                    <div class="instructions-step" id="instructionsStep">Type the command in the terminal and press Enter.</div>
+                    <div class="instructions-hint" id="instructionsHint">Hint text loads when you select a task.</div>
+                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
+                    <div class="hint-command" id="hintCommand"></div>
+                </div>
+            </div>
+            <div class="success-overlay" id="successOverlay">
+                <div class="success-card">
+                    <div class="success-title">SC-900 Chapter 4 Lab Complete!</div>
+                    <div class="success-message">You explored Microsoft Purview compliance portal, created sensitivity labels, configured DLP policies, applied Azure Policy, set resource locks, and reviewed compliance scores.</div>
+                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script>
+    (function(){
+        'use strict';
+        var TOTAL_TASKS = 10;
+        var taskDone = {}; for(var i=1;i<=TOTAL_TASKS;i++) taskDone[i]=false;
+        var currentTask = 1;
+        var cmdHistory = [], histIdx = -1;
+        var outputEl, inputEl, ps1PathEl;
+
+        var TASK_INSTRUCTIONS = {1:{step:"Run the command shown in the task panel.\n<code>purview compliance-manager show</code>",hint:"Each command simulates a real Microsoft compliance or Azure governance action.",cmd:"purview compliance-manager show"},2:{step:"Run the command shown in the task panel.\n<code>purview compliance-manager actions list</code>",hint:"Each command simulates a real Microsoft compliance or Azure governance action.",cmd:"purview compliance-manager actions list"},3:{step:"Run the command shown in the task panel.\n<code>purview label create --name \"Confidential\" --encryption on --watermark \"CONFIDENTIAL\"</code>",hint:"Each command simulates a real Microsoft compliance or Azure governance action.",cmd:"purview label create --name \"Confidential\" --encryption on --watermark \"CONFIDENTIAL\""},4:{step:"Run the command shown in the task panel.\n<code>purview label-policy create --name \"All Users Policy\" --labels \"Confidential\" --target all-users</code>",hint:"Each command simulates a real Microsoft compliance or Azure governance action.",cmd:"purview label-policy create --name \"All Users Policy\" --labels \"Confidential\" --target all-users"},5:{step:"Run the command shown in the task panel.\n<code>purview dlp-policy create --name \"Block SSN Sharing\" --type \"U.S. Social Security Number\" --action block</code>",hint:"Each command simulates a real Microsoft compliance or Azure governance action.",cmd:"purview dlp-policy create --name \"Block SSN Sharing\" --type \"U.S. Social Security Number\" --action block"},6:{step:"Run the command shown in the task panel.\n<code>purview retention-policy create --name \"7 Year Retention\" --duration 7years --location exchange</code>",hint:"Each command simulates a real Microsoft compliance or Azure governance action.",cmd:"purview retention-policy create --name \"7 Year Retention\" --duration 7years --location exchange"},7:{step:"Run the command shown in the task panel.\n<code>purview ediscovery case create --name \"Investigation-2026-04\" --hold \"j.smith@shieldlab.com\"</code>",hint:"Each command simulates a real Microsoft compliance or Azure governance action.",cmd:"purview ediscovery case create --name \"Investigation-2026-04\" --hold \"j.smith@shieldlab.com\""},8:{step:"Run the command shown in the task panel.\n<code>az-policy assign --name \"Require Tag on Resources\" --scope subscription --effect deny</code>",hint:"Each command simulates a real Microsoft compliance or Azure governance action.",cmd:"az-policy assign --name \"Require Tag on Resources\" --scope subscription --effect deny"},9:{step:"Run the command shown in the task panel.\n<code>az-lock create --name \"Prod-NoDelete\" --type CanNotDelete --scope rg-production</code>",hint:"Each command simulates a real Microsoft compliance or Azure governance action.",cmd:"az-lock create --name \"Prod-NoDelete\" --type CanNotDelete --scope rg-production"},10:{step:"Run the command shown in the task panel.\n<code>purview insider-risk alerts show</code>",hint:"Each command simulates a real Microsoft compliance or Azure governance action.",cmd:"purview insider-risk alerts show"}};
+
+        var TASK_NAMES = {};
+        TASK_NAMES[1]="Open Compliance Manager";
+        TASK_NAMES[2]="View Improvement Actions";
+        TASK_NAMES[3]="Create a Sensitivity Label";
+        TASK_NAMES[4]="Publish the Label";
+        TASK_NAMES[5]="Create a DLP Policy";
+        TASK_NAMES[6]="Configure a Retention Policy";
+        TASK_NAMES[7]="Create an eDiscovery Case";
+        TASK_NAMES[8]="Apply an Azure Policy";
+        TASK_NAMES[9]="Create a Resource Lock";
+        TASK_NAMES[10]="Review Insider Risk Alerts";
+
+        // Simulated command responses
+        var CMD_RESPONSES = {"purview compliance-manager show":{"lines":[{"text":"=== Microsoft Purview Compliance Manager ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Compliance Score: 64% (320/500 points)","cls":"term-line-out"},{"text":"  Microsoft-Managed Actions: 180/200 points","cls":"term-line-out"},{"text":"  Customer-Managed Actions:  140/300 points","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Active Assessments:","cls":"term-line-warn"},{"text":"    GDPR (EU):           72%","cls":"term-line-out"},{"text":"    NIST 800-53:         58%","cls":"term-line-out"},{"text":"    ISO 27001:           68%","cls":"term-line-out"},{"text":"    CIS Benchmark:       71%","cls":"term-line-out"}],"completesTask":1},"purview compliance-manager actions list":{"lines":[{"text":"=== Improvement Actions ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  [HIGH]   Enable sensitivity labels for Office files (+15 pts)","cls":"term-line-err"},{"text":"  [HIGH]   Configure DLP policies for sensitive data (+12 pts)","cls":"term-line-err"},{"text":"  [MEDIUM] Enable audit logging for all services (+8 pts)","cls":"term-line-warn"},{"text":"  [MEDIUM] Configure retention policies for email (+6 pts)","cls":"term-line-warn"},{"text":"  [MEDIUM] Enable insider risk management (+10 pts)","cls":"term-line-warn"},{"text":"  [LOW]    Configure communication compliance (+4 pts)","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  6 actions available. Complete HIGH items first for maximum score improvement.","cls":"term-line-dim"}],"completesTask":2},"purview label create --name \"Confidential\" --encryption on --watermark \"CONFIDENTIAL\"":{"lines":[{"text":"Creating sensitivity label...","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Label Name:   Confidential","cls":"term-line-out"},{"text":"  Encryption:   Enabled (AES-256, rights-restricted)","cls":"term-line-out"},{"text":"  Watermark:    \"CONFIDENTIAL\" (diagonal, gray)","cls":"term-line-out"},{"text":"  Header:       \"Confidential - Do Not Distribute\"","cls":"term-line-out"},{"text":"  Scope:        Files, Emails, Sites","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Label created. Publish via label policy to make it available in Office apps.","cls":"term-line-warn"}],"completesTask":3},"purview label-policy create --name \"All Users Policy\" --labels \"Confidential\" --target all-users":{"lines":[{"text":"Creating label policy...","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Policy Name:  All Users Policy","cls":"term-line-out"},{"text":"  Labels:       Confidential","cls":"term-line-out"},{"text":"  Target:       All users","cls":"term-line-out"},{"text":"  Default Label: None (user must choose)","cls":"term-line-out"},{"text":"  Justification: Required for downgrade or removal","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Labels will appear in Office apps within 24 hours.","cls":"term-line-info"}],"completesTask":4},"purview dlp-policy create --name \"Block SSN Sharing\" --type \"U.S. Social Security Number\" --action block":{"lines":[{"text":"Creating DLP policy...","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Policy Name:  Block SSN Sharing","cls":"term-line-out"},{"text":"  SIT Detected: U.S. Social Security Number (XXX-XX-XXXX)","cls":"term-line-out"},{"text":"  Locations:    Exchange, SharePoint, OneDrive, Teams","cls":"term-line-out"},{"text":"  Action:       Block sharing + notify user with policy tip","cls":"term-line-out"},{"text":"  Override:     Allowed with business justification","cls":"term-line-out"},{"text":"  Admin Alert:  Yes (email to compliance team)","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  DLP policy created. Sensitive data sharing will be blocked across M365.","cls":"term-line-warn"}],"completesTask":5},"purview retention-policy create --name \"7 Year Retention\" --duration 7years --location exchange":{"lines":[{"text":"Creating retention policy...","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Policy Name:  7 Year Retention","cls":"term-line-out"},{"text":"  Duration:     7 years (2555 days)","cls":"term-line-out"},{"text":"  Location:     Exchange Online (all mailboxes)","cls":"term-line-out"},{"text":"  Action:       Retain then delete","cls":"term-line-out"},{"text":"  Status:       Active","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Emails will be retained for 7 years even if users delete them.","cls":"term-line-warn"}],"completesTask":6},"purview ediscovery case create --name \"Investigation-2026-04\" --hold \"j.smith@shieldlab.com\"":{"lines":[{"text":"Creating eDiscovery case...","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Case Name:    Investigation-2026-04","cls":"term-line-out"},{"text":"  Type:         eDiscovery (Standard)","cls":"term-line-out"},{"text":"  Legal Hold:   j.smith@shieldlab.com","cls":"term-line-out"},{"text":"  Hold Status:  Active (content preserved)","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Legal hold prevents deletion of all content in the custodian mailbox and OneDrive.","cls":"term-line-warn"},{"text":"  Even retention policy expiration will not delete held content.","cls":"term-line-dim"}],"completesTask":7},"az-policy assign --name \"Require Tag on Resources\" --scope subscription --effect deny":{"lines":[{"text":"Assigning Azure Policy...","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Policy Name:  Require Tag on Resources","cls":"term-line-out"},{"text":"  Scope:        Subscription: Shield-Lab-Subscription","cls":"term-line-out"},{"text":"  Effect:       Deny (block non-compliant resource creation)","cls":"term-line-out"},{"text":"  Required Tag: CostCenter","cls":"term-line-out"},{"text":"  Status:       Assigned","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Resources without a CostCenter tag will be blocked from creation.","cls":"term-line-warn"}],"completesTask":8},"az-lock create --name \"Prod-NoDelete\" --type CanNotDelete --scope rg-production":{"lines":[{"text":"Creating resource lock...","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Lock Name:    Prod-NoDelete","cls":"term-line-out"},{"text":"  Lock Type:    CanNotDelete","cls":"term-line-out"},{"text":"  Scope:        rg-production (all resources within)","cls":"term-line-out"},{"text":"  Effect:       Read and modify allowed, delete blocked","cls":"term-line-out"},{"text":"  Inheritance:  Lock applies to all child resources","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Production resources are now protected from accidental deletion.","cls":"term-line-warn"}],"completesTask":9},"purview insider-risk alerts show":{"lines":[{"text":"=== Insider Risk Alerts ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  [HIGH]   Data exfiltration pattern detected: User_A","cls":"term-line-err"},{"text":"           Activity: 847 files downloaded in 2 hours, USB copy detected","cls":"term-line-dim"},{"text":"           Trigger: Resignation notice (HR signal)","cls":"term-line-dim"},{"text":"","cls":"term-line-out"},{"text":"  [MEDIUM] Security policy violation: User_B","cls":"term-line-warn"},{"text":"           Activity: Disabled antivirus, installed unauthorized software","cls":"term-line-dim"},{"text":"","cls":"term-line-out"},{"text":"  Note: User identities are pseudonymized until investigation escalation.","cls":"term-line-info"},{"text":"  2 alerts require investigation. Escalate HIGH alert immediately.","cls":"term-line-err"}],"completesTask":10}}; Customer owns OS, Apps, Data, Identity","cls":"term-line-out"},{"text":"  PaaS:         Microsoft owns Infra + OS + Runtime; Customer owns Apps, Data, Identity","cls":"term-line-out"},{"text":"  SaaS:         Microsoft owns nearly everything; Customer owns Data, Identity, Devices","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  ALWAYS Customer Responsibility: Data classification, Identity management, Device security","cls":"term-line-warn"},{"text":"  ALWAYS Microsoft Responsibility: Physical datacenter, Physical network, Physical hosts","cls":"term-line-warn"}],"completesTask":1},"security-model show zero-trust":{"lines":[{"text":"=== Zero Trust Model ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Principle 1: VERIFY EXPLICITLY","cls":"term-line-out"},{"text":"    Always authenticate based on all signals: identity, location, device, risk","cls":"term-line-dim"},{"text":"  Principle 2: LEAST PRIVILEGE ACCESS","cls":"term-line-out"},{"text":"    Just-in-time, just-enough-access. Risk-based adaptive policies.","cls":"term-line-dim"},{"text":"  Principle 3: ASSUME BREACH","cls":"term-line-out"},{"text":"    Minimize blast radius. Micro-segment. End-to-end encryption.","cls":"term-line-dim"},{"text":"","cls":"term-line-out"},{"text":"  Six Pillars: Identity, Devices, Applications, Data, Infrastructure, Network","cls":"term-line-warn"}],"completesTask":2},"security-model show cia-triad":{"lines":[{"text":"=== CIA Triad ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  CONFIDENTIALITY: Only authorized access to data","cls":"term-line-out"},{"text":"    Controls: Encryption, Access Controls, Sensitivity Labels","cls":"term-line-dim"},{"text":"  INTEGRITY: Data has not been tampered with","cls":"term-line-out"},{"text":"    Controls: Hashing (SHA-256), Digital Signatures, Audit Logs","cls":"term-line-dim"},{"text":"  AVAILABILITY: Systems accessible when needed","cls":"term-line-out"},{"text":"    Controls: Redundancy, DDoS Protection, Backup/DR","cls":"term-line-dim"}],"completesTask":3},"threat-classify --type phishing":{"lines":[{"text":"=== Threat Analysis: Phishing ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Category: Social Engineering","cls":"term-line-out"},{"text":"  Vector: Email, SMS, Voice","cls":"term-line-out"},{"text":"  CIA Impact: Confidentiality (credential theft)","cls":"term-line-out"},{"text":"  Variants: Spear phishing (targeted), Whaling (executives), Vishing (voice)","cls":"term-line-out"},{"text":"  Indicators: Urgency, spoofed sender, suspicious URLs, unexpected attachments","cls":"term-line-warn"},{"text":"  Defenses: MFA, Security Awareness Training, Safe Links, Anti-phishing AI","cls":"term-line-dim"}],"completesTask":4},"threat-classify --type ransomware":{"lines":[{"text":"=== Threat Analysis: Ransomware ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Category: Malware","cls":"term-line-out"},{"text":"  Vector: Phishing emails, vulnerability exploitation, RDP brute force","cls":"term-line-out"},{"text":"  CIA Impact: Availability (file encryption), Confidentiality (data exfiltration)","cls":"term-line-out"},{"text":"  Kill Chain: Initial access > Lateral movement > Data exfil > Encryption > Ransom note","cls":"term-line-warn"},{"text":"  Defenses: Backups, Endpoint Protection, Patch Management, Network Segmentation","cls":"term-line-dim"},{"text":"  Policy: NEVER pay the ransom","cls":"term-line-err"}],"completesTask":5},"threat-classify --type ddos":{"lines":[{"text":"=== Threat Analysis: DDoS ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Category: Denial of Service","cls":"term-line-out"},{"text":"  CIA Impact: Availability","cls":"term-line-out"},{"text":"  Volumetric: UDP floods, DNS amplification (overwhelm bandwidth)","cls":"term-line-out"},{"text":"  Protocol: SYN floods, Ping of Death (exploit protocol weaknesses)","cls":"term-line-out"},{"text":"  Application: HTTP floods, Slowloris (target web app layer)","cls":"term-line-warn"},{"text":"  Defenses: Azure DDoS Protection Standard, Azure Firewall, CDN, WAF","cls":"term-line-dim"}],"completesTask":6},"crypto-lab encrypt --method symmetric --data \"Sensitive data\"":{"lines":[{"text":"=== Symmetric Encryption (AES-256) ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Plaintext:  \"Sensitive data\"","cls":"term-line-out"},{"text":"  Key:        a7f2c9e4...b3d1 (256-bit AES key)","cls":"term-line-out"},{"text":"  Ciphertext: 4f8a2c1e...9d3b","cls":"term-line-out"},{"text":"  Decrypted:  \"Sensitive data\"","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Same key used for encrypt AND decrypt","cls":"term-line-warn"},{"text":"  Fast, efficient for bulk data. Challenge: secure key distribution.","cls":"term-line-dim"}],"completesTask":7},"crypto-lab encrypt --method asymmetric --data \"Sensitive data\"":{"lines":[{"text":"=== Asymmetric Encryption (RSA-2048) ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Plaintext:    \"Sensitive data\"","cls":"term-line-out"},{"text":"  Public Key:   MIIBIjAN...AQAB (shareable)","cls":"term-line-out"},{"text":"  Private Key:  MIIEpAIB...== (secret)","cls":"term-line-out"},{"text":"  Encrypted with PUBLIC key:  7c3e9f1a...2b4d","cls":"term-line-out"},{"text":"  Decrypted with PRIVATE key: \"Sensitive data\"","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Two different keys. Solves key distribution problem.","cls":"term-line-warn"},{"text":"  Slower than symmetric. Used for key exchange and digital signatures.","cls":"term-line-dim"}],"completesTask":8},"crypto-lab hash --algorithm sha256 --data \"Integrity check\"":{"lines":[{"text":"=== SHA-256 Hash ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Input:  \"Integrity check\"","cls":"term-line-out"},{"text":"  Hash:   e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  One-way function: CANNOT reverse hash back to input","cls":"term-line-warn"},{"text":"  Same input always produces same hash (deterministic)","cls":"term-line-dim"},{"text":"  Any change to input produces completely different hash","cls":"term-line-dim"},{"text":"  Used for: password storage, file integrity, digital signatures","cls":"term-line-dim"}],"completesTask":9},"security-model show defense-in-depth":{"lines":[{"text":"=== Defense in Depth -- 7 Layers ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Layer 1: PHYSICAL SECURITY    -- Datacenter access controls, biometrics","cls":"term-line-out"},{"text":"  Layer 2: IDENTITY & ACCESS     -- Entra ID, MFA, Conditional Access","cls":"term-line-out"},{"text":"  Layer 3: PERIMETER             -- DDoS Protection, Azure Firewall","cls":"term-line-out"},{"text":"  Layer 4: NETWORK               -- NSGs, VNet segmentation, private endpoints","cls":"term-line-out"},{"text":"  Layer 5: COMPUTE               -- OS patching, endpoint protection","cls":"term-line-out"},{"text":"  Layer 6: APPLICATION           -- Secure coding, WAF, vulnerability scanning","cls":"term-line-out"},{"text":"  Layer 7: DATA                  -- Encryption, sensitivity labels, DLP","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  If one layer fails, the next layer catches the attacker.","cls":"term-line-warn"}],"completesTask":10}};
+
+        function escH(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        function addLine(t,c) { var d=document.createElement('div'); d.className='term-line'+(c?' '+c:''); d.textContent=t; outputEl.appendChild(d); outputEl.scrollTop=outputEl.scrollHeight; }
+        function addHTML(h,c) { var d=document.createElement('div'); d.className='term-line'+(c?' '+c:''); d.innerHTML=h; outputEl.appendChild(d); outputEl.scrollTop=outputEl.scrollHeight; }
+        function addBlank() { addLine('',''); }
+        function addPromptLine(cmd) { addHTML('<span class="term-prompt-span">secadmin@shield-lab</span><span class="term-ps1-sep">:</span><span class="term-path-span">~</span><span class="term-ps1-sep">$ </span>'+escH(cmd),'term-line-cmd'); }
+
+        function execLine(raw) {
+            var trimmed = raw.trim();
+            addPromptLine(trimmed);
+            if (!trimmed) return;
+            var matched = false;
+            for (var key in CMD_RESPONSES) {
+                if (trimmed === key || trimmed.indexOf(key) === 0) {
+                    var resp = CMD_RESPONSES[key];
+                    resp.lines.forEach(function(l) { addLine(l.text, l.cls); });
+                    addBlank();
+                    if (resp.completesTask) { completeTask(resp.completesTask); }
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                if (trimmed === 'help') { addLine('Type the commands shown in the task instructions.', 'term-line-info'); addLine('Each task provides the exact command to run.', 'term-line-dim'); }
+                else if (trimmed === 'clear') { outputEl.innerHTML = ''; }
+                else { addLine('Command not recognized in this lab simulation. Check the task instructions.', 'term-line-err'); }
+            }
+        }
+
+        function completeTask(num) {
+            if (taskDone[num]) return;
+            taskDone[num] = true;
+            var card = document.getElementById('task-card-' + num);
+            if (card) { card.classList.add('completed'); card.classList.remove('active'); }
+            var doneCount = Object.keys(taskDone).filter(function(k){return taskDone[k];}).length;
+            document.getElementById('taskProgress').textContent = doneCount + ' / ' + TOTAL_TASKS + ' Tasks';
+            document.getElementById('progressBarFill').style.width = Math.round((doneCount/TOTAL_TASKS)*100) + '%';
+            addBlank();
+            addHTML('  <span style="color:#34d399">[Task ' + num + ' complete]</span> <span style="color:#5a2020">' + escH(TASK_NAMES[num]||'') + '</span>', 'term-line-info');
+            addBlank();
+            if (doneCount === TOTAL_TASKS) { setTimeout(function(){ document.getElementById('successOverlay').classList.add('active'); }, 700); return; }
+            var next = null; for (var j=1;j<=TOTAL_TASKS;j++) { if (!taskDone[j]) { next=j; break; } }
+            if (next) selectTask(next);
+        }
+
+        function selectTask(num) {
+            currentTask = num;
+            for (var i=1;i<=TOTAL_TASKS;i++) { var c=document.getElementById('task-card-'+i); if(c){c.classList.remove('active'); if(i===num) c.classList.add('active');} }
+            var info = TASK_INSTRUCTIONS[num]; if (!info) return;
+            var stepEl=document.getElementById('instructionsStep'); var hintEl=document.getElementById('instructionsHint'); var hintCmd=document.getElementById('hintCommand');
+            if (stepEl) stepEl.innerHTML = info.step.replace(/
+/g,'<br>');
+            if (hintEl) hintEl.textContent = info.hint;
+            if (hintCmd) { hintCmd.textContent = info.cmd; hintCmd.classList.remove('visible'); }
+            var panel=document.getElementById('instructionsPanel'); if(panel&&panel.classList.contains('collapsed')) panel.classList.remove('collapsed');
+        }
+
+        window.selectTask = selectTask;
+        window.toggleInstructions = function() { document.getElementById('instructionsPanel').classList.toggle('collapsed'); };
+        window.revealHint = function() { var h=document.getElementById('hintCommand'); if(h) h.classList.toggle('visible'); };
+        window.finishLab = function() { if (typeof ModuleProgress !== 'undefined') { ModuleProgress.complete('shield', 'sc900-ch04-lab', { returnUrl: '../index.html' }); } else { window.location.href = '../index.html'; } };
+
+        function init() {
+            outputEl = document.getElementById('termOutput');
+            inputEl = document.getElementById('termInput');
+            ps1PathEl = document.getElementById('termPS1Path');
+            if (!outputEl || !inputEl) return;
+            addLine("Compliance Solutions Lab -- SC-900 Chapter 4", "term-welcome");
+            addLine("Shield House Security Terminal Simulation", "term-welcome");
+            addLine("", "term-line-out");
+            addLine("Explore foundational security models, classify threats, and test encryption.", "term-line-info");
+            addLine("Type \"help\" for guidance. Complete 10 tasks to finish the lab.", "term-line-info");
+            addBlank();
+            inputEl.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') { var cmd=inputEl.value; inputEl.value=''; if(cmd.trim()){cmdHistory.push(cmd);histIdx=cmdHistory.length;} execLine(cmd); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); if(histIdx>0){histIdx--;inputEl.value=cmdHistory[histIdx];} }
+                else if (e.key === 'ArrowDown') { e.preventDefault(); if(histIdx<cmdHistory.length-1){histIdx++;inputEl.value=cmdHistory[histIdx];}else{histIdx=cmdHistory.length;inputEl.value='';} }
+            });
+            outputEl.addEventListener('click', function(){ inputEl.focus(); });
+            inputEl.focus();
+            selectTask(1);
+        }
+        if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
+    })();
+    </script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

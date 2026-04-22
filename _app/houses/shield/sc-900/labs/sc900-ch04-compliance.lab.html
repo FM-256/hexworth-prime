@@ -4,234 +4,1239 @@
     <meta charset="UTF-8">
     <script src="../../../../components/AccessGuard.js"></script>
     <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
     <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
     <script src="../../../../components/FirebaseAuth.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Compliance Solutions Lab -- SC-900 Chapter 4</title>
+    <title>Microsoft Purview Compliance Portal Lab | SC-900 Chapter 4</title>
     <style>
+        :root {
+            --shield-red:   #ef4444;
+            --shield-red2:  #991b1b;
+            --shield-green: #34d399;
+            --bg-0:  #080b12;
+            --bg-1:  #0c0f1a;
+            --bg-2:  #111623;
+            --bg-3:  #161d2e;
+            --border: rgba(239,68,68,0.18);
+            --border-hi: rgba(239,68,68,0.45);
+            --text-1: #f0d4d4;
+            --text-2: #b07070;
+            --text-3: #5a2828;
+            --purview: #7c3aed;
+            --purview-light: #a78bfa;
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { height: 100vh; overflow: hidden; background: #0c0c0c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #f5b3b3; display: flex; flex-direction: column; }
-        .lab-header { flex-shrink: 0; padding: 15px 30px; background: rgba(10,6,8,0.95); border-bottom: 1px solid rgba(239,68,68,0.2); display: flex; justify-content: space-between; align-items: center; }
-        .header-left { display: flex; align-items: center; gap: 20px; }
-        .back-btn { padding: 8px 16px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; color: #ef4444; text-decoration: none; font-size: 0.85rem; transition: all 0.3s ease; }
-        .back-btn:hover { background: rgba(239,68,68,0.2); }
-        .lab-title { font-size: 1rem; color: #fde2e2; }
-        .lab-badge { padding: 4px 12px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; font-size: 0.7rem; color: #f87171; letter-spacing: 0.05em; }
-        .lab-badge-ch { padding: 4px 12px; background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.3); border-radius: 12px; font-size: 0.7rem; color: #34d399; letter-spacing: 0.05em; }
-        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #7a4040; }
-        .task-count { color: #ef4444; font-weight: 500; }
-        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(239,68,68,0.15); border-radius: 3px; overflow: hidden; }
-        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #ef4444, #991b1b); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
-        .lab-container { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
-        .task-panel { background: rgba(10,6,8,0.95); border-right: 1px solid rgba(239,68,68,0.15); overflow-y: auto; padding: 20px; }
-        .task-section { margin-bottom: 25px; }
-        .task-section-title { font-size: 0.68rem; color: #5a2020; letter-spacing: 0.15em; margin-bottom: 12px; text-transform: uppercase; }
-        .task-card { background: rgba(20,10,16,0.8); border: 1px solid rgba(239,68,68,0.15); border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s ease; }
-        .task-card:hover { border-color: rgba(239,68,68,0.4); }
-        .task-card.active { border-color: #ef4444; background: rgba(239,68,68,0.1); }
-        .task-card.completed { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.04); }
-        .task-card.completed .task-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; font-weight: 400; }
-        .task-number { font-size: 0.68rem; color: #ef4444; margin-bottom: 4px; }
-        .task-name { font-size: 0.9rem; color: #fde2e2; margin-bottom: 4px; }
-        .task-desc { font-size: 0.77rem; color: #7a4040; line-height: 1.45; }
-        .task-desc code { background: rgba(239,68,68,0.15); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; color: #f87171; font-family: 'Consolas', monospace; }
-        .terminal-panel { display: flex; flex-direction: column; background: #0a0a0a; position: relative; overflow: hidden; }
-        .term-toolbar { flex-shrink: 0; padding: 8px 20px; background: rgba(20,10,16,0.9); border-bottom: 1px solid rgba(239,68,68,0.15); display: flex; align-items: center; gap: 12px; }
-        .term-dot { width: 12px; height: 12px; border-radius: 50%; } .term-dot-red { background: #ff5f57; } .term-dot-amber { background: #febc2e; } .term-dot-green { background: #28c840; }
-        .term-title { flex: 1; text-align: center; font-size: 0.8rem; color: #5a3030; font-family: 'Consolas', monospace; }
-        .term-vm-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #34d399; }
-        .term-status-dot { width: 7px; height: 7px; background: #34d399; border-radius: 50%; animation: pulse 2s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-        .term-output { flex: 1; overflow-y: auto; padding: 16px 360px 8px 20px; font-family: 'Consolas', monospace; font-size: 0.875rem; line-height: 1.6; }
-        .term-input-row { flex-shrink: 0; display: flex; align-items: center; padding: 8px 360px 12px 20px; border-top: 1px solid rgba(239,68,68,0.1); gap: 0; }
-        .term-prompt-label { font-family: 'Consolas', monospace; font-size: 0.875rem; white-space: nowrap; flex-shrink: 0; }
-        .term-prompt-user { color: #ef4444; } .term-prompt-sep { color: #5a2020; } .term-prompt-path { color: #34d399; } .term-prompt-dollar { color: #fde2e2; margin-right: 6px; }
-        .term-input { flex: 1; background: transparent; border: none; outline: none; color: #fde2e2; font-family: 'Consolas', monospace; font-size: 0.875rem; caret-color: #ef4444; }
-        .term-line { white-space: pre-wrap; word-break: break-all; }
-        .term-line-cmd { color: #f5b3b3; } .term-line-out { color: #a0d4a0; } .term-line-err { color: #f87171; } .term-line-info { color: #f87171; } .term-line-warn { color: #fbbf24; } .term-line-dim { color: #4a2020; } .term-welcome { color: #ef4444; }
-        .term-prompt-span { color: #ef4444; } .term-path-span { color: #34d399; } .term-ps1-sep { color: #5a2020; }
-        .json-key { color: #f87171; } .json-string { color: #86efac; } .json-number { color: #fbbf24; } .json-bool { color: #93c5fd; } .json-null { color: #f87171; }
-        .instructions-panel { position: absolute; top: 20px; right: 20px; width: 320px; background: rgba(10,6,8,0.97); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; padding: 20px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.4); transition: all 0.3s ease; }
-        .instructions-panel.collapsed { width: auto; padding: 10px 14px; cursor: pointer; }
-        .instructions-panel.collapsed .instructions-body { display: none; }
-        .instructions-title { font-size: 1rem; color: #ef4444; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
-        .instructions-panel.collapsed .instructions-title { margin-bottom: 0; font-size: 0.85rem; }
-        .instructions-toggle { margin-left: auto; width: 28px; height: 28px; background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; color: #ef4444; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .instructions-step { font-size: 0.88rem; color: #f5b3b3; line-height: 1.65; margin-bottom: 14px; }
-        .instructions-step code { background: rgba(239,68,68,0.2); padding: 2px 7px; border-radius: 4px; font-family: 'Consolas', monospace; color: #f87171; font-size: 0.85em; }
-        .instructions-hint { font-size: 0.78rem; color: #5a2020; font-style: italic; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(239,68,68,0.15); line-height: 1.5; }
-        .hint-btn { margin-top: 12px; padding: 6px 12px; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); border-radius: 5px; color: #ef4444; font-size: 0.75rem; cursor: pointer; font-family: 'Segoe UI', sans-serif; width: 100%; text-align: center; }
-        .hint-command { display: none; margin-top: 10px; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(239,68,68,0.25); border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.78rem; color: #86efac; line-height: 1.55; white-space: pre-wrap; }
-        .hint-command.visible { display: block; }
-        .success-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 2000; }
-        .success-overlay.active { display: flex; }
-        .success-card { background: rgba(10,6,8,0.97); border: 1px solid rgba(52,211,153,0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
-        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
-        .success-message { color: #f5b3b3; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
-        .success-btn { padding: 12px 30px; background: linear-gradient(135deg, #ef4444, #991b1b); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; }
-        @media (max-width: 1024px) { .lab-container { grid-template-columns: 1fr; } .task-panel { display: none; } .term-output, .term-input-row { padding-right: 20px; } .instructions-panel { position: absolute; bottom: 60px; top: auto; right: 10px; left: 10px; width: auto; } }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-0);
+            color: var(--text-1);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ---- TOP BAR ---- */
+        .top-bar {
+            flex-shrink: 0; display: flex; align-items: center; gap: 1rem;
+            padding: 0.75rem 1.5rem; background: var(--bg-1); border-bottom: 1px solid var(--border);
+        }
+        .back-link {
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            padding: 0.4rem 0.9rem; background: rgba(239,68,68,0.08);
+            border: 1px solid var(--border); border-radius: 6px;
+            color: var(--shield-red); text-decoration: none; font-size: 0.8rem; transition: background 0.2s;
+        }
+        .back-link:hover { background: rgba(239,68,68,0.18); }
+        .top-bar-title { font-size: 0.95rem; color: var(--text-1); font-weight: 500; }
+        .top-bar-badges { display: flex; gap: 0.5rem; }
+        .badge { padding: 0.2rem 0.65rem; border-radius: 20px; font-size: 0.68rem; letter-spacing: 0.06em; font-weight: 600; }
+        .badge-red   { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); color: #f87171; }
+        .badge-purple { background: rgba(124,58,237,0.15); border: 1px solid rgba(124,58,237,0.35); color: #a78bfa; }
+        .top-bar-progress { margin-left: auto; display: flex; align-items: center; gap: 0.75rem; }
+        .progress-label { font-size: 0.8rem; color: var(--text-2); }
+        .progress-track { width: 130px; height: 5px; background: rgba(239,68,68,0.12); border-radius: 3px; overflow: hidden; }
+        .progress-fill  { height: 100%; background: linear-gradient(90deg, var(--shield-red), var(--shield-red2)); border-radius: 3px; width: 0%; transition: width 0.45s ease; }
+        .progress-count { font-size: 0.8rem; color: var(--shield-red); font-weight: 600; white-space: nowrap; }
+
+        /* ---- LAYOUT ---- */
+        .lab-body { flex: 1; display: grid; grid-template-columns: 260px 1fr 320px; min-height: 0; overflow: hidden; }
+
+        /* ---- LEFT: TASK PANEL ---- */
+        .task-panel { background: var(--bg-1); border-right: 1px solid var(--border); overflow-y: auto; padding: 1rem; }
+        .task-group-label { font-size: 0.63rem; color: var(--text-3); letter-spacing: 0.15em; text-transform: uppercase; margin: 1rem 0 0.5rem; }
+        .task-item {
+            display: flex; align-items: flex-start; gap: 0.6rem;
+            padding: 0.65rem 0.75rem; border-radius: 8px; border: 1px solid transparent;
+            cursor: pointer; margin-bottom: 0.35rem; transition: all 0.2s;
+        }
+        .task-item:hover { background: rgba(239,68,68,0.06); border-color: var(--border); }
+        .task-item.active { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.45); }
+        .task-item.done   { border-color: rgba(52,211,153,0.25); background: rgba(52,211,153,0.04); }
+        .task-num {
+            flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
+            background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.7rem; color: var(--shield-red); font-weight: 700; margin-top: 1px;
+        }
+        .task-item.done .task-num { background: rgba(52,211,153,0.15); border-color: rgba(52,211,153,0.35); color: var(--shield-green); }
+        .task-info { flex: 1; min-width: 0; }
+        .task-name { font-size: 0.82rem; color: var(--text-1); line-height: 1.3; }
+        .task-desc-short { font-size: 0.72rem; color: var(--text-2); margin-top: 0.2rem; line-height: 1.4; }
+
+        /* ---- CENTER: PORTAL ---- */
+        .portal-area { overflow-y: auto; background: var(--bg-0); }
+        .purview-shell { min-height: 100%; display: flex; flex-direction: column; }
+        .purview-layout { display: grid; grid-template-columns: 210px 1fr; flex: 1; }
+
+        /* Purview sidebar */
+        .purview-sidebar {
+            background: #0f0d1a;
+            border-right: 1px solid rgba(124,58,237,0.15);
+            padding: 0.75rem 0;
+        }
+        .purview-sidebar-logo {
+            padding: 0.5rem 1rem 0.75rem;
+            font-size: 0.75rem; font-weight: 700; color: var(--purview-light);
+            letter-spacing: 0.04em; border-bottom: 1px solid rgba(124,58,237,0.15);
+            margin-bottom: 0.5rem;
+        }
+        .purview-nav-group { padding: 0.4rem 0; }
+        .purview-nav-label {
+            font-size: 0.6rem; color: #3a3050; letter-spacing: 0.15em;
+            text-transform: uppercase; padding: 0.25rem 1rem 0.2rem;
+        }
+        .purview-nav-item {
+            display: flex; align-items: center; gap: 0.5rem;
+            padding: 0.45rem 1rem; font-size: 0.78rem; color: #7060a0;
+            cursor: pointer; transition: all 0.18s; border-left: 2px solid transparent;
+        }
+        .purview-nav-item:hover { color: #d0c0f0; background: rgba(124,58,237,0.06); }
+        .purview-nav-item.nav-active { color: var(--purview-light); background: rgba(124,58,237,0.1); border-left-color: var(--purview-light); }
+        .purview-nav-item img { width: 0.85em; height: 0.85em; opacity: 0.6; }
+        .purview-nav-item.nav-active img { opacity: 1; }
+
+        /* Portal content */
+        .purview-content { padding: 1.25rem; overflow-y: auto; }
+        .portal-view { display: none; }
+        .portal-view.view-active { display: block; }
+        .portal-section-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+        .portal-section-header h2 { font-size: 1rem; font-weight: 600; color: #d0c0f0; }
+        .portal-section-header .sub { font-size: 0.78rem; color: #706090; margin-left: auto; }
+
+        /* ---- COMPLIANCE SCORE ---- */
+        .comp-score-layout { display: grid; grid-template-columns: auto 1fr; gap: 1.5rem; align-items: start; margin-bottom: 1.25rem; }
+        .comp-gauge-wrap {
+            background: var(--bg-2); border: 1px solid rgba(124,58,237,0.2);
+            border-radius: 12px; padding: 1.25rem 1.5rem; text-align: center; min-width: 180px;
+        }
+        .comp-gauge-label { font-size: 0.68rem; color: #706090; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.5rem; }
+        .comp-pct { font-size: 2.5rem; font-weight: 700; color: var(--purview-light); line-height: 1; }
+        .comp-pct-sub { font-size: 0.78rem; color: #706090; margin-top: 0.25rem; }
+        .comp-regulations { display: flex; flex-direction: column; gap: 0.5rem; }
+        .reg-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0.85rem; background: var(--bg-2); border: 1px solid rgba(124,58,237,0.12); border-radius: 8px; }
+        .reg-name { font-size: 0.82rem; color: #d0c0f0; flex: 1; }
+        .reg-bar-wrap { width: 90px; height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
+        .reg-bar-fill { height: 100%; border-radius: 3px; }
+        .reg-pct { font-size: 0.72rem; color: #706090; min-width: 32px; text-align: right; }
+
+        /* ---- DATA CLASSIFICATION ---- */
+        .classif-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; margin-bottom: 1rem; }
+        .classif-card { background: var(--bg-2); border: 1px solid rgba(124,58,237,0.12); border-radius: 10px; padding: 0.85rem 1rem; }
+        .classif-type { font-size: 0.68rem; color: #706090; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.35rem; }
+        .classif-val  { font-size: 1.6rem; font-weight: 700; color: var(--purview-light); line-height: 1; margin-bottom: 0.2rem; }
+        .classif-sub  { font-size: 0.72rem; color: #706090; }
+        .classif-items { margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.35rem; }
+        .classif-item-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.45rem 0.7rem; background: var(--bg-3); border-radius: 6px; font-size: 0.78rem; }
+        .classif-label { flex: 1; color: #c0b0e0; }
+        .classif-count { font-size: 0.72rem; color: #706090; }
+
+        /* ---- SENSITIVITY LABELS ---- */
+        .label-tier {
+            display: flex; align-items: center; gap: 0.75rem;
+            padding: 0.65rem 0.9rem; background: var(--bg-2);
+            border: 1px solid rgba(124,58,237,0.12); border-radius: 8px;
+            margin-bottom: 0.4rem;
+        }
+        .label-color { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .label-name  { font-size: 0.83rem; color: #d0c0f0; flex: 1; }
+        .label-scope { font-size: 0.7rem; color: #706090; }
+        .label-status-badge {
+            padding: 0.15rem 0.55rem; border-radius: 10px; font-size: 0.68rem; font-weight: 600;
+        }
+        .ls-active  { background: rgba(52,211,153,0.1);  color: #34d399; border: 1px solid rgba(52,211,153,0.25); }
+        .ls-new     { background: rgba(245,158,11,0.1);  color: #fbbf24; border: 1px solid rgba(245,158,11,0.25); }
+        .ls-draft   { background: rgba(107,114,128,0.15); color: #9ca3af; border: 1px solid rgba(107,114,128,0.3); }
+
+        /* Create label form */
+        .label-form {
+            background: var(--bg-2); border: 1px solid rgba(124,58,237,0.25);
+            border-radius: 10px; padding: 1rem; margin-top: 0.75rem; display: none;
+        }
+        .label-form.visible { display: block; }
+        .form-field { margin-bottom: 0.65rem; }
+        .form-label { font-size: 0.72rem; color: #706090; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 0.3rem; }
+        .form-input {
+            width: 100%; padding: 0.5rem 0.75rem;
+            background: rgba(0,0,0,0.35); border: 1px solid rgba(124,58,237,0.25);
+            border-radius: 6px; color: #d0c0f0; font-size: 0.82rem;
+        }
+        .form-input:focus { outline: none; border-color: rgba(124,58,237,0.55); }
+        .form-select { width: 100%; padding: 0.5rem 0.75rem; background: rgba(0,0,0,0.35); border: 1px solid rgba(124,58,237,0.25); border-radius: 6px; color: #d0c0f0; font-size: 0.82rem; }
+        .form-checkbox-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0; }
+        .form-checkbox-row label { font-size: 0.8rem; color: #c0b0e0; }
+        .create-label-btn {
+            padding: 0.55rem 1.25rem; background: linear-gradient(135deg, rgba(124,58,237,0.35), rgba(109,40,217,0.35));
+            border: 1px solid rgba(124,58,237,0.5); border-radius: 7px; color: #d0c0f0;
+            font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+        }
+        .create-label-btn:hover { background: linear-gradient(135deg, rgba(124,58,237,0.5), rgba(109,40,217,0.5)); }
+
+        /* ---- DLP ALERTS ---- */
+        .dlp-alert-row {
+            display: flex; align-items: flex-start; gap: 0.75rem;
+            padding: 0.75rem 0.9rem; background: var(--bg-2);
+            border: 1px solid rgba(124,58,237,0.12); border-radius: 8px; margin-bottom: 0.45rem;
+        }
+        .dlp-severity { flex-shrink: 0; margin-top: 2px; }
+        .dlp-info { flex: 1; min-width: 0; }
+        .dlp-title { font-size: 0.82rem; color: #d0c0f0; }
+        .dlp-meta  { font-size: 0.72rem; color: #706090; margin-top: 0.2rem; }
+        .dlp-policy { font-size: 0.7rem; color: var(--purview-light); margin-top: 0.15rem; font-family: monospace; }
+        .dlp-badge {
+            padding: 0.15rem 0.55rem; border-radius: 10px; font-size: 0.68rem; font-weight: 600; flex-shrink: 0;
+        }
+        .dlp-hi  { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+        .dlp-med { background: rgba(245,158,11,0.12); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+        .dlp-low { background: rgba(107,114,128,0.15); color: #9ca3af; border: 1px solid rgba(107,114,128,0.3); }
+
+        /* ---- AUDIT LOG SEARCH ---- */
+        .audit-search-bar {
+            display: flex; gap: 0.6rem; margin-bottom: 0.85rem; flex-wrap: wrap;
+        }
+        .audit-input {
+            flex: 1; min-width: 160px; padding: 0.5rem 0.75rem;
+            background: rgba(0,0,0,0.35); border: 1px solid rgba(124,58,237,0.25);
+            border-radius: 6px; color: #d0c0f0; font-size: 0.82rem;
+        }
+        .audit-input:focus { outline: none; border-color: rgba(124,58,237,0.55); }
+        .audit-search-btn {
+            padding: 0.5rem 1.1rem; background: rgba(124,58,237,0.2);
+            border: 1px solid rgba(124,58,237,0.4); border-radius: 6px;
+            color: var(--purview-light); font-size: 0.82rem; cursor: pointer; transition: all 0.2s;
+        }
+        .audit-search-btn:hover { background: rgba(124,58,237,0.35); }
+        .audit-results { display: none; }
+        .audit-results.visible { display: block; }
+        .audit-result-row {
+            display: flex; align-items: center; gap: 0.75rem;
+            padding: 0.55rem 0.85rem; background: var(--bg-2);
+            border: 1px solid rgba(124,58,237,0.1); border-radius: 7px; margin-bottom: 0.35rem; font-size: 0.78rem;
+        }
+        .audit-time { color: #3a4a60; font-family: monospace; font-size: 0.72rem; flex-shrink: 0; min-width: 120px; }
+        .audit-user { color: #93c5fd; min-width: 130px; font-size: 0.75rem; }
+        .audit-activity { flex: 1; color: #c0b0e0; }
+        .audit-workload { color: #706090; font-size: 0.7rem; }
+
+        /* ---- EDISCOVERY ---- */
+        .ediscovery-case {
+            background: var(--bg-2); border: 1px solid rgba(124,58,237,0.12);
+            border-radius: 10px; padding: 1rem; margin-bottom: 0.75rem;
+        }
+        .case-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.6rem; }
+        .case-name { font-size: 0.88rem; font-weight: 600; color: #d0c0f0; flex: 1; }
+        .case-status { padding: 0.15rem 0.55rem; border-radius: 10px; font-size: 0.68rem; font-weight: 600; }
+        .cs-active { background: rgba(52,211,153,0.1); color: #34d399; border: 1px solid rgba(52,211,153,0.25); }
+        .cs-closed { background: rgba(107,114,128,0.15); color: #9ca3af; border: 1px solid rgba(107,114,128,0.3); }
+        .case-detail { font-size: 0.78rem; color: #706090; line-height: 1.6; }
+        .case-counts { display: flex; gap: 1.25rem; margin-top: 0.5rem; }
+        .case-count-item { text-align: center; }
+        .case-count-val { font-size: 1.1rem; font-weight: 700; color: var(--purview-light); }
+        .case-count-label { font-size: 0.68rem; color: #706090; margin-top: 0.1rem; }
+
+        /* ---- RIGHT: INSTRUCTION PANEL ---- */
+        .instruction-panel { background: var(--bg-1); border-left: 1px solid var(--border); overflow-y: auto; padding: 1.25rem; }
+        .instr-task-num   { font-size: 0.68rem; color: var(--shield-red); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.35rem; }
+        .instr-task-title { font-size: 1rem; font-weight: 600; color: var(--text-1); margin-bottom: 0.75rem; }
+        .instr-body       { font-size: 0.83rem; color: var(--text-2); line-height: 1.65; }
+        .instr-body p     { margin-bottom: 0.65rem; }
+        .instr-body strong { color: var(--text-1); }
+        .instr-divider    { height: 1px; background: var(--border); margin: 1rem 0; }
+        .instr-action-label { font-size: 0.7rem; color: var(--text-3); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 0.5rem; }
+        .action-btn {
+            width: 100%; padding: 0.65rem 1rem;
+            background: rgba(239,68,68,0.1); border: 1px solid var(--border);
+            border-radius: 8px; color: var(--text-1); font-size: 0.83rem; font-weight: 500;
+            cursor: pointer; text-align: left; transition: all 0.2s;
+            margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.5rem;
+        }
+        .action-btn:hover { background: rgba(239,68,68,0.18); border-color: var(--border-hi); }
+        .action-btn.btn-primary {
+            background: linear-gradient(135deg, rgba(239,68,68,0.25), rgba(153,27,27,0.25));
+            border-color: rgba(239,68,68,0.45); color: #fde2e2;
+        }
+        .action-btn.btn-primary:hover { background: linear-gradient(135deg, rgba(239,68,68,0.35), rgba(153,27,27,0.35)); }
+        .action-btn.btn-done { background: rgba(52,211,153,0.08); border-color: rgba(52,211,153,0.3); color: #34d399; cursor: default; }
+        .action-btn img { width: 1em; height: 1em; vertical-align: middle; }
+        .instr-concept {
+            background: rgba(124,58,237,0.07); border: 1px solid rgba(124,58,237,0.2);
+            border-radius: 8px; padding: 0.75rem; font-size: 0.78rem; color: var(--purview-light);
+            line-height: 1.55; margin-top: 0.75rem;
+        }
+        .instr-concept strong { color: #c4b5fd; }
+
+        /* ---- SUCCESS ---- */
+        .success-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 9000; }
+        .success-overlay.show { display: flex; }
+        .success-card { background: var(--bg-2); border: 1px solid rgba(52,211,153,0.35); border-radius: 16px; padding: 2.5rem; max-width: 480px; width: 90%; text-align: center; }
+        .success-card h2 { font-size: 1.35rem; color: var(--shield-green); margin-bottom: 0.5rem; }
+        .success-card p  { font-size: 0.88rem; color: var(--text-2); line-height: 1.65; margin-bottom: 1.5rem; }
+        .complete-btn { padding: 0.75rem 2rem; background: linear-gradient(135deg, var(--shield-red), var(--shield-red2)); border: none; border-radius: 8px; color: white; font-size: 0.9rem; font-weight: 600; cursor: pointer; }
+
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(124,58,237,0.25); border-radius: 3px; }
     </style>
 </head>
 <body>
-    <header class="lab-header">
-        <div class="header-left">
-            <a href="../index.html" class="back-btn">Exit Lab</a>
-            <span class="lab-title">Compliance Solutions Lab</span>
-            <span class="lab-badge">SC-900</span>
-            <span class="lab-badge-ch">CH.4</span>
-        </div>
-        <div class="task-progress">
-            <span>Progress:</span>
-            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBarFill"></div></div>
-            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
-        </div>
-    </header>
-    <div class="lab-container">
-        <aside class="task-panel" id="taskPanel"><div class="task-section"><div class="task-section-title">Phase 1 -- Compliance Manager</div><div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)"><div class="task-number">Task 1</div><div class="task-name">Open Compliance Manager</div><div class="task-desc">Run <code>purview compliance-manager show</code> to display your compliance score and active assessments.</div></div><div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)"><div class="task-number">Task 2</div><div class="task-name">View Improvement Actions</div><div class="task-desc">Run <code>purview compliance-manager actions list</code> to review recommended compliance improvement actions.</div></div></div><div class="task-section"><div class="task-section-title">Phase 2 -- Data Protection</div><div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)"><div class="task-number">Task 3</div><div class="task-name">Create a Sensitivity Label</div><div class="task-desc">Run <code>purview label create --name "Confidential" --encryption on --watermark "CONFIDENTIAL"</code> to create a sensitivity label with protection.</div></div><div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)"><div class="task-number">Task 4</div><div class="task-name">Publish the Label</div><div class="task-desc">Run <code>purview label-policy create --name "All Users Policy" --labels "Confidential" --target all-users</code> to publish the label to all users.</div></div><div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)"><div class="task-number">Task 5</div><div class="task-name">Create a DLP Policy</div><div class="task-desc">Run <code>purview dlp-policy create --name "Block SSN Sharing" --type "U.S. Social Security Number" --action block</code> to prevent sensitive data sharing.</div></div></div><div class="task-section"><div class="task-section-title">Phase 3 -- Lifecycle and Legal</div><div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)"><div class="task-number">Task 6</div><div class="task-name">Configure a Retention Policy</div><div class="task-desc">Run <code>purview retention-policy create --name "7 Year Retention" --duration 7years --location exchange</code> to enforce email retention.</div></div><div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)"><div class="task-number">Task 7</div><div class="task-name">Create an eDiscovery Case</div><div class="task-desc">Run <code>purview ediscovery case create --name "Investigation-2026-04" --hold "j.smith@shieldlab.com"</code> to create a legal hold.</div></div></div><div class="task-section"><div class="task-section-title">Phase 4 -- Azure Governance and Risk</div><div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)"><div class="task-number">Task 8</div><div class="task-name">Apply an Azure Policy</div><div class="task-desc">Run <code>az-policy assign --name "Require Tag on Resources" --scope subscription --effect deny</code> to enforce tagging governance.</div></div><div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)"><div class="task-number">Task 9</div><div class="task-name">Create a Resource Lock</div><div class="task-desc">Run <code>az-lock create --name "Prod-NoDelete" --type CanNotDelete --scope rg-production</code> to protect production resources from deletion.</div></div><div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)"><div class="task-number">Task 10</div><div class="task-name">Review Insider Risk Alerts</div><div class="task-desc">Run <code>purview insider-risk alerts show</code> to review detected insider risk activities and investigation status.</div></div></div></aside>
-        <main class="terminal-panel" id="terminalPanel">
-            <div class="term-toolbar">
-                <div class="term-dot term-dot-red"></div><div class="term-dot term-dot-amber"></div><div class="term-dot term-dot-green"></div>
-                <div class="term-title">secadmin@shield-lab -- bash</div>
-                <div class="term-vm-status"><div class="term-status-dot"></div>Shield Lab Online</div>
-            </div>
-            <div class="term-output" id="termOutput"></div>
-            <div class="term-input-row">
-                <span class="term-prompt-label"><span class="term-prompt-user">secadmin@shield-lab</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span></span>
-                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
-            </div>
-            <div class="instructions-panel" id="instructionsPanel">
-                <div class="instructions-title" onclick="toggleInstructions()">
-                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
-                    Task Instructions
-                    <button class="instructions-toggle" id="instructionsToggle">&#9660;</button>
-                </div>
-                <div class="instructions-body" id="instructionsBody">
-                    <div class="instructions-step" id="instructionsStep">Type the command in the terminal and press Enter.</div>
-                    <div class="instructions-hint" id="instructionsHint">Hint text loads when you select a task.</div>
-                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
-                    <div class="hint-command" id="hintCommand"></div>
-                </div>
-            </div>
-            <div class="success-overlay" id="successOverlay">
-                <div class="success-card">
-                    <div class="success-title">SC-900 Chapter 4 Lab Complete!</div>
-                    <div class="success-message">You explored Microsoft Purview compliance portal, created sensitivity labels, configured DLP policies, applied Azure Policy, set resource locks, and reviewed compliance scores.</div>
-                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
-                </div>
-            </div>
-        </main>
+
+<!-- TOP BAR -->
+<header class="top-bar">
+    <a href="../index.html" class="back-link">
+        <img src="/assets/images/icons/icon-arrow-left.webp" alt="" style="width:1em;height:1em">
+        Exit Lab
+    </a>
+    <span class="top-bar-title">Microsoft Purview Compliance Portal</span>
+    <div class="top-bar-badges">
+        <span class="badge badge-red">SC-900</span>
+        <span class="badge badge-purple">CH.4</span>
     </div>
-    <script>
-    (function(){
-        'use strict';
-        var TOTAL_TASKS = 10;
-        var taskDone = {}; for(var i=1;i<=TOTAL_TASKS;i++) taskDone[i]=false;
-        var currentTask = 1;
-        var cmdHistory = [], histIdx = -1;
-        var outputEl, inputEl, ps1PathEl;
+    <div class="top-bar-progress">
+        <span class="progress-label">Progress</span>
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+        <span class="progress-count" id="progressCount">0 / 10</span>
+    </div>
+</header>
 
-        var TASK_INSTRUCTIONS = {1:{step:"Run the command shown in the task panel.\n<code>purview compliance-manager show</code>",hint:"Each command simulates a real Microsoft compliance or Azure governance action.",cmd:"purview compliance-manager show"},2:{step:"Run the command shown in the task panel.\n<code>purview compliance-manager actions list</code>",hint:"Each command simulates a real Microsoft compliance or Azure governance action.",cmd:"purview compliance-manager actions list"},3:{step:"Run the command shown in the task panel.\n<code>purview label create --name \"Confidential\" --encryption on --watermark \"CONFIDENTIAL\"</code>",hint:"Each command simulates a real Microsoft compliance or Azure governance action.",cmd:"purview label create --name \"Confidential\" --encryption on --watermark \"CONFIDENTIAL\""},4:{step:"Run the command shown in the task panel.\n<code>purview label-policy create --name \"All Users Policy\" --labels \"Confidential\" --target all-users</code>",hint:"Each command simulates a real Microsoft compliance or Azure governance action.",cmd:"purview label-policy create --name \"All Users Policy\" --labels \"Confidential\" --target all-users"},5:{step:"Run the command shown in the task panel.\n<code>purview dlp-policy create --name \"Block SSN Sharing\" --type \"U.S. Social Security Number\" --action block</code>",hint:"Each command simulates a real Microsoft compliance or Azure governance action.",cmd:"purview dlp-policy create --name \"Block SSN Sharing\" --type \"U.S. Social Security Number\" --action block"},6:{step:"Run the command shown in the task panel.\n<code>purview retention-policy create --name \"7 Year Retention\" --duration 7years --location exchange</code>",hint:"Each command simulates a real Microsoft compliance or Azure governance action.",cmd:"purview retention-policy create --name \"7 Year Retention\" --duration 7years --location exchange"},7:{step:"Run the command shown in the task panel.\n<code>purview ediscovery case create --name \"Investigation-2026-04\" --hold \"j.smith@shieldlab.com\"</code>",hint:"Each command simulates a real Microsoft compliance or Azure governance action.",cmd:"purview ediscovery case create --name \"Investigation-2026-04\" --hold \"j.smith@shieldlab.com\""},8:{step:"Run the command shown in the task panel.\n<code>az-policy assign --name \"Require Tag on Resources\" --scope subscription --effect deny</code>",hint:"Each command simulates a real Microsoft compliance or Azure governance action.",cmd:"az-policy assign --name \"Require Tag on Resources\" --scope subscription --effect deny"},9:{step:"Run the command shown in the task panel.\n<code>az-lock create --name \"Prod-NoDelete\" --type CanNotDelete --scope rg-production</code>",hint:"Each command simulates a real Microsoft compliance or Azure governance action.",cmd:"az-lock create --name \"Prod-NoDelete\" --type CanNotDelete --scope rg-production"},10:{step:"Run the command shown in the task panel.\n<code>purview insider-risk alerts show</code>",hint:"Each command simulates a real Microsoft compliance or Azure governance action.",cmd:"purview insider-risk alerts show"}};
+<!-- THREE-COLUMN BODY -->
+<div class="lab-body">
 
-        var TASK_NAMES = {};
-        TASK_NAMES[1]="Open Compliance Manager";
-        TASK_NAMES[2]="View Improvement Actions";
-        TASK_NAMES[3]="Create a Sensitivity Label";
-        TASK_NAMES[4]="Publish the Label";
-        TASK_NAMES[5]="Create a DLP Policy";
-        TASK_NAMES[6]="Configure a Retention Policy";
-        TASK_NAMES[7]="Create an eDiscovery Case";
-        TASK_NAMES[8]="Apply an Azure Policy";
-        TASK_NAMES[9]="Create a Resource Lock";
-        TASK_NAMES[10]="Review Insider Risk Alerts";
+    <!-- LEFT: TASK PANEL -->
+    <aside class="task-panel" id="taskPanel">
+        <div class="task-group-label">Phase 1 — Compliance Score</div>
 
-        // Simulated command responses
-        var CMD_RESPONSES = {"purview compliance-manager show":{"lines":[{"text":"=== Microsoft Purview Compliance Manager ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Compliance Score: 64% (320/500 points)","cls":"term-line-out"},{"text":"  Microsoft-Managed Actions: 180/200 points","cls":"term-line-out"},{"text":"  Customer-Managed Actions:  140/300 points","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Active Assessments:","cls":"term-line-warn"},{"text":"    GDPR (EU):           72%","cls":"term-line-out"},{"text":"    NIST 800-53:         58%","cls":"term-line-out"},{"text":"    ISO 27001:           68%","cls":"term-line-out"},{"text":"    CIS Benchmark:       71%","cls":"term-line-out"}],"completesTask":1},"purview compliance-manager actions list":{"lines":[{"text":"=== Improvement Actions ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  [HIGH]   Enable sensitivity labels for Office files (+15 pts)","cls":"term-line-err"},{"text":"  [HIGH]   Configure DLP policies for sensitive data (+12 pts)","cls":"term-line-err"},{"text":"  [MEDIUM] Enable audit logging for all services (+8 pts)","cls":"term-line-warn"},{"text":"  [MEDIUM] Configure retention policies for email (+6 pts)","cls":"term-line-warn"},{"text":"  [MEDIUM] Enable insider risk management (+10 pts)","cls":"term-line-warn"},{"text":"  [LOW]    Configure communication compliance (+4 pts)","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  6 actions available. Complete HIGH items first for maximum score improvement.","cls":"term-line-dim"}],"completesTask":2},"purview label create --name \"Confidential\" --encryption on --watermark \"CONFIDENTIAL\"":{"lines":[{"text":"Creating sensitivity label...","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Label Name:   Confidential","cls":"term-line-out"},{"text":"  Encryption:   Enabled (AES-256, rights-restricted)","cls":"term-line-out"},{"text":"  Watermark:    \"CONFIDENTIAL\" (diagonal, gray)","cls":"term-line-out"},{"text":"  Header:       \"Confidential - Do Not Distribute\"","cls":"term-line-out"},{"text":"  Scope:        Files, Emails, Sites","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Label created. Publish via label policy to make it available in Office apps.","cls":"term-line-warn"}],"completesTask":3},"purview label-policy create --name \"All Users Policy\" --labels \"Confidential\" --target all-users":{"lines":[{"text":"Creating label policy...","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Policy Name:  All Users Policy","cls":"term-line-out"},{"text":"  Labels:       Confidential","cls":"term-line-out"},{"text":"  Target:       All users","cls":"term-line-out"},{"text":"  Default Label: None (user must choose)","cls":"term-line-out"},{"text":"  Justification: Required for downgrade or removal","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Labels will appear in Office apps within 24 hours.","cls":"term-line-info"}],"completesTask":4},"purview dlp-policy create --name \"Block SSN Sharing\" --type \"U.S. Social Security Number\" --action block":{"lines":[{"text":"Creating DLP policy...","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Policy Name:  Block SSN Sharing","cls":"term-line-out"},{"text":"  SIT Detected: U.S. Social Security Number (XXX-XX-XXXX)","cls":"term-line-out"},{"text":"  Locations:    Exchange, SharePoint, OneDrive, Teams","cls":"term-line-out"},{"text":"  Action:       Block sharing + notify user with policy tip","cls":"term-line-out"},{"text":"  Override:     Allowed with business justification","cls":"term-line-out"},{"text":"  Admin Alert:  Yes (email to compliance team)","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  DLP policy created. Sensitive data sharing will be blocked across M365.","cls":"term-line-warn"}],"completesTask":5},"purview retention-policy create --name \"7 Year Retention\" --duration 7years --location exchange":{"lines":[{"text":"Creating retention policy...","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Policy Name:  7 Year Retention","cls":"term-line-out"},{"text":"  Duration:     7 years (2555 days)","cls":"term-line-out"},{"text":"  Location:     Exchange Online (all mailboxes)","cls":"term-line-out"},{"text":"  Action:       Retain then delete","cls":"term-line-out"},{"text":"  Status:       Active","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Emails will be retained for 7 years even if users delete them.","cls":"term-line-warn"}],"completesTask":6},"purview ediscovery case create --name \"Investigation-2026-04\" --hold \"j.smith@shieldlab.com\"":{"lines":[{"text":"Creating eDiscovery case...","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Case Name:    Investigation-2026-04","cls":"term-line-out"},{"text":"  Type:         eDiscovery (Standard)","cls":"term-line-out"},{"text":"  Legal Hold:   j.smith@shieldlab.com","cls":"term-line-out"},{"text":"  Hold Status:  Active (content preserved)","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Legal hold prevents deletion of all content in the custodian mailbox and OneDrive.","cls":"term-line-warn"},{"text":"  Even retention policy expiration will not delete held content.","cls":"term-line-dim"}],"completesTask":7},"az-policy assign --name \"Require Tag on Resources\" --scope subscription --effect deny":{"lines":[{"text":"Assigning Azure Policy...","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Policy Name:  Require Tag on Resources","cls":"term-line-out"},{"text":"  Scope:        Subscription: Shield-Lab-Subscription","cls":"term-line-out"},{"text":"  Effect:       Deny (block non-compliant resource creation)","cls":"term-line-out"},{"text":"  Required Tag: CostCenter","cls":"term-line-out"},{"text":"  Status:       Assigned","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Resources without a CostCenter tag will be blocked from creation.","cls":"term-line-warn"}],"completesTask":8},"az-lock create --name \"Prod-NoDelete\" --type CanNotDelete --scope rg-production":{"lines":[{"text":"Creating resource lock...","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Lock Name:    Prod-NoDelete","cls":"term-line-out"},{"text":"  Lock Type:    CanNotDelete","cls":"term-line-out"},{"text":"  Scope:        rg-production (all resources within)","cls":"term-line-out"},{"text":"  Effect:       Read and modify allowed, delete blocked","cls":"term-line-out"},{"text":"  Inheritance:  Lock applies to all child resources","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Production resources are now protected from accidental deletion.","cls":"term-line-warn"}],"completesTask":9},"purview insider-risk alerts show":{"lines":[{"text":"=== Insider Risk Alerts ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  [HIGH]   Data exfiltration pattern detected: User_A","cls":"term-line-err"},{"text":"           Activity: 847 files downloaded in 2 hours, USB copy detected","cls":"term-line-dim"},{"text":"           Trigger: Resignation notice (HR signal)","cls":"term-line-dim"},{"text":"","cls":"term-line-out"},{"text":"  [MEDIUM] Security policy violation: User_B","cls":"term-line-warn"},{"text":"           Activity: Disabled antivirus, installed unauthorized software","cls":"term-line-dim"},{"text":"","cls":"term-line-out"},{"text":"  Note: User identities are pseudonymized until investigation escalation.","cls":"term-line-info"},{"text":"  2 alerts require investigation. Escalate HIGH alert immediately.","cls":"term-line-err"}],"completesTask":10}}; Customer owns OS, Apps, Data, Identity","cls":"term-line-out"},{"text":"  PaaS:         Microsoft owns Infra + OS + Runtime; Customer owns Apps, Data, Identity","cls":"term-line-out"},{"text":"  SaaS:         Microsoft owns nearly everything; Customer owns Data, Identity, Devices","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  ALWAYS Customer Responsibility: Data classification, Identity management, Device security","cls":"term-line-warn"},{"text":"  ALWAYS Microsoft Responsibility: Physical datacenter, Physical network, Physical hosts","cls":"term-line-warn"}],"completesTask":1},"security-model show zero-trust":{"lines":[{"text":"=== Zero Trust Model ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Principle 1: VERIFY EXPLICITLY","cls":"term-line-out"},{"text":"    Always authenticate based on all signals: identity, location, device, risk","cls":"term-line-dim"},{"text":"  Principle 2: LEAST PRIVILEGE ACCESS","cls":"term-line-out"},{"text":"    Just-in-time, just-enough-access. Risk-based adaptive policies.","cls":"term-line-dim"},{"text":"  Principle 3: ASSUME BREACH","cls":"term-line-out"},{"text":"    Minimize blast radius. Micro-segment. End-to-end encryption.","cls":"term-line-dim"},{"text":"","cls":"term-line-out"},{"text":"  Six Pillars: Identity, Devices, Applications, Data, Infrastructure, Network","cls":"term-line-warn"}],"completesTask":2},"security-model show cia-triad":{"lines":[{"text":"=== CIA Triad ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  CONFIDENTIALITY: Only authorized access to data","cls":"term-line-out"},{"text":"    Controls: Encryption, Access Controls, Sensitivity Labels","cls":"term-line-dim"},{"text":"  INTEGRITY: Data has not been tampered with","cls":"term-line-out"},{"text":"    Controls: Hashing (SHA-256), Digital Signatures, Audit Logs","cls":"term-line-dim"},{"text":"  AVAILABILITY: Systems accessible when needed","cls":"term-line-out"},{"text":"    Controls: Redundancy, DDoS Protection, Backup/DR","cls":"term-line-dim"}],"completesTask":3},"threat-classify --type phishing":{"lines":[{"text":"=== Threat Analysis: Phishing ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Category: Social Engineering","cls":"term-line-out"},{"text":"  Vector: Email, SMS, Voice","cls":"term-line-out"},{"text":"  CIA Impact: Confidentiality (credential theft)","cls":"term-line-out"},{"text":"  Variants: Spear phishing (targeted), Whaling (executives), Vishing (voice)","cls":"term-line-out"},{"text":"  Indicators: Urgency, spoofed sender, suspicious URLs, unexpected attachments","cls":"term-line-warn"},{"text":"  Defenses: MFA, Security Awareness Training, Safe Links, Anti-phishing AI","cls":"term-line-dim"}],"completesTask":4},"threat-classify --type ransomware":{"lines":[{"text":"=== Threat Analysis: Ransomware ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Category: Malware","cls":"term-line-out"},{"text":"  Vector: Phishing emails, vulnerability exploitation, RDP brute force","cls":"term-line-out"},{"text":"  CIA Impact: Availability (file encryption), Confidentiality (data exfiltration)","cls":"term-line-out"},{"text":"  Kill Chain: Initial access > Lateral movement > Data exfil > Encryption > Ransom note","cls":"term-line-warn"},{"text":"  Defenses: Backups, Endpoint Protection, Patch Management, Network Segmentation","cls":"term-line-dim"},{"text":"  Policy: NEVER pay the ransom","cls":"term-line-err"}],"completesTask":5},"threat-classify --type ddos":{"lines":[{"text":"=== Threat Analysis: DDoS ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Category: Denial of Service","cls":"term-line-out"},{"text":"  CIA Impact: Availability","cls":"term-line-out"},{"text":"  Volumetric: UDP floods, DNS amplification (overwhelm bandwidth)","cls":"term-line-out"},{"text":"  Protocol: SYN floods, Ping of Death (exploit protocol weaknesses)","cls":"term-line-out"},{"text":"  Application: HTTP floods, Slowloris (target web app layer)","cls":"term-line-warn"},{"text":"  Defenses: Azure DDoS Protection Standard, Azure Firewall, CDN, WAF","cls":"term-line-dim"}],"completesTask":6},"crypto-lab encrypt --method symmetric --data \"Sensitive data\"":{"lines":[{"text":"=== Symmetric Encryption (AES-256) ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Plaintext:  \"Sensitive data\"","cls":"term-line-out"},{"text":"  Key:        a7f2c9e4...b3d1 (256-bit AES key)","cls":"term-line-out"},{"text":"  Ciphertext: 4f8a2c1e...9d3b","cls":"term-line-out"},{"text":"  Decrypted:  \"Sensitive data\"","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Same key used for encrypt AND decrypt","cls":"term-line-warn"},{"text":"  Fast, efficient for bulk data. Challenge: secure key distribution.","cls":"term-line-dim"}],"completesTask":7},"crypto-lab encrypt --method asymmetric --data \"Sensitive data\"":{"lines":[{"text":"=== Asymmetric Encryption (RSA-2048) ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Plaintext:    \"Sensitive data\"","cls":"term-line-out"},{"text":"  Public Key:   MIIBIjAN...AQAB (shareable)","cls":"term-line-out"},{"text":"  Private Key:  MIIEpAIB...== (secret)","cls":"term-line-out"},{"text":"  Encrypted with PUBLIC key:  7c3e9f1a...2b4d","cls":"term-line-out"},{"text":"  Decrypted with PRIVATE key: \"Sensitive data\"","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Two different keys. Solves key distribution problem.","cls":"term-line-warn"},{"text":"  Slower than symmetric. Used for key exchange and digital signatures.","cls":"term-line-dim"}],"completesTask":8},"crypto-lab hash --algorithm sha256 --data \"Integrity check\"":{"lines":[{"text":"=== SHA-256 Hash ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Input:  \"Integrity check\"","cls":"term-line-out"},{"text":"  Hash:   e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  One-way function: CANNOT reverse hash back to input","cls":"term-line-warn"},{"text":"  Same input always produces same hash (deterministic)","cls":"term-line-dim"},{"text":"  Any change to input produces completely different hash","cls":"term-line-dim"},{"text":"  Used for: password storage, file integrity, digital signatures","cls":"term-line-dim"}],"completesTask":9},"security-model show defense-in-depth":{"lines":[{"text":"=== Defense in Depth -- 7 Layers ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Layer 1: PHYSICAL SECURITY    -- Datacenter access controls, biometrics","cls":"term-line-out"},{"text":"  Layer 2: IDENTITY & ACCESS     -- Entra ID, MFA, Conditional Access","cls":"term-line-out"},{"text":"  Layer 3: PERIMETER             -- DDoS Protection, Azure Firewall","cls":"term-line-out"},{"text":"  Layer 4: NETWORK               -- NSGs, VNet segmentation, private endpoints","cls":"term-line-out"},{"text":"  Layer 5: COMPUTE               -- OS patching, endpoint protection","cls":"term-line-out"},{"text":"  Layer 6: APPLICATION           -- Secure coding, WAF, vulnerability scanning","cls":"term-line-out"},{"text":"  Layer 7: DATA                  -- Encryption, sensitivity labels, DLP","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  If one layer fails, the next layer catches the attacker.","cls":"term-line-warn"}],"completesTask":10}};
+        <div class="task-item active" id="tc-1" onclick="selectTask(1)">
+            <div class="task-num" id="tn-1">1</div>
+            <div class="task-info">
+                <div class="task-name">Review Compliance Score</div>
+                <div class="task-desc-short">Read the overall score and regulatory framework breakdown</div>
+            </div>
+        </div>
+        <div class="task-item" id="tc-2" onclick="selectTask(2)">
+            <div class="task-num" id="tn-2">2</div>
+            <div class="task-info">
+                <div class="task-name">Explore Improvement Actions</div>
+                <div class="task-desc-short">Review the top improvement actions for NIST and GDPR</div>
+            </div>
+        </div>
 
-        function escH(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-        function addLine(t,c) { var d=document.createElement('div'); d.className='term-line'+(c?' '+c:''); d.textContent=t; outputEl.appendChild(d); outputEl.scrollTop=outputEl.scrollHeight; }
-        function addHTML(h,c) { var d=document.createElement('div'); d.className='term-line'+(c?' '+c:''); d.innerHTML=h; outputEl.appendChild(d); outputEl.scrollTop=outputEl.scrollHeight; }
-        function addBlank() { addLine('',''); }
-        function addPromptLine(cmd) { addHTML('<span class="term-prompt-span">secadmin@shield-lab</span><span class="term-ps1-sep">:</span><span class="term-path-span">~</span><span class="term-ps1-sep">$ </span>'+escH(cmd),'term-line-cmd'); }
+        <div class="task-group-label" style="margin-top:0.75rem">Phase 2 — Data Classification</div>
 
-        function execLine(raw) {
-            var trimmed = raw.trim();
-            addPromptLine(trimmed);
-            if (!trimmed) return;
-            var matched = false;
-            for (var key in CMD_RESPONSES) {
-                if (trimmed === key || trimmed.indexOf(key) === 0) {
-                    var resp = CMD_RESPONSES[key];
-                    resp.lines.forEach(function(l) { addLine(l.text, l.cls); });
-                    addBlank();
-                    if (resp.completesTask) { completeTask(resp.completesTask); }
-                    matched = true;
-                    break;
-                }
+        <div class="task-item" id="tc-3" onclick="selectTask(3)">
+            <div class="task-num" id="tn-3">3</div>
+            <div class="task-info">
+                <div class="task-name">View Sensitive Data Discovery</div>
+                <div class="task-desc-short">Review sensitive information types found across the tenant</div>
+            </div>
+        </div>
+        <div class="task-item" id="tc-4" onclick="selectTask(4)">
+            <div class="task-num" id="tn-4">4</div>
+            <div class="task-info">
+                <div class="task-name">Create Sensitivity Label</div>
+                <div class="task-desc-short">Create a new Confidential sensitivity label with encryption</div>
+            </div>
+        </div>
+
+        <div class="task-group-label" style="margin-top:0.75rem">Phase 3 — DLP</div>
+
+        <div class="task-item" id="tc-5" onclick="selectTask(5)">
+            <div class="task-num" id="tn-5">5</div>
+            <div class="task-info">
+                <div class="task-name">Review DLP Policy List</div>
+                <div class="task-desc-short">Examine active DLP policies and their scope and actions</div>
+            </div>
+        </div>
+        <div class="task-item" id="tc-6" onclick="selectTask(6)">
+            <div class="task-num" id="tn-6">6</div>
+            <div class="task-info">
+                <div class="task-name">Investigate DLP Alert</div>
+                <div class="task-desc-short">Open a high-severity DLP alert and review the matched content</div>
+            </div>
+        </div>
+
+        <div class="task-group-label" style="margin-top:0.75rem">Phase 4 — Audit &amp; Records</div>
+
+        <div class="task-item" id="tc-7" onclick="selectTask(7)">
+            <div class="task-num" id="tn-7">7</div>
+            <div class="task-info">
+                <div class="task-name">Search Audit Log</div>
+                <div class="task-desc-short">Run an audit log search for a specific user activity</div>
+            </div>
+        </div>
+        <div class="task-item" id="tc-8" onclick="selectTask(8)">
+            <div class="task-num" id="tn-8">8</div>
+            <div class="task-info">
+                <div class="task-name">Review Audit Results</div>
+                <div class="task-desc-short">Read the returned audit records and identify the key event</div>
+            </div>
+        </div>
+
+        <div class="task-group-label" style="margin-top:0.75rem">Phase 5 — eDiscovery</div>
+
+        <div class="task-item" id="tc-9" onclick="selectTask(9)">
+            <div class="task-num" id="tn-9">9</div>
+            <div class="task-info">
+                <div class="task-name">Review eDiscovery Cases</div>
+                <div class="task-desc-short">Open an active eDiscovery case and review its holds and searches</div>
+            </div>
+        </div>
+        <div class="task-item" id="tc-10" onclick="selectTask(10)">
+            <div class="task-num" id="tn-10">10</div>
+            <div class="task-info">
+                <div class="task-name">Export Evidence Package</div>
+                <div class="task-desc-short">Initiate an export of collected evidence from the active case</div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- CENTER: SIMULATED PURVIEW PORTAL -->
+    <main class="portal-area" id="portalArea">
+        <div class="purview-shell">
+            <div class="purview-layout">
+
+                <!-- Purview sidebar -->
+                <nav class="purview-sidebar">
+                    <div class="purview-sidebar-logo">Microsoft Purview</div>
+
+                    <div class="purview-nav-group">
+                        <div class="purview-nav-label">Risk &amp; Compliance</div>
+                        <div class="purview-nav-item nav-active" id="nav-compliance" onclick="switchView('compliance')">
+                            <img src="/assets/images/icons/icon-chart.webp" alt=""> Compliance Manager
+                        </div>
+                    </div>
+
+                    <div class="purview-nav-group">
+                        <div class="purview-nav-label">Data Lifecycle</div>
+                        <div class="purview-nav-item" id="nav-classification" onclick="switchView('classification')">
+                            <img src="/assets/images/icons/icon-database.webp" alt=""> Data Classification
+                        </div>
+                        <div class="purview-nav-item" id="nav-labels" onclick="switchView('labels')">
+                            <img src="/assets/images/icons/icon-flag.webp" alt=""> Sensitivity Labels
+                        </div>
+                    </div>
+
+                    <div class="purview-nav-group">
+                        <div class="purview-nav-label">Data Loss Prevention</div>
+                        <div class="purview-nav-item" id="nav-dlp" onclick="switchView('dlp')">
+                            <img src="/assets/images/icons/icon-shield.webp" alt=""> DLP Policies
+                        </div>
+                        <div class="purview-nav-item" id="nav-dlpalerts" onclick="switchView('dlpalerts')">
+                            <img src="/assets/images/icons/icon-alert.webp" alt=""> DLP Alerts
+                        </div>
+                    </div>
+
+                    <div class="purview-nav-group">
+                        <div class="purview-nav-label">Investigations</div>
+                        <div class="purview-nav-item" id="nav-audit" onclick="switchView('audit')">
+                            <img src="/assets/images/icons/icon-list.webp" alt=""> Audit
+                        </div>
+                        <div class="purview-nav-item" id="nav-ediscovery" onclick="switchView('ediscovery')">
+                            <img src="/assets/images/icons/icon-binoculars.webp" alt=""> eDiscovery
+                        </div>
+                    </div>
+                </nav>
+
+                <!-- Purview content -->
+                <div class="purview-content" id="purviewContent">
+
+                    <!-- VIEW: COMPLIANCE MANAGER -->
+                    <div class="portal-view view-active" id="view-compliance">
+                        <div class="portal-section-header">
+                            <h2>Compliance Manager</h2>
+                            <span class="sub">contoso.com &nbsp;|&nbsp; Last assessed: 2026-04-20</span>
+                        </div>
+                        <div class="comp-score-layout">
+                            <div class="comp-gauge-wrap">
+                                <div class="comp-gauge-label">Compliance Score</div>
+                                <div class="comp-pct" id="compScoreVal">74</div>
+                                <div class="comp-pct-sub">/ 100 points</div>
+                                <!-- SVG arc -->
+                                <svg viewBox="0 0 120 70" width="120" style="margin-top:0.75rem">
+                                    <path d="M10,65 A55,55 0 0,1 110,65" fill="none" stroke="rgba(124,58,237,0.12)" stroke-width="10"/>
+                                    <path d="M10,65 A55,55 0 0,1 110,65" fill="none" stroke="#7c3aed" stroke-width="10"
+                                        stroke-dasharray="128.0 172.8" stroke-dashoffset="44.8" stroke-linecap="round"/>
+                                </svg>
+                                <div style="font-size:0.72rem;color:#706090;margin-top:0.35rem">+3 from last assessment</div>
+                            </div>
+                            <div class="comp-regulations">
+                                <div style="font-size:0.7rem;color:#706090;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.4rem">Regulatory Frameworks</div>
+                                <div class="reg-row">
+                                    <span class="reg-name">Microsoft 365 Data Protection Baseline</span>
+                                    <div class="reg-bar-wrap"><div class="reg-bar-fill" style="width:82%;background:#34d399"></div></div>
+                                    <span class="reg-pct">82%</span>
+                                </div>
+                                <div class="reg-row">
+                                    <span class="reg-name">NIST SP 800-53 Rev. 5</span>
+                                    <div class="reg-bar-wrap"><div class="reg-bar-fill" style="width:68%;background:#60a5fa"></div></div>
+                                    <span class="reg-pct">68%</span>
+                                </div>
+                                <div class="reg-row">
+                                    <span class="reg-name">GDPR</span>
+                                    <div class="reg-bar-wrap"><div class="reg-bar-fill" style="width:71%;background:#a78bfa"></div></div>
+                                    <span class="reg-pct">71%</span>
+                                </div>
+                                <div class="reg-row">
+                                    <span class="reg-name">ISO 27001:2022</span>
+                                    <div class="reg-bar-wrap"><div class="reg-bar-fill" style="width:58%;background:#f59e0b"></div></div>
+                                    <span class="reg-pct">58%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="font-size:0.7rem;color:#706090;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.5rem">Top Improvement Actions</div>
+                        <div id="compImprovements">
+                            <div class="label-tier" id="ci-encryption" onclick="completeCompAction('encryption')">
+                                <div class="label-color" style="background:#ef4444"></div>
+                                <div style="flex:1">
+                                    <div style="font-size:0.83rem;color:#d0c0f0">Enable encryption for data at rest in SharePoint</div>
+                                    <div style="font-size:0.7rem;color:#706090;margin-top:0.15rem">Data Protection &nbsp;·&nbsp; GDPR Article 32</div>
+                                </div>
+                                <span style="font-size:0.78rem;font-weight:700;color:#a78bfa" id="ci-pts-encryption">+12 pts</span>
+                            </div>
+                            <div class="label-tier" id="ci-retention" onclick="completeCompAction('retention')">
+                                <div class="label-color" style="background:#f59e0b"></div>
+                                <div style="flex:1">
+                                    <div style="font-size:0.83rem;color:#d0c0f0">Configure retention labels for financial records</div>
+                                    <div style="font-size:0.7rem;color:#706090;margin-top:0.15rem">Records Management &nbsp;·&nbsp; NIST AC-3</div>
+                                </div>
+                                <span style="font-size:0.78rem;font-weight:700;color:#a78bfa" id="ci-pts-retention">+8 pts</span>
+                            </div>
+                            <div class="label-tier" id="ci-dlp-policy" onclick="completeCompAction('dlp-policy')">
+                                <div class="label-color" style="background:#f59e0b"></div>
+                                <div style="flex:1">
+                                    <div style="font-size:0.83rem;color:#d0c0f0">Extend DLP policy to Teams and SharePoint</div>
+                                    <div style="font-size:0.7rem;color:#706090;margin-top:0.15rem">Data Loss Prevention &nbsp;·&nbsp; GDPR Article 5</div>
+                                </div>
+                                <span style="font-size:0.78rem;font-weight:700;color:#a78bfa" id="ci-pts-dlp-policy">+10 pts</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- VIEW: DATA CLASSIFICATION -->
+                    <div class="portal-view" id="view-classification">
+                        <div class="portal-section-header">
+                            <h2>Data Classification</h2>
+                            <span class="sub">Scanning complete &nbsp;|&nbsp; 2026-04-21</span>
+                        </div>
+                        <div class="classif-grid">
+                            <div class="classif-card">
+                                <div class="classif-type">Sensitive Info Types</div>
+                                <div class="classif-val" style="color:#ef4444">1,842</div>
+                                <div class="classif-sub">Instances found across tenant</div>
+                            </div>
+                            <div class="classif-card">
+                                <div class="classif-type">Labeled Content</div>
+                                <div class="classif-val" style="color:#34d399">34%</div>
+                                <div class="classif-sub">Of discoverable content is labeled</div>
+                            </div>
+                            <div class="classif-card">
+                                <div class="classif-type">Top Location</div>
+                                <div class="classif-val" style="color:#60a5fa">SharePoint</div>
+                                <div class="classif-sub">1,204 sensitive items</div>
+                            </div>
+                            <div class="classif-card">
+                                <div class="classif-type">Unprotected</div>
+                                <div class="classif-val" style="color:#f59e0b">66%</div>
+                                <div class="classif-sub">Content without sensitivity label</div>
+                            </div>
+                        </div>
+                        <div class="classif-items">
+                            <div style="font-size:0.7rem;color:#706090;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.35rem">Top Sensitive Information Types Detected</div>
+                            <div class="classif-item-row">
+                                <span class="dlp-badge dlp-hi">CRITICAL</span>
+                                <span class="classif-label">U.S. Social Security Number (SSN)</span>
+                                <span class="classif-count">487 instances</span>
+                            </div>
+                            <div class="classif-item-row">
+                                <span class="dlp-badge dlp-hi">HIGH</span>
+                                <span class="classif-label">Credit Card Number</span>
+                                <span class="classif-count">312 instances</span>
+                            </div>
+                            <div class="classif-item-row">
+                                <span class="dlp-badge dlp-med">MED</span>
+                                <span class="classif-label">EU Personal Data (Name + DoB)</span>
+                                <span class="classif-count">244 instances</span>
+                            </div>
+                            <div class="classif-item-row">
+                                <span class="dlp-badge dlp-med">MED</span>
+                                <span class="classif-label">Azure Storage Account Keys</span>
+                                <span class="classif-count">18 instances</span>
+                            </div>
+                            <div class="classif-item-row">
+                                <span class="dlp-badge dlp-low">LOW</span>
+                                <span class="classif-label">U.S. Bank Account Number</span>
+                                <span class="classif-count">781 instances</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- VIEW: SENSITIVITY LABELS -->
+                    <div class="portal-view" id="view-labels">
+                        <div class="portal-section-header">
+                            <h2>Sensitivity Labels</h2>
+                            <span class="sub">6 labels configured</span>
+                        </div>
+
+                        <div id="labelList">
+                            <div class="label-tier">
+                                <div class="label-color" style="background:#ef4444"></div>
+                                <div class="label-name">Highly Confidential — All Employees</div>
+                                <div class="label-scope" style="min-width:100px;text-align:right">Files, Email, Teams</div>
+                                <span class="label-status-badge ls-active">Published</span>
+                            </div>
+                            <div class="label-tier">
+                                <div class="label-color" style="background:#f59e0b"></div>
+                                <div class="label-name">Confidential — Internal</div>
+                                <div class="label-scope" style="min-width:100px;text-align:right">Files, Email</div>
+                                <span class="label-status-badge ls-active">Published</span>
+                            </div>
+                            <div class="label-tier">
+                                <div class="label-color" style="background:#3b82f6"></div>
+                                <div class="label-name">General</div>
+                                <div class="label-scope" style="min-width:100px;text-align:right">Files, Email</div>
+                                <span class="label-status-badge ls-active">Published</span>
+                            </div>
+                            <div class="label-tier">
+                                <div class="label-color" style="background:#6b7280"></div>
+                                <div class="label-name">Public</div>
+                                <div class="label-scope" style="min-width:100px;text-align:right">Files</div>
+                                <span class="label-status-badge ls-active">Published</span>
+                            </div>
+                            <div class="label-tier" id="newLabelRow" style="display:none">
+                                <div class="label-color" style="background:#a78bfa"></div>
+                                <div class="label-name" id="newLabelName">Confidential — Finance Only</div>
+                                <div class="label-scope" style="min-width:100px;text-align:right">Files, Email, Teams</div>
+                                <span class="label-status-badge ls-new">Draft</span>
+                            </div>
+                        </div>
+
+                        <div style="margin-top:0.85rem">
+                            <button class="action-btn btn-primary" style="width:auto;padding:0.55rem 1rem;margin-bottom:0.75rem" onclick="toggleLabelForm()" id="createLabelBtn">
+                                <img src="/assets/images/icons/icon-flag.webp" alt="" style="width:1em;height:1em"> Create New Sensitivity Label
+                            </button>
+                        </div>
+
+                        <div class="label-form" id="labelForm">
+                            <div style="font-size:0.7rem;color:#706090;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.75rem">New Sensitivity Label</div>
+                            <div class="form-field">
+                                <div class="form-label">Label Name</div>
+                                <input type="text" class="form-input" id="labelName" value="Confidential - Finance Only" placeholder="e.g. Confidential - Finance Only">
+                            </div>
+                            <div class="form-field">
+                                <div class="form-label">Scope</div>
+                                <select class="form-select" id="labelScope">
+                                    <option value="files-email-teams">Files, Email &amp; Teams messages</option>
+                                    <option value="files-email">Files &amp; Email only</option>
+                                    <option value="files">Files only</option>
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <div class="form-label">Protection Actions</div>
+                                <div class="form-checkbox-row">
+                                    <input type="checkbox" id="cb-encrypt" checked>
+                                    <label for="cb-encrypt">Apply encryption (Rights Management)</label>
+                                </div>
+                                <div class="form-checkbox-row">
+                                    <input type="checkbox" id="cb-watermark" checked>
+                                    <label for="cb-watermark">Apply content marking (watermark)</label>
+                                </div>
+                                <div class="form-checkbox-row">
+                                    <input type="checkbox" id="cb-auto">
+                                    <label for="cb-auto">Auto-labeling (match sensitive info types)</label>
+                                </div>
+                            </div>
+                            <button class="create-label-btn" onclick="createSensitivityLabel()">Create Label</button>
+                        </div>
+                    </div>
+
+                    <!-- VIEW: DLP POLICIES -->
+                    <div class="portal-view" id="view-dlp">
+                        <div class="portal-section-header">
+                            <h2>DLP Policies</h2>
+                            <span class="sub">5 policies active</span>
+                        </div>
+                        <div class="label-tier" style="background:var(--bg-2)">
+                            <div class="label-color" style="background:#ef4444"></div>
+                            <div style="flex:1">
+                                <div class="label-name">PCI DSS — Credit Card Protection</div>
+                                <div style="font-size:0.7rem;color:#706090;margin-top:0.15rem">Scope: Exchange, SharePoint, OneDrive &nbsp;·&nbsp; Action: Block external sharing</div>
+                            </div>
+                            <span class="label-status-badge ls-active">Active</span>
+                        </div>
+                        <div class="label-tier" style="background:var(--bg-2)">
+                            <div class="label-color" style="background:#f59e0b"></div>
+                            <div style="flex:1">
+                                <div class="label-name">HIPAA — Protected Health Information</div>
+                                <div style="font-size:0.7rem;color:#706090;margin-top:0.15rem">Scope: Exchange, SharePoint &nbsp;·&nbsp; Action: Notify user + restrict access</div>
+                            </div>
+                            <span class="label-status-badge ls-active">Active</span>
+                        </div>
+                        <div class="label-tier" style="background:var(--bg-2)">
+                            <div class="label-color" style="background:#3b82f6"></div>
+                            <div style="flex:1">
+                                <div class="label-name">SSN and Financial Data — Internal Only</div>
+                                <div style="font-size:0.7rem;color:#706090;margin-top:0.15rem">Scope: Exchange, OneDrive &nbsp;·&nbsp; Action: Notify user + policy tip</div>
+                            </div>
+                            <span class="label-status-badge ls-active">Active</span>
+                        </div>
+                        <div class="label-tier" style="background:var(--bg-2)">
+                            <div class="label-color" style="background:#a78bfa"></div>
+                            <div style="flex:1">
+                                <div class="label-name">Credentials — Azure Keys and Secrets</div>
+                                <div style="font-size:0.7rem;color:#706090;margin-top:0.15rem">Scope: SharePoint, Teams, DevOps &nbsp;·&nbsp; Action: Block + alert security team</div>
+                            </div>
+                            <span class="label-status-badge ls-active">Active</span>
+                        </div>
+                        <div class="label-tier" style="background:var(--bg-2)">
+                            <div class="label-color" style="background:#6b7280"></div>
+                            <div style="flex:1">
+                                <div class="label-name">Default Endpoint DLP Policy</div>
+                                <div style="font-size:0.7rem;color:#706090;margin-top:0.15rem">Scope: Endpoints (Windows) &nbsp;·&nbsp; Action: Audit only</div>
+                            </div>
+                            <span class="label-status-badge ls-draft">Audit</span>
+                        </div>
+                    </div>
+
+                    <!-- VIEW: DLP ALERTS -->
+                    <div class="portal-view" id="view-dlpalerts">
+                        <div class="portal-section-header">
+                            <h2>DLP Alerts</h2>
+                            <span class="sub">12 alerts (last 7 days)</span>
+                        </div>
+
+                        <div class="dlp-alert-row" id="dlpalert-main" onclick="expandDlpAlert()" style="cursor:pointer">
+                            <div class="dlp-severity"><span class="dlp-badge dlp-hi">HIGH</span></div>
+                            <div class="dlp-info">
+                                <div class="dlp-title">External email with 14 SSN matches — rjones@contoso.com</div>
+                                <div class="dlp-meta">2026-04-21 09:35 UTC &nbsp;·&nbsp; Exchange Online &nbsp;·&nbsp; To: recipient@external.com</div>
+                                <div class="dlp-policy">Policy: SSN and Financial Data — Internal Only</div>
+                            </div>
+                            <span class="label-status-badge" style="background:rgba(245,158,11,0.12);color:#fbbf24;border:1px solid rgba(245,158,11,0.25)">Under review</span>
+                        </div>
+
+                        <div id="dlpAlertDetail" style="display:none;margin-bottom:0.75rem;background:var(--bg-2);border:1px solid rgba(124,58,237,0.2);border-radius:10px;padding:1rem">
+                            <div style="font-size:0.68rem;color:#706090;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.6rem">Alert Detail — INC-DLP-0041</div>
+                            <div style="font-size:0.82rem;color:#c0b0e0;line-height:1.65">
+                                <strong style="color:#d0c0f0">Sender:</strong> rjones@contoso.com<br>
+                                <strong style="color:#d0c0f0">Recipient:</strong> accounting@external-vendor.com<br>
+                                <strong style="color:#d0c0f0">Subject:</strong> "Q1 Payroll Summary — Final"<br>
+                                <strong style="color:#d0c0f0">Matched:</strong> 14 U.S. SSN patterns (high confidence) in attachment: payroll-q1-2026.xlsx<br>
+                                <strong style="color:#d0c0f0">Action taken:</strong> Message blocked and held in quarantine. User notified via policy tip.<br>
+                                <strong style="color:#d0c0f0">Context:</strong> rjones@contoso.com is currently under SOC investigation (INC-4821). This DLP alert provides additional evidence of data exfiltration.
+                            </div>
+                            <div style="margin-top:0.65rem;display:flex;gap:0.5rem">
+                                <button class="action-btn" style="width:auto;padding:0.3rem 0.75rem;font-size:0.75rem;margin:0">Confirm violation</button>
+                                <button class="action-btn" style="width:auto;padding:0.3rem 0.75rem;font-size:0.75rem;margin:0">Add to incident</button>
+                            </div>
+                        </div>
+
+                        <div class="dlp-alert-row">
+                            <div class="dlp-severity"><span class="dlp-badge dlp-med">MED</span></div>
+                            <div class="dlp-info">
+                                <div class="dlp-title">SharePoint file with 3 credit card numbers shared externally</div>
+                                <div class="dlp-meta">2026-04-20 14:22 UTC &nbsp;·&nbsp; SharePoint Online &nbsp;·&nbsp; jsmith@contoso.com</div>
+                                <div class="dlp-policy">Policy: PCI DSS — Credit Card Protection</div>
+                            </div>
+                            <span class="label-status-badge" style="background:rgba(52,211,153,0.1);color:#34d399;border:1px solid rgba(52,211,153,0.25)">Resolved</span>
+                        </div>
+
+                        <div class="dlp-alert-row">
+                            <div class="dlp-severity"><span class="dlp-badge dlp-low">LOW</span></div>
+                            <div class="dlp-info">
+                                <div class="dlp-title">Azure SAS token found in Teams message</div>
+                                <div class="dlp-meta">2026-04-20 11:05 UTC &nbsp;·&nbsp; Microsoft Teams &nbsp;·&nbsp; dev-team@contoso.com</div>
+                                <div class="dlp-policy">Policy: Credentials — Azure Keys and Secrets</div>
+                            </div>
+                            <span class="label-status-badge" style="background:rgba(245,158,11,0.12);color:#fbbf24;border:1px solid rgba(245,158,11,0.25)">Under review</span>
+                        </div>
+                    </div>
+
+                    <!-- VIEW: AUDIT -->
+                    <div class="portal-view" id="view-audit">
+                        <div class="portal-section-header">
+                            <h2>Audit Log Search</h2>
+                            <span class="sub">M365 Unified Audit Log</span>
+                        </div>
+                        <div class="audit-search-bar">
+                            <input type="text" class="audit-input" id="auditUser" value="rjones@contoso.com" placeholder="User (email)">
+                            <input type="text" class="audit-input" style="max-width:120px" value="2026-04-21" placeholder="Start date" readonly>
+                            <input type="text" class="audit-input" style="max-width:120px" value="2026-04-21" placeholder="End date" readonly>
+                            <button class="audit-search-btn" onclick="runAuditSearch()">Search</button>
+                        </div>
+                        <div class="audit-results" id="auditResults">
+                            <div style="font-size:0.7rem;color:#706090;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.45rem">Results: 8 events for rjones@contoso.com on 2026-04-21</div>
+                            <div class="audit-result-row">
+                                <span class="audit-time">09:35:12 UTC</span>
+                                <span class="audit-user">rjones@contoso.com</span>
+                                <span class="audit-activity">FileDownloaded — payroll-q1-2026.xlsx (SharePoint)</span>
+                                <span class="audit-workload">SharePoint</span>
+                            </div>
+                            <div class="audit-result-row" style="border-color:rgba(239,68,68,0.2);background:rgba(239,68,68,0.04)">
+                                <span class="audit-time">09:35:15 UTC</span>
+                                <span class="audit-user">rjones@contoso.com</span>
+                                <span class="audit-activity" style="color:#f87171">Send — blocked by DLP: 14 SSN matches (payroll-q1-2026.xlsx)</span>
+                                <span class="audit-workload">Exchange</span>
+                            </div>
+                            <div class="audit-result-row">
+                                <span class="audit-time">09:34:08 UTC</span>
+                                <span class="audit-user">rjones@contoso.com</span>
+                                <span class="audit-activity">UserLoggedIn — from 203.0.113.47 (anomalous)</span>
+                                <span class="audit-workload">Entra ID</span>
+                            </div>
+                            <div class="audit-result-row">
+                                <span class="audit-time">09:33:51 UTC</span>
+                                <span class="audit-user">rjones@contoso.com</span>
+                                <span class="audit-activity">FileAccessed — HR-payroll-master.xlsx (SharePoint)</span>
+                                <span class="audit-workload">SharePoint</span>
+                            </div>
+                            <div class="audit-result-row">
+                                <span class="audit-time">09:31:22 UTC</span>
+                                <span class="audit-user">rjones@contoso.com</span>
+                                <span class="audit-activity">SearchQuery — "payroll 2026 all employees" (SharePoint search)</span>
+                                <span class="audit-workload">SharePoint</span>
+                            </div>
+                            <div class="audit-result-row">
+                                <span class="audit-time">07:14:55 UTC</span>
+                                <span class="audit-user">rjones@contoso.com</span>
+                                <span class="audit-activity">UserLoggedIn — from 10.0.0.45 (normal corporate IP)</span>
+                                <span class="audit-workload">Entra ID</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- VIEW: EDISCOVERY -->
+                    <div class="portal-view" id="view-ediscovery">
+                        <div class="portal-section-header">
+                            <h2>eDiscovery Cases</h2>
+                            <span class="sub">3 cases &nbsp;|&nbsp; 1 active</span>
+                        </div>
+
+                        <div class="ediscovery-case" id="edCase-security" style="border-color:rgba(239,68,68,0.25)">
+                            <div class="case-header">
+                                <div class="case-name">CASE-2026-0004 — Security Incident INC-4821 Investigation</div>
+                                <span class="case-status cs-active">Active</span>
+                            </div>
+                            <div class="case-detail">
+                                <strong style="color:#d0c0f0">Created by:</strong> legaladmin@contoso.com &nbsp;&nbsp;
+                                <strong style="color:#d0c0f0">Created:</strong> 2026-04-21 10:00 UTC<br>
+                                <strong style="color:#d0c0f0">Description:</strong> Legal hold and evidence collection for security incident involving rjones@contoso.com. Preserve all mailbox, SharePoint, and Teams content.
+                            </div>
+                            <div class="case-counts">
+                                <div class="case-count-item">
+                                    <div class="case-count-val">2</div>
+                                    <div class="case-count-label">Holds</div>
+                                </div>
+                                <div class="case-count-item">
+                                    <div class="case-count-val">3</div>
+                                    <div class="case-count-label">Searches</div>
+                                </div>
+                                <div class="case-count-item">
+                                    <div class="case-count-val" id="export-count">0</div>
+                                    <div class="case-count-label">Exports</div>
+                                </div>
+                                <div class="case-count-item">
+                                    <div class="case-count-val" style="color:#34d399">1,847</div>
+                                    <div class="case-count-label">Items collected</div>
+                                </div>
+                            </div>
+                            <div style="margin-top:0.75rem;display:flex;gap:0.5rem;flex-wrap:wrap">
+                                <button class="action-btn" style="width:auto;padding:0.3rem 0.75rem;font-size:0.75rem;margin:0">View holds</button>
+                                <button class="action-btn" style="width:auto;padding:0.3rem 0.75rem;font-size:0.75rem;margin:0">View searches</button>
+                                <button class="action-btn btn-primary" style="width:auto;padding:0.3rem 0.75rem;font-size:0.75rem;margin:0" onclick="exportEvidence()" id="exportBtn">Export evidence</button>
+                            </div>
+                            <div id="exportMsg" style="display:none;margin-top:0.6rem;padding:0.6rem 0.75rem;background:rgba(52,211,153,0.07);border:1px solid rgba(52,211,153,0.25);border-radius:7px;font-size:0.78rem;color:#34d399">
+                                Export job queued. 1,847 items across Exchange (mailbox), SharePoint (files), and Teams (messages) will be packaged in PST and CSV format. Download link sent to legaladmin@contoso.com.
+                            </div>
+                        </div>
+
+                        <div class="ediscovery-case">
+                            <div class="case-header">
+                                <div class="case-name">CASE-2025-0031 — HR Dispute — jdoe@contoso.com</div>
+                                <span class="case-status cs-closed">Closed</span>
+                            </div>
+                            <div class="case-detail">
+                                Closed 2025-11-14. All evidence exported and archived. Retention hold released.
+                            </div>
+                        </div>
+
+                        <div class="ediscovery-case">
+                            <div class="case-header">
+                                <div class="case-name">CASE-2025-0018 — Regulatory Audit — Q2 2025</div>
+                                <span class="case-status cs-closed">Closed</span>
+                            </div>
+                            <div class="case-detail">
+                                Closed 2025-08-22. Exported to external counsel. 12,440 items reviewed.
+                            </div>
+                        </div>
+                    </div>
+
+                </div><!-- /purview-content -->
+            </div><!-- /purview-layout -->
+        </div><!-- /purview-shell -->
+    </main>
+
+    <!-- RIGHT: INSTRUCTION PANEL -->
+    <aside class="instruction-panel" id="instructionPanel">
+        <div class="instr-task-num"  id="instrTaskNum">TASK 1 OF 10</div>
+        <div class="instr-task-title" id="instrTaskTitle">Review Compliance Score</div>
+        <div class="instr-body" id="instrBody">
+            <p>Navigate to <strong>Compliance Manager</strong> in the Purview sidebar. The Compliance Score measures how well your tenant implements controls across regulatory frameworks.</p>
+            <p>Review the overall score (74/100), the four regulatory framework bars, and identify which framework has the lowest completion — ISO 27001 at 58%.</p>
+        </div>
+        <div class="instr-divider"></div>
+        <div class="instr-action-label">Your Action</div>
+        <button class="action-btn btn-primary" id="primaryActionBtn" onclick="handleTaskAction()">
+            <img src="/assets/images/icons/icon-chart.webp" alt=""> Open Compliance Manager
+        </button>
+        <div class="instr-concept" id="instrConcept">
+            <strong>Exam concept:</strong> The Compliance Score in Microsoft Purview is based on control implementation across Microsoft-managed controls (what Microsoft does in the platform) and customer-managed controls (what you configure). Only customer-managed controls affect your score.
+        </div>
+    </aside>
+
+</div>
+
+<!-- SUCCESS OVERLAY -->
+<div class="success-overlay" id="successOverlay">
+    <div class="success-card">
+        <h2>SC-900 Ch.4 Lab Complete</h2>
+        <p>You reviewed the Compliance Score and regulatory frameworks, explored data classification findings, created a sensitivity label, reviewed DLP policies and alerts, ran an audit log search, and managed an active eDiscovery case. You have navigated the complete Microsoft Purview compliance workflow for the SC-900 exam.</p>
+        <button class="complete-btn" onclick="finishLab()">Complete Lab</button>
+    </div>
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    var TOTAL = 10;
+    var taskDone = {};
+    for (var i = 1; i <= TOTAL; i++) { taskDone[i] = false; }
+    var currentTask = 1;
+    var labelFormOpen = false;
+    var auditSearched = false;
+    var dlpAlertExpanded = false;
+
+    /* Per-task configuration */
+    var TASK_CONFIG = {
+        1: {
+            view: 'compliance', nav: 'nav-compliance',
+            taskNum: 'TASK 1 OF 10', title: 'Review Compliance Score',
+            body: 'Navigate to <strong>Compliance Manager</strong> in the Purview sidebar. The Compliance Score measures how well your tenant implements controls across regulatory frameworks.<br><br>Review the overall score (74/100), the four regulatory framework bars, and identify which framework has the lowest completion — <strong>ISO 27001 at 58%</strong>.',
+            actionLabel: 'Open Compliance Manager', actionIcon: 'icon-chart.webp',
+            concept: '<strong>Exam concept:</strong> The Compliance Score is based on Microsoft-managed controls (platform-level, always credited) and customer-managed controls (you configure these). Only customer-managed controls are actionable. Unlike Secure Score, Compliance Score is regulation-specific.'
+        },
+        2: {
+            view: 'compliance', nav: 'nav-compliance',
+            taskNum: 'TASK 2 OF 10', title: 'Explore Improvement Actions',
+            body: 'Still in <strong>Compliance Manager</strong>, review the three Improvement Actions listed. Each shows how many points it would add to the score if implemented, and which regulatory framework it maps to.<br><br>Note that <strong>Enable encryption for data at rest</strong> maps to GDPR Article 32 and is worth the most points (+12). Click it to simulate completing the action.',
+            actionLabel: 'Complete encryption action', actionIcon: 'icon-lock.webp',
+            concept: '<strong>Exam concept:</strong> Improvement actions in Compliance Manager can be Microsoft-managed (automatic), customer-managed (manual), or shared responsibility. Each action maps to specific regulatory control IDs (e.g. NIST AC-3, GDPR Article 32) so you can prioritize by regulation.'
+        },
+        3: {
+            view: 'classification', nav: 'nav-classification',
+            taskNum: 'TASK 3 OF 10', title: 'View Sensitive Data Discovery',
+            body: 'Navigate to <strong>Data Classification</strong>. Microsoft Purview scans all content in Exchange, SharePoint, OneDrive, and Teams for known sensitive information types.<br><br>The scanner found <strong>1,842 instances</strong> of sensitive data. The most critical: 487 SSN instances and 312 credit card numbers. Only 34% of content is labeled.',
+            actionLabel: 'Open Data Classification', actionIcon: 'icon-database.webp',
+            concept: '<strong>Exam concept:</strong> Microsoft Purview includes 200+ built-in sensitive information types (SSN, credit card, passport, etc.) that use regex patterns and corroborative evidence. You can also create custom SITs. Data classification is a prerequisite to effective DLP policy deployment.'
+        },
+        4: {
+            view: 'labels', nav: 'nav-labels',
+            taskNum: 'TASK 4 OF 10', title: 'Create Sensitivity Label',
+            body: 'Navigate to <strong>Sensitivity Labels</strong>. Review the existing label hierarchy. Then click <strong>Create New Sensitivity Label</strong> to open the creation form.<br><br>Use the pre-filled values (Confidential - Finance Only) or customize them. Select encryption and content marking as protection actions, then click <strong>Create Label</strong>.',
+            actionLabel: 'Create sensitivity label', actionIcon: 'icon-flag.webp',
+            concept: '<strong>Exam concept:</strong> Sensitivity labels in Microsoft Purview can: apply encryption (Rights Management), add content marking (headers, footers, watermarks), enable auto-labeling, and extend to Teams meetings and Fabric items. Labels persist with the file regardless of where it is moved.'
+        },
+        5: {
+            view: 'dlp', nav: 'nav-dlp',
+            taskNum: 'TASK 5 OF 10', title: 'Review DLP Policy List',
+            body: 'Navigate to <strong>DLP Policies</strong>. Review the 5 active policies and their scope. Each policy monitors specific Microsoft 365 workloads and takes protective actions when sensitive data matches the configured conditions.<br><br>The <strong>Default Endpoint DLP Policy</strong> is in Audit mode — it detects but does not block, which is typical for new policy rollouts.',
+            actionLabel: 'Open DLP Policies', actionIcon: 'icon-shield.webp',
+            concept: '<strong>Exam concept:</strong> DLP policy actions can be: Audit only (log but no restriction), Notify user (policy tip), Block (prevent sharing/sending), Block with override (block but allow user to justify). Audit mode first is Microsoft best practice for new policies to avoid false-positive disruptions.'
+        },
+        6: {
+            view: 'dlpalerts', nav: 'nav-dlpalerts',
+            taskNum: 'TASK 6 OF 10', title: 'Investigate DLP Alert',
+            body: 'Navigate to <strong>DLP Alerts</strong>. A high-severity alert shows that rjones@contoso.com attempted to email a file containing <strong>14 SSN matches</strong> to an external address.<br><br>Click the alert row to expand the detail panel and read the full context. Note this is the same user involved in INC-4821 — this DLP alert provides additional evidence of data exfiltration.',
+            actionLabel: 'Expand high-severity alert', actionIcon: 'icon-alert.webp',
+            concept: '<strong>Exam concept:</strong> DLP alerts in Purview are separate from Sentinel incidents, but they can be fed into Sentinel via the M365 Defender connector. Cross-referencing a DLP alert with a security incident (same user, same timeframe) is a key SOC technique for confirming exfiltration.'
+        },
+        7: {
+            view: 'audit', nav: 'nav-audit',
+            taskNum: 'TASK 7 OF 10', title: 'Search Audit Log',
+            body: 'Navigate to <strong>Audit</strong>. The Unified Audit Log captures activity across Exchange, SharePoint, OneDrive, Teams, Entra ID, and more. The search is pre-filled with rjones@contoso.com for today\'s date.<br><br>Click <strong>Search</strong> to retrieve audit events for this user.',
+            actionLabel: 'Run audit log search', actionIcon: 'icon-list.webp',
+            concept: '<strong>Exam concept:</strong> The Unified Audit Log retains records for 90 days on E3, 1 year on E5, and up to 10 years with the Audit (Premium) add-on. Audit (Premium) also adds bandwidth (faster results), intelligent insights, and the ability to access high-value events like mail access by non-owners.'
+        },
+        8: {
+            view: 'audit', nav: 'nav-audit',
+            taskNum: 'TASK 8 OF 10', title: 'Review Audit Results',
+            body: 'Review the returned audit records. The timeline tells a story: normal logon at 07:14, then suspicious activity beginning at 09:31 — search for payroll data, file access, file download, and a <strong>blocked send attempt</strong> at 09:35 (caught by DLP).<br><br>The audit log proves the sequence of events and provides non-repudiation evidence.',
+            actionLabel: 'Review audit timeline', actionIcon: 'icon-eye.webp',
+            concept: '<strong>Exam concept:</strong> Audit log entries include: who performed the action (UPN), what the action was (operation), when (timestamp), where (workload/service), and on what object (item). This is the chain of custody foundation for legal proceedings and incident response timelines.'
+        },
+        9: {
+            view: 'ediscovery', nav: 'nav-ediscovery',
+            taskNum: 'TASK 9 OF 10', title: 'Review eDiscovery Cases',
+            body: 'Navigate to <strong>eDiscovery</strong>. Review the active case CASE-2026-0004 created for the security incident. This case has 2 legal holds preserving all content for rjones@contoso.com and DESKTOP-MKT07, 3 searches run, and 1,847 items collected.<br><br>Legal holds prevent deletion of content that may be needed as evidence — even if the user\'s retention policy or deletion schedule would otherwise remove it.',
+            actionLabel: 'Open eDiscovery cases', actionIcon: 'icon-binoculars.webp',
+            concept: '<strong>Exam concept:</strong> eDiscovery in Purview has two tiers: Standard (search + export + basic holds) and Premium (adds custodian management, processing with error remediation, review sets with analytics, and conversation threading). Premium requires E5 or E5 Compliance add-on.'
+        },
+        10: {
+            view: 'ediscovery', nav: 'nav-ediscovery',
+            taskNum: 'TASK 10 OF 10', title: 'Export Evidence Package',
+            body: 'With CASE-2026-0004 open, click <strong>Export evidence</strong>. This initiates a job that packages all 1,847 collected items from Exchange, SharePoint, and Teams into PST and CSV formats for delivery to legal counsel.<br><br>The export includes a manifest, error report, and checksums for chain-of-custody verification.',
+            actionLabel: 'Export evidence package', actionIcon: 'icon-database.webp',
+            concept: '<strong>Exam concept:</strong> eDiscovery exports include: PST (email/calendar), individual message files, documents, and a Results.csv manifest. Exports are encrypted with a passphrase. The PST can be imported into Outlook or Relativity for attorney review. Only designated case managers can access export packages.'
+        }
+    };
+
+    /* ------------------------------------------------------------------ */
+    /* Portal navigation                                                    */
+    /* ------------------------------------------------------------------ */
+    function switchView(viewId) {
+        var views = document.querySelectorAll('.portal-view');
+        views.forEach(function (v) { v.classList.remove('view-active'); });
+        var navItems = document.querySelectorAll('.purview-nav-item');
+        navItems.forEach(function (n) { n.classList.remove('nav-active'); });
+
+        var targetView = document.getElementById('view-' + viewId);
+        if (targetView) { targetView.classList.add('view-active'); }
+        var targetNav = document.getElementById('nav-' + viewId);
+        if (targetNav) { targetNav.classList.add('nav-active'); }
+
+        var portal = document.getElementById('portalArea');
+        if (portal) { portal.scrollTop = 0; }
+    }
+    window.switchView = switchView;
+
+    /* ------------------------------------------------------------------ */
+    /* Compliance improvement action completion                             */
+    /* ------------------------------------------------------------------ */
+    function completeCompAction(id) {
+        var row = document.getElementById('ci-' + id);
+        if (!row) { return; }
+        row.style.opacity = '0.5';
+        row.style.pointerEvents = 'none';
+        var ptsEl = document.getElementById('ci-pts-' + id);
+        if (ptsEl) { ptsEl.style.color = '#34d399'; ptsEl.textContent = 'Done'; }
+        /* Update score display */
+        var scoreVal = document.getElementById('compScoreVal');
+        if (scoreVal) { scoreVal.textContent = '86'; }
+        if (currentTask === 2 && !taskDone[2]) { completeTask(2); }
+    }
+    window.completeCompAction = completeCompAction;
+
+    /* ------------------------------------------------------------------ */
+    /* Sensitivity label form                                               */
+    /* ------------------------------------------------------------------ */
+    function toggleLabelForm() {
+        labelFormOpen = !labelFormOpen;
+        var form = document.getElementById('labelForm');
+        if (form) {
+            if (labelFormOpen) { form.classList.add('visible'); }
+            else { form.classList.remove('visible'); }
+        }
+        if (currentTask === 4 && !taskDone[4] && labelFormOpen) {
+            /* Don't complete until label is actually created */
+        }
+    }
+    window.toggleLabelForm = toggleLabelForm;
+
+    function createSensitivityLabel() {
+        var nameInput = document.getElementById('labelName');
+        var labelName = nameInput ? nameInput.value.trim() || 'Confidential - Finance Only' : 'Confidential - Finance Only';
+
+        /* Update the new label row */
+        var newRow = document.getElementById('newLabelRow');
+        var newLabelNameEl = document.getElementById('newLabelName');
+        if (newRow) { newRow.style.display = 'flex'; }
+        if (newLabelNameEl) { newLabelNameEl.textContent = labelName; }
+
+        /* Hide form */
+        var form = document.getElementById('labelForm');
+        if (form) { form.classList.remove('visible'); }
+        labelFormOpen = false;
+
+        if (currentTask === 4 && !taskDone[4]) { completeTask(4); }
+    }
+    window.createSensitivityLabel = createSensitivityLabel;
+
+    /* ------------------------------------------------------------------ */
+    /* DLP alert expansion                                                  */
+    /* ------------------------------------------------------------------ */
+    function expandDlpAlert() {
+        dlpAlertExpanded = true;
+        var detail = document.getElementById('dlpAlertDetail');
+        if (detail) { detail.style.display = 'block'; }
+        if (currentTask === 6 && !taskDone[6]) { completeTask(6); }
+    }
+    window.expandDlpAlert = expandDlpAlert;
+
+    /* ------------------------------------------------------------------ */
+    /* Audit log search                                                     */
+    /* ------------------------------------------------------------------ */
+    function runAuditSearch() {
+        auditSearched = true;
+        var results = document.getElementById('auditResults');
+        if (results) { results.classList.add('visible'); }
+        if (currentTask === 7 && !taskDone[7]) { completeTask(7); }
+    }
+    window.runAuditSearch = runAuditSearch;
+
+    /* ------------------------------------------------------------------ */
+    /* eDiscovery export                                                    */
+    /* ------------------------------------------------------------------ */
+    function exportEvidence() {
+        var exportMsg = document.getElementById('exportMsg');
+        if (exportMsg) { exportMsg.style.display = 'block'; }
+        var exportBtn = document.getElementById('exportBtn');
+        if (exportBtn) { exportBtn.disabled = true; exportBtn.textContent = 'Export queued'; }
+        var exportCount = document.getElementById('export-count');
+        if (exportCount) { exportCount.textContent = '1'; }
+        if (currentTask === 10 && !taskDone[10]) { completeTask(10); }
+    }
+    window.exportEvidence = exportEvidence;
+
+    /* ------------------------------------------------------------------ */
+    /* Task progression                                                     */
+    /* ------------------------------------------------------------------ */
+    function selectTask(num) {
+        currentTask = num;
+        for (var j = 1; j <= TOTAL; j++) {
+            var card = document.getElementById('tc-' + j);
+            if (!card) { continue; }
+            card.classList.remove('active');
+            if (j === num) { card.classList.add('active'); }
+        }
+
+        var cfg = TASK_CONFIG[num];
+        if (!cfg) { return; }
+        document.getElementById('instrTaskNum').textContent   = cfg.taskNum;
+        document.getElementById('instrTaskTitle').textContent = cfg.title;
+        document.getElementById('instrBody').innerHTML        = cfg.body;
+        document.getElementById('instrConcept').innerHTML     = cfg.concept;
+
+        var btn = document.getElementById('primaryActionBtn');
+        if (taskDone[num]) {
+            btn.className = 'action-btn btn-done';
+            btn.innerHTML = '<img src="/assets/images/icons/icon-checkmark.webp" alt="" style="width:1em;height:1em"> Task completed';
+        } else {
+            btn.className = 'action-btn btn-primary';
+            btn.innerHTML = '<img src="/assets/images/icons/icon-' + cfg.actionIcon.replace('icon-','') + '" alt="" style="width:1em;height:1em"> ' + cfg.actionLabel;
+        }
+
+        switchView(cfg.view);
+    }
+    window.selectTask = selectTask;
+
+    /* ------------------------------------------------------------------ */
+    /* Primary action handler                                               */
+    /* ------------------------------------------------------------------ */
+    function handleTaskAction() {
+        if (taskDone[currentTask]) { return; }
+        var cfg = TASK_CONFIG[currentTask];
+        switchView(cfg.view);
+
+        switch (currentTask) {
+            case 1:  completeTask(1); break;
+            case 2:  completeCompAction('encryption'); break;
+            case 3:  completeTask(3); break;
+            case 4:
+                if (!labelFormOpen) { toggleLabelForm(); }
+                /* Task 4 completes when createSensitivityLabel() is called */
+                break;
+            case 5:  completeTask(5); break;
+            case 6:  expandDlpAlert(); break;
+            case 7:  runAuditSearch(); break;
+            case 8:
+                /* Ensure audit results are visible, then complete */
+                if (!auditSearched) { runAuditSearch(); }
+                completeTask(8);
+                break;
+            case 9:  completeTask(9); break;
+            case 10: exportEvidence(); break;
+        }
+    }
+    window.handleTaskAction = handleTaskAction;
+
+    /* ------------------------------------------------------------------ */
+    /* Task completion engine                                               */
+    /* ------------------------------------------------------------------ */
+    function completeTask(num) {
+        if (taskDone[num]) { return; }
+        taskDone[num] = true;
+
+        var card = document.getElementById('tc-' + num);
+        if (card) { card.classList.add('done'); card.classList.remove('active'); }
+        var numEl = document.getElementById('tn-' + num);
+        if (numEl) { numEl.textContent = '\u2713'; }
+
+        var doneCount = 0;
+        for (var k = 1; k <= TOTAL; k++) { if (taskDone[k]) { doneCount++; } }
+        var pct = Math.round((doneCount / TOTAL) * 100);
+        document.getElementById('progressFill').style.width  = pct + '%';
+        document.getElementById('progressCount').textContent = doneCount + ' / ' + TOTAL;
+
+        if (currentTask === num) {
+            var btn = document.getElementById('primaryActionBtn');
+            btn.className = 'action-btn btn-done';
+            btn.innerHTML = '<img src="/assets/images/icons/icon-checkmark.webp" alt="" style="width:1em;height:1em"> Task completed';
+        }
+
+        if (doneCount < TOTAL) {
+            var next = null;
+            for (var n = 1; n <= TOTAL; n++) {
+                if (!taskDone[n]) { next = n; break; }
             }
-            if (!matched) {
-                if (trimmed === 'help') { addLine('Type the commands shown in the task instructions.', 'term-line-info'); addLine('Each task provides the exact command to run.', 'term-line-dim'); }
-                else if (trimmed === 'clear') { outputEl.innerHTML = ''; }
-                else { addLine('Command not recognized in this lab simulation. Check the task instructions.', 'term-line-err'); }
+            if (next && next !== currentTask) {
+                setTimeout(function () { selectTask(next); }, 350);
             }
+        } else {
+            setTimeout(function () {
+                document.getElementById('successOverlay').classList.add('show');
+            }, 600);
         }
+    }
 
-        function completeTask(num) {
-            if (taskDone[num]) return;
-            taskDone[num] = true;
-            var card = document.getElementById('task-card-' + num);
-            if (card) { card.classList.add('completed'); card.classList.remove('active'); }
-            var doneCount = Object.keys(taskDone).filter(function(k){return taskDone[k];}).length;
-            document.getElementById('taskProgress').textContent = doneCount + ' / ' + TOTAL_TASKS + ' Tasks';
-            document.getElementById('progressBarFill').style.width = Math.round((doneCount/TOTAL_TASKS)*100) + '%';
-            addBlank();
-            addHTML('  <span style="color:#34d399">[Task ' + num + ' complete]</span> <span style="color:#5a2020">' + escH(TASK_NAMES[num]||'') + '</span>', 'term-line-info');
-            addBlank();
-            if (doneCount === TOTAL_TASKS) { setTimeout(function(){ document.getElementById('successOverlay').classList.add('active'); }, 700); return; }
-            var next = null; for (var j=1;j<=TOTAL_TASKS;j++) { if (!taskDone[j]) { next=j; break; } }
-            if (next) selectTask(next);
+    /* ------------------------------------------------------------------ */
+    /* Finish                                                               */
+    /* ------------------------------------------------------------------ */
+    function finishLab() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'sc900-ch04-lab', { returnUrl: '../index.html' });
+        } else {
+            window.location.href = '../index.html';
         }
+    }
+    window.finishLab = finishLab;
 
-        function selectTask(num) {
-            currentTask = num;
-            for (var i=1;i<=TOTAL_TASKS;i++) { var c=document.getElementById('task-card-'+i); if(c){c.classList.remove('active'); if(i===num) c.classList.add('active');} }
-            var info = TASK_INSTRUCTIONS[num]; if (!info) return;
-            var stepEl=document.getElementById('instructionsStep'); var hintEl=document.getElementById('instructionsHint'); var hintCmd=document.getElementById('hintCommand');
-            if (stepEl) stepEl.innerHTML = info.step.replace(/
-/g,'<br>');
-            if (hintEl) hintEl.textContent = info.hint;
-            if (hintCmd) { hintCmd.textContent = info.cmd; hintCmd.classList.remove('visible'); }
-            var panel=document.getElementById('instructionsPanel'); if(panel&&panel.classList.contains('collapsed')) panel.classList.remove('collapsed');
-        }
+    /* Init */
+    selectTask(1);
 
-        window.selectTask = selectTask;
-        window.toggleInstructions = function() { document.getElementById('instructionsPanel').classList.toggle('collapsed'); };
-        window.revealHint = function() { var h=document.getElementById('hintCommand'); if(h) h.classList.toggle('visible'); };
-        window.finishLab = function() { if (typeof ModuleProgress !== 'undefined') { ModuleProgress.complete('shield', 'sc900-ch04-lab', { returnUrl: '../index.html' }); } else { window.location.href = '../index.html'; } };
+})();
+</script>
 
-        function init() {
-            outputEl = document.getElementById('termOutput');
-            inputEl = document.getElementById('termInput');
-            ps1PathEl = document.getElementById('termPS1Path');
-            if (!outputEl || !inputEl) return;
-            addLine("Compliance Solutions Lab -- SC-900 Chapter 4", "term-welcome");
-            addLine("Shield House Security Terminal Simulation", "term-welcome");
-            addLine("", "term-line-out");
-            addLine("Explore foundational security models, classify threats, and test encryption.", "term-line-info");
-            addLine("Type \"help\" for guidance. Complete 10 tasks to finish the lab.", "term-line-info");
-            addBlank();
-            inputEl.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') { var cmd=inputEl.value; inputEl.value=''; if(cmd.trim()){cmdHistory.push(cmd);histIdx=cmdHistory.length;} execLine(cmd); }
-                else if (e.key === 'ArrowUp') { e.preventDefault(); if(histIdx>0){histIdx--;inputEl.value=cmdHistory[histIdx];} }
-                else if (e.key === 'ArrowDown') { e.preventDefault(); if(histIdx<cmdHistory.length-1){histIdx++;inputEl.value=cmdHistory[histIdx];}else{histIdx=cmdHistory.length;inputEl.value='';} }
-            });
-            outputEl.addEventListener('click', function(){ inputEl.focus(); });
-            inputEl.focus();
-            selectTask(1);
-        }
-        if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
-    })();
-    </script>
-    <script src="../../../../components/AchievementManager.js"></script>
-    <script src="../../../../components/FluxCapacitor.js"></script>
+<script src="../../../../components/FluxCapacitor.js"></script>
 </body>
 </html>

@@ -7,286 +7,571 @@
     <script src="../../../../components/ModuleProgress.js"></script>
     <script src="../../../../components/FirebaseAuth.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DAX Deep-Dive Lab -- PL-300 Chapter 5</title>
+    <title>Advanced DAX -- PL-300 Chapter 5</title>
     <style>
+        :root {
+            --blue: #3b82f6;
+            --blue-dim: rgba(59,130,246,0.15);
+            --blue-border: rgba(59,130,246,0.3);
+            --green: #34d399;
+            --green-dim: rgba(52,211,153,0.1);
+            --green-border: rgba(52,211,153,0.3);
+            --purple: #a78bfa;
+            --amber: #f59e0b;
+            --red: #ef4444;
+            --bg: #080c14;
+            --bg2: #0d1220;
+            --bg3: #111827;
+            --text: #dbeafe;
+            --text2: #6b82a0;
+            --border: rgba(59,130,246,0.12);
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { height: 100vh; overflow: hidden; background: #0c0c0c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #b3cef5; display: flex; flex-direction: column; }
-        .lab-header { flex-shrink: 0; padding: 15px 30px; background: rgba(10,12,20,0.95); border-bottom: 1px solid rgba(59,130,246,0.2); display: flex; justify-content: space-between; align-items: center; }
-        .header-left { display: flex; align-items: center; gap: 20px; }
-        .back-btn { padding: 8px 16px; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; color: #3b82f6; text-decoration: none; font-size: 0.85rem; transition: all 0.3s ease; }
-        .back-btn:hover { background: rgba(59,130,246,0.2); }
-        .lab-title { font-size: 1rem; color: #dbeafe; }
-        .lab-badge { padding: 4px 12px; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); border-radius: 12px; font-size: 0.7rem; color: #60a5fa; letter-spacing: 0.05em; }
-        .lab-badge-ch { padding: 4px 12px; background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.3); border-radius: 12px; font-size: 0.7rem; color: #34d399; letter-spacing: 0.05em; }
-        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #6b82a0; }
-        .task-count { color: #3b82f6; font-weight: 500; }
-        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(59,130,246,0.15); border-radius: 3px; overflow: hidden; }
-        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #1d4ed8); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
-        .lab-container { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
-        .task-panel { background: rgba(10,14,22,0.95); border-right: 1px solid rgba(59,130,246,0.15); overflow-y: auto; padding: 20px; }
-        .task-section { margin-bottom: 25px; }
-        .task-section-title { font-size: 0.68rem; color: #3b5278; letter-spacing: 0.15em; margin-bottom: 12px; text-transform: uppercase; }
-        .task-card { background: rgba(12,18,32,0.8); border: 1px solid rgba(59,130,246,0.15); border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s ease; }
-        .task-card:hover { border-color: rgba(59,130,246,0.4); }
-        .task-card.active { border-color: #3b82f6; background: rgba(59,130,246,0.1); }
-        .task-card.completed { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.04); }
-        .task-card.completed .task-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; font-weight: 400; }
-        .task-number { font-size: 0.68rem; color: #3b82f6; margin-bottom: 4px; }
-        .task-name { font-size: 0.9rem; color: #dbeafe; margin-bottom: 4px; }
-        .task-desc { font-size: 0.77rem; color: #6b82a0; line-height: 1.45; }
-        .task-desc code { background: rgba(59,130,246,0.15); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; color: #60a5fa; font-family: 'Consolas', monospace; }
-        .terminal-panel { display: flex; flex-direction: column; background: #0a0a0a; position: relative; overflow: hidden; }
-        .term-toolbar { flex-shrink: 0; padding: 8px 20px; background: rgba(12,18,28,0.9); border-bottom: 1px solid rgba(59,130,246,0.15); display: flex; align-items: center; gap: 12px; }
-        .term-dot { width: 12px; height: 12px; border-radius: 50%; }
-        .term-dot-red { background: #ff5f57; } .term-dot-amber { background: #febc2e; } .term-dot-green { background: #28c840; }
-        .term-title { flex: 1; text-align: center; font-size: 0.8rem; color: #4a6080; font-family: 'Consolas', 'Courier New', monospace; }
-        .term-vm-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #34d399; }
-        .term-status-dot { width: 7px; height: 7px; background: #34d399; border-radius: 50%; animation: pulse 2s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-        .term-output { flex: 1; overflow-y: auto; padding: 16px 360px 8px 20px; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.875rem; line-height: 1.6; }
-        .term-input-row { flex-shrink: 0; display: flex; align-items: center; padding: 8px 360px 12px 20px; border-top: 1px solid rgba(59,130,246,0.1); gap: 0; }
-        .term-prompt-label { font-family: 'Consolas', 'Courier New', monospace; font-size: 0.875rem; white-space: nowrap; flex-shrink: 0; }
-        .term-prompt-user { color: #3b82f6; } .term-prompt-sep { color: #3b5278; } .term-prompt-path { color: #34d399; } .term-prompt-dollar { color: #dbeafe; margin-right: 6px; }
-        .term-input { flex: 1; background: transparent; border: none; outline: none; color: #dbeafe; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.875rem; caret-color: #3b82f6; }
-        .term-line { white-space: pre-wrap; word-break: break-all; }
-        .term-line-cmd { color: #b3cef5; } .term-line-out { color: #a0d4a0; } .term-line-err { color: #f87171; }
-        .term-line-info { color: #60a5fa; } .term-line-warn { color: #fbbf24; } .term-line-dim { color: #374860; }
-        .term-welcome { color: #3b82f6; }
-        .term-prompt-span { color: #3b82f6; } .term-path-span { color: #34d399; } .term-ps1-sep { color: #3b5278; }
-        .json-key { color: #60a5fa; } .json-string { color: #86efac; } .json-number { color: #fbbf24; } .json-bool { color: #93c5fd; } .json-null { color: #f87171; }
-        .instructions-panel { position: absolute; top: 20px; right: 20px; width: 320px; background: rgba(10,16,28,0.97); border: 1px solid rgba(59,130,246,0.3); border-radius: 12px; padding: 20px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.4); transition: all 0.3s ease; }
-        .instructions-panel.collapsed { width: auto; padding: 10px 14px; cursor: pointer; }
-        .instructions-panel.collapsed .instructions-body { display: none; }
-        .instructions-panel.collapsed .instructions-toggle { transform: rotate(180deg); }
-        .instructions-title { font-size: 1rem; color: #3b82f6; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
-        .instructions-panel.collapsed .instructions-title { margin-bottom: 0; font-size: 0.85rem; }
-        .instructions-toggle { margin-left: auto; width: 28px; height: 28px; background: rgba(59,130,246,0.2); border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; color: #3b82f6; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; flex-shrink: 0; }
-        .instructions-toggle:hover { background: rgba(59,130,246,0.4); }
-        .instructions-step { font-size: 0.88rem; color: #b3cef5; line-height: 1.65; margin-bottom: 14px; }
-        .instructions-step code { background: rgba(59,130,246,0.2); padding: 2px 7px; border-radius: 4px; font-family: 'Consolas', monospace; color: #60a5fa; font-size: 0.85em; }
-        .instructions-hint { font-size: 0.78rem; color: #3b5278; font-style: italic; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(59,130,246,0.15); line-height: 1.5; }
-        .hint-btn { margin-top: 12px; padding: 6px 12px; background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.25); border-radius: 5px; color: #3b82f6; font-size: 0.75rem; cursor: pointer; font-family: 'Segoe UI', sans-serif; transition: all 0.2s ease; width: 100%; text-align: center; }
-        .hint-btn:hover { background: rgba(59,130,246,0.22); }
-        .hint-command { display: none; margin-top: 10px; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(59,130,246,0.25); border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.78rem; color: #86efac; line-height: 1.55; white-space: pre-wrap; word-break: break-all; }
-        .hint-command.visible { display: block; }
-        .success-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 2000; }
-        .success-overlay.active { display: flex; }
-        .success-card { background: rgba(10,16,28,0.97); border: 1px solid rgba(52,211,153,0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
-        .success-icon { margin-bottom: 20px; }
-        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
-        .success-message { color: #b3cef5; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
-        .success-btn { padding: 12px 30px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; transition: all 0.3s ease; }
-        .success-btn:hover { box-shadow: 0 5px 20px rgba(59,130,246,0.35); transform: translateY(-1px); }
-        @media (max-width: 1024px) { .lab-container { grid-template-columns: 1fr; } .task-panel { display: none; } .term-output, .term-input-row { padding-right: 20px; } .instructions-panel { position: absolute; bottom: 60px; top: auto; right: 10px; left: 10px; width: auto; } }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        .topbar { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .topbar-left { display: flex; align-items: center; gap: 14px; }
+        .back-btn { padding: 6px 14px; background: var(--blue-dim); border: 1px solid var(--blue-border); border-radius: 6px; color: var(--blue); text-decoration: none; font-size: 0.82rem; transition: background 0.2s; }
+        .back-btn:hover { background: rgba(59,130,246,0.25); }
+        .lab-title { font-size: 0.95rem; }
+        .badge { padding: 3px 10px; border-radius: 10px; font-size: 0.68rem; letter-spacing: 0.06em; }
+        .badge-blue { background: var(--blue-dim); border: 1px solid var(--blue-border); color: var(--blue); }
+        .badge-green { background: var(--green-dim); border: 1px solid var(--green-border); color: var(--green); }
+        .topbar-right { display: flex; align-items: center; gap: 14px; font-size: 0.82rem; color: var(--text2); }
+        .prog-wrap { width: 130px; height: 5px; background: rgba(59,130,246,0.12); border-radius: 3px; overflow: hidden; }
+        .prog-fill { height: 100%; background: linear-gradient(90deg, var(--blue), #1d4ed8); border-radius: 3px; transition: width 0.4s ease; }
+        .prog-label { color: var(--blue); font-weight: 500; }
+
+        .workspace { display: grid; grid-template-columns: 1fr 320px; flex: 1; min-height: 0; }
+
+        /* ---- DAX editor (left/main) ---- */
+        .editor-panel { display: flex; flex-direction: column; background: var(--bg3); overflow: hidden; }
+
+        /* measure library */
+        .measure-tabs { flex-shrink: 0; display: flex; gap: 0; background: var(--bg2); border-bottom: 1px solid var(--border); padding: 0 12px; overflow-x: auto; }
+        .measure-tab { padding: 9px 16px; font-size: 0.82rem; color: var(--text2); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: all 0.15s; flex-shrink: 0; }
+        .measure-tab:hover { color: var(--text); }
+        .measure-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+        .measure-tab.done { color: var(--green); }
+
+        /* formula bar */
+        .formula-bar-wrap { flex-shrink: 0; background: var(--bg2); border-bottom: 1px solid var(--border); padding: 10px 14px; }
+        .formula-bar-top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .measure-name-input { background: var(--bg3); border: 1px solid var(--blue-border); border-radius: 5px; padding: 5px 10px; color: var(--text); font-size: 0.85rem; width: 200px; outline: none; }
+        .measure-name-input:focus { border-color: var(--blue); }
+        .table-select { background: var(--bg3); border: 1px solid var(--blue-border); border-radius: 5px; padding: 5px 10px; color: var(--text2); font-size: 0.82rem; cursor: pointer; }
+        .formula-area { position: relative; }
+        .formula-textarea { width: 100%; background: #0a0f1e; border: 1px solid rgba(167,139,250,0.25); border-radius: 7px; padding: 10px 12px; color: var(--text); font-family: 'Consolas', 'Courier New', monospace; font-size: 0.88rem; resize: none; outline: none; height: 90px; line-height: 1.6; }
+        .formula-textarea:focus { border-color: var(--purple); box-shadow: 0 0 0 2px rgba(167,139,250,0.12); }
+        /* syntax highlighting tokens applied via input event */
+        .formula-bar-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+        .eval-btn { padding: 7px 20px; background: linear-gradient(135deg, var(--purple), #7c3aed); border: none; border-radius: 6px; color: #fff; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
+        .eval-btn:hover { opacity: 0.85; }
+        .eval-btn:disabled { background: rgba(107,130,160,0.2); color: var(--text2); cursor: default; }
+        .hint-btn { padding: 7px 14px; background: var(--blue-dim); border: 1px solid var(--blue-border); border-radius: 6px; color: var(--blue); font-size: 0.82rem; cursor: pointer; transition: background 0.2s; }
+        .hint-btn:hover { background: rgba(59,130,246,0.25); }
+        .hint-text { display: none; font-family: 'Consolas', monospace; font-size: 0.8rem; color: var(--purple); padding: 6px 10px; background: rgba(167,139,250,0.07); border: 1px solid rgba(167,139,250,0.2); border-radius: 5px; flex: 1; }
+        .hint-text.visible { display: block; }
+
+        /* autocomplete dropdown */
+        .autocomplete { position: absolute; top: 100%; left: 0; right: 0; background: var(--bg2); border: 1px solid var(--blue-border); border-radius: 6px; z-index: 100; max-height: 160px; overflow-y: auto; display: none; }
+        .autocomplete.visible { display: block; }
+        .ac-item { padding: 7px 12px; font-size: 0.82rem; font-family: 'Consolas', monospace; color: var(--text); cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.1s; }
+        .ac-item:hover { background: var(--blue-dim); }
+        .ac-badge { font-size: 0.65rem; padding: 1px 6px; border-radius: 3px; }
+        .ac-fn { background: rgba(167,139,250,0.2); color: var(--purple); }
+        .ac-col { background: var(--blue-dim); color: var(--blue); }
+        .ac-kw { background: rgba(52,211,153,0.15); color: var(--green); }
+
+        /* results table */
+        .results-area { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+        .results-header { flex-shrink: 0; padding: 10px 16px; background: var(--bg2); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+        .results-title { font-size: 0.72rem; color: var(--text2); letter-spacing: 0.1em; text-transform: uppercase; }
+        .results-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 8px; background: var(--green-dim); border: 1px solid var(--green-border); color: var(--green); }
+        .results-scroll { flex: 1; overflow: auto; padding: 16px; }
+        .measure-history { display: flex; flex-direction: column; gap: 10px; }
+        .measure-result { background: var(--bg2); border: 1px solid var(--border); border-radius: 9px; padding: 14px; transition: all 0.3s; }
+        .measure-result.correct { border-color: var(--green-border); }
+        .mr-name { font-size: 0.8rem; color: var(--text2); margin-bottom: 6px; }
+        .mr-formula { font-family: 'Consolas', monospace; font-size: 0.85rem; color: var(--purple); margin-bottom: 8px; line-height: 1.6; }
+        .mr-formula .kw { color: var(--blue); }
+        .mr-formula .fn { color: var(--purple); }
+        .mr-formula .tbl { color: var(--amber); }
+        .mr-formula .col { color: var(--green); }
+        .mr-formula .str { color: #86efac; }
+        .mr-formula .num { color: var(--amber); }
+        .mr-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-top: 8px; }
+        .mr-table th { background: rgba(59,130,246,0.08); color: var(--blue); padding: 5px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+        .mr-table td { padding: 5px 10px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text2); }
+        .mr-table td.value { color: var(--text); font-weight: 600; text-align: right; }
+        .no-results { color: var(--text2); font-size: 0.85rem; padding: 20px 0; text-align: center; }
+
+        /* ---- right panel: tasks ---- */
+        .right-panel { background: var(--bg2); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+        .panel-header { padding: 11px 14px; font-size: 0.68rem; color: var(--text2); letter-spacing: 0.12em; text-transform: uppercase; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .task-list { flex: 1; overflow-y: auto; padding: 12px; }
+        .task-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 11px 13px; margin-bottom: 7px; cursor: pointer; transition: all 0.2s; }
+        .task-card:hover { border-color: var(--blue-border); }
+        .task-card.active { border-color: var(--blue); background: rgba(59,130,246,0.06); }
+        .task-card.done { border-color: var(--green-border); background: var(--green-dim); cursor: default; }
+        .task-num { font-size: 0.67rem; color: var(--blue); margin-bottom: 3px; }
+        .task-name { font-size: 0.85rem; color: var(--text); margin-bottom: 3px; display: flex; align-items: center; }
+        .task-name .chk { font-size: 0.72rem; color: var(--green); margin-left: auto; }
+        .task-desc { font-size: 0.76rem; color: var(--text2); line-height: 1.45; }
+        .ref-section { flex-shrink: 0; padding: 12px; border-top: 1px solid var(--border); }
+        .ref-title { font-size: 0.67rem; color: var(--text2); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; }
+        .ref-fn { font-family: 'Consolas', monospace; font-size: 0.78rem; color: var(--purple); padding: 3px 8px; background: rgba(167,139,250,0.08); border-radius: 4px; margin-bottom: 4px; cursor: pointer; display: block; border: 1px solid transparent; transition: all 0.15s; }
+        .ref-fn:hover { border-color: rgba(167,139,250,0.3); }
+        .action-feedback { padding: 8px 12px; border-radius: 6px; font-size: 0.8rem; display: none; margin: 0 12px 8px; line-height: 1.45; }
+        .action-feedback.ok { display: block; background: var(--green-dim); border: 1px solid var(--green-border); color: var(--green); }
+        .action-feedback.err { display: block; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #f87171; }
+
+        /* finish overlay */
+        .finish-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 9000; }
+        .finish-overlay.active { display: flex; }
+        .finish-card { background: var(--bg2); border: 1px solid var(--green-border); border-radius: 14px; padding: 40px; text-align: center; max-width: 460px; width: 90%; }
+        .finish-title { font-size: 1.5rem; color: var(--green); margin-bottom: 10px; }
+        .finish-msg { color: var(--text2); font-size: 0.95rem; margin-bottom: 24px; line-height: 1.6; }
+        .finish-btn { padding: 11px 28px; background: linear-gradient(135deg, var(--blue), #1d4ed8); border: none; border-radius: 8px; color: #fff; font-size: 0.95rem; cursor: pointer; }
+
+        @keyframes fadeInUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+        .fade-in { animation: fadeInUp 0.3s ease; }
     </style>
 </head>
 <body>
-    <header class="lab-header">
-        <div class="header-left">
-            <a href="../index.html" class="back-btn">Exit Lab</a>
-            <span class="lab-title">DAX Deep-Dive -- Advanced Measures</span>
-            <span class="lab-badge">PL-300</span>
-            <span class="lab-badge-ch">CH.5</span>
-        </div>
-        <div class="task-progress">
-            <span>Progress:</span>
-            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBarFill"></div></div>
-            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
-        </div>
-    </header>
 
-    <div class="lab-container">
-        <aside class="task-panel" id="taskPanel">
-            <div class="task-section">
-                <div class="task-section-title">Phase 1 -- CALCULATE Patterns</div>
-                <div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)"><div class="task-number">Task 1</div><div class="task-name">Filtered Revenue</div><div class="task-desc">Run <code>dax measure create --table FactSales --name "Online Revenue" --expression "CALCULATE(SUM(FactSales[Revenue]),FactSales[Channel]=\"Online\")"</code></div></div>
-                <div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)"><div class="task-number">Task 2</div><div class="task-name">Grand Total with ALL</div><div class="task-desc">Run <code>dax measure create --table FactSales --name "Grand Total" --expression "CALCULATE(SUM(FactSales[Revenue]),ALL(FactSales))"</code></div></div>
-                <div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)"><div class="task-number">Task 3</div><div class="task-name">% of Total</div><div class="task-desc">Run <code>dax measure create --table FactSales --name "% of Total" --expression "DIVIDE(SUM(FactSales[Revenue]),CALCULATE(SUM(FactSales[Revenue]),ALL(FactSales)),0)"</code></div></div>
-            </div>
-            <div class="task-section">
-                <div class="task-section-title">Phase 2 -- Time Intelligence</div>
-                <div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)"><div class="task-number">Task 4</div><div class="task-name">Year-to-Date Revenue</div><div class="task-desc">Run <code>dax measure create --table FactSales --name "YTD Revenue" --expression "TOTALYTD(SUM(FactSales[Revenue]),DimDate[Date])"</code></div></div>
-                <div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)"><div class="task-number">Task 5</div><div class="task-name">Prior Year Revenue</div><div class="task-desc">Run <code>dax measure create --table FactSales --name "PY Revenue" --expression "CALCULATE(SUM(FactSales[Revenue]),SAMEPERIODLASTYEAR(DimDate[Date]))"</code></div></div>
-            </div>
-            <div class="task-section">
-                <div class="task-section-title">Phase 3 -- Iterators and Variables</div>
-                <div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)"><div class="task-number">Task 6</div><div class="task-name">SUMX Line Total</div><div class="task-desc">Run <code>dax measure create --table FactSales --name "Line Total" --expression "SUMX(FactSales,FactSales[Qty]*FactSales[UnitPrice])"</code></div></div>
-                <div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)"><div class="task-number">Task 7</div><div class="task-name">YoY Growth with VAR</div><div class="task-desc">Run <code>dax measure create --table FactSales --name "YoY Growth" --expression "VAR _cur=SUM(FactSales[Revenue]) VAR _py=CALCULATE(SUM(FactSales[Revenue]),SAMEPERIODLASTYEAR(DimDate[Date])) RETURN DIVIDE(_cur-_py,_py,0)"</code></div></div>
-            </div>
-            <div class="task-section">
-                <div class="task-section-title">Phase 4 -- Evaluate and Validate</div>
-                <div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)"><div class="task-number">Task 8</div><div class="task-name">Evaluate YTD Revenue</div><div class="task-desc">Run <code>dax evaluate "YTD Revenue" --filter "DimDate[Year]=2024,DimDate[MonthNumber]=6"</code></div></div>
-                <div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)"><div class="task-number">Task 9</div><div class="task-name">Evaluate YoY Growth</div><div class="task-desc">Run <code>dax evaluate "YoY Growth" --filter "DimDate[Year]=2024"</code></div></div>
-                <div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)"><div class="task-number">Task 10</div><div class="task-name">List All Measures</div><div class="task-desc">Run <code>dax measure list</code> to view all measures created in this session.</div></div>
-            </div>
-        </aside>
+<header class="topbar">
+    <div class="topbar-left">
+        <a href="../index.html" class="back-btn">Exit Lab</a>
+        <span class="lab-title">DAX Editor -- Advanced Measures</span>
+        <span class="badge badge-blue">PL-300</span>
+        <span class="badge badge-green">CH.5</span>
+    </div>
+    <div class="topbar-right">
+        <span>Tasks:</span>
+        <div class="prog-wrap"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+        <span class="prog-label" id="progLabel">0 / 10</span>
+    </div>
+</header>
 
-        <main class="terminal-panel" id="terminalPanel">
-            <div class="term-toolbar">
-                <div class="term-dot term-dot-red"></div><div class="term-dot term-dot-amber"></div><div class="term-dot term-dot-green"></div>
-                <div class="term-title">analyst@dax-lab -- DAX Engine</div>
-                <div class="term-vm-status"><div class="term-status-dot"></div>DAX Engine Connected</div>
+<div class="workspace">
+
+    <!-- EDITOR PANEL (left) -->
+    <div class="editor-panel">
+
+        <!-- measure tabs -->
+        <div class="measure-tabs" id="measureTabs">
+            <div class="measure-tab active" id="mt-new" onclick="newMeasure()">+ New Measure</div>
+        </div>
+
+        <!-- formula bar -->
+        <div class="formula-bar-wrap">
+            <div class="formula-bar-top">
+                <input class="measure-name-input" id="measureNameInput" type="text" placeholder="Measure name..." value="">
+                <span style="font-size:0.82rem;color:var(--text2);">in table</span>
+                <select class="table-select" id="tableSelect">
+                    <option value="FactSales">FactSales</option>
+                    <option value="DimCustomer">DimCustomer</option>
+                    <option value="DimProduct">DimProduct</option>
+                    <option value="DimDate">DimDate</option>
+                </select>
             </div>
-            <div class="term-output" id="termOutput"></div>
-            <div class="term-input-row">
-                <span class="term-prompt-label"><span class="term-prompt-user">analyst@dax-lab</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span></span>
-                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
+            <div class="formula-area">
+                <textarea class="formula-textarea" id="formulaInput" placeholder="Enter DAX expression...&#10;&#10;Start typing a function like SUM, CALCULATE, TOTALYTD, SUMX, VAR..." oninput="handleInput(this)" onkeydown="handleKey(event)"></textarea>
+                <div class="autocomplete" id="autocomplete"></div>
             </div>
-            <div class="instructions-panel" id="instructionsPanel">
-                <div class="instructions-title" onclick="toggleInstructions()">
-                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
-                    Task Instructions
-                    <button class="instructions-toggle" id="instructionsToggle" title="Collapse instructions">&#9660;</button>
+            <div class="formula-bar-actions">
+                <button class="eval-btn" id="evalBtn" onclick="evaluateMeasure()">Evaluate</button>
+                <button class="hint-btn" onclick="toggleHint()">Show Hint</button>
+                <code class="hint-text" id="hintText"></code>
+            </div>
+        </div>
+
+        <!-- results area -->
+        <div class="results-area">
+            <div class="results-header">
+                <span class="results-title">Measure Results</span>
+                <span class="results-badge" id="resultsBadge">0 measures evaluated</span>
+            </div>
+            <div class="results-scroll">
+                <div class="measure-history" id="measureHistory">
+                    <div class="no-results" id="noResults">Evaluated measures will appear here with their output tables.</div>
                 </div>
-                <div class="instructions-body" id="instructionsBody">
-                    <div class="instructions-step" id="instructionsStep">Type the command in the terminal and press Enter.</div>
-                    <div class="instructions-hint" id="instructionsHint"><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block"> Hint text loads when you select a task.</div>
-                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
-                    <div class="hint-command" id="hintCommand"></div>
-                </div>
             </div>
-            <div class="success-overlay" id="successOverlay">
-                <div class="success-card">
-                    <div class="success-icon"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:3rem;height:3rem;object-fit:contain"></div>
-                    <div class="success-title">PL-300 Chapter 5 Lab Complete!</div>
-                    <div class="success-message">You wrote CALCULATE with filter arguments, used ALL for grand totals and percentage calculations, applied time intelligence with TOTALYTD and SAMEPERIODLASTYEAR, built an iterator with SUMX, and combined VAR/RETURN for year-over-year growth. You have mastered advanced DAX patterns.</div>
-                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
-                </div>
-            </div>
-        </main>
+        </div>
     </div>
 
-    <script>
-    (function () {
-        'use strict';
-        var USER = 'analyst', HOST = 'dax-lab';
-        var cmdHistory = [], histIdx = -1, currentTask = 1;
-        var taskDone = {1:false,2:false,3:false,4:false,5:false,6:false,7:false,8:false,9:false,10:false};
-        var TOTAL_TASKS = 10;
+    <!-- RIGHT: tasks + reference -->
+    <aside class="right-panel">
+        <div class="panel-header">Lab Tasks</div>
+        <div class="task-list" id="taskList"></div>
+        <div class="action-feedback" id="feedback"></div>
+        <div class="ref-section">
+            <div class="ref-title">Quick Reference</div>
+            <code class="ref-fn" onclick="insertSnippet('CALCULATE')">CALCULATE( expr, filter )</code>
+            <code class="ref-fn" onclick="insertSnippet('TOTALYTD')">TOTALYTD( expr, dates )</code>
+            <code class="ref-fn" onclick="insertSnippet('SUMX')">SUMX( table, expr )</code>
+            <code class="ref-fn" onclick="insertSnippet('DIVIDE')">DIVIDE( num, denom, alt )</code>
+            <code class="ref-fn" onclick="insertSnippet('USERELATIONSHIP')">USERELATIONSHIP( col1, col2 )</code>
+            <code class="ref-fn" onclick="insertSnippet('VAR')">VAR name = expression RETURN</code>
+            <code class="ref-fn" onclick="insertSnippet('FILTER')">FILTER( table, condition )</code>
+            <code class="ref-fn" onclick="insertSnippet('ALL')">ALL( table_or_column )</code>
+        </div>
+    </aside>
+</div>
 
-        var outputEl, inputEl;
-        function addLine(t,c){var d=document.createElement('div');d.className='term-line'+(c?' '+c:'');d.textContent=t;outputEl.appendChild(d);outputEl.scrollTop=outputEl.scrollHeight;}
-        function addHTML(h,c){var d=document.createElement('div');d.className='term-line'+(c?' '+c:'');d.innerHTML=h;outputEl.appendChild(d);outputEl.scrollTop=outputEl.scrollHeight;}
-        function addBlank(){addLine('','');}
-        function addPromptLine(cmd){addHTML('<span class="term-prompt-span">'+USER+'@'+HOST+'</span><span class="term-ps1-sep">:</span><span class="term-path-span">~</span><span class="term-ps1-sep">$ </span>'+esc(cmd),'term-line-cmd');}
-        function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+<div class="finish-overlay" id="finishOverlay">
+    <div class="finish-card">
+        <div class="finish-title">Lab Complete</div>
+        <div class="finish-msg">You wrote CALCULATE with filters, TOTALYTD for time intelligence, SUMX as an iterator, used VAR/RETURN for readable code, and applied DIVIDE for safe division. These are the core advanced DAX patterns tested on PL-300.</div>
+        <button class="finish-btn" onclick="finishLab()">Return to PL-300 Hub</button>
+    </div>
+</div>
 
-        function printJSON(obj){var r=JSON.stringify(obj,null,2);var h=r.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"([^"]+)":/g,'<span class="json-key">"$1"</span>:').replace(/: "([^"]*)"/g,': <span class="json-string">"$1"</span>').replace(/: (true|false)/g,': <span class="json-bool">$1</span>').replace(/: null/g,': <span class="json-null">null</span>').replace(/: (-?\d+\.?\d*)/g,': <span class="json-number">$1</span>');h.split('\n').forEach(function(l){addHTML(l,'term-line-out');});}
+<script>
+(function () {
+    'use strict';
 
-        var taskInstructions = {
-            1: {step:'Run <code>dax measure create</code> with name "Online Revenue" and expression <code>CALCULATE(SUM(FactSales[Revenue]),FactSales[Channel]="Online")</code>.',hint:'dax measure create --table FactSales --name "Online Revenue" --expression "CALCULATE(SUM(FactSales[Revenue]),FactSales[Channel]=\\"Online\\")"'},
-            2: {step:'Run <code>dax measure create</code> with name "Grand Total" and expression <code>CALCULATE(SUM(FactSales[Revenue]),ALL(FactSales))</code>.',hint:'dax measure create --table FactSales --name "Grand Total" --expression "CALCULATE(SUM(FactSales[Revenue]),ALL(FactSales))"'},
-            3: {step:'Run <code>dax measure create</code> with name "% of Total" using DIVIDE and ALL.',hint:'dax measure create --table FactSales --name "% of Total" --expression "DIVIDE(SUM(FactSales[Revenue]),CALCULATE(SUM(FactSales[Revenue]),ALL(FactSales)),0)"'},
-            4: {step:'Run <code>dax measure create</code> with name "YTD Revenue" using TOTALYTD.',hint:'dax measure create --table FactSales --name "YTD Revenue" --expression "TOTALYTD(SUM(FactSales[Revenue]),DimDate[Date])"'},
-            5: {step:'Run <code>dax measure create</code> with name "PY Revenue" using SAMEPERIODLASTYEAR.',hint:'dax measure create --table FactSales --name "PY Revenue" --expression "CALCULATE(SUM(FactSales[Revenue]),SAMEPERIODLASTYEAR(DimDate[Date]))"'},
-            6: {step:'Run <code>dax measure create</code> with name "Line Total" using SUMX to calculate Qty * UnitPrice per row.',hint:'dax measure create --table FactSales --name "Line Total" --expression "SUMX(FactSales,FactSales[Qty]*FactSales[UnitPrice])"'},
-            7: {step:'Run <code>dax measure create</code> with name "YoY Growth" using VAR/RETURN pattern.',hint:'dax measure create --table FactSales --name "YoY Growth" --expression "VAR _cur=SUM(FactSales[Revenue]) VAR _py=CALCULATE(SUM(FactSales[Revenue]),SAMEPERIODLASTYEAR(DimDate[Date])) RETURN DIVIDE(_cur-_py,_py,0)"'},
-            8: {step:'Run <code>dax evaluate "YTD Revenue" --filter "DimDate[Year]=2024,DimDate[MonthNumber]=6"</code> to test YTD through June.',hint:'dax evaluate "YTD Revenue" --filter "DimDate[Year]=2024,DimDate[MonthNumber]=6"'},
-            9: {step:'Run <code>dax evaluate "YoY Growth" --filter "DimDate[Year]=2024"</code> to test the YoY growth measure.',hint:'dax evaluate "YoY Growth" --filter "DimDate[Year]=2024"'},
-            10:{step:'Run <code>dax measure list</code> to see all measures created during this lab session.',hint:'dax measure list'}
+    const TASKS = [
+        { id: 1, phase: 'Phase 1 -- CALCULATE', name: 'Write a CALCULATE with ALL()', desc: 'Create: % of Total = DIVIDE(SUM(FactSales[TotalAmount]), CALCULATE(SUM(FactSales[TotalAmount]), ALL(FactSales)))' },
+        { id: 2, phase: 'Phase 1 -- CALCULATE', name: 'Write a CALCULATE with FILTER', desc: 'High Value Orders = CALCULATE(COUNTROWS(FactSales), FILTER(FactSales, FactSales[TotalAmount] > 1000))' },
+        { id: 3, phase: 'Phase 2 -- Time Intelligence', name: 'Write a TOTALYTD measure', desc: 'Sales YTD = TOTALYTD(SUM(FactSales[TotalAmount]), DimDate[Date])' },
+        { id: 4, phase: 'Phase 2 -- Time Intelligence', name: 'Write a SAMEPERIODLASTYEAR measure', desc: 'Sales LY = CALCULATE(SUM(FactSales[TotalAmount]), SAMEPERIODLASTYEAR(DimDate[Date]))' },
+        { id: 5, phase: 'Phase 3 -- SUMX Iterator', name: 'Write a SUMX measure', desc: 'Revenue = SUMX(FactSales, FactSales[OrderQty] * FactSales[UnitPrice])' },
+        { id: 6, phase: 'Phase 3 -- SUMX Iterator', name: 'Write a SUMX with RELATED', desc: 'Margin = SUMX(FactSales, FactSales[UnitPrice] - RELATED(DimProduct[ListPrice]))' },
+        { id: 7, phase: 'Phase 4 -- VAR/RETURN', name: 'Rewrite a measure using VAR', desc: 'Profit = VAR GrossRevenue = SUMX(FactSales, FactSales[OrderQty] * FactSales[UnitPrice]) VAR Cost = SUM(FactSales[TotalAmount]) RETURN GrossRevenue - Cost' },
+        { id: 8, phase: 'Phase 4 -- VAR/RETURN', name: 'Use DIVIDE for safe division', desc: 'Avg Order Value = DIVIDE(SUM(FactSales[TotalAmount]), COUNTROWS(FactSales), 0)' },
+        { id: 9, phase: 'Phase 5 -- Validate', name: 'Verify 5 or more measures evaluated', desc: 'Check that the results panel shows at least 5 evaluated measures.' },
+        { id: 10, phase: 'Phase 5 -- Validate', name: 'Confirm DAX lab complete', desc: 'Click "Confirm DAX Lab" to complete the lab.' }
+    ];
+
+    /* autocomplete vocabulary */
+    const AC_ITEMS = [
+        { label: 'CALCULATE', type: 'fn' }, { label: 'CALCULATETABLE', type: 'fn' },
+        { label: 'TOTALYTD', type: 'fn' }, { label: 'TOTALMTD', type: 'fn' }, { label: 'TOTALQTD', type: 'fn' },
+        { label: 'SAMEPERIODLASTYEAR', type: 'fn' }, { label: 'DATEADD', type: 'fn' },
+        { label: 'SUMX', type: 'fn' }, { label: 'AVERAGEX', type: 'fn' }, { label: 'COUNTX', type: 'fn' }, { label: 'MAXX', type: 'fn' }, { label: 'MINX', type: 'fn' },
+        { label: 'SUM', type: 'fn' }, { label: 'AVERAGE', type: 'fn' }, { label: 'COUNT', type: 'fn' }, { label: 'COUNTROWS', type: 'fn' },
+        { label: 'DIVIDE', type: 'fn' }, { label: 'FILTER', type: 'fn' }, { label: 'ALL', type: 'fn' }, { label: 'ALLEXCEPT', type: 'fn' },
+        { label: 'RELATED', type: 'fn' }, { label: 'RELATEDTABLE', type: 'fn' },
+        { label: 'USERELATIONSHIP', type: 'fn' }, { label: 'CROSSFILTER', type: 'fn' },
+        { label: 'VAR', type: 'kw' }, { label: 'RETURN', type: 'kw' }, { label: 'IF', type: 'fn' }, { label: 'SWITCH', type: 'fn' },
+        { label: 'FactSales[TotalAmount]', type: 'col' }, { label: 'FactSales[OrderQty]', type: 'col' },
+        { label: 'FactSales[UnitPrice]', type: 'col' }, { label: 'DimProduct[ListPrice]', type: 'col' },
+        { label: 'DimDate[Date]', type: 'col' }, { label: 'DimCustomer[Country]', type: 'col' }
+    ];
+
+    /* DAX evaluation patterns */
+    const PATTERNS = [
+        {
+            id: 1,
+            match: expr => expr.includes('calculate') && expr.includes('all(factsales') && expr.includes('divide'),
+            name: '% of Total',
+            hint: 'DIVIDE(SUM(FactSales[TotalAmount]), CALCULATE(SUM(FactSales[TotalAmount]), ALL(FactSales)))',
+            rows: [['Bikes','$2,940,310','68.6%'],['Accessories','$387,201','9.0%'],['Clothing','$214,882','5.0%'],['Components','$745,000','17.4%']],
+            cols: ['Category','Total Sales','% of Total']
+        },
+        {
+            id: 2,
+            match: expr => expr.includes('calculate') && expr.includes('countrows') && expr.includes('filter') && expr.includes('1000'),
+            name: 'High Value Orders',
+            hint: 'CALCULATE(COUNTROWS(FactSales), FILTER(FactSales, FactSales[TotalAmount] > 1000))',
+            rows: [['All Periods','14,820']],
+            cols: ['Context','Count']
+        },
+        {
+            id: 3,
+            match: expr => expr.includes('totalytd') && expr.includes('dimdate[date]'),
+            name: 'Sales YTD',
+            hint: 'TOTALYTD(SUM(FactSales[TotalAmount]), DimDate[Date])',
+            rows: [['Jan 2024','$847,201'],['Feb 2024','$1,268,401'],['Mar 2024','$1,688,601'],['Apr 2024','$2,248,201']],
+            cols: ['Month','Sales YTD']
+        },
+        {
+            id: 4,
+            match: expr => expr.includes('sameperiodlastyear') && expr.includes('dimdate[date]'),
+            name: 'Sales LY',
+            hint: 'CALCULATE(SUM(FactSales[TotalAmount]), SAMEPERIODLASTYEAR(DimDate[Date]))',
+            rows: [['Jan 2024','$720,100'],['Feb 2024','$1,088,300'],['Mar 2024','$1,440,200']],
+            cols: ['Month','Sales Last Year']
+        },
+        {
+            id: 5,
+            match: expr => expr.includes('sumx(factsales') && expr.includes('orderqty') && expr.includes('unitprice') && !expr.includes('related'),
+            name: 'Revenue',
+            hint: 'SUMX(FactSales, FactSales[OrderQty] * FactSales[UnitPrice])',
+            rows: [['All','$4,388,201']],
+            cols: ['Scope','Revenue']
+        },
+        {
+            id: 6,
+            match: expr => expr.includes('sumx(factsales') && expr.includes('related(dimproduct[listprice]'),
+            name: 'Margin',
+            hint: 'SUMX(FactSales, FactSales[UnitPrice] - RELATED(DimProduct[ListPrice]))',
+            rows: [['Bikes','$312,400'],['Accessories','$54,300'],['Clothing','$28,100']],
+            cols: ['Category','Margin']
+        },
+        {
+            id: 7,
+            match: expr => expr.includes('var') && expr.includes('return'),
+            name: 'Profit (VAR)',
+            hint: 'VAR GrossRevenue = SUMX(FactSales, FactSales[OrderQty] * FactSales[UnitPrice])\nVAR Cost = SUM(FactSales[TotalAmount])\nRETURN GrossRevenue - Cost',
+            rows: [['All Periods','$100,809']],
+            cols: ['Context','Profit']
+        },
+        {
+            id: 8,
+            match: expr => expr.includes('divide') && expr.includes('countrows(factsales'),
+            name: 'Avg Order Value',
+            hint: 'DIVIDE(SUM(FactSales[TotalAmount]), COUNTROWS(FactSales), 0)',
+            rows: [['All Orders','$71.00']],
+            cols: ['Context','Avg Order Value']
+        }
+    ];
+
+    let completedTasks = new Set();
+    let evaluatedCount = 0;
+    let hintVisible = false;
+    let currentHint = '';
+    let acVisible = false;
+
+    function init() {
+        buildTaskList();
+        updateProgress();
+        activateTask(1);
+        setHint(1);
+    }
+
+    function buildTaskList() {
+        const list = document.getElementById('taskList');
+        let lastPhase = '';
+        TASKS.forEach(t => {
+            if (t.phase !== lastPhase) {
+                lastPhase = t.phase;
+                const ph = document.createElement('div');
+                ph.style.cssText = 'font-size:0.67rem;color:var(--text2);letter-spacing:0.1em;text-transform:uppercase;margin:10px 0 5px;';
+                ph.textContent = t.phase;
+                list.appendChild(ph);
+            }
+            const card = document.createElement('div');
+            card.className = 'task-card';
+            card.id = 'tc-' + t.id;
+            card.onclick = () => { activateTask(t.id); setHint(t.id); };
+            card.innerHTML = '<div class="task-num">Task ' + t.id + '</div><div class="task-name">' + t.name + '<span class="chk" id="ck-' + t.id + '" style="display:none">Done</span></div><div class="task-desc">' + t.desc + '</div>';
+            list.appendChild(card);
+        });
+        const btn = document.createElement('button');
+        btn.id = 'confirmBtn';
+        btn.style.cssText = 'width:100%;margin-top:8px;padding:10px;background:linear-gradient(135deg,var(--blue),#1d4ed8);border:none;border-radius:7px;color:#fff;font-size:0.85rem;font-weight:600;cursor:pointer;opacity:0.4;pointer-events:none;';
+        btn.textContent = 'Confirm DAX Lab';
+        btn.onclick = confirmLab;
+        list.appendChild(btn);
+    }
+
+    function setHint(taskId) {
+        const pattern = PATTERNS.find(p => p.id === taskId);
+        currentHint = pattern ? pattern.hint : '';
+        const el = document.getElementById('hintText');
+        if (hintVisible && currentHint) { el.textContent = currentHint; el.classList.add('visible'); }
+    }
+
+    window.toggleHint = function() {
+        hintVisible = !hintVisible;
+        const el = document.getElementById('hintText');
+        if (hintVisible && currentHint) { el.textContent = currentHint; el.classList.add('visible'); }
+        else { el.classList.remove('visible'); }
+    };
+
+    /* ---- autocomplete ---- */
+    window.handleInput = function(ta) {
+        const val = ta.value;
+        const lastWord = val.split(/[\s(,\n]/).pop().toUpperCase();
+        const ac = document.getElementById('autocomplete');
+        if (lastWord.length < 2) { ac.classList.remove('visible'); return; }
+        const matches = AC_ITEMS.filter(i => i.label.toUpperCase().startsWith(lastWord)).slice(0, 8);
+        if (matches.length === 0) { ac.classList.remove('visible'); return; }
+        ac.innerHTML = matches.map(m => '<div class="ac-item" onclick="insertAC(\'' + m.label + '\')" data-label="' + m.label + '"><span class="ac-badge ac-' + m.type + '">' + m.type + '</span>' + m.label + '</div>').join('');
+        ac.classList.add('visible');
+    };
+
+    window.handleKey = function(e) {
+        const ac = document.getElementById('autocomplete');
+        if (e.key === 'Escape') { ac.classList.remove('visible'); }
+        if (e.key === 'Tab' && ac.classList.contains('visible')) {
+            e.preventDefault();
+            const first = ac.querySelector('.ac-item');
+            if (first) insertAC(first.dataset.label);
+        }
+    };
+
+    window.insertAC = function(label) {
+        const ta = document.getElementById('formulaInput');
+        const val = ta.value;
+        /* replace last word */
+        const lastSpaceIdx = Math.max(val.lastIndexOf(' '), val.lastIndexOf('('), val.lastIndexOf(','), val.lastIndexOf('\n'));
+        ta.value = val.substring(0, lastSpaceIdx + 1) + label;
+        document.getElementById('autocomplete').classList.remove('visible');
+        ta.focus();
+    };
+
+    window.insertSnippet = function(fn) {
+        const ta = document.getElementById('formulaInput');
+        const snippets = {
+            'CALCULATE': 'CALCULATE(\n    SUM(FactSales[TotalAmount]),\n    DimProduct[Category] = "Bikes"\n)',
+            'TOTALYTD': 'TOTALYTD(\n    SUM(FactSales[TotalAmount]),\n    DimDate[Date]\n)',
+            'SUMX': 'SUMX(\n    FactSales,\n    FactSales[OrderQty] * FactSales[UnitPrice]\n)',
+            'DIVIDE': 'DIVIDE(\n    SUM(FactSales[TotalAmount]),\n    COUNTROWS(FactSales),\n    0\n)',
+            'USERELATIONSHIP': 'USERELATIONSHIP(FactSales[OrderDate], DimDate[Date])',
+            'VAR': 'VAR SalesTotal = SUM(FactSales[TotalAmount])\nRETURN SalesTotal',
+            'FILTER': 'FILTER(\n    FactSales,\n    FactSales[TotalAmount] > 1000\n)',
+            'ALL': 'ALL(FactSales)'
         };
+        ta.value = snippets[fn] || fn + '()';
+        ta.focus();
+    };
 
-        function selectTask(n){currentTask=n;document.querySelectorAll('.task-card').forEach(function(c){c.classList.remove('active');});var card=document.getElementById('task-card-'+n);if(card)card.classList.add('active');var info=taskInstructions[n];if(info){document.getElementById('instructionsStep').innerHTML=info.step;document.getElementById('hintCommand').textContent=info.hint;document.getElementById('hintCommand').classList.remove('visible');}}
+    window.newMeasure = function() {
+        document.getElementById('measureNameInput').value = '';
+        document.getElementById('formulaInput').value = '';
+        document.getElementById('formulaInput').focus();
+    };
 
-        function completeTask(n){if(taskDone[n])return;taskDone[n]=true;var card=document.getElementById('task-card-'+n);if(card)card.classList.add('completed');var done=Object.keys(taskDone).filter(function(k){return taskDone[k];}).length;document.getElementById('taskProgress').textContent=done+' / '+TOTAL_TASKS+' Tasks';document.getElementById('progressBarFill').style.width=(done/TOTAL_TASKS*100)+'%';if(done===TOTAL_TASKS){setTimeout(function(){document.getElementById('successOverlay').classList.add('active');},600);}}
+    /* ---- evaluate ---- */
+    window.evaluateMeasure = function() {
+        const name = document.getElementById('measureNameInput').value.trim();
+        const formula = document.getElementById('formulaInput').value.trim();
+        if (!formula) { showFeedback('err', 'Enter a DAX expression first.'); return; }
+        if (!name) { showFeedback('err', 'Enter a measure name.'); return; }
+        const expr = formula.toLowerCase().replace(/\s+/g, ' ');
 
-        function processCommand(raw){var cmd=raw.trim();if(!cmd)return;addPromptLine(cmd);cmdHistory.unshift(cmd);histIdx=-1;
-
-            if(cmd==='clear'){outputEl.innerHTML='';return;}
-            if(cmd==='help'){addLine('Available: dax measure create, dax measure list, dax evaluate, help, clear','term-line-info');return;}
-
-            if(cmd.indexOf('dax measure create')===0&&cmd.indexOf('Online Revenue')>=0&&cmd.indexOf('CALCULATE')>=0&&cmd.indexOf('Channel')>=0){
-                addLine('  Measure created: [Online Revenue] = CALCULATE(SUM(FactSales[Revenue]),FactSales[Channel]="Online")','term-line-out');
-                addLine('  Table: FactSales | Format: Currency | Uses: CALCULATE with filter argument','term-line-info');
-                completeTask(1);return;
-            }
-            if(cmd.indexOf('dax measure create')===0&&cmd.indexOf('Grand Total')>=0&&cmd.indexOf('ALL')>=0){
-                addLine('  Measure created: [Grand Total] = CALCULATE(SUM(FactSales[Revenue]),ALL(FactSales))','term-line-out');
-                addLine('  Table: FactSales | Format: Currency | Uses: ALL to remove all filters','term-line-info');
-                completeTask(2);return;
-            }
-            if(cmd.indexOf('dax measure create')===0&&cmd.indexOf('% of Total')>=0&&cmd.indexOf('DIVIDE')>=0){
-                addLine('  Measure created: [% of Total] = DIVIDE(SUM(FactSales[Revenue]),CALCULATE(SUM(FactSales[Revenue]),ALL(FactSales)),0)','term-line-out');
-                addLine('  Table: FactSales | Format: Percentage | Uses: DIVIDE + ALL for ratio','term-line-info');
-                completeTask(3);return;
-            }
-            if(cmd.indexOf('dax measure create')===0&&cmd.indexOf('YTD Revenue')>=0&&cmd.indexOf('TOTALYTD')>=0){
-                addLine('  Measure created: [YTD Revenue] = TOTALYTD(SUM(FactSales[Revenue]),DimDate[Date])','term-line-out');
-                addLine('  Table: FactSales | Format: Currency | Uses: TOTALYTD time intelligence','term-line-info');
-                addLine('  Requires: DimDate marked as Date table (verified: yes)','term-line-dim');
-                completeTask(4);return;
-            }
-            if(cmd.indexOf('dax measure create')===0&&cmd.indexOf('PY Revenue')>=0&&cmd.indexOf('SAMEPERIODLASTYEAR')>=0){
-                addLine('  Measure created: [PY Revenue] = CALCULATE(SUM(FactSales[Revenue]),SAMEPERIODLASTYEAR(DimDate[Date]))','term-line-out');
-                addLine('  Table: FactSales | Format: Currency | Uses: SAMEPERIODLASTYEAR','term-line-info');
-                completeTask(5);return;
-            }
-            if(cmd.indexOf('dax measure create')===0&&cmd.indexOf('Line Total')>=0&&cmd.indexOf('SUMX')>=0){
-                addLine('  Measure created: [Line Total] = SUMX(FactSales,FactSales[Qty]*FactSales[UnitPrice])','term-line-out');
-                addLine('  Table: FactSales | Format: Currency | Uses: SUMX iterator (row-by-row)','term-line-info');
-                addLine('  Iterator processes 60,398 rows per evaluation in current context','term-line-dim');
-                completeTask(6);return;
-            }
-            if(cmd.indexOf('dax measure create')===0&&cmd.indexOf('YoY Growth')>=0&&cmd.indexOf('VAR')>=0){
-                addLine('  Measure created: [YoY Growth]','term-line-out');
-                addLine('    VAR _cur = SUM(FactSales[Revenue])','term-line-dim');
-                addLine('    VAR _py = CALCULATE(SUM(FactSales[Revenue]),SAMEPERIODLASTYEAR(DimDate[Date]))','term-line-dim');
-                addLine('    RETURN DIVIDE(_cur - _py, _py, 0)','term-line-dim');
-                addLine('  Table: FactSales | Format: Percentage | Uses: VAR/RETURN + SAMEPERIODLASTYEAR','term-line-info');
-                completeTask(7);return;
-            }
-            if(cmd.indexOf('dax evaluate')===0&&cmd.indexOf('YTD Revenue')>=0&&cmd.indexOf('MonthNumber')>=0){
-                addLine('  Evaluating: [YTD Revenue]','term-line-dim');
-                addLine('  Filter: DimDate[Year] = 2024, DimDate[MonthNumber] = 6','term-line-dim');
-                addLine('  Result: $14,782,341.50','term-line-out');
-                addLine('  Context: Jan 1 through Jun 30, 2024 (181 days). 32,104 rows evaluated.','term-line-info');
-                completeTask(8);return;
-            }
-            if(cmd.indexOf('dax evaluate')===0&&cmd.indexOf('YoY Growth')>=0&&cmd.indexOf('2024')>=0){
-                addLine('  Evaluating: [YoY Growth]','term-line-dim');
-                addLine('  Filter: DimDate[Year] = 2024','term-line-dim');
-                addLine('  _cur (2024 Revenue): $29,358,677.22','term-line-dim');
-                addLine('  _py  (2023 Revenue): $25,112,890.18','term-line-dim');
-                addLine('  Result: 16.91%','term-line-out');
-                addLine('  Year-over-year revenue growth of 16.91%. Measure validated.','term-line-info');
-                completeTask(9);return;
-            }
-            if(cmd==='dax measure list'){
-                printJSON([
-                    {name:"Online Revenue",table:"FactSales",expression:"CALCULATE(SUM(FactSales[Revenue]),FactSales[Channel]=\"Online\")",format:"Currency"},
-                    {name:"Grand Total",table:"FactSales",expression:"CALCULATE(SUM(FactSales[Revenue]),ALL(FactSales))",format:"Currency"},
-                    {name:"% of Total",table:"FactSales",expression:"DIVIDE(SUM(...),CALCULATE(SUM(...),ALL(...)),0)",format:"Percentage"},
-                    {name:"YTD Revenue",table:"FactSales",expression:"TOTALYTD(SUM(FactSales[Revenue]),DimDate[Date])",format:"Currency"},
-                    {name:"PY Revenue",table:"FactSales",expression:"CALCULATE(SUM(...),SAMEPERIODLASTYEAR(DimDate[Date]))",format:"Currency"},
-                    {name:"Line Total",table:"FactSales",expression:"SUMX(FactSales,FactSales[Qty]*FactSales[UnitPrice])",format:"Currency"},
-                    {name:"YoY Growth",table:"FactSales",expression:"VAR/RETURN with SAMEPERIODLASTYEAR",format:"Percentage"}
-                ]);
-                addBlank();addLine('  7 measures in model. All validated.','term-line-info');
-                completeTask(10);return;
-            }
-
-            addLine('Command not recognized: '+cmd.split(/\s+/)[0]+'. Type "help" for available commands.','term-line-err');
+        let matched = null;
+        for (const p of PATTERNS) {
+            if (p.match(expr)) { matched = p; break; }
         }
 
-        window.selectTask=selectTask;
-        window.toggleInstructions=function(){document.getElementById('instructionsPanel').classList.toggle('collapsed');};
-        window.revealHint=function(){document.getElementById('hintCommand').classList.toggle('visible');};
-        window.finishLab=function(){if(typeof ModuleProgress!=='undefined'){ModuleProgress.complete('cloud','pl300-ch05-lab',{returnUrl:'../index.html'});}else{window.location.href='../index.html';}};
+        if (!matched) {
+            /* fallback for valid-looking expressions */
+            if (expr.includes('sum(') || expr.includes('count') || expr.includes('average(') || expr.includes('divide(') || expr.includes('sumx(') || expr.includes('calculate(') || expr.includes('totalytd(') || expr.includes('sameperiodlastyear(') || expr.includes('var ')) {
+                matched = { name: name, rows: [['All','(calculated)'],['Current filter','(calculated)']], cols: ['Scope','Result'] };
+            } else {
+                showFeedback('err', 'Expression not recognized as valid DAX. Check function names and syntax.');
+                return;
+            }
+        }
 
-        document.addEventListener('DOMContentLoaded',function(){
-            outputEl=document.getElementById('termOutput');inputEl=document.getElementById('termInput');
-            addLine('DAX Engine v4.0.0 -- Connected to AdventureWorks.pbix','term-welcome');
-            addLine('Date table: DimDate (marked, 1,461 rows, no gaps). Type "help" for commands.','term-line-dim');addBlank();
-            selectTask(1);
-            inputEl.addEventListener('keydown',function(e){
-                if(e.key==='Enter'){e.preventDefault();processCommand(inputEl.value);inputEl.value='';}
-                else if(e.key==='ArrowUp'){e.preventDefault();if(histIdx<cmdHistory.length-1){histIdx++;inputEl.value=cmdHistory[histIdx];}}
-                else if(e.key==='ArrowDown'){e.preventDefault();if(histIdx>0){histIdx--;inputEl.value=cmdHistory[histIdx];}else{histIdx=-1;inputEl.value='';}}
-            });
-            inputEl.focus();
-        });
-    })();
-    </script>
-    <script src="../../../../components/FluxCapacitor.js"></script>
+        /* mark corresponding task */
+        if (matched.id && !completedTasks.has(matched.id)) markDone(matched.id);
+
+        /* add to history */
+        evaluatedCount++;
+        document.getElementById('noResults').style.display = 'none';
+        document.getElementById('resultsBadge').textContent = evaluatedCount + ' measure' + (evaluatedCount>1?'s':'') + ' evaluated';
+
+        const hist = document.getElementById('measureHistory');
+        const entry = document.createElement('div');
+        entry.className = 'measure-result correct fade-in';
+        let tableHtml = '<table class="mr-table"><thead><tr>' + matched.cols.map(c=>'<th>'+c+'</th>').join('') + '</tr></thead><tbody>' +
+            matched.rows.map(r=>'<tr>' + r.map((v,i)=>'<td'+(i===r.length-1?' class="value"':'')+'>'+v+'</td>').join('') + '</tr>').join('') +
+            '</tbody></table>';
+        entry.innerHTML = '<div class="mr-name">' + name + '</div><div class="mr-formula">' + highlightDax(formula) + '</div>' + tableHtml;
+        hist.insertBefore(entry, hist.firstChild);
+
+        /* add measure tab */
+        const tabs = document.getElementById('measureTabs');
+        const tab = document.createElement('div');
+        tab.className = 'measure-tab done';
+        tab.textContent = name;
+        tabs.insertBefore(tab, tabs.firstChild.nextSibling);
+
+        showFeedback('ok', 'Measure "' + name + '" evaluated successfully.');
+
+        /* task 9: 5+ measures */
+        if (evaluatedCount >= 5 && !completedTasks.has(9)) markDone(9);
+
+        checkConfirmReady();
+        document.getElementById('formulaInput').value = '';
+        document.getElementById('measureNameInput').value = '';
+    };
+
+    /* ---- DAX syntax highlighting (simple) ---- */
+    function highlightDax(code) {
+        const fns = ['CALCULATE','CALCULATETABLE','TOTALYTD','TOTALMTD','TOTALQTD','SAMEPERIODLASTYEAR','DATEADD','SUMX','AVERAGEX','COUNTX','MAXX','MINX','SUM','AVERAGE','COUNT','COUNTROWS','DIVIDE','FILTER','ALL','ALLEXCEPT','RELATED','RELATEDTABLE','USERELATIONSHIP','IF','SWITCH','AND','OR','NOT'];
+        const kws = ['VAR','RETURN','TRUE','FALSE','BLANK'];
+        let html = escHtml(code);
+        fns.forEach(fn => { html = html.replace(new RegExp('\\b' + fn + '\\b', 'g'), '<span class="fn">' + fn + '</span>'); });
+        kws.forEach(kw => { html = html.replace(new RegExp('\\b' + kw + '\\b', 'g'), '<span class="kw">' + kw + '</span>'); });
+        /* table refs */
+        html = html.replace(/\b(FactSales|DimCustomer|DimProduct|DimDate)\b/g, '<span class="tbl">$1</span>');
+        /* column refs */
+        html = html.replace(/\[([^\]]+)\]/g, '[<span class="col">$1</span>]');
+        /* strings */
+        html = html.replace(/&quot;([^&]*)&quot;/g, '<span class="str">"$1"</span>');
+        html = html.replace(/"([^"]*)"/g, '<span class="str">"$1"</span>');
+        return html;
+    }
+
+    function escHtml(s) {
+        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function checkConfirmReady() {
+        const ready = completedTasks.size >= 8;
+        const btn = document.getElementById('confirmBtn');
+        if (btn) { btn.style.opacity = ready ? '1' : '0.4'; btn.style.pointerEvents = ready ? 'all' : 'none'; }
+    }
+
+    window.confirmLab = function() {
+        markDone(10);
+        document.getElementById('finishOverlay').classList.add('active');
+    };
+
+    function activateTask(id) {
+        document.querySelectorAll('.task-card').forEach(c => c.classList.remove('active'));
+        const card = document.getElementById('tc-' + id);
+        if (card && !completedTasks.has(id)) card.classList.add('active');
+    }
+
+    function markDone(id) {
+        completedTasks.add(id);
+        const card = document.getElementById('tc-' + id);
+        if (card) { card.classList.remove('active'); card.classList.add('done'); }
+        const ck = document.getElementById('ck-' + id);
+        if (ck) ck.style.display = 'inline';
+        const tab = document.getElementById('mt-' + id);
+        if (tab) tab.classList.add('done');
+        updateProgress();
+        const next = TASKS.find(t => !completedTasks.has(t.id));
+        if (next) { activateTask(next.id); setHint(next.id); }
+    }
+
+    function updateProgress() {
+        const done = completedTasks.size;
+        document.getElementById('progFill').style.width = (done/10*100) + '%';
+        document.getElementById('progLabel').textContent = done + ' / 10';
+    }
+
+    function showFeedback(type, msg) {
+        const el = document.getElementById('feedback');
+        el.className = 'action-feedback ' + type;
+        el.textContent = msg;
+    }
+
+    /* close autocomplete on outside click */
+    document.addEventListener('click', e => {
+        if (!e.target.closest('.formula-area') && !e.target.closest('.autocomplete')) {
+            document.getElementById('autocomplete').classList.remove('visible');
+        }
+    });
+
+    window.finishLab = function() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('cloud', 'pl300-ch05-lab', { returnUrl: '../index.html' });
+        } else { window.location.href = '../index.html'; }
+    };
+
+    document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
 </body>
 </html>

@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Microsoft Teams Administration Lab -- MS-102 Chapter 7</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { height: 100vh; overflow: hidden; background: #0c0c0c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #b3cef5; display: flex; flex-direction: column; }
+        .lab-header { flex-shrink: 0; padding: 15px 30px; background: rgba(10,12,20,0.95); border-bottom: 1px solid rgba(59,130,246,0.2); display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn { padding: 8px 16px; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; color: #3b82f6; text-decoration: none; font-size: 0.85rem; transition: all 0.3s ease; }
+        .back-btn:hover { background: rgba(59,130,246,0.2); }
+        .lab-title { font-size: 1rem; color: #dbeafe; }
+        .lab-badge { padding: 4px 12px; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); border-radius: 12px; font-size: 0.7rem; color: #60a5fa; letter-spacing: 0.05em; }
+        .lab-badge-ch { padding: 4px 12px; background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.3); border-radius: 12px; font-size: 0.7rem; color: #34d399; letter-spacing: 0.05em; }
+        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #6b82a0; }
+        .task-count { color: #3b82f6; font-weight: 500; }
+        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(59,130,246,0.15); border-radius: 3px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #1d4ed8); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
+        .lab-container { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
+        .task-panel { background: rgba(10,14,22,0.95); border-right: 1px solid rgba(59,130,246,0.15); overflow-y: auto; padding: 20px; }
+        .task-section { margin-bottom: 25px; }
+        .task-section-title { font-size: 0.68rem; color: #3b5278; letter-spacing: 0.15em; margin-bottom: 12px; text-transform: uppercase; }
+        .task-card { background: rgba(12,18,32,0.8); border: 1px solid rgba(59,130,246,0.15); border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s ease; }
+        .task-card:hover { border-color: rgba(59,130,246,0.4); }
+        .task-card.active { border-color: #3b82f6; background: rgba(59,130,246,0.1); }
+        .task-card.completed { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.04); }
+        .task-card.completed .task-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; font-weight: 400; }
+        .task-number { font-size: 0.68rem; color: #3b82f6; margin-bottom: 4px; }
+        .task-name { font-size: 0.9rem; color: #dbeafe; margin-bottom: 4px; }
+        .task-desc { font-size: 0.77rem; color: #6b82a0; line-height: 1.45; }
+        .task-desc code { background: rgba(59,130,246,0.15); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; color: #60a5fa; font-family: 'Consolas', monospace; }
+        .terminal-panel { display: flex; flex-direction: column; background: #0a0a0a; position: relative; overflow: hidden; }
+        .term-toolbar { flex-shrink: 0; padding: 8px 20px; background: rgba(12,18,28,0.9); border-bottom: 1px solid rgba(59,130,246,0.15); display: flex; align-items: center; gap: 12px; }
+        .term-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .term-dot-red { background: #ff5f57; } .term-dot-amber { background: #febc2e; } .term-dot-green { background: #28c840; }
+        .term-title { flex: 1; text-align: center; font-size: 0.8rem; color: #4a6080; font-family: 'Consolas', 'Courier New', monospace; }
+        .term-vm-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #34d399; }
+        .term-status-dot { width: 7px; height: 7px; background: #34d399; border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .term-output { flex: 1; overflow-y: auto; padding: 16px 360px 8px 20px; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.875rem; line-height: 1.6; }
+        .term-input-row { flex-shrink: 0; display: flex; align-items: center; padding: 8px 360px 12px 20px; border-top: 1px solid rgba(59,130,246,0.1); gap: 0; }
+        .term-prompt-label { font-family: 'Consolas', 'Courier New', monospace; font-size: 0.875rem; white-space: nowrap; flex-shrink: 0; }
+        .term-prompt-user { color: #3b82f6; } .term-prompt-sep { color: #3b5278; } .term-prompt-path { color: #34d399; } .term-prompt-dollar { color: #dbeafe; margin-right: 6px; }
+        .term-input { flex: 1; background: transparent; border: none; outline: none; color: #dbeafe; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.875rem; caret-color: #3b82f6; }
+        .term-line { white-space: pre-wrap; word-break: break-all; }
+        .term-line-cmd { color: #b3cef5; } .term-line-out { color: #a0d4a0; } .term-line-err { color: #f87171; }
+        .term-line-info { color: #60a5fa; } .term-line-warn { color: #fbbf24; } .term-line-dim { color: #374860; }
+        .term-welcome { color: #3b82f6; }
+        .term-prompt-span { color: #3b82f6; } .term-path-span { color: #34d399; } .term-ps1-sep { color: #3b5278; }
+        .json-key { color: #60a5fa; } .json-string { color: #86efac; } .json-number { color: #fbbf24; } .json-bool { color: #93c5fd; } .json-null { color: #f87171; }
+        .instructions-panel { position: absolute; top: 20px; right: 20px; width: 320px; background: rgba(10,16,28,0.97); border: 1px solid rgba(59,130,246,0.3); border-radius: 12px; padding: 20px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.4); transition: all 0.3s ease; }
+        .instructions-panel.collapsed { width: auto; padding: 10px 14px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-body { display: none; }
+        .instructions-panel.collapsed .instructions-toggle { transform: rotate(180deg); }
+        .instructions-title { font-size: 1rem; color: #3b82f6; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-title { margin-bottom: 0; font-size: 0.85rem; }
+        .instructions-toggle { margin-left: auto; width: 28px; height: 28px; background: rgba(59,130,246,0.2); border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; color: #3b82f6; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; flex-shrink: 0; }
+        .instructions-toggle:hover { background: rgba(59,130,246,0.4); }
+        .instructions-step { font-size: 0.88rem; color: #b3cef5; line-height: 1.65; margin-bottom: 14px; }
+        .instructions-step code { background: rgba(59,130,246,0.2); padding: 2px 7px; border-radius: 4px; font-family: 'Consolas', monospace; color: #60a5fa; font-size: 0.85em; }
+        .instructions-hint { font-size: 0.78rem; color: #3b5278; font-style: italic; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(59,130,246,0.15); line-height: 1.5; }
+        .hint-btn { margin-top: 12px; padding: 6px 12px; background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.25); border-radius: 5px; color: #3b82f6; font-size: 0.75rem; cursor: pointer; font-family: 'Segoe UI', sans-serif; transition: all 0.2s ease; width: 100%; text-align: center; }
+        .hint-btn:hover { background: rgba(59,130,246,0.22); }
+        .hint-command { display: none; margin-top: 10px; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(59,130,246,0.25); border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.78rem; color: #86efac; line-height: 1.55; white-space: pre-wrap; word-break: break-all; }
+        .hint-command.visible { display: block; }
+        .success-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 2000; }
+        .success-overlay.active { display: flex; }
+        .success-card { background: rgba(10,16,28,0.97); border: 1px solid rgba(52,211,153,0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .success-icon { margin-bottom: 20px; }
+        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
+        .success-message { color: #b3cef5; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
+        .success-btn { padding: 12px 30px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; transition: all 0.3s ease; }
+        .success-btn:hover { box-shadow: 0 5px 20px rgba(59,130,246,0.35); transform: translateY(-1px); }
+        .tab-suggestions { display: none; position: absolute; bottom: 52px; left: 20px; background: rgba(10,16,28,0.97); border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; padding: 4px 0; z-index: 200; font-family: 'Consolas', monospace; font-size: 0.8rem; }
+        .tab-suggestions.visible { display: block; }
+        .tab-option { padding: 4px 14px; color: #86efac; cursor: pointer; }
+        .tab-option:hover, .tab-option.selected { background: rgba(59,130,246,0.15); color: #dbeafe; }
+        @media (max-width: 1024px) { .lab-container { grid-template-columns: 1fr; } .task-panel { display: none; } .term-output, .term-input-row { padding-right: 20px; } .instructions-panel { position: absolute; bottom: 60px; top: auto; right: 10px; left: 10px; width: auto; } }
+    </style>
+</head>
+<body>
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Microsoft Teams Administration</span>
+            <span class="lab-badge">MS-102</span>
+            <span class="lab-badge-ch">CH.7</span>
+        </div>
+        <div class="task-progress">
+            <span>Progress:</span>
+            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBarFill"></div></div>
+            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
+        </div>
+    </header>
+
+    <div class="lab-container">
+        <aside class="task-panel" id="taskPanel">
+            <div class="task-section">
+                <div class="task-section-title">Phase 1 -- Teams and Channels</div>
+                <div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)"><div class="task-number">Task 1</div><div class="task-name">List All Teams</div><div class="task-desc">Run <code>m365 teams team list</code> to view all teams in the tenant with their visibility and member counts.</div></div>
+                <div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)"><div class="task-number">Task 2</div><div class="task-name">List Channels</div><div class="task-desc">Run <code>m365 teams channel list --teamId a1b2c3d4-e5f6-7890-abcd-ef1234567890</code> to view all channels in the IT Operations team.</div></div>
+                <div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)"><div class="task-number">Task 3</div><div class="task-name">Create Private Channel</div><div class="task-desc">Run <code>m365 teams channel add --teamId a1b2c3d4-e5f6-7890-abcd-ef1234567890 --name "Security Incidents" --type private</code> to create a private channel.</div></div>
+            </div>
+            <div class="task-section">
+                <div class="task-section-title">Phase 2 -- Policies</div>
+                <div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)"><div class="task-number">Task 4</div><div class="task-name">List Meeting Policies</div><div class="task-desc">Run <code>m365 teams meetingpolicy list</code> to view all meeting policies and their key settings.</div></div>
+                <div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)"><div class="task-number">Task 5</div><div class="task-name">List Messaging Policies</div><div class="task-desc">Run <code>m365 teams messagingpolicy list</code> to view messaging policies controlling chat behavior.</div></div>
+            </div>
+            <div class="task-section">
+                <div class="task-section-title">Phase 3 -- Guest Access and Apps</div>
+                <div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)"><div class="task-number">Task 6</div><div class="task-name">Check Guest Access</div><div class="task-desc">Run <code>m365 teams guestsettings list</code> to view the current guest access configuration.</div></div>
+                <div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)"><div class="task-number">Task 7</div><div class="task-name">List App Permission Policies</div><div class="task-desc">Run <code>m365 teams apppermissionpolicy list</code> to view app permission policies controlling which apps users can install.</div></div>
+                <div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)"><div class="task-number">Task 8</div><div class="task-name">Block a Third-Party App</div><div class="task-desc">Run <code>m365 teams app set --id com.example.badapp --status blocked</code> to block a specific third-party app from the catalog.</div></div>
+            </div>
+            <div class="task-section">
+                <div class="task-section-title">Phase 4 -- Voice Configuration</div>
+                <div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)"><div class="task-number">Task 9</div><div class="task-name">List Auto Attendants</div><div class="task-desc">Run <code>m365 teams autoattendant list</code> to view configured auto attendants and their routing rules.</div></div>
+                <div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)"><div class="task-number">Task 10</div><div class="task-name">List Call Queues</div><div class="task-desc">Run <code>m365 teams callqueue list</code> to view call queues, agent routing methods, and overflow settings.</div></div>
+            </div>
+        </aside>
+
+        <main class="terminal-panel" id="terminalPanel">
+            <div class="term-toolbar">
+                <div class="term-dot term-dot-red"></div><div class="term-dot term-dot-amber"></div><div class="term-dot term-dot-green"></div>
+                <div class="term-title">teamsadmin@cloud-shell -- bash</div>
+                <div class="term-vm-status"><div class="term-status-dot"></div>Teams Admin Connected</div>
+            </div>
+            <div class="term-output" id="termOutput"></div>
+            <div class="term-input-row">
+                <span class="term-prompt-label"><span class="term-prompt-user">teamsadmin@cloud-shell</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span></span>
+                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
+            </div>
+            <div class="tab-suggestions" id="tabSuggestions"></div>
+            <div class="instructions-panel" id="instructionsPanel">
+                <div class="instructions-title" onclick="toggleInstructions()">
+                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+                    Task Instructions
+                    <button class="instructions-toggle" id="instructionsToggle" title="Collapse instructions">&#9660;</button>
+                </div>
+                <div class="instructions-body" id="instructionsBody">
+                    <div class="instructions-step" id="instructionsStep">Type the command in the terminal and press Enter.</div>
+                    <div class="instructions-hint" id="instructionsHint"><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block"> Hint text loads when you select a task.</div>
+                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
+                    <div class="hint-command" id="hintCommand"></div>
+                </div>
+            </div>
+            <div class="success-overlay" id="successOverlay">
+                <div class="success-card">
+                    <div class="success-icon"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:3rem;height:3rem;object-fit:contain"></div>
+                    <div class="success-title">MS-102 Chapter 7 Lab Complete!</div>
+                    <div class="success-message">You managed teams and channels, reviewed meeting and messaging policies, configured guest access, managed app permissions, blocked a third-party app, and explored voice features including auto attendants and call queues. These are core Teams administration skills for the MS-102 exam.</div>
+                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+    (function () {
+        'use strict';
+        var USER = 'teamsadmin', HOST = 'cloud-shell', HOME = '/home/teamsadmin';
+        var TEAM_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+        var cwd = HOME, cmdHistory = [], histIdx = -1, currentTask = 1;
+        var taskDone = {1:false,2:false,3:false,4:false,5:false,6:false,7:false,8:false,9:false,10:false};
+        var TOTAL_TASKS = 10;
+
+        var outputEl, inputEl, ps1PathEl;
+        function promptPath(){return cwd===HOME?'~':cwd;}
+        function addLine(t,c){var d=document.createElement('div');d.className='term-line'+(c?' '+c:'');d.textContent=t;outputEl.appendChild(d);outputEl.scrollTop=outputEl.scrollHeight;}
+        function addHTML(h,c){var d=document.createElement('div');d.className='term-line'+(c?' '+c:'');d.innerHTML=h;outputEl.appendChild(d);outputEl.scrollTop=outputEl.scrollHeight;}
+        function addBlank(){addLine('','');}
+        function addPromptLine(cmd){addHTML('<span class="term-prompt-span">'+USER+'@'+HOST+'</span><span class="term-ps1-sep">:</span><span class="term-path-span">'+esc(promptPath())+'</span><span class="term-ps1-sep">$ </span>'+esc(cmd),'term-line-cmd');}
+        function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+        function printJSON(obj){var r=JSON.stringify(obj,null,2);var h=r.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"([^"]+)":/g,'<span class="json-key">"$1"</span>:').replace(/: "([^"]*)"/g,': <span class="json-string">"$1"</span>').replace(/: (true|false)/g,': <span class="json-bool">$1</span>').replace(/: null/g,': <span class="json-null">null</span>').replace(/: (-?\d+\.?\d*)/g,': <span class="json-number">$1</span>');h.split('\n').forEach(function(l){addHTML(l,'term-line-out');});}
+
+        var taskInstructions = {
+            1: {step:'Run <code>m365 teams team list</code> to view all teams in the tenant including visibility, member count, and archived status.',hint:'m365 teams team list'},
+            2: {step:'Run <code>m365 teams channel list --teamId a1b2c3d4-e5f6-7890-abcd-ef1234567890</code> to list all channels in the IT Operations team.',hint:'m365 teams channel list --teamId a1b2c3d4-e5f6-7890-abcd-ef1234567890'},
+            3: {step:'Run <code>m365 teams channel add --teamId a1b2c3d4-e5f6-7890-abcd-ef1234567890 --name "Security Incidents" --type private</code> to create a private channel for security incidents.',hint:'m365 teams channel add --teamId a1b2c3d4-e5f6-7890-abcd-ef1234567890 --name "Security Incidents" --type private'},
+            4: {step:'Run <code>m365 teams meetingpolicy list</code> to view all meeting policies and their lobby, recording, and transcription settings.',hint:'m365 teams meetingpolicy list'},
+            5: {step:'Run <code>m365 teams messagingpolicy list</code> to view messaging policies for chat, Giphy, read receipts, and message editing.',hint:'m365 teams messagingpolicy list'},
+            6: {step:'Run <code>m365 teams guestsettings list</code> to check the guest access configuration for the tenant.',hint:'m365 teams guestsettings list'},
+            7: {step:'Run <code>m365 teams apppermissionpolicy list</code> to view app permission policies and which app categories are allowed.',hint:'m365 teams apppermissionpolicy list'},
+            8: {step:'Run <code>m365 teams app set --id com.example.badapp --status blocked</code> to block a specific app from the Teams catalog.',hint:'m365 teams app set --id com.example.badapp --status blocked'},
+            9: {step:'Run <code>m365 teams autoattendant list</code> to view auto attendants and their menu routing configuration.',hint:'m365 teams autoattendant list'},
+            10:{step:'Run <code>m365 teams callqueue list</code> to view call queues with agent routing methods and overflow settings.',hint:'m365 teams callqueue list'}
+        };
+
+        function selectTask(n){currentTask=n;document.querySelectorAll('.task-card').forEach(function(c){c.classList.remove('active');});var card=document.getElementById('task-card-'+n);if(card)card.classList.add('active');var info=taskInstructions[n];if(info){document.getElementById('instructionsStep').innerHTML=info.step;document.getElementById('hintCommand').textContent=info.hint;document.getElementById('hintCommand').classList.remove('visible');}}
+
+        function completeTask(n){if(taskDone[n])return;taskDone[n]=true;var card=document.getElementById('task-card-'+n);if(card)card.classList.add('completed');var done=Object.keys(taskDone).filter(function(k){return taskDone[k];}).length;document.getElementById('taskProgress').textContent=done+' / '+TOTAL_TASKS+' Tasks';document.getElementById('progressBarFill').style.width=(done/TOTAL_TASKS*100)+'%';if(done===TOTAL_TASKS){setTimeout(function(){document.getElementById('successOverlay').classList.add('active');},600);}}
+
+        function processCommand(raw){var cmd=raw.trim();if(!cmd)return;addPromptLine(cmd);cmdHistory.unshift(cmd);histIdx=-1;
+
+            if(cmd==='clear'){outputEl.innerHTML='';return;}
+            if(cmd==='help'){addLine('Available commands: m365 teams team list, m365 teams channel list, m365 teams channel add, m365 teams meetingpolicy list, m365 teams messagingpolicy list, m365 teams guestsettings list, m365 teams apppermissionpolicy list, m365 teams app set, m365 teams autoattendant list, m365 teams callqueue list, help, clear','term-line-info');return;}
+
+            if(cmd==='m365 teams team list'){
+                printJSON([{id:TEAM_ID,displayName:'IT Operations',visibility:'Private',memberCount:24,isArchived:false,createdDateTime:'2025-08-15T10:00:00Z'},{id:'b2c3d4e5-f6a7-8901-bcde-f23456789012',displayName:'Marketing',visibility:'Public',memberCount:45,isArchived:false,createdDateTime:'2025-06-20T14:30:00Z'},{id:'c3d4e5f6-a7b8-9012-cdef-345678901234',displayName:'Executive Leadership',visibility:'Private',memberCount:8,isArchived:false,createdDateTime:'2025-03-10T09:00:00Z'},{id:'d4e5f6a7-b8c9-0123-defa-456789012345',displayName:'All Company',visibility:'Public',memberCount:500,isArchived:false,createdDateTime:'2025-01-05T12:00:00Z',isOrgWide:true},{id:'e5f6a7b8-c9d0-1234-efab-567890123456',displayName:'Legacy Project Alpha',visibility:'Private',memberCount:12,isArchived:true,createdDateTime:'2024-11-01T08:00:00Z'}]);
+                addBlank();addLine('  5 teams found. 1 org-wide, 1 archived. Total members across all teams: 589.','term-line-info');
+                completeTask(1);return;
+            }
+            if(cmd==='m365 teams channel list --teamId '+TEAM_ID){
+                printJSON([{id:'19:general@thread.tacv2',displayName:'General',membershipType:'standard',description:'General discussion for IT Operations'},{id:'19:helpdesk@thread.tacv2',displayName:'Helpdesk Tickets',membershipType:'standard',description:'Incoming ticket triage and assignment'},{id:'19:infrastructure@thread.tacv2',displayName:'Infrastructure',membershipType:'standard',description:'Server, network, and cloud infrastructure'},{id:'19:budget@thread.tacv2',displayName:'IT Budget',membershipType:'private',description:'Budget planning -- restricted to IT managers',memberCount:4},{id:'19:vendor@thread.tacv2',displayName:'Vendor Collaboration',membershipType:'shared',description:'Shared with external MSP partner',memberCount:8,hostTeamId:TEAM_ID}]);
+                addBlank();addLine('  5 channels: 3 standard, 1 private, 1 shared. Private/shared channels have separate SharePoint sites.','term-line-info');
+                completeTask(2);return;
+            }
+            if(cmd.indexOf('m365 teams channel add')===0&&cmd.indexOf(TEAM_ID)>=0&&cmd.indexOf('Security Incidents')>=0&&cmd.indexOf('private')>=0){
+                addLine('Creating private channel "Security Incidents"...','term-line-info');
+                printJSON({id:'19:security-incidents@thread.tacv2',displayName:'Security Incidents',membershipType:'private',description:'',memberCount:1,createdDateTime:'2026-04-21T16:10:00Z',sharepointSiteUrl:'https://contoso.sharepoint.com/sites/ITOperations-SecurityIncidents'});
+                addBlank();addLine('  Private channel created. A separate SharePoint site has been provisioned for file storage.','term-line-out');
+                completeTask(3);return;
+            }
+            if(cmd==='m365 teams meetingpolicy list'){
+                printJSON([{identity:'Global',allowAnonymousUsersToJoinMeeting:true,autoAdmittedUsers:'EveryoneInCompanyExcludingGuests',allowCloudRecording:true,allowTranscription:true,screenSharingMode:'EntireScreen',allowParticipantGiveRequestControl:true,allowIPVideo:true,mediabitRateKB:50000},{identity:'RestrictedMeetings',allowAnonymousUsersToJoinMeeting:false,autoAdmittedUsers:'OrganizerOnly',allowCloudRecording:false,allowTranscription:false,screenSharingMode:'SingleApplication',allowParticipantGiveRequestControl:false},{identity:'AllHandsMeetings',allowAnonymousUsersToJoinMeeting:false,autoAdmittedUsers:'EveryoneInCompany',allowCloudRecording:true,allowTranscription:true,screenSharingMode:'EntireScreen',recordingStorageMode:'OneDriveForBusiness'}]);
+                addBlank();addLine('  3 meeting policies. Global allows recording + transcription. RestrictedMeetings locks down all features.','term-line-info');
+                completeTask(4);return;
+            }
+            if(cmd==='m365 teams messagingpolicy list'){
+                printJSON([{identity:'Global',allowOwnerDeleteMessage:true,allowUserEditMessage:true,allowUserDeleteMessage:true,allowUserChat:true,readReceiptsEnabledType:'UserPreference',allowGiphy:true,giphyRatingType:'Moderate',allowMemes:true,allowStickers:true,allowUrlPreviews:true,allowUserTranslation:true},{identity:'RestrictedMessaging',allowOwnerDeleteMessage:true,allowUserEditMessage:false,allowUserDeleteMessage:false,allowUserChat:true,readReceiptsEnabledType:'Everyone',allowGiphy:false,allowMemes:false,allowStickers:false,allowUrlPreviews:true,allowUserTranslation:true}]);
+                addBlank();addLine('  2 messaging policies. Global allows full features. RestrictedMessaging blocks editing, Giphy, and memes.','term-line-info');
+                completeTask(5);return;
+            }
+            if(cmd==='m365 teams guestsettings list'){
+                printJSON({allowGuestAccess:true,allowGuestCreateUpdateChannels:false,allowGuestDeleteChannels:false,allowGuestCalling:true,allowGuestMeetingJoin:true,allowGuestMessaging:true,allowGuestEditMessages:true,allowGuestDeleteMessages:false,entraExternalCollaboration:'MembersCanInvite',m365GroupsGuestAccess:true,sharepointExternalSharing:'ExternalUserAndGuestSharing'});
+                addBlank();addLine('  Guest access: ENABLED. Guests can call, join meetings, and message. Cannot create/delete channels.','term-line-info');
+                addLine('  All 4 layers configured: Entra ID, M365 Groups, Teams, SharePoint.','term-line-out');
+                completeTask(6);return;
+            }
+            if(cmd==='m365 teams apppermissionpolicy list'){
+                printJSON([{identity:'Global',microsoftApps:'AllowAll',thirdPartyApps:'AllowAllWithExceptions',customApps:'AllowAll',blockedThirdPartyApps:['com.example.badapp','com.sketchy.filemanager']},{identity:'RestrictedApps',microsoftApps:'AllowAll',thirdPartyApps:'BlockAll',customApps:'AllowSpecific',allowedCustomApps:['com.contoso.helpdesk','com.contoso.timesheets']}]);
+                addBlank();addLine('  2 app permission policies. Global allows most apps with 2 blocked. RestrictedApps blocks all third-party.','term-line-info');
+                completeTask(7);return;
+            }
+            if(cmd.indexOf('m365 teams app set')===0&&cmd.indexOf('com.example.badapp')>=0&&cmd.indexOf('blocked')>=0){
+                addLine('Updating app status in catalog...','term-line-info');
+                addLine('  App com.example.badapp status changed: Available -> Blocked','term-line-out');
+                printJSON({id:'com.example.badapp',displayName:'Example Bad App',publisher:'Example Corp',status:'Blocked',blockedBy:'admin@contoso.com',blockedDateTime:'2026-04-21T16:15:00Z'});
+                addBlank();addLine('  App is now blocked. Users who previously installed it will lose access within 24 hours.','term-line-warn');
+                completeTask(8);return;
+            }
+            if(cmd==='m365 teams autoattendant list'){
+                printJSON([{id:'aa-001',name:'Contoso Main Line',phoneNumber:'+1-555-100-0000',languageId:'en-US',timeZone:'Eastern Standard Time',greeting:'Welcome to Contoso. For Sales press 1, for Support press 2, for a company directory press 3.',menuOptions:[{key:'1',action:'TransferToCallQueue',target:'cq-sales'},{key:'2',action:'TransferToCallQueue',target:'cq-support'},{key:'3',action:'DirectorySearch',searchType:'DialByName'}],afterHoursAction:'Voicemail',afterHoursGreeting:'Our office is currently closed. Please leave a message.'},{id:'aa-002',name:'IT Helpdesk',phoneNumber:'+1-555-100-1111',languageId:'en-US',greeting:'IT Helpdesk. For password resets press 1, for all other issues press 2.',menuOptions:[{key:'1',action:'TransferToCallQueue',target:'cq-passwords'},{key:'2',action:'TransferToCallQueue',target:'cq-helpdesk'}]}]);
+                addBlank();addLine('  2 auto attendants configured. Main line has 3 menu options + after-hours voicemail.','term-line-info');
+                completeTask(9);return;
+            }
+            if(cmd==='m365 teams callqueue list'){
+                printJSON([{id:'cq-sales',name:'Sales Queue',routingMethod:'RoundRobin',agents:8,agentOptOut:true,overflowThreshold:10,overflowAction:'Voicemail',timeoutThresholdSeconds:120,timeoutAction:'Redirect',timeoutRedirectTarget:'aa-001',musicOnHold:'Default',presenceBasedRouting:true},{id:'cq-support',name:'Support Queue',routingMethod:'LongestIdle',agents:12,agentOptOut:true,overflowThreshold:15,overflowAction:'SharedVoicemail',timeoutThresholdSeconds:180,timeoutAction:'Disconnect',musicOnHold:'Custom',presenceBasedRouting:true},{id:'cq-helpdesk',name:'IT Helpdesk Queue',routingMethod:'Serial',agents:5,agentOptOut:false,overflowThreshold:8,overflowAction:'Redirect',overflowRedirectTarget:'cq-support',timeoutThresholdSeconds:90,timeoutAction:'Voicemail'}]);
+                addBlank();addLine('  3 call queues. Sales: round-robin (8 agents). Support: longest-idle (12 agents). Helpdesk: serial (5 agents).','term-line-info');
+                completeTask(10);return;
+            }
+            if(cmd==='pwd'){addLine(cwd,'term-line-out');return;}
+            if(cmd.split(/\s+/)[0]==='cd'){cwd=cmd.split(/\s+/)[1]||HOME;if(ps1PathEl)ps1PathEl.textContent=promptPath();return;}
+            addLine('Command not recognized: '+cmd.split(/\s+/)[0]+'. Type "help" for available commands.','term-line-err');
+        }
+
+        window.selectTask=selectTask;
+        window.toggleInstructions=function(){document.getElementById('instructionsPanel').classList.toggle('collapsed');};
+        window.revealHint=function(){document.getElementById('hintCommand').classList.toggle('visible');};
+        window.finishLab=function(){if(typeof ModuleProgress!=='undefined'){ModuleProgress.complete('cloud','ms102-ch07-lab',{returnUrl:'../index.html'});}else{window.location.href='../index.html';}};
+
+        document.addEventListener('DOMContentLoaded',function(){
+            outputEl=document.getElementById('termOutput');inputEl=document.getElementById('termInput');ps1PathEl=document.getElementById('termPS1Path');
+            addLine('Microsoft 365 CLI v7.5.0 -- Connected to Teams Admin: admin.teams.microsoft.com','term-welcome');
+            addLine('Role: Teams Administrator | Type "help" to see available commands.','term-line-dim');addBlank();
+            selectTask(1);
+            inputEl.addEventListener('keydown',function(e){
+                if(e.key==='Enter'){e.preventDefault();processCommand(inputEl.value);inputEl.value='';}
+                else if(e.key==='ArrowUp'){e.preventDefault();if(histIdx<cmdHistory.length-1){histIdx++;inputEl.value=cmdHistory[histIdx];}}
+                else if(e.key==='ArrowDown'){e.preventDefault();if(histIdx>0){histIdx--;inputEl.value=cmdHistory[histIdx];}else{histIdx=-1;inputEl.value='';}}
+            });
+            inputEl.focus();
+        });
+    })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M365 Admin Center, Licensing, and Support Lab -- MS-900 Chapter 3</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { height: 100vh; overflow: hidden; background: #0c0c0c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #b3cef5; display: flex; flex-direction: column; }
+        .lab-header { flex-shrink: 0; padding: 15px 30px; background: rgba(10,12,20,0.95); border-bottom: 1px solid rgba(59,130,246,0.2); display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn { padding: 8px 16px; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; color: #3b82f6; text-decoration: none; font-size: 0.85rem; }
+        .lab-title { font-size: 1rem; color: #dbeafe; }
+        .lab-badge { padding: 4px 12px; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); border-radius: 12px; font-size: 0.7rem; color: #60a5fa; }
+        .lab-badge-ch { padding: 4px 12px; background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.3); border-radius: 12px; font-size: 0.7rem; color: #34d399; }
+        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #6b82a0; }
+        .task-count { color: #3b82f6; font-weight: 500; }
+        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(59,130,246,0.15); border-radius: 3px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #1d4ed8); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
+        .lab-container { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
+        .task-panel { background: rgba(10,14,22,0.95); border-right: 1px solid rgba(59,130,246,0.15); overflow-y: auto; padding: 20px; }
+        .task-section { margin-bottom: 25px; }
+        .task-section-title { font-size: 0.68rem; color: #3b5278; letter-spacing: 0.15em; margin-bottom: 12px; text-transform: uppercase; }
+        .task-card { background: rgba(12,18,32,0.8); border: 1px solid rgba(59,130,246,0.15); border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s ease; }
+        .task-card:hover { border-color: rgba(59,130,246,0.4); }
+        .task-card.active { border-color: #3b82f6; background: rgba(59,130,246,0.1); }
+        .task-card.completed { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.04); }
+        .task-card.completed .task-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; font-weight: 400; }
+        .task-number { font-size: 0.68rem; color: #3b82f6; margin-bottom: 4px; }
+        .task-name { font-size: 0.9rem; color: #dbeafe; margin-bottom: 4px; }
+        .task-desc { font-size: 0.77rem; color: #6b82a0; line-height: 1.45; }
+        .task-desc code { background: rgba(59,130,246,0.15); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; color: #60a5fa; font-family: 'Consolas', monospace; }
+        .terminal-panel { display: flex; flex-direction: column; background: #0a0a0a; position: relative; overflow: hidden; }
+        .term-toolbar { flex-shrink: 0; padding: 8px 20px; background: rgba(12,18,28,0.9); border-bottom: 1px solid rgba(59,130,246,0.15); display: flex; align-items: center; gap: 12px; }
+        .term-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .term-dot-red { background: #ff5f57; } .term-dot-amber { background: #febc2e; } .term-dot-green { background: #28c840; }
+        .term-title { flex: 1; text-align: center; font-size: 0.8rem; color: #4a6080; font-family: 'Consolas', monospace; }
+        .term-vm-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #34d399; }
+        .term-status-dot { width: 7px; height: 7px; background: #34d399; border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .term-output { flex: 1; overflow-y: auto; padding: 16px 360px 8px 20px; font-family: 'Consolas', monospace; font-size: 0.875rem; line-height: 1.6; }
+        .term-input-row { flex-shrink: 0; display: flex; align-items: center; padding: 8px 360px 12px 20px; border-top: 1px solid rgba(59,130,246,0.1); }
+        .term-prompt-label { font-family: 'Consolas', monospace; font-size: 0.875rem; white-space: nowrap; flex-shrink: 0; }
+        .term-prompt-user { color: #3b82f6; } .term-prompt-sep { color: #3b5278; } .term-prompt-path { color: #34d399; } .term-prompt-dollar { color: #dbeafe; margin-right: 6px; }
+        .term-input { flex: 1; background: transparent; border: none; outline: none; color: #dbeafe; font-family: 'Consolas', monospace; font-size: 0.875rem; caret-color: #3b82f6; }
+        .term-line { white-space: pre-wrap; word-break: break-all; }
+        .term-line-cmd { color: #b3cef5; } .term-line-out { color: #a0d4a0; } .term-line-err { color: #f87171; }
+        .term-line-info { color: #60a5fa; } .term-line-warn { color: #fbbf24; } .term-line-dim { color: #374860; }
+        .term-welcome { color: #3b82f6; }
+        .term-prompt-span { color: #3b82f6; } .term-path-span { color: #34d399; } .term-ps1-sep { color: #3b5278; }
+        .json-key { color: #60a5fa; } .json-string { color: #86efac; } .json-number { color: #fbbf24; } .json-bool { color: #93c5fd; }
+        .instructions-panel { position: absolute; top: 20px; right: 20px; width: 320px; background: rgba(10,16,28,0.97); border: 1px solid rgba(59,130,246,0.3); border-radius: 12px; padding: 20px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
+        .instructions-panel.collapsed { width: auto; padding: 10px 14px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-body { display: none; }
+        .instructions-title { font-size: 1rem; color: #3b82f6; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-title { margin-bottom: 0; font-size: 0.85rem; }
+        .instructions-toggle { margin-left: auto; width: 28px; height: 28px; background: rgba(59,130,246,0.2); border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; color: #3b82f6; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .instructions-step { font-size: 0.88rem; color: #b3cef5; line-height: 1.65; margin-bottom: 14px; }
+        .instructions-step code { background: rgba(59,130,246,0.2); padding: 2px 7px; border-radius: 4px; font-family: 'Consolas', monospace; color: #60a5fa; font-size: 0.85em; }
+        .instructions-hint { font-size: 0.78rem; color: #3b5278; font-style: italic; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(59,130,246,0.15); }
+        .hint-btn { margin-top: 12px; padding: 6px 12px; background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.25); border-radius: 5px; color: #3b82f6; font-size: 0.75rem; cursor: pointer; width: 100%; text-align: center; }
+        .hint-command { display: none; margin-top: 10px; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(59,130,246,0.25); border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.78rem; color: #86efac; white-space: pre-wrap; }
+        .hint-command.visible { display: block; }
+        .success-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 2000; }
+        .success-overlay.active { display: flex; }
+        .success-card { background: rgba(10,16,28,0.97); border: 1px solid rgba(52,211,153,0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
+        .success-message { color: #b3cef5; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
+        .success-btn { padding: 12px 30px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; }
+        @media (max-width: 1024px) { .lab-container { grid-template-columns: 1fr; } .task-panel { display: none; } .term-output, .term-input-row { padding-right: 20px; } .instructions-panel { bottom: 60px; top: auto; right: 10px; left: 10px; width: auto; } }
+    </style>
+</head>
+<body>
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">M365 Admin Center, Licensing, and Support</span>
+            <span class="lab-badge">MS-900</span>
+            <span class="lab-badge-ch">CH.3</span>
+        </div>
+        <div class="task-progress"><span>Progress:</span><div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBarFill"></div></div><span class="task-count" id="taskProgress">0 / 10 Tasks</span></div>
+    </header>
+    <div class="lab-container">
+        <aside class="task-panel" id="taskPanel">
+            <div class="task-section"><div class="task-section-title">Phase 1 -- License Management</div>
+                <div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)"><div class="task-number">Task 1</div><div class="task-name">View Subscriptions</div><div class="task-desc">Run <code>m365 tenant license list</code> to see all active M365 subscriptions and consumed vs. available licenses.</div></div>
+                <div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)"><div class="task-number">Task 2</div><div class="task-name">Check License Assignment</div><div class="task-desc">Run <code>m365 entra user license list --userId sarah.chen@contoso.com</code> to see which licenses are assigned to a specific user.</div></div>
+                <div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)"><div class="task-number">Task 3</div><div class="task-name">Remove a License</div><div class="task-desc">Run <code>m365 entra user license remove --userId priya.patel@contoso.com --ids SPE_F1</code> to remove the F1 license from a user.</div></div>
+            </div>
+            <div class="task-section"><div class="task-section-title">Phase 2 -- Billing and Usage</div>
+                <div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)"><div class="task-number">Task 4</div><div class="task-name">View Billing Summary</div><div class="task-desc">Run <code>m365 tenant billing summary</code> to see monthly cost breakdown by subscription.</div></div>
+                <div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)"><div class="task-number">Task 5</div><div class="task-name">Run Usage Report</div><div class="task-desc">Run <code>m365 tenant report activeuserdetail</code> to see which users are actively using M365 services.</div></div>
+                <div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)"><div class="task-number">Task 6</div><div class="task-name">Check Message Center</div><div class="task-desc">Run <code>m365 tenant messagecenter list</code> to see upcoming changes and admin notifications.</div></div>
+            </div>
+            <div class="task-section"><div class="task-section-title">Phase 3 -- Support and Health</div>
+                <div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)"><div class="task-number">Task 7</div><div class="task-name">Check Service Health</div><div class="task-desc">Run <code>m365 tenant servicehealth list</code> to verify all M365 services are operational.</div></div>
+                <div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)"><div class="task-number">Task 8</div><div class="task-name">View Service Health Issues</div><div class="task-desc">Run <code>m365 tenant servicehealth issues list</code> to see recent and active service health issues.</div></div>
+            </div>
+            <div class="task-section"><div class="task-section-title">Phase 4 -- Admin Roles</div>
+                <div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)"><div class="task-number">Task 9</div><div class="task-name">List Admin Roles</div><div class="task-desc">Run <code>m365 entra role list</code> to see all administrative roles in the tenant.</div></div>
+                <div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)"><div class="task-number">Task 10</div><div class="task-name">Check Global Admins</div><div class="task-desc">Run <code>m365 entra role member list --roleId "Global Administrator"</code> to verify how many global admins exist.</div></div>
+            </div>
+        </aside>
+        <main class="terminal-panel" id="terminalPanel">
+            <div class="term-toolbar"><div class="term-dot term-dot-red"></div><div class="term-dot term-dot-amber"></div><div class="term-dot term-dot-green"></div><div class="term-title">m365admin@cloud-shell -- bash</div><div class="term-vm-status"><div class="term-status-dot"></div>M365 Admin CLI</div></div>
+            <div class="term-output" id="termOutput"></div>
+            <div class="term-input-row"><span class="term-prompt-label"><span class="term-prompt-user">m365admin@cloud-shell</span><span class="term-prompt-sep">:</span><span class="term-prompt-path">~</span><span class="term-prompt-dollar">$</span></span><input class="term-input" id="termInput" type="text" autocomplete="off" spellcheck="false" aria-label="Terminal input" /></div>
+            <div class="instructions-panel" id="instructionsPanel">
+                <div class="instructions-title" onclick="toggleInstructions()"><img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Task Instructions <button class="instructions-toggle">&#9660;</button></div>
+                <div class="instructions-body" id="instructionsBody"><div class="instructions-step" id="instructionsStep">Type the command and press Enter.</div><div class="instructions-hint" id="instructionsHint"><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block"> Select a task to see instructions.</div><button class="hint-btn" onclick="revealHint()">Show command hint</button><div class="hint-command" id="hintCommand"></div></div>
+            </div>
+            <div class="success-overlay" id="successOverlay"><div class="success-card"><div style="margin-bottom:20px"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:3rem;height:3rem;object-fit:contain"></div><div class="success-title">MS-900 Chapter 3 Lab Complete!</div><div class="success-message">You managed license subscriptions, checked per-user assignments, removed a license, reviewed billing summaries and usage reports, explored Message Center notifications, verified service health, listed admin roles, and audited Global Administrator membership. You are ready for the MS-900 exam.</div><button class="success-btn" onclick="finishLab()">Complete Lab</button></div></div>
+        </main>
+    </div>
+    <script>
+    (function(){
+        'use strict';
+        var USER='m365admin',HOST='cloud-shell';var cmdHistory=[],histIdx=-1,currentTask=1;
+        var taskDone={1:false,2:false,3:false,4:false,5:false,6:false,7:false,8:false,9:false,10:false},TOTAL_TASKS=10;
+        var outputEl,inputEl;
+        function addLine(t,c){var d=document.createElement('div');d.className='term-line'+(c?' '+c:'');d.textContent=t;outputEl.appendChild(d);outputEl.scrollTop=outputEl.scrollHeight;}
+        function addHTML(h,c){var d=document.createElement('div');d.className='term-line'+(c?' '+c:'');d.innerHTML=h;outputEl.appendChild(d);outputEl.scrollTop=outputEl.scrollHeight;}
+        function addBlank(){addLine('');}
+        function addPromptLine(cmd){addHTML('<span class="term-prompt-span">'+USER+'@'+HOST+'</span><span class="term-ps1-sep">:~$ </span>'+cmd.replace(/</g,'&lt;'),'term-line-cmd');}
+        function printJSON(obj){var r=JSON.stringify(obj,null,2).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"([^"]+)":/g,'<span class="json-key">"$1"</span>:').replace(/: "([^"]*)"/g,': <span class="json-string">"$1"</span>').replace(/: (true|false)/g,': <span class="json-bool">$1</span>').replace(/: (-?\d+\.?\d*)/g,': <span class="json-number">$1</span>');r.split('\n').forEach(function(l){addHTML(l,'term-line-out');});}
+
+        var taskInfo={
+            1:{step:'Run <code>m365 tenant license list</code> to view all subscriptions.',hint:'m365 tenant license list'},
+            2:{step:'Run <code>m365 entra user license list --userId sarah.chen@contoso.com</code> to check Sarah\'s licenses.',hint:'m365 entra user license list --userId sarah.chen@contoso.com'},
+            3:{step:'Run <code>m365 entra user license remove --userId priya.patel@contoso.com --ids SPE_F1</code> to remove the F1 license.',hint:'m365 entra user license remove --userId priya.patel@contoso.com --ids SPE_F1'},
+            4:{step:'Run <code>m365 tenant billing summary</code> to see cost breakdown.',hint:'m365 tenant billing summary'},
+            5:{step:'Run <code>m365 tenant report activeuserdetail</code> to see active user data.',hint:'m365 tenant report activeuserdetail'},
+            6:{step:'Run <code>m365 tenant messagecenter list</code> to view upcoming changes.',hint:'m365 tenant messagecenter list'},
+            7:{step:'Run <code>m365 tenant servicehealth list</code> to check service status.',hint:'m365 tenant servicehealth list'},
+            8:{step:'Run <code>m365 tenant servicehealth issues list</code> to see recent issues.',hint:'m365 tenant servicehealth issues list'},
+            9:{step:'Run <code>m365 entra role list</code> to see admin roles.',hint:'m365 entra role list'},
+            10:{step:'Run <code>m365 entra role member list --roleId "Global Administrator"</code> to audit global admins.',hint:'m365 entra role member list --roleId "Global Administrator"'}
+        };
+        window.selectTask=function(n){currentTask=n;document.querySelectorAll('.task-card').forEach(function(c){c.classList.remove('active');});var card=document.getElementById('task-card-'+n);if(card)card.classList.add('active');var i=taskInfo[n];if(i){document.getElementById('instructionsStep').innerHTML=i.step;document.getElementById('hintCommand').textContent=i.hint;document.getElementById('hintCommand').classList.remove('visible');}};
+        window.toggleInstructions=function(){document.getElementById('instructionsPanel').classList.toggle('collapsed');};
+        window.revealHint=function(){document.getElementById('hintCommand').classList.toggle('visible');};
+        window.finishLab=function(){if(typeof ModuleProgress!=='undefined'){ModuleProgress.complete('cloud','ms900-ch03-lab',{returnUrl:'../index.html'});}else{window.location.href='../index.html';}};
+
+        function completeTask(n){if(taskDone[n])return;taskDone[n]=true;var card=document.getElementById('task-card-'+n);if(card)card.classList.add('completed');var done=Object.keys(taskDone).filter(function(k){return taskDone[k];}).length;document.getElementById('taskProgress').textContent=done+' / '+TOTAL_TASKS+' Tasks';document.getElementById('progressBarFill').style.width=(done/TOTAL_TASKS*100)+'%';if(done===TOTAL_TASKS)setTimeout(function(){document.getElementById('successOverlay').classList.add('active');},600);}
+
+        function processCommand(raw){var cmd=raw.trim();if(!cmd)return;addPromptLine(cmd);cmdHistory.unshift(cmd);histIdx=-1;
+            if(cmd==='clear'){outputEl.innerHTML='';return;}
+            if(cmd==='help'){addLine('Commands: m365 tenant license list, m365 entra user license list --userId <email>, m365 entra user license remove --userId <email> --ids <sku>, m365 tenant billing summary, m365 tenant report activeuserdetail, m365 tenant messagecenter list, m365 tenant servicehealth list, m365 tenant servicehealth issues list, m365 entra role list, m365 entra role member list --roleId "Global Administrator"','term-line-info');return;}
+            if(cmd==='m365 tenant license list'){printJSON([{skuPartNumber:'ENTERPRISEPREMIUM',displayName:'Microsoft 365 E5',consumedUnits:1,prepaidUnits:{enabled:5},costPerUser:'$57.00/month'},{skuPartNumber:'ENTERPRISEPACK',displayName:'Microsoft 365 E3',consumedUnits:2,prepaidUnits:{enabled:10},costPerUser:'$36.00/month'},{skuPartNumber:'SPE_F1',displayName:'Microsoft 365 F1',consumedUnits:1,prepaidUnits:{enabled:50},costPerUser:'$2.25/month'}]);addBlank();addLine('  3 subscriptions. 4 licenses consumed out of 65 available.','term-line-info');addLine('  Monthly spend: $57 + $72 + $2.25 = $131.25','term-line-info');completeTask(1);return;}
+            if(cmd.indexOf('m365 entra user license list')===0&&cmd.indexOf('sarah.chen')>=0){printJSON({userPrincipalName:'sarah.chen@contoso.com',assignedLicenses:[{skuPartNumber:'ENTERPRISEPACK',displayName:'Microsoft 365 E3',servicePlans:[{servicePlanName:'EXCHANGE_S_ENTERPRISE',provisioningStatus:'Success'},{servicePlanName:'SHAREPOINTENTERPRISE',provisioningStatus:'Success'},{servicePlanName:'TEAMS1',provisioningStatus:'Success'},{servicePlanName:'OFFICESUBSCRIPTION',provisioningStatus:'Success'},{servicePlanName:'INTUNE_A',provisioningStatus:'Success'}]}]});addBlank();addLine('  Sarah has E3: Exchange Plan 2, SharePoint Plan 2, Teams, Office Apps, Intune.','term-line-info');completeTask(2);return;}
+            if(cmd.indexOf('m365 entra user license remove')===0&&cmd.indexOf('priya.patel')>=0&&cmd.indexOf('SPE_F1')>=0){addLine('Removing license SPE_F1 (Microsoft 365 F1) from priya.patel@contoso.com...','term-line-info');addLine('  License removed successfully.','term-line-info');addLine('  User will lose access to Teams, web Office apps, and 2 GB mailbox.','term-line-warn');addLine('  F1 licenses consumed: 0/50','term-line-dim');completeTask(3);return;}
+            if(cmd==='m365 tenant billing summary'){printJSON({billingPeriod:'April 2026',currency:'USD',subscriptions:[{name:'Microsoft 365 E5',quantity:5,pricePerUnit:57.00,total:285.00,consumed:1,unused:4},{name:'Microsoft 365 E3',quantity:10,pricePerUnit:36.00,total:360.00,consumed:2,unused:8},{name:'Microsoft 365 F1',quantity:50,pricePerUnit:2.25,total:112.50,consumed:0,unused:50}],monthlyTotal:757.50,annualProjection:9090.00,wastedLicensesCost:546.25});addBlank();addLine('  Monthly total: $757.50. Wasted licenses (unused): $546.25/month.','term-line-warn');addLine('  Optimization: Reduce E5 from 5 to 1, E3 from 10 to 3, F1 from 50 to 5.','term-line-info');completeTask(4);return;}
+            if(cmd==='m365 tenant report activeuserdetail'){printJSON([{userPrincipalName:'admin@contoso.com',hasExchangeLicense:true,hasTeamsLicense:true,hasOneDriveLicense:true,exchangeLastActivityDate:'2026-04-21',teamsLastActivityDate:'2026-04-21',oneDriveLastActivityDate:'2026-04-20'},{userPrincipalName:'sarah.chen@contoso.com',hasExchangeLicense:true,hasTeamsLicense:true,hasOneDriveLicense:true,exchangeLastActivityDate:'2026-04-21',teamsLastActivityDate:'2026-04-21',oneDriveLastActivityDate:'2026-04-21'},{userPrincipalName:'marcus.williams@contoso.com',hasExchangeLicense:true,hasTeamsLicense:true,hasOneDriveLicense:true,exchangeLastActivityDate:'2026-04-19',teamsLastActivityDate:'2026-04-15',oneDriveLastActivityDate:'2026-04-10'}]);addBlank();addLine('  3 active users. Marcus shows declining Teams and OneDrive usage.','term-line-info');completeTask(5);return;}
+            if(cmd==='m365 tenant messagecenter list'){printJSON([{id:'MC789012',title:'Microsoft Teams: New meeting recap feature',publishedDate:'2026-04-15',actionRequiredByDate:null,severity:'Normal',category:'PlanForChange'},{id:'MC789013',title:'Exchange Online: Legacy TLS 1.0/1.1 retirement',publishedDate:'2026-04-10',actionRequiredByDate:'2026-07-01',severity:'High',category:'PreventOrFixIssues'},{id:'MC789014',title:'SharePoint: New site templates available',publishedDate:'2026-04-08',actionRequiredByDate:null,severity:'Normal',category:'StayInformed'}]);addBlank();addLine('  3 messages. ACTION REQUIRED: TLS 1.0/1.1 retirement by July 1, 2026.','term-line-warn');completeTask(6);return;}
+            if(cmd==='m365 tenant servicehealth list'){printJSON([{service:'Exchange Online',status:'ServiceOperational'},{service:'SharePoint Online',status:'ServiceOperational'},{service:'Microsoft Teams',status:'ServiceOperational'},{service:'Microsoft 365 Apps',status:'ServiceOperational'},{service:'OneDrive for Business',status:'ServiceOperational'},{service:'Microsoft Entra',status:'ServiceOperational'}]);addBlank();addLine('  All 6 services operational.','term-line-info');completeTask(7);return;}
+            if(cmd==='m365 tenant servicehealth issues list'){printJSON([{id:'EX456789',title:'Some users unable to access Exchange Online via Outlook desktop',startDateTime:'2026-04-18T08:00:00Z',endDateTime:'2026-04-18T11:30:00Z',status:'ServiceRestored',impactDescription:'A subset of users in North America experienced intermittent connectivity to Exchange Online.',classification:'Incident',userImpact:'Approximately 0.1% of Exchange Online users affected.',rootCause:'A network configuration change caused routing issues in the North America region.',resolution:'The configuration change was reverted and service was restored.'}]);addBlank();addLine('  1 recent issue (resolved). Exchange connectivity incident on April 18.','term-line-info');completeTask(8);return;}
+            if(cmd==='m365 entra role list'){printJSON([{displayName:'Global Administrator',description:'Full access to all admin features',memberCount:2},{displayName:'User Administrator',description:'Manage users and groups',memberCount:1},{displayName:'Billing Administrator',description:'Manage billing and subscriptions',memberCount:1},{displayName:'Exchange Administrator',description:'Manage Exchange Online',memberCount:1},{displayName:'SharePoint Administrator',description:'Manage SharePoint Online',memberCount:0},{displayName:'Teams Administrator',description:'Manage Microsoft Teams',memberCount:0},{displayName:'Security Administrator',description:'Manage security features',memberCount:1},{displayName:'Compliance Administrator',description:'Manage compliance features',memberCount:0}]);addBlank();addLine('  8 admin roles listed. 2 Global Admins (good -- best practice is 2-4).','term-line-info');completeTask(9);return;}
+            if(cmd.indexOf('m365 entra role member list')===0&&cmd.indexOf('Global Administrator')>=0){printJSON([{displayName:'Admin User',userPrincipalName:'admin@contoso.com',accountEnabled:true,assignmentType:'Permanent'},{displayName:'Sarah Chen',userPrincipalName:'sarah.chen@contoso.com',accountEnabled:true,assignmentType:'Eligible (PIM)'}]);addBlank();addLine('  2 Global Administrators. Admin User has permanent assignment. Sarah Chen has PIM-eligible (just-in-time) assignment -- this follows Zero Trust best practice.','term-line-info');completeTask(10);return;}
+            addLine('Command not recognized. Type "help" for available commands.','term-line-err');
+        }
+        document.addEventListener('DOMContentLoaded',function(){
+            outputEl=document.getElementById('termOutput');inputEl=document.getElementById('termInput');
+            addLine('Microsoft 365 CLI v7.5.0 -- Admin Session','term-welcome');addLine('Connected to tenant: Contoso. Type "help" for commands.','term-line-dim');addBlank();
+            selectTask(1);
+            inputEl.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();processCommand(inputEl.value);inputEl.value='';}else if(e.key==='ArrowUp'){e.preventDefault();if(histIdx<cmdHistory.length-1){histIdx++;inputEl.value=cmdHistory[histIdx];}}else if(e.key==='ArrowDown'){e.preventDefault();if(histIdx>0){histIdx--;inputEl.value=cmdHistory[histIdx];}else{histIdx=-1;inputEl.value='';}}});
+            inputEl.focus();
+        });
+    })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

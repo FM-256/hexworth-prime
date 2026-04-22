@@ -4,286 +4,609 @@
     <meta charset="UTF-8">
     <script src="../../../../components/AccessGuard.js"></script>
     <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
     <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
     <script src="../../../../components/FirebaseAuth.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SharePoint &amp; OneDrive Administration Lab -- MS-102 Chapter 6</title>
+    <title>SharePoint Admin Center Lab | MS-102 Chapter 6</title>
     <style>
+        :root {
+            --cloud-primary: #3b82f6;
+            --cloud-secondary: #1d4ed8;
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #0f1623;
+            --bg-tertiary: #161f30;
+            --bg-panel: #0c1220;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #4a6080;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --border: rgba(59,130,246,0.18);
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { height: 100vh; overflow: hidden; background: #0c0c0c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #b3cef5; display: flex; flex-direction: column; }
-        .lab-header { flex-shrink: 0; padding: 15px 30px; background: rgba(10,12,20,0.95); border-bottom: 1px solid rgba(59,130,246,0.2); display: flex; justify-content: space-between; align-items: center; }
-        .header-left { display: flex; align-items: center; gap: 20px; }
-        .back-btn { padding: 8px 16px; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; color: #3b82f6; text-decoration: none; font-size: 0.85rem; transition: all 0.3s ease; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-primary); color: var(--text-primary); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        .topbar { height: 52px; background: var(--bg-panel); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 16px; flex-shrink: 0; }
+        .topbar-logo { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; font-weight: 600; color: var(--cloud-primary); }
+        .topbar-logo-icon { width: 28px; height: 28px; background: linear-gradient(135deg, #0078d4, #005a9e); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; color: #fff; }
+        .topbar-sep { width: 1px; height: 22px; background: var(--border); }
+        .topbar-title { font-size: 0.85rem; color: var(--text-secondary); }
+        .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+        .back-btn { padding: 6px 14px; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; color: var(--cloud-primary); text-decoration: none; font-size: 0.8rem; transition: background 0.2s; }
         .back-btn:hover { background: rgba(59,130,246,0.2); }
-        .lab-title { font-size: 1rem; color: #dbeafe; }
-        .lab-badge { padding: 4px 12px; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); border-radius: 12px; font-size: 0.7rem; color: #60a5fa; letter-spacing: 0.05em; }
-        .lab-badge-ch { padding: 4px 12px; background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.3); border-radius: 12px; font-size: 0.7rem; color: #34d399; letter-spacing: 0.05em; }
-        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #6b82a0; }
-        .task-count { color: #3b82f6; font-weight: 500; }
-        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(59,130,246,0.15); border-radius: 3px; overflow: hidden; }
-        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #1d4ed8); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
-        .lab-container { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
-        .task-panel { background: rgba(10,14,22,0.95); border-right: 1px solid rgba(59,130,246,0.15); overflow-y: auto; padding: 20px; }
-        .task-section { margin-bottom: 25px; }
-        .task-section-title { font-size: 0.68rem; color: #3b5278; letter-spacing: 0.15em; margin-bottom: 12px; text-transform: uppercase; }
-        .task-card { background: rgba(12,18,32,0.8); border: 1px solid rgba(59,130,246,0.15); border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s ease; }
-        .task-card:hover { border-color: rgba(59,130,246,0.4); }
-        .task-card.active { border-color: #3b82f6; background: rgba(59,130,246,0.1); }
-        .task-card.completed { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.04); }
-        .task-card.completed .task-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; font-weight: 400; }
-        .task-number { font-size: 0.68rem; color: #3b82f6; margin-bottom: 4px; }
-        .task-name { font-size: 0.9rem; color: #dbeafe; margin-bottom: 4px; }
-        .task-desc { font-size: 0.77rem; color: #6b82a0; line-height: 1.45; }
-        .task-desc code { background: rgba(59,130,246,0.15); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; color: #60a5fa; font-family: 'Consolas', monospace; }
-        .terminal-panel { display: flex; flex-direction: column; background: #0a0a0a; position: relative; overflow: hidden; }
-        .term-toolbar { flex-shrink: 0; padding: 8px 20px; background: rgba(12,18,28,0.9); border-bottom: 1px solid rgba(59,130,246,0.15); display: flex; align-items: center; gap: 12px; }
-        .term-dot { width: 12px; height: 12px; border-radius: 50%; }
-        .term-dot-red { background: #ff5f57; } .term-dot-amber { background: #febc2e; } .term-dot-green { background: #28c840; }
-        .term-title { flex: 1; text-align: center; font-size: 0.8rem; color: #4a6080; font-family: 'Consolas', 'Courier New', monospace; }
-        .term-vm-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #34d399; }
-        .term-status-dot { width: 7px; height: 7px; background: #34d399; border-radius: 50%; animation: pulse 2s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-        .term-output { flex: 1; overflow-y: auto; padding: 16px 360px 8px 20px; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.875rem; line-height: 1.6; }
-        .term-input-row { flex-shrink: 0; display: flex; align-items: center; padding: 8px 360px 12px 20px; border-top: 1px solid rgba(59,130,246,0.1); gap: 0; }
-        .term-prompt-label { font-family: 'Consolas', 'Courier New', monospace; font-size: 0.875rem; white-space: nowrap; flex-shrink: 0; }
-        .term-prompt-user { color: #3b82f6; } .term-prompt-sep { color: #3b5278; } .term-prompt-path { color: #34d399; } .term-prompt-dollar { color: #dbeafe; margin-right: 6px; }
-        .term-input { flex: 1; background: transparent; border: none; outline: none; color: #dbeafe; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.875rem; caret-color: #3b82f6; }
-        .term-line { white-space: pre-wrap; word-break: break-all; }
-        .term-line-cmd { color: #b3cef5; } .term-line-out { color: #a0d4a0; } .term-line-err { color: #f87171; }
-        .term-line-info { color: #60a5fa; } .term-line-warn { color: #fbbf24; } .term-line-dim { color: #374860; }
-        .term-welcome { color: #3b82f6; }
-        .term-prompt-span { color: #3b82f6; } .term-path-span { color: #34d399; } .term-ps1-sep { color: #3b5278; }
-        .json-key { color: #60a5fa; } .json-string { color: #86efac; } .json-number { color: #fbbf24; } .json-bool { color: #93c5fd; } .json-null { color: #f87171; }
-        .instructions-panel { position: absolute; top: 20px; right: 20px; width: 320px; background: rgba(10,16,28,0.97); border: 1px solid rgba(59,130,246,0.3); border-radius: 12px; padding: 20px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.4); transition: all 0.3s ease; }
-        .instructions-panel.collapsed { width: auto; padding: 10px 14px; cursor: pointer; }
-        .instructions-panel.collapsed .instructions-body { display: none; }
-        .instructions-panel.collapsed .instructions-toggle { transform: rotate(180deg); }
-        .instructions-title { font-size: 1rem; color: #3b82f6; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
-        .instructions-panel.collapsed .instructions-title { margin-bottom: 0; font-size: 0.85rem; }
-        .instructions-toggle { margin-left: auto; width: 28px; height: 28px; background: rgba(59,130,246,0.2); border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; color: #3b82f6; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; flex-shrink: 0; }
-        .instructions-toggle:hover { background: rgba(59,130,246,0.4); }
-        .instructions-step { font-size: 0.88rem; color: #b3cef5; line-height: 1.65; margin-bottom: 14px; }
-        .instructions-step code { background: rgba(59,130,246,0.2); padding: 2px 7px; border-radius: 4px; font-family: 'Consolas', monospace; color: #60a5fa; font-size: 0.85em; }
-        .instructions-hint { font-size: 0.78rem; color: #3b5278; font-style: italic; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(59,130,246,0.15); line-height: 1.5; }
-        .hint-btn { margin-top: 12px; padding: 6px 12px; background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.25); border-radius: 5px; color: #3b82f6; font-size: 0.75rem; cursor: pointer; font-family: 'Segoe UI', sans-serif; transition: all 0.2s ease; width: 100%; text-align: center; }
-        .hint-btn:hover { background: rgba(59,130,246,0.22); }
-        .hint-command { display: none; margin-top: 10px; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(59,130,246,0.25); border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.78rem; color: #86efac; line-height: 1.55; white-space: pre-wrap; word-break: break-all; }
-        .hint-command.visible { display: block; }
-        .success-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 2000; }
-        .success-overlay.active { display: flex; }
-        .success-card { background: rgba(10,16,28,0.97); border: 1px solid rgba(52,211,153,0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
-        .success-icon { margin-bottom: 20px; }
-        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
-        .success-message { color: #b3cef5; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
-        .success-btn { padding: 12px 30px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; transition: all 0.3s ease; }
-        .success-btn:hover { box-shadow: 0 5px 20px rgba(59,130,246,0.35); transform: translateY(-1px); }
-        .tab-suggestions { display: none; position: absolute; bottom: 52px; left: 20px; background: rgba(10,16,28,0.97); border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; padding: 4px 0; z-index: 200; font-family: 'Consolas', monospace; font-size: 0.8rem; }
-        .tab-suggestions.visible { display: block; }
-        .tab-option { padding: 4px 14px; color: #86efac; cursor: pointer; }
-        .tab-option:hover, .tab-option.selected { background: rgba(59,130,246,0.15); color: #dbeafe; }
-        @media (max-width: 1024px) { .lab-container { grid-template-columns: 1fr; } .task-panel { display: none; } .term-output, .term-input-row { padding-right: 20px; } .instructions-panel { position: absolute; bottom: 60px; top: auto; right: 10px; left: 10px; width: auto; } }
+        .progress-wrap { display: flex; align-items: center; gap: 10px; font-size: 0.8rem; color: var(--text-muted); }
+        .progress-bar { width: 120px; height: 5px; background: rgba(59,130,246,0.15); border-radius: 3px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--cloud-primary), var(--cloud-secondary)); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
+        .progress-label { color: var(--cloud-primary); font-weight: 500; min-width: 42px; text-align: right; }
+        .main-layout { display: flex; flex: 1; min-height: 0; }
+        .admin-sidebar { width: 220px; background: var(--bg-panel); border-right: 1px solid var(--border); overflow-y: auto; flex-shrink: 0; padding: 12px 0; }
+        .sidebar-section-label { font-size: 0.65rem; color: var(--text-muted); letter-spacing: 0.12em; text-transform: uppercase; padding: 8px 16px 4px; }
+        .sidebar-item { display: flex; align-items: center; gap: 10px; padding: 9px 16px; font-size: 0.82rem; color: var(--text-secondary); cursor: pointer; transition: all 0.2s; border-left: 3px solid transparent; }
+        .sidebar-item:hover { background: rgba(59,130,246,0.07); color: var(--text-primary); }
+        .sidebar-item.active { background: rgba(59,130,246,0.12); color: var(--cloud-primary); border-left-color: var(--cloud-primary); }
+        .sidebar-icon { width: 18px; text-align: center; font-size: 0.85rem; opacity: 0.7; }
+        .sidebar-item.active .sidebar-icon { opacity: 1; }
+        .portal-area { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+        .portal-toolbar { height: 44px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 12px; flex-shrink: 0; }
+        .portal-breadcrumb { font-size: 0.8rem; color: var(--text-muted); }
+        .portal-breadcrumb span { color: var(--text-secondary); }
+        .crumb-active { color: var(--text-primary); }
+        .toolbar-actions { margin-left: auto; display: flex; gap: 8px; }
+        .btn-portal { padding: 5px 14px; border-radius: 5px; font-size: 0.78rem; cursor: pointer; transition: all 0.2s; border: 1px solid transparent; font-family: inherit; }
+        .btn-primary-p { background: var(--cloud-primary); color: #fff; border-color: var(--cloud-secondary); }
+        .btn-primary-p:hover { background: var(--cloud-secondary); }
+        .btn-secondary-p { background: rgba(59,130,246,0.1); color: var(--cloud-primary); border-color: rgba(59,130,246,0.3); }
+        .btn-secondary-p:hover { background: rgba(59,130,246,0.2); }
+        .portal-content { flex: 1; overflow-y: auto; padding: 20px; display: none; }
+        .portal-content.active { display: block; }
+        .data-table-wrap { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-top: 16px; }
+        .table-header-row { display: flex; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--border); gap: 12px; }
+        .table-search { flex: 1; padding: 7px 12px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); font-size: 0.82rem; font-family: inherit; outline: none; transition: border-color 0.2s; }
+        .table-search:focus { border-color: var(--cloud-primary); }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .data-table th { padding: 9px 14px; background: var(--bg-tertiary); color: var(--text-muted); font-weight: 500; text-align: left; font-size: 0.73rem; letter-spacing: 0.06em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+        .data-table td { padding: 10px 14px; border-bottom: 1px solid rgba(59,130,246,0.07); color: var(--text-secondary); vertical-align: middle; }
+        .data-table tr:last-child td { border-bottom: none; }
+        .data-table tr:hover td { background: rgba(59,130,246,0.04); }
+        .badge { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 0.7rem; font-weight: 500; }
+        .badge-blue { background: rgba(59,130,246,0.15); color: #60a5fa; }
+        .badge-green { background: rgba(34,197,94,0.15); color: #4ade80; }
+        .badge-yellow { background: rgba(245,158,11,0.15); color: #fbbf24; }
+        .row-action { padding: 3px 10px; border-radius: 4px; font-size: 0.73rem; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); font-family: inherit; transition: all 0.2s; }
+        .row-action:hover { border-color: var(--cloud-primary); color: var(--cloud-primary); background: rgba(59,130,246,0.08); }
+        .section-title { font-size: 1.05rem; color: var(--text-primary); font-weight: 600; margin-bottom: 4px; }
+        .section-subtitle { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 16px; }
+        .form-panel { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-top: 16px; }
+        .form-panel h3 { font-size: 0.9rem; color: var(--cloud-primary); margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .form-row { margin-bottom: 14px; }
+        .form-label { font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 5px; display: block; }
+        .form-input, .form-select { width: 100%; padding: 8px 12px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); font-size: 0.83rem; font-family: inherit; outline: none; transition: border-color 0.2s; }
+        .form-input:focus, .form-select:focus { border-color: var(--cloud-primary); }
+        .form-select option { background: var(--bg-tertiary); }
+        .form-row-inline { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(59,130,246,0.07); }
+        .toggle-row:last-child { border-bottom: none; }
+        .toggle-label { font-size: 0.83rem; color: var(--text-secondary); }
+        .toggle-desc { font-size: 0.73rem; color: var(--text-muted); margin-top: 2px; }
+        .toggle-switch { position: relative; width: 42px; height: 22px; flex-shrink: 0; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider { position: absolute; cursor: pointer; inset: 0; background: rgba(255,255,255,0.1); border-radius: 22px; transition: 0.3s; }
+        .toggle-slider:before { content: ''; position: absolute; height: 16px; width: 16px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.3s; }
+        .toggle-switch input:checked + .toggle-slider { background: var(--cloud-primary); }
+        .toggle-switch input:checked + .toggle-slider:before { transform: translateX(20px); }
+        .task-rail { width: 290px; background: var(--bg-panel); border-left: 1px solid var(--border); overflow-y: auto; flex-shrink: 0; padding: 16px; }
+        .task-rail-title { font-size: 0.75rem; color: var(--text-muted); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 12px; }
+        .task-item { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s; }
+        .task-item:hover { border-color: rgba(59,130,246,0.35); }
+        .task-item.active { border-color: var(--cloud-primary); background: rgba(59,130,246,0.07); }
+        .task-item.done { border-color: rgba(34,197,94,0.35); background: rgba(34,197,94,0.04); }
+        .task-item-header { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+        .task-num { font-size: 0.68rem; color: var(--cloud-primary); font-weight: 600; }
+        .task-check { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--border); margin-left: auto; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; flex-shrink: 0; transition: all 0.3s; }
+        .task-item-name { font-size: 0.82rem; color: var(--text-primary); font-weight: 500; }
+        .task-item-desc { font-size: 0.73rem; color: var(--text-muted); margin-top: 4px; line-height: 1.5; }
+        .task-item.active .task-item-name { color: var(--cloud-primary); }
+        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+        .stat-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+        .stat-label { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.08em; }
+        .stat-value { font-size: 1.5rem; font-weight: 700; color: var(--cloud-primary); }
+        .stat-sub { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+        .toast { position: fixed; bottom: 24px; right: 24px; background: rgba(22,197,94,0.15); border: 1px solid rgba(34,197,94,0.35); border-radius: 8px; padding: 12px 18px; font-size: 0.83rem; color: var(--success); display: none; z-index: 9999; max-width: 320px; line-height: 1.45; }
+        .toast.visible { display: block; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 8000; }
+        .overlay.active { display: flex; }
+        .overlay-card { background: var(--bg-secondary); border: 1px solid rgba(34,197,94,0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 460px; width: 90%; }
+        .overlay-title { font-size: 1.4rem; color: var(--success); margin-bottom: 10px; }
+        .overlay-msg { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.65; margin-bottom: 24px; }
+        .overlay-btn { padding: 11px 28px; background: linear-gradient(135deg, var(--cloud-primary), var(--cloud-secondary)); border: none; border-radius: 8px; color: #fff; font-size: 0.9rem; cursor: pointer; font-family: inherit; }
+        @media (max-width: 1100px) { .task-rail { display: none; } }
+        @media (max-width: 768px) { .admin-sidebar { display: none; } .stats-row { grid-template-columns: 1fr 1fr; } }
     </style>
 </head>
 <body>
-    <header class="lab-header">
-        <div class="header-left">
-            <a href="../index.html" class="back-btn">Exit Lab</a>
-            <span class="lab-title">SharePoint &amp; OneDrive Administration</span>
-            <span class="lab-badge">MS-102</span>
-            <span class="lab-badge-ch">CH.6</span>
-        </div>
-        <div class="task-progress">
-            <span>Progress:</span>
-            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBarFill"></div></div>
-            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
-        </div>
-    </header>
 
-    <div class="lab-container">
-        <aside class="task-panel" id="taskPanel">
-            <div class="task-section">
-                <div class="task-section-title">Phase 1 -- Site Management</div>
-                <div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)"><div class="task-number">Task 1</div><div class="task-name">List Site Collections</div><div class="task-desc">Run <code>m365 spo site list</code> to view all SharePoint site collections in the tenant.</div></div>
-                <div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)"><div class="task-number">Task 2</div><div class="task-name">Get Site Details</div><div class="task-desc">Run <code>m365 spo site get --url https://contoso.sharepoint.com/sites/marketing</code> to inspect a specific site.</div></div>
-                <div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)"><div class="task-number">Task 3</div><div class="task-name">Create Communication Site</div><div class="task-desc">Run <code>m365 spo site add --type CommunicationSite --title "Company News" --url https://contoso.sharepoint.com/sites/news</code> to create a new communication site.</div></div>
-            </div>
-            <div class="task-section">
-                <div class="task-section-title">Phase 2 -- Sharing Configuration</div>
-                <div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)"><div class="task-number">Task 4</div><div class="task-name">View Tenant Sharing Settings</div><div class="task-desc">Run <code>m365 spo tenant settings list</code> to view org-level sharing and access control settings.</div></div>
-                <div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)"><div class="task-number">Task 5</div><div class="task-name">Set Site Sharing Level</div><div class="task-desc">Run <code>m365 spo site set --url https://contoso.sharepoint.com/sites/hr --sharingCapability Disabled</code> to restrict sharing on the HR site.</div></div>
-            </div>
-            <div class="task-section">
-                <div class="task-section-title">Phase 3 -- Storage and OneDrive</div>
-                <div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)"><div class="task-number">Task 6</div><div class="task-name">Check Storage Quota</div><div class="task-desc">Run <code>m365 spo tenant settings list --query storageQuota</code> to view the tenant storage pool allocation.</div></div>
-                <div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)"><div class="task-number">Task 7</div><div class="task-name">Set Site Storage Limit</div><div class="task-desc">Run <code>m365 spo site set --url https://contoso.sharepoint.com/sites/marketing --storageQuota 5120</code> to set a 5 GB storage limit.</div></div>
-            </div>
-            <div class="task-section">
-                <div class="task-section-title">Phase 4 -- Permissions and Hub</div>
-                <div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)"><div class="task-number">Task 8</div><div class="task-name">Register Hub Site</div><div class="task-desc">Run <code>m365 spo hubsite register --url https://contoso.sharepoint.com/sites/marketing</code> to register the marketing site as a hub.</div></div>
-                <div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)"><div class="task-number">Task 9</div><div class="task-name">List Site Permissions</div><div class="task-desc">Run <code>m365 spo site groupmember list --url https://contoso.sharepoint.com/sites/marketing --group Owners</code> to view site owners.</div></div>
-                <div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)"><div class="task-number">Task 10</div><div class="task-name">Set OneDrive Retention</div><div class="task-desc">Run <code>m365 spo tenant settings set --orphanedPersonalSitesRetentionPeriod 365</code> to set OneDrive retention to 1 year for deleted users.</div></div>
-            </div>
-        </aside>
-
-        <main class="terminal-panel" id="terminalPanel">
-            <div class="term-toolbar">
-                <div class="term-dot term-dot-red"></div><div class="term-dot term-dot-amber"></div><div class="term-dot term-dot-green"></div>
-                <div class="term-title">spadmin@cloud-shell -- bash</div>
-                <div class="term-vm-status"><div class="term-status-dot"></div>SharePoint Online Connected</div>
-            </div>
-            <div class="term-output" id="termOutput"></div>
-            <div class="term-input-row">
-                <span class="term-prompt-label"><span class="term-prompt-user">spadmin@cloud-shell</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span></span>
-                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
-            </div>
-            <div class="tab-suggestions" id="tabSuggestions"></div>
-            <div class="instructions-panel" id="instructionsPanel">
-                <div class="instructions-title" onclick="toggleInstructions()">
-                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
-                    Task Instructions
-                    <button class="instructions-toggle" id="instructionsToggle" title="Collapse instructions">&#9660;</button>
-                </div>
-                <div class="instructions-body" id="instructionsBody">
-                    <div class="instructions-step" id="instructionsStep">Type the command in the terminal and press Enter.</div>
-                    <div class="instructions-hint" id="instructionsHint"><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block"> Hint text loads when you select a task.</div>
-                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
-                    <div class="hint-command" id="hintCommand"></div>
-                </div>
-            </div>
-            <div class="success-overlay" id="successOverlay">
-                <div class="success-card">
-                    <div class="success-icon"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:3rem;height:3rem;object-fit:contain"></div>
-                    <div class="success-title">MS-102 Chapter 6 Lab Complete!</div>
-                    <div class="success-message">You managed SharePoint site collections, configured sharing settings at org and site levels, set storage quotas, registered a hub site, reviewed site permissions, and configured OneDrive retention. These are core SharePoint and OneDrive administration skills for the MS-102 exam.</div>
-                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
-                </div>
-            </div>
-        </main>
+<header class="topbar">
+    <div class="topbar-logo">
+        <div class="topbar-logo-icon">SP</div>
+        SharePoint Admin Center
     </div>
+    <div class="topbar-sep"></div>
+    <span class="topbar-title">contoso.onmicrosoft.com</span>
+    <div class="topbar-right">
+        <div class="progress-wrap">
+            <span id="progressLabel" class="progress-label">0 / 10</span>
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        </div>
+        <a href="../index.html" class="back-btn">Exit Lab</a>
+    </div>
+</header>
 
-    <script>
-    (function () {
-        'use strict';
-        var USER = 'spadmin', HOST = 'cloud-shell', HOME = '/home/spadmin';
-        var TENANT_URL = 'https://contoso.sharepoint.com';
-        var cwd = HOME, cmdHistory = [], histIdx = -1, currentTask = 1;
-        var taskDone = {1:false,2:false,3:false,4:false,5:false,6:false,7:false,8:false,9:false,10:false};
-        var TOTAL_TASKS = 10;
+<div class="main-layout">
 
-        var outputEl, inputEl, ps1PathEl;
-        function promptPath(){return cwd===HOME?'~':cwd;}
-        function addLine(t,c){var d=document.createElement('div');d.className='term-line'+(c?' '+c:'');d.textContent=t;outputEl.appendChild(d);outputEl.scrollTop=outputEl.scrollHeight;}
-        function addHTML(h,c){var d=document.createElement('div');d.className='term-line'+(c?' '+c:'');d.innerHTML=h;outputEl.appendChild(d);outputEl.scrollTop=outputEl.scrollHeight;}
-        function addBlank(){addLine('','');}
-        function addPromptLine(cmd){addHTML('<span class="term-prompt-span">'+USER+'@'+HOST+'</span><span class="term-ps1-sep">:</span><span class="term-path-span">'+esc(promptPath())+'</span><span class="term-ps1-sep">$ </span>'+esc(cmd),'term-line-cmd');}
-        function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+    <nav class="admin-sidebar">
+        <div class="sidebar-section-label">Sites</div>
+        <div class="sidebar-item active" onclick="showPanel('sites')" id="nav-sites">
+            <img src="/assets/images/icons/icon-document.webp" alt="" class="sidebar-icon" style="width:16px;height:16px;vertical-align:middle;"> Active Sites
+        </div>
+        <div class="sidebar-item" onclick="showPanel('deleted')" id="nav-deleted">
+            <img src="/assets/images/icons/icon-gear.webp" alt="" class="sidebar-icon" style="width:16px;height:16px;vertical-align:middle;"> Deleted Sites
+        </div>
+        <div class="sidebar-section-label">Policies</div>
+        <div class="sidebar-item" onclick="showPanel('sharing')" id="nav-sharing">
+            <img src="/assets/images/icons/icon-gear.webp" alt="" class="sidebar-icon" style="width:16px;height:16px;vertical-align:middle;"> Sharing
+        </div>
+        <div class="sidebar-section-label">Settings</div>
+        <div class="sidebar-item" onclick="showPanel('settings')" id="nav-settings">
+            <img src="/assets/images/icons/icon-gear.webp" alt="" class="sidebar-icon" style="width:16px;height:16px;vertical-align:middle;"> Settings
+        </div>
+        <div class="sidebar-section-label">OneDrive</div>
+        <div class="sidebar-item" onclick="showPanel('migration')" id="nav-migration">
+            <img src="/assets/images/icons/icon-gear.webp" alt="" class="sidebar-icon" style="width:16px;height:16px;vertical-align:middle;"> Usage Reports
+        </div>
+    </nav>
 
-        function printJSON(obj){var r=JSON.stringify(obj,null,2);var h=r.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"([^"]+)":/g,'<span class="json-key">"$1"</span>:').replace(/: "([^"]*)"/g,': <span class="json-string">"$1"</span>').replace(/: (true|false)/g,': <span class="json-bool">$1</span>').replace(/: null/g,': <span class="json-null">null</span>').replace(/: (-?\d+\.?\d*)/g,': <span class="json-number">$1</span>');h.split('\n').forEach(function(l){addHTML(l,'term-line-out');});}
+    <div class="portal-area">
 
-        var taskInstructions = {
-            1: {step:'Run <code>m365 spo site list</code> to view all SharePoint site collections including their URLs, templates, and storage usage.',hint:'m365 spo site list'},
-            2: {step:'Run <code>m365 spo site get --url https://contoso.sharepoint.com/sites/marketing</code> to view detailed information about the marketing site.',hint:'m365 spo site get --url https://contoso.sharepoint.com/sites/marketing'},
-            3: {step:'Run <code>m365 spo site add --type CommunicationSite --title "Company News" --url https://contoso.sharepoint.com/sites/news</code> to create a communication site.',hint:'m365 spo site add --type CommunicationSite --title "Company News" --url https://contoso.sharepoint.com/sites/news'},
-            4: {step:'Run <code>m365 spo tenant settings list</code> to view the tenant-level sharing settings and access control configuration.',hint:'m365 spo tenant settings list'},
-            5: {step:'Run <code>m365 spo site set --url https://contoso.sharepoint.com/sites/hr --sharingCapability Disabled</code> to block all external sharing on the HR site.',hint:'m365 spo site set --url https://contoso.sharepoint.com/sites/hr --sharingCapability Disabled'},
-            6: {step:'Run <code>m365 spo tenant settings list --query storageQuota</code> to check the tenant storage pool total and used amounts.',hint:'m365 spo tenant settings list --query storageQuota'},
-            7: {step:'Run <code>m365 spo site set --url https://contoso.sharepoint.com/sites/marketing --storageQuota 5120</code> to set a 5 GB quota on the marketing site.',hint:'m365 spo site set --url https://contoso.sharepoint.com/sites/marketing --storageQuota 5120'},
-            8: {step:'Run <code>m365 spo hubsite register --url https://contoso.sharepoint.com/sites/marketing</code> to register marketing as a hub site.',hint:'m365 spo hubsite register --url https://contoso.sharepoint.com/sites/marketing'},
-            9: {step:'Run <code>m365 spo site groupmember list --url https://contoso.sharepoint.com/sites/marketing --group Owners</code> to list the site owners.',hint:'m365 spo site groupmember list --url https://contoso.sharepoint.com/sites/marketing --group Owners'},
-            10:{step:'Run <code>m365 spo tenant settings set --orphanedPersonalSitesRetentionPeriod 365</code> to set OneDrive retention to 365 days for deleted users.',hint:'m365 spo tenant settings set --orphanedPersonalSitesRetentionPeriod 365'}
-        };
+        <div class="portal-toolbar">
+            <div class="portal-breadcrumb">
+                SharePoint Admin Center <span>&rsaquo;</span> <span id="breadcrumbActive" class="crumb-active">Active Sites</span>
+            </div>
+            <div class="toolbar-actions" id="toolbarActions">
+                <button class="btn-portal btn-primary-p" onclick="openNewSite()">+ Create Site</button>
+                <button class="btn-portal btn-secondary-p">Export</button>
+            </div>
+        </div>
 
-        function selectTask(n){currentTask=n;document.querySelectorAll('.task-card').forEach(function(c){c.classList.remove('active');});var card=document.getElementById('task-card-'+n);if(card)card.classList.add('active');var info=taskInstructions[n];if(info){document.getElementById('instructionsStep').innerHTML=info.step;document.getElementById('hintCommand').textContent=info.hint;document.getElementById('hintCommand').classList.remove('visible');}}
+        <!-- Panel: Active Sites -->
+        <div class="portal-content active" id="panel-sites">
+            <div style="overflow-y:auto; height:100%; padding:4px 0;">
+                <div class="section-title">Active Sites</div>
+                <div class="section-subtitle">Manage all SharePoint team and communication sites across the organization</div>
+                <div class="stats-row">
+                    <div class="stat-card"><div class="stat-label">Total Sites</div><div class="stat-value" id="totalSites">47</div><div class="stat-sub">Active</div></div>
+                    <div class="stat-card"><div class="stat-label">Team Sites</div><div class="stat-value">31</div><div class="stat-sub">Group-connected</div></div>
+                    <div class="stat-card"><div class="stat-label">Comm Sites</div><div class="stat-value">16</div><div class="stat-sub">Communication</div></div>
+                    <div class="stat-card"><div class="stat-label">Storage Used</div><div class="stat-value">2.1 TB</div><div class="stat-sub">of 25 TB</div></div>
+                </div>
 
-        function completeTask(n){if(taskDone[n])return;taskDone[n]=true;var card=document.getElementById('task-card-'+n);if(card)card.classList.add('completed');var done=Object.keys(taskDone).filter(function(k){return taskDone[k];}).length;document.getElementById('taskProgress').textContent=done+' / '+TOTAL_TASKS+' Tasks';document.getElementById('progressBarFill').style.width=(done/TOTAL_TASKS*100)+'%';if(done===TOTAL_TASKS){setTimeout(function(){document.getElementById('successOverlay').classList.add('active');},600);}}
+                <!-- Task 1: New site form -->
+                <div class="form-panel" id="newSiteForm" style="display:none;">
+                    <h3>Create New Team Site</h3>
+                    <div class="form-row-inline">
+                        <div class="form-row">
+                            <label class="form-label">Site Name</label>
+                            <input type="text" class="form-input" id="siteNameInput" placeholder="e.g. Project Alpha">
+                        </div>
+                        <div class="form-row">
+                            <label class="form-label">Site Address</label>
+                            <input type="text" class="form-input" id="siteAddressInput" placeholder="e.g. projectalpha">
+                        </div>
+                    </div>
+                    <div class="form-row-inline">
+                        <div class="form-row">
+                            <label class="form-label">Site Owner</label>
+                            <input type="text" class="form-input" id="siteOwnerInput" placeholder="e.g. admin@contoso.com">
+                        </div>
+                        <div class="form-row">
+                            <label class="form-label">Privacy</label>
+                            <select class="form-select">
+                                <option value="private">Private</option>
+                                <option value="public">Public</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">Storage Quota (GB)</label>
+                        <input type="number" class="form-input" id="siteQuota" value="100" min="1" max="25600" style="width:140px;">
+                    </div>
+                    <div style="display:flex; gap:8px; margin-top:4px;">
+                        <button class="btn-portal btn-primary-p" onclick="createSite()">Create Site</button>
+                        <button class="btn-portal btn-secondary-p" onclick="document.getElementById('newSiteForm').style.display='none'">Cancel</button>
+                    </div>
+                </div>
 
-        function processCommand(raw){var cmd=raw.trim();if(!cmd)return;addPromptLine(cmd);cmdHistory.unshift(cmd);histIdx=-1;
+                <!-- Task 4: Quota edit form -->
+                <div class="form-panel" id="quotaForm" style="display:none;">
+                    <h3>Edit Storage Quota</h3>
+                    <div class="form-row">
+                        <label class="form-label">Site: <span id="quotaSiteName" style="color:var(--cloud-primary);">Finance Team</span></label>
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">Storage Quota (GB)</label>
+                        <input type="number" class="form-input" id="quotaValueInput" value="200" min="1" max="25600" style="width:140px;">
+                    </div>
+                    <div style="display:flex; gap:8px; margin-top:4px;">
+                        <button class="btn-portal btn-primary-p" onclick="saveQuota()">Save Quota</button>
+                        <button class="btn-portal btn-secondary-p" onclick="document.getElementById('quotaForm').style.display='none'">Cancel</button>
+                    </div>
+                </div>
 
-            if(cmd==='clear'){outputEl.innerHTML='';return;}
-            if(cmd==='help'){addLine('Available commands: m365 spo site list, m365 spo site get, m365 spo site add, m365 spo site set, m365 spo tenant settings list, m365 spo tenant settings set, m365 spo hubsite register, m365 spo site groupmember list, help, clear','term-line-info');return;}
+                <div class="data-table-wrap">
+                    <div class="table-header-row">
+                        <input type="text" class="table-search" placeholder="Search sites..." oninput="filterSites(this.value)">
+                        <select class="form-select" style="width:160px;" onchange="filterSiteType(this.value)">
+                            <option value="all">All Templates</option>
+                            <option value="team">Team Site</option>
+                            <option value="comm">Communication</option>
+                        </select>
+                    </div>
+                    <table class="data-table">
+                        <thead><tr><th>Site Name</th><th>URL</th><th>Template</th><th>Storage</th><th>Last Activity</th><th>Actions</th></tr></thead>
+                        <tbody id="sitesBody">
+                            <tr data-type="team"><td>Finance Team</td><td>/sites/finance</td><td><span class="badge badge-blue">Team Site</span></td><td>480 GB / 1024 GB</td><td>2026-04-21</td><td><button class="row-action" onclick="openQuota('Finance Team',1024)">Edit Quota</button></td></tr>
+                            <tr data-type="comm"><td>HR Portal</td><td>/sites/hr</td><td><span class="badge badge-green">Communication</span></td><td>120 GB / 512 GB</td><td>2026-04-20</td><td><button class="row-action" onclick="openQuota('HR Portal',512)">Edit Quota</button></td></tr>
+                            <tr data-type="team"><td>IT Operations</td><td>/sites/itops</td><td><span class="badge badge-blue">Team Site</span></td><td>240 GB / 512 GB</td><td>2026-04-19</td><td><button class="row-action" onclick="openQuota('IT Operations',512)">Edit Quota</button></td></tr>
+                            <tr data-type="team"><td>Legal Department</td><td>/sites/legal</td><td><span class="badge badge-blue">Team Site</span></td><td>88 GB / 256 GB</td><td>2026-04-18</td><td><button class="row-action" onclick="openQuota('Legal',256)">Edit Quota</button></td></tr>
+                            <tr data-type="comm"><td>Contoso Intranet</td><td>/sites/intranet</td><td><span class="badge badge-green">Communication</span></td><td>55 GB / 256 GB</td><td>2026-04-21</td><td><button class="row-action" onclick="openQuota('Contoso Intranet',256)">Edit Quota</button></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
 
-            if(cmd==='m365 spo site list'){
-                printJSON([{title:'Marketing',url:TENANT_URL+'/sites/marketing',template:'Group#0',storageUsageMB:2340,storageQuotaMB:25600,lastModified:'2026-04-18T14:22:00Z',owner:'admin@contoso.com'},{title:'HR Portal',url:TENANT_URL+'/sites/hr',template:'SITEPAGEPUBLISHING#0',storageUsageMB:890,storageQuotaMB:25600,lastModified:'2026-04-15T09:10:00Z',owner:'hr-admin@contoso.com'},{title:'Engineering',url:TENANT_URL+'/sites/engineering',template:'Group#0',storageUsageMB:8750,storageQuotaMB:25600,lastModified:'2026-04-21T11:45:00Z',owner:'eng-lead@contoso.com'},{title:'Executive Comms',url:TENANT_URL+'/sites/exec-comms',template:'SITEPAGEPUBLISHING#0',storageUsageMB:320,storageQuotaMB:25600,lastModified:'2026-04-10T16:30:00Z',owner:'admin@contoso.com'}]);
-                addBlank();addLine('  4 site collections found. Total storage used: 12,300 MB.','term-line-info');
-                completeTask(1);return;
-            }
-            if(cmd==='m365 spo site get --url https://contoso.sharepoint.com/sites/marketing'){
-                printJSON({title:'Marketing',url:TENANT_URL+'/sites/marketing',template:'Group#0',hubSiteId:'00000000-0000-0000-0000-000000000000',isHubSite:false,sharingCapability:'ExternalUserAndGuestSharing',storageUsageMB:2340,storageQuotaMB:25600,storageWarningLevelMB:24576,owner:'admin@contoso.com',groupId:'a1b2c3d4-e5f6-7890-abcd-ef1234567890',lastModified:'2026-04-18T14:22:00Z',lockState:'Unlock',conditionalAccessPolicy:'AllowFullAccess',sensibilityLabel:null});
-                addBlank();addLine('  Marketing site: Group-connected | Sharing: External + Guest | Storage: 2.3 GB / 25 GB','term-line-info');
-                completeTask(2);return;
-            }
-            if(cmd.indexOf('m365 spo site add')===0&&cmd.indexOf('CommunicationSite')>=0&&cmd.indexOf('Company News')>=0){
-                addLine('Creating communication site "Company News"...','term-line-info');
-                printJSON({title:'Company News',url:TENANT_URL+'/sites/news',template:'SITEPAGEPUBLISHING#0',sharingCapability:'ExternalUserAndGuestSharing',storageQuotaMB:25600,owner:'admin@contoso.com',created:'2026-04-21T16:00:00Z'});
-                addBlank();addLine('  Communication site created successfully at '+TENANT_URL+'/sites/news','term-line-out');
-                completeTask(3);return;
-            }
-            if(cmd==='m365 spo tenant settings list'){
-                printJSON({sharingCapability:'ExternalUserAndGuestSharing',defaultSharingLinkType:'Internal',defaultLinkPermission:'View',requireAcceptingAccountMatchInvitedAccount:true,externalUserExpirationRequired:true,externalUserExpireInDays:30,allowAnonymousLinks:true,anonymousLinkExpirationInDays:30,filePickerExternalImageSearchEnabled:true,oneDriveStorageQuota:1048576,orphanedPersonalSitesRetentionPeriod:30,disallowInfectedFileDownload:true,conditionalAccessPolicy:'AllowLimitedAccess',blockDownloadLinksFileType:'WebPreviewableFiles'});
-                addBlank();addLine('  Org sharing: External + Guest | Anon links: 30-day expiry | OneDrive quota: 1 TB | Deleted user retention: 30 days','term-line-info');
-                completeTask(4);return;
-            }
-            if(cmd.indexOf('m365 spo site set')===0&&cmd.indexOf('/sites/hr')>=0&&cmd.indexOf('Disabled')>=0){
-                addLine('Updating sharing settings for HR Portal...','term-line-info');
-                addLine('  Sharing capability changed: ExternalUserAndGuestSharing -> Disabled','term-line-out');
-                printJSON({url:TENANT_URL+'/sites/hr',sharingCapability:'Disabled',status:'Updated'});
-                addBlank();addLine('  HR site sharing is now restricted to internal users only.','term-line-warn');
-                completeTask(5);return;
-            }
-            if(cmd.indexOf('m365 spo tenant settings list')===0&&cmd.indexOf('storageQuota')>=0){
-                printJSON({storageQuotaTotalMB:6291456,storageQuotaUsedMB:1228800,storageQuotaAvailableMB:5062656,licensedUsers:500,baseStorageMB:1048576,perUserStorageMB:10240});
-                addBlank();addLine('  Tenant pool: 6 TB total (1 TB base + 5 TB from 500 users) | Used: 1.2 TB | Available: 4.8 TB','term-line-info');
-                completeTask(6);return;
-            }
-            if(cmd.indexOf('m365 spo site set')===0&&cmd.indexOf('/sites/marketing')>=0&&cmd.indexOf('storageQuota')>=0&&cmd.indexOf('5120')>=0){
-                addLine('Setting storage quota for Marketing site...','term-line-info');
-                addLine('  Storage quota changed: 25,600 MB -> 5,120 MB (5 GB)','term-line-out');
-                printJSON({url:TENANT_URL+'/sites/marketing',storageQuotaMB:5120,storageWarningLevelMB:4608,status:'Updated'});
-                addBlank();addLine('  Warning: Current usage (2,340 MB) is within the new 5 GB limit.','term-line-info');
-                completeTask(7);return;
-            }
-            if(cmd.indexOf('m365 spo hubsite register')===0&&cmd.indexOf('/sites/marketing')>=0){
-                addLine('Registering hub site...','term-line-info');
-                printJSON({title:'Marketing',url:TENANT_URL+'/sites/marketing',hubSiteId:'b2c3d4e5-f6a7-8901-bcde-f12345678901',isHubSite:true,associatedSites:0,registeredBy:'admin@contoso.com',registeredDateTime:'2026-04-21T16:05:00Z'});
-                addBlank();addLine('  Marketing is now a hub site. Other sites can associate with it for shared navigation and theme.','term-line-out');
-                completeTask(8);return;
-            }
-            if(cmd.indexOf('m365 spo site groupmember list')===0&&cmd.indexOf('/sites/marketing')>=0&&cmd.indexOf('Owners')>=0){
-                printJSON([{loginName:'i:0#.f|membership|admin@contoso.com',title:'Contoso Admin',email:'admin@contoso.com',userPrincipalName:'admin@contoso.com',isSiteAdmin:true},{loginName:'i:0#.f|membership|mkt-lead@contoso.com',title:'Marketing Lead',email:'mkt-lead@contoso.com',userPrincipalName:'mkt-lead@contoso.com',isSiteAdmin:false}]);
-                addBlank();addLine('  2 owners found for Marketing site. admin@contoso.com is the primary site admin.','term-line-info');
-                completeTask(9);return;
-            }
-            if(cmd.indexOf('m365 spo tenant settings set')===0&&cmd.indexOf('orphanedPersonalSitesRetentionPeriod')>=0&&cmd.indexOf('365')>=0){
-                addLine('Updating OneDrive retention policy...','term-line-info');
-                addLine('  Retention period changed: 30 days -> 365 days','term-line-out');
-                printJSON({orphanedPersonalSitesRetentionPeriod:365,status:'Updated'});
-                addBlank();addLine('  Deleted user OneDrive data will now be retained for 1 year before automatic deletion.','term-line-info');
-                completeTask(10);return;
-            }
-            if(cmd==='pwd'){addLine(cwd,'term-line-out');return;}
-            if(cmd.split(/\s+/)[0]==='cd'){cwd=cmd.split(/\s+/)[1]||HOME;if(ps1PathEl)ps1PathEl.textContent=promptPath();return;}
-            addLine('Command not recognized: '+cmd.split(/\s+/)[0]+'. Type "help" for available commands.','term-line-err');
-        }
+        <!-- Panel: Deleted Sites -->
+        <div class="portal-content" id="panel-deleted">
+            <div style="overflow-y:auto; height:100%; padding:4px 0;">
+                <div class="section-title">Deleted Sites</div>
+                <div class="section-subtitle">Restore or permanently delete sites removed in the last 93 days</div>
+                <div class="data-table-wrap">
+                    <table class="data-table">
+                        <thead><tr><th>Site Name</th><th>URL</th><th>Deleted By</th><th>Deleted On</th><th>Actions</th></tr></thead>
+                        <tbody>
+                            <tr><td>Old Marketing Site</td><td>/sites/marketing-2024</td><td>admin@contoso.com</td><td>2026-03-15</td><td><button class="row-action">Restore</button> <button class="row-action">Delete</button></td></tr>
+                            <tr><td>Project Beta (archived)</td><td>/sites/projectbeta</td><td>jsmith@contoso.com</td><td>2026-02-28</td><td><button class="row-action">Restore</button> <button class="row-action">Delete</button></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
 
-        window.selectTask=selectTask;
-        window.toggleInstructions=function(){document.getElementById('instructionsPanel').classList.toggle('collapsed');};
-        window.revealHint=function(){document.getElementById('hintCommand').classList.toggle('visible');};
-        window.finishLab=function(){if(typeof ModuleProgress!=='undefined'){ModuleProgress.complete('cloud','ms102-ch06-lab',{returnUrl:'../index.html'});}else{window.location.href='../index.html';}};
+        <!-- Panel: Sharing -->
+        <div class="portal-content" id="panel-sharing">
+            <div style="overflow-y:auto; height:100%; padding:4px 0;">
+                <div class="section-title">Sharing Settings</div>
+                <div class="section-subtitle">Control how SharePoint and OneDrive content can be shared externally</div>
+                <div class="form-panel">
+                    <h3>External Sharing — SharePoint</h3>
+                    <div class="form-row">
+                        <label class="form-label">External sharing level</label>
+                        <select class="form-select" id="sharingLevel">
+                            <option value="anyone">Anyone (most permissive)</option>
+                            <option value="new-existing" selected>New and existing guests</option>
+                            <option value="existing-only">Existing guests only</option>
+                            <option value="disabled">Only people in your organization</option>
+                        </select>
+                    </div>
+                    <div class="toggle-row">
+                        <div><div class="toggle-label">Require sign-in for external access</div><div class="toggle-desc">Guests must authenticate before accessing shared content</div></div>
+                        <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="toggle-row">
+                        <div><div class="toggle-label">Allow guests to re-share items</div><div class="toggle-desc">External users can share content they do not own</div></div>
+                        <label class="toggle-switch"><input type="checkbox"><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="toggle-row">
+                        <div><div class="toggle-label">Guest access expiration</div><div class="toggle-desc">Links expire after 30 days by default</div></div>
+                        <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                    </div>
+                    <div style="margin-top:14px;">
+                        <button class="btn-portal btn-primary-p" onclick="saveSharingSettings()">Save</button>
+                    </div>
+                </div>
+                <div class="form-panel" style="margin-top:14px;">
+                    <h3>External Sharing — OneDrive</h3>
+                    <div class="form-row">
+                        <label class="form-label">OneDrive sharing level (cannot exceed SharePoint level)</label>
+                        <select class="form-select" id="oneDriveSharingLevel">
+                            <option value="anyone">Anyone</option>
+                            <option value="new-existing" selected>New and existing guests</option>
+                            <option value="existing-only">Existing guests only</option>
+                            <option value="disabled">Only people in your organization</option>
+                        </select>
+                    </div>
+                    <div style="margin-top:10px;">
+                        <button class="btn-portal btn-primary-p" onclick="saveOneDriveSharing()">Save</button>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-        document.addEventListener('DOMContentLoaded',function(){
-            outputEl=document.getElementById('termOutput');inputEl=document.getElementById('termInput');ps1PathEl=document.getElementById('termPS1Path');
-            addLine('Microsoft 365 CLI v7.5.0 -- Connected to SharePoint Online: contoso.sharepoint.com','term-welcome');
-            addLine('Role: SharePoint Administrator | Type "help" to see available commands.','term-line-dim');addBlank();
-            selectTask(1);
-            inputEl.addEventListener('keydown',function(e){
-                if(e.key==='Enter'){e.preventDefault();processCommand(inputEl.value);inputEl.value='';}
-                else if(e.key==='ArrowUp'){e.preventDefault();if(histIdx<cmdHistory.length-1){histIdx++;inputEl.value=cmdHistory[histIdx];}}
-                else if(e.key==='ArrowDown'){e.preventDefault();if(histIdx>0){histIdx--;inputEl.value=cmdHistory[histIdx];}else{histIdx=-1;inputEl.value='';}}
-            });
-            inputEl.focus();
-        });
+        <!-- Panel: Settings -->
+        <div class="portal-content" id="panel-settings">
+            <div style="overflow-y:auto; height:100%; padding:4px 0;">
+                <div class="section-title">SharePoint Settings</div>
+                <div class="section-subtitle">Configure defaults for site creation, storage, and collaboration features</div>
+                <div class="form-panel">
+                    <h3>General Settings</h3>
+                    <div class="toggle-row">
+                        <div><div class="toggle-label">Allow users to create sites</div><div class="toggle-desc">Users can create team or communication sites from SharePoint home</div></div>
+                        <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="toggle-row">
+                        <div><div class="toggle-label">Default storage quota per site: 512 GB</div><div class="toggle-desc">New sites inherit this quota unless overridden</div></div>
+                        <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="toggle-row">
+                        <div><div class="toggle-label">Versioning enabled by default</div><div class="toggle-desc">All document libraries keep file version history</div></div>
+                        <label class="toggle-switch"><input type="checkbox" id="versioningToggle" onchange="markDone(8)"><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="toggle-row">
+                        <div><div class="toggle-label">Notify owners of inactive sites</div><div class="toggle-desc">Send email when a site has no activity for 90 days</div></div>
+                        <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                    </div>
+                    <div style="margin-top:14px;"><button class="btn-portal btn-primary-p" onclick="saveSettings()">Save Settings</button></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel: OneDrive Usage -->
+        <div class="portal-content" id="panel-migration">
+            <div style="overflow-y:auto; height:100%; padding:4px 0;">
+                <div class="section-title">OneDrive Usage</div>
+                <div class="section-subtitle">Review per-user OneDrive storage consumption across the organization</div>
+                <div class="stats-row">
+                    <div class="stat-card"><div class="stat-label">Total Accounts</div><div class="stat-value">247</div></div>
+                    <div class="stat-card"><div class="stat-label">Total Used</div><div class="stat-value">1.8 TB</div><div class="stat-sub">of 25 TB</div></div>
+                    <div class="stat-card"><div class="stat-label">Near Quota (&gt;80%)</div><div class="stat-value" style="color:var(--warning);">12</div></div>
+                    <div class="stat-card"><div class="stat-label">Inactive (&gt;90d)</div><div class="stat-value">34</div></div>
+                </div>
+                <div class="data-table-wrap">
+                    <div class="table-header-row">
+                        <input type="text" class="table-search" placeholder="Search users..." oninput="markDone(10)">
+                    </div>
+                    <table class="data-table">
+                        <thead><tr><th>User</th><th>Storage Used</th><th>Quota</th><th>% Used</th><th>Last Active</th></tr></thead>
+                        <tbody>
+                            <tr><td>Alex Johnson</td><td>920 GB</td><td>1024 GB</td><td><span style="color:var(--warning);">89.8%</span></td><td>2026-04-21</td></tr>
+                            <tr><td>Maria Garcia</td><td>1010 GB</td><td>1024 GB</td><td><span style="color:var(--danger);">98.6%</span></td><td>2026-04-20</td></tr>
+                            <tr><td>James Kim</td><td>180 GB</td><td>1024 GB</td><td><span style="color:var(--success);">17.6%</span></td><td>2026-04-18</td></tr>
+                            <tr><td>Sara Chen</td><td>450 GB</td><td>1024 GB</td><td><span style="color:var(--cloud-primary);">43.9%</span></td><td>2026-04-21</td></tr>
+                            <tr><td>David Lee</td><td>5 GB</td><td>1024 GB</td><td><span style="color:var(--text-muted);">0.5%</span></td><td>2026-01-10</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- end portal-area -->
+
+    <aside class="task-rail">
+        <div class="task-rail-title">Lab Tasks</div>
+        <div class="task-item active" id="task1" onclick="focusTask(1)">
+            <div class="task-item-header"><span class="task-num">TASK 01</span><div class="task-check" id="check1">&#10003;</div></div>
+            <div class="task-item-name">Create Team Site</div>
+            <div class="task-item-desc">Create a new team site with name, address, and owner filled in</div>
+        </div>
+        <div class="task-item" id="task2" onclick="focusTask(2)">
+            <div class="task-item-header"><span class="task-num">TASK 02</span><div class="task-check" id="check2">&#10003;</div></div>
+            <div class="task-item-name">Configure External Sharing</div>
+            <div class="task-item-desc">Navigate to Sharing and save SharePoint external sharing settings</div>
+        </div>
+        <div class="task-item" id="task3" onclick="focusTask(3)">
+            <div class="task-item-header"><span class="task-num">TASK 03</span><div class="task-check" id="check3">&#10003;</div></div>
+            <div class="task-item-name">Configure OneDrive Sharing</div>
+            <div class="task-item-desc">Save the OneDrive external sharing level in the Sharing panel</div>
+        </div>
+        <div class="task-item" id="task4" onclick="focusTask(4)">
+            <div class="task-item-header"><span class="task-num">TASK 04</span><div class="task-check" id="check4">&#10003;</div></div>
+            <div class="task-item-name">Set Storage Quota</div>
+            <div class="task-item-desc">Click Edit Quota on any site and save an updated quota value</div>
+        </div>
+        <div class="task-item" id="task5" onclick="focusTask(5)">
+            <div class="task-item-header"><span class="task-num">TASK 05</span><div class="task-check" id="check5">&#10003;</div></div>
+            <div class="task-item-name">Review OneDrive Usage</div>
+            <div class="task-item-desc">Navigate to Usage Reports and identify users near their quota</div>
+        </div>
+        <div class="task-item" id="task6" onclick="focusTask(6)">
+            <div class="task-item-header"><span class="task-num">TASK 06</span><div class="task-check" id="check6">&#10003;</div></div>
+            <div class="task-item-name">Review Deleted Sites</div>
+            <div class="task-item-desc">Navigate to Deleted Sites and note which sites are available for restore</div>
+        </div>
+        <div class="task-item" id="task7" onclick="focusTask(7)">
+            <div class="task-item-header"><span class="task-num">TASK 07</span><div class="task-check" id="check7">&#10003;</div></div>
+            <div class="task-item-name">Search Active Sites</div>
+            <div class="task-item-desc">Use the search field on Active Sites to filter the site list</div>
+        </div>
+        <div class="task-item" id="task8" onclick="focusTask(8)">
+            <div class="task-item-header"><span class="task-num">TASK 08</span><div class="task-check" id="check8">&#10003;</div></div>
+            <div class="task-item-name">Inspect SharePoint Settings</div>
+            <div class="task-item-desc">Navigate to Settings and toggle the versioning option</div>
+        </div>
+        <div class="task-item" id="task9" onclick="focusTask(9)">
+            <div class="task-item-header"><span class="task-num">TASK 09</span><div class="task-check" id="check9">&#10003;</div></div>
+            <div class="task-item-name">Verify Site Count</div>
+            <div class="task-item-desc">Confirm the Total Sites counter increased after creating your team site</div>
+        </div>
+        <div class="task-item" id="task10" onclick="focusTask(10)">
+            <div class="task-item-header"><span class="task-num">TASK 10</span><div class="task-check" id="check10">&#10003;</div></div>
+            <div class="task-item-name">Search OneDrive Users</div>
+            <div class="task-item-desc">Use the search field in the Usage Reports view to locate a specific user</div>
+        </div>
+    </aside>
+
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="overlay" id="completionOverlay">
+    <div class="overlay-card">
+        <div class="overlay-title">Lab Complete</div>
+        <div class="overlay-msg">You completed all 10 SharePoint Admin Center tasks. You can now create sites, manage external sharing, configure storage quotas, and monitor OneDrive usage.</div>
+        <button class="overlay-btn" onclick="window.location.href='../index.html'">Return to Hub</button>
+    </div>
+</div>
+
+<script>
+    var STORAGE_KEY = 'ms102_ch06_sharepoint_progress';
+    var TOTAL_TASKS  = 10;
+    var completed    = {};
+
+    (function init() {
+        var saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) { try { completed = JSON.parse(saved); } catch(e) {} }
+        Object.keys(completed).forEach(function(n) { markDone(parseInt(n), true); });
+        updateProgress();
     })();
-    </script>
-    <script src="../../../../components/FluxCapacitor.js"></script>
+
+    var breadcrumbs = { sites:'Active Sites', deleted:'Deleted Sites', sharing:'Sharing', settings:'Settings', migration:'Usage Reports' };
+
+    function showPanel(name) {
+        document.querySelectorAll('.portal-content').forEach(function(el) { el.classList.remove('active'); });
+        document.querySelectorAll('.sidebar-item').forEach(function(el) { el.classList.remove('active'); });
+        document.getElementById('panel-' + name).classList.add('active');
+        document.getElementById('nav-' + name).classList.add('active');
+        document.getElementById('breadcrumbActive').textContent = breadcrumbs[name] || name;
+        /* Auto-complete navigation tasks */
+        if (name === 'deleted')   { markDone(6); }
+        if (name === 'migration') { markDone(5); }
+    }
+
+    function openNewSite() {
+        var f = document.getElementById('newSiteForm');
+        f.style.display = f.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function createSite() {
+        var name  = document.getElementById('siteNameInput').value.trim();
+        var addr  = document.getElementById('siteAddressInput').value.trim();
+        var owner = document.getElementById('siteOwnerInput').value.trim();
+        var quota = document.getElementById('siteQuota').value;
+        if (!name || !addr || !owner) { showToast('Fill in site name, address, and owner.'); return; }
+
+        var tbody = document.getElementById('sitesBody');
+        var tr = document.createElement('tr');
+        tr.setAttribute('data-type', 'team');
+        tr.innerHTML = '<td>' + sanitize(name) + '</td><td>/sites/' + sanitize(addr) + '</td><td><span class="badge badge-blue">Team Site</span></td><td>0 GB / ' + quota + ' GB</td><td>2026-04-21</td><td><button class="row-action">Edit Quota</button></td>';
+        tbody.insertBefore(tr, tbody.firstChild);
+
+        var cnt = document.getElementById('totalSites');
+        cnt.textContent = parseInt(cnt.textContent) + 1;
+
+        document.getElementById('newSiteForm').style.display = 'none';
+        document.getElementById('siteNameInput').value = '';
+        document.getElementById('siteAddressInput').value = '';
+        document.getElementById('siteOwnerInput').value = '';
+
+        showToast('Team site "' + name + '" created.');
+        markDone(1);
+        markDone(9);
+    }
+
+    function openQuota(siteName, currentQuota) {
+        document.getElementById('quotaSiteName').textContent = siteName;
+        document.getElementById('quotaValueInput').value = currentQuota;
+        document.getElementById('quotaForm').style.display = 'block';
+    }
+
+    function saveQuota() {
+        var val = parseInt(document.getElementById('quotaValueInput').value);
+        if (!val || val < 1) { showToast('Enter a valid quota in GB.'); return; }
+        document.getElementById('quotaForm').style.display = 'none';
+        showToast('Storage quota updated to ' + val + ' GB.');
+        markDone(4);
+    }
+
+    function saveSharingSettings() {
+        showToast('SharePoint external sharing settings saved.');
+        markDone(2);
+    }
+
+    function saveOneDriveSharing() {
+        showToast('OneDrive sharing settings saved.');
+        markDone(3);
+    }
+
+    function saveSettings() {
+        showToast('SharePoint settings saved.');
+    }
+
+    function filterSites(val) {
+        var rows = document.querySelectorAll('#sitesBody tr');
+        rows.forEach(function(row) {
+            row.style.display = row.textContent.toLowerCase().includes(val.toLowerCase()) ? '' : 'none';
+        });
+        if (val.length > 0) { markDone(7); }
+    }
+
+    function filterSiteType(val) {
+        var rows = document.querySelectorAll('#sitesBody tr');
+        rows.forEach(function(row) {
+            if (val === 'all') { row.style.display = ''; return; }
+            var type = row.getAttribute('data-type') || '';
+            row.style.display = type.includes(val) ? '' : 'none';
+        });
+        if (val !== 'all') { markDone(7); }
+    }
+
+    function focusTask(num) {
+        document.querySelectorAll('.task-item').forEach(function(el) { el.classList.remove('active'); });
+        document.getElementById('task' + num).classList.add('active');
+        var map = { 1:'sites', 2:'sharing', 3:'sharing', 4:'sites', 5:'migration', 6:'deleted', 7:'sites', 8:'settings', 9:'sites', 10:'migration' };
+        showPanel(map[num] || 'sites');
+    }
+
+    function markDone(num, silent) {
+        if (completed[num]) return;
+        completed[num] = true;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(completed));
+        var item  = document.getElementById('task' + num);
+        var check = document.getElementById('check' + num);
+        if (item)  { item.classList.add('done'); }
+        if (check) { check.style.background = 'var(--success)'; check.style.borderColor = 'var(--success)'; check.style.color = '#fff'; }
+        updateProgress();
+        if (!silent && Object.keys(completed).length === TOTAL_TASKS) {
+            setTimeout(function() {
+                document.getElementById('completionOverlay').classList.add('active');
+                if (typeof ModuleProgress !== 'undefined') {
+                    ModuleProgress.complete('cloud', 'ms102-ch06-lab', { returnUrl: '../index.html' });
+                }
+            }, 600);
+        }
+    }
+
+    function updateProgress() {
+        var count = Object.keys(completed).length;
+        document.getElementById('progressFill').style.width = (count / TOTAL_TASKS * 100) + '%';
+        document.getElementById('progressLabel').textContent = count + ' / ' + TOTAL_TASKS;
+    }
+
+    function showToast(msg) {
+        var t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('visible');
+        clearTimeout(t._timer);
+        t._timer = setTimeout(function() { t.classList.remove('visible'); }, 3500);
+    }
+
+    function sanitize(str) {
+        var div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+</script>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
 </body>
 </html>

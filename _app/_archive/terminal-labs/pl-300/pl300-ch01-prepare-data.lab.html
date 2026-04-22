@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prepare the Data Lab -- PL-300 Chapter 1</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { height: 100vh; overflow: hidden; background: #0c0c0c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #b3cef5; display: flex; flex-direction: column; }
+        .lab-header { flex-shrink: 0; padding: 15px 30px; background: rgba(10,12,20,0.95); border-bottom: 1px solid rgba(59,130,246,0.2); display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn { padding: 8px 16px; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; color: #3b82f6; text-decoration: none; font-size: 0.85rem; transition: all 0.3s ease; }
+        .back-btn:hover { background: rgba(59,130,246,0.2); }
+        .lab-title { font-size: 1rem; color: #dbeafe; }
+        .lab-badge { padding: 4px 12px; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); border-radius: 12px; font-size: 0.7rem; color: #60a5fa; letter-spacing: 0.05em; }
+        .lab-badge-ch { padding: 4px 12px; background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.3); border-radius: 12px; font-size: 0.7rem; color: #34d399; letter-spacing: 0.05em; }
+        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #6b82a0; }
+        .task-count { color: #3b82f6; font-weight: 500; }
+        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(59,130,246,0.15); border-radius: 3px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #1d4ed8); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
+        .lab-container { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
+        .task-panel { background: rgba(10,14,22,0.95); border-right: 1px solid rgba(59,130,246,0.15); overflow-y: auto; padding: 20px; }
+        .task-section { margin-bottom: 25px; }
+        .task-section-title { font-size: 0.68rem; color: #3b5278; letter-spacing: 0.15em; margin-bottom: 12px; text-transform: uppercase; }
+        .task-card { background: rgba(12,18,32,0.8); border: 1px solid rgba(59,130,246,0.15); border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s ease; }
+        .task-card:hover { border-color: rgba(59,130,246,0.4); }
+        .task-card.active { border-color: #3b82f6; background: rgba(59,130,246,0.1); }
+        .task-card.completed { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.04); }
+        .task-card.completed .task-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; font-weight: 400; }
+        .task-number { font-size: 0.68rem; color: #3b82f6; margin-bottom: 4px; }
+        .task-name { font-size: 0.9rem; color: #dbeafe; margin-bottom: 4px; }
+        .task-desc { font-size: 0.77rem; color: #6b82a0; line-height: 1.45; }
+        .task-desc code { background: rgba(59,130,246,0.15); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; color: #60a5fa; font-family: 'Consolas', monospace; }
+        .terminal-panel { display: flex; flex-direction: column; background: #0a0a0a; position: relative; overflow: hidden; }
+        .term-toolbar { flex-shrink: 0; padding: 8px 20px; background: rgba(12,18,28,0.9); border-bottom: 1px solid rgba(59,130,246,0.15); display: flex; align-items: center; gap: 12px; }
+        .term-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .term-dot-red { background: #ff5f57; } .term-dot-amber { background: #febc2e; } .term-dot-green { background: #28c840; }
+        .term-title { flex: 1; text-align: center; font-size: 0.8rem; color: #4a6080; font-family: 'Consolas', 'Courier New', monospace; }
+        .term-vm-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #34d399; }
+        .term-status-dot { width: 7px; height: 7px; background: #34d399; border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .term-output { flex: 1; overflow-y: auto; padding: 16px 360px 8px 20px; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.875rem; line-height: 1.6; }
+        .term-input-row { flex-shrink: 0; display: flex; align-items: center; padding: 8px 360px 12px 20px; border-top: 1px solid rgba(59,130,246,0.1); gap: 0; }
+        .term-prompt-label { font-family: 'Consolas', 'Courier New', monospace; font-size: 0.875rem; white-space: nowrap; flex-shrink: 0; }
+        .term-prompt-user { color: #3b82f6; } .term-prompt-sep { color: #3b5278; } .term-prompt-path { color: #34d399; } .term-prompt-dollar { color: #dbeafe; margin-right: 6px; }
+        .term-input { flex: 1; background: transparent; border: none; outline: none; color: #dbeafe; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.875rem; caret-color: #3b82f6; }
+        .term-line { white-space: pre-wrap; word-break: break-all; }
+        .term-line-cmd { color: #b3cef5; } .term-line-out { color: #a0d4a0; } .term-line-err { color: #f87171; }
+        .term-line-info { color: #60a5fa; } .term-line-warn { color: #fbbf24; } .term-line-dim { color: #374860; }
+        .term-welcome { color: #3b82f6; }
+        .term-prompt-span { color: #3b82f6; } .term-path-span { color: #34d399; } .term-ps1-sep { color: #3b5278; }
+        .json-key { color: #60a5fa; } .json-string { color: #86efac; } .json-number { color: #fbbf24; } .json-bool { color: #93c5fd; } .json-null { color: #f87171; }
+        .instructions-panel { position: absolute; top: 20px; right: 20px; width: 320px; background: rgba(10,16,28,0.97); border: 1px solid rgba(59,130,246,0.3); border-radius: 12px; padding: 20px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.4); transition: all 0.3s ease; }
+        .instructions-panel.collapsed { width: auto; padding: 10px 14px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-body { display: none; }
+        .instructions-panel.collapsed .instructions-toggle { transform: rotate(180deg); }
+        .instructions-title { font-size: 1rem; color: #3b82f6; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-title { margin-bottom: 0; font-size: 0.85rem; }
+        .instructions-toggle { margin-left: auto; width: 28px; height: 28px; background: rgba(59,130,246,0.2); border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; color: #3b82f6; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; flex-shrink: 0; }
+        .instructions-toggle:hover { background: rgba(59,130,246,0.4); }
+        .instructions-step { font-size: 0.88rem; color: #b3cef5; line-height: 1.65; margin-bottom: 14px; }
+        .instructions-step code { background: rgba(59,130,246,0.2); padding: 2px 7px; border-radius: 4px; font-family: 'Consolas', monospace; color: #60a5fa; font-size: 0.85em; }
+        .instructions-hint { font-size: 0.78rem; color: #3b5278; font-style: italic; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(59,130,246,0.15); line-height: 1.5; }
+        .hint-btn { margin-top: 12px; padding: 6px 12px; background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.25); border-radius: 5px; color: #3b82f6; font-size: 0.75rem; cursor: pointer; font-family: 'Segoe UI', sans-serif; transition: all 0.2s ease; width: 100%; text-align: center; }
+        .hint-btn:hover { background: rgba(59,130,246,0.22); }
+        .hint-command { display: none; margin-top: 10px; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(59,130,246,0.25); border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.78rem; color: #86efac; line-height: 1.55; white-space: pre-wrap; word-break: break-all; }
+        .hint-command.visible { display: block; }
+        .success-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 2000; }
+        .success-overlay.active { display: flex; }
+        .success-card { background: rgba(10,16,28,0.97); border: 1px solid rgba(52,211,153,0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .success-icon { margin-bottom: 20px; }
+        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
+        .success-message { color: #b3cef5; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
+        .success-btn { padding: 12px 30px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; transition: all 0.3s ease; }
+        .success-btn:hover { box-shadow: 0 5px 20px rgba(59,130,246,0.35); transform: translateY(-1px); }
+        @media (max-width: 1024px) { .lab-container { grid-template-columns: 1fr; } .task-panel { display: none; } .term-output, .term-input-row { padding-right: 20px; } .instructions-panel { position: absolute; bottom: 60px; top: auto; right: 10px; left: 10px; width: auto; } }
+    </style>
+</head>
+<body>
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Prepare the Data -- Power Query Editor</span>
+            <span class="lab-badge">PL-300</span>
+            <span class="lab-badge-ch">CH.1</span>
+        </div>
+        <div class="task-progress">
+            <span>Progress:</span>
+            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBarFill"></div></div>
+            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
+        </div>
+    </header>
+
+    <div class="lab-container">
+        <aside class="task-panel" id="taskPanel">
+            <div class="task-section">
+                <div class="task-section-title">Phase 1 -- Connect to Data</div>
+                <div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)"><div class="task-number">Task 1</div><div class="task-name">List Data Sources</div><div class="task-desc">Run <code>pq datasources list</code> to see available connections in the current Power BI project.</div></div>
+                <div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)"><div class="task-number">Task 2</div><div class="task-name">Connect to SQL Server</div><div class="task-desc">Use <code>pq connect --source sqlserver --server sales-db.contoso.com --database AdventureWorks</code> to import from SQL Server.</div></div>
+                <div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)"><div class="task-number">Task 3</div><div class="task-name">Import a CSV File</div><div class="task-desc">Run <code>pq connect --source csv --file /data/Products.csv</code> to load a flat file into the query editor.</div></div>
+            </div>
+            <div class="task-section">
+                <div class="task-section-title">Phase 2 -- Shape and Transform</div>
+                <div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)"><div class="task-number">Task 4</div><div class="task-name">Preview the Sales Table</div><div class="task-desc">Run <code>pq preview Sales</code> to inspect the first rows and column types of the Sales query.</div></div>
+                <div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)"><div class="task-number">Task 5</div><div class="task-name">Remove Unnecessary Columns</div><div class="task-desc">Use <code>pq transform Sales --remove-columns "TaxAmt,Freight,ModifiedDate"</code> to drop columns not needed for analysis.</div></div>
+                <div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)"><div class="task-number">Task 6</div><div class="task-name">Rename a Column</div><div class="task-desc">Run <code>pq transform Sales --rename "OrderDate=Order Date"</code> to apply a user-friendly name.</div></div>
+            </div>
+            <div class="task-section">
+                <div class="task-section-title">Phase 3 -- Clean the Data</div>
+                <div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)"><div class="task-number">Task 7</div><div class="task-name">Filter Out Nulls</div><div class="task-desc">Use <code>pq transform Products --filter "Category is not null"</code> to remove rows with missing categories.</div></div>
+                <div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)"><div class="task-number">Task 8</div><div class="task-name">Replace Error Values</div><div class="task-desc">Run <code>pq transform Sales --replace-errors "UnitPrice" --value 0</code> to replace error cells in the UnitPrice column.</div></div>
+                <div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)"><div class="task-number">Task 9</div><div class="task-name">Change Data Types</div><div class="task-desc">Run <code>pq transform Sales --set-type "OrderQty=Int64,UnitPrice=Decimal"</code> to enforce correct data types.</div></div>
+            </div>
+            <div class="task-section">
+                <div class="task-section-title">Phase 4 -- Apply and Load</div>
+                <div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)"><div class="task-number">Task 10</div><div class="task-name">Close and Apply</div><div class="task-desc">Run <code>pq apply</code> to close Power Query Editor and load all transformed queries into the data model.</div></div>
+            </div>
+        </aside>
+
+        <main class="terminal-panel" id="terminalPanel">
+            <div class="term-toolbar">
+                <div class="term-dot term-dot-red"></div><div class="term-dot term-dot-amber"></div><div class="term-dot term-dot-green"></div>
+                <div class="term-title">analyst@powerbi-lab -- Power Query CLI</div>
+                <div class="term-vm-status"><div class="term-status-dot"></div>Power Query Connected</div>
+            </div>
+            <div class="term-output" id="termOutput"></div>
+            <div class="term-input-row">
+                <span class="term-prompt-label"><span class="term-prompt-user">analyst@powerbi-lab</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span></span>
+                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
+            </div>
+            <div class="instructions-panel" id="instructionsPanel">
+                <div class="instructions-title" onclick="toggleInstructions()">
+                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+                    Task Instructions
+                    <button class="instructions-toggle" id="instructionsToggle" title="Collapse instructions">&#9660;</button>
+                </div>
+                <div class="instructions-body" id="instructionsBody">
+                    <div class="instructions-step" id="instructionsStep">Type the command in the terminal and press Enter.</div>
+                    <div class="instructions-hint" id="instructionsHint"><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block"> Hint text loads when you select a task.</div>
+                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
+                    <div class="hint-command" id="hintCommand"></div>
+                </div>
+            </div>
+            <div class="success-overlay" id="successOverlay">
+                <div class="success-card">
+                    <div class="success-icon"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:3rem;height:3rem;object-fit:contain"></div>
+                    <div class="success-title">PL-300 Chapter 1 Lab Complete!</div>
+                    <div class="success-message">You connected to SQL Server and CSV data sources, shaped queries by removing columns and renaming fields, cleaned data by filtering nulls, replacing errors, and enforcing types, then applied everything to the model. You now understand the Power Query Editor workflow.</div>
+                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+    (function () {
+        'use strict';
+        var USER = 'analyst', HOST = 'powerbi-lab', HOME = '/home/analyst';
+        var cwd = HOME, cmdHistory = [], histIdx = -1, currentTask = 1;
+        var taskDone = {1:false,2:false,3:false,4:false,5:false,6:false,7:false,8:false,9:false,10:false};
+        var TOTAL_TASKS = 10;
+
+        var outputEl, inputEl, ps1PathEl;
+        function addLine(t,c){var d=document.createElement('div');d.className='term-line'+(c?' '+c:'');d.textContent=t;outputEl.appendChild(d);outputEl.scrollTop=outputEl.scrollHeight;}
+        function addHTML(h,c){var d=document.createElement('div');d.className='term-line'+(c?' '+c:'');d.innerHTML=h;outputEl.appendChild(d);outputEl.scrollTop=outputEl.scrollHeight;}
+        function addBlank(){addLine('','');}
+        function addPromptLine(cmd){addHTML('<span class="term-prompt-span">'+USER+'@'+HOST+'</span><span class="term-ps1-sep">:</span><span class="term-path-span">~</span><span class="term-ps1-sep">$ </span>'+esc(cmd),'term-line-cmd');}
+        function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+        function printJSON(obj){var r=JSON.stringify(obj,null,2);var h=r.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"([^"]+)":/g,'<span class="json-key">"$1"</span>:').replace(/: "([^"]*)"/g,': <span class="json-string">"$1"</span>').replace(/: (true|false)/g,': <span class="json-bool">$1</span>').replace(/: null/g,': <span class="json-null">null</span>').replace(/: (-?\d+\.?\d*)/g,': <span class="json-number">$1</span>');h.split('\n').forEach(function(l){addHTML(l,'term-line-out');});}
+
+        var taskInstructions = {
+            1: {step:'Run <code>pq datasources list</code> to see what data connections are configured in this Power BI project.',hint:'pq datasources list'},
+            2: {step:'Run <code>pq connect --source sqlserver --server sales-db.contoso.com --database AdventureWorks</code> to connect to the SQL Server instance.',hint:'pq connect --source sqlserver --server sales-db.contoso.com --database AdventureWorks'},
+            3: {step:'Run <code>pq connect --source csv --file /data/Products.csv</code> to import a CSV flat file.',hint:'pq connect --source csv --file /data/Products.csv'},
+            4: {step:'Run <code>pq preview Sales</code> to inspect the Sales table structure and sample rows.',hint:'pq preview Sales'},
+            5: {step:'Run <code>pq transform Sales --remove-columns "TaxAmt,Freight,ModifiedDate"</code> to drop unneeded columns.',hint:'pq transform Sales --remove-columns "TaxAmt,Freight,ModifiedDate"'},
+            6: {step:'Run <code>pq transform Sales --rename "OrderDate=Order Date"</code> to rename the column.',hint:'pq transform Sales --rename "OrderDate=Order Date"'},
+            7: {step:'Run <code>pq transform Products --filter "Category is not null"</code> to remove null-category rows.',hint:'pq transform Products --filter "Category is not null"'},
+            8: {step:'Run <code>pq transform Sales --replace-errors "UnitPrice" --value 0</code> to fix error cells.',hint:'pq transform Sales --replace-errors "UnitPrice" --value 0'},
+            9: {step:'Run <code>pq transform Sales --set-type "OrderQty=Int64,UnitPrice=Decimal"</code> to set correct data types.',hint:'pq transform Sales --set-type "OrderQty=Int64,UnitPrice=Decimal"'},
+            10:{step:'Run <code>pq apply</code> to close Power Query Editor and load all queries into the data model.',hint:'pq apply'}
+        };
+
+        function selectTask(n){currentTask=n;document.querySelectorAll('.task-card').forEach(function(c){c.classList.remove('active');});var card=document.getElementById('task-card-'+n);if(card)card.classList.add('active');var info=taskInstructions[n];if(info){document.getElementById('instructionsStep').innerHTML=info.step;document.getElementById('hintCommand').textContent=info.hint;document.getElementById('hintCommand').classList.remove('visible');}}
+
+        function completeTask(n){if(taskDone[n])return;taskDone[n]=true;var card=document.getElementById('task-card-'+n);if(card)card.classList.add('completed');var done=Object.keys(taskDone).filter(function(k){return taskDone[k];}).length;document.getElementById('taskProgress').textContent=done+' / '+TOTAL_TASKS+' Tasks';document.getElementById('progressBarFill').style.width=(done/TOTAL_TASKS*100)+'%';if(done===TOTAL_TASKS){setTimeout(function(){document.getElementById('successOverlay').classList.add('active');},600);}}
+
+        function processCommand(raw){var cmd=raw.trim();if(!cmd)return;addPromptLine(cmd);cmdHistory.unshift(cmd);histIdx=-1;
+
+            if(cmd==='clear'){outputEl.innerHTML='';return;}
+            if(cmd==='help'){addLine('Available: pq datasources list, pq connect, pq preview, pq transform, pq apply, help, clear','term-line-info');return;}
+
+            if(cmd==='pq datasources list'){
+                printJSON([{name:"SQL Server - AdventureWorks",type:"SqlServer",status:"Not Connected",server:"sales-db.contoso.com"},{name:"CSV - Products",type:"FlatFile",status:"Not Connected",file:"/data/Products.csv"},{name:"Excel - Targets",type:"Excel",status:"Connected",file:"/data/SalesTargets.xlsx"}]);
+                addBlank();addLine('  3 data sources configured. 1 connected, 2 pending.','term-line-info');
+                completeTask(1);return;
+            }
+            if(cmd.indexOf('pq connect --source sqlserver')===0&&cmd.indexOf('sales-db.contoso.com')>=0&&cmd.indexOf('AdventureWorks')>=0){
+                addLine('Connecting to sales-db.contoso.com/AdventureWorks...','term-line-info');
+                addLine('  Authentication: Windows (Integrated)','term-line-dim');
+                addLine('  Tables discovered: Sales, Customers, Products, Dates, Regions','term-line-out');
+                addLine('  Connection established. 5 tables available in Navigator.','term-line-info');
+                completeTask(2);return;
+            }
+            if(cmd.indexOf('pq connect --source csv')===0&&cmd.indexOf('Products.csv')>=0){
+                addLine('Loading /data/Products.csv...','term-line-info');
+                addLine('  Delimiter: Comma | Encoding: UTF-8 | Header: First row','term-line-dim');
+                addLine('  248 rows loaded. Columns: ProductKey, ProductName, Category, SubCategory, Color, ListPrice','term-line-out');
+                addLine('  CSV imported successfully into query "Products".','term-line-info');
+                completeTask(3);return;
+            }
+            if(cmd==='pq preview Sales'){
+                addLine('  Query: Sales | Rows: 60,398 | Columns: 10','term-line-info');
+                addLine('  ---------------------------------------------------------------','term-line-dim');
+                addLine('  SalesOrderID  OrderDate   ProductKey  OrderQty  UnitPrice  TaxAmt  Freight  ModifiedDate  CustomerKey  TerritoryKey','term-line-dim');
+                addLine('  SO-71774      2024-06-01  310         1         2024.99    162.00  50.63   2024-06-15    11185        6','term-line-out');
+                addLine('  SO-71776      2024-06-01  214         3         28.84      6.92    2.16    2024-06-15    20124        4','term-line-out');
+                addLine('  SO-71780      2024-06-01  477         1         [Error]    0.00    0.00    2024-06-15    18916        1','term-line-out');
+                addLine('  SO-71782      2024-06-02  321         2         5.70       0.91    0.28    2024-06-16    14573        4','term-line-out');
+                addLine('  SO-71783      2024-06-02  195         1         1431.50    114.52  35.79   2024-06-16    21803        6','term-line-out');
+                addLine('  ... (60,393 more rows)','term-line-dim');
+                addLine('  Column types: SalesOrderID(Text), OrderDate(Date), ProductKey(Int64), OrderQty(Int64), UnitPrice(Decimal), TaxAmt(Decimal), Freight(Decimal), ModifiedDate(Date), CustomerKey(Int64), TerritoryKey(Int64)','term-line-info');
+                completeTask(4);return;
+            }
+            if(cmd.indexOf('pq transform Sales --remove-columns')===0&&cmd.indexOf('TaxAmt')>=0&&cmd.indexOf('Freight')>=0){
+                addLine('  Removed 3 columns from Sales: TaxAmt, Freight, ModifiedDate','term-line-out');
+                addLine('  Remaining columns: SalesOrderID, OrderDate, ProductKey, OrderQty, UnitPrice, CustomerKey, TerritoryKey','term-line-info');
+                addLine('  Applied step: "Removed Columns" added to Sales query.','term-line-info');
+                completeTask(5);return;
+            }
+            if(cmd.indexOf('pq transform Sales --rename')===0&&cmd.indexOf('OrderDate')>=0&&cmd.indexOf('Order Date')>=0){
+                addLine('  Renamed: OrderDate -> Order Date','term-line-out');
+                addLine('  Applied step: "Renamed Columns" added to Sales query.','term-line-info');
+                completeTask(6);return;
+            }
+            if(cmd.indexOf('pq transform Products --filter')===0&&cmd.indexOf('Category')>=0&&cmd.indexOf('not null')>=0){
+                addLine('  Filtered Products: removed 12 rows where Category was null.','term-line-out');
+                addLine('  Products now has 236 rows (was 248).','term-line-info');
+                addLine('  Applied step: "Filtered Rows" added to Products query.','term-line-info');
+                completeTask(7);return;
+            }
+            if(cmd.indexOf('pq transform Sales --replace-errors')===0&&cmd.indexOf('UnitPrice')>=0){
+                addLine('  Replaced 47 error values in UnitPrice with 0.','term-line-out');
+                addLine('  Applied step: "Replaced Errors" added to Sales query.','term-line-info');
+                completeTask(8);return;
+            }
+            if(cmd.indexOf('pq transform Sales --set-type')===0&&cmd.indexOf('OrderQty')>=0&&cmd.indexOf('Int64')>=0){
+                addLine('  Set types: OrderQty -> Int64, UnitPrice -> Decimal Number','term-line-out');
+                addLine('  0 type conversion errors detected.','term-line-info');
+                addLine('  Applied step: "Changed Type" added to Sales query.','term-line-info');
+                completeTask(9);return;
+            }
+            if(cmd==='pq apply'){
+                addLine('Closing Power Query Editor...','term-line-info');
+                addLine('  Loading Sales (60,398 rows, 5 applied steps)...','term-line-dim');
+                addLine('  Loading Products (236 rows, 1 applied step)...','term-line-dim');
+                addLine('  Loading Customers (18,484 rows)...','term-line-dim');
+                addLine('  Loading Dates (1,461 rows)...','term-line-dim');
+                addLine('  All queries loaded into the data model successfully.','term-line-out');
+                addLine('  Close & Apply complete. Model ready for relationships and DAX.','term-line-info');
+                completeTask(10);return;
+            }
+
+            addLine('Command not recognized: '+cmd.split(/\s+/)[0]+'. Type "help" for available commands.','term-line-err');
+        }
+
+        window.selectTask=selectTask;
+        window.toggleInstructions=function(){document.getElementById('instructionsPanel').classList.toggle('collapsed');};
+        window.revealHint=function(){document.getElementById('hintCommand').classList.toggle('visible');};
+        window.finishLab=function(){if(typeof ModuleProgress!=='undefined'){ModuleProgress.complete('cloud','pl300-ch01-lab',{returnUrl:'../index.html'});}else{window.location.href='../index.html';}};
+
+        document.addEventListener('DOMContentLoaded',function(){
+            outputEl=document.getElementById('termOutput');inputEl=document.getElementById('termInput');ps1PathEl=document.getElementById('termPS1Path');
+            addLine('Power Query CLI v3.1.0 -- Connected to Power BI Desktop','term-welcome');
+            addLine('Type "help" to see available commands.','term-line-dim');addBlank();
+            selectTask(1);
+            inputEl.addEventListener('keydown',function(e){
+                if(e.key==='Enter'){e.preventDefault();processCommand(inputEl.value);inputEl.value='';}
+                else if(e.key==='ArrowUp'){e.preventDefault();if(histIdx<cmdHistory.length-1){histIdx++;inputEl.value=cmdHistory[histIdx];}}
+                else if(e.key==='ArrowDown'){e.preventDefault();if(histIdx>0){histIdx--;inputEl.value=cmdHistory[histIdx];}else{histIdx=-1;inputEl.value='';}}
+            });
+            inputEl.focus();
+        });
+    })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
