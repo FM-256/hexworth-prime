@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Auth -->
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital &amp; Analog Input Lab | ProtoCore Arduino Core 5</title>
+    <style>
+        :root {
+            --blue: #0088ff;
+            --blue-dim: rgba(0,136,255,0.15);
+            --blue-border: rgba(0,136,255,0.3);
+            --green: #34d399;
+            --green-dim: rgba(52,211,153,0.1);
+            --green-border: rgba(52,211,153,0.3);
+            --gold: #ffd700;
+            --gold-dim: rgba(255,215,0,0.1);
+            --gold-border: rgba(255,215,0,0.3);
+            --red: #ef4444;
+            --bg: #040810;
+            --bg2: #081020;
+            --bg3: #0c1628;
+            --text: #dbeafe;
+            --text2: #6b82a0;
+            --border: rgba(0,136,255,0.12);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* ---- top bar ---- */
+        .topbar { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .topbar-left { display: flex; align-items: center; gap: 14px; }
+        .back-btn { padding: 6px 14px; background: var(--blue-dim); border: 1px solid var(--blue-border); border-radius: 6px; color: var(--blue); text-decoration: none; font-size: 0.82rem; transition: background 0.2s; }
+        .back-btn:hover { background: rgba(0,136,255,0.25); }
+        .lab-title { font-size: 0.95rem; color: var(--text); }
+        .badge { padding: 3px 10px; border-radius: 10px; font-size: 0.68rem; letter-spacing: 0.06em; }
+        .badge-blue { background: var(--blue-dim); border: 1px solid var(--blue-border); color: var(--blue); }
+        .badge-gold { background: var(--gold-dim); border: 1px solid var(--gold-border); color: var(--gold); }
+        .topbar-right { display: flex; align-items: center; gap: 14px; font-size: 0.82rem; color: var(--text2); }
+        .prog-wrap { width: 130px; height: 5px; background: rgba(0,136,255,0.12); border-radius: 3px; overflow: hidden; }
+        .prog-fill { height: 100%; background: linear-gradient(90deg, var(--blue), #0055cc); border-radius: 3px; transition: width 0.4s ease; }
+        .prog-label { color: var(--blue); font-weight: 500; }
+
+        /* ---- main layout ---- */
+        .workspace { display: grid; grid-template-columns: 1fr 320px; flex: 1; min-height: 0; }
+
+        /* ---- sim panel (left) ---- */
+        .sim-panel { display: flex; flex-direction: column; overflow: hidden; }
+
+        /* toolbar */
+        .sim-toolbar { flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: var(--bg2); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+        .tb-btn { padding: 5px 14px; background: var(--blue-dim); border: 1px solid var(--blue-border); border-radius: 5px; color: var(--blue); font-size: 0.82rem; cursor: pointer; transition: background 0.2s; white-space: nowrap; font-weight: 600; }
+        .tb-btn:hover:not(:disabled) { background: rgba(0,136,255,0.25); }
+        .tb-btn:disabled { opacity: 0.35; cursor: default; }
+        .tb-btn.run { background: rgba(52,211,153,0.12); border-color: var(--green-border); color: var(--green); }
+        .tb-btn.run:hover:not(:disabled) { background: rgba(52,211,153,0.22); }
+        .toolbar-sep { width: 1px; height: 18px; background: var(--border); }
+
+        /* hardware sim row */
+        .hw-sim-row { flex-shrink: 0; display: flex; align-items: center; gap: 20px; padding: 10px 16px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .hw-group { display: flex; align-items: center; gap: 8px; }
+        .hw-label { font-size: 0.72rem; color: var(--text2); text-transform: uppercase; letter-spacing: 0.06em; }
+        .hw-btn { width: 50px; height: 30px; background: rgba(239,68,68,0.1); border: 2px solid rgba(239,68,68,0.4); border-radius: 6px; cursor: pointer; font-size: 0.72rem; color: #f87171; font-weight: 700; transition: all 0.15s; }
+        .hw-btn.pressed { background: rgba(52,211,153,0.2); border-color: var(--green); color: var(--green); }
+        .hw-slider { width: 140px; height: 6px; -webkit-appearance: none; appearance: none; background: rgba(0,136,255,0.2); border-radius: 3px; outline: none; }
+        .hw-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; background: var(--gold); border-radius: 50%; cursor: pointer; }
+        .hw-slider::-moz-range-thumb { width: 16px; height: 16px; background: var(--gold); border-radius: 50%; cursor: pointer; border: none; }
+        .hw-value { font-family: 'Consolas', monospace; font-size: 0.82rem; color: var(--gold); min-width: 40px; }
+
+        /* code editor area */
+        .code-area { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+        .code-editor-wrap { flex: 1; display: flex; overflow: hidden; }
+        .line-numbers { background: var(--bg2); color: #475569; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.82rem; padding: 12px 8px 12px 12px; text-align: right; line-height: 1.7; user-select: none; overflow: hidden; min-width: 38px; border-right: 1px solid var(--border); }
+        .code-editor { flex: 1; background: var(--bg3); color: #e2e8f0; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.82rem; padding: 12px 14px; border: none; outline: none; resize: none; line-height: 1.7; tab-size: 2; overflow: auto; white-space: pre; }
+        .code-editor::placeholder { color: #384860; }
+
+        /* output panel */
+        .output-panel { flex-shrink: 0; height: 60px; background: rgba(0,0,0,0.4); border-top: 1px solid var(--border); overflow-y: auto; padding: 8px 14px; font-family: 'Consolas', monospace; font-size: 0.75rem; color: var(--text2); line-height: 1.5; }
+        .output-panel .out-ok { color: var(--green); }
+        .output-panel .out-err { color: #f87171; }
+        .output-panel .out-info { color: var(--blue); }
+
+        /* serial monitor */
+        .serial-panel { flex-shrink: 0; border-top: 1px solid var(--border); display: flex; flex-direction: column; }
+        .serial-header { display: flex; align-items: center; gap: 10px; padding: 6px 14px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .serial-header span { font-size: 0.72rem; color: var(--text2); letter-spacing: 0.08em; text-transform: uppercase; }
+        .serial-baud { font-size: 0.75rem; color: var(--gold); }
+        .serial-output { height: 100px; overflow-y: auto; padding: 8px 14px; font-family: 'Consolas', monospace; font-size: 0.78rem; color: var(--green); background: rgba(0,0,0,0.3); line-height: 1.5; }
+
+        /* ---- task panel (right) ---- */
+        .task-panel { background: var(--bg2); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+        .panel-header { padding: 12px 16px; font-size: 0.7rem; color: var(--text2); letter-spacing: 0.12em; text-transform: uppercase; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .task-list { flex: 1; overflow-y: auto; padding: 12px; }
+        .task-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 9px; padding: 12px 14px; margin-bottom: 8px; transition: all 0.2s; }
+        .task-card.active { border-color: var(--blue); background: rgba(0,136,255,0.06); }
+        .task-card.done { border-color: var(--green-border); background: var(--green-dim); }
+        .task-num { font-size: 0.67rem; color: var(--blue); margin-bottom: 3px; }
+        .task-name { font-size: 0.88rem; color: var(--text); margin-bottom: 3px; display: flex; align-items: center; gap: 6px; }
+        .task-name .chk { font-size: 0.75rem; color: var(--green); margin-left: auto; display: none; }
+        .task-desc { font-size: 0.77rem; color: var(--text2); line-height: 1.45; }
+
+        /* ---- finish overlay ---- */
+        .finish-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 9000; }
+        .finish-overlay.active { display: flex; }
+        .finish-card { background: var(--bg2); border: 1px solid var(--green-border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .finish-title { font-size: 1.5rem; color: var(--gold); margin-bottom: 10px; }
+        .finish-msg { color: var(--text2); font-size: 0.95rem; margin-bottom: 24px; line-height: 1.6; }
+        .finish-btn { padding: 11px 28px; background: linear-gradient(135deg, var(--blue), #0055cc); border: none; border-radius: 8px; color: #fff; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; }
+        .finish-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <header class="topbar">
+        <div class="topbar-left">
+            <a href="../../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Digital &amp; Analog Input Lab</span>
+            <span class="badge badge-blue">ProtoCore</span>
+            <span class="badge badge-gold">Core 5</span>
+        </div>
+        <div class="topbar-right">
+            <span>Tasks:</span>
+            <div class="prog-wrap"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+            <span class="prog-label" id="progLabel">0 / 10</span>
+        </div>
+    </header>
+
+    <div class="workspace">
+
+        <!-- LEFT: simulated IDE + hardware -->
+        <div class="sim-panel">
+            <div class="sim-toolbar">
+                <button class="tb-btn run" id="btnRun" onclick="doRun()">Run Sketch</button>
+                <button class="tb-btn" id="btnReset" onclick="doReset()">Reset</button>
+            </div>
+
+            <!-- Simulated hardware inputs -->
+            <div class="hw-sim-row">
+                <div class="hw-group">
+                    <span class="hw-label">Button (Pin 2):</span>
+                    <button class="hw-btn" id="hwBtn" onmousedown="btnDown()" onmouseup="btnUp()" ontouchstart="btnDown()" ontouchend="btnUp()">OFF</button>
+                </div>
+                <div class="hw-group">
+                    <span class="hw-label">Pot (A0):</span>
+                    <input type="range" class="hw-slider" id="hwPot" min="0" max="1023" value="512" oninput="potChange()">
+                    <span class="hw-value" id="potValue">512</span>
+                </div>
+                <div class="hw-group">
+                    <span class="hw-label">Sensor (A1):</span>
+                    <input type="range" class="hw-slider" id="hwSensor" min="0" max="1023" value="200" oninput="sensorChange()">
+                    <span class="hw-value" id="sensorValue">200</span>
+                </div>
+            </div>
+
+            <div class="code-area">
+                <div class="code-editor-wrap">
+                    <div class="line-numbers" id="lineNums">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15</div>
+                    <textarea class="code-editor" id="codeEditor" spellcheck="false" placeholder="// Write your digital/analog input sketch here..."></textarea>
+                </div>
+            </div>
+
+            <div class="output-panel" id="outputPanel">
+                <div class="out-info">Digital &amp; Analog Input Lab -- Ready</div>
+            </div>
+
+            <div class="serial-panel">
+                <div class="serial-header">
+                    <span>Serial Monitor</span>
+                    <span class="serial-baud">9600 baud</span>
+                </div>
+                <div class="serial-output" id="serialOutput"></div>
+            </div>
+        </div>
+
+        <!-- RIGHT: task panel -->
+        <aside class="task-panel">
+            <div class="panel-header">Lab Tasks</div>
+            <div class="task-list" id="taskList"></div>
+        </aside>
+    </div>
+
+    <!-- finish overlay -->
+    <div class="finish-overlay" id="finishOverlay">
+        <div class="finish-card">
+            <div class="finish-title">Input Mastery</div>
+            <div class="finish-msg">You have read digital buttons, debounced presses, measured press duration, read analog values, mapped ranges, set threshold alarms, calculated voltage dividers, read multiple channels, implemented hysteresis, and built a calibrated sensor reader. Your Arduino can now sense the world.</div>
+            <button class="finish-btn" onclick="finishLab()">Return to ProtoCore Hub</button>
+        </div>
+    </div>
+
+<script>
+(function () {
+    'use strict';
+
+    /* ---- task definitions ---- */
+    var TASKS = [
+        { id: 1, name: 'digitalRead a Button', desc: 'Write a sketch using digitalRead(2) with INPUT_PULLUP. Press the simulated button and verify it prints the state.' },
+        { id: 2, name: 'Debounce Implementation', desc: 'Add millis()-based debouncing to your button read. Press the button -- only one "pressed" message should appear per press.' },
+        { id: 3, name: 'Long-Press Timer', desc: 'Detect short press vs long press (> 1 second). Press and hold the button to trigger each.' },
+        { id: 4, name: 'analogRead a Pot', desc: 'Read the potentiometer on A0 using analogRead(). Print the raw value (0-1023). Move the slider to verify.' },
+        { id: 5, name: 'Map to Percentage', desc: 'Use map() to convert the A0 reading (0-1023) to a percentage (0-100). Print both raw and mapped values.' },
+        { id: 6, name: 'Threshold Alarm', desc: 'Set A1 sensor above 700 to trigger an alarm message. Move the sensor slider and verify the alarm fires.' },
+        { id: 7, name: 'Voltage Divider Calculation', desc: 'Write code that converts an A0 reading to a battery voltage using a voltage divider formula. Print the calculated voltage.' },
+        { id: 8, name: 'Multi-Channel Read', desc: 'Read both A0 and A1 and print them as CSV on one line. Move both sliders and verify both values update.' },
+        { id: 9, name: 'Hysteresis Logic', desc: 'Implement hysteresis: alarm ON above 700, alarm OFF below 400. Move the sensor slider through the dead zone and verify stable switching.' },
+        { id: 10, name: 'Calibrated Sensor Reader', desc: 'Build a complete sensor reader: read A0, constrain to 100-900, map to 0-100%, apply hysteresis threshold, print calibrated output.' }
+    ];
+
+    /* ---- state ---- */
+    var completedTasks = {};
+    var sketchRunning = false;
+    var loopInterval = null;
+    var activeTaskId = 1;
+    var btnPressed = false;
+    var btnPressStart = 0;
+    var potVal = 512;
+    var sensorVal = 200;
+    var lastBtnState = false;
+    var lastDebounceTime = 0;
+    var debouncedState = false;
+    var alarmState = false;
+    var loopCount = 0;
+
+    /* ---- init ---- */
+    function init() {
+        buildTaskList();
+        updateProgress();
+        highlightTask(1);
+        var editor = document.getElementById('codeEditor');
+        editor.addEventListener('input', updateLineNumbers);
+        editor.addEventListener('scroll', syncScroll);
+        updateLineNumbers();
+    }
+
+    /* ---- task list builder ---- */
+    function buildTaskList() {
+        var list = document.getElementById('taskList');
+        TASKS.forEach(function(t) {
+            var card = document.createElement('div');
+            card.className = 'task-card';
+            card.id = 'tc-' + t.id;
+            card.innerHTML = '<div class="task-num">Task ' + t.id + '</div><div class="task-name">' + t.name + '<span class="chk" id="ck-' + t.id + '">Done</span></div><div class="task-desc">' + t.desc + '</div>';
+            list.appendChild(card);
+        });
+    }
+
+    /* ---- progress ---- */
+    function updateProgress() {
+        var count = Object.keys(completedTasks).length;
+        var pct = (count / TASKS.length) * 100;
+        document.getElementById('progFill').style.width = pct + '%';
+        document.getElementById('progLabel').textContent = count + ' / ' + TASKS.length;
+    }
+
+    function completeTask(id) {
+        if (completedTasks[id]) return;
+        completedTasks[id] = true;
+        var card = document.getElementById('tc-' + id);
+        if (card) card.className = 'task-card done';
+        var chk = document.getElementById('ck-' + id);
+        if (chk) chk.style.display = 'inline';
+        updateProgress();
+
+        var next = TASKS.find(function(t) { return !completedTasks[t.id]; });
+        if (next) {
+            highlightTask(next.id);
+        }
+
+        if (Object.keys(completedTasks).length === TASKS.length) {
+            setTimeout(function() {
+                document.getElementById('finishOverlay').classList.add('active');
+            }, 600);
+        }
+    }
+
+    function highlightTask(id) {
+        activeTaskId = id;
+        TASKS.forEach(function(t) {
+            var card = document.getElementById('tc-' + t.id);
+            if (card && !completedTasks[t.id]) {
+                card.className = (t.id === id) ? 'task-card active' : 'task-card';
+            }
+        });
+    }
+
+    /* ---- line numbers ---- */
+    function updateLineNumbers() {
+        var editor = document.getElementById('codeEditor');
+        var lines = editor.value.split('\n').length;
+        if (lines < 15) lines = 15;
+        var nums = '';
+        for (var i = 1; i <= lines; i++) {
+            nums += i + '\n';
+        }
+        document.getElementById('lineNums').textContent = nums;
+    }
+
+    function syncScroll() {
+        var editor = document.getElementById('codeEditor');
+        document.getElementById('lineNums').scrollTop = editor.scrollTop;
+    }
+
+    /* ---- output panel ---- */
+    function addOutput(msg, cls) {
+        var panel = document.getElementById('outputPanel');
+        var div = document.createElement('div');
+        div.className = cls || '';
+        div.textContent = msg;
+        panel.appendChild(div);
+        panel.scrollTop = panel.scrollHeight;
+    }
+
+    function clearOutput() {
+        document.getElementById('outputPanel').innerHTML = '';
+    }
+
+    /* ---- serial monitor ---- */
+    function addSerialLine(msg) {
+        var panel = document.getElementById('serialOutput');
+        var div = document.createElement('div');
+        div.textContent = msg;
+        div.style.animation = 'fadeIn 0.3s ease';
+        panel.appendChild(div);
+        panel.scrollTop = panel.scrollHeight;
+        /* Keep buffer reasonable */
+        while (panel.children.length > 100) {
+            panel.removeChild(panel.firstChild);
+        }
+    }
+
+    function clearSerial() {
+        document.getElementById('serialOutput').innerHTML = '';
+    }
+
+    /* ---- code analysis ---- */
+    function getCode() {
+        return document.getElementById('codeEditor').value;
+    }
+
+    function codeHas(pattern) {
+        return pattern.test(getCode());
+    }
+
+    /* ---- Hardware sim handlers ---- */
+    window.btnDown = function() {
+        btnPressed = true;
+        btnPressStart = Date.now();
+        var btn = document.getElementById('hwBtn');
+        btn.textContent = 'ON';
+        btn.classList.add('pressed');
+    };
+
+    window.btnUp = function() {
+        var duration = Date.now() - btnPressStart;
+        btnPressed = false;
+        var btn = document.getElementById('hwBtn');
+        btn.textContent = 'OFF';
+        btn.classList.remove('pressed');
+
+        if (sketchRunning) {
+            /* Task 3: long press detection */
+            if (codeHas(/millis\s*\(\s*\)/) && (codeHas(/long/i) || codeHas(/duration/) || codeHas(/1000/)) && !completedTasks[3]) {
+                if (duration > 1000) {
+                    addSerialLine('LONG press (' + duration + 'ms)');
+                    completeTask(3);
+                } else {
+                    addSerialLine('Short press (' + duration + 'ms)');
+                }
+            }
+        }
+    };
+
+    window.potChange = function() {
+        potVal = parseInt(document.getElementById('hwPot').value, 10);
+        document.getElementById('potValue').textContent = potVal;
+    };
+
+    window.sensorChange = function() {
+        sensorVal = parseInt(document.getElementById('hwSensor').value, 10);
+        document.getElementById('sensorValue').textContent = sensorVal;
+    };
+
+    /* ---- Run sketch ---- */
+    window.doRun = function() {
+        if (loopInterval) { clearInterval(loopInterval); loopInterval = null; }
+        sketchRunning = false;
+        loopCount = 0;
+        alarmState = false;
+        clearOutput();
+        clearSerial();
+
+        var code = getCode().trim();
+        if (!code) {
+            addOutput('Error: Sketch is empty.', 'out-err');
+            return;
+        }
+
+        if (!codeHas(/void\s+setup\s*\(\s*\)/)) {
+            addOutput('Error: Missing setup() function.', 'out-err');
+            return;
+        }
+        if (!codeHas(/void\s+loop\s*\(\s*\)/)) {
+            addOutput('Error: Missing loop() function.', 'out-err');
+            return;
+        }
+
+        addOutput('Compiling...', 'out-info');
+        setTimeout(function() {
+            addOutput('Compilation successful.', 'out-ok');
+            addOutput('Running sketch...', 'out-ok');
+            sketchRunning = true;
+            startLoop();
+        }, 500);
+    };
+
+    /* ---- Simulated loop() ---- */
+    function startLoop() {
+        var code = getCode();
+        var hasDigitalRead = codeHas(/digitalRead\s*\(\s*2\s*\)/);
+        var hasAnalogRead = codeHas(/analogRead\s*\(\s*A0\s*\)/);
+        var hasAnalogRead1 = codeHas(/analogRead\s*\(\s*A1\s*\)/);
+        var hasMap = codeHas(/map\s*\(/);
+        var hasConstrain = codeHas(/constrain\s*\(/);
+        var hasPullup = codeHas(/INPUT_PULLUP/);
+        var hasDebounce = codeHas(/millis\s*\(\s*\)/) && codeHas(/lastDebounce|debounce/i);
+        var hasThreshold = codeHas(/>\s*700/) || codeHas(/>=\s*700/);
+        var hasHysteresis = (codeHas(/>\s*700/) || codeHas(/>=\s*700/)) && (codeHas(/<\s*400/) || codeHas(/<=\s*400/));
+        var hasVoltage = codeHas(/5\.0/) || codeHas(/1023\.0/) || codeHas(/voltage/i);
+        var btnPressCount = 0;
+
+        loopInterval = setInterval(function() {
+            if (!sketchRunning) return;
+            loopCount++;
+
+            /* Task 1: digitalRead button */
+            if (hasDigitalRead && hasPullup && !completedTasks[1]) {
+                var state = btnPressed ? 'LOW (pressed)' : 'HIGH (released)';
+                addSerialLine('Pin 2: ' + state);
+                if (btnPressed) {
+                    btnPressCount++;
+                    if (btnPressCount >= 2) completeTask(1);
+                }
+            }
+
+            /* Task 2: Debounce */
+            if (hasDebounce && hasDigitalRead && !completedTasks[2]) {
+                var now = Date.now();
+                if (btnPressed !== lastBtnState) {
+                    lastDebounceTime = now;
+                }
+                if ((now - lastDebounceTime) > 50) {
+                    if (btnPressed !== debouncedState) {
+                        debouncedState = btnPressed;
+                        if (debouncedState) {
+                            addSerialLine('Debounced: PRESSED');
+                            completeTask(2);
+                        }
+                    }
+                }
+                lastBtnState = btnPressed;
+            }
+
+            /* Task 4: analogRead pot */
+            if (hasAnalogRead && !completedTasks[4]) {
+                addSerialLine('A0 raw: ' + potVal);
+                if (potVal !== 512) completeTask(4);
+            }
+
+            /* Task 5: map to percentage */
+            if (hasAnalogRead && hasMap && !completedTasks[5]) {
+                var pct = Math.round((potVal / 1023) * 100);
+                addSerialLine('A0: ' + potVal + ' -> ' + pct + '%');
+                if (potVal !== 512) completeTask(5);
+            }
+
+            /* Task 6: threshold alarm */
+            if (hasAnalogRead1 && hasThreshold && !completedTasks[6]) {
+                if (sensorVal > 700) {
+                    addSerialLine('ALARM: A1 = ' + sensorVal + ' (above threshold)');
+                    completeTask(6);
+                } else {
+                    addSerialLine('A1: ' + sensorVal + ' (normal)');
+                }
+            }
+
+            /* Task 7: voltage divider */
+            if (hasAnalogRead && hasVoltage && !completedTasks[7]) {
+                var voltage = (potVal * 5.0 / 1023.0).toFixed(3);
+                addSerialLine('Voltage: ' + voltage + 'V (raw: ' + potVal + ')');
+                if (potVal !== 512) completeTask(7);
+            }
+
+            /* Task 8: multi-channel */
+            if (hasAnalogRead && hasAnalogRead1 && !completedTasks[8]) {
+                addSerialLine(potVal + ',' + sensorVal);
+                if (potVal !== 512 && sensorVal !== 200) completeTask(8);
+            }
+
+            /* Task 9: hysteresis */
+            if (hasHysteresis && !completedTasks[9]) {
+                var prevAlarm = alarmState;
+                if (!alarmState && sensorVal > 700) {
+                    alarmState = true;
+                    addSerialLine('HYSTERESIS: Alarm ON (sensor=' + sensorVal + ')');
+                }
+                if (alarmState && sensorVal < 400) {
+                    alarmState = false;
+                    addSerialLine('HYSTERESIS: Alarm OFF (sensor=' + sensorVal + ')');
+                }
+                if (!alarmState && !prevAlarm && sensorVal >= 400 && sensorVal <= 700) {
+                    addSerialLine('Dead zone: sensor=' + sensorVal + ' (no change)');
+                }
+                if (alarmState !== prevAlarm && loopCount > 5) {
+                    completeTask(9);
+                }
+            }
+
+            /* Task 10: calibrated reader */
+            if (hasAnalogRead && hasConstrain && hasMap && hasHysteresis && !completedTasks[10]) {
+                var clamped = Math.max(100, Math.min(900, potVal));
+                var calPct = Math.round(((clamped - 100) / 800) * 100);
+                var status = alarmState ? 'ALERT' : 'OK';
+                addSerialLine('Cal: ' + calPct + '% [' + status + '] (raw=' + potVal + ')');
+                if (potVal !== 512 && loopCount > 8) completeTask(10);
+            }
+
+        }, 500);
+    }
+
+    /* ---- Reset ---- */
+    window.doReset = function() {
+        if (loopInterval) { clearInterval(loopInterval); loopInterval = null; }
+        sketchRunning = false;
+        loopCount = 0;
+        alarmState = false;
+        clearOutput();
+        clearSerial();
+        addOutput('Board reset.', 'out-info');
+    };
+
+    /* ---- finish lab ---- */
+    window.finishLab = function() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-ard-05-lab', { returnUrl: '../../index.html' });
+        } else {
+            window.location.href = '../../index.html';
+        }
+    };
+
+    document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>

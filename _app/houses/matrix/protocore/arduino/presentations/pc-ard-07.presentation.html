@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LEDs &amp; Visual Output | ProtoCore Arduino Core 7</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #040810 0%, #081020 50%, #0a0c1a 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Electric blue progress bar -- ProtoCore color */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #0088ff; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(4, 8, 16, 0.95);
+            border-top: 1px solid rgba(0, 136, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(0, 136, 255, 0.15); color: #0088ff; border-color: #0088ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #0088ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ffd700; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip */
+        .scenario-strip {
+            background: rgba(0, 136, 255, 0.08); border-left: 3px solid #0088ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(0, 136, 255, 0.08); border: 1px solid rgba(0, 136, 255, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ffd700; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #0088ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #ffd700; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #0088ff; }
+
+        /* Section label */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #0088ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Inline code */
+        .ic {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* SVG diagram containers */
+        .diagram-row {
+            display: flex; gap: 16px; align-items: center; justify-content: center;
+        }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        /* Step-by-step flow list */
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(0, 136, 255, 0.12); border: 1px solid rgba(0, 136, 255, 0.4);
+            color: #0088ff; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        /* Code block */
+        .code-block {
+            background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #ffd700; line-height: 1.6; white-space: pre;
+        }
+        .code-block .cm { color: #64748b; }
+        .code-block .kw { color: #5cb8ff; }
+        .code-block .fn { color: #ffd700; }
+        .code-block .st { color: #86efac; }
+        .code-block .nu { color: #fdba74; }
+
+        /* Two-column code compare */
+        .code-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .code-panel-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.07em; margin-bottom: 5px; }
+
+        /* Hex grid cells */
+        .hex-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(0, 136, 255, 0.25);
+            border-radius: 8px; padding: 12px 14px;
+            text-align: center;
+            opacity: 0;
+            animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #0088ff; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        /* Shared animation keyframes */
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes flow {
+            0%   { stroke-dashoffset: 20; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes boxGrow {
+            from { opacity: 0; transform: scale(0.7); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes entityPop {
+            from { opacity: 0; transform: scale(0.6) translateY(6px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes blink-led {
+            0%, 49% { fill: #ffd700; filter: drop-shadow(0 0 6px #ffd700); }
+            50%, 100% { fill: #3a3a00; filter: none; }
+        }
+        @keyframes glowPulse {
+            0%, 100% { filter: drop-shadow(0 0 4px rgba(0,136,255,0.3)); }
+            50%       { filter: drop-shadow(0 0 14px rgba(0,136,255,0.9)); }
+        }
+        @keyframes dataFlow {
+            0%   { stroke-dashoffset: 14; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes ledFade {
+            0%   { opacity: 0.1; }
+            50%  { opacity: 1; }
+            100% { opacity: 0.1; }
+        }
+        @keyframes chaseRight {
+            0%   { fill: #ffd700; filter: drop-shadow(0 0 5px #ffd700); }
+            15%  { fill: #3a3a00; filter: none; }
+            100% { fill: #3a3a00; filter: none; }
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .code-compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">LEDs and Visual Output -- ProtoCore Arduino Core 7</h1>
+
+<!-- Electric blue progress bar -->
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; ProtoCore &nbsp;|&nbsp; Arduino &nbsp;|&nbsp; Core 7</div>
+        <div class="title-hero">
+            <!-- LED array SVG -->
+            <svg width="400" height="120" viewBox="0 0 400 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- LED strip with chase animation -->
+                <circle cx="50"  cy="60" r="12" style="animation: chaseRight 1.5s ease-in-out infinite 0.0s;"/>
+                <circle cx="100" cy="60" r="12" style="animation: chaseRight 1.5s ease-in-out infinite 0.15s;"/>
+                <circle cx="150" cy="60" r="12" style="animation: chaseRight 1.5s ease-in-out infinite 0.3s;"/>
+                <circle cx="200" cy="60" r="12" style="animation: chaseRight 1.5s ease-in-out infinite 0.45s;"/>
+                <circle cx="250" cy="60" r="12" style="animation: chaseRight 1.5s ease-in-out infinite 0.6s;"/>
+                <circle cx="300" cy="60" r="12" style="animation: chaseRight 1.5s ease-in-out infinite 0.75s;"/>
+                <circle cx="350" cy="60" r="12" style="animation: chaseRight 1.5s ease-in-out infinite 0.9s;"/>
+                <!-- RGB mixing -- three overlapping circles -->
+                <circle cx="140" cy="105" r="8" fill="rgba(255,0,0,0.4)" style="animation: ledFade 2s ease-in-out infinite 0s;"/>
+                <circle cx="155" cy="105" r="8" fill="rgba(0,255,0,0.4)" style="animation: ledFade 2s ease-in-out infinite 0.7s;"/>
+                <circle cx="170" cy="105" r="8" fill="rgba(0,100,255,0.4)" style="animation: ledFade 2s ease-in-out infinite 1.4s;"/>
+                <!-- 7-segment outline -->
+                <rect x="230" y="88" width="30" height="28" rx="3" fill="none" stroke="rgba(0,136,255,0.3)" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="245" y="108" text-anchor="middle" font-size="16" fill="#0088ff" font-weight="700" font-family="Courier New,monospace">7</text>
+                <!-- Matrix dots -->
+                <g style="animation: boxGrow 0.35s ease forwards 0.5s; opacity:0;">
+                    <circle cx="310" cy="92" r="2" fill="#ffd700"/><circle cx="320" cy="92" r="2" fill="#3a3a00"/><circle cx="330" cy="92" r="2" fill="#ffd700"/>
+                    <circle cx="310" cy="102" r="2" fill="#3a3a00"/><circle cx="320" cy="102" r="2" fill="#ffd700"/><circle cx="330" cy="102" r="2" fill="#3a3a00"/>
+                    <circle cx="310" cy="112" r="2" fill="#ffd700"/><circle cx="320" cy="112" r="2" fill="#3a3a00"/><circle cx="330" cy="112" r="2" fill="#ffd700"/>
+                </g>
+            </svg>
+            <div class="big-title">
+                <span class="accent">LEDs</span> &amp; Visual Output
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                PWM &nbsp;|&nbsp; RGB &nbsp;|&nbsp; Matrices &nbsp;|&nbsp; 7-Segment &nbsp;|&nbsp; Shift Registers &nbsp;|&nbsp; MAX7219
+            </div>
+        </div>
+        <div class="scenario-strip">
+            An LED is more than a blinking dot. With the right techniques, a handful of LEDs becomes a display, a dashboard, a scrolling marquee, a color-mixing engine. This core teaches you to control light -- from single LEDs to cascaded matrix panels -- using PWM, multiplexing, shift registers, and dedicated driver chips.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>ProtoCore Arduino</span>
+            <span>Core 7 of 10</span>
+            <span>Matrix House</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- SINGLE LED ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Single LED: <span class="accent">Resistor Calculation</span></div>
+        <div class="slide-subtitle">Before you can control an LED, you need to understand Ohm's Law and current limiting.</div>
+
+        <div class="diagram-center">
+            <svg width="500" height="100" viewBox="0 0 500 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Pin -->
+                <rect x="20" y="30" width="60" height="40" rx="6" fill="rgba(0,136,255,0.08)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: boxGrow 0.3s ease forwards 0.1s; opacity:0;"/>
+                <text x="50" y="48" text-anchor="middle" font-size="8" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Pin 9</text>
+                <text x="50" y="60" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">5V HIGH</text>
+                <!-- Wire -->
+                <line x1="80" y1="50" x2="140" y2="50" stroke="#0088ff" stroke-width="2"/>
+                <!-- Resistor -->
+                <rect x="140" y="38" width="70" height="24" rx="4" fill="rgba(249,115,22,0.12)" stroke="#f97316" stroke-width="1.5"
+                    style="animation: entityPop 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="175" y="54" text-anchor="middle" font-size="7" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">220 ohm</text>
+                <!-- Wire -->
+                <line x1="210" y1="50" x2="260" y2="50" stroke="#f97316" stroke-width="2"/>
+                <!-- LED -->
+                <polygon points="260,35 260,65 295,50" fill="rgba(255,215,0,0.2)" stroke="#ffd700" stroke-width="1.5"
+                    style="animation: blink-led 2s ease-in-out infinite;"/>
+                <text x="275" y="25" text-anchor="middle" font-size="7" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">LED</text>
+                <text x="275" y="80" text-anchor="middle" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">Vf = 2V, 20mA</text>
+                <!-- Wire to GND -->
+                <line x1="295" y1="50" x2="380" y2="50" stroke="#ef4444" stroke-width="2"/>
+                <rect x="380" y="35" width="60" height="30" rx="6" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="410" y="54" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">GND</text>
+            </svg>
+        </div>
+
+        <div class="step-list">
+            <div class="step-row">
+                <span class="step-num">1</span>
+                <span class="step-text"><strong>Ohm's Law: V = I * R.</strong> The Arduino pin outputs 5V. The LED has a forward voltage (Vf) of about 2V. The resistor must drop the remaining 3V.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">2</span>
+                <span class="step-text"><strong>R = V / I = 3V / 0.020A = 150 ohm.</strong> A 150-ohm resistor gives exactly 20mA. In practice, a 220-ohm resistor (~13.6mA) is standard -- slightly dimmer but safer for the pin.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">3</span>
+                <span class="step-text"><strong>Pin limit: 40mA absolute maximum per pin, 20mA recommended.</strong> Total current across all pins must not exceed 200mA. Going higher risks permanent damage to the ATmega chip.</span>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Why the Resistor Is Never Optional</div>
+            An LED without a resistor will draw maximum current until it or the Arduino pin burns out. LEDs have almost zero resistance once they reach their forward voltage -- they behave like a short circuit. The resistor is the only thing standing between your LED and destruction. Different color LEDs have different forward voltages: red ~1.8V, green ~2.2V, blue/white ~3.2V. Recalculate for each color.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- PWM BRIGHTNESS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">PWM Brightness: <span class="accent">analogWrite()</span></div>
+        <div class="slide-subtitle">Digital pins cannot output variable voltage. PWM fakes it by switching on and off thousands of times per second.</div>
+
+        <div class="diagram-center">
+            <svg width="600" height="100" viewBox="0 0 600 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- PWM waveform at 25% -->
+                <text x="30" y="15" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">25% duty (dim)</text>
+                <polyline points="30,70 30,30 60,30 60,70 90,70 90,30 120,30 120,70 150,70 150,30 180,30 180,70"
+                    fill="none" stroke="#0088ff" stroke-width="1.5"/>
+                <!-- PWM waveform at 75% -->
+                <text x="230" y="15" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">75% duty (bright)</text>
+                <polyline points="230,70 230,30 290,30 290,70 300,70 300,30 360,30 360,70 370,70 370,30 430,30 430,70"
+                    fill="none" stroke="#ffd700" stroke-width="1.5"/>
+                <!-- Labels -->
+                <text x="470" y="30" font-size="8" fill="#0088ff" font-family="Segoe UI,sans-serif">analogWrite(pin, 64)</text>
+                <text x="470" y="50" font-size="8" fill="#ffd700" font-family="Segoe UI,sans-serif">analogWrite(pin, 191)</text>
+                <text x="470" y="70" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">0=off, 127=50%, 255=full</text>
+                <text x="470" y="85" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">~490 Hz on pins 5,6</text>
+                <text x="470" y="95" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">~980 Hz on pins 3,9,10,11</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">How PWM Works</div>
+                <div class="card-desc">The pin rapidly switches between 5V and 0V. The ratio of ON time to total period is the "duty cycle." At 50% duty, the pin is HIGH half the time, and the LED appears half brightness. Your eye averages the rapid flicker. <span class="ic">analogWrite(pin, 127)</span> = 50% duty. The switching happens at ~490 Hz or ~980 Hz depending on the pin.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">PWM Pins on the Uno</div>
+                <div class="card-desc">Only pins marked with ~ support PWM: <strong>3, 5, 6, 9, 10, 11</strong>. These six pins have hardware timers connected to them. <span class="ic">analogWrite()</span> on a non-PWM pin will only give full on (>=128) or full off (<128). The 8-bit resolution means 256 brightness levels: 0 (off) to 255 (full).</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// Smooth LED fade in and out</span>
+<span class="kw">const int</span> ledPin = <span class="nu">9</span>;
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="kw">for</span> (<span class="kw">int</span> b = <span class="nu">0</span>; b <= <span class="nu">255</span>; b++) {
+    <span class="fn">analogWrite</span>(ledPin, b);   <span class="cm">// Fade up</span>
+    <span class="fn">delay</span>(<span class="nu">5</span>);
+  }
+  <span class="kw">for</span> (<span class="kw">int</span> b = <span class="nu">255</span>; b >= <span class="nu">0</span>; b--) {
+    <span class="fn">analogWrite</span>(ledPin, b);   <span class="cm">// Fade down</span>
+    <span class="fn">delay</span>(<span class="nu">5</span>);
+  }
+}</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- RGB LEDS ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">RGB LEDs: <span class="accent">Color Mixing</span></div>
+        <div class="slide-subtitle">Three LEDs in one package. PWM on each channel creates 16.7 million possible colors.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Common Cathode</div>
+                <div class="card-desc">The cathode (-) leg is shared and connects to GND. Each anode (+) connects to a PWM pin through its own resistor. <span class="ic">analogWrite(redPin, 255)</span> = full red. Setting all three channels to 255 produces white. Setting all to 0 produces off. This is the more intuitive wiring.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Common Anode</div>
+                <div class="card-desc">The anode (+) leg is shared and connects to 5V. Each cathode connects to a PWM pin through a resistor. The logic is inverted: <span class="ic">analogWrite(redPin, 0)</span> = full red (max current flows to pin). <span class="ic">analogWrite(redPin, 255)</span> = off. Use <span class="ic">255 - value</span> to normalize.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// RGB color mixing (common cathode)</span>
+<span class="kw">const int</span> rPin = <span class="nu">9</span>, gPin = <span class="nu">10</span>, bPin = <span class="nu">11</span>;
+
+<span class="kw">void</span> <span class="fn">setColor</span>(<span class="kw">int</span> r, <span class="kw">int</span> g, <span class="kw">int</span> b) {
+  <span class="fn">analogWrite</span>(rPin, r);
+  <span class="fn">analogWrite</span>(gPin, g);
+  <span class="fn">analogWrite</span>(bPin, b);
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="fn">setColor</span>(<span class="nu">255</span>, <span class="nu">0</span>,   <span class="nu">0</span>);    <span class="fn">delay</span>(<span class="nu">1000</span>); <span class="cm">// Red</span>
+  <span class="fn">setColor</span>(<span class="nu">0</span>,   <span class="nu">255</span>, <span class="nu">0</span>);    <span class="fn">delay</span>(<span class="nu">1000</span>); <span class="cm">// Green</span>
+  <span class="fn">setColor</span>(<span class="nu">0</span>,   <span class="nu">0</span>,   <span class="nu">255</span>);  <span class="fn">delay</span>(<span class="nu">1000</span>); <span class="cm">// Blue</span>
+  <span class="fn">setColor</span>(<span class="nu">255</span>, <span class="nu">255</span>, <span class="nu">0</span>);    <span class="fn">delay</span>(<span class="nu">1000</span>); <span class="cm">// Yellow</span>
+  <span class="fn">setColor</span>(<span class="nu">255</span>, <span class="nu">0</span>,   <span class="nu">255</span>);  <span class="fn">delay</span>(<span class="nu">1000</span>); <span class="cm">// Magenta</span>
+  <span class="fn">setColor</span>(<span class="nu">0</span>,   <span class="nu">255</span>, <span class="nu">255</span>);  <span class="fn">delay</span>(<span class="nu">1000</span>); <span class="cm">// Cyan</span>
+  <span class="fn">setColor</span>(<span class="nu">255</span>, <span class="nu">255</span>, <span class="nu">255</span>);  <span class="fn">delay</span>(<span class="nu">1000</span>); <span class="cm">// White</span>
+}</div>
+
+        <div class="box box-gold">
+            <div class="box-label">Color Math</div>
+            Each channel has 256 levels (0-255). Three channels = 256 * 256 * 256 = 16,777,216 possible colors. This is the same RGB model used in web CSS, image editing, and display technology. <span class="ic">setColor(255, 165, 0)</span> is orange. <span class="ic">setColor(128, 0, 128)</span> is purple. The Arduino is doing the same color mixing as your monitor, just with physical photons.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- LED ARRAYS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">LED Arrays: <span class="accent">Patterns &amp; Chase Sequences</span></div>
+        <div class="slide-subtitle">Multiple LEDs on sequential pins create visual patterns, progress indicators, and Knight Rider effects.</div>
+
+        <div class="diagram-center">
+            <svg width="500" height="60" viewBox="0 0 500 60" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- 8 LEDs in a row with chase animation -->
+                <circle cx="60"  cy="30" r="10" style="animation: chaseRight 2s ease-in-out infinite 0.0s;"/>
+                <circle cx="120" cy="30" r="10" style="animation: chaseRight 2s ease-in-out infinite 0.2s;"/>
+                <circle cx="180" cy="30" r="10" style="animation: chaseRight 2s ease-in-out infinite 0.4s;"/>
+                <circle cx="240" cy="30" r="10" style="animation: chaseRight 2s ease-in-out infinite 0.6s;"/>
+                <circle cx="300" cy="30" r="10" style="animation: chaseRight 2s ease-in-out infinite 0.8s;"/>
+                <circle cx="360" cy="30" r="10" style="animation: chaseRight 2s ease-in-out infinite 1.0s;"/>
+                <circle cx="420" cy="30" r="10" style="animation: chaseRight 2s ease-in-out infinite 1.2s;"/>
+                <text x="60"  cy="55" y="55" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">2</text>
+                <text x="120" cy="55" y="55" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">3</text>
+                <text x="180" cy="55" y="55" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">4</text>
+                <text x="240" cy="55" y="55" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">5</text>
+                <text x="300" cy="55" y="55" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">6</text>
+                <text x="360" cy="55" y="55" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">7</text>
+                <text x="420" cy="55" y="55" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">8</text>
+            </svg>
+        </div>
+
+        <div class="code-compare">
+            <div>
+                <div class="code-panel-label" style="color: #0088ff;">Sequential Chase</div>
+                <div class="code-block"><span class="kw">int</span> leds[] = {<span class="nu">2</span>,<span class="nu">3</span>,<span class="nu">4</span>,<span class="nu">5</span>,<span class="nu">6</span>,<span class="nu">7</span>,<span class="nu">8</span>};
+<span class="kw">int</span> count = <span class="nu">7</span>;
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  <span class="kw">for</span>(<span class="kw">int</span> i=<span class="nu">0</span>; i<count; i++)
+    <span class="fn">pinMode</span>(leds[i], <span class="kw">OUTPUT</span>);
+}
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="kw">for</span>(<span class="kw">int</span> i=<span class="nu">0</span>; i<count; i++) {
+    <span class="fn">digitalWrite</span>(leds[i], <span class="kw">HIGH</span>);
+    <span class="fn">delay</span>(<span class="nu">80</span>);
+    <span class="fn">digitalWrite</span>(leds[i], <span class="kw">LOW</span>);
+  }
+}</div>
+            </div>
+            <div>
+                <div class="code-panel-label" style="color: #ffd700;">Bounce (Knight Rider)</div>
+                <div class="code-block"><span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="cm">// Forward</span>
+  <span class="kw">for</span>(<span class="kw">int</span> i=<span class="nu">0</span>; i<count; i++) {
+    <span class="fn">digitalWrite</span>(leds[i], <span class="kw">HIGH</span>);
+    <span class="fn">delay</span>(<span class="nu">60</span>);
+    <span class="fn">digitalWrite</span>(leds[i], <span class="kw">LOW</span>);
+  }
+  <span class="cm">// Reverse</span>
+  <span class="kw">for</span>(<span class="kw">int</span> i=count-<span class="nu">2</span>; i><span class="nu">0</span>; i--) {
+    <span class="fn">digitalWrite</span>(leds[i], <span class="kw">HIGH</span>);
+    <span class="fn">delay</span>(<span class="nu">60</span>);
+    <span class="fn">digitalWrite</span>(leds[i], <span class="kw">LOW</span>);
+  }
+}</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Array Technique</div>
+            Store pin numbers in an array and loop through them. This pattern scales to any number of LEDs without duplicating code. Each LED still needs its own resistor. For 7 LEDs on the Uno, you use 7 of the 14 digital pins -- half the board. This is where shift registers (slide 9) become essential.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- LED MATRIX ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">LED Matrix (8x8): <span class="accent">Row/Column Multiplexing</span></div>
+        <div class="slide-subtitle">64 LEDs controlled by 16 pins. Multiplexing activates one row at a time so fast your eyes see the whole image.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">How Multiplexing Works</div>
+                <div class="card-desc">An 8x8 matrix has 8 row pins and 8 column pins. To light a specific LED, set its row HIGH and its column LOW. To display a full image, scan through each row rapidly (row 0, then row 1, then row 2...), turning on the correct column LEDs for each row. At >100 Hz scan rate, your eye perceives all 64 LEDs simultaneously via persistence of vision.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Displaying Characters</div>
+                <div class="card-desc">Each column of an 8x8 matrix can be represented as a byte. An 8-byte array defines a full character. For example, the letter "A" is: <span class="ic">{0x3C, 0x66, 0x66, 0x7E, 0x66, 0x66, 0x66, 0x00}</span>. Scrolling text shifts the byte array left one column at a time, wrapping characters in from the right.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// 8x8 LED matrix -- display a pattern</span>
+<span class="kw">byte</span> rows[] = {<span class="nu">2</span>,<span class="nu">3</span>,<span class="nu">4</span>,<span class="nu">5</span>,<span class="nu">6</span>,<span class="nu">7</span>,<span class="nu">8</span>,<span class="nu">9</span>};
+<span class="kw">byte</span> cols[] = {<span class="nu">10</span>,<span class="nu">11</span>,<span class="nu">12</span>,<span class="nu">13</span>,<span class="nu">A0</span>,<span class="nu">A1</span>,<span class="nu">A2</span>,<span class="nu">A3</span>};
+<span class="kw">byte</span> image[<span class="nu">8</span>] = {
+  <span class="nu">0b00111100</span>, <span class="cm">// Row 0</span>
+  <span class="nu">0b01100110</span>, <span class="cm">// Row 1</span>
+  <span class="nu">0b01100110</span>, <span class="cm">// Row 2</span>
+  <span class="nu">0b01111110</span>, <span class="cm">// Row 3</span>
+  <span class="nu">0b01100110</span>, <span class="cm">// Row 4</span>
+  <span class="nu">0b01100110</span>, <span class="cm">// Row 5</span>
+  <span class="nu">0b01100110</span>, <span class="cm">// Row 6</span>
+  <span class="nu">0b00000000</span>  <span class="cm">// Row 7</span>
+};
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="kw">for</span> (<span class="kw">int</span> r = <span class="nu">0</span>; r < <span class="nu">8</span>; r++) {
+    <span class="fn">digitalWrite</span>(rows[r], <span class="kw">HIGH</span>);
+    <span class="kw">for</span> (<span class="kw">int</span> c = <span class="nu">0</span>; c < <span class="nu">8</span>; c++)
+      <span class="fn">digitalWrite</span>(cols[c], !(image[r] & (<span class="nu">1</span> << (<span class="nu">7</span>-c))));
+    <span class="fn">delayMicroseconds</span>(<span class="nu">1200</span>);
+    <span class="fn">digitalWrite</span>(rows[r], <span class="kw">LOW</span>);
+  }
+}</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- CHARLIEPLEXING ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Charlieplexing: <span class="accent">N Pins, N*(N-1) LEDs</span></div>
+        <div class="slide-subtitle">The ultimate pin-saving trick. 3 pins drive 6 LEDs. 5 pins drive 20. The math is elegant.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">The Core Idea</div>
+                <div class="card-desc">Between any two pins, you can place two LEDs in opposite directions. Set one pin HIGH and one LOW -- current flows through one LED. Reverse the polarity -- current flows through the other. The third pin is set to INPUT (high impedance) so it does not interfere. With N pins: N*(N-1) LEDs.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">3 Pins = 6 LEDs</div>
+                <div class="card-desc">Pins A, B, C. LED 1: A->B. LED 2: B->A. LED 3: A->C. LED 4: C->A. LED 5: B->C. LED 6: C->B. To light LED 1: set A=HIGH, B=LOW, C=INPUT. To light LED 4: set C=HIGH, A=LOW, B=INPUT. Only one LED is on at a time -- multiplex rapidly.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Scaling</div>
+                <div class="card-desc"><strong>4 pins = 12 LEDs.</strong> <strong>5 pins = 20 LEDs.</strong> <strong>8 pins = 56 LEDs.</strong> The trade-off: wiring is complex, only one LED can be on at a time (requires fast multiplexing), and brightness is reduced since each LED gets 1/Nth of the time. Best for indicator arrays and small displays.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// Charlieplexing 3 pins, 6 LEDs</span>
+<span class="kw">const int</span> pinA = <span class="nu">2</span>, pinB = <span class="nu">3</span>, pinC = <span class="nu">4</span>;
+
+<span class="kw">void</span> <span class="fn">lightLED</span>(<span class="kw">int</span> high, <span class="kw">int</span> low, <span class="kw">int</span> off) {
+  <span class="fn">pinMode</span>(high, <span class="kw">OUTPUT</span>); <span class="fn">pinMode</span>(low, <span class="kw">OUTPUT</span>); <span class="fn">pinMode</span>(off, <span class="kw">INPUT</span>);
+  <span class="fn">digitalWrite</span>(high, <span class="kw">HIGH</span>);
+  <span class="fn">digitalWrite</span>(low,  <span class="kw">LOW</span>);
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="fn">lightLED</span>(pinA, pinB, pinC); <span class="fn">delay</span>(<span class="nu">200</span>); <span class="cm">// LED 1</span>
+  <span class="fn">lightLED</span>(pinB, pinA, pinC); <span class="fn">delay</span>(<span class="nu">200</span>); <span class="cm">// LED 2</span>
+  <span class="fn">lightLED</span>(pinA, pinC, pinB); <span class="fn">delay</span>(<span class="nu">200</span>); <span class="cm">// LED 3</span>
+  <span class="fn">lightLED</span>(pinC, pinA, pinB); <span class="fn">delay</span>(<span class="nu">200</span>); <span class="cm">// LED 4</span>
+  <span class="fn">lightLED</span>(pinB, pinC, pinA); <span class="fn">delay</span>(<span class="nu">200</span>); <span class="cm">// LED 5</span>
+  <span class="fn">lightLED</span>(pinC, pinB, pinA); <span class="fn">delay</span>(<span class="nu">200</span>); <span class="cm">// LED 6</span>
+}</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- 7-SEGMENT DISPLAYS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">7-Segment Displays: <span class="accent">Digits &amp; Multiplexing</span></div>
+        <div class="slide-subtitle">Seven LEDs arranged to display digits 0-9. Multi-digit displays use multiplexing, just like the matrix.</div>
+
+        <div class="diagram-center">
+            <svg width="320" height="120" viewBox="0 0 320 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- 7-segment display showing "8" with labeled segments -->
+                <rect x="60" y="10" width="80" height="100" rx="6" fill="rgba(0,0,0,0.3)" stroke="rgba(0,136,255,0.3)" stroke-width="1"/>
+                <!-- Segments a-g -->
+                <line x1="78" y1="18" x2="122" y2="18" stroke="#ffd700" stroke-width="4" stroke-linecap="round"/><!-- a -->
+                <line x1="125" y1="22" x2="125" y2="54" stroke="#ffd700" stroke-width="4" stroke-linecap="round"/><!-- b -->
+                <line x1="125" y1="62" x2="125" y2="94" stroke="#ffd700" stroke-width="4" stroke-linecap="round"/><!-- c -->
+                <line x1="78" y1="98" x2="122" y2="98" stroke="#ffd700" stroke-width="4" stroke-linecap="round"/><!-- d -->
+                <line x1="75" y1="62" x2="75" y2="94" stroke="#ffd700" stroke-width="4" stroke-linecap="round"/><!-- e -->
+                <line x1="75" y1="22" x2="75" y2="54" stroke="#ffd700" stroke-width="4" stroke-linecap="round"/><!-- f -->
+                <line x1="78" y1="58" x2="122" y2="58" stroke="#ffd700" stroke-width="4" stroke-linecap="round"/><!-- g -->
+                <!-- Labels -->
+                <text x="100" y="14" text-anchor="middle" font-size="6" fill="#0088ff" font-family="Segoe UI,sans-serif">a</text>
+                <text x="132" y="40" font-size="6" fill="#0088ff" font-family="Segoe UI,sans-serif">b</text>
+                <text x="132" y="80" font-size="6" fill="#0088ff" font-family="Segoe UI,sans-serif">c</text>
+                <text x="100" y="110" text-anchor="middle" font-size="6" fill="#0088ff" font-family="Segoe UI,sans-serif">d</text>
+                <text x="65" y="80" font-size="6" fill="#0088ff" font-family="Segoe UI,sans-serif">e</text>
+                <text x="65" y="40" font-size="6" fill="#0088ff" font-family="Segoe UI,sans-serif">f</text>
+                <text x="100" y="56" text-anchor="middle" font-size="6" fill="#0088ff" font-family="Segoe UI,sans-serif">g</text>
+                <!-- Digit encoding table -->
+                <text x="180" y="20" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">Digit Encoding (a-g):</text>
+                <text x="180" y="36" font-size="7.5" fill="#ffd700" font-family="Courier New,monospace">0: 1111110  = 0x7E</text>
+                <text x="180" y="48" font-size="7.5" fill="#ffd700" font-family="Courier New,monospace">1: 0110000  = 0x30</text>
+                <text x="180" y="60" font-size="7.5" fill="#ffd700" font-family="Courier New,monospace">2: 1101101  = 0x6D</text>
+                <text x="180" y="72" font-size="7.5" fill="#ffd700" font-family="Courier New,monospace">3: 1111001  = 0x79</text>
+                <text x="180" y="84" font-size="7.5" fill="#ffd700" font-family="Courier New,monospace">4: 0110011  = 0x33</text>
+                <text x="180" y="96" font-size="7.5" fill="#ffd700" font-family="Courier New,monospace">5: 1011011  = 0x5B</text>
+                <text x="180" y="108" font-size="7.5" fill="#94a3b8" font-family="Courier New,monospace">Each bit = one segment</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Single Digit</div>
+                <div class="card-desc">7 segments (a-g) plus an optional decimal point = 8 pins. Each segment is an LED. To display "5", turn on segments a, c, d, f, g and turn off b and e. Store digit patterns in a byte array and index by the digit value.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Multi-Digit Multiplexing</div>
+                <div class="card-desc">A 4-digit display shares the 7 segment lines but has 4 individual digit-enable pins. Activate digit 1, set the segments, deactivate. Activate digit 2, set new segments, deactivate. Cycle through all 4 digits at >100 Hz. Same multiplexing principle as the LED matrix.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// 7-segment counter (0-9)</span>
+<span class="kw">byte</span> digits[] = {<span class="nu">0x7E</span>,<span class="nu">0x30</span>,<span class="nu">0x6D</span>,<span class="nu">0x79</span>,<span class="nu">0x33</span>,<span class="nu">0x5B</span>,<span class="nu">0x5F</span>,<span class="nu">0x70</span>,<span class="nu">0x7F</span>,<span class="nu">0x7B</span>};
+<span class="kw">byte</span> segPins[] = {<span class="nu">2</span>,<span class="nu">3</span>,<span class="nu">4</span>,<span class="nu">5</span>,<span class="nu">6</span>,<span class="nu">7</span>,<span class="nu">8</span>}; <span class="cm">// a,b,c,d,e,f,g</span>
+
+<span class="kw">void</span> <span class="fn">showDigit</span>(<span class="kw">int</span> d) {
+  <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nu">0</span>; i < <span class="nu">7</span>; i++)
+    <span class="fn">digitalWrite</span>(segPins[i], (digits[d] >> (<span class="nu">6</span>-i)) & <span class="nu">1</span>);
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="kw">for</span> (<span class="kw">int</span> d = <span class="nu">0</span>; d <= <span class="nu">9</span>; d++) {
+    <span class="fn">showDigit</span>(d);
+    <span class="fn">delay</span>(<span class="nu">1000</span>);
+  }
+}</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- SHIFT REGISTERS ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Shift Registers: <span class="accent">74HC595</span></div>
+        <div class="slide-subtitle">Turn 3 Arduino pins into 8 outputs. Cascade multiple chips for 16, 24, or more outputs.</div>
+
+        <div class="diagram-center">
+            <svg width="550" height="110" viewBox="0 0 550 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Arduino -->
+                <rect x="20" y="20" width="100" height="70" rx="8" fill="rgba(0,136,255,0.06)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: boxGrow 0.3s ease forwards 0.1s; opacity:0;"/>
+                <text x="70" y="45" text-anchor="middle" font-size="9" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Arduino</text>
+                <text x="70" y="60" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">3 pins</text>
+                <text x="70" y="72" text-anchor="middle" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">data, clock, latch</text>
+                <!-- Wires -->
+                <line x1="120" y1="40" x2="195" y2="40" stroke="#0088ff" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.8s" repeatCount="indefinite"/>
+                </line>
+                <line x1="120" y1="55" x2="195" y2="55" stroke="#ffd700" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.8s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <line x1="120" y1="70" x2="195" y2="70" stroke="#3ab577" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.8s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <!-- 74HC595 chip -->
+                <rect x="200" y="15" width="110" height="80" rx="8" fill="rgba(255,215,0,0.08)" stroke="#ffd700" stroke-width="1.5"
+                    style="animation: boxGrow 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="255" y="40" text-anchor="middle" font-size="10" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">74HC595</text>
+                <text x="255" y="55" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Serial-to-Parallel</text>
+                <text x="255" y="67" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">8 output pins (Q0-Q7)</text>
+                <text x="255" y="79" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">+ cascade (Q7')</text>
+                <!-- 8 output LEDs -->
+                <line x1="312" y1="55" x2="360" y2="55" stroke="rgba(255,215,0,0.3)" stroke-width="1.5"/>
+                <circle cx="380" cy="25" r="7" fill="#3a3a00" stroke="#ffd700" stroke-width="1" style="animation: chaseRight 2s ease infinite 0.0s;"/>
+                <circle cx="380" cy="40" r="7" fill="#3a3a00" stroke="#ffd700" stroke-width="1" style="animation: chaseRight 2s ease infinite 0.2s;"/>
+                <circle cx="380" cy="55" r="7" fill="#3a3a00" stroke="#ffd700" stroke-width="1" style="animation: chaseRight 2s ease infinite 0.4s;"/>
+                <circle cx="380" cy="70" r="7" fill="#3a3a00" stroke="#ffd700" stroke-width="1" style="animation: chaseRight 2s ease infinite 0.6s;"/>
+                <circle cx="410" cy="25" r="7" fill="#3a3a00" stroke="#ffd700" stroke-width="1" style="animation: chaseRight 2s ease infinite 0.8s;"/>
+                <circle cx="410" cy="40" r="7" fill="#3a3a00" stroke="#ffd700" stroke-width="1" style="animation: chaseRight 2s ease infinite 1.0s;"/>
+                <circle cx="410" cy="55" r="7" fill="#3a3a00" stroke="#ffd700" stroke-width="1" style="animation: chaseRight 2s ease infinite 1.2s;"/>
+                <circle cx="410" cy="70" r="7" fill="#3a3a00" stroke="#ffd700" stroke-width="1" style="animation: chaseRight 2s ease infinite 1.4s;"/>
+                <text x="395" y="95" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">8 LEDs</text>
+            </svg>
+        </div>
+
+        <div class="step-list">
+            <div class="step-row">
+                <span class="step-num">1</span>
+                <span class="step-text"><strong>Data pin (DS):</strong> You send 8 bits serially, one at a time, using <span class="ic">shiftOut()</span>. Each bit sets one of the 8 output pins HIGH or LOW.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">2</span>
+                <span class="step-text"><strong>Clock pin (SHCP):</strong> Each clock pulse shifts the current data bit into the register. After 8 clock pulses, all 8 bits are loaded.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">3</span>
+                <span class="step-text"><strong>Latch pin (STCP):</strong> Toggling the latch copies the shift register contents to the output pins simultaneously. This prevents flickering during data loading.</span>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="kw">const int</span> dataPin  = <span class="nu">11</span>; <span class="cm">// DS (pin 14 on chip)</span>
+<span class="kw">const int</span> clockPin = <span class="nu">12</span>; <span class="cm">// SHCP (pin 11)</span>
+<span class="kw">const int</span> latchPin = <span class="nu">8</span>;  <span class="cm">// STCP (pin 12)</span>
+
+<span class="kw">void</span> <span class="fn">writeByte</span>(<span class="kw">byte</span> data) {
+  <span class="fn">digitalWrite</span>(latchPin, <span class="kw">LOW</span>);
+  <span class="fn">shiftOut</span>(dataPin, clockPin, <span class="kw">MSBFIRST</span>, data);
+  <span class="fn">digitalWrite</span>(latchPin, <span class="kw">HIGH</span>);
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nu">0</span>; i < <span class="nu">8</span>; i++) {
+    <span class="fn">writeByte</span>(<span class="nu">1</span> << i);  <span class="cm">// Light one LED at a time</span>
+    <span class="fn">delay</span>(<span class="nu">100</span>);
+  }
+}</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- MAX7219 ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">MAX7219: <span class="accent">LED Driver Chip</span></div>
+        <div class="slide-subtitle">Dedicated driver for 8x8 matrices and 8-digit 7-segment displays. SPI control, cascadable, built-in multiplexing.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Why MAX7219</div>
+                <div class="card-desc">The MAX7219 handles all multiplexing internally -- you just send data via SPI and the chip drives the LEDs. No flicker, no timing loops in your code. It controls up to 64 LEDs (8x8 matrix or 8 digits of 7-segment) with brightness control (16 levels) and a built-in BCD decoder for digits.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">3-Wire SPI Interface</div>
+                <div class="card-desc"><strong>DIN</strong> (data in), <strong>CLK</strong> (clock), <strong>CS/LOAD</strong> (chip select). Send 16-bit packets: 8 bits for the register address and 8 bits for the data. The LedControl library handles all SPI framing. Only 3 Arduino pins needed regardless of how many LEDs.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Cascading</div>
+                <div class="card-desc">Daisy-chain multiple MAX7219 modules by connecting DOUT of one to DIN of the next. Share CLK and CS lines. Address each module separately. 4 cascaded 8x8 matrices = a 32x8 scrolling display using just 3 Arduino pins. The MD_Parola library adds scrolling text, animations, and zone control.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">&lt;LedControl.h&gt;</span>
+
+<span class="cm">// DIN=11, CLK=13, CS=10, 1 device</span>
+LedControl lc = LedControl(<span class="nu">11</span>, <span class="nu">13</span>, <span class="nu">10</span>, <span class="nu">1</span>);
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  lc.<span class="fn">shutdown</span>(<span class="nu">0</span>, <span class="kw">false</span>);     <span class="cm">// Wake up the MAX7219</span>
+  lc.<span class="fn">setIntensity</span>(<span class="nu">0</span>, <span class="nu">8</span>);     <span class="cm">// Brightness 0-15</span>
+  lc.<span class="fn">clearDisplay</span>(<span class="nu">0</span>);
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="cm">// Display a smiley on 8x8 matrix</span>
+  lc.<span class="fn">setRow</span>(<span class="nu">0</span>, <span class="nu">0</span>, <span class="nu">0b00111100</span>);
+  lc.<span class="fn">setRow</span>(<span class="nu">0</span>, <span class="nu">1</span>, <span class="nu">0b01000010</span>);
+  lc.<span class="fn">setRow</span>(<span class="nu">0</span>, <span class="nu">2</span>, <span class="nu">0b10100101</span>);
+  lc.<span class="fn">setRow</span>(<span class="nu">0</span>, <span class="nu">3</span>, <span class="nu">0b10000001</span>);
+  lc.<span class="fn">setRow</span>(<span class="nu">0</span>, <span class="nu">4</span>, <span class="nu">0b10100101</span>);
+  lc.<span class="fn">setRow</span>(<span class="nu">0</span>, <span class="nu">5</span>, <span class="nu">0b10011001</span>);
+  lc.<span class="fn">setRow</span>(<span class="nu">0</span>, <span class="nu">6</span>, <span class="nu">0b01000010</span>);
+  lc.<span class="fn">setRow</span>(<span class="nu">0</span>, <span class="nu">7</span>, <span class="nu">0b00111100</span>);
+  <span class="fn">delay</span>(<span class="nu">2000</span>);
+}</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- ANALOG METER ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Analog Meter &amp; <span class="accent">Bar Graph Display</span></div>
+        <div class="slide-subtitle">PWM can drive more than LEDs. Analog panel meters and LED bar graphs create physical dashboards.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">PWM to Analog Meter</div>
+                <div class="card-desc">A DC panel meter (voltmeter/ammeter gauge) deflects based on the average voltage applied. Connect a PWM pin through a resistor to the meter. <span class="ic">analogWrite(pin, 0)</span> = needle at zero. <span class="ic">analogWrite(pin, 255)</span> = full deflection. The PWM frequency is fast enough that the meter's inertia smooths it into a steady reading. This creates a physical gauge from digital code.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">LED Bar Graph</div>
+                <div class="card-desc">A row of 10 LEDs (often in a single bar graph package). Map a sensor reading to the number of lit LEDs: <span class="ic">int leds = map(sensorVal, 0, 1023, 0, 10)</span>. Turn on that many LEDs from the bottom up. This creates a VU meter, signal strength indicator, or tank level gauge. Each LED needs its own pin and resistor -- or use a shift register.</div>
+            </div>
+        </div>
+
+        <div class="code-compare">
+            <div>
+                <div class="code-panel-label" style="color: #ffd700;">PWM Panel Meter</div>
+                <div class="code-block"><span class="kw">const int</span> meterPin = <span class="nu">9</span>;
+<span class="kw">int</span> sensorVal;
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  sensorVal = <span class="fn">analogRead</span>(<span class="nu">A0</span>);
+  <span class="kw">int</span> pwm = <span class="fn">map</span>(sensorVal,
+    <span class="nu">0</span>,<span class="nu">1023</span>, <span class="nu">0</span>,<span class="nu">255</span>);
+  <span class="fn">analogWrite</span>(meterPin, pwm);
+  <span class="fn">delay</span>(<span class="nu">50</span>);
+}</div>
+            </div>
+            <div>
+                <div class="code-panel-label" style="color: #3ab577;">LED Bar Graph (VU Meter)</div>
+                <div class="code-block"><span class="kw">int</span> barPins[] = {<span class="nu">2</span>,<span class="nu">3</span>,<span class="nu">4</span>,<span class="nu">5</span>,<span class="nu">6</span>,
+  <span class="nu">7</span>,<span class="nu">8</span>,<span class="nu">9</span>,<span class="nu">10</span>,<span class="nu">11</span>};
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="kw">int</span> val = <span class="fn">analogRead</span>(<span class="nu">A0</span>);
+  <span class="kw">int</span> n = <span class="fn">map</span>(val, <span class="nu">0</span>,<span class="nu">1023</span>, <span class="nu">0</span>,<span class="nu">10</span>);
+  <span class="kw">for</span>(<span class="kw">int</span> i=<span class="nu">0</span>;i<<span class="nu">10</span>;i++)
+    <span class="fn">digitalWrite</span>(barPins[i],
+      i < n ? <span class="kw">HIGH</span> : <span class="kw">LOW</span>);
+  <span class="fn">delay</span>(<span class="nu">30</span>);
+}</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">The map() Function</div>
+            <span class="ic">map(value, fromLow, fromHigh, toLow, toHigh)</span> linearly scales a value from one range to another. It is used constantly in Arduino projects to convert sensor readings (0-1023) to output ranges (0-255 for PWM, 0-10 for bar graph, 0-180 for servos). It does integer math -- no floating point needed.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- KEY TAKEAWAYS ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Key Takeaways: <span class="accent">LEDs &amp; Visual Output Complete</span></div>
+        <div class="slide-subtitle">From a single blink to cascaded matrix panels. Here are the five facts that matter.</div>
+
+        <div class="diagram-center">
+            <svg width="400" height="80" viewBox="0 0 400 80" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- LED chain with glow -->
+                <circle cx="60"  cy="40" r="10" fill="#ffd700" filter="url(#glow)" style="animation: ledFade 3s ease infinite 0s;"/>
+                <circle cx="120" cy="40" r="10" fill="#0088ff" filter="url(#glow)" style="animation: ledFade 3s ease infinite 0.5s;"/>
+                <circle cx="180" cy="40" r="10" fill="#3ab577" filter="url(#glow)" style="animation: ledFade 3s ease infinite 1.0s;"/>
+                <circle cx="240" cy="40" r="10" fill="#ef4444" filter="url(#glow)" style="animation: ledFade 3s ease infinite 1.5s;"/>
+                <circle cx="300" cy="40" r="10" fill="#a78bfa" filter="url(#glow)" style="animation: ledFade 3s ease infinite 2.0s;"/>
+                <circle cx="360" cy="40" r="10" fill="#f97316" filter="url(#glow)" style="animation: ledFade 3s ease infinite 2.5s;"/>
+                <defs>
+                    <filter id="glow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                </defs>
+            </svg>
+        </div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Every LED needs a current-limiting resistor.</strong> R = (Vsupply - Vf) / I. For a standard red LED on a 5V pin: (5 - 1.8) / 0.020 = 160 ohm minimum. Use 220 ohm for safety. Skipping the resistor destroys the LED or the pin.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>PWM fakes analog output.</strong> <code>analogWrite(pin, 0-255)</code> controls duty cycle on pins 3, 5, 6, 9, 10, 11. Your eye averages the rapid switching into perceived brightness levels. This drives LED dimming, RGB color mixing, and analog meter gauges.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Multiplexing displays more than you have pins for.</strong> 8x8 matrix (64 LEDs, 16 pins), 7-segment digits, and Charlieplexing (N pins = N*(N-1) LEDs). The key: scan fast enough that persistence of vision makes it look continuous.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Shift registers expand output capacity.</strong> The 74HC595 turns 3 Arduino pins into 8 outputs. <code>shiftOut()</code> sends data serially, the latch pin updates all 8 outputs at once. Cascade chips by connecting DOUT to DIN for 16, 24, or more outputs.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>MAX7219 handles multiplexing for you.</strong> A dedicated LED driver chip that controls 8x8 matrices or 8-digit 7-segment displays via SPI. Built-in brightness control, BCD decoder, and cascading support. The LedControl library makes it simple.</span></div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Core 8 -- Motors &amp; Servos</strong> &nbsp;|&nbsp; DC Motors, Servos, Stepper Motors, H-Bridge, PWM Speed Control
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; ProtoCore</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* Slide navigation state */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    /* Module completion via ModuleProgress component */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-ard-07-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>

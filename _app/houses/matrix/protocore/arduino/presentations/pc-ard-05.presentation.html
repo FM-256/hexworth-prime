@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital &amp; Analog Input | ProtoCore Arduino Core 5</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #040810 0%, #081020 50%, #0a0c1a 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Electric blue progress bar */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #0088ff; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(4, 8, 16, 0.95);
+            border-top: 1px solid rgba(0, 136, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(0, 136, 255, 0.15); color: #0088ff; border-color: #0088ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #0088ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ffd700; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip */
+        .scenario-strip {
+            background: rgba(0, 136, 255, 0.08); border-left: 3px solid #0088ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(0, 136, 255, 0.08); border: 1px solid rgba(0, 136, 255, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ffd700; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #0088ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #ffd700; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #0088ff; }
+
+        /* Section label */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #0088ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Inline code */
+        .ic {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* SVG diagram containers */
+        .diagram-row {
+            display: flex; gap: 16px; align-items: center; justify-content: center;
+        }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        /* Step-by-step flow list */
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(0, 136, 255, 0.12); border: 1px solid rgba(0, 136, 255, 0.4);
+            color: #0088ff; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        /* Code block */
+        .code-block {
+            background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #ffd700; line-height: 1.6; white-space: pre;
+        }
+        .code-block .cm { color: #64748b; }
+        .code-block .kw { color: #5cb8ff; }
+        .code-block .fn { color: #ffd700; }
+        .code-block .st { color: #86efac; }
+        .code-block .nu { color: #fdba74; }
+
+        /* Two-column code compare */
+        .code-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .code-panel-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.07em; margin-bottom: 5px; }
+
+        /* Hex grid cells */
+        .hex-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(0, 136, 255, 0.25);
+            border-radius: 8px; padding: 12px 14px;
+            text-align: center;
+            opacity: 0;
+            animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #0088ff; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        /* Shared animation keyframes */
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes flow {
+            0%   { stroke-dashoffset: 20; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes boxGrow {
+            from { opacity: 0; transform: scale(0.7); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes entityPop {
+            from { opacity: 0; transform: scale(0.6) translateY(6px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes dataFlow {
+            0%   { stroke-dashoffset: 14; }
+            100% { stroke-dashoffset: 0; }
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .code-compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Digital &amp; Analog Input -- ProtoCore Arduino Core 5</h1>
+
+<!-- Electric blue progress bar -->
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; ProtoCore &nbsp;|&nbsp; Arduino &nbsp;|&nbsp; Core 5</div>
+        <div class="title-hero">
+            <!-- Input signals SVG -->
+            <svg width="400" height="130" viewBox="0 0 400 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Digital side -->
+                <rect x="20" y="20" width="150" height="90" rx="10" fill="rgba(0,136,255,0.08)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.1s; opacity:0;"/>
+                <text x="95" y="42" text-anchor="middle" font-size="10" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Digital Input</text>
+                <text x="95" y="58" text-anchor="middle" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">HIGH or LOW</text>
+                <text x="95" y="72" text-anchor="middle" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">5V or 0V</text>
+                <text x="95" y="86" text-anchor="middle" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">Buttons, switches</text>
+                <!-- Analog side -->
+                <rect x="230" y="20" width="150" height="90" rx="10" fill="rgba(255,215,0,0.08)" stroke="#ffd700" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.2s; opacity:0;"/>
+                <text x="305" y="42" text-anchor="middle" font-size="10" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">Analog Input</text>
+                <text x="305" y="58" text-anchor="middle" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">0 to 1023</text>
+                <text x="305" y="72" text-anchor="middle" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">0V to 5V continuous</text>
+                <text x="305" y="86" text-anchor="middle" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">Pots, sensors, LDR</text>
+                <!-- VS arrow -->
+                <text x="200" y="70" text-anchor="middle" font-size="14" fill="#475569" font-weight="700" font-family="Segoe UI,sans-serif">vs</text>
+            </svg>
+            <div class="big-title">
+                <span class="accent">Digital &amp; Analog</span> Input
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Buttons &nbsp;|&nbsp; Debouncing &nbsp;|&nbsp; analogRead() &nbsp;|&nbsp; map() &nbsp;|&nbsp; Voltage Measurement
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Outputs make things happen. Inputs let the Arduino sense the world. A button press, a temperature reading, a light level -- every interactive project starts with reading input. This core covers both digital (on/off) and analog (continuous) input, from raw pin reads to calibrated, reliable sensor data.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>ProtoCore Arduino</span>
+            <span>Core 5 of 10</span>
+            <span>Matrix House</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- DIGITAL VS ANALOG ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Digital vs <span class="accent">Analog</span></div>
+        <div class="slide-subtitle">Binary (HIGH/LOW) vs continuous (0-1023). Two fundamentally different ways to read the world.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Digital Input</div>
+                <div class="card-desc">Only two states: HIGH (5V) or LOW (0V). Think of a light switch -- it is on or off. <span class="ic">digitalRead(pin)</span> returns 1 or 0. Used for buttons, switches, PIR motion sensors, limit switches, and any binary sensor. Pins 0-13 can read digital input. The threshold is roughly 2.5V: above = HIGH, below = LOW.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Analog Input</div>
+                <div class="card-desc">A continuous range of values from 0 to 1023, representing 0V to 5V. Think of a dimmer knob -- infinite positions between off and full. <span class="ic">analogRead(pin)</span> returns a 10-bit value. Used for potentiometers, temperature sensors, light sensors, flex sensors, and anything that produces a variable voltage. Only pins A0-A5 can read analog input.</div>
+            </div>
+        </div>
+
+        <div class="diagram-center">
+            <svg width="600" height="90" viewBox="0 0 600 90" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Digital signal -->
+                <text x="10" y="20" font-size="8" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">DIGITAL</text>
+                <polyline points="60,45 100,45 100,15 180,15 180,45 220,45 220,15 280,15 280,45" stroke="#0088ff" stroke-width="2" fill="none"/>
+                <text x="170" y="60" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">HIGH = 5V, LOW = 0V</text>
+                <!-- Analog signal -->
+                <text x="330" y="20" font-size="8" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">ANALOG</text>
+                <path d="M380,45 Q400,10 420,45 Q440,80 460,45 Q480,10 500,45 Q520,80 540,45 Q560,10 580,45" stroke="#ffd700" stroke-width="2" fill="none"/>
+                <text x="480" y="60" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Continuous 0V - 5V</text>
+            </svg>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">When to Use Each</div>
+            Use digital input when the answer is yes/no: Is the button pressed? Is the door open? Is motion detected? Use analog input when you need a measurement: How hot is it? How bright is the room? How far is the knob turned? If you connect a digital sensor to an analog pin, it works but wastes ADC resolution. If you connect an analog sensor to a digital pin, you lose all the nuance -- it snaps to 0 or 1.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- READING A SWITCH ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Reading a <span class="accent">Switch</span></div>
+        <div class="slide-subtitle">digitalRead(), INPUT_PULLUP, and wiring a button to the Arduino.</div>
+
+        <div class="code-block"><span class="kw">void</span> <span class="fn">setup</span>() {
+  <span class="fn">pinMode</span>(<span class="nu">2</span>, <span class="kw">INPUT_PULLUP</span>);  <span class="cm">// enable internal pull-up resistor</span>
+  <span class="fn">Serial.begin</span>(<span class="nu">9600</span>);
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="kw">int</span> state = <span class="fn">digitalRead</span>(<span class="nu">2</span>);
+  <span class="kw">if</span> (state == <span class="kw">LOW</span>) {       <span class="cm">// LOW = pressed (pull-up inverts logic)</span>
+    <span class="fn">Serial.println</span>(<span class="st">"Button pressed"</span>);
+  }
+  <span class="fn">delay</span>(<span class="nu">50</span>);
+}</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">digitalRead(pin)</div>
+                <div class="card-desc">Returns HIGH (1) or LOW (0). The pin samples voltage at the exact moment you call it. If the pin is connected to 5V, it reads HIGH. If connected to GND, it reads LOW. If connected to nothing? It floats -- random noise gives unpredictable readings.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">INPUT_PULLUP</div>
+                <div class="card-desc">Activates a built-in 20k-ohm resistor that pulls the pin to 5V (HIGH) when nothing is connected. Wire the button between the pin and GND. When pressed, the pin reads LOW. No external resistor needed. This is the standard Arduino button wiring.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Floating Pins</div>
+                <div class="card-desc">A pin set to INPUT with nothing connected floats between HIGH and LOW, picking up electromagnetic noise. The LED flickers randomly. Always use INPUT_PULLUP or wire an external pull-down resistor (10k to GND). Never leave an input pin floating.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Wiring a Button</div>
+            With INPUT_PULLUP: one leg to the digital pin, the other leg to GND. Two wires, no resistor. The internal pull-up holds the pin HIGH when the button is open. Pressing the button connects the pin directly to GND, overriding the pull-up. Logic is inverted: LOW = pressed, HIGH = released.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- DEBOUNCING ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title"><span class="accent">Debouncing</span></div>
+        <div class="slide-subtitle">Why switches bounce, and how to filter it in software.</div>
+
+        <div class="scenario-strip">
+            You press the button once but the Serial Monitor prints "pressed" five times. The metal contacts inside the switch bounce for a few milliseconds before settling -- the Arduino reads each bounce as a separate press.
+        </div>
+
+        <div class="code-block"><span class="cm">// millis()-based debounce</span>
+<span class="kw">const int</span> BTN = <span class="nu">2</span>;
+<span class="kw">int</span> lastState = <span class="kw">HIGH</span>;
+<span class="kw">int</span> currentState;
+<span class="kw">unsigned long</span> lastDebounceTime = <span class="nu">0</span>;
+<span class="kw">const unsigned long</span> DEBOUNCE_DELAY = <span class="nu">50</span>; <span class="cm">// ms</span>
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="kw">int</span> reading = <span class="fn">digitalRead</span>(BTN);
+  <span class="kw">if</span> (reading != lastState) {
+    lastDebounceTime = <span class="fn">millis</span>();
+  }
+  <span class="kw">if</span> ((<span class="fn">millis</span>() - lastDebounceTime) > DEBOUNCE_DELAY) {
+    <span class="kw">if</span> (reading != currentState) {
+      currentState = reading;
+      <span class="kw">if</span> (currentState == <span class="kw">LOW</span>) {
+        <span class="fn">Serial.println</span>(<span class="st">"Confirmed press"</span>);
+      }
+    }
+  }
+  lastState = reading;
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Why Switches Bounce</div>
+                <div class="card-desc">Mechanical switches have metal contacts that physically vibrate when pressed. For 1-10ms, the signal oscillates between HIGH and LOW before settling. The Arduino samples in microseconds -- it sees every bounce as a distinct state change. This is not a software bug; it is a hardware reality.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Bounce2 Library</div>
+                <div class="card-desc">For cleaner code, use the Bounce2 library: <span class="ic">#include &lt;Bounce2.h&gt;</span>. Create a Bounce object, attach it to a pin, call <span class="ic">update()</span> in loop, then check <span class="ic">fell()</span> for press detection. Handles all timing internally. Recommended for production projects.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Never Use delay() for Debouncing</div>
+            <span class="ic">delay(50)</span> after a read technically works for debounce, but it blocks the entire program for 50ms on every loop iteration. That means the Arduino cannot read other sensors, update LEDs, or respond to serial during the delay. Use the <span class="ic">millis()</span>-based approach above -- it is non-blocking and allows your loop to keep running at full speed.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- HOW LONG WAS IT PRESSED ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">How Long Was It <span class="accent">Pressed</span>?</div>
+        <div class="slide-subtitle">Measuring press duration. Short press vs long press. Timed interactions.</div>
+
+        <div class="code-block"><span class="kw">unsigned long</span> pressStart = <span class="nu">0</span>;
+<span class="kw">bool</span> wasPressed = <span class="kw">false</span>;
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="kw">int</span> reading = <span class="fn">digitalRead</span>(<span class="nu">2</span>);
+
+  <span class="kw">if</span> (reading == <span class="kw">LOW</span> && !wasPressed) {
+    pressStart = <span class="fn">millis</span>();     <span class="cm">// record press start time</span>
+    wasPressed = <span class="kw">true</span>;
+  }
+
+  <span class="kw">if</span> (reading == <span class="kw">HIGH</span> && wasPressed) {
+    <span class="kw">unsigned long</span> duration = <span class="fn">millis</span>() - pressStart;
+    wasPressed = <span class="kw">false</span>;
+
+    <span class="kw">if</span> (duration > <span class="nu">1000</span>) {
+      <span class="fn">Serial.println</span>(<span class="st">"LONG press"</span>);
+    } <span class="kw">else</span> {
+      <span class="fn">Serial.println</span>(<span class="st">"Short press"</span>);
+    }
+  }
+}</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Capture the Moment</div>
+                <div class="card-desc">Record <span class="ic">millis()</span> when the button goes LOW (pressed). Record again when it goes HIGH (released). The difference is the press duration in milliseconds. This is the same technique used in every phone, game controller, and TV remote.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Long-Press Detection</div>
+                <div class="card-desc">Threshold at 1000ms (1 second) separates short press from long press. Short press: toggle LED. Long press: reset system, enter configuration mode, or trigger a different action. Multiple thresholds enable double-long press, triple-tap, and more.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Real-World Applications</div>
+                <div class="card-desc">Smart home buttons (short = lights, long = all off). Game controllers (tap to jump, hold to charge). Industrial safety (press and hold 3 seconds to engage machinery). One button, multiple functions based on timing.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- READING A KEYPAD ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Reading a <span class="accent">Keypad</span></div>
+        <div class="slide-subtitle">Matrix scanning: 16 keys using only 8 pins. The Keypad library makes it simple.</div>
+
+        <div class="diagram-center">
+            <svg width="320" height="160" viewBox="0 0 320 160" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- 4x4 grid -->
+                <rect x="60" y="10" width="200" height="140" rx="8" fill="rgba(0,136,255,0.04)" stroke="rgba(0,136,255,0.2)" stroke-width="1"/>
+                <!-- Row labels -->
+                <text x="30" y="42" text-anchor="middle" font-size="8" fill="#0088ff" font-family="Segoe UI,sans-serif">R1</text>
+                <text x="30" y="77" text-anchor="middle" font-size="8" fill="#0088ff" font-family="Segoe UI,sans-serif">R2</text>
+                <text x="30" y="112" text-anchor="middle" font-size="8" fill="#0088ff" font-family="Segoe UI,sans-serif">R3</text>
+                <text x="30" y="142" text-anchor="middle" font-size="8" fill="#0088ff" font-family="Segoe UI,sans-serif">R4</text>
+                <!-- Col labels -->
+                <text x="100" y="8" text-anchor="middle" font-size="8" fill="#ffd700" font-family="Segoe UI,sans-serif">C1</text>
+                <text x="150" y="8" text-anchor="middle" font-size="8" fill="#ffd700" font-family="Segoe UI,sans-serif">C2</text>
+                <text x="200" y="8" text-anchor="middle" font-size="8" fill="#ffd700" font-family="Segoe UI,sans-serif">C3</text>
+                <text x="250" y="8" text-anchor="middle" font-size="8" fill="#ffd700" font-family="Segoe UI,sans-serif">C4</text>
+                <!-- Key labels row 1 -->
+                <text x="100" y="42" text-anchor="middle" font-size="11" fill="#e2e8f0" font-weight="700" font-family="Segoe UI,sans-serif">1</text>
+                <text x="150" y="42" text-anchor="middle" font-size="11" fill="#e2e8f0" font-weight="700" font-family="Segoe UI,sans-serif">2</text>
+                <text x="200" y="42" text-anchor="middle" font-size="11" fill="#e2e8f0" font-weight="700" font-family="Segoe UI,sans-serif">3</text>
+                <text x="250" y="42" text-anchor="middle" font-size="11" fill="#e2e8f0" font-weight="700" font-family="Segoe UI,sans-serif">A</text>
+                <!-- Key labels row 2 -->
+                <text x="100" y="77" text-anchor="middle" font-size="11" fill="#e2e8f0" font-weight="700" font-family="Segoe UI,sans-serif">4</text>
+                <text x="150" y="77" text-anchor="middle" font-size="11" fill="#e2e8f0" font-weight="700" font-family="Segoe UI,sans-serif">5</text>
+                <text x="200" y="77" text-anchor="middle" font-size="11" fill="#e2e8f0" font-weight="700" font-family="Segoe UI,sans-serif">6</text>
+                <text x="250" y="77" text-anchor="middle" font-size="11" fill="#e2e8f0" font-weight="700" font-family="Segoe UI,sans-serif">B</text>
+                <!-- Key labels row 3 -->
+                <text x="100" y="112" text-anchor="middle" font-size="11" fill="#e2e8f0" font-weight="700" font-family="Segoe UI,sans-serif">7</text>
+                <text x="150" y="112" text-anchor="middle" font-size="11" fill="#e2e8f0" font-weight="700" font-family="Segoe UI,sans-serif">8</text>
+                <text x="200" y="112" text-anchor="middle" font-size="11" fill="#e2e8f0" font-weight="700" font-family="Segoe UI,sans-serif">9</text>
+                <text x="250" y="112" text-anchor="middle" font-size="11" fill="#e2e8f0" font-weight="700" font-family="Segoe UI,sans-serif">C</text>
+                <!-- Key labels row 4 -->
+                <text x="100" y="142" text-anchor="middle" font-size="11" fill="#e2e8f0" font-weight="700" font-family="Segoe UI,sans-serif">*</text>
+                <text x="150" y="142" text-anchor="middle" font-size="11" fill="#e2e8f0" font-weight="700" font-family="Segoe UI,sans-serif">0</text>
+                <text x="200" y="142" text-anchor="middle" font-size="11" fill="#e2e8f0" font-weight="700" font-family="Segoe UI,sans-serif">#</text>
+                <text x="250" y="142" text-anchor="middle" font-size="11" fill="#e2e8f0" font-weight="700" font-family="Segoe UI,sans-serif">D</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Matrix Scanning</div>
+                <div class="card-desc">A 4x4 keypad has 16 keys but only 8 connections: 4 row wires and 4 column wires. The Arduino sets each row LOW one at a time and reads the columns. If a column reads LOW, the key at that row-column intersection is pressed. One full scan takes microseconds.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Keypad Library</div>
+                <div class="card-desc">Install the Keypad library by Mark Stanley. Define a key map (char array), row pins, column pins. Call <span class="ic">keypad.getKey()</span> in loop -- it returns the character of the pressed key or <span class="ic">NO_KEY</span> if nothing is pressed. Handles scanning and debouncing internally.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Use Case</div>
+            Door locks, security panels, menu navigation, calculator projects, password entry. The membrane keypad costs about $2 and uses 8 pins. For fewer pins, add a resistor ladder and read the keypad as a single analog value on one pin -- but the Keypad library approach is more reliable.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- READING ANALOG VALUES ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Reading <span class="accent">Analog</span> Values</div>
+        <div class="slide-subtitle">analogRead(), 10-bit ADC, and how the Arduino converts voltage to a number.</div>
+
+        <div class="code-block"><span class="kw">void</span> <span class="fn">setup</span>() {
+  <span class="fn">Serial.begin</span>(<span class="nu">9600</span>);
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="kw">int</span> raw = <span class="fn">analogRead</span>(<span class="kw">A0</span>);      <span class="cm">// 0-1023</span>
+  <span class="kw">float</span> voltage = raw * (<span class="nu">5.0</span> / <span class="nu">1023.0</span>); <span class="cm">// convert to volts</span>
+  <span class="fn">Serial.print</span>(<span class="st">"Raw: "</span>);  <span class="fn">Serial.print</span>(raw);
+  <span class="fn">Serial.print</span>(<span class="st">"  Voltage: "</span>); <span class="fn">Serial.println</span>(voltage, <span class="nu">3</span>);
+  <span class="fn">delay</span>(<span class="nu">200</span>);
+}</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">10-Bit ADC</div>
+                <div class="card-desc">The ATmega328P has a 10-bit analog-to-digital converter (ADC). 10 bits = 2^10 = 1024 steps. The range 0-1023 maps to 0V-5V. Each step represents 5V / 1024 = 4.88mV. An <span class="ic">analogRead()</span> call takes about 100 microseconds (10,000 reads per second max).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Reference Voltage</div>
+                <div class="card-desc">By default, the ADC uses the 5V supply as its reference. <span class="ic">analogReference(INTERNAL)</span> switches to the internal 1.1V reference for higher resolution on small signals (1.1V / 1024 = 1.07mV per step). <span class="ic">analogReference(EXTERNAL)</span> uses whatever voltage you apply to the AREF pin.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">No Setup Needed</div>
+                <div class="card-desc">Unlike digital pins, analog pins do not need <span class="ic">pinMode()</span>. They default to input. Just call <span class="ic">analogRead(A0)</span> directly. The pins are labeled A0-A5 on the board. You can also use them as digital pins (14-19) if you run out of digital pins.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Common Sensors</div>
+            Potentiometer (variable resistor, outputs 0-5V), TMP36 temperature sensor (10mV per degree C), LDR/photoresistor in a voltage divider (light level), force-sensitive resistor (pressure), flex sensor (bending), and soil moisture probe. All produce a variable voltage that <span class="ic">analogRead()</span> converts to a number.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- MAPPING VALUES ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Mapping <span class="accent">Values</span></div>
+        <div class="slide-subtitle">map() scales readings from one range to another. constrain() keeps them safe.</div>
+
+        <div class="code-compare">
+            <div>
+                <div class="code-panel-label" style="color: #0088ff;">map() -- Scale to New Range</div>
+                <div class="code-block"><span class="kw">int</span> raw = <span class="fn">analogRead</span>(<span class="kw">A0</span>); <span class="cm">// 0-1023</span>
+
+<span class="cm">// Map to percentage (0-100)</span>
+<span class="kw">int</span> pct = <span class="fn">map</span>(raw, <span class="nu">0</span>, <span class="nu">1023</span>, <span class="nu">0</span>, <span class="nu">100</span>);
+
+<span class="cm">// Map to PWM range (0-255)</span>
+<span class="kw">int</span> pwm = <span class="fn">map</span>(raw, <span class="nu">0</span>, <span class="nu">1023</span>, <span class="nu">0</span>, <span class="nu">255</span>);
+<span class="fn">analogWrite</span>(<span class="nu">9</span>, pwm);
+
+<span class="cm">// Map to servo angle (0-180)</span>
+<span class="kw">int</span> angle = <span class="fn">map</span>(raw, <span class="nu">0</span>, <span class="nu">1023</span>, <span class="nu">0</span>, <span class="nu">180</span>);</div>
+            </div>
+            <div>
+                <div class="code-panel-label" style="color: #ffd700;">constrain() -- Safety Clamp</div>
+                <div class="code-block"><span class="cm">// Sensor reads 200-800 in practice,</span>
+<span class="cm">// not the full 0-1023</span>
+<span class="kw">int</span> raw = <span class="fn">analogRead</span>(<span class="kw">A0</span>);
+
+<span class="cm">// Clamp to expected range first</span>
+raw = <span class="fn">constrain</span>(raw, <span class="nu">200</span>, <span class="nu">800</span>);
+
+<span class="cm">// Then map to output range</span>
+<span class="kw">int</span> pct = <span class="fn">map</span>(raw, <span class="nu">200</span>, <span class="nu">800</span>, <span class="nu">0</span>, <span class="nu">100</span>);
+
+<span class="cm">// Result: 0-100 with no overshoot</span></div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">map(value, fromLow, fromHigh, toLow, toHigh)</div>
+                <div class="card-desc">Linear interpolation. Scales a number from one range to another. Uses integer math -- no floats, no rounding. Works with negative ranges too. Does NOT clamp: if value is outside fromLow-fromHigh, the output will be outside toLow-toHigh.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">constrain(value, min, max)</div>
+                <div class="card-desc">Clamps a value to a range. If value is below min, returns min. If above max, returns max. Otherwise returns value unchanged. Always constrain before mapping if your sensor does not use the full 0-1023 range. Prevents unexpected negative numbers or overflow.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Pro Tip</div>
+            Real sensors rarely use the full 0-1023 range. A potentiometer might read 3-1020. A light sensor might range 50-900. Measure your actual min and max, then use those as the fromLow and fromHigh in <span class="ic">map()</span>. This gives you the full output range from your actual sensor range, not the theoretical one.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- MULTIPLE ANALOG INPUTS ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Multiple <span class="accent">Analog</span> Inputs</div>
+        <div class="slide-subtitle">Reading 6 channels (A0-A5). Multiplexing for more. Managing multiple sensors.</div>
+
+        <div class="code-block"><span class="cm">// Read all 6 analog channels and log as CSV</span>
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="fn">Serial.print</span>(<span class="fn">millis</span>());
+  <span class="kw">for</span> (<span class="kw">int</span> ch = <span class="nu">0</span>; ch &lt; <span class="nu">6</span>; ch++) {
+    <span class="fn">Serial.print</span>(<span class="st">","</span>);
+    <span class="fn">Serial.print</span>(<span class="fn">analogRead</span>(A0 + ch));
+  }
+  <span class="fn">Serial.println</span>();
+  <span class="fn">delay</span>(<span class="nu">500</span>);
+}
+<span class="cm">// Output: 15230,512,380,720,1,1023,445</span></div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">6 Built-In Channels</div>
+                <div class="card-desc">The Uno has 6 analog input pins: A0-A5. The single ADC multiplexes between them -- it reads one channel at a time, switching internally. Reading all 6 takes about 600 microseconds. The Mega has 16 analog inputs (A0-A15).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Analog Multiplexer (CD4051)</div>
+                <div class="card-desc">Need more than 6 analog inputs? Use a CD4051 8-channel multiplexer. It routes one of 8 input lines to a single output line using 3 digital select pins. One multiplexer gives you 8 channels on one analog pin. Cascade two for 16 channels.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">ADC Crosstalk</div>
+                <div class="card-desc">Switching channels fast can cause crosstalk -- residual charge from the previous channel bleeds into the new reading. Fix: read the channel twice and discard the first reading, or add a small delay between channel switches. High-impedance sensors are more susceptible.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Design Pattern</div>
+            Store readings in an array: <span class="ic">int sensors[6]; for (int i = 0; i &lt; 6; i++) sensors[i] = analogRead(A0 + i);</span>. This makes it easy to loop through sensors, apply thresholds, calculate averages, or find the min/max. Arrays turn repetitive sensor code into clean, scalable logic.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- VOLTAGE MEASUREMENT ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Voltage <span class="accent">Measurement</span></div>
+        <div class="slide-subtitle">Voltage dividers for voltages above 5V. Measuring battery level safely.</div>
+
+        <div class="diagram-center">
+            <svg width="300" height="180" viewBox="0 0 300 180" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Battery -->
+                <rect x="20" y="30" width="60" height="30" rx="4" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5"
+                    style="animation: boxGrow 0.3s ease forwards 0.1s; opacity:0;"/>
+                <text x="50" y="50" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">12V</text>
+                <!-- R1 -->
+                <rect x="120" y="20" width="60" height="30" rx="4" fill="rgba(0,136,255,0.08)" stroke="#0088ff" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="150" y="40" text-anchor="middle" font-size="8" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">R1: 10k</text>
+                <!-- R2 -->
+                <rect x="120" y="70" width="60" height="30" rx="4" fill="rgba(255,215,0,0.08)" stroke="#ffd700" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="150" y="90" text-anchor="middle" font-size="8" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">R2: 3.3k</text>
+                <!-- Junction to Arduino -->
+                <line x1="182" y1="60" x2="230" y2="60" stroke="rgba(58,181,119,0.5)" stroke-width="1.5"/>
+                <rect x="230" y="45" width="60" height="30" rx="4" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="260" y="65" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">A0</text>
+                <!-- Wire lines -->
+                <line x1="82" y1="45" x2="118" y2="35" stroke="#94a3b8" stroke-width="1"/>
+                <line x1="150" y1="52" x2="150" y2="68" stroke="#94a3b8" stroke-width="1"/>
+                <!-- GND label -->
+                <text x="150" y="120" text-anchor="middle" font-size="8" fill="#475569" font-family="Segoe UI,sans-serif">GND</text>
+                <line x1="150" y1="102" x2="150" y2="112" stroke="#475569" stroke-width="1"/>
+                <!-- Formula -->
+                <text x="150" y="150" text-anchor="middle" font-size="9" fill="#e2e8f0" font-weight="700" font-family="Segoe UI,sans-serif">Vout = Vin x R2 / (R1 + R2)</text>
+                <text x="150" y="168" text-anchor="middle" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">12V x 3.3k / 13.3k = 2.98V (safe for Arduino)</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Voltage Divider</div>
+                <div class="card-desc">Two resistors in series between the measured voltage and GND. The Arduino reads the voltage at the junction between them. By choosing R1 and R2 correctly, you scale any input voltage down to the 0-5V range the ADC can safely read. Formula: Vout = Vin * R2 / (R1 + R2).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Battery Monitoring</div>
+                <div class="card-desc">For a 12V battery with R1=10k and R2=3.3k: max Vout = 12 * 3.3 / 13.3 = 2.98V. Safe. The ADC reading at full charge: 2.98 / 5 * 1023 = 610. Map this back to voltage: <span class="ic">float vBat = analogRead(A0) * (12.0 / 610.0);</span></div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Safety Warning</div>
+            Never connect more than 5V directly to an Arduino analog pin. Voltages above 5.5V will damage the ATmega328P permanently. Always use a voltage divider when measuring batteries, power supplies, or any source above 5V. Double-check your resistor math before connecting.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- RESPONDING TO CHANGES ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Responding to <span class="accent">Changes</span></div>
+        <div class="slide-subtitle">Threshold detection, change detection, and hysteresis for stable behavior.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Threshold Detection</div>
+                <div class="card-desc">Set a threshold value: <span class="ic">if (analogRead(A0) > 500) { alarm(); }</span>. When the sensor crosses the line, the action fires. Simple, but problematic when the reading hovers around the threshold -- the output flickers on and off rapidly.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Change Detection</div>
+                <div class="card-desc">Only react when the value changes significantly: <span class="ic">if (abs(current - previous) > 10) { update(); previous = current; }</span>. The deadband (10) filters out noise. Useful for knobs and sliders where you want to send updates only when the user actually moves the control.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Hysteresis</div>
+                <div class="card-desc">Two thresholds instead of one: turn ON above 600, turn OFF below 400. The gap (200) prevents rapid on/off cycling. <span class="ic">if (val > 600) state = ON; if (val &lt; 400) state = OFF;</span>. Between 400-600, the state does not change. This is how thermostats work.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// Hysteresis example -- stable threshold switching</span>
+<span class="kw">const int</span> THRESHOLD_HIGH = <span class="nu">600</span>;
+<span class="kw">const int</span> THRESHOLD_LOW  = <span class="nu">400</span>;
+<span class="kw">bool</span> alarmOn = <span class="kw">false</span>;
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="kw">int</span> val = <span class="fn">analogRead</span>(<span class="kw">A0</span>);
+
+  <span class="kw">if</span> (!alarmOn && val > THRESHOLD_HIGH) {
+    alarmOn = <span class="kw">true</span>;
+    <span class="fn">Serial.println</span>(<span class="st">"ALARM ON"</span>);
+    <span class="fn">digitalWrite</span>(<span class="nu">13</span>, <span class="kw">HIGH</span>);
+  }
+  <span class="kw">if</span> (alarmOn && val < THRESHOLD_LOW) {
+    alarmOn = <span class="kw">false</span>;
+    <span class="fn">Serial.println</span>(<span class="st">"ALARM OFF"</span>);
+    <span class="fn">digitalWrite</span>(<span class="nu">13</span>, <span class="kw">LOW</span>);
+  }
+  <span class="fn">delay</span>(<span class="nu">100</span>);
+}</div>
+
+        <div class="box box-green">
+            <div class="box-label">Why Hysteresis Matters</div>
+            Without hysteresis, a noisy sensor reading near 500 flips the output dozens of times per second. A relay clicking on and off rapidly damages equipment. An LED flickering looks broken. Hysteresis adds stability by requiring a clear, decisive transition past a dead zone before changing state.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- KEY TAKEAWAYS ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Key <span class="accent">Takeaways</span></div>
+        <div class="slide-subtitle">Digital and analog input are the foundation of every interactive Arduino project.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Digital = binary, Analog = continuous.</strong> <code>digitalRead()</code> returns HIGH or LOW (5V or 0V). <code>analogRead()</code> returns 0-1023, mapping 0V-5V through a 10-bit ADC. Use digital for buttons and switches, analog for sensors that produce variable voltage.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Always handle floating pins.</strong> Use <code>INPUT_PULLUP</code> for buttons (no external resistor needed). Wire button between pin and GND. Logic is inverted: LOW = pressed. Never leave an input pin unconnected without a pull-up or pull-down.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Debounce every button.</strong> Mechanical switches bounce for 1-10ms. Use <code>millis()</code>-based debouncing, not <code>delay()</code>. The Bounce2 library is the clean production solution. Without debouncing, one press registers as multiple presses.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong><code>map()</code> and <code>constrain()</code> are essential.</strong> Map scales readings from one range to another (ADC to percentage, PWM, servo angle). Constrain clamps values to prevent overflow. Always constrain before mapping when your sensor does not use the full 0-1023 range.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Use hysteresis for stable thresholds.</strong> Two thresholds (high to activate, low to deactivate) prevent rapid flickering when a sensor reading hovers near a single threshold. This is how thermostats, light sensors, and industrial controls work in the real world.</span></div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Core 6 -- Digital &amp; Analog Output</strong> &nbsp;|&nbsp; PWM, analogWrite(), Fading LEDs, Driving Motors
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; ProtoCore</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* Slide navigation state */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    /* Module completion via ModuleProgress component */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-ard-05-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>

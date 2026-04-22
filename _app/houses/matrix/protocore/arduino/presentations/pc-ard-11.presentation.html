@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Displays | ProtoCore Arduino Core 11</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #040810 0%, #081020 50%, #0a0c1a 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Electric blue progress bar */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #0088ff; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(4, 8, 16, 0.95);
+            border-top: 1px solid rgba(0, 136, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(0, 136, 255, 0.15); color: #0088ff; border-color: #0088ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #0088ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ffd700; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip */
+        .scenario-strip {
+            background: rgba(0, 136, 255, 0.08); border-left: 3px solid #0088ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(0, 136, 255, 0.08); border: 1px solid rgba(0, 136, 255, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ffd700; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #0088ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #ffd700; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #0088ff; }
+
+        /* Section label */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #0088ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Inline code */
+        .ic {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* SVG diagram containers */
+        .diagram-row {
+            display: flex; gap: 16px; align-items: center; justify-content: center;
+        }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        /* Step-by-step flow list */
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(0, 136, 255, 0.12); border: 1px solid rgba(0, 136, 255, 0.4);
+            color: #0088ff; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        /* Code block */
+        .code-block {
+            background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #ffd700; line-height: 1.6; white-space: pre;
+        }
+        .code-block .cm { color: #64748b; }
+        .code-block .kw { color: #5cb8ff; }
+        .code-block .fn { color: #ffd700; }
+        .code-block .st { color: #86efac; }
+        .code-block .nu { color: #fdba74; }
+
+        /* Two-column code compare */
+        .code-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .code-panel-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.07em; margin-bottom: 5px; }
+
+        /* Hex grid cells */
+        .hex-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(0, 136, 255, 0.25);
+            border-radius: 8px; padding: 12px 14px;
+            text-align: center;
+            opacity: 0;
+            animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #0088ff; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        /* Shared animation keyframes */
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes flow {
+            0%   { stroke-dashoffset: 20; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes boxGrow {
+            from { opacity: 0; transform: scale(0.7); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes entityPop {
+            from { opacity: 0; transform: scale(0.6) translateY(6px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes glowPulse {
+            0%, 100% { filter: drop-shadow(0 0 4px rgba(0,136,255,0.3)); }
+            50%       { filter: drop-shadow(0 0 14px rgba(0,136,255,0.9)); }
+        }
+        @keyframes pixelBlink {
+            0%, 100% { fill: rgba(0,136,255,0.6); }
+            50%       { fill: rgba(0,136,255,0.15); }
+        }
+        @keyframes dataFlow {
+            0%   { stroke-dashoffset: 14; }
+            100% { stroke-dashoffset: 0; }
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .card-grid-4 { grid-template-columns: 1fr 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .code-compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Displays -- ProtoCore Arduino Core 11</h1>
+
+<!-- Electric blue progress bar -->
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; ProtoCore &nbsp;|&nbsp; Arduino &nbsp;|&nbsp; Core 11</div>
+        <div class="title-hero">
+            <!-- Display panel SVG -->
+            <svg width="400" height="130" viewBox="0 0 400 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- LCD frame -->
+                <rect x="100" y="10" width="200" height="90" rx="8" fill="rgba(0,136,255,0.06)" stroke="#0088ff" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.1s; opacity:0;"/>
+                <!-- Display surface -->
+                <rect x="115" y="22" width="170" height="55" rx="4" fill="rgba(0,40,80,0.6)" stroke="rgba(0,136,255,0.4)" stroke-width="1"/>
+                <!-- Pixel grid simulation -->
+                <rect x="125" y="32" width="4" height="4" rx="1" style="animation: pixelBlink 2s ease-in-out infinite 0.0s;" fill="rgba(0,136,255,0.6)"/>
+                <rect x="133" y="32" width="4" height="4" rx="1" style="animation: pixelBlink 2s ease-in-out infinite 0.1s;" fill="rgba(0,136,255,0.6)"/>
+                <rect x="141" y="32" width="4" height="4" rx="1" style="animation: pixelBlink 2s ease-in-out infinite 0.2s;" fill="rgba(0,136,255,0.6)"/>
+                <rect x="149" y="32" width="4" height="4" rx="1" style="animation: pixelBlink 2s ease-in-out infinite 0.3s;" fill="rgba(0,136,255,0.6)"/>
+                <rect x="157" y="32" width="4" height="4" rx="1" style="animation: pixelBlink 2s ease-in-out infinite 0.4s;" fill="rgba(0,136,255,0.6)"/>
+                <rect x="165" y="32" width="4" height="4" rx="1" style="animation: pixelBlink 2s ease-in-out infinite 0.5s;" fill="rgba(0,136,255,0.6)"/>
+                <!-- Display text -->
+                <text x="200" y="48" text-anchor="middle" font-size="10" fill="#0088ff" font-weight="700" font-family="Courier New,monospace">Hello World!</text>
+                <text x="200" y="65" text-anchor="middle" font-size="8" fill="#ffd700" font-family="Courier New,monospace">Temp: 23.5 C</text>
+                <!-- Connector pins -->
+                <line x1="160" y1="100" x2="160" y2="120" stroke="#ffd700" stroke-width="1.5" style="animation: fadeUp 0.3s ease forwards 0.4s; opacity:0;"/>
+                <line x1="180" y1="100" x2="180" y2="120" stroke="#ffd700" stroke-width="1.5" style="animation: fadeUp 0.3s ease forwards 0.5s; opacity:0;"/>
+                <line x1="200" y1="100" x2="200" y2="120" stroke="#ffd700" stroke-width="1.5" style="animation: fadeUp 0.3s ease forwards 0.6s; opacity:0;"/>
+                <line x1="220" y1="100" x2="220" y2="120" stroke="#ffd700" stroke-width="1.5" style="animation: fadeUp 0.3s ease forwards 0.7s; opacity:0;"/>
+                <line x1="240" y1="100" x2="240" y2="120" stroke="#ffd700" stroke-width="1.5" style="animation: fadeUp 0.3s ease forwards 0.8s; opacity:0;"/>
+                <text x="200" y="130" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">I2C / SPI / Parallel</text>
+                <!-- Glow -->
+                <rect x="115" y="22" width="170" height="55" rx="4" fill="none" stroke="rgba(0,136,255,0.15)" stroke-width="2" style="animation: glowPulse 3s ease-in-out infinite;"/>
+            </svg>
+            <div class="big-title">
+                <span class="accent">Displays</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Character LCD &nbsp;|&nbsp; OLED &nbsp;|&nbsp; TFT &nbsp;|&nbsp; Custom Characters &nbsp;|&nbsp; Buffering
+            </div>
+        </div>
+        <div class="scenario-strip">
+            The Serial Monitor is a debugging tool, not a user interface. Real embedded systems need displays -- screens that show data without a computer attached. From a 16x2 character LCD showing "Temp: 23.5C" to a full-color TFT rendering sensor dashboards, displays transform your Arduino from a hidden processor into a visible, interactive device.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>ProtoCore Arduino</span>
+            <span>Core 11</span>
+            <span>Matrix House</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- DISPLAY TYPES ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Display <span class="accent">Types</span></div>
+        <div class="slide-subtitle">Four families of displays, each with different capabilities, interfaces, and use cases.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Character LCD (16x2, 20x4)</div>
+                <div class="card-desc">Text-only display with fixed character cells. Each cell is a 5x8 pixel grid. HD44780 controller, parallel or I2C interface. Cheap ($2-5), easy to use, but limited to predefined characters. Green or blue backlight. The workhorse of embedded systems.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Graphical LCD (128x64)</div>
+                <div class="card-desc">Monochrome pixel-level control. ST7565 or PCD8544 (Nokia 5110) controller. Draw shapes, lines, custom fonts, and bitmaps. No color, but full graphical freedom. SPI interface. Great for graphs and custom UIs.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">OLED (128x64, 128x32)</div>
+                <div class="card-desc">Self-emitting pixels -- no backlight needed. SSD1306 controller. Deep blacks, wide viewing angles, ultra-thin. I2C or SPI. Excellent contrast ratio. Small form factor (0.96" typical). Best for wearables and compact projects.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Full-Color TFT (240x320+)</div>
+                <div class="card-desc">65K or 262K colors. ST7735 (1.8"), ILI9341 (2.4"+). SPI interface. Draw images, gradients, multiple fonts, and touch overlay. Requires more memory and processing power. The closest to a phone screen you can get on an Arduino.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Choosing a Display</div>
+            Need just text and numbers? Character LCD -- cheapest and simplest. Need graphics on a budget? OLED 128x64 -- beautiful contrast, tiny footprint, I2C simplicity. Need color and images? TFT -- more complex but stunning results. Need maximum battery life? OLED -- individual pixel control means only lit pixels consume power.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- CHARACTER LCD ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Character LCD: <span class="accent">16x2 HD44780</span></div>
+        <div class="slide-subtitle">16 characters wide, 2 rows tall. The most common Arduino display. HD44780 controller, 4-bit parallel mode.</div>
+
+        <div class="diagram-center">
+            <svg width="560" height="120" viewBox="0 0 560 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- LCD body -->
+                <rect x="130" y="10" width="300" height="80" rx="8" fill="rgba(0,136,255,0.06)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.1s; opacity:0;"/>
+                <!-- Display area -->
+                <rect x="145" y="22" width="270" height="50" rx="4" fill="rgba(0,80,0,0.3)" stroke="rgba(58,181,119,0.4)" stroke-width="1"/>
+                <!-- Character cells row 1 -->
+                <text x="160" y="42" font-size="11" fill="#3ab577" font-weight="700" font-family="Courier New,monospace">Hello, World!</text>
+                <!-- Character cells row 2 -->
+                <text x="160" y="62" font-size="11" fill="#3ab577" font-family="Courier New,monospace">Line 2 text here</text>
+                <!-- Pin labels -->
+                <text x="180" y="110" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">VSS VDD V0 RS RW EN D4 D5 D6 D7 A K</text>
+                <!-- Pin lines -->
+                <line x1="155" y1="90" x2="155" y2="100" stroke="#ffd700" stroke-width="1" style="animation: fadeUp 0.2s ease forwards 0.3s; opacity:0;"/>
+                <line x1="180" y1="90" x2="180" y2="100" stroke="#ffd700" stroke-width="1" style="animation: fadeUp 0.2s ease forwards 0.35s; opacity:0;"/>
+                <line x1="205" y1="90" x2="205" y2="100" stroke="#ffd700" stroke-width="1" style="animation: fadeUp 0.2s ease forwards 0.4s; opacity:0;"/>
+                <line x1="230" y1="90" x2="230" y2="100" stroke="#ffd700" stroke-width="1" style="animation: fadeUp 0.2s ease forwards 0.45s; opacity:0;"/>
+                <!-- Arduino label -->
+                <rect x="10" y="35" width="80" height="40" rx="6" fill="rgba(0,136,255,0.06)" stroke="#0088ff" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="50" y="55" text-anchor="middle" font-size="8" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Arduino</text>
+                <text x="50" y="67" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">6 pins used</text>
+                <!-- Connection lines -->
+                <line x1="92" y1="55" x2="128" y2="55" stroke="rgba(0,136,255,0.3)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.8s" repeatCount="indefinite"/>
+                </line>
+            </svg>
+        </div>
+
+        <div class="code-block"><span class="cm">// Basic 16x2 LCD in 4-bit mode</span>
+<span class="kw">#include</span> <span class="st">&lt;LiquidCrystal.h&gt;</span>
+
+<span class="cm">// RS, EN, D4, D5, D6, D7</span>
+LiquidCrystal <span class="fn">lcd</span>(<span class="nu">12</span>, <span class="nu">11</span>, <span class="nu">5</span>, <span class="nu">4</span>, <span class="nu">3</span>, <span class="nu">2</span>);
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    lcd.<span class="fn">begin</span>(<span class="nu">16</span>, <span class="nu">2</span>);        <span class="cm">// 16 cols, 2 rows</span>
+    lcd.<span class="fn">print</span>(<span class="st">"Hello, World!"</span>);
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+    lcd.<span class="fn">setCursor</span>(<span class="nu">0</span>, <span class="nu">1</span>);    <span class="cm">// col 0, row 1</span>
+    lcd.<span class="fn">print</span>(<span class="fn">millis</span>() / <span class="nu">1000</span>);
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">4-Bit Mode Wiring</div>
+                <div class="card-desc">The HD44780 has a 16-pin interface but only 6 Arduino pins are needed in 4-bit mode: RS (register select), EN (enable), and D4-D7 (data). The remaining D0-D3 are unused. A potentiometer on V0 controls contrast. Pin A/K power the backlight.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">LiquidCrystal Library</div>
+                <div class="card-desc">Built into the Arduino IDE -- no installation needed. <span class="ic">lcd.begin(16,2)</span> initializes the display dimensions. <span class="ic">lcd.print()</span> writes text at the current cursor position. <span class="ic">lcd.clear()</span> erases everything and resets the cursor to (0,0).</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- TEXT FORMATTING ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Text <span class="accent">Formatting</span></div>
+        <div class="slide-subtitle">Cursor positioning, scrolling, autoscroll, and custom character creation on character LCDs.</div>
+
+        <div class="step-list">
+            <div class="step-row">
+                <span class="step-num">1</span>
+                <span class="step-text"><strong>setCursor(col, row):</strong> Move the cursor to any position. Column 0-15, row 0-1 on a 16x2 LCD. <span class="ic">lcd.setCursor(5, 1)</span> positions at column 5, row 1 (second line). All subsequent print() calls write from that position.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">2</span>
+                <span class="step-text"><strong>print() and write():</strong> <span class="ic">lcd.print()</span> handles strings, ints, and floats with automatic type conversion. <span class="ic">lcd.write()</span> sends a single byte -- used for custom characters. Print integers with a base: <span class="ic">lcd.print(255, HEX)</span> shows "FF".</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">3</span>
+                <span class="step-text"><strong>scrollDisplayLeft() / Right():</strong> Shift the entire display content one position. Call in a loop with delay to create a scrolling marquee effect. Content wraps from one end to the other. Does not change cursor position.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">4</span>
+                <span class="step-text"><strong>autoscroll():</strong> When enabled, each new character pushes the existing text one position to the left. Useful for right-to-left scrolling effects. Disable with <span class="ic">lcd.noAutoscroll()</span>.</span>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// Scrolling marquee effect</span>
+<span class="kw">void</span> <span class="fn">loop</span>() {
+    lcd.<span class="fn">setCursor</span>(<span class="nu">0</span>, <span class="nu">0</span>);
+    lcd.<span class="fn">print</span>(<span class="st">"ProtoCore Arduino!"</span>);
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nu">0</span>; i &lt; <span class="nu">16</span>; i++) {
+        lcd.<span class="fn">scrollDisplayLeft</span>();
+        <span class="fn">delay</span>(<span class="nu">300</span>);
+    }
+}</div>
+
+        <div class="box box-gold">
+            <div class="box-label">Custom Characters</div>
+            The HD44780 allows up to 8 custom characters (indices 0-7). Each character is a 5x8 pixel bitmap defined as an array of 8 bytes, where each byte represents one row. Use <span class="ic">lcd.createChar(index, byteArray)</span> to register a custom character, then <span class="ic">lcd.write(index)</span> to display it. You can create arrows, symbols, progress bars, and simple icons this way.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- I2C LCD ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">I2C LCD: <span class="accent">2-Wire Connection</span></div>
+        <div class="slide-subtitle">The PCF8574 backpack reduces 16 pins to just 4: VCC, GND, SDA, SCL.</div>
+
+        <div class="diagram-center">
+            <svg width="500" height="100" viewBox="0 0 500 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Arduino -->
+                <rect x="30" y="20" width="100" height="60" rx="8" fill="rgba(0,136,255,0.06)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="80" y="42" text-anchor="middle" font-size="8" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Arduino</text>
+                <text x="80" y="55" text-anchor="middle" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">A4 (SDA)</text>
+                <text x="80" y="66" text-anchor="middle" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">A5 (SCL)</text>
+                <!-- I2C bus lines -->
+                <line x1="133" y1="42" x2="260" y2="42" stroke="rgba(0,136,255,0.4)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.8s" repeatCount="indefinite"/>
+                </line>
+                <line x1="133" y1="58" x2="260" y2="58" stroke="rgba(255,215,0,0.4)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.8s" repeatCount="indefinite"/>
+                </line>
+                <text x="195" y="35" text-anchor="middle" font-size="6" fill="#0088ff" font-family="Segoe UI,sans-serif">SDA</text>
+                <text x="195" y="72" text-anchor="middle" font-size="6" fill="#ffd700" font-family="Segoe UI,sans-serif">SCL</text>
+                <!-- PCF8574 backpack -->
+                <rect x="265" y="15" width="80" height="70" rx="6" fill="rgba(255,215,0,0.08)" stroke="#ffd700" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="305" y="40" text-anchor="middle" font-size="7" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">PCF8574</text>
+                <text x="305" y="52" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">I2C Backpack</text>
+                <text x="305" y="63" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">Addr: 0x27</text>
+                <!-- Arrow to LCD -->
+                <line x1="348" y1="50" x2="378" y2="50" stroke="rgba(255,215,0,0.3)" stroke-width="1"/>
+                <!-- LCD -->
+                <rect x="380" y="20" width="90" height="60" rx="6" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="425" y="42" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">16x2 LCD</text>
+                <text x="425" y="55" text-anchor="middle" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">HD44780</text>
+                <text x="425" y="66" text-anchor="middle" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">16 pins</text>
+            </svg>
+        </div>
+
+        <div class="code-block"><span class="cm">// I2C LCD -- only 2 data wires</span>
+<span class="kw">#include</span> <span class="st">&lt;Wire.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;LiquidCrystal_I2C.h&gt;</span>
+
+LiquidCrystal_I2C <span class="fn">lcd</span>(<span class="nu">0x27</span>, <span class="nu">16</span>, <span class="nu">2</span>);  <span class="cm">// address, cols, rows</span>
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    lcd.<span class="fn">init</span>();
+    lcd.<span class="fn">backlight</span>();
+    lcd.<span class="fn">print</span>(<span class="st">"I2C LCD Ready"</span>);
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Why I2C?</div>
+                <div class="card-desc">Parallel mode uses 6 Arduino pins. I2C uses 2 (SDA on A4, SCL on A5). The PCF8574 chip on the backpack translates I2C serial commands into the parallel signals the HD44780 expects. This saves 4 pins for sensors and actuators.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Address Discovery</div>
+                <div class="card-desc">Most I2C LCD backpacks use address 0x27 or 0x3F. If your LCD does not respond, run an I2C scanner sketch that loops through all 127 addresses and reports which ones respond. Solder pads on the backpack let you change the address for multi-LCD setups.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- GRAPHICAL LCD ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Graphical <span class="accent">LCD</span></div>
+        <div class="slide-subtitle">Pixel-level control. Draw lines, rectangles, circles, and custom bitmaps on monochrome screens.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">PCD8544 (Nokia 5110)</div>
+                <div class="card-desc">84x48 pixels, monochrome. SPI interface (5 pins: CLK, DIN, DC, CE, RST). Very low power, visible in direct sunlight. The classic retro display. Uses the Adafruit PCD8544 library. Good for simple menus and dashboards.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">ST7565 (128x64)</div>
+                <div class="card-desc">Larger monochrome graphical LCD. SPI interface. 128x64 pixels gives you real estate for graphs, multi-line text, and complex layouts. Uses the U8g2 library for high-quality font rendering and drawing primitives.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// Drawing on a graphical LCD with U8g2</span>
+<span class="kw">#include</span> <span class="st">&lt;U8g2lib.h&gt;</span>
+
+U8G2_ST7565_64128N_F_4W_SW_SPI <span class="fn">u8g2</span>(U8G2_R0, <span class="nu">13</span>, <span class="nu">11</span>, <span class="nu">10</span>, <span class="nu">9</span>, <span class="nu">8</span>);
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    u8g2.<span class="fn">begin</span>();
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+    u8g2.<span class="fn">clearBuffer</span>();
+    u8g2.<span class="fn">setFont</span>(u8g2_font_ncenB08_tr);
+    u8g2.<span class="fn">drawStr</span>(<span class="nu">10</span>, <span class="nu">20</span>, <span class="st">"ProtoCore"</span>);
+    u8g2.<span class="fn">drawFrame</span>(<span class="nu">5</span>, <span class="nu">5</span>, <span class="nu">118</span>, <span class="nu">54</span>);  <span class="cm">// rectangle outline</span>
+    u8g2.<span class="fn">drawLine</span>(<span class="nu">0</span>, <span class="nu">32</span>, <span class="nu">127</span>, <span class="nu">32</span>);     <span class="cm">// horizontal divider</span>
+    u8g2.<span class="fn">sendBuffer</span>();
+}</div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Drawing Primitives</div>
+            U8g2 provides: <span class="ic">drawPixel(x,y)</span>, <span class="ic">drawLine(x0,y0,x1,y1)</span>, <span class="ic">drawFrame(x,y,w,h)</span> (rectangle outline), <span class="ic">drawBox(x,y,w,h)</span> (filled rectangle), <span class="ic">drawCircle(x,y,r)</span>, <span class="ic">drawDisc(x,y,r)</span> (filled circle), <span class="ic">drawTriangle()</span>, and <span class="ic">drawBitmap()</span>. You can also render XBM images and use dozens of built-in fonts.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- OLED DISPLAYS ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">OLED Displays: <span class="accent">SSD1306</span></div>
+        <div class="slide-subtitle">128x64 pixels, self-emitting, infinite contrast ratio. The best small display for Arduino.</div>
+
+        <div class="diagram-center">
+            <svg width="400" height="110" viewBox="0 0 400 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- OLED frame -->
+                <rect x="100" y="10" width="200" height="80" rx="6" fill="rgba(0,0,0,0.6)" stroke="rgba(0,136,255,0.4)" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.1s; opacity:0;"/>
+                <!-- Pixel content simulation -->
+                <text x="200" y="35" text-anchor="middle" font-size="10" fill="#ffffff" font-weight="700" font-family="Courier New,monospace">SSD1306</text>
+                <text x="200" y="52" text-anchor="middle" font-size="8" fill="#0088ff" font-family="Courier New,monospace">128 x 64 px</text>
+                <rect x="130" y="58" width="60" height="8" rx="2" fill="rgba(0,136,255,0.4)"/>
+                <rect x="130" y="58" width="35" height="8" rx="2" fill="#0088ff"/>
+                <text x="200" y="73" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">CPU: 54%</text>
+                <!-- I2C label -->
+                <text x="200" y="105" text-anchor="middle" font-size="7" fill="#ffd700" font-family="Segoe UI,sans-serif">I2C: SDA + SCL (2 wires) | Address: 0x3C</text>
+            </svg>
+        </div>
+
+        <div class="code-block"><span class="cm">// SSD1306 OLED with Adafruit library</span>
+<span class="kw">#include</span> <span class="st">&lt;Wire.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;Adafruit_GFX.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;Adafruit_SSD1306.h&gt;</span>
+
+Adafruit_SSD1306 <span class="fn">display</span>(<span class="nu">128</span>, <span class="nu">64</span>, &amp;Wire, -<span class="nu">1</span>);
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    display.<span class="fn">begin</span>(SSD1306_SWITCHCAPVCC, <span class="nu">0x3C</span>);
+    display.<span class="fn">clearDisplay</span>();
+    display.<span class="fn">setTextSize</span>(<span class="nu">1</span>);
+    display.<span class="fn">setTextColor</span>(SSD1306_WHITE);
+    display.<span class="fn">setCursor</span>(<span class="nu">0</span>, <span class="nu">0</span>);
+    display.<span class="fn">println</span>(<span class="st">"OLED Ready"</span>);
+    display.<span class="fn">display</span>();  <span class="cm">// push buffer to screen</span>
+}</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Why OLED?</div>
+                <div class="card-desc">Each pixel emits its own light. Black pixels are truly off (zero power). Contrast ratio is essentially infinite. Viewing angle is nearly 180 degrees. No backlight bleed. Thinner than any LCD.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Adafruit GFX</div>
+                <div class="card-desc">The GFX library provides a common drawing API across all Adafruit displays. Same functions work on OLED, TFT, and e-ink: drawPixel, drawLine, drawRect, drawCircle, print, setFont. Learn once, use everywhere.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Memory Cost</div>
+                <div class="card-desc">128x64 pixels = 1024 bytes for the frame buffer. The SSD1306 library allocates this in SRAM. On an Uno with only 2048 bytes of SRAM, that is 50% of memory used by the display alone. Plan your variables carefully.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- FULL-COLOR LCD ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Full-Color <span class="accent">LCD</span></div>
+        <div class="slide-subtitle">ST7735 (1.8") and ILI9341 (2.4"+). SPI interface, 65K colors, images, gradients, and touch.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">ST7735 (128x160, 1.8")</div>
+                <div class="card-desc">Small, affordable color TFT. SPI interface (5-6 pins). 65K colors (RGB565 format). Fast enough for simple animations. Use Adafruit_ST7735 library. Perfect for data dashboards, sensor readouts, and small game UIs.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">ILI9341 (240x320, 2.4"+)</div>
+                <div class="card-desc">Larger, higher resolution. Often comes with a resistive touch overlay (XPT2046 controller). SPI at up to 40MHz. Use Adafruit_ILI9341 + Adafruit_GFX. Needs an Arduino Mega or ESP32 for complex UIs due to memory constraints.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// Color TFT with ST7735</span>
+<span class="kw">#include</span> <span class="st">&lt;Adafruit_GFX.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;Adafruit_ST7735.h&gt;</span>
+
+Adafruit_ST7735 <span class="fn">tft</span>(<span class="nu">10</span>, <span class="nu">9</span>, <span class="nu">8</span>);  <span class="cm">// CS, DC, RST</span>
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    tft.<span class="fn">initR</span>(INITR_BLACKTAB);
+    tft.<span class="fn">fillScreen</span>(ST77XX_BLACK);
+    tft.<span class="fn">setTextColor</span>(ST77XX_YELLOW);
+    tft.<span class="fn">setTextSize</span>(<span class="nu">2</span>);
+    tft.<span class="fn">setCursor</span>(<span class="nu">10</span>, <span class="nu">10</span>);
+    tft.<span class="fn">println</span>(<span class="st">"ProtoCore"</span>);
+    tft.<span class="fn">fillRect</span>(<span class="nu">10</span>, <span class="nu">50</span>, <span class="nu">100</span>, <span class="nu">20</span>, ST77XX_BLUE);  <span class="cm">// filled rect</span>
+}</div>
+
+        <div class="box box-blue">
+            <div class="box-label">RGB565 Color Format</div>
+            TFT displays use 16-bit color (RGB565): 5 bits red, 6 bits green, 5 bits blue. Total: 65,536 colors. Common constants: <span class="ic">ST77XX_BLACK</span> (0x0000), <span class="ic">ST77XX_WHITE</span> (0xFFFF), <span class="ic">ST77XX_RED</span> (0xF800), <span class="ic">ST77XX_GREEN</span> (0x07E0), <span class="ic">ST77XX_BLUE</span> (0x001F). For custom colors, use <span class="ic">tft.color565(r, g, b)</span> where each value is 0-255.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- CUSTOM CHARACTERS ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Custom <span class="accent">Characters</span></div>
+        <div class="slide-subtitle">Design 5x8 pixel icons for character LCDs. Create arrows, battery indicators, and animation frames.</div>
+
+        <div class="diagram-center">
+            <svg width="400" height="120" viewBox="0 0 400 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- 5x8 pixel grid for heart character -->
+                <text x="200" y="12" text-anchor="middle" font-size="8" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">5x8 Pixel Grid -- Heart Icon</text>
+                <!-- Grid background -->
+                <rect x="145" y="18" width="110" height="96" rx="4" fill="rgba(0,0,0,0.3)" stroke="rgba(0,136,255,0.2)" stroke-width="1"/>
+                <!-- Row 0: 00000 -->
+                <!-- Row 1: 01010 -->
+                <rect x="167" y="30" width="10" height="10" rx="1" fill="#ef4444" style="animation: entityPop 0.3s ease forwards 0.1s; opacity:0;"/>
+                <rect x="189" y="30" width="10" height="10" rx="1" fill="#ef4444" style="animation: entityPop 0.3s ease forwards 0.15s; opacity:0;"/>
+                <!-- Row 2: 11111 -->
+                <rect x="156" y="42" width="10" height="10" rx="1" fill="#ef4444" style="animation: entityPop 0.3s ease forwards 0.2s; opacity:0;"/>
+                <rect x="167" y="42" width="10" height="10" rx="1" fill="#ef4444" style="animation: entityPop 0.3s ease forwards 0.22s; opacity:0;"/>
+                <rect x="178" y="42" width="10" height="10" rx="1" fill="#ef4444" style="animation: entityPop 0.3s ease forwards 0.24s; opacity:0;"/>
+                <rect x="189" y="42" width="10" height="10" rx="1" fill="#ef4444" style="animation: entityPop 0.3s ease forwards 0.26s; opacity:0;"/>
+                <rect x="200" y="42" width="10" height="10" rx="1" fill="#ef4444" style="animation: entityPop 0.3s ease forwards 0.28s; opacity:0;"/>
+                <!-- Row 3: 11111 -->
+                <rect x="156" y="54" width="10" height="10" rx="1" fill="#ef4444" style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <rect x="167" y="54" width="10" height="10" rx="1" fill="#ef4444" style="animation: entityPop 0.3s ease forwards 0.32s; opacity:0;"/>
+                <rect x="178" y="54" width="10" height="10" rx="1" fill="#ef4444" style="animation: entityPop 0.3s ease forwards 0.34s; opacity:0;"/>
+                <rect x="189" y="54" width="10" height="10" rx="1" fill="#ef4444" style="animation: entityPop 0.3s ease forwards 0.36s; opacity:0;"/>
+                <rect x="200" y="54" width="10" height="10" rx="1" fill="#ef4444" style="animation: entityPop 0.3s ease forwards 0.38s; opacity:0;"/>
+                <!-- Row 4: 01110 -->
+                <rect x="167" y="66" width="10" height="10" rx="1" fill="#ef4444" style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <rect x="178" y="66" width="10" height="10" rx="1" fill="#ef4444" style="animation: entityPop 0.3s ease forwards 0.42s; opacity:0;"/>
+                <rect x="189" y="66" width="10" height="10" rx="1" fill="#ef4444" style="animation: entityPop 0.3s ease forwards 0.44s; opacity:0;"/>
+                <!-- Row 5: 00100 -->
+                <rect x="178" y="78" width="10" height="10" rx="1" fill="#ef4444" style="animation: entityPop 0.3s ease forwards 0.46s; opacity:0;"/>
+                <!-- Row 6,7: empty -->
+                <!-- Byte values on right -->
+                <text x="280" y="30" font-size="7" fill="#94a3b8" font-family="Courier New,monospace">0b00000  // 0x00</text>
+                <text x="280" y="42" font-size="7" fill="#ffd700" font-family="Courier New,monospace">0b01010  // 0x0A</text>
+                <text x="280" y="54" font-size="7" fill="#ffd700" font-family="Courier New,monospace">0b11111  // 0x1F</text>
+                <text x="280" y="66" font-size="7" fill="#ffd700" font-family="Courier New,monospace">0b11111  // 0x1F</text>
+                <text x="280" y="78" font-size="7" fill="#ffd700" font-family="Courier New,monospace">0b01110  // 0x0E</text>
+                <text x="280" y="90" font-size="7" fill="#ffd700" font-family="Courier New,monospace">0b00100  // 0x04</text>
+                <text x="280" y="102" font-size="7" fill="#94a3b8" font-family="Courier New,monospace">0b00000  // 0x00</text>
+                <text x="280" y="114" font-size="7" fill="#94a3b8" font-family="Courier New,monospace">0b00000  // 0x00</text>
+            </svg>
+        </div>
+
+        <div class="code-block"><span class="cm">// Define and display a custom heart character</span>
+<span class="kw">byte</span> heart[<span class="nu">8</span>] = {
+    <span class="nu">0b00000</span>,
+    <span class="nu">0b01010</span>,
+    <span class="nu">0b11111</span>,
+    <span class="nu">0b11111</span>,
+    <span class="nu">0b01110</span>,
+    <span class="nu">0b00100</span>,
+    <span class="nu">0b00000</span>,
+    <span class="nu">0b00000</span>
+};
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    lcd.<span class="fn">begin</span>(<span class="nu">16</span>, <span class="nu">2</span>);
+    lcd.<span class="fn">createChar</span>(<span class="nu">0</span>, heart);  <span class="cm">// register as character 0</span>
+    lcd.<span class="fn">setCursor</span>(<span class="nu">0</span>, <span class="nu">0</span>);
+    lcd.<span class="fn">write</span>((<span class="kw">byte</span>)<span class="nu">0</span>);       <span class="cm">// display it</span>
+    lcd.<span class="fn">print</span>(<span class="st">" Health: 100"</span>);
+}</div>
+
+        <div class="box box-gold">
+            <div class="box-label">Animation with Custom Characters</div>
+            Create multiple frames of a simple animation (e.g., a spinning loading icon) as custom characters 0-7. In loop(), cycle through them with a delay to create the illusion of movement. Since you only have 8 slots, keep animations short or swap characters dynamically using <span class="ic">createChar()</span> during runtime.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- DISPLAY BUFFERING ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Display <span class="accent">Buffering</span></div>
+        <div class="slide-subtitle">Direct write vs frame buffer. Managing flicker, partial updates, and rendering performance.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Direct Write</div>
+                <div class="card-desc">Send each pixel/character directly to the display as you compute it. Simple, low memory usage. But if you clear and redraw, there is a visible flash (flicker) between the clear and the new content. Character LCDs use this approach.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Frame Buffer</div>
+                <div class="card-desc">Draw everything into a memory buffer first (an array in SRAM), then send the entire buffer to the display at once. No flicker because the old content is replaced in a single transfer. OLED and graphical LCDs use this pattern.</div>
+            </div>
+        </div>
+
+        <div class="step-list">
+            <div class="step-row">
+                <span class="step-num">1</span>
+                <span class="step-text"><strong>Flicker prevention:</strong> Instead of <span class="ic">lcd.clear()</span> followed by <span class="ic">lcd.print()</span>, overwrite specific positions using <span class="ic">setCursor()</span> + <span class="ic">print()</span>. Pad shorter strings with spaces to erase leftover characters. Never clear the whole screen unless the layout changes.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">2</span>
+                <span class="step-text"><strong>Partial updates:</strong> Only redraw the parts of the screen that changed. If a temperature value updates from "23.5" to "24.0", set the cursor to that position and overwrite. Leave static labels untouched. This is the fastest approach.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">3</span>
+                <span class="step-text"><strong>Double buffering:</strong> For OLED and TFT, draw everything to the off-screen buffer using <span class="ic">clearDisplay()</span>, then push it all at once with <span class="ic">display()</span> or <span class="ic">sendBuffer()</span>. The old frame stays visible until the new one is fully ready.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">4</span>
+                <span class="step-text"><strong>Update rate:</strong> Character LCDs are slow -- updating the full 16x2 display takes several milliseconds. OLED over I2C at 400kHz can push a 128x64 buffer (~1KB) in about 3ms. SPI displays are fastest: full TFT refresh in under 10ms at 40MHz SPI.</span>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">The Golden Rule</div>
+            Never call <span class="ic">lcd.clear()</span> inside <span class="ic">loop()</span>. It causes visible flicker on every iteration. Instead, overwrite specific character positions. For graphical displays, use the buffer pattern: clear the buffer (not the screen), draw everything, then push the buffer. Your users will see smooth, flicker-free updates.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- MULTI-DISPLAY ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Multi-Display <span class="accent">Systems</span></div>
+        <div class="slide-subtitle">Driving multiple displays from one Arduino using I2C addressing and SPI chip select.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">I2C Multi-Display</div>
+                <div class="card-desc">Each I2C device has a unique address. Two SSD1306 OLEDs can coexist at 0x3C and 0x3D (set via solder jumper on the module). Create two display objects, each initialized with a different address. Both share the same SDA/SCL wires.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">SPI Chip Select</div>
+                <div class="card-desc">SPI displays share MOSI, MISO, and SCK lines but each has a unique CS (Chip Select) pin. Pull CS LOW to activate a specific display, HIGH to deactivate it. Three TFTs on one Arduino: share 3 SPI pins + 3 individual CS pins.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Mixed Display Types</div>
+                <div class="card-desc">Combine a 16x2 I2C LCD for text status with an SSD1306 OLED for graphs. Or use a TFT for the main UI and a character LCD for debugging output. Each display has its own library instance and operates independently.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// Two OLEDs on I2C with different addresses</span>
+Adafruit_SSD1306 <span class="fn">display1</span>(<span class="nu">128</span>, <span class="nu">64</span>, &amp;Wire, -<span class="nu">1</span>);
+Adafruit_SSD1306 <span class="fn">display2</span>(<span class="nu">128</span>, <span class="nu">64</span>, &amp;Wire, -<span class="nu">1</span>);
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    display1.<span class="fn">begin</span>(SSD1306_SWITCHCAPVCC, <span class="nu">0x3C</span>);  <span class="cm">// OLED #1</span>
+    display2.<span class="fn">begin</span>(SSD1306_SWITCHCAPVCC, <span class="nu">0x3D</span>);  <span class="cm">// OLED #2</span>
+
+    display1.<span class="fn">clearDisplay</span>();
+    display1.<span class="fn">setTextSize</span>(<span class="nu">1</span>);
+    display1.<span class="fn">setTextColor</span>(SSD1306_WHITE);
+    display1.<span class="fn">println</span>(<span class="st">"Sensor Data"</span>);
+    display1.<span class="fn">display</span>();
+
+    display2.<span class="fn">clearDisplay</span>();
+    display2.<span class="fn">setTextSize</span>(<span class="nu">2</span>);
+    display2.<span class="fn">setTextColor</span>(SSD1306_WHITE);
+    display2.<span class="fn">println</span>(<span class="st">"Alerts"</span>);
+    display2.<span class="fn">display</span>();
+}</div>
+
+        <div class="box box-blue">
+            <div class="box-label">Memory Consideration</div>
+            Each SSD1306 OLED uses ~1KB of SRAM for its frame buffer. Two OLEDs = ~2KB, which exceeds the Uno's total 2KB SRAM. For multi-display setups with graphical screens, use an Arduino Mega (8KB SRAM) or ESP32 (520KB SRAM). Character LCDs have no buffer and work fine on the Uno in multi-display configurations.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- KEY TAKEAWAYS ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Key Takeaways: <span class="accent">Displays Complete</span></div>
+        <div class="slide-subtitle">Your Arduino can now show data, graphics, and animations to users without a computer attached.</div>
+
+        <div class="diagram-center">
+            <svg width="400" height="70" viewBox="0 0 400 70" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Three display types -->
+                <rect x="30" y="10" width="80" height="50" rx="6" fill="rgba(0,136,255,0.06)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: boxGrow 0.3s ease forwards 0.1s; opacity:0;"/>
+                <text x="70" y="30" text-anchor="middle" font-size="8" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">LCD</text>
+                <text x="70" y="45" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">16x2 Text</text>
+
+                <rect x="160" y="10" width="80" height="50" rx="6" fill="rgba(255,215,0,0.06)" stroke="#ffd700" stroke-width="1.5"
+                    style="animation: boxGrow 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="200" y="30" text-anchor="middle" font-size="8" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">OLED</text>
+                <text x="200" y="45" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">128x64 Mono</text>
+
+                <rect x="290" y="10" width="80" height="50" rx="6" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="330" y="30" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">TFT</text>
+                <text x="330" y="45" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">65K Color</text>
+            </svg>
+        </div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Character LCDs use the HD44780 controller.</strong> 16x2 is the standard. Use <code>LiquidCrystal</code> for parallel (6 pins) or <code>LiquidCrystal_I2C</code> with a PCF8574 backpack (2 pins). <code>lcd.begin(16,2)</code>, <code>setCursor()</code>, <code>print()</code> are the core functions.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>OLEDs (SSD1306) are the best small display.</strong> 128x64 pixels, I2C at 0x3C, self-emitting for infinite contrast. Adafruit_SSD1306 + Adafruit_GFX libraries. Frame buffer pattern: <code>clearDisplay()</code>, draw, <code>display()</code>. Costs ~1KB SRAM.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>TFT displays bring color.</strong> ST7735 (128x160) and ILI9341 (240x320) via SPI. RGB565 color format (65K colors). Draw images, gradients, and custom fonts. Touch overlay with XPT2046. Needs more memory -- consider Mega or ESP32.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Custom characters are 5x8 pixel bitmaps.</strong> Define 8 bytes per character, register with <code>createChar(index, array)</code>, display with <code>write(index)</code>. Up to 8 custom characters at a time (indices 0-7). Animate by cycling through frames.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Never call clear() in loop().</strong> Use partial updates: overwrite specific cursor positions instead. For graphical displays, use frame buffering: draw to the buffer, then push all at once. This eliminates flicker and gives smooth, professional-looking output.</span></div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Core 12 -- Time and Dates</strong> &nbsp;|&nbsp; RTC Modules, millis(), Alarms, Timekeeping Without Internet
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; ProtoCore</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* Slide navigation state */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    /* Module completion via ModuleProgress component */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-ard-11-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>

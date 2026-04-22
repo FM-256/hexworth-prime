@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Motors & Motion | ProtoCore Arduino Core 8</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #040810 0%, #081020 50%, #0a0c1a 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Electric blue progress bar -- ProtoCore color */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #0088ff; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(4, 8, 16, 0.95);
+            border-top: 1px solid rgba(0, 136, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(0, 136, 255, 0.15); color: #0088ff; border-color: #0088ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #0088ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ffd700; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip */
+        .scenario-strip {
+            background: rgba(0, 136, 255, 0.08); border-left: 3px solid #0088ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(0, 136, 255, 0.08); border: 1px solid rgba(0, 136, 255, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ffd700; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #0088ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #ffd700; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #0088ff; }
+
+        /* Section label */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #0088ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Inline code */
+        .ic {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* SVG diagram containers */
+        .diagram-row {
+            display: flex; gap: 16px; align-items: center; justify-content: center;
+        }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        /* Step-by-step flow list */
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(0, 136, 255, 0.12); border: 1px solid rgba(0, 136, 255, 0.4);
+            color: #0088ff; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        /* Code block */
+        .code-block {
+            background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #ffd700; line-height: 1.6; white-space: pre;
+        }
+        .code-block .cm { color: #64748b; }
+        .code-block .kw { color: #5cb8ff; }
+        .code-block .fn { color: #ffd700; }
+        .code-block .st { color: #86efac; }
+        .code-block .nu { color: #fdba74; }
+
+        /* Two-column code compare */
+        .code-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .code-panel-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.07em; margin-bottom: 5px; }
+
+        /* Hex grid cells */
+        .hex-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(0, 136, 255, 0.25);
+            border-radius: 8px; padding: 12px 14px;
+            text-align: center;
+            opacity: 0;
+            animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #0088ff; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        /* Shared animation keyframes */
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes flow {
+            0%   { stroke-dashoffset: 20; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes boxGrow {
+            from { opacity: 0; transform: scale(0.7); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes entityPop {
+            from { opacity: 0; transform: scale(0.6) translateY(6px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes spinCW {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+        @keyframes spinSlow {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+        @keyframes glowPulse {
+            0%, 100% { filter: drop-shadow(0 0 4px rgba(0,136,255,0.3)); }
+            50%       { filter: drop-shadow(0 0 14px rgba(0,136,255,0.9)); }
+        }
+        @keyframes dataFlow {
+            0%   { stroke-dashoffset: 14; }
+            100% { stroke-dashoffset: 0; }
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .card-grid-4 { grid-template-columns: 1fr 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .code-compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Motors & Motion -- ProtoCore Arduino Core 8</h1>
+
+<!-- Electric blue progress bar -->
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; ProtoCore &nbsp;|&nbsp; Arduino &nbsp;|&nbsp; Core 8</div>
+        <div class="title-hero">
+            <!-- Motor/gear SVG -->
+            <svg width="360" height="140" viewBox="0 0 360 140" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central gear spinning -->
+                <g style="transform-origin: 180px 70px; animation: spinCW 4s linear infinite;">
+                    <circle cx="180" cy="70" r="28" fill="none" stroke="#0088ff" stroke-width="2"/>
+                    <circle cx="180" cy="70" r="10" fill="rgba(0,136,255,0.2)" stroke="#0088ff" stroke-width="1.5"/>
+                    <!-- Gear teeth -->
+                    <rect x="175" y="38" width="10" height="10" rx="2" fill="rgba(0,136,255,0.3)" stroke="#0088ff" stroke-width="1"/>
+                    <rect x="175" y="92" width="10" height="10" rx="2" fill="rgba(0,136,255,0.3)" stroke="#0088ff" stroke-width="1"/>
+                    <rect x="148" y="65" width="10" height="10" rx="2" fill="rgba(0,136,255,0.3)" stroke="#0088ff" stroke-width="1"/>
+                    <rect x="202" y="65" width="10" height="10" rx="2" fill="rgba(0,136,255,0.3)" stroke="#0088ff" stroke-width="1"/>
+                </g>
+                <!-- Servo arm left -->
+                <rect x="30" y="50" width="60" height="40" rx="6" fill="rgba(255,215,0,0.06)" stroke="#ffd700" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.2s; opacity:0;"/>
+                <text x="60" y="66" text-anchor="middle" font-size="8" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">Servo</text>
+                <text x="60" y="78" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">0-180 deg</text>
+                <!-- Stepper right -->
+                <rect x="270" y="50" width="60" height="40" rx="6" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.3s; opacity:0;"/>
+                <text x="300" y="66" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Stepper</text>
+                <text x="300" y="78" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">200 steps/rev</text>
+                <!-- Connecting lines -->
+                <line x1="90" y1="70" x2="148" y2="70" stroke="rgba(255,215,0,0.3)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <line x1="212" y1="70" x2="270" y2="70" stroke="rgba(58,181,119,0.3)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <!-- Glow rings -->
+                <circle cx="180" cy="70" r="48" fill="none" stroke="rgba(0,136,255,0.08)" stroke-width="1"
+                    style="animation: pulse 2.5s ease-in-out infinite;"/>
+                <circle cx="180" cy="70" r="65" fill="none" stroke="rgba(0,136,255,0.04)" stroke-width="1"
+                    style="animation: pulse 3s ease-in-out infinite;"/>
+            </svg>
+            <div class="big-title">
+                <span class="accent">Motors</span> & Motion
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Servo &nbsp;|&nbsp; DC Motor &nbsp;|&nbsp; H-Bridge &nbsp;|&nbsp; Stepper &nbsp;|&nbsp; Brushless &nbsp;|&nbsp; Relays
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Your Arduino can read sensors and blink LEDs, but the physical world demands movement. Motors convert electrical energy into rotation, and rotation converts into everything else -- wheels, arms, valves, locks, and shutters. This core teaches you to command every class of motor from a microcontroller that can only output 40 milliamps per pin.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>ProtoCore Arduino</span>
+            <span>Core 8 of 10</span>
+            <span>Matrix House</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- MOTOR TYPES OVERVIEW ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Motor Types <span class="accent">Overview</span></div>
+        <div class="slide-subtitle">Four families of motors, each with a different control strategy. Choosing the right motor is the first engineering decision in any motion project.</div>
+
+        <div class="card-grid-4">
+            <div class="card c-gold">
+                <div class="card-label">DC Motor</div>
+                <div class="card-desc">Apply voltage, it spins. Reverse polarity, it spins the other way. Simple, cheap, fast. No position control. Used in fans, wheels, and pumps.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Servo Motor</div>
+                <div class="card-desc">Built-in feedback loop holds a specific angle (0-180 degrees). Send a PWM pulse, the servo moves to that angle and stays. Used in arms, rudders, and pan/tilt.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Stepper Motor</div>
+                <div class="card-desc">Moves in discrete steps (typically 200 per revolution = 1.8 degrees each). Open-loop position control. Used in 3D printers, CNC, and precision robotics.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Brushless (BLDC)</div>
+                <div class="card-desc">High-speed, high-efficiency, no brushes to wear out. Requires an ESC (Electronic Speed Controller). Used in drones, RC vehicles, and industrial drives.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Critical Rule</div>
+            Never drive a motor directly from an Arduino pin. Arduino pins supply a maximum of 40mA at 5V. Even a small DC motor draws 100-500mA. Connecting a motor directly will damage the Arduino. Every motor type requires a driver circuit: a transistor, an H-bridge, a stepper driver, or an ESC.
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Selection Guide</div>
+            Need precise angle? Use a servo. Need precise position over many revolutions? Use a stepper. Need raw speed? Use DC or brushless. Need to hold position under load with zero power? Use a stepper (they have holding torque). Need to spin something at 20,000 RPM? Use brushless with an ESC.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- SERVO MOTORS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Servo Motors: <span class="accent">Precision Angle Control</span></div>
+        <div class="slide-subtitle">Standard hobby servos move to a specific angle (0-180 degrees) and hold that position using an internal feedback loop.</div>
+
+        <div class="diagram-center">
+            <svg width="600" height="100" viewBox="0 0 600 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Servo body -->
+                <rect x="220" y="15" width="160" height="70" rx="8" fill="rgba(255,215,0,0.06)" stroke="#ffd700" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="300" y="35" text-anchor="middle" font-size="9" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">SG90 Micro Servo</text>
+                <text x="300" y="50" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">3 wires: Signal, VCC, GND</text>
+                <text x="300" y="63" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">PWM pulse = 1ms(0 deg) to 2ms(180 deg)</text>
+                <text x="300" y="76" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">20ms period (50 Hz)</text>
+                <!-- Arduino box -->
+                <rect x="20" y="25" width="100" height="50" rx="6" fill="rgba(0,136,255,0.06)" stroke="#0088ff" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="70" y="47" text-anchor="middle" font-size="8" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Arduino</text>
+                <text x="70" y="60" text-anchor="middle" font-size="7" fill="#5cb8ff" font-family="Segoe UI,sans-serif">Pin 9 (PWM)</text>
+                <!-- Signal arrow -->
+                <line x1="120" y1="50" x2="220" y2="50" stroke="rgba(0,136,255,0.4)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.8s" repeatCount="indefinite"/>
+                </line>
+                <!-- Angle indicator -->
+                <rect x="440" y="25" width="100" height="50" rx="6" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="490" y="45" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">90 deg</text>
+                <text x="490" y="60" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">1.5ms pulse</text>
+                <line x1="380" y1="50" x2="440" y2="50" stroke="rgba(58,181,119,0.3)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+            </svg>
+        </div>
+
+        <div class="code-block"><span class="cm">// Servo sweep example</span>
+<span class="kw">#include</span> &lt;Servo.h&gt;
+Servo myServo;
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  myServo.<span class="fn">attach</span>(<span class="nu">9</span>);  <span class="cm">// Signal wire on pin 9</span>
+}
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="kw">for</span> (<span class="kw">int</span> angle = <span class="nu">0</span>; angle &lt;= <span class="nu">180</span>; angle++) {
+    myServo.<span class="fn">write</span>(angle);   <span class="cm">// Move to angle</span>
+    <span class="fn">delay</span>(<span class="nu">15</span>);              <span class="cm">// Wait for servo to reach position</span>
+  }
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">attach(pin)</div>
+                <div class="card-desc">Connects the Servo object to a specific pin and starts generating the 50 Hz PWM signal. Must be called in setup(). Only works on PWM-capable pins (3, 5, 6, 9, 10, 11 on Uno).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">write(angle)</div>
+                <div class="card-desc">Sets the servo to a specific angle between 0 and 180 degrees. The Servo library translates this into the correct pulse width (544-2400 microseconds by default). The servo physically moves and holds that position.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- CONTINUOUS ROTATION SERVOS ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Continuous Rotation <span class="accent">Servos</span></div>
+        <div class="slide-subtitle">Modified servos that spin continuously instead of moving to a fixed angle. Speed and direction replace position control.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">How They Differ</div>
+                <div class="card-desc">A standard servo's internal feedback loop moves the output shaft to a commanded angle and holds it. A continuous rotation servo has the feedback mechanism removed or bypassed. Instead of angle, <span class="ic">write()</span> now controls speed and direction. write(90) = stop, write(0) = full speed clockwise, write(180) = full speed counterclockwise.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">When to Use</div>
+                <div class="card-desc">Ideal for simple wheeled robots where you need continuous rotation without a separate motor driver. Two continuous rotation servos mounted on opposite sides of a chassis can create a differential-drive robot. Cheaper and simpler than a DC motor + H-bridge solution for low-torque applications.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// Continuous rotation servo control</span>
+<span class="kw">#include</span> &lt;Servo.h&gt;
+Servo wheel;
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  wheel.<span class="fn">attach</span>(<span class="nu">9</span>);
+}
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  wheel.<span class="fn">write</span>(<span class="nu">0</span>);     <span class="cm">// Full speed one direction</span>
+  <span class="fn">delay</span>(<span class="nu">2000</span>);
+  wheel.<span class="fn">write</span>(<span class="nu">90</span>);    <span class="cm">// Stop</span>
+  <span class="fn">delay</span>(<span class="nu">1000</span>);
+  wheel.<span class="fn">write</span>(<span class="nu">180</span>);   <span class="cm">// Full speed opposite direction</span>
+  <span class="fn">delay</span>(<span class="nu">2000</span>);
+  wheel.<span class="fn">write</span>(<span class="nu">90</span>);    <span class="cm">// Stop</span>
+  <span class="fn">delay</span>(<span class="nu">1000</span>);
+}</div>
+
+        <div class="box box-cyan">
+            <div class="box-label">writeMicroseconds()</div>
+            For finer speed control, use <span class="ic">writeMicroseconds()</span> instead of <span class="ic">write()</span>. The neutral point (stop) is typically around 1500 microseconds. Values below 1500 spin one direction; values above spin the other. This gives you more granular speed adjustment than the 0-180 integer range.
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Calibration Tip</div>
+            Most continuous rotation servos have a small potentiometer accessible through a hole in the case. With the servo receiving a 1500us pulse (write(90)), adjust the pot until the shaft stops moving completely. This calibrates the dead center. Without calibration, write(90) may cause slow creeping in one direction.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- DC MOTORS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">DC Motors: <span class="accent">The Transistor as Switch</span></div>
+        <div class="slide-subtitle">A DC motor draws far more current than an Arduino pin can provide. A transistor acts as an electronic switch controlled by the Arduino.</div>
+
+        <div class="diagram-center">
+            <svg width="600" height="130" viewBox="0 0 600 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Arduino -->
+                <rect x="20" y="35" width="90" height="60" rx="6" fill="rgba(0,136,255,0.06)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="65" y="58" text-anchor="middle" font-size="8" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Arduino</text>
+                <text x="65" y="72" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Pin 9 (PWM)</text>
+                <text x="65" y="84" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">~20mA signal</text>
+                <!-- Arrow to transistor -->
+                <line x1="110" y1="65" x2="195" y2="65" stroke="rgba(0,136,255,0.4)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.8s" repeatCount="indefinite"/>
+                </line>
+                <!-- Transistor -->
+                <rect x="195" y="35" width="90" height="60" rx="6" fill="rgba(255,215,0,0.06)" stroke="#ffd700" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="240" y="55" text-anchor="middle" font-size="8" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">TIP120</text>
+                <text x="240" y="68" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Darlington NPN</text>
+                <text x="240" y="81" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Switches 5A</text>
+                <!-- Arrow to motor -->
+                <line x1="285" y1="65" x2="370" y2="65" stroke="rgba(255,215,0,0.4)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.8s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <!-- Motor -->
+                <circle cx="420" cy="65" r="35" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="420" y="62" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">DC</text>
+                <text x="420" y="75" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Motor</text>
+                <!-- External power -->
+                <rect x="490" y="35" width="90" height="60" rx="6" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.4s; opacity:0;"/>
+                <text x="535" y="55" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">External</text>
+                <text x="535" y="68" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Power Supply</text>
+                <text x="535" y="81" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">6-12V, 1A+</text>
+            </svg>
+        </div>
+
+        <div class="step-list">
+            <div class="step-row">
+                <span class="step-num">1</span>
+                <span class="step-text"><strong>Arduino pin 9</strong> outputs a small current (~20mA) signal to the base of the transistor through a 1K resistor. This tiny signal controls the transistor's gate.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">2</span>
+                <span class="step-text"><strong>Transistor (TIP120)</strong> acts as an electronic switch. When the base receives current, it allows high current (up to 5A) to flow from collector to emitter -- powering the motor from the external supply.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">3</span>
+                <span class="step-text"><strong>External power supply</strong> provides the actual current the motor needs (6-12V, 500mA+). The Arduino never provides motor current -- it only controls the switch.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">4</span>
+                <span class="step-text"><strong>Flyback diode</strong> (1N4001) across the motor terminals protects the transistor. When a motor stops, its inductance creates a voltage spike that can destroy semiconductors. The diode absorbs this spike.</span>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Flyback Diode -- Non-Negotiable</div>
+            Every inductive load (motors, solenoids, relays) MUST have a flyback diode. Without it, the back-EMF voltage spike when the coil de-energizes can reach 50-100V -- enough to destroy your transistor, your Arduino, and anything else in the circuit. Cathode stripe toward the positive supply rail.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- H-BRIDGE ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">H-Bridge: <span class="accent">Direction + Speed Control</span></div>
+        <div class="slide-subtitle">An H-bridge reverses current flow through a motor, giving you both direction control and PWM speed control from a single chip.</div>
+
+        <div class="diagram-center">
+            <svg width="500" height="100" viewBox="0 0 500 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Arduino -->
+                <rect x="10" y="20" width="100" height="60" rx="6" fill="rgba(0,136,255,0.06)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="60" y="42" text-anchor="middle" font-size="8" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Arduino</text>
+                <text x="60" y="55" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">IN1, IN2 = direction</text>
+                <text x="60" y="67" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">ENA = PWM speed</text>
+                <!-- L298N -->
+                <rect x="170" y="15" width="160" height="70" rx="8" fill="rgba(255,215,0,0.06)" stroke="#ffd700" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="250" y="35" text-anchor="middle" font-size="9" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">L298N H-Bridge</text>
+                <text x="250" y="50" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">2 channels, 2A each</text>
+                <text x="250" y="63" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">5-35V motor supply</text>
+                <text x="250" y="76" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">Built-in flyback diodes</text>
+                <!-- Motor -->
+                <circle cx="420" cy="50" r="30" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="420" y="48" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">DC</text>
+                <text x="420" y="60" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Motor</text>
+                <!-- Lines -->
+                <line x1="110" y1="50" x2="170" y2="50" stroke="rgba(0,136,255,0.3)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.8s" repeatCount="indefinite"/>
+                </line>
+                <line x1="330" y1="50" x2="390" y2="50" stroke="rgba(58,181,119,0.3)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.8s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+            </svg>
+        </div>
+
+        <div class="code-block"><span class="cm">// L298N H-bridge: direction + PWM speed</span>
+<span class="kw">const int</span> IN1 = <span class="nu">7</span>;    <span class="cm">// Direction pin A</span>
+<span class="kw">const int</span> IN2 = <span class="nu">8</span>;    <span class="cm">// Direction pin B</span>
+<span class="kw">const int</span> ENA = <span class="nu">9</span>;    <span class="cm">// Speed (PWM)</span>
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  <span class="fn">pinMode</span>(IN1, OUTPUT);
+  <span class="fn">pinMode</span>(IN2, OUTPUT);
+  <span class="fn">pinMode</span>(ENA, OUTPUT);
+}
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="fn">digitalWrite</span>(IN1, HIGH); <span class="fn">digitalWrite</span>(IN2, LOW);  <span class="cm">// Forward</span>
+  <span class="fn">analogWrite</span>(ENA, <span class="nu">200</span>);   <span class="cm">// ~78% speed</span>
+  <span class="fn">delay</span>(<span class="nu">2000</span>);
+  <span class="fn">digitalWrite</span>(IN1, LOW);  <span class="fn">digitalWrite</span>(IN2, HIGH); <span class="cm">// Reverse</span>
+  <span class="fn">analogWrite</span>(ENA, <span class="nu">150</span>);   <span class="cm">// ~59% speed</span>
+  <span class="fn">delay</span>(<span class="nu">2000</span>);
+  <span class="fn">digitalWrite</span>(IN1, LOW);  <span class="fn">digitalWrite</span>(IN2, LOW);  <span class="cm">// Coast stop</span>
+  <span class="fn">delay</span>(<span class="nu">1000</span>);
+}</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Forward</div>
+                <div class="card-desc">IN1=HIGH, IN2=LOW. Current flows through the motor in one direction. ENA PWM controls speed.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Reverse</div>
+                <div class="card-desc">IN1=LOW, IN2=HIGH. Current flows the other way. Motor reverses. Same ENA pin controls speed.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Brake vs Coast</div>
+                <div class="card-desc">Both LOW = coast (motor spins down freely). Both HIGH = brake (motor stops hard via short-circuit braking).</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- STEPPER MOTORS ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Stepper Motors: <span class="accent">Precise Steps</span></div>
+        <div class="slide-subtitle">Stepper motors move in discrete, repeatable steps. Each pulse advances the shaft by exactly one step -- no feedback sensor needed.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Bipolar</div>
+                <div class="card-desc">4 wires, 2 coils. Current direction must be reversed in each coil. Requires an H-bridge driver. Higher torque per size. NEMA 17 (3D printers) are bipolar.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Unipolar</div>
+                <div class="card-desc">5 or 6 wires with center taps. Simpler to drive (no current reversal needed). Lower torque. 28BYJ-48 is the classic Arduino starter stepper -- unipolar, cheap, comes with ULN2003 driver.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Step Sequences</div>
+                <div class="card-desc">Full step = 200 steps/rev (1.8 deg). Half step = 400 steps/rev (0.9 deg). Microstepping = 3200+ steps/rev. More microsteps = smoother motion but less torque per step.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// 28BYJ-48 with ULN2003 driver board</span>
+<span class="kw">#include</span> &lt;Stepper.h&gt;
+<span class="kw">const int</span> STEPS_PER_REV = <span class="nu">2048</span>;  <span class="cm">// 28BYJ-48 with gear ratio</span>
+Stepper myStepper(STEPS_PER_REV, <span class="nu">8</span>, <span class="nu">10</span>, <span class="nu">9</span>, <span class="nu">11</span>);  <span class="cm">// IN1-IN3-IN2-IN4</span>
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  myStepper.<span class="fn">setSpeed</span>(<span class="nu">10</span>);  <span class="cm">// 10 RPM (max ~15 for 28BYJ-48)</span>
+}
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  myStepper.<span class="fn">step</span>(<span class="nu">2048</span>);   <span class="cm">// One full revolution clockwise</span>
+  <span class="fn">delay</span>(<span class="nu">500</span>);
+  myStepper.<span class="fn">step</span>(-<span class="nu">2048</span>);  <span class="cm">// One full revolution counterclockwise</span>
+  <span class="fn">delay</span>(<span class="nu">500</span>);
+}</div>
+
+        <div class="box box-gold">
+            <div class="box-label">28BYJ-48 Pin Order Quirk</div>
+            The 28BYJ-48 has internal wiring that does not match the standard Stepper library pin order. The correct constructor order is IN1, IN3, IN2, IN4 -- not IN1, IN2, IN3, IN4. Getting this wrong produces a buzzing motor that does not spin. This catches almost every beginner.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- STEPPER DRIVERS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Stepper Drivers: <span class="accent">Step + Direction</span></div>
+        <div class="slide-subtitle">Dedicated stepper driver boards simplify control to just two signals: one pulse per step, and a direction pin.</div>
+
+        <div class="hex-grid">
+            <div class="hex-cell">
+                <div class="hex-title">A4988</div>
+                <div class="hex-desc">The workhorse. Up to 2A, 1/16 microstepping. Used in most 3D printers. Requires a heatsink above 1A. Set current limit via onboard pot before first use.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">EasyDriver</div>
+                <div class="hex-desc">Based on the A3967 chip. 750mA max. 1/8 microstepping default. Good for small steppers. Simpler than A4988 but lower current capacity.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">TMC2209</div>
+                <div class="hex-desc">Silent stepper driver. StealthChop eliminates audible motor whine. Up to 2A, 1/256 microstepping via UART. Premium choice for quiet, smooth motion.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// A4988 step+direction control (no library needed)</span>
+<span class="kw">const int</span> STEP_PIN = <span class="nu">3</span>;
+<span class="kw">const int</span> DIR_PIN  = <span class="nu">4</span>;
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  <span class="fn">pinMode</span>(STEP_PIN, OUTPUT);
+  <span class="fn">pinMode</span>(DIR_PIN, OUTPUT);
+}
+<span class="kw">void</span> <span class="fn">oneRevolution</span>(<span class="kw">bool</span> clockwise) {
+  <span class="fn">digitalWrite</span>(DIR_PIN, clockwise ? HIGH : LOW);
+  <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nu">0</span>; i &lt; <span class="nu">200</span>; i++) {    <span class="cm">// 200 steps = 1 rev (full step)</span>
+    <span class="fn">digitalWrite</span>(STEP_PIN, HIGH);
+    <span class="fn">delayMicroseconds</span>(<span class="nu">1000</span>);          <span class="cm">// Pulse width</span>
+    <span class="fn">digitalWrite</span>(STEP_PIN, LOW);
+    <span class="fn">delayMicroseconds</span>(<span class="nu">1000</span>);          <span class="cm">// Step period (500 steps/sec)</span>
+  }
+}
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="fn">oneRevolution</span>(<span class="kw">true</span>);
+  <span class="fn">delay</span>(<span class="nu">1000</span>);
+  <span class="fn">oneRevolution</span>(<span class="kw">false</span>);
+  <span class="fn">delay</span>(<span class="nu">1000</span>);
+}</div>
+
+        <div class="box box-red">
+            <div class="box-label">Current Limit Warning</div>
+            Before powering a stepper with an A4988 or TMC2209, you MUST set the current limit potentiometer. Running at too high a current will overheat and damage the motor. Running too low produces weak, unreliable steps. Calculate: Vref = Imax * 8 * Rsense. Measure Vref with a multimeter on the pot.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- SOLENOIDS & RELAYS ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Solenoids & <span class="accent">Relays</span></div>
+        <div class="slide-subtitle">Solenoids produce linear motion. Relays are electrically-controlled switches for high-power loads. Both are inductive and require flyback diodes.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Solenoids</div>
+                <div class="card-desc">A coil of wire around a movable metal plunger. Apply current, the plunger pulls in (or pushes out). Remove current, a spring returns it. Used in door locks, valves, pinball bumpers. Typically 12V, 500mA-2A. Always drive with a transistor + flyback diode.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Relay Modules</div>
+                <div class="card-desc">A relay is a solenoid that operates a physical switch. Arduino-compatible relay modules include the transistor driver, flyback diode, and LED indicator on a single board. Control pin goes HIGH, the relay clicks, and the connected load turns on. Can switch 120/240V AC loads safely.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// Relay module: toggle a high-power load every 5 seconds</span>
+<span class="kw">const int</span> RELAY_PIN = <span class="nu">7</span>;
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  <span class="fn">pinMode</span>(RELAY_PIN, OUTPUT);
+  <span class="fn">digitalWrite</span>(RELAY_PIN, LOW);  <span class="cm">// Start with relay OFF</span>
+}
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="fn">digitalWrite</span>(RELAY_PIN, HIGH);  <span class="cm">// Relay ON -- load powered</span>
+  <span class="fn">delay</span>(<span class="nu">5000</span>);
+  <span class="fn">digitalWrite</span>(RELAY_PIN, LOW);   <span class="cm">// Relay OFF -- load unpowered</span>
+  <span class="fn">delay</span>(<span class="nu">5000</span>);
+}</div>
+
+        <div class="box box-red">
+            <div class="box-label">Safety: AC Mains</div>
+            Relay modules can switch 120/240V AC, which is lethal. If you connect a relay to mains voltage, the high-voltage side of the circuit must be properly insulated, enclosed, and never touched while powered. For classroom projects, limit relay use to DC loads (LED strips, fans, pumps) unless you have proper electrical training.
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">NO vs NC</div>
+            Relays have three terminals: COM (common), NO (normally open), NC (normally closed). NO means the circuit is broken by default and closes when the relay energizes. NC means the circuit is complete by default and breaks when the relay energizes. Most projects use NO -- the load stays off until you explicitly turn the relay on.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- BRUSHLESS MOTORS ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Brushless Motors & <span class="accent">ESC Control</span></div>
+        <div class="slide-subtitle">Brushless DC motors (BLDC) spin at extreme speeds with high efficiency. An ESC handles the complex three-phase commutation -- you just send a PWM signal.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Why Brushless?</div>
+                <div class="card-desc">No brushes means no friction wear, no sparking, longer life, higher speed, and greater efficiency. Drone motors can exceed 20,000 RPM. The tradeoff: you cannot simply reverse polarity. The ESC must electronically commutate three phases in the correct sequence.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">ESC = Electronic Speed Controller</div>
+                <div class="card-desc">The ESC takes a simple PWM signal (identical to servo signals) and converts it into the complex three-phase waveform the motor needs. Pulse width maps to throttle: 1000us = off, 2000us = full throttle. The Servo library works perfectly for ESC control.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// Brushless motor via ESC using Servo library</span>
+<span class="kw">#include</span> &lt;Servo.h&gt;
+Servo esc;
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  esc.<span class="fn">attach</span>(<span class="nu">9</span>);
+  <span class="cm">// Arming sequence: most ESCs require a low signal first</span>
+  esc.<span class="fn">writeMicroseconds</span>(<span class="nu">1000</span>);  <span class="cm">// Send minimum throttle</span>
+  <span class="fn">delay</span>(<span class="nu">3000</span>);                     <span class="cm">// Wait for ESC to arm (beep pattern)</span>
+}
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  esc.<span class="fn">writeMicroseconds</span>(<span class="nu">1200</span>);  <span class="cm">// Low throttle</span>
+  <span class="fn">delay</span>(<span class="nu">3000</span>);
+  esc.<span class="fn">writeMicroseconds</span>(<span class="nu">1500</span>);  <span class="cm">// Mid throttle</span>
+  <span class="fn">delay</span>(<span class="nu">3000</span>);
+  esc.<span class="fn">writeMicroseconds</span>(<span class="nu">1000</span>);  <span class="cm">// Stop</span>
+  <span class="fn">delay</span>(<span class="nu">3000</span>);
+}</div>
+
+        <div class="box box-red">
+            <div class="box-label">Arming Sequence</div>
+            Most ESCs will not respond until they receive a valid minimum throttle signal (1000us) for 2-5 seconds. This is a safety feature to prevent the motor from spinning unexpectedly at power-on. You will hear a series of beeps confirming the ESC is armed and ready. Never skip the arming delay in your code.
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Propeller Safety</div>
+            Brushless motors with propellers can cause serious injury. Always remove propellers during testing and development. Secure the motor to a test stand. Never reach into a spinning propeller. These motors have enough torque to cut skin.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- SENSOR-DRIVEN MOTION ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Sensor-Driven <span class="accent">Motion</span></div>
+        <div class="slide-subtitle">The real power of Arduino: reading a sensor and translating the value into motor movement in real time.</div>
+
+        <div class="code-compare">
+            <div>
+                <div class="code-panel-label" style="color: #0088ff;">Pot Controls Servo</div>
+                <div class="code-block"><span class="kw">#include</span> &lt;Servo.h&gt;
+Servo myServo;
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  myServo.<span class="fn">attach</span>(<span class="nu">9</span>);
+}
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="kw">int</span> potVal = <span class="fn">analogRead</span>(A0);
+  <span class="kw">int</span> angle = <span class="fn">map</span>(potVal,
+    <span class="nu">0</span>, <span class="nu">1023</span>, <span class="nu">0</span>, <span class="nu">180</span>);
+  myServo.<span class="fn">write</span>(angle);
+  <span class="fn">delay</span>(<span class="nu">15</span>);
+}</div>
+            </div>
+            <div>
+                <div class="code-panel-label" style="color: #ffd700;">Distance Controls Motor Speed</div>
+                <div class="code-block"><span class="kw">const int</span> TRIG = <span class="nu">6</span>;
+<span class="kw">const int</span> ECHO = <span class="nu">7</span>;
+<span class="kw">const int</span> MOTOR = <span class="nu">9</span>;
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  <span class="fn">pinMode</span>(TRIG, OUTPUT);
+  <span class="fn">pinMode</span>(ECHO, INPUT);
+  <span class="fn">pinMode</span>(MOTOR, OUTPUT);
+}
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="kw">long</span> dist = <span class="fn">getDistanceCm</span>();
+  <span class="kw">int</span> speed = <span class="fn">map</span>(
+    <span class="fn">constrain</span>(dist,<span class="nu">5</span>,<span class="nu">100</span>),
+    <span class="nu">5</span>,<span class="nu">100</span>, <span class="nu">255</span>,<span class="nu">0</span>);
+  <span class="fn">analogWrite</span>(MOTOR, speed);
+  <span class="fn">delay</span>(<span class="nu">50</span>);
+}</div>
+            </div>
+        </div>
+
+        <div class="step-list">
+            <div class="step-row">
+                <span class="step-num">1</span>
+                <span class="step-text"><strong>map()</strong> converts one range to another. A potentiometer reads 0-1023; a servo needs 0-180. map(potVal, 0, 1023, 0, 180) does the linear conversion.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">2</span>
+                <span class="step-text"><strong>constrain()</strong> clamps a value to a safe range before mapping. Without it, noise or out-of-range sensor readings can send invalid values to the motor.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">3</span>
+                <span class="step-text"><strong>Inverted mapping</strong> -- in the distance example, closer objects produce higher motor speed (255) and farther objects produce lower speed (0). Swap the output range to reverse the relationship.</span>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">The Pattern</div>
+            Read sensor -- map value to motor range -- write to motor -- short delay -- repeat. This sensor-to-actuator loop is the foundation of every interactive Arduino project: robotic arms, self-driving cars, automated blinds, and smart HVAC systems.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- KEY TAKEAWAYS ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Key Takeaways: <span class="accent">Motors & Motion</span></div>
+        <div class="slide-subtitle">From servo precision to stepper accuracy to brushless speed -- you now command every class of motor from a microcontroller.</div>
+
+        <div class="diagram-center">
+            <svg width="400" height="80" viewBox="0 0 400 80" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Spinning gear -->
+                <g style="transform-origin: 200px 40px; animation: spinSlow 6s linear infinite;">
+                    <circle cx="200" cy="40" r="22" fill="none" stroke="#0088ff" stroke-width="1.5"/>
+                    <circle cx="200" cy="40" r="8" fill="rgba(0,136,255,0.15)" stroke="#0088ff" stroke-width="1"/>
+                    <rect x="196" y="14" width="8" height="8" rx="2" fill="rgba(0,136,255,0.2)" stroke="#0088ff" stroke-width="0.8"/>
+                    <rect x="196" y="58" width="8" height="8" rx="2" fill="rgba(0,136,255,0.2)" stroke="#0088ff" stroke-width="0.8"/>
+                    <rect x="174" y="36" width="8" height="8" rx="2" fill="rgba(0,136,255,0.2)" stroke="#0088ff" stroke-width="0.8"/>
+                    <rect x="218" y="36" width="8" height="8" rx="2" fill="rgba(0,136,255,0.2)" stroke="#0088ff" stroke-width="0.8"/>
+                </g>
+                <circle cx="200" cy="40" r="35" fill="none" stroke="rgba(0,136,255,0.08)" stroke-width="1"
+                    style="animation: pulse 2s ease-in-out infinite;"/>
+                <text x="80" y="38" text-anchor="middle" font-size="10" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Every motor needs</text>
+                <text x="80" y="52" text-anchor="middle" font-size="10" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">a driver circuit.</text>
+                <text x="320" y="38" text-anchor="middle" font-size="10" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">Sensor + Motor</text>
+                <text x="320" y="52" text-anchor="middle" font-size="10" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">= Intelligence.</text>
+            </svg>
+        </div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Never drive a motor from an Arduino pin.</strong> Arduino pins provide 40mA max. Even small motors draw 100-500mA. Always use a transistor, H-bridge, stepper driver, or ESC as an intermediary between the Arduino's logic signals and the motor's power needs.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Servo = angle, DC = speed, Stepper = position, Brushless = high-speed.</strong> Standard servos hold a specific angle (0-180). DC motors spin freely at variable speed. Steppers move in precise, countable steps. Brushless motors achieve extreme RPM with an ESC.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>H-bridge gives direction + speed.</strong> The L298N controls two DC motors with direction (IN1/IN2) and PWM speed (ENA). Both pins LOW = coast stop. Both pins HIGH = active brake. This is the standard motor driver for wheeled robots.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Flyback diodes protect your circuit.</strong> Every inductive load (motor, solenoid, relay) generates a destructive voltage spike when de-energized. A flyback diode across the load absorbs this spike. Without it, your transistor and Arduino are at risk.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Sensor-to-motor is the core loop.</strong> <code>map()</code> converts sensor ranges to motor ranges. <code>constrain()</code> clamps values to safe limits. Read sensor, map, write to motor, delay, repeat. This pattern is the foundation of all interactive robotics.</span></div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Core 9 -- Sound & Audio</strong> &nbsp;|&nbsp; tone(), Melodies, MIDI, Synthesis, Microphone Detection
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; ProtoCore</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* Slide navigation state */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    /* Module completion via ModuleProgress component */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-ard-08-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>
