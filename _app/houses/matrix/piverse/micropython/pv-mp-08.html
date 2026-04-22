@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PV-MP-08: Temperature &amp; ADC | MicroPython on Pico</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #0d0a0c;
+            --bg-card: #140f12;
+            --accent: #c51a4a;
+            --accent-dim: rgba(197, 26, 74, 0.12);
+            --accent-glow: rgba(197, 26, 74, 0.25);
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0909a;
+            --border: rgba(197, 26, 74, 0.18);
+        }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.7; }
+        .ne-header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 14px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .ne-header-left { display: flex; align-items: center; gap: 15px; }
+        .ne-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+        .ne-header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .ne-breadcrumb { font-size: 0.8rem; color: var(--text-secondary); }
+        .ne-breadcrumb a { color: var(--text-secondary); text-decoration: none; }
+        .ne-breadcrumb a:hover { color: var(--accent); }
+        .ne-back { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .ne-back:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .ne-content { max-width: 1100px; margin: 0 auto; padding: 30px 25px 60px; }
+        .ne-objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 30px; }
+        .ne-objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 1rem; }
+        .ne-objectives ul { list-style: none; }
+        .ne-objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.92rem; }
+        .ne-objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .ne-section { margin-bottom: 35px; }
+        .ne-section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .ne-section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .ne-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+        .ne-code { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; overflow-x: auto; color: var(--text-secondary); white-space: pre-wrap; }
+        .ne-code .prompt { color: var(--accent); }
+        .ne-code .comment { color: #6a5060; }
+        .ne-code .highlight { color: var(--accent); }
+        .ne-code .value { color: #f0883e; }
+        .ne-code .keyword { color: #c792ea; }
+        .ne-code .string { color: #c3e88d; }
+        .ne-code .function { color: #82aaff; }
+        .ne-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.88rem; }
+        .ne-table th { background: var(--bg-card); color: var(--accent); padding: 10px 14px; text-align: left; border: 1px solid var(--border); font-weight: 600; }
+        .ne-table td { padding: 10px 14px; border: 1px solid var(--border); color: var(--text-secondary); }
+        .ne-table tr:hover td { background: var(--accent-dim); }
+        .ne-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0; }
+        .ne-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: border-color 0.2s; }
+        .ne-card:hover { border-color: var(--accent); }
+        .ne-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+        .ne-card span { color: var(--text-secondary); font-size: 0.85rem; }
+        .ne-callout { background: rgba(197, 26, 74, 0.06); border: 1px solid var(--accent-glow); border-radius: 8px; padding: 16px 20px; margin: 18px 0; }
+        .ne-callout strong { color: var(--accent); }
+        .ne-callout p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; }
+        .ne-takeaways { background: linear-gradient(135deg, rgba(197, 26, 74, 0.08), rgba(197, 26, 74, 0.03)); border: 1px solid var(--accent); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .ne-takeaways h3 { color: var(--accent); margin-bottom: 12px; font-size: 1rem; }
+        .ne-takeaways ul { list-style: none; }
+        .ne-takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .ne-takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--accent); font-weight: bold; }
+        .ne-nav { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .ne-nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .ne-nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .ne-nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .ne-nav-btn.primary:hover { opacity: 0.88; }
+        .ne-inline-code { background: #0d1117; padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--accent); }
+        .ne-diagram { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin: 14px 0; text-align: center; }
+        .ne-diagram svg { max-width: 100%; height: auto; }
+        .ne-complete { text-align: center; padding: 28px 0 8px; }
+        #completeBtn { background: transparent; border: 2px solid var(--accent); color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; padding: 12px 36px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        #completeBtn:hover:not(:disabled) { background: var(--accent-dim); }
+        #completeBtn:disabled { cursor: default; opacity: 0.85; }
+        @media (max-width: 700px) { .ne-card-grid { grid-template-columns: 1fr; } .ne-content { padding: 20px 15px 40px; } }
+    </style>
+</head>
+<body>
+
+    <header class="ne-header">
+        <div class="ne-header-left">
+            <span class="ne-badge">PV-MP-08</span>
+            <h1>Temperature &amp; ADC</h1>
+        </div>
+        <div class="ne-breadcrumb">
+            <a href="../index.html">PiVerse</a> / <a href="index.html">MicroPython</a> / PV-MP-08
+        </div>
+        <a href="../index.html" class="ne-back">&lt; Back</a>
+    </header>
+
+    <div class="ne-content">
+
+        <div class="ne-objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Read the RP2040's built-in temperature sensor via ADC channel 4</li>
+                <li>Convert raw ADC values to voltage and then to temperature in Celsius and Fahrenheit</li>
+                <li>Apply oversampling and averaging to reduce ADC noise</li>
+                <li>Implement a moving average filter for smooth temperature readings</li>
+                <li>Build a temperature monitor with threshold alerts</li>
+            </ul>
+        </div>
+
+        <div class="ne-callout">
+            <strong>Track Context:</strong>
+            <p>Module 4 introduced ADC basics with a potentiometer. This module goes deeper into analog conversion: calibration, noise reduction, and signal processing. The built-in temperature sensor requires no extra hardware -- you can start experimenting immediately. The techniques here apply to any analog sensor: light, pressure, soil moisture, gas concentration.</p>
+        </div>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">The Built-In Temperature Sensor</h2>
+            <p class="ne-text">The RP2040 includes an on-die temperature sensor connected to ADC channel 4. This sensor measures the chip's temperature, not ambient room temperature -- it reads several degrees above room temperature because the chip generates heat during operation. Despite this offset, it is useful for monitoring system health and detecting overheating.</p>
+
+            <div class="ne-code"><span class="comment"># temp_basic.py -- Read the internal temperature sensor</span>
+<span class="keyword">from</span> machine <span class="keyword">import</span> ADC
+<span class="keyword">import</span> time
+
+<span class="comment"># ADC channel 4 = internal temperature sensor</span>
+sensor = ADC(<span class="value">4</span>)
+
+<span class="keyword">while</span> <span class="keyword">True</span>:
+    <span class="comment"># Read raw 16-bit value (0-65535)</span>
+    raw = sensor.read_u16()
+
+    <span class="comment"># Convert to voltage (3.3V reference, 16-bit range)</span>
+    voltage = raw * <span class="value">3.3</span> / <span class="value">65535</span>
+
+    <span class="comment"># RP2040 datasheet formula:</span>
+    <span class="comment">#   Temperature = 27 - (V - 0.706) / 0.001721</span>
+    <span class="comment">#   where V is the sensor voltage at current temperature</span>
+    <span class="comment">#   0.706V = voltage at 27C, slope = -1.721 mV/C</span>
+    temp_c = <span class="value">27</span> - (voltage - <span class="value">0.706</span>) / <span class="value">0.001721</span>
+    temp_f = temp_c * <span class="value">9</span> / <span class="value">5</span> + <span class="value">32</span>
+
+    <span class="function">print</span>(<span class="string">f"Raw: </span>{raw:<span class="value">5d</span>}<span class="string">  V: </span>{voltage:<span class="value">.3f</span>}<span class="string">  Temp: </span>{temp_c:<span class="value">.1f</span>}<span class="string">C / </span>{temp_f:<span class="value">.1f</span>}<span class="string">F"</span>)
+    time.sleep(<span class="value">1</span>)</div>
+
+            <div class="ne-diagram">
+                <svg viewBox="0 0 500 140" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <marker id="arrow8" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-end">
+                            <path d="M 0 0 L 10 5 L 0 10 z" fill="#c51a4a"/>
+                        </marker>
+                    </defs>
+                    <text x="250" y="18" fill="#c51a4a" font-size="11" font-family="JetBrains Mono" text-anchor="middle" font-weight="bold">Temperature Conversion Pipeline</text>
+                    <rect x="10" y="40" width="100" height="60" rx="8" fill="#1a1520" stroke="#c51a4a" stroke-width="1.5"/>
+                    <text x="60" y="65" fill="#c51a4a" font-size="9" font-family="JetBrains Mono" text-anchor="middle" font-weight="bold">ADC Read</text>
+                    <text x="60" y="82" fill="#a0909a" font-size="8" font-family="Inter" text-anchor="middle">0 - 65535</text>
+                    <line x1="115" y1="70" x2="145" y2="70" stroke="#c51a4a" stroke-width="1.5" marker-end="url(#arrow8)"/>
+                    <rect x="150" y="40" width="100" height="60" rx="8" fill="#1a1520" stroke="#c51a4a" stroke-width="1.5"/>
+                    <text x="200" y="65" fill="#c51a4a" font-size="9" font-family="JetBrains Mono" text-anchor="middle" font-weight="bold">To Voltage</text>
+                    <text x="200" y="82" fill="#a0909a" font-size="8" font-family="Inter" text-anchor="middle">* 3.3 / 65535</text>
+                    <line x1="255" y1="70" x2="285" y2="70" stroke="#c51a4a" stroke-width="1.5" marker-end="url(#arrow8)"/>
+                    <rect x="290" y="40" width="100" height="60" rx="8" fill="#1a1520" stroke="#c51a4a" stroke-width="1.5"/>
+                    <text x="340" y="60" fill="#c51a4a" font-size="9" font-family="JetBrains Mono" text-anchor="middle" font-weight="bold">Datasheet</text>
+                    <text x="340" y="75" fill="#c51a4a" font-size="9" font-family="JetBrains Mono" text-anchor="middle" font-weight="bold">Formula</text>
+                    <text x="340" y="90" fill="#a0909a" font-size="8" font-family="Inter" text-anchor="middle">27-(V-0.706)/...</text>
+                    <line x1="395" y1="70" x2="425" y2="70" stroke="#c51a4a" stroke-width="1.5" marker-end="url(#arrow8)"/>
+                    <rect x="430" y="40" width="60" height="60" rx="8" fill="#1a1520" stroke="#c51a4a" stroke-width="1.5"/>
+                    <text x="460" y="68" fill="#c51a4a" font-size="10" font-family="JetBrains Mono" text-anchor="middle" font-weight="bold">C / F</text>
+                    <text x="460" y="85" fill="#a0909a" font-size="8" font-family="Inter" text-anchor="middle">Result</text>
+                </svg>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">ADC Noise and Oversampling</h2>
+            <p class="ne-text">Raw ADC readings fluctuate even when the input voltage is perfectly stable. This is normal -- it comes from thermal noise in the silicon, power supply ripple, and digital switching noise from the CPU. A single reading might jump by 50-100 counts (out of 65535). The solution is to take multiple samples and average them.</p>
+
+            <div class="ne-code"><span class="comment"># temp_averaged.py -- Reduce noise with oversampling</span>
+<span class="keyword">from</span> machine <span class="keyword">import</span> ADC
+<span class="keyword">import</span> time
+
+sensor = ADC(<span class="value">4</span>)
+
+<span class="keyword">def</span> <span class="function">read_averaged</span>(adc, samples=<span class="value">16</span>):
+    <span class="string">"""Read ADC multiple times and return average."""</span>
+    total = <span class="value">0</span>
+    <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="function">range</span>(samples):
+        total += adc.read_u16()
+    <span class="keyword">return</span> total // samples
+
+<span class="keyword">def</span> <span class="function">raw_to_temp_c</span>(raw):
+    <span class="string">"""Convert raw ADC reading to temperature in Celsius."""</span>
+    voltage = raw * <span class="value">3.3</span> / <span class="value">65535</span>
+    <span class="keyword">return</span> <span class="value">27</span> - (voltage - <span class="value">0.706</span>) / <span class="value">0.001721</span>
+
+<span class="function">print</span>(<span class="string">"Comparing single vs. averaged readings:\n"</span>)
+<span class="keyword">for</span> i <span class="keyword">in</span> <span class="function">range</span>(<span class="value">10</span>):
+    single = sensor.read_u16()
+    averaged = read_averaged(sensor, <span class="value">32</span>)
+    temp_single = raw_to_temp_c(single)
+    temp_avg = raw_to_temp_c(averaged)
+    <span class="function">print</span>(<span class="string">f"  Single: </span>{temp_single:<span class="value">5.1f</span>}<span class="string">C  Averaged(32): </span>{temp_avg:<span class="value">5.1f</span>}<span class="string">C  Delta: </span>{<span class="function">abs</span>(temp_single - temp_avg):<span class="value">.1f</span>}<span class="string">C"</span>)
+    time.sleep(<span class="value">0.5</span>)</div>
+
+            <div class="ne-callout">
+                <strong>Oversampling Math:</strong>
+                <p>Averaging N samples reduces noise by a factor of the square root of N. Averaging 16 samples reduces noise by 4x. Averaging 64 samples reduces noise by 8x. There are diminishing returns -- 256 samples only gives 16x improvement while taking 256 times as long to read.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Moving Average Filter</h2>
+            <p class="ne-text">A moving average keeps a buffer of the last N readings and reports their average. As new readings come in, the oldest is discarded. This smooths out short-term fluctuations while tracking real changes in temperature over time.</p>
+
+            <div class="ne-code"><span class="comment"># temp_moving_avg.py -- Smooth temperature with a moving average</span>
+<span class="keyword">from</span> machine <span class="keyword">import</span> ADC
+<span class="keyword">import</span> time
+
+sensor = ADC(<span class="value">4</span>)
+
+<span class="keyword">class</span> <span class="function">MovingAverage</span>:
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, size):
+        self.size = size
+        self.buffer = []
+
+    <span class="keyword">def</span> <span class="function">add</span>(self, value):
+        self.buffer.append(value)
+        <span class="keyword">if</span> <span class="function">len</span>(self.buffer) > self.size:
+            self.buffer.pop(<span class="value">0</span>)
+
+    <span class="keyword">def</span> <span class="function">average</span>(self):
+        <span class="keyword">if</span> <span class="keyword">not</span> self.buffer:
+            <span class="keyword">return</span> <span class="value">0</span>
+        <span class="keyword">return</span> <span class="function">sum</span>(self.buffer) / <span class="function">len</span>(self.buffer)
+
+<span class="keyword">def</span> <span class="function">read_temp_c</span>():
+    raw = sensor.read_u16()
+    voltage = raw * <span class="value">3.3</span> / <span class="value">65535</span>
+    <span class="keyword">return</span> <span class="value">27</span> - (voltage - <span class="value">0.706</span>) / <span class="value">0.001721</span>
+
+<span class="comment"># 10-sample moving average (10 seconds at 1 reading/sec)</span>
+smoother = MovingAverage(<span class="value">10</span>)
+
+<span class="keyword">while</span> <span class="keyword">True</span>:
+    temp = read_temp_c()
+    smoother.add(temp)
+    avg = smoother.average()
+    <span class="function">print</span>(<span class="string">f"Current: </span>{temp:<span class="value">5.1f</span>}<span class="string">C  Smoothed: </span>{avg:<span class="value">5.1f</span>}<span class="string">C"</span>)
+    time.sleep(<span class="value">1</span>)</div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Temperature Monitor with Alerts</h2>
+            <p class="ne-text">A complete temperature monitor reads the sensor periodically, maintains a smoothed reading, and triggers alerts when thresholds are exceeded. This pattern applies to any environmental monitoring scenario.</p>
+
+            <div class="ne-code"><span class="comment"># temp_monitor.py -- Temperature monitor with LED alerts</span>
+<span class="keyword">from</span> machine <span class="keyword">import</span> Pin, PWM, ADC
+<span class="keyword">import</span> time
+
+sensor = ADC(<span class="value">4</span>)
+led_ok   = Pin(<span class="value">13</span>, Pin.OUT)   <span class="comment"># Green: normal</span>
+led_warn = Pin(<span class="value">14</span>, Pin.OUT)   <span class="comment"># Amber: warm</span>
+led_crit = Pin(<span class="value">15</span>, Pin.OUT)   <span class="comment"># Red: hot</span>
+buzzer   = PWM(Pin(<span class="value">12</span>))
+
+<span class="comment"># Thresholds (adjust for your environment)</span>
+WARN_TEMP = <span class="value">35.0</span>    <span class="comment"># Celsius</span>
+CRIT_TEMP = <span class="value">45.0</span>    <span class="comment"># Celsius</span>
+
+<span class="keyword">def</span> <span class="function">read_temp_avg</span>(samples=<span class="value">16</span>):
+    total = <span class="value">0</span>
+    <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="function">range</span>(samples):
+        total += sensor.read_u16()
+    raw = total // samples
+    voltage = raw * <span class="value">3.3</span> / <span class="value">65535</span>
+    <span class="keyword">return</span> <span class="value">27</span> - (voltage - <span class="value">0.706</span>) / <span class="value">0.001721</span>
+
+<span class="keyword">def</span> <span class="function">set_status</span>(level):
+    <span class="string">"""Set LED indicators: 'ok', 'warn', or 'crit'."""</span>
+    led_ok.value(level == <span class="string">'ok'</span>)
+    led_warn.value(level == <span class="string">'warn'</span>)
+    led_crit.value(level == <span class="string">'crit'</span>)
+    <span class="keyword">if</span> level == <span class="string">'crit'</span>:
+        buzzer.freq(<span class="value">1000</span>)
+        buzzer.duty_u16(<span class="value">16384</span>)
+    <span class="keyword">else</span>:
+        buzzer.duty_u16(<span class="value">0</span>)
+
+<span class="comment"># Tracking</span>
+min_temp = <span class="value">999</span>
+max_temp = <span class="value">-999</span>
+readings = <span class="value">0</span>
+
+<span class="function">print</span>(<span class="string">"Temperature Monitor Active"</span>)
+<span class="function">print</span>(<span class="string">f"Warn: ></span>{WARN_TEMP}<span class="string">C  Critical: ></span>{CRIT_TEMP}<span class="string">C\n"</span>)
+
+<span class="keyword">while</span> <span class="keyword">True</span>:
+    temp = read_temp_avg()
+    readings += <span class="value">1</span>
+
+    <span class="comment"># Track min/max</span>
+    <span class="keyword">if</span> temp < min_temp: min_temp = temp
+    <span class="keyword">if</span> temp > max_temp: max_temp = temp
+
+    <span class="comment"># Determine level</span>
+    <span class="keyword">if</span> temp >= CRIT_TEMP:
+        level = <span class="string">'crit'</span>
+        label = <span class="string">'CRITICAL'</span>
+    <span class="keyword">elif</span> temp >= WARN_TEMP:
+        level = <span class="string">'warn'</span>
+        label = <span class="string">'WARNING'</span>
+    <span class="keyword">else</span>:
+        level = <span class="string">'ok'</span>
+        label = <span class="string">'NORMAL'</span>
+
+    set_status(level)
+    <span class="function">print</span>(<span class="string">f"[</span>{readings:<span class="value">4d</span>}<span class="string">] </span>{temp:<span class="value">5.1f</span>}<span class="string">C  </span>{label:<span class="value">8s</span>}<span class="string">  Min:</span>{min_temp:<span class="value">.1f</span>}<span class="string">  Max:</span>{max_temp:<span class="value">.1f</span>}<span class="string">"</span>)
+    time.sleep(<span class="value">2</span>)</div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Calibration</h2>
+            <p class="ne-text">The datasheet formula assumes typical silicon characteristics. Individual chips vary. To calibrate your specific Pico, measure the actual room temperature with a known-accurate thermometer, then adjust the offset in the formula.</p>
+
+            <div class="ne-code"><span class="comment"># temp_calibrated.py -- Apply a calibration offset</span>
+<span class="keyword">from</span> machine <span class="keyword">import</span> ADC
+<span class="keyword">import</span> time
+
+sensor = ADC(<span class="value">4</span>)
+
+<span class="comment"># Calibration: measure actual room temp, compare with Pico reading.</span>
+<span class="comment"># If Pico reads 28.5C but actual is 24.0C, offset = 24.0 - 28.5 = -4.5</span>
+CALIBRATION_OFFSET = <span class="value">-4.5</span>   <span class="comment"># Adjust per your Pico</span>
+
+<span class="keyword">def</span> <span class="function">read_temp_calibrated</span>(samples=<span class="value">16</span>):
+    total = <span class="value">0</span>
+    <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="function">range</span>(samples):
+        total += sensor.read_u16()
+    raw = total // samples
+    voltage = raw * <span class="value">3.3</span> / <span class="value">65535</span>
+    temp_raw = <span class="value">27</span> - (voltage - <span class="value">0.706</span>) / <span class="value">0.001721</span>
+    <span class="keyword">return</span> temp_raw + CALIBRATION_OFFSET
+
+<span class="keyword">while</span> <span class="keyword">True</span>:
+    temp = read_temp_calibrated()
+    <span class="function">print</span>(<span class="string">f"Temperature: </span>{temp:<span class="value">.1f</span>}<span class="string">C (calibrated)"</span>)
+    time.sleep(<span class="value">2</span>)</div>
+
+            <div class="ne-callout">
+                <strong>External Sensors:</strong>
+                <p>For accurate ambient temperature measurement, use an external sensor like the DS18B20 (digital, 1-Wire protocol, +/- 0.5C accuracy) or TMP36 (analog, connect to GP26 ADC). The built-in sensor is best used for chip temperature monitoring and thermal protection.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">ADC Deep Dive</h2>
+
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>RP2040 ADC</th>
+                        <th>Meaning</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Resolution</td>
+                        <td>12-bit (scaled to 16-bit in MicroPython)</td>
+                        <td>4096 discrete levels natively; 65536 after software scaling</td>
+                    </tr>
+                    <tr>
+                        <td>Sample Rate</td>
+                        <td>500 ksps max</td>
+                        <td>500,000 samples per second (but MicroPython adds overhead)</td>
+                    </tr>
+                    <tr>
+                        <td>Reference Voltage</td>
+                        <td>3.3V (internal)</td>
+                        <td>Full-scale reading = 3.3V; never exceed on input pins</td>
+                    </tr>
+                    <tr>
+                        <td>Input Impedance</td>
+                        <td>~100k ohm</td>
+                        <td>High-impedance sources may need a buffer amplifier</td>
+                    </tr>
+                    <tr>
+                        <td>ENOB</td>
+                        <td>~8.7 bits</td>
+                        <td>Effective Number of Bits -- noise limits true resolution below 12 bits</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <div class="ne-takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>ADC(4) reads the RP2040's built-in temperature sensor -- no external hardware needed</li>
+                <li>The datasheet formula converts voltage to temperature: 27 - (V - 0.706) / 0.001721</li>
+                <li>Oversampling (averaging N samples) reduces noise by the square root of N -- 16 samples is a practical default</li>
+                <li>Moving average filters smooth readings over time while tracking real trends</li>
+                <li>Calibration offsets compensate for chip-to-chip variation -- compare against a known-good thermometer</li>
+                <li>The built-in sensor reads chip temperature (several degrees above ambient) -- use external sensors for room temperature</li>
+            </ul>
+        </div>
+
+        <div class="ne-complete">
+            <button id="completeBtn">Mark Complete</button>
+        </div>
+
+        <nav class="ne-nav">
+            <a href="pv-mp-07.html" class="ne-nav-btn">&lt; Previous: Motion Detection</a>
+            <a href="pv-mp-09.html" class="ne-nav-btn primary">Next: Data Logging &gt;</a>
+        </nav>
+
+    </div>
+
+    <script src="../../../../components/TenantShell.js"></script>
+    <script>
+        const MODULE_HOUSE = 'matrix';
+        const MODULE_ID = 'pv-mp-08';
+
+        function markComplete() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete(MODULE_HOUSE, MODULE_ID);
+            }
+            var btn = document.getElementById('completeBtn');
+            btn.textContent = 'Completed';
+            btn.disabled = true;
+            btn.style.background = '#c51a4a';
+            btn.style.color = '#fff';
+        }
+
+        document.getElementById('completeBtn').addEventListener('click', markComplete);
+
+        (function() {
+            if (typeof ModuleProgress !== 'undefined' && ModuleProgress.isCompleted(MODULE_HOUSE, MODULE_ID)) {
+                var btn = document.getElementById('completeBtn');
+                btn.textContent = 'Completed';
+                btn.disabled = true;
+                btn.style.background = '#c51a4a';
+                btn.style.color = '#fff';
+            }
+        })();
+    </script>
+</body>
+</html>

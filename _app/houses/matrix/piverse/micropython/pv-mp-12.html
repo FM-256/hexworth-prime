@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PV-MP-12: Bluetooth BLE | MicroPython on Pico</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #0d0a0c;
+            --bg-card: #140f12;
+            --accent: #c51a4a;
+            --accent-dim: rgba(197, 26, 74, 0.12);
+            --accent-glow: rgba(197, 26, 74, 0.25);
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0909a;
+            --border: rgba(197, 26, 74, 0.18);
+        }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.7; }
+        .ne-header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 14px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .ne-header-left { display: flex; align-items: center; gap: 15px; }
+        .ne-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+        .ne-header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .ne-breadcrumb { font-size: 0.8rem; color: var(--text-secondary); }
+        .ne-breadcrumb a { color: var(--text-secondary); text-decoration: none; }
+        .ne-breadcrumb a:hover { color: var(--accent); }
+        .ne-back { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .ne-back:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .ne-content { max-width: 1100px; margin: 0 auto; padding: 30px 25px 60px; }
+        .ne-objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 30px; }
+        .ne-objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 1rem; }
+        .ne-objectives ul { list-style: none; }
+        .ne-objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.92rem; }
+        .ne-objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .ne-section { margin-bottom: 35px; }
+        .ne-section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .ne-section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .ne-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+        .ne-code { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; overflow-x: auto; color: var(--text-secondary); white-space: pre-wrap; }
+        .ne-code .prompt { color: var(--accent); }
+        .ne-code .comment { color: #6a5060; }
+        .ne-code .highlight { color: var(--accent); }
+        .ne-code .value { color: #f0883e; }
+        .ne-code .keyword { color: #c792ea; }
+        .ne-code .string { color: #c3e88d; }
+        .ne-code .function { color: #82aaff; }
+        .ne-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.88rem; }
+        .ne-table th { background: var(--bg-card); color: var(--accent); padding: 10px 14px; text-align: left; border: 1px solid var(--border); font-weight: 600; }
+        .ne-table td { padding: 10px 14px; border: 1px solid var(--border); color: var(--text-secondary); }
+        .ne-table tr:hover td { background: var(--accent-dim); }
+        .ne-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0; }
+        .ne-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: border-color 0.2s; }
+        .ne-card:hover { border-color: var(--accent); }
+        .ne-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+        .ne-card span { color: var(--text-secondary); font-size: 0.85rem; }
+        .ne-callout { background: rgba(197, 26, 74, 0.06); border: 1px solid var(--accent-glow); border-radius: 8px; padding: 16px 20px; margin: 18px 0; }
+        .ne-callout strong { color: var(--accent); }
+        .ne-callout p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; }
+        .ne-takeaways { background: linear-gradient(135deg, rgba(197, 26, 74, 0.08), rgba(197, 26, 74, 0.03)); border: 1px solid var(--accent); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .ne-takeaways h3 { color: var(--accent); margin-bottom: 12px; font-size: 1rem; }
+        .ne-takeaways ul { list-style: none; }
+        .ne-takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .ne-takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--accent); font-weight: bold; }
+        .ne-nav { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .ne-nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .ne-nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .ne-nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .ne-nav-btn.primary:hover { opacity: 0.88; }
+        .ne-nav-btn.disabled { opacity: 0.4; pointer-events: none; }
+        .ne-inline-code { background: #0d1117; padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--accent); }
+        .ne-diagram { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin: 14px 0; text-align: center; }
+        .ne-diagram svg { max-width: 100%; height: auto; }
+        .ne-complete { text-align: center; padding: 28px 0 8px; }
+        #completeBtn { background: transparent; border: 2px solid var(--accent); color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; padding: 12px 36px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        #completeBtn:hover:not(:disabled) { background: var(--accent-dim); }
+        #completeBtn:disabled { cursor: default; opacity: 0.85; }
+        @media (max-width: 700px) { .ne-card-grid { grid-template-columns: 1fr; } .ne-content { padding: 20px 15px 40px; } }
+    </style>
+</head>
+<body>
+
+    <header class="ne-header">
+        <div class="ne-header-left">
+            <span class="ne-badge">PV-MP-12</span>
+            <h1>Bluetooth BLE</h1>
+        </div>
+        <div class="ne-breadcrumb">
+            <a href="../index.html">PiVerse</a> / <a href="index.html">MicroPython</a> / PV-MP-12
+        </div>
+        <a href="../index.html" class="ne-back">&lt; Back</a>
+    </header>
+
+    <div class="ne-content">
+
+        <div class="ne-objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Explain the difference between Bluetooth Classic and Bluetooth Low Energy (BLE)</li>
+                <li>Understand the GATT architecture: profiles, services, and characteristics</li>
+                <li>Configure the Pico W as a BLE peripheral that advertises and accepts connections</li>
+                <li>Create custom GATT services with readable and writable characteristics</li>
+                <li>Connect to the Pico W from a mobile phone using a BLE scanner app</li>
+            </ul>
+        </div>
+
+        <div class="ne-callout">
+            <strong>Hardware Requirement:</strong>
+            <p>This module requires a Pico W with MicroPython firmware v1.21 or later (BLE support). You also need a smartphone with a BLE scanner app (nRF Connect for Android/iOS is recommended). The original Pico does not have Bluetooth hardware.</p>
+        </div>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">BLE vs. Bluetooth Classic</h2>
+            <p class="ne-text">Bluetooth Low Energy (BLE) is a completely different protocol from classic Bluetooth, even though they share the name. Classic Bluetooth is designed for continuous streaming (audio, file transfer) and consumes significant power. BLE is designed for intermittent data exchange (sensor readings, notifications) and consumes very little power -- a BLE sensor can run for months on a coin cell battery.</p>
+
+            <div class="ne-card-grid">
+                <div class="ne-card">
+                    <strong>Bluetooth Classic</strong>
+                    <span>Continuous streaming, higher power, used for audio (headphones, speakers), file transfer, serial port emulation. Not supported on Pico W.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>BLE (Bluetooth Low Energy)</strong>
+                    <span>Short data bursts, very low power, used for sensors, fitness trackers, beacons, IoT devices. Supported on Pico W via CYW43439.</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">GATT Architecture</h2>
+            <p class="ne-text">BLE communication is structured using GATT (Generic Attribute Profile). Think of it as a database that other devices can read from and write to. The hierarchy is: Profile > Service > Characteristic > Value.</p>
+
+            <div class="ne-diagram">
+                <svg viewBox="0 0 500 200" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Profile -->
+                    <rect x="20" y="10" width="460" height="180" rx="10" fill="none" stroke="#c51a4a" stroke-width="1.5" stroke-dasharray="6,3"/>
+                    <text x="40" y="30" fill="#c51a4a" font-size="10" font-family="JetBrains Mono" font-weight="bold">GATT Profile (Pico W Peripheral)</text>
+                    <!-- Service 1 -->
+                    <rect x="40" y="45" width="200" height="130" rx="8" fill="#1a1520" stroke="#c51a4a" stroke-width="1.5"/>
+                    <text x="140" y="65" fill="#c51a4a" font-size="9" font-family="JetBrains Mono" text-anchor="middle" font-weight="bold">Temperature Service</text>
+                    <text x="140" y="78" fill="#a0909a" font-size="7" font-family="Inter" text-anchor="middle">UUID: 0x181A (Environmental)</text>
+                    <!-- Characteristic 1 -->
+                    <rect x="55" y="88" width="170" height="35" rx="5" fill="#0d1117" stroke="rgba(197,26,74,0.3)" stroke-width="1"/>
+                    <text x="140" y="103" fill="#f0883e" font-size="8" font-family="JetBrains Mono" text-anchor="middle">Temp Reading (Read/Notify)</text>
+                    <text x="140" y="115" fill="#a0909a" font-size="7" font-family="Inter" text-anchor="middle">UUID: 0x2A6E | Value: 24.5</text>
+                    <!-- Characteristic 2 -->
+                    <rect x="55" y="130" width="170" height="35" rx="5" fill="#0d1117" stroke="rgba(197,26,74,0.3)" stroke-width="1"/>
+                    <text x="140" y="145" fill="#f0883e" font-size="8" font-family="JetBrains Mono" text-anchor="middle">Interval (Read/Write)</text>
+                    <text x="140" y="157" fill="#a0909a" font-size="7" font-family="Inter" text-anchor="middle">UUID: custom | Value: 5</text>
+                    <!-- Service 2 -->
+                    <rect x="260" y="45" width="200" height="130" rx="8" fill="#1a1520" stroke="#c51a4a" stroke-width="1.5"/>
+                    <text x="360" y="65" fill="#c51a4a" font-size="9" font-family="JetBrains Mono" text-anchor="middle" font-weight="bold">LED Service</text>
+                    <text x="360" y="78" fill="#a0909a" font-size="7" font-family="Inter" text-anchor="middle">UUID: custom</text>
+                    <!-- Characteristic 3 -->
+                    <rect x="275" y="88" width="170" height="35" rx="5" fill="#0d1117" stroke="rgba(197,26,74,0.3)" stroke-width="1"/>
+                    <text x="360" y="103" fill="#f0883e" font-size="8" font-family="JetBrains Mono" text-anchor="middle">LED State (Read/Write)</text>
+                    <text x="360" y="115" fill="#a0909a" font-size="7" font-family="Inter" text-anchor="middle">UUID: custom | Value: 0 or 1</text>
+                </svg>
+            </div>
+
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>GATT Concept</th>
+                        <th>Description</th>
+                        <th>Analogy</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Service</td>
+                        <td>A group of related data and behaviors</td>
+                        <td>A table in a database</td>
+                    </tr>
+                    <tr>
+                        <td>Characteristic</td>
+                        <td>A single data point within a service</td>
+                        <td>A column in the table</td>
+                    </tr>
+                    <tr>
+                        <td>UUID</td>
+                        <td>Unique identifier for services and characteristics</td>
+                        <td>A primary key</td>
+                    </tr>
+                    <tr>
+                        <td>Descriptor</td>
+                        <td>Metadata about a characteristic (units, format)</td>
+                        <td>Column description / data type</td>
+                    </tr>
+                    <tr>
+                        <td>Read / Write / Notify</td>
+                        <td>Permissions: what the client can do with the characteristic</td>
+                        <td>SELECT / UPDATE / trigger</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">BLE Advertising</h2>
+            <p class="ne-text">Before a phone can connect to the Pico W, the Pico must advertise its presence. Advertising broadcasts the device name and available services at regular intervals. Nearby BLE scanners see this advertisement and can initiate a connection.</p>
+
+            <div class="ne-code"><span class="comment"># ble_advertise.py -- Basic BLE advertising</span>
+<span class="keyword">import</span> bluetooth
+<span class="keyword">import</span> time
+<span class="keyword">from</span> micropython <span class="keyword">import</span> const
+
+<span class="comment"># BLE event constants</span>
+_IRQ_CENTRAL_CONNECT = const(<span class="value">1</span>)
+_IRQ_CENTRAL_DISCONNECT = const(<span class="value">2</span>)
+
+<span class="comment"># Initialize BLE</span>
+ble = bluetooth.BLE()
+ble.active(<span class="keyword">True</span>)
+
+<span class="keyword">def</span> <span class="function">ble_irq</span>(event, data):
+    <span class="keyword">if</span> event == _IRQ_CENTRAL_CONNECT:
+        conn_handle, _, _ = data
+        <span class="function">print</span>(<span class="string">f"Connected! Handle: </span>{conn_handle}<span class="string">"</span>)
+    <span class="keyword">elif</span> event == _IRQ_CENTRAL_DISCONNECT:
+        conn_handle, _, _ = data
+        <span class="function">print</span>(<span class="string">"Disconnected. Resuming advertising..."</span>)
+        advertise()
+
+ble.irq(ble_irq)
+
+<span class="keyword">def</span> <span class="function">advertise</span>():
+    <span class="comment"># Build advertising payload</span>
+    name = <span class="string">"PicoW-Sensor"</span>
+    name_bytes = name.encode()
+    <span class="comment"># Advertising data: length, type, data</span>
+    <span class="comment"># Type 0x09 = Complete Local Name</span>
+    payload = <span class="function">bytes</span>([<span class="function">len</span>(name_bytes) + <span class="value">1</span>, <span class="value">0x09</span>]) + name_bytes
+    ble.gap_advertise(<span class="value">100000</span>, adv_data=payload)  <span class="comment"># 100ms interval</span>
+    <span class="function">print</span>(<span class="string">f"Advertising as '</span>{name}<span class="string">'..."</span>)
+
+advertise()
+
+<span class="keyword">while</span> <span class="keyword">True</span>:
+    time.sleep(<span class="value">1</span>)</div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Temperature Sensor BLE Service</h2>
+            <p class="ne-text">A complete BLE peripheral that exposes the Pico's temperature as a readable and notifiable characteristic. A connected phone can read the current temperature or subscribe to notifications for automatic updates.</p>
+
+            <div class="ne-code"><span class="comment"># ble_temp_service.py -- BLE temperature sensor peripheral</span>
+<span class="keyword">import</span> bluetooth
+<span class="keyword">import</span> struct
+<span class="keyword">import</span> time
+<span class="keyword">from</span> machine <span class="keyword">import</span> ADC, Pin
+<span class="keyword">from</span> micropython <span class="keyword">import</span> const
+
+<span class="comment"># BLE event constants</span>
+_IRQ_CENTRAL_CONNECT = const(<span class="value">1</span>)
+_IRQ_CENTRAL_DISCONNECT = const(<span class="value">2</span>)
+_IRQ_GATTS_WRITE = const(<span class="value">3</span>)
+
+<span class="comment"># UUIDs (standard Bluetooth SIG)</span>
+_ENV_SENSE_UUID = bluetooth.UUID(<span class="value">0x181A</span>)  <span class="comment"># Environmental Sensing</span>
+_TEMP_CHAR_UUID = bluetooth.UUID(<span class="value">0x2A6E</span>)  <span class="comment"># Temperature</span>
+
+<span class="comment"># Characteristic flags</span>
+_FLAG_READ = const(<span class="value">0x0002</span>)
+_FLAG_NOTIFY = const(<span class="value">0x0010</span>)
+
+<span class="comment"># Service definition</span>
+_TEMP_SERVICE = (
+    _ENV_SENSE_UUID,
+    (
+        (_TEMP_CHAR_UUID, _FLAG_READ | _FLAG_NOTIFY),
+    ),
+)
+
+<span class="comment"># Hardware</span>
+sensor = ADC(<span class="value">4</span>)
+led = Pin(<span class="string">"LED"</span>, Pin.OUT)
+
+<span class="keyword">class</span> <span class="function">BLETempSensor</span>:
+    <span class="keyword">def</span> <span class="function">__init__</span>(self):
+        self.ble = bluetooth.BLE()
+        self.ble.active(<span class="keyword">True</span>)
+        self.ble.irq(self._irq)
+        self.conn_handle = <span class="keyword">None</span>
+
+        <span class="comment"># Register GATT service</span>
+        ((self.temp_handle,),) = self.ble.gatts_register_services(
+            (_TEMP_SERVICE,)
+        )
+        self._advertise()
+
+    <span class="keyword">def</span> <span class="function">_irq</span>(self, event, data):
+        <span class="keyword">if</span> event == _IRQ_CENTRAL_CONNECT:
+            self.conn_handle = data[<span class="value">0</span>]
+            led.on()
+            <span class="function">print</span>(<span class="string">"Phone connected!"</span>)
+        <span class="keyword">elif</span> event == _IRQ_CENTRAL_DISCONNECT:
+            self.conn_handle = <span class="keyword">None</span>
+            led.off()
+            <span class="function">print</span>(<span class="string">"Phone disconnected."</span>)
+            self._advertise()
+
+    <span class="keyword">def</span> <span class="function">_advertise</span>(self):
+        name = <span class="string">"PicoW-Temp"</span>
+        payload = <span class="function">bytes</span>([<span class="function">len</span>(name) + <span class="value">1</span>, <span class="value">0x09</span>]) + name.encode()
+        self.ble.gap_advertise(<span class="value">100000</span>, adv_data=payload)
+        <span class="function">print</span>(<span class="string">"Advertising..."</span>)
+
+    <span class="keyword">def</span> <span class="function">read_temp</span>(self):
+        raw = <span class="function">sum</span>(sensor.read_u16() <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="function">range</span>(<span class="value">16</span>)) // <span class="value">16</span>
+        v = raw * <span class="value">3.3</span> / <span class="value">65535</span>
+        <span class="keyword">return</span> <span class="function">round</span>(<span class="value">27</span> - (v - <span class="value">0.706</span>) / <span class="value">0.001721</span>, <span class="value">1</span>)
+
+    <span class="keyword">def</span> <span class="function">update</span>(self):
+        <span class="string">"""Update characteristic value and notify if connected."""</span>
+        temp = self.read_temp()
+        <span class="comment"># BLE temperature format: int16 in 0.01 degree units</span>
+        temp_encoded = struct.pack(<span class="string">"&lt;h"</span>, <span class="function">int</span>(temp * <span class="value">100</span>))
+        self.ble.gatts_write(self.temp_handle, temp_encoded)
+
+        <span class="keyword">if</span> self.conn_handle <span class="keyword">is not</span> <span class="keyword">None</span>:
+            self.ble.gatts_notify(self.conn_handle, self.temp_handle)
+            <span class="function">print</span>(<span class="string">f"Notified: </span>{temp}<span class="string">C"</span>)
+        <span class="keyword">return</span> temp
+
+<span class="comment"># Run</span>
+sensor_ble = BLETempSensor()
+<span class="function">print</span>(<span class="string">"BLE Temperature Sensor active."</span>)
+<span class="function">print</span>(<span class="string">"Open nRF Connect on your phone and look for 'PicoW-Temp'.\n"</span>)
+
+<span class="keyword">while</span> <span class="keyword">True</span>:
+    temp = sensor_ble.update()
+    <span class="function">print</span>(<span class="string">f"Temp: </span>{temp}<span class="string">C"</span>)
+    time.sleep(<span class="value">2</span>)</div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">LED Control via BLE</h2>
+            <p class="ne-text">This example creates a writable characteristic that lets a connected phone toggle the Pico's LED. When the phone writes a value (0 or 1) to the characteristic, the Pico reads it and sets the LED accordingly -- remote control over Bluetooth.</p>
+
+            <div class="ne-code"><span class="comment"># ble_led_control.py -- Control LED from phone via BLE</span>
+<span class="keyword">import</span> bluetooth
+<span class="keyword">import</span> time
+<span class="keyword">from</span> machine <span class="keyword">import</span> Pin
+<span class="keyword">from</span> micropython <span class="keyword">import</span> const
+
+_IRQ_CENTRAL_CONNECT = const(<span class="value">1</span>)
+_IRQ_CENTRAL_DISCONNECT = const(<span class="value">2</span>)
+_IRQ_GATTS_WRITE = const(<span class="value">3</span>)
+
+<span class="comment"># Custom UUID for LED service</span>
+_LED_SERVICE_UUID = bluetooth.UUID(<span class="string">"12345678-1234-1234-1234-123456789abc"</span>)
+_LED_CHAR_UUID    = bluetooth.UUID(<span class="string">"12345678-1234-1234-1234-123456789abd"</span>)
+
+_FLAG_READ  = const(<span class="value">0x0002</span>)
+_FLAG_WRITE = const(<span class="value">0x0008</span>)
+
+_LED_SERVICE = (
+    _LED_SERVICE_UUID,
+    (
+        (_LED_CHAR_UUID, _FLAG_READ | _FLAG_WRITE),
+    ),
+)
+
+led = Pin(<span class="string">"LED"</span>, Pin.OUT)
+ble = bluetooth.BLE()
+ble.active(<span class="keyword">True</span>)
+
+conn_handle = <span class="keyword">None</span>
+
+<span class="comment"># Register service</span>
+((led_handle,),) = ble.gatts_register_services((_LED_SERVICE,))
+ble.gatts_write(led_handle, <span class="function">bytes</span>([<span class="value">0</span>]))  <span class="comment"># Initial: LED off</span>
+
+<span class="keyword">def</span> <span class="function">ble_irq</span>(event, data):
+    <span class="keyword">global</span> conn_handle
+    <span class="keyword">if</span> event == _IRQ_CENTRAL_CONNECT:
+        conn_handle = data[<span class="value">0</span>]
+        <span class="function">print</span>(<span class="string">"Connected!"</span>)
+    <span class="keyword">elif</span> event == _IRQ_CENTRAL_DISCONNECT:
+        conn_handle = <span class="keyword">None</span>
+        led.off()
+        <span class="function">print</span>(<span class="string">"Disconnected."</span>)
+        advertise()
+    <span class="keyword">elif</span> event == _IRQ_GATTS_WRITE:
+        <span class="comment"># Client wrote to a characteristic</span>
+        buffer = ble.gatts_read(led_handle)
+        value = buffer[<span class="value">0</span>] <span class="keyword">if</span> buffer <span class="keyword">else</span> <span class="value">0</span>
+        led.value(value)
+        <span class="function">print</span>(<span class="string">f"LED set to: </span>{<span class="string">'ON'</span> <span class="keyword">if</span> value <span class="keyword">else</span> <span class="string">'OFF'</span>}<span class="string">"</span>)
+
+ble.irq(ble_irq)
+
+<span class="keyword">def</span> <span class="function">advertise</span>():
+    name = <span class="string">"PicoW-LED"</span>
+    payload = <span class="function">bytes</span>([<span class="function">len</span>(name) + <span class="value">1</span>, <span class="value">0x09</span>]) + name.encode()
+    ble.gap_advertise(<span class="value">100000</span>, adv_data=payload)
+    <span class="function">print</span>(<span class="string">"Advertising as 'PicoW-LED'..."</span>)
+
+advertise()
+<span class="function">print</span>(<span class="string">"BLE LED Control active."</span>)
+<span class="function">print</span>(<span class="string">"Connect with nRF Connect and write 0x01 to turn on, 0x00 to turn off.\n"</span>)
+
+<span class="keyword">while</span> <span class="keyword">True</span>:
+    time.sleep(<span class="value">1</span>)</div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Testing with nRF Connect</h2>
+            <p class="ne-text">nRF Connect (by Nordic Semiconductor) is a free BLE scanner and debugging app for Android and iOS. It lets you discover nearby BLE devices, connect to them, read and write characteristics, and subscribe to notifications.</p>
+
+            <div class="ne-card-grid">
+                <div class="ne-card">
+                    <strong>Step 1: Scan</strong>
+                    <span>Open nRF Connect, tap "Scan". You should see "PicoW-Temp" or "PicoW-LED" in the device list. If not, check that BLE is active on the Pico.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>Step 2: Connect</strong>
+                    <span>Tap "Connect" on the Pico device. The app shows the GATT service tree with services and characteristics.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>Step 3: Read</strong>
+                    <span>Tap the down-arrow icon on a characteristic to read its current value. For temperature, it shows the raw bytes.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>Step 4: Write / Notify</strong>
+                    <span>Tap the up-arrow to write a value (e.g., 0x01 to turn on LED). Tap the triple-down-arrow to enable notifications.</span>
+                </div>
+            </div>
+
+            <div class="ne-callout">
+                <strong>UUID Formats:</strong>
+                <p>Standard Bluetooth SIG UUIDs are 16-bit (e.g., 0x181A for Environmental Sensing). Custom UUIDs are 128-bit strings. Use standard UUIDs when your service matches a Bluetooth standard. Use custom UUIDs for proprietary services -- generate them at uuidgenerator.net.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">BLE vs. WiFi for IoT</h2>
+
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Factor</th>
+                        <th>BLE</th>
+                        <th>WiFi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Range</td>
+                        <td>~10-30 meters</td>
+                        <td>~30-100 meters</td>
+                    </tr>
+                    <tr>
+                        <td>Power</td>
+                        <td>Very low (coin cell for months)</td>
+                        <td>Higher (needs wall power or large battery)</td>
+                    </tr>
+                    <tr>
+                        <td>Data Rate</td>
+                        <td>~1 Mbps max (small packets)</td>
+                        <td>~10-100 Mbps</td>
+                    </tr>
+                    <tr>
+                        <td>Infrastructure</td>
+                        <td>None required (direct connection)</td>
+                        <td>Requires WiFi router</td>
+                    </tr>
+                    <tr>
+                        <td>Best For</td>
+                        <td>Wearables, sensors, proximity, phone control</td>
+                        <td>Web servers, cloud APIs, data streaming</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <div class="ne-takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>BLE is designed for low-power, intermittent data exchange -- fundamentally different from Bluetooth Classic</li>
+                <li>GATT provides a structured database of services and characteristics that clients can read, write, and subscribe to</li>
+                <li>The Pico W acts as a BLE peripheral (server) that advertises, accepts connections, and exposes data</li>
+                <li>Standard UUIDs (0x181A, 0x2A6E) identify common services -- use custom 128-bit UUIDs for proprietary ones</li>
+                <li>Notifications push data to connected clients automatically -- no polling needed from the phone side</li>
+                <li>nRF Connect is the essential debugging tool for BLE development -- use it to verify services and characteristics</li>
+            </ul>
+        </div>
+
+        <div class="ne-complete">
+            <button id="completeBtn">Mark Complete</button>
+        </div>
+
+        <nav class="ne-nav">
+            <a href="pv-mp-11.html" class="ne-nav-btn">&lt; Previous: WiFi Networking</a>
+            <a href="../index.html" class="ne-nav-btn primary">Back to PiVerse &gt;</a>
+        </nav>
+
+    </div>
+
+    <script src="../../../../components/TenantShell.js"></script>
+    <script>
+        const MODULE_HOUSE = 'matrix';
+        const MODULE_ID = 'pv-mp-12';
+
+        function markComplete() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete(MODULE_HOUSE, MODULE_ID);
+            }
+            var btn = document.getElementById('completeBtn');
+            btn.textContent = 'Completed';
+            btn.disabled = true;
+            btn.style.background = '#c51a4a';
+            btn.style.color = '#fff';
+        }
+
+        document.getElementById('completeBtn').addEventListener('click', markComplete);
+
+        (function() {
+            if (typeof ModuleProgress !== 'undefined' && ModuleProgress.isCompleted(MODULE_HOUSE, MODULE_ID)) {
+                var btn = document.getElementById('completeBtn');
+                btn.textContent = 'Completed';
+                btn.disabled = true;
+                btn.style.background = '#c51a4a';
+                btn.style.color = '#fff';
+            }
+        })();
+    </script>
+</body>
+</html>

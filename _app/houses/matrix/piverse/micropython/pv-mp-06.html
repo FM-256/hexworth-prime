@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PV-MP-06: Reaction Game | MicroPython on Pico</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #0d0a0c;
+            --bg-card: #140f12;
+            --accent: #c51a4a;
+            --accent-dim: rgba(197, 26, 74, 0.12);
+            --accent-glow: rgba(197, 26, 74, 0.25);
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0909a;
+            --border: rgba(197, 26, 74, 0.18);
+        }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.7; }
+        .ne-header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 14px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .ne-header-left { display: flex; align-items: center; gap: 15px; }
+        .ne-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+        .ne-header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .ne-breadcrumb { font-size: 0.8rem; color: var(--text-secondary); }
+        .ne-breadcrumb a { color: var(--text-secondary); text-decoration: none; }
+        .ne-breadcrumb a:hover { color: var(--accent); }
+        .ne-back { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .ne-back:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .ne-content { max-width: 1100px; margin: 0 auto; padding: 30px 25px 60px; }
+        .ne-objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 30px; }
+        .ne-objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 1rem; }
+        .ne-objectives ul { list-style: none; }
+        .ne-objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.92rem; }
+        .ne-objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .ne-section { margin-bottom: 35px; }
+        .ne-section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .ne-section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .ne-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+        .ne-code { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; overflow-x: auto; color: var(--text-secondary); white-space: pre-wrap; }
+        .ne-code .prompt { color: var(--accent); }
+        .ne-code .comment { color: #6a5060; }
+        .ne-code .highlight { color: var(--accent); }
+        .ne-code .value { color: #f0883e; }
+        .ne-code .keyword { color: #c792ea; }
+        .ne-code .string { color: #c3e88d; }
+        .ne-code .function { color: #82aaff; }
+        .ne-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.88rem; }
+        .ne-table th { background: var(--bg-card); color: var(--accent); padding: 10px 14px; text-align: left; border: 1px solid var(--border); font-weight: 600; }
+        .ne-table td { padding: 10px 14px; border: 1px solid var(--border); color: var(--text-secondary); }
+        .ne-table tr:hover td { background: var(--accent-dim); }
+        .ne-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0; }
+        .ne-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: border-color 0.2s; }
+        .ne-card:hover { border-color: var(--accent); }
+        .ne-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+        .ne-card span { color: var(--text-secondary); font-size: 0.85rem; }
+        .ne-callout { background: rgba(197, 26, 74, 0.06); border: 1px solid var(--accent-glow); border-radius: 8px; padding: 16px 20px; margin: 18px 0; }
+        .ne-callout strong { color: var(--accent); }
+        .ne-callout p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; }
+        .ne-takeaways { background: linear-gradient(135deg, rgba(197, 26, 74, 0.08), rgba(197, 26, 74, 0.03)); border: 1px solid var(--accent); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .ne-takeaways h3 { color: var(--accent); margin-bottom: 12px; font-size: 1rem; }
+        .ne-takeaways ul { list-style: none; }
+        .ne-takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .ne-takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--accent); font-weight: bold; }
+        .ne-nav { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .ne-nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .ne-nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .ne-nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .ne-nav-btn.primary:hover { opacity: 0.88; }
+        .ne-nav-btn.disabled { opacity: 0.4; pointer-events: none; }
+        .ne-inline-code { background: #0d1117; padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--accent); }
+        .ne-diagram { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin: 14px 0; text-align: center; }
+        .ne-diagram svg { max-width: 100%; height: auto; }
+        .ne-complete { text-align: center; padding: 28px 0 8px; }
+        #completeBtn { background: transparent; border: 2px solid var(--accent); color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; padding: 12px 36px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        #completeBtn:hover:not(:disabled) { background: var(--accent-dim); }
+        #completeBtn:disabled { cursor: default; opacity: 0.85; }
+        @media (max-width: 700px) { .ne-card-grid { grid-template-columns: 1fr; } .ne-content { padding: 20px 15px 40px; } }
+    </style>
+</head>
+<body>
+
+    <header class="ne-header">
+        <div class="ne-header-left">
+            <span class="ne-badge">PV-MP-06</span>
+            <h1>Reaction Game</h1>
+        </div>
+        <div class="ne-breadcrumb">
+            <a href="../index.html">PiVerse</a> / <a href="index.html">MicroPython</a> / PV-MP-06
+        </div>
+        <a href="../index.html" class="ne-back">&lt; Back</a>
+    </header>
+
+    <div class="ne-content">
+
+        <div class="ne-objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Generate random delays using the urandom module</li>
+                <li>Measure precise reaction times with ticks_ms() and ticks_diff()</li>
+                <li>Build a complete game loop with scoring, rounds, and win conditions</li>
+                <li>Handle edge cases like early presses (cheating detection)</li>
+                <li>Extend the design to a two-player competitive mode</li>
+            </ul>
+        </div>
+
+        <div class="ne-callout">
+            <strong>Track Context:</strong>
+            <p>This project builds on digital I/O (buttons, LEDs) and adds timing precision and random number generation. The reaction game is a classic embedded project that teaches you to think about real-time measurement -- how fast can your code respond, and how accurately can it measure human input?</p>
+        </div>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Random Numbers on MicroPython</h2>
+            <p class="ne-text">MicroPython provides the <span class="ne-inline-code">urandom</span> module (a micro version of Python's random module) for generating random numbers. For a reaction game, you need random delays so the player cannot predict when the LED will light up.</p>
+
+            <div class="ne-code"><span class="comment"># random_demo.py -- Generating random numbers</span>
+<span class="keyword">import</span> urandom
+<span class="keyword">import</span> time
+
+<span class="comment"># Random integer in a range (inclusive)</span>
+delay_ms = urandom.randint(<span class="value">2000</span>, <span class="value">5000</span>)   <span class="comment"># 2-5 seconds</span>
+<span class="function">print</span>(<span class="string">f"Random delay: </span>{delay_ms}<span class="string"> ms"</span>)
+
+<span class="comment"># Random choice from a list</span>
+pins = [<span class="value">13</span>, <span class="value">14</span>, <span class="value">15</span>]
+chosen = pins[urandom.randint(<span class="value">0</span>, <span class="function">len</span>(pins) - <span class="value">1</span>)]
+<span class="function">print</span>(<span class="string">f"Random pin: GP</span>{chosen}<span class="string">"</span>)
+
+<span class="comment"># Random float between 0 and 1</span>
+val = urandom.getrandbits(<span class="value">16</span>) / <span class="value">65535</span>
+<span class="function">print</span>(<span class="string">f"Random float: </span>{val:<span class="value">.4f</span>}<span class="string">"</span>)</div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Precise Timing Measurement</h2>
+            <p class="ne-text">The <span class="ne-inline-code">time.ticks_ms()</span> function returns a millisecond counter that wraps around periodically. To measure elapsed time correctly, always use <span class="ne-inline-code">time.ticks_diff(end, start)</span> -- never subtract directly. The ticks_diff function handles the wraparound correctly.</p>
+
+            <div class="ne-code"><span class="comment"># timing_demo.py -- Measuring elapsed time</span>
+<span class="keyword">import</span> time
+
+<span class="comment"># Measure how long something takes</span>
+start = time.ticks_ms()
+time.sleep(<span class="value">0.5</span>)
+end = time.ticks_ms()
+elapsed = time.ticks_diff(end, start)
+<span class="function">print</span>(<span class="string">f"Elapsed: </span>{elapsed}<span class="string"> ms"</span>)  <span class="comment"># Should be ~500</span>
+
+<span class="comment"># WRONG: Direct subtraction can fail on wraparound</span>
+<span class="comment"># elapsed = end - start  # DO NOT DO THIS</span>
+
+<span class="comment"># For microsecond precision (1/1000 of a millisecond)</span>
+start_us = time.ticks_us()
+<span class="comment"># ... fast operation ...</span>
+elapsed_us = time.ticks_diff(time.ticks_us(), start_us)
+<span class="function">print</span>(<span class="string">f"Elapsed: </span>{elapsed_us}<span class="string"> microseconds"</span>)</div>
+
+            <div class="ne-callout">
+                <strong>Why ticks_diff?</strong>
+                <p>The ticks counter is an unsigned integer that wraps around. If start = 0xFFFFFFF0 and end = 0x00000010, simple subtraction gives a negative number. ticks_diff handles this correctly and always returns the right positive duration.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Single-Player Reaction Game</h2>
+            <p class="ne-text">The game flow: wait a random delay, turn on the LED, measure how long it takes the player to press the button. If they press before the LED lights, that is a false start. After several rounds, display the average reaction time.</p>
+
+            <div class="ne-diagram">
+                <svg viewBox="0 0 600 120" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <marker id="arrow6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-end">
+                            <path d="M 0 0 L 10 5 L 0 10 z" fill="#c51a4a"/>
+                        </marker>
+                    </defs>
+                    <rect x="10" y="25" width="90" height="60" rx="8" fill="#1a1520" stroke="#c51a4a" stroke-width="1.5"/>
+                    <text x="55" y="50" fill="#c51a4a" font-size="9" font-family="JetBrains Mono" text-anchor="middle" font-weight="bold">WAIT</text>
+                    <text x="55" y="65" fill="#a0909a" font-size="8" font-family="Inter" text-anchor="middle">Random delay</text>
+                    <line x1="105" y1="55" x2="135" y2="55" stroke="#c51a4a" stroke-width="1.5" marker-end="url(#arrow6)"/>
+
+                    <rect x="140" y="25" width="90" height="60" rx="8" fill="#1a1520" stroke="#c51a4a" stroke-width="1.5"/>
+                    <text x="185" y="50" fill="#c51a4a" font-size="9" font-family="JetBrains Mono" text-anchor="middle" font-weight="bold">SIGNAL</text>
+                    <text x="185" y="65" fill="#a0909a" font-size="8" font-family="Inter" text-anchor="middle">LED on</text>
+                    <line x1="235" y1="55" x2="265" y2="55" stroke="#c51a4a" stroke-width="1.5" marker-end="url(#arrow6)"/>
+
+                    <rect x="270" y="25" width="90" height="60" rx="8" fill="#1a1520" stroke="#c51a4a" stroke-width="1.5"/>
+                    <text x="315" y="50" fill="#c51a4a" font-size="9" font-family="JetBrains Mono" text-anchor="middle" font-weight="bold">REACT</text>
+                    <text x="315" y="65" fill="#a0909a" font-size="8" font-family="Inter" text-anchor="middle">Wait for press</text>
+                    <line x1="365" y1="55" x2="395" y2="55" stroke="#c51a4a" stroke-width="1.5" marker-end="url(#arrow6)"/>
+
+                    <rect x="400" y="25" width="90" height="60" rx="8" fill="#1a1520" stroke="#c51a4a" stroke-width="1.5"/>
+                    <text x="445" y="50" fill="#c51a4a" font-size="9" font-family="JetBrains Mono" text-anchor="middle" font-weight="bold">SCORE</text>
+                    <text x="445" y="65" fill="#a0909a" font-size="8" font-family="Inter" text-anchor="middle">Display time</text>
+                    <line x1="495" y1="55" x2="525" y2="55" stroke="#c51a4a" stroke-width="1.5" marker-end="url(#arrow6)"/>
+
+                    <rect x="530" y="25" width="60" height="60" rx="8" fill="#1a1520" stroke="#c51a4a" stroke-width="1.5"/>
+                    <text x="560" y="50" fill="#c51a4a" font-size="9" font-family="JetBrains Mono" text-anchor="middle" font-weight="bold">NEXT</text>
+                    <text x="560" y="65" fill="#a0909a" font-size="8" font-family="Inter" text-anchor="middle">Round++</text>
+                </svg>
+            </div>
+
+            <div class="ne-code"><span class="comment"># reaction_game.py -- Single-player reaction time game</span>
+<span class="keyword">from</span> machine <span class="keyword">import</span> Pin
+<span class="keyword">import</span> time
+<span class="keyword">import</span> urandom
+
+led    = Pin(<span class="value">15</span>, Pin.OUT)
+button = Pin(<span class="value">16</span>, Pin.IN, Pin.PULL_DOWN)
+
+NUM_ROUNDS = <span class="value">5</span>
+results = []
+
+<span class="function">print</span>(<span class="string">"=== REACTION GAME ==="</span>)
+<span class="function">print</span>(<span class="string">f"Press the button when the LED lights up!"</span>)
+<span class="function">print</span>(<span class="string">f"</span>{NUM_ROUNDS}<span class="string"> rounds. Press button to start...\n"</span>)
+
+<span class="comment"># Wait for initial button press</span>
+<span class="keyword">while</span> button.value() == <span class="value">0</span>:
+    time.sleep(<span class="value">0.01</span>)
+time.sleep(<span class="value">0.5</span>)  <span class="comment"># Debounce</span>
+
+<span class="keyword">for</span> round_num <span class="keyword">in</span> <span class="function">range</span>(<span class="value">1</span>, NUM_ROUNDS + <span class="value">1</span>):
+    <span class="function">print</span>(<span class="string">f"--- Round </span>{round_num}<span class="string"> ---"</span>)
+    led.off()
+
+    <span class="comment"># Random delay (2-5 seconds)</span>
+    delay = urandom.randint(<span class="value">2000</span>, <span class="value">5000</span>)
+
+    <span class="comment"># Check for false start during the wait</span>
+    false_start = <span class="keyword">False</span>
+    start_wait = time.ticks_ms()
+    <span class="keyword">while</span> time.ticks_diff(time.ticks_ms(), start_wait) < delay:
+        <span class="keyword">if</span> button.value() == <span class="value">1</span>:
+            false_start = <span class="keyword">True</span>
+            <span class="keyword">break</span>
+        time.sleep(<span class="value">0.01</span>)
+
+    <span class="keyword">if</span> false_start:
+        <span class="function">print</span>(<span class="string">"  FALSE START! Wait for the LED."</span>)
+        results.append(<span class="value">9999</span>)  <span class="comment"># Penalty</span>
+        time.sleep(<span class="value">1</span>)
+        <span class="keyword">continue</span>
+
+    <span class="comment"># Signal: turn on LED and start timing</span>
+    led.on()
+    signal_time = time.ticks_ms()
+    <span class="function">print</span>(<span class="string">"  GO!"</span>)
+
+    <span class="comment"># Wait for button press</span>
+    <span class="keyword">while</span> button.value() == <span class="value">0</span>:
+        time.sleep_ms(<span class="value">1</span>)
+
+    reaction_ms = time.ticks_diff(time.ticks_ms(), signal_time)
+    led.off()
+
+    results.append(reaction_ms)
+    <span class="function">print</span>(<span class="string">f"  Reaction time: </span>{reaction_ms}<span class="string"> ms"</span>)
+    time.sleep(<span class="value">1</span>)
+
+<span class="comment"># Final results</span>
+<span class="function">print</span>(<span class="string">"\n=== RESULTS ==="</span>)
+valid = [r <span class="keyword">for</span> r <span class="keyword">in</span> results <span class="keyword">if</span> r < <span class="value">9999</span>]
+<span class="keyword">for</span> i, r <span class="keyword">in</span> <span class="function">enumerate</span>(results, <span class="value">1</span>):
+    status = <span class="string">"FALSE START"</span> <span class="keyword">if</span> r == <span class="value">9999</span> <span class="keyword">else</span> <span class="string">f"</span>{r}<span class="string"> ms"</span>
+    <span class="function">print</span>(<span class="string">f"  Round </span>{i}<span class="string">: </span>{status}<span class="string">"</span>)
+<span class="keyword">if</span> valid:
+    avg = <span class="function">sum</span>(valid) // <span class="function">len</span>(valid)
+    best = <span class="function">min</span>(valid)
+    <span class="function">print</span>(<span class="string">f"\n  Average: </span>{avg}<span class="string"> ms"</span>)
+    <span class="function">print</span>(<span class="string">f"  Best:    </span>{best}<span class="string"> ms"</span>)
+<span class="keyword">else</span>:
+    <span class="function">print</span>(<span class="string">"  All rounds were false starts!"</span>)</div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Two-Player Competitive Mode</h2>
+            <p class="ne-text">The two-player version adds a second button. Both players watch the LED. When it lights up, the first to press their button wins the round. The program must detect which button was pressed first -- a race condition in the physical world.</p>
+
+            <div class="ne-code"><span class="comment"># reaction_2player.py -- Two-player competitive reaction game</span>
+<span class="keyword">from</span> machine <span class="keyword">import</span> Pin
+<span class="keyword">import</span> time
+<span class="keyword">import</span> urandom
+
+led = Pin(<span class="value">15</span>, Pin.OUT)
+btn_p1 = Pin(<span class="value">16</span>, Pin.IN, Pin.PULL_DOWN)  <span class="comment"># Player 1</span>
+btn_p2 = Pin(<span class="value">17</span>, Pin.IN, Pin.PULL_DOWN)  <span class="comment"># Player 2</span>
+
+NUM_ROUNDS = <span class="value">5</span>
+score = [<span class="value">0</span>, <span class="value">0</span>]   <span class="comment"># [P1 wins, P2 wins]</span>
+
+<span class="function">print</span>(<span class="string">"=== 2-PLAYER REACTION GAME ==="</span>)
+<span class="function">print</span>(<span class="string">"Player 1: GP16 button"</span>)
+<span class="function">print</span>(<span class="string">"Player 2: GP17 button"</span>)
+<span class="function">print</span>(<span class="string">"First to press after LED = wins the round\n"</span>)
+time.sleep(<span class="value">2</span>)
+
+<span class="keyword">for</span> round_num <span class="keyword">in</span> <span class="function">range</span>(<span class="value">1</span>, NUM_ROUNDS + <span class="value">1</span>):
+    <span class="function">print</span>(<span class="string">f"--- Round </span>{round_num}<span class="string"> ---"</span>)
+    led.off()
+
+    <span class="comment"># Random delay</span>
+    delay = urandom.randint(<span class="value">2000</span>, <span class="value">5000</span>)
+
+    <span class="comment"># Check for false starts</span>
+    false_start = <span class="value">0</span>
+    start_wait = time.ticks_ms()
+    <span class="keyword">while</span> time.ticks_diff(time.ticks_ms(), start_wait) < delay:
+        <span class="keyword">if</span> btn_p1.value() == <span class="value">1</span>:
+            false_start = <span class="value">1</span>
+            <span class="keyword">break</span>
+        <span class="keyword">if</span> btn_p2.value() == <span class="value">1</span>:
+            false_start = <span class="value">2</span>
+            <span class="keyword">break</span>
+        time.sleep(<span class="value">0.01</span>)
+
+    <span class="keyword">if</span> false_start:
+        winner = <span class="value">2</span> <span class="keyword">if</span> false_start == <span class="value">1</span> <span class="keyword">else</span> <span class="value">1</span>  <span class="comment"># Other player wins</span>
+        <span class="function">print</span>(<span class="string">f"  Player </span>{false_start}<span class="string"> FALSE START! Point to Player </span>{winner}<span class="string">"</span>)
+        score[winner - <span class="value">1</span>] += <span class="value">1</span>
+        time.sleep(<span class="value">1</span>)
+        <span class="keyword">continue</span>
+
+    <span class="comment"># Signal!</span>
+    led.on()
+    signal_time = time.ticks_ms()
+
+    <span class="comment"># Wait for either button</span>
+    <span class="keyword">while</span> <span class="keyword">True</span>:
+        <span class="keyword">if</span> btn_p1.value() == <span class="value">1</span>:
+            react = time.ticks_diff(time.ticks_ms(), signal_time)
+            <span class="function">print</span>(<span class="string">f"  Player 1 wins! (</span>{react}<span class="string"> ms)"</span>)
+            score[<span class="value">0</span>] += <span class="value">1</span>
+            <span class="keyword">break</span>
+        <span class="keyword">if</span> btn_p2.value() == <span class="value">1</span>:
+            react = time.ticks_diff(time.ticks_ms(), signal_time)
+            <span class="function">print</span>(<span class="string">f"  Player 2 wins! (</span>{react}<span class="string"> ms)"</span>)
+            score[<span class="value">1</span>] += <span class="value">1</span>
+            <span class="keyword">break</span>
+        time.sleep_ms(<span class="value">1</span>)
+
+    led.off()
+    <span class="function">print</span>(<span class="string">f"  Score: P1={score[0]} P2={score[1]}"</span>)
+    time.sleep(<span class="value">1.5</span>)
+
+<span class="comment"># Final result</span>
+<span class="function">print</span>(<span class="string">"\n=== FINAL SCORE ==="</span>)
+<span class="function">print</span>(<span class="string">f"  Player 1: </span>{score[<span class="value">0</span>]}<span class="string">"</span>)
+<span class="function">print</span>(<span class="string">f"  Player 2: </span>{score[<span class="value">1</span>]}<span class="string">"</span>)
+<span class="keyword">if</span> score[<span class="value">0</span>] > score[<span class="value">1</span>]:
+    <span class="function">print</span>(<span class="string">"  Player 1 WINS!"</span>)
+<span class="keyword">elif</span> score[<span class="value">1</span>] > score[<span class="value">0</span>]:
+    <span class="function">print</span>(<span class="string">"  Player 2 WINS!"</span>)
+<span class="keyword">else</span>:
+    <span class="function">print</span>(<span class="string">"  TIE!"</span>)</div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Adding Sound Feedback</h2>
+            <p class="ne-text">A buzzer adds audio feedback: a countdown beep before each round, a high tone for the signal, and a low tone for false starts. This makes the game more engaging and demonstrates combining multiple output devices.</p>
+
+            <div class="ne-code"><span class="comment"># reaction_sound.py -- Reaction game with buzzer feedback</span>
+<span class="keyword">from</span> machine <span class="keyword">import</span> Pin, PWM
+<span class="keyword">import</span> time
+<span class="keyword">import</span> urandom
+
+led    = Pin(<span class="value">15</span>, Pin.OUT)
+button = Pin(<span class="value">16</span>, Pin.IN, Pin.PULL_DOWN)
+buzzer = PWM(Pin(<span class="value">14</span>))
+
+<span class="keyword">def</span> <span class="function">beep</span>(freq, duration_ms):
+    <span class="string">"""Play a tone for a given duration."""</span>
+    buzzer.freq(freq)
+    buzzer.duty_u16(<span class="value">16384</span>)  <span class="comment"># 25% duty = moderate volume</span>
+    time.sleep_ms(duration_ms)
+    buzzer.duty_u16(<span class="value">0</span>)
+
+<span class="keyword">def</span> <span class="function">countdown</span>():
+    <span class="string">"""Three beeps before each round."""</span>
+    <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="function">range</span>(<span class="value">3</span>):
+        beep(<span class="value">440</span>, <span class="value">100</span>)
+        time.sleep(<span class="value">0.5</span>)
+
+<span class="keyword">def</span> <span class="function">win_sound</span>():
+    beep(<span class="value">880</span>, <span class="value">100</span>)
+    beep(<span class="value">1100</span>, <span class="value">100</span>)
+    beep(<span class="value">1320</span>, <span class="value">200</span>)
+
+<span class="keyword">def</span> <span class="function">fail_sound</span>():
+    beep(<span class="value">200</span>, <span class="value">400</span>)
+
+NUM_ROUNDS = <span class="value">5</span>
+results = []
+
+<span class="keyword">for</span> rnd <span class="keyword">in</span> <span class="function">range</span>(<span class="value">1</span>, NUM_ROUNDS + <span class="value">1</span>):
+    <span class="function">print</span>(<span class="string">f"Round </span>{rnd}<span class="string">..."</span>)
+    countdown()
+
+    delay = urandom.randint(<span class="value">1500</span>, <span class="value">4000</span>)
+    false_start = <span class="keyword">False</span>
+    t0 = time.ticks_ms()
+    <span class="keyword">while</span> time.ticks_diff(time.ticks_ms(), t0) < delay:
+        <span class="keyword">if</span> button.value() == <span class="value">1</span>:
+            false_start = <span class="keyword">True</span>
+            <span class="keyword">break</span>
+        time.sleep_ms(<span class="value">5</span>)
+
+    <span class="keyword">if</span> false_start:
+        fail_sound()
+        <span class="function">print</span>(<span class="string">"  Too early!"</span>)
+        results.append(<span class="keyword">None</span>)
+        time.sleep(<span class="value">1</span>)
+        <span class="keyword">continue</span>
+
+    led.on()
+    beep(<span class="value">1000</span>, <span class="value">50</span>)  <span class="comment"># Short signal beep</span>
+    t_signal = time.ticks_ms()
+
+    <span class="keyword">while</span> button.value() == <span class="value">0</span>:
+        time.sleep_ms(<span class="value">1</span>)
+
+    react = time.ticks_diff(time.ticks_ms(), t_signal)
+    led.off()
+    win_sound()
+    results.append(react)
+    <span class="function">print</span>(<span class="string">f"  </span>{react}<span class="string"> ms"</span>)
+    time.sleep(<span class="value">0.5</span>)
+
+buzzer.deinit()
+valid = [r <span class="keyword">for</span> r <span class="keyword">in</span> results <span class="keyword">if</span> r <span class="keyword">is not</span> <span class="keyword">None</span>]
+<span class="keyword">if</span> valid:
+    <span class="function">print</span>(<span class="string">f"\nBest: </span>{<span class="function">min</span>(valid)}<span class="string"> ms | Average: </span>{<span class="function">sum</span>(valid)//<span class="function">len</span>(valid)}<span class="string"> ms"</span>)</div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Programming Concepts Applied</h2>
+
+            <div class="ne-card-grid">
+                <div class="ne-card">
+                    <strong>Game Loop Pattern</strong>
+                    <span>Initialize, loop through rounds, accumulate results, display summary. This pattern appears in every game and many real-time monitoring systems.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>Edge Case Handling</strong>
+                    <span>False starts, all-false-start games, button bounce during timing. Robust code anticipates and handles every case, not just the happy path.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>Timing Precision</strong>
+                    <span>Polling at 1ms intervals gives ~1ms measurement accuracy. For sub-millisecond precision, use ticks_us() or hardware interrupts (covered in Module 7).</span>
+                </div>
+                <div class="ne-card">
+                    <strong>Data Collection</strong>
+                    <span>Storing results in a list, filtering invalid entries, computing statistics. This is the same pattern used in data logging (Module 9).</span>
+                </div>
+            </div>
+        </section>
+
+        <div class="ne-takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>urandom.randint() generates random integers -- essential for unpredictable game timing</li>
+                <li>Always use time.ticks_diff() for elapsed time -- never subtract ticks values directly</li>
+                <li>False start detection requires monitoring the button during the random delay period</li>
+                <li>Two-player mode demonstrates polling multiple inputs and racing for first response</li>
+                <li>Sound feedback via PWM buzzer makes physical projects more engaging and intuitive</li>
+                <li>The game loop pattern (init, rounds, accumulate, summarize) is reusable across many project types</li>
+            </ul>
+        </div>
+
+        <div class="ne-complete">
+            <button id="completeBtn">Mark Complete</button>
+        </div>
+
+        <nav class="ne-nav">
+            <a href="pv-mp-05.html" class="ne-nav-btn">&lt; Previous: Traffic Light Controller</a>
+            <a href="pv-mp-07.html" class="ne-nav-btn primary">Next: Motion Detection &gt;</a>
+        </nav>
+
+    </div>
+
+    <script src="../../../../components/TenantShell.js"></script>
+    <script>
+        const MODULE_HOUSE = 'matrix';
+        const MODULE_ID = 'pv-mp-06';
+
+        function markComplete() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete(MODULE_HOUSE, MODULE_ID);
+            }
+            var btn = document.getElementById('completeBtn');
+            btn.textContent = 'Completed';
+            btn.disabled = true;
+            btn.style.background = '#c51a4a';
+            btn.style.color = '#fff';
+        }
+
+        document.getElementById('completeBtn').addEventListener('click', markComplete);
+
+        (function() {
+            if (typeof ModuleProgress !== 'undefined' && ModuleProgress.isCompleted(MODULE_HOUSE, MODULE_ID)) {
+                var btn = document.getElementById('completeBtn');
+                btn.textContent = 'Completed';
+                btn.disabled = true;
+                btn.style.background = '#c51a4a';
+                btn.style.color = '#fff';
+            }
+        })();
+    </script>
+</body>
+</html>

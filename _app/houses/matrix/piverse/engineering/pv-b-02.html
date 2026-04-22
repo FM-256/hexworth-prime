@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PV-B-02: Schematic Reading | PiVerse Board Engineering</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --bg-dark: #0d0408; --bg-card: #130810; --accent: #c51a4a; --accent-dim: rgba(197, 26, 74, 0.12); --accent-bright: #e8305e; --text-primary: #e0e0e0; --text-secondary: #9e8b91; --border: rgba(197, 26, 74, 0.18); }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.7; }
+        .ne-header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 14px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .ne-header-left { display: flex; align-items: center; gap: 15px; }
+        .ne-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+        .ne-header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent-bright); }
+        .ne-breadcrumb { font-size: 0.8rem; color: var(--text-secondary); }
+        .ne-breadcrumb a { color: var(--text-secondary); text-decoration: none; }
+        .ne-breadcrumb a:hover { color: var(--accent-bright); }
+        .ne-back { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .ne-back:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .ne-content { max-width: 1100px; margin: 0 auto; padding: 30px 25px 60px; }
+        .ne-objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 30px; }
+        .ne-objectives h2 { color: var(--accent-bright); margin-bottom: 10px; font-size: 1rem; }
+        .ne-objectives ul { list-style: none; }
+        .ne-objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.92rem; }
+        .ne-objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .ne-section { margin-bottom: 35px; }
+        .ne-section-title { font-size: 1.3rem; color: var(--accent-bright); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .ne-section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .ne-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+        .ne-code { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; overflow-x: auto; color: var(--text-secondary); white-space: pre-wrap; }
+        .ne-code .comment { color: #6e4a55; }
+        .ne-code .highlight { color: var(--accent-bright); }
+        .ne-code .value { color: #f0883e; }
+        .ne-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.88rem; }
+        .ne-table th { background: var(--bg-card); color: var(--accent-bright); padding: 10px 14px; text-align: left; border: 1px solid var(--border); font-weight: 600; }
+        .ne-table td { padding: 10px 14px; border: 1px solid var(--border); color: var(--text-secondary); }
+        .ne-table tr:hover td { background: var(--accent-dim); }
+        .ne-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0; }
+        .ne-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: border-color 0.2s; }
+        .ne-card:hover { border-color: var(--accent); }
+        .ne-card strong { color: var(--accent-bright); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+        .ne-card span { color: var(--text-secondary); font-size: 0.85rem; }
+        .ne-callout { background: rgba(197, 26, 74, 0.06); border: 1px solid rgba(197, 26, 74, 0.25); border-radius: 8px; padding: 16px 20px; margin: 18px 0; }
+        .ne-callout strong { color: var(--accent-bright); }
+        .ne-callout p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; }
+        .ne-takeaways { background: linear-gradient(135deg, rgba(197, 26, 74, 0.08), rgba(197, 26, 74, 0.03)); border: 1px solid var(--accent); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .ne-takeaways h3 { color: var(--accent-bright); margin-bottom: 12px; font-size: 1rem; }
+        .ne-takeaways ul { list-style: none; }
+        .ne-takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .ne-takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--accent); font-weight: bold; }
+        .ne-nav { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .ne-nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .ne-nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .ne-nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .ne-nav-btn.primary:hover { opacity: 0.88; }
+        .ne-inline-code { background: #0d1117; padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--accent-bright); }
+        .ne-complete { text-align: center; padding: 28px 0 8px; }
+        #completeBtn { background: transparent; border: 2px solid var(--accent); color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; padding: 12px 36px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        #completeBtn:hover:not(:disabled) { background: var(--accent-dim); }
+        #completeBtn:disabled { cursor: default; opacity: 0.85; }
+        .ne-svg-diagram { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin: 14px 0; text-align: center; }
+        .ne-svg-diagram svg { max-width: 100%; height: auto; }
+        @media (max-width: 700px) { .ne-card-grid { grid-template-columns: 1fr; } .ne-content { padding: 20px 15px 40px; } }
+    </style>
+</head>
+<body>
+
+    <header class="ne-header">
+        <div class="ne-header-left">
+            <span class="ne-badge">PV-B-02</span>
+            <h1>Schematic Reading</h1>
+        </div>
+        <div class="ne-breadcrumb">
+            <a href="../index.html">PiVerse</a> / Board Engineering / PV-B-02
+        </div>
+        <a href="../index.html" class="ne-back">&lt; Back to PiVerse</a>
+    </header>
+
+    <div class="ne-content">
+
+        <div class="ne-objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Identify standard schematic symbols for resistors, capacitors, ICs, connectors, and power</li>
+                <li>Read nets (named wires) and understand how they connect components across schematic pages</li>
+                <li>Interpret power rails, ground symbols, and voltage labels</li>
+                <li>Decode reference designators (R1, C5, U3) and their meaning</li>
+                <li>Follow signal flow through a real RP2040 schematic (the Raspberry Pi Pico)</li>
+            </ul>
+        </div>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Schematic Symbols</h2>
+            <p class="ne-text">Schematics use standardized symbols so engineers worldwide can read any design. The most common symbols you will encounter in RP2040 designs:</p>
+
+            <div class="ne-svg-diagram">
+                <svg viewBox="0 0 700 350" xmlns="http://www.w3.org/2000/svg">
+                    <text x="350" y="20" fill="#e8305e" font-family="JetBrains Mono" font-size="13" text-anchor="middle" font-weight="600">COMMON SCHEMATIC SYMBOLS</text>
+
+                    <!-- Resistor -->
+                    <line x1="30" y1="70" x2="60" y2="70" stroke="#9e8b91" stroke-width="1.5"/>
+                    <polyline points="60,70 65,55 75,85 85,55 95,85 105,55 115,85 120,70" fill="none" stroke="#c51a4a" stroke-width="1.5"/>
+                    <line x1="120" y1="70" x2="150" y2="70" stroke="#9e8b91" stroke-width="1.5"/>
+                    <text x="90" y="105" fill="#9e8b91" font-family="Inter" font-size="11" text-anchor="middle">Resistor (R)</text>
+
+                    <!-- Capacitor -->
+                    <line x1="210" y1="70" x2="240" y2="70" stroke="#9e8b91" stroke-width="1.5"/>
+                    <line x1="240" y1="50" x2="240" y2="90" stroke="#c51a4a" stroke-width="2"/>
+                    <line x1="250" y1="50" x2="250" y2="90" stroke="#c51a4a" stroke-width="2"/>
+                    <line x1="250" y1="70" x2="280" y2="70" stroke="#9e8b91" stroke-width="1.5"/>
+                    <text x="245" y="105" fill="#9e8b91" font-family="Inter" font-size="11" text-anchor="middle">Capacitor (C)</text>
+
+                    <!-- LED -->
+                    <line x1="370" y1="70" x2="390" y2="70" stroke="#9e8b91" stroke-width="1.5"/>
+                    <polygon points="390,55 390,85 415,70" fill="none" stroke="#c51a4a" stroke-width="1.5"/>
+                    <line x1="415" y1="55" x2="415" y2="85" stroke="#c51a4a" stroke-width="1.5"/>
+                    <line x1="415" y1="70" x2="435" y2="70" stroke="#9e8b91" stroke-width="1.5"/>
+                    <line x1="405" y1="52" x2="415" y2="42" stroke="#c51a4a" stroke-width="1" marker-end="url(#arw2)"/>
+                    <line x1="410" y1="55" x2="420" y2="45" stroke="#c51a4a" stroke-width="1" marker-end="url(#arw2)"/>
+                    <text x="402" y="105" fill="#9e8b91" font-family="Inter" font-size="11" text-anchor="middle">LED (D)</text>
+
+                    <!-- IC -->
+                    <rect x="520" y="45" width="100" height="50" rx="3" fill="none" stroke="#c51a4a" stroke-width="1.5"/>
+                    <line x1="500" y1="60" x2="520" y2="60" stroke="#9e8b91" stroke-width="1.5"/>
+                    <line x1="500" y1="80" x2="520" y2="80" stroke="#9e8b91" stroke-width="1.5"/>
+                    <line x1="620" y1="60" x2="640" y2="60" stroke="#9e8b91" stroke-width="1.5"/>
+                    <line x1="620" y1="80" x2="640" y2="80" stroke="#9e8b91" stroke-width="1.5"/>
+                    <text x="570" y="73" fill="#e8305e" font-family="JetBrains Mono" font-size="10" text-anchor="middle">RP2040</text>
+                    <text x="570" y="115" fill="#9e8b91" font-family="Inter" font-size="11" text-anchor="middle">IC / Chip (U)</text>
+
+                    <!-- GND -->
+                    <line x1="90" y1="180" x2="90" y2="210" stroke="#9e8b91" stroke-width="1.5"/>
+                    <line x1="70" y1="210" x2="110" y2="210" stroke="#c51a4a" stroke-width="2"/>
+                    <line x1="75" y1="217" x2="105" y2="217" stroke="#c51a4a" stroke-width="1.5"/>
+                    <line x1="80" y1="224" x2="100" y2="224" stroke="#c51a4a" stroke-width="1"/>
+                    <text x="90" y="245" fill="#9e8b91" font-family="Inter" font-size="11" text-anchor="middle">Ground (GND)</text>
+
+                    <!-- VCC -->
+                    <line x1="245" y1="210" x2="245" y2="190" stroke="#9e8b91" stroke-width="1.5"/>
+                    <line x1="230" y1="190" x2="260" y2="190" stroke="#c51a4a" stroke-width="2"/>
+                    <text x="245" y="183" fill="#e8305e" font-family="JetBrains Mono" font-size="10" text-anchor="middle">3V3</text>
+                    <text x="245" y="245" fill="#9e8b91" font-family="Inter" font-size="11" text-anchor="middle">Power Rail</text>
+
+                    <!-- Connector -->
+                    <circle cx="402" cy="190" r="5" fill="none" stroke="#c51a4a" stroke-width="1.5"/>
+                    <line x1="407" y1="190" x2="435" y2="190" stroke="#9e8b91" stroke-width="1.5"/>
+                    <circle cx="402" cy="210" r="5" fill="none" stroke="#c51a4a" stroke-width="1.5"/>
+                    <line x1="407" y1="210" x2="435" y2="210" stroke="#9e8b91" stroke-width="1.5"/>
+                    <text x="418" y="245" fill="#9e8b91" font-family="Inter" font-size="11" text-anchor="middle">Connector (J)</text>
+
+                    <!-- Crystal -->
+                    <line x1="540" y1="190" x2="555" y2="190" stroke="#9e8b91" stroke-width="1.5"/>
+                    <rect x="555" y="180" width="30" height="20" rx="2" fill="none" stroke="#c51a4a" stroke-width="1.5"/>
+                    <line x1="552" y1="177" x2="552" y2="203" stroke="#c51a4a" stroke-width="1.5"/>
+                    <line x1="588" y1="177" x2="588" y2="203" stroke="#c51a4a" stroke-width="1.5"/>
+                    <line x1="585" y1="190" x2="600" y2="190" stroke="#9e8b91" stroke-width="1.5"/>
+                    <text x="570" y="245" fill="#9e8b91" font-family="Inter" font-size="11" text-anchor="middle">Crystal (Y)</text>
+
+                    <defs><marker id="arw2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#c51a4a"/></marker></defs>
+                </svg>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Reference Designators</h2>
+            <p class="ne-text">Every component on a schematic has a unique reference designator -- a letter prefix indicating the type, followed by a number. These same designators appear on the PCB silkscreen, making it possible to find any component on the physical board.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Prefix</th>
+                        <th>Component Type</th>
+                        <th>Example</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>R</td><td>Resistor</td><td>R1, R47</td></tr>
+                    <tr><td>C</td><td>Capacitor</td><td>C1, C22</td></tr>
+                    <tr><td>U</td><td>Integrated Circuit</td><td>U1 (RP2040), U2 (flash)</td></tr>
+                    <tr><td>D</td><td>Diode / LED</td><td>D1, D3</td></tr>
+                    <tr><td>Q</td><td>Transistor</td><td>Q1 (MOSFET)</td></tr>
+                    <tr><td>L</td><td>Inductor</td><td>L1</td></tr>
+                    <tr><td>J</td><td>Connector</td><td>J1 (USB), J2 (header)</td></tr>
+                    <tr><td>Y</td><td>Crystal / Oscillator</td><td>Y1 (12MHz)</td></tr>
+                    <tr><td>SW</td><td>Switch</td><td>SW1 (BOOTSEL)</td></tr>
+                    <tr><td>F</td><td>Fuse</td><td>F1</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Nets and Power Rails</h2>
+            <p class="ne-text">A net is a named electrical connection. When two points on a schematic share the same net name, they are electrically connected even if no wire is drawn between them. This is how multi-page schematics work -- net names link across pages.</p>
+            <div class="ne-card-grid">
+                <div class="ne-card">
+                    <strong>Named Nets</strong>
+                    <span>Labels like "SPI_MOSI", "UART_TX", "GPIO15" identify signal connections. If two pins have the same net label, they are connected.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>Power Nets</strong>
+                    <span>Special symbols for power rails: 3V3, 5V, VBUS, GND, VSYS. These connect globally -- every 3V3 symbol on the schematic is one wire.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>Junction Dots</strong>
+                    <span>A filled dot at a wire crossing means they are connected. No dot at a crossing means they are NOT connected -- the wires simply cross.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>No-Connect (X)</strong>
+                    <span>An X on a pin means it is intentionally left unconnected. This tells the design rule checker that the engineer did not forget it.</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Reading the Pico Schematic</h2>
+            <p class="ne-text">The Raspberry Pi Pico's schematic is publicly available and is the reference design for the RP2040. Let us trace the critical signal paths:</p>
+            <div class="ne-code"><span class="comment">Key signal paths on the Pico schematic:</span>
+
+<span class="highlight">Power:</span>
+  VBUS (5V USB) -> RT6150 Buck-Boost -> VSYS (1.8-5.5V) -> NCP1117 LDO -> 3V3
+  3V3 -> RP2040 DVDD (digital power)
+  3V3 -> RP2040 IOVDD (I/O power)
+  1V1 -> Internal regulator -> RP2040 core voltage
+
+<span class="highlight">Clock:</span>
+  Y1 (12MHz crystal) -> RP2040 XIN/XOUT pins
+  RP2040 PLL multiplies 12MHz to 125MHz (default system clock)
+
+<span class="highlight">Flash:</span>
+  U2 (W25Q16JV, 2MB) connected via QSPI bus:
+    QSPI_SCLK, QSPI_SS, QSPI_SD0-SD3
+
+<span class="highlight">USB:</span>
+  J1 (Micro-USB) -> RP2040 USB_DP, USB_DM
+  27 ohm series resistors on each data line (impedance matching)
+
+<span class="highlight">GPIO:</span>
+  RP2040 GPIO0-GPIO29 -> 40-pin header (active low side)
+  GPIO25 -> LED (active low through 1K resistor)</span></div>
+            <div class="ne-callout">
+                <strong>Practice Exercise:</strong>
+                <p>Download the Pico schematic from raspberrypi.com/documentation. Trace the path from the USB connector to the RP2040's USB pins. Identify every component in that path and explain its purpose (series resistors, ESD protection, decoupling capacitors).</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Schematic Reading Strategy</h2>
+            <p class="ne-text">Complex schematics are read in blocks, not sequentially. Every RP2040 design has these blocks:</p>
+            <div class="ne-card-grid">
+                <div class="ne-card">
+                    <strong>1. Power Section</strong>
+                    <span>Find the input voltage, regulators, and output rails. Trace 3V3 and 1V1 back to their sources. Understand the power-on sequence.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>2. Clock Section</strong>
+                    <span>Find the crystal and its load capacitors. Verify the frequency matches the RP2040's expected 12MHz input.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>3. Flash Section</strong>
+                    <span>Find the QSPI flash chip. Verify all 6 QSPI signals are connected. Check for decoupling capacitors.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>4. I/O Section</strong>
+                    <span>Find the GPIO breakout, USB connection, and any additional peripherals (LEDs, buttons, sensors).</span>
+                </div>
+            </div>
+        </section>
+
+        <div class="ne-takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>Schematic symbols are standardized -- learn the core set (R, C, U, D, J, Y, GND, power) and you can read any design</li>
+                <li>Reference designators (R1, C5, U3) uniquely identify every component on both the schematic and the physical PCB</li>
+                <li>Net names connect points across schematic pages -- same name means same wire, no physical line needed</li>
+                <li>Junction dots at wire crossings mean connection; no dot means no connection</li>
+                <li>Read complex schematics in blocks: power, clock, flash, I/O</li>
+                <li>The Pico schematic is the reference design for any RP2040 project -- study it thoroughly</li>
+            </ul>
+        </div>
+
+        <div class="ne-complete">
+            <button id="completeBtn">Mark Complete</button>
+        </div>
+
+        <nav class="ne-nav">
+            <a href="pv-b-01.html" class="ne-nav-btn">&lt; Previous: Inside the RP2040</a>
+            <a href="pv-b-03.html" class="ne-nav-btn primary">Next: PCB Anatomy &gt;</a>
+        </nav>
+
+    </div>
+
+    <script>
+        var MODULE_HOUSE = 'matrix';
+        var MODULE_ID = 'pv-b-02';
+
+        function markComplete() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete(MODULE_HOUSE, MODULE_ID);
+            }
+            var btn = document.getElementById('completeBtn');
+            btn.textContent = 'Completed';
+            btn.disabled = true;
+            btn.style.background = '#c51a4a';
+            btn.style.color = '#fff';
+        }
+
+        document.getElementById('completeBtn').addEventListener('click', markComplete);
+
+        (function() {
+            if (typeof ModuleProgress !== 'undefined' && ModuleProgress.isCompleted(MODULE_HOUSE, MODULE_ID)) {
+                var btn = document.getElementById('completeBtn');
+                btn.textContent = 'Completed';
+                btn.disabled = true;
+                btn.style.background = '#c51a4a';
+                btn.style.color = '#fff';
+            }
+        })();
+    </script>
+</body>
+</html>

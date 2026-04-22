@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PV-MP-09: Data Logging | MicroPython on Pico</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #0d0a0c;
+            --bg-card: #140f12;
+            --accent: #c51a4a;
+            --accent-dim: rgba(197, 26, 74, 0.12);
+            --accent-glow: rgba(197, 26, 74, 0.25);
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0909a;
+            --border: rgba(197, 26, 74, 0.18);
+        }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.7; }
+        .ne-header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 14px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .ne-header-left { display: flex; align-items: center; gap: 15px; }
+        .ne-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+        .ne-header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .ne-breadcrumb { font-size: 0.8rem; color: var(--text-secondary); }
+        .ne-breadcrumb a { color: var(--text-secondary); text-decoration: none; }
+        .ne-breadcrumb a:hover { color: var(--accent); }
+        .ne-back { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .ne-back:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .ne-content { max-width: 1100px; margin: 0 auto; padding: 30px 25px 60px; }
+        .ne-objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 30px; }
+        .ne-objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 1rem; }
+        .ne-objectives ul { list-style: none; }
+        .ne-objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.92rem; }
+        .ne-objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .ne-section { margin-bottom: 35px; }
+        .ne-section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .ne-section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .ne-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+        .ne-code { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; overflow-x: auto; color: var(--text-secondary); white-space: pre-wrap; }
+        .ne-code .prompt { color: var(--accent); }
+        .ne-code .comment { color: #6a5060; }
+        .ne-code .highlight { color: var(--accent); }
+        .ne-code .value { color: #f0883e; }
+        .ne-code .keyword { color: #c792ea; }
+        .ne-code .string { color: #c3e88d; }
+        .ne-code .function { color: #82aaff; }
+        .ne-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.88rem; }
+        .ne-table th { background: var(--bg-card); color: var(--accent); padding: 10px 14px; text-align: left; border: 1px solid var(--border); font-weight: 600; }
+        .ne-table td { padding: 10px 14px; border: 1px solid var(--border); color: var(--text-secondary); }
+        .ne-table tr:hover td { background: var(--accent-dim); }
+        .ne-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0; }
+        .ne-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: border-color 0.2s; }
+        .ne-card:hover { border-color: var(--accent); }
+        .ne-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+        .ne-card span { color: var(--text-secondary); font-size: 0.85rem; }
+        .ne-callout { background: rgba(197, 26, 74, 0.06); border: 1px solid var(--accent-glow); border-radius: 8px; padding: 16px 20px; margin: 18px 0; }
+        .ne-callout strong { color: var(--accent); }
+        .ne-callout p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; }
+        .ne-takeaways { background: linear-gradient(135deg, rgba(197, 26, 74, 0.08), rgba(197, 26, 74, 0.03)); border: 1px solid var(--accent); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .ne-takeaways h3 { color: var(--accent); margin-bottom: 12px; font-size: 1rem; }
+        .ne-takeaways ul { list-style: none; }
+        .ne-takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .ne-takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--accent); font-weight: bold; }
+        .ne-nav { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .ne-nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .ne-nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .ne-nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .ne-nav-btn.primary:hover { opacity: 0.88; }
+        .ne-inline-code { background: #0d1117; padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--accent); }
+        .ne-diagram { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin: 14px 0; text-align: center; }
+        .ne-diagram svg { max-width: 100%; height: auto; }
+        .ne-complete { text-align: center; padding: 28px 0 8px; }
+        #completeBtn { background: transparent; border: 2px solid var(--accent); color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; padding: 12px 36px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        #completeBtn:hover:not(:disabled) { background: var(--accent-dim); }
+        #completeBtn:disabled { cursor: default; opacity: 0.85; }
+        @media (max-width: 700px) { .ne-card-grid { grid-template-columns: 1fr; } .ne-content { padding: 20px 15px 40px; } }
+    </style>
+</head>
+<body>
+
+    <header class="ne-header">
+        <div class="ne-header-left">
+            <span class="ne-badge">PV-MP-09</span>
+            <h1>Data Logging</h1>
+        </div>
+        <div class="ne-breadcrumb">
+            <a href="../index.html">PiVerse</a> / <a href="index.html">MicroPython</a> / PV-MP-09
+        </div>
+        <a href="../index.html" class="ne-back">&lt; Back</a>
+    </header>
+
+    <div class="ne-content">
+
+        <div class="ne-objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Write data to the Pico's internal flash filesystem in CSV format</li>
+                <li>Implement a robust logging system that survives power loss</li>
+                <li>Track elapsed time as a timestamp for each reading</li>
+                <li>Manage limited storage space with file rotation and size checks</li>
+                <li>Retrieve logged data for analysis on a computer</li>
+            </ul>
+        </div>
+
+        <div class="ne-callout">
+            <strong>Track Context:</strong>
+            <p>Collecting data without recording it is like running an experiment without a lab notebook. Data logging turns your Pico from a real-time monitor into a portable data collection platform. Leave it running overnight, collect in the morning, analyze on your computer. This is how real environmental monitoring, field research, and industrial telemetry work.</p>
+        </div>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">File I/O on the Pico</h2>
+            <p class="ne-text">MicroPython provides standard Python file I/O using <span class="ne-inline-code">open()</span>, <span class="ne-inline-code">read()</span>, <span class="ne-inline-code">write()</span>, and <span class="ne-inline-code">close()</span>. Files are stored on the Pico's flash filesystem. The filesystem is typically 1.4 MB after MicroPython firmware uses its share of the 2 MB flash.</p>
+
+            <div class="ne-code"><span class="comment"># file_basics.py -- File I/O operations on the Pico</span>
+<span class="keyword">import</span> os
+
+<span class="comment"># List all files</span>
+<span class="function">print</span>(<span class="string">"Files:"</span>, os.listdir())
+
+<span class="comment"># Write a file</span>
+<span class="keyword">with</span> <span class="function">open</span>(<span class="string">"test.txt"</span>, <span class="string">"w"</span>) <span class="keyword">as</span> f:
+    f.write(<span class="string">"Line 1\n"</span>)
+    f.write(<span class="string">"Line 2\n"</span>)
+
+<span class="comment"># Append to a file</span>
+<span class="keyword">with</span> <span class="function">open</span>(<span class="string">"test.txt"</span>, <span class="string">"a"</span>) <span class="keyword">as</span> f:
+    f.write(<span class="string">"Line 3 (appended)\n"</span>)
+
+<span class="comment"># Read entire file</span>
+<span class="keyword">with</span> <span class="function">open</span>(<span class="string">"test.txt"</span>, <span class="string">"r"</span>) <span class="keyword">as</span> f:
+    content = f.read()
+    <span class="function">print</span>(content)
+
+<span class="comment"># Read line by line (memory-efficient for large files)</span>
+<span class="keyword">with</span> <span class="function">open</span>(<span class="string">"test.txt"</span>, <span class="string">"r"</span>) <span class="keyword">as</span> f:
+    <span class="keyword">for</span> line <span class="keyword">in</span> f:
+        <span class="function">print</span>(<span class="string">">"</span>, line.strip())
+
+<span class="comment"># Check file size and filesystem space</span>
+stat = os.stat(<span class="string">"test.txt"</span>)
+<span class="function">print</span>(<span class="string">f"File size: </span>{stat[<span class="value">6</span>]}<span class="string"> bytes"</span>)
+
+vfs = os.statvfs(<span class="string">"/"</span>)
+block_size = vfs[<span class="value">0</span>]
+free = vfs[<span class="value">3</span>] * block_size
+total = vfs[<span class="value">2</span>] * block_size
+<span class="function">print</span>(<span class="string">f"Storage: </span>{free // <span class="value">1024</span>}<span class="string"> KB free / </span>{total // <span class="value">1024</span>}<span class="string"> KB total"</span>)
+
+<span class="comment"># Delete a file</span>
+os.remove(<span class="string">"test.txt"</span>)</div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">CSV Temperature Logger</h2>
+            <p class="ne-text">CSV (Comma-Separated Values) is the simplest structured data format. Each row is a record, columns are separated by commas, and the first row is usually a header. CSV files can be opened directly in any spreadsheet application for analysis and charting.</p>
+
+            <div class="ne-code"><span class="comment"># temp_logger.py -- Log temperature readings to CSV</span>
+<span class="keyword">from</span> machine <span class="keyword">import</span> ADC, Pin
+<span class="keyword">import</span> time
+<span class="keyword">import</span> os
+
+sensor = ADC(<span class="value">4</span>)
+led = Pin(<span class="string">"LED"</span>, Pin.OUT)
+
+LOG_FILE = <span class="string">"temp_log.csv"</span>
+INTERVAL_SEC = <span class="value">30</span>           <span class="comment"># Log every 30 seconds</span>
+MAX_FILE_SIZE = <span class="value">500000</span>      <span class="comment"># ~500 KB max per log file</span>
+
+<span class="keyword">def</span> <span class="function">read_temp</span>(samples=<span class="value">16</span>):
+    total = <span class="value">0</span>
+    <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="function">range</span>(samples):
+        total += sensor.read_u16()
+    raw = total // samples
+    voltage = raw * <span class="value">3.3</span> / <span class="value">65535</span>
+    <span class="keyword">return</span> <span class="function">round</span>(<span class="value">27</span> - (voltage - <span class="value">0.706</span>) / <span class="value">0.001721</span>, <span class="value">1</span>)
+
+<span class="keyword">def</span> <span class="function">file_size</span>(filename):
+    <span class="keyword">try</span>:
+        <span class="keyword">return</span> os.stat(filename)[<span class="value">6</span>]
+    <span class="keyword">except</span>:
+        <span class="keyword">return</span> <span class="value">0</span>
+
+<span class="keyword">def</span> <span class="function">init_log</span>():
+    <span class="string">"""Create log file with header if it doesn't exist."""</span>
+    <span class="keyword">if</span> LOG_FILE <span class="keyword">not in</span> os.listdir():
+        <span class="keyword">with</span> <span class="function">open</span>(LOG_FILE, <span class="string">"w"</span>) <span class="keyword">as</span> f:
+            f.write(<span class="string">"reading,uptime_sec,temp_c,temp_f\n"</span>)
+        <span class="function">print</span>(<span class="string">f"Created </span>{LOG_FILE}<span class="string">"</span>)
+    <span class="keyword">else</span>:
+        size = file_size(LOG_FILE)
+        <span class="function">print</span>(<span class="string">f"Resuming </span>{LOG_FILE}<span class="string"> (</span>{size}<span class="string"> bytes)"</span>)
+
+init_log()
+reading_num = <span class="value">0</span>
+start_time = time.ticks_ms()
+
+<span class="function">print</span>(<span class="string">f"Logging every </span>{INTERVAL_SEC}<span class="string">s. Ctrl+C to stop.\n"</span>)
+
+<span class="keyword">while</span> <span class="keyword">True</span>:
+    reading_num += <span class="value">1</span>
+    uptime = time.ticks_diff(time.ticks_ms(), start_time) // <span class="value">1000</span>
+    temp_c = read_temp()
+    temp_f = <span class="function">round</span>(temp_c * <span class="value">9</span> / <span class="value">5</span> + <span class="value">32</span>, <span class="value">1</span>)
+
+    <span class="comment"># Write to CSV</span>
+    line = <span class="string">f"</span>{reading_num}<span class="string">,</span>{uptime}<span class="string">,</span>{temp_c}<span class="string">,</span>{temp_f}<span class="string">\n"</span>
+    <span class="keyword">with</span> <span class="function">open</span>(LOG_FILE, <span class="string">"a"</span>) <span class="keyword">as</span> f:
+        f.write(line)
+
+    <span class="comment"># Blink LED to confirm write</span>
+    led.on()
+    time.sleep_ms(<span class="value">50</span>)
+    led.off()
+
+    <span class="function">print</span>(<span class="string">f"[</span>{reading_num:<span class="value">4d</span>}<span class="string">] </span>{temp_c}<span class="string">C / </span>{temp_f}<span class="string">F  (</span>{uptime}<span class="string">s uptime)"</span>)
+
+    <span class="comment"># Check file size</span>
+    <span class="keyword">if</span> file_size(LOG_FILE) > MAX_FILE_SIZE:
+        <span class="function">print</span>(<span class="string">"Log file reached max size. Stopping."</span>)
+        <span class="keyword">break</span>
+
+    time.sleep(INTERVAL_SEC)</div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Robust Logging: Surviving Power Loss</h2>
+            <p class="ne-text">Flash writes on the Pico are not instantaneous. If power is lost during a write, the file can become corrupted. Two strategies protect against this: flushing after each write (ensures data reaches flash) and using append mode (existing data is preserved even if the last write is incomplete).</p>
+
+            <div class="ne-code"><span class="comment"># robust_logger.py -- Power-safe data logging</span>
+<span class="keyword">from</span> machine <span class="keyword">import</span> ADC
+<span class="keyword">import</span> time
+<span class="keyword">import</span> os
+
+sensor = ADC(<span class="value">4</span>)
+
+LOG_FILE = <span class="string">"data.csv"</span>
+
+<span class="keyword">def</span> <span class="function">safe_write</span>(filename, line):
+    <span class="string">"""Append a line to file with explicit flush."""</span>
+    f = <span class="function">open</span>(filename, <span class="string">"a"</span>)
+    f.write(line)
+    f.flush()          <span class="comment"># Force buffer to filesystem</span>
+    os.sync()          <span class="comment"># Force filesystem to flash (if available)</span>
+    f.close()
+
+<span class="keyword">def</span> <span class="function">count_lines</span>(filename):
+    <span class="string">"""Count existing lines to resume numbering."""</span>
+    <span class="keyword">try</span>:
+        count = <span class="value">0</span>
+        <span class="keyword">with</span> <span class="function">open</span>(filename, <span class="string">"r"</span>) <span class="keyword">as</span> f:
+            <span class="keyword">for</span> _ <span class="keyword">in</span> f:
+                count += <span class="value">1</span>
+        <span class="keyword">return</span> <span class="function">max</span>(<span class="value">0</span>, count - <span class="value">1</span>)  <span class="comment"># Subtract header row</span>
+    <span class="keyword">except</span>:
+        <span class="keyword">return</span> <span class="value">0</span>
+
+<span class="comment"># Resume from existing log or create new</span>
+existing = count_lines(LOG_FILE)
+<span class="keyword">if</span> existing == <span class="value">0</span>:
+    safe_write(LOG_FILE, <span class="string">"id,uptime_s,temp_c\n"</span>)
+    <span class="function">print</span>(<span class="string">"New log created."</span>)
+<span class="keyword">else</span>:
+    <span class="function">print</span>(<span class="string">f"Resuming log with </span>{existing}<span class="string"> existing entries."</span>)
+
+reading = existing
+<span class="keyword">while</span> <span class="keyword">True</span>:
+    reading += <span class="value">1</span>
+    uptime = time.ticks_ms() // <span class="value">1000</span>
+    raw = sensor.read_u16()
+    v = raw * <span class="value">3.3</span> / <span class="value">65535</span>
+    temp = <span class="function">round</span>(<span class="value">27</span> - (v - <span class="value">0.706</span>) / <span class="value">0.001721</span>, <span class="value">1</span>)
+
+    safe_write(LOG_FILE, <span class="string">f"</span>{reading}<span class="string">,</span>{uptime}<span class="string">,</span>{temp}<span class="string">\n"</span>)
+    <span class="function">print</span>(<span class="string">f"[</span>{reading}<span class="string">] </span>{temp}<span class="string">C"</span>)
+    time.sleep(<span class="value">10</span>)</div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">File Rotation</h2>
+            <p class="ne-text">With limited flash storage, you need a strategy for managing log files. File rotation renames the current log and starts a new one when it reaches a size limit. This keeps the most recent data accessible while preserving history.</p>
+
+            <div class="ne-code"><span class="comment"># log_rotation.py -- Rotate log files when they get too large</span>
+<span class="keyword">import</span> os
+
+MAX_SIZE = <span class="value">200000</span>    <span class="comment"># 200 KB per log file</span>
+MAX_FILES = <span class="value">5</span>        <span class="comment"># Keep 5 log files max</span>
+BASE_NAME = <span class="string">"data"</span>
+
+<span class="keyword">def</span> <span class="function">rotate_logs</span>():
+    <span class="string">"""Rotate log files: data.csv -> data_1.csv -> data_2.csv ..."""</span>
+    <span class="comment"># Delete oldest if at max</span>
+    oldest = <span class="string">f"</span>{BASE_NAME}<span class="string">_</span>{MAX_FILES}<span class="string">.csv"</span>
+    <span class="keyword">if</span> oldest <span class="keyword">in</span> os.listdir():
+        os.remove(oldest)
+
+    <span class="comment"># Shift existing files up by 1</span>
+    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="function">range</span>(MAX_FILES - <span class="value">1</span>, <span class="value">0</span>, <span class="value">-1</span>):
+        old_name = <span class="string">f"</span>{BASE_NAME}<span class="string">_</span>{i}<span class="string">.csv"</span>
+        new_name = <span class="string">f"</span>{BASE_NAME}<span class="string">_</span>{i + <span class="value">1</span>}<span class="string">.csv"</span>
+        <span class="keyword">if</span> old_name <span class="keyword">in</span> os.listdir():
+            os.rename(old_name, new_name)
+
+    <span class="comment"># Current log becomes _1</span>
+    current = <span class="string">f"</span>{BASE_NAME}<span class="string">.csv"</span>
+    <span class="keyword">if</span> current <span class="keyword">in</span> os.listdir():
+        os.rename(current, <span class="string">f"</span>{BASE_NAME}<span class="string">_1.csv"</span>)
+
+<span class="keyword">def</span> <span class="function">check_and_rotate</span>():
+    <span class="string">"""Rotate if current log exceeds MAX_SIZE."""</span>
+    current = <span class="string">f"</span>{BASE_NAME}<span class="string">.csv"</span>
+    <span class="keyword">try</span>:
+        size = os.stat(current)[<span class="value">6</span>]
+        <span class="keyword">if</span> size > MAX_SIZE:
+            <span class="function">print</span>(<span class="string">f"Rotating logs (</span>{size}<span class="string"> bytes > </span>{MAX_SIZE}<span class="string">)"</span>)
+            rotate_logs()
+            <span class="comment"># Create new log with header</span>
+            <span class="keyword">with</span> <span class="function">open</span>(current, <span class="string">"w"</span>) <span class="keyword">as</span> f:
+                f.write(<span class="string">"id,uptime_s,temp_c\n"</span>)
+            <span class="keyword">return</span> <span class="keyword">True</span>
+    <span class="keyword">except</span>:
+        <span class="keyword">pass</span>
+    <span class="keyword">return</span> <span class="keyword">False</span></div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Multi-Sensor Logger</h2>
+            <p class="ne-text">A practical data logger reads multiple sensors and records all values in each CSV row. This example logs temperature and light level (from an LDR on ADC0) with configurable interval.</p>
+
+            <div class="ne-code"><span class="comment"># multi_logger.py -- Log temperature + light to CSV</span>
+<span class="keyword">from</span> machine <span class="keyword">import</span> ADC, Pin
+<span class="keyword">import</span> time
+<span class="keyword">import</span> os
+
+temp_sensor  = ADC(<span class="value">4</span>)         <span class="comment"># Internal temp</span>
+light_sensor = ADC(Pin(<span class="value">26</span>))   <span class="comment"># LDR on GP26</span>
+led = Pin(<span class="string">"LED"</span>, Pin.OUT)
+
+LOG_FILE = <span class="string">"environment.csv"</span>
+INTERVAL = <span class="value">15</span>   <span class="comment"># seconds</span>
+
+<span class="keyword">def</span> <span class="function">read_temp</span>():
+    raw = <span class="function">sum</span>(temp_sensor.read_u16() <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="function">range</span>(<span class="value">16</span>)) // <span class="value">16</span>
+    v = raw * <span class="value">3.3</span> / <span class="value">65535</span>
+    <span class="keyword">return</span> <span class="function">round</span>(<span class="value">27</span> - (v - <span class="value">0.706</span>) / <span class="value">0.001721</span>, <span class="value">1</span>)
+
+<span class="keyword">def</span> <span class="function">read_light</span>():
+    raw = <span class="function">sum</span>(light_sensor.read_u16() <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="function">range</span>(<span class="value">16</span>)) // <span class="value">16</span>
+    <span class="keyword">return</span> <span class="function">round</span>(raw * <span class="value">100</span> / <span class="value">65535</span>, <span class="value">1</span>)   <span class="comment"># Percentage</span>
+
+<span class="comment"># Initialize</span>
+<span class="keyword">if</span> LOG_FILE <span class="keyword">not in</span> os.listdir():
+    <span class="keyword">with</span> <span class="function">open</span>(LOG_FILE, <span class="string">"w"</span>) <span class="keyword">as</span> f:
+        f.write(<span class="string">"reading,uptime_s,temp_c,light_pct\n"</span>)
+
+n = <span class="value">0</span>
+<span class="function">print</span>(<span class="string">"Multi-sensor logger started."</span>)
+
+<span class="keyword">while</span> <span class="keyword">True</span>:
+    n += <span class="value">1</span>
+    uptime = time.ticks_ms() // <span class="value">1000</span>
+    temp = read_temp()
+    light = read_light()
+
+    line = <span class="string">f"</span>{n}<span class="string">,</span>{uptime}<span class="string">,</span>{temp}<span class="string">,</span>{light}<span class="string">\n"</span>
+    <span class="keyword">with</span> <span class="function">open</span>(LOG_FILE, <span class="string">"a"</span>) <span class="keyword">as</span> f:
+        f.write(line)
+
+    led.on(); time.sleep_ms(<span class="value">30</span>); led.off()
+    <span class="function">print</span>(<span class="string">f"[</span>{n:<span class="value">4d</span>}<span class="string">] Temp:</span>{temp}<span class="string">C  Light:</span>{light}<span class="string">%"</span>)
+    time.sleep(INTERVAL)</div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Retrieving Data</h2>
+            <p class="ne-text">After a logging session, connect the Pico to your computer and use Thonny's file manager to download the CSV files. Alternatively, read the file over the REPL and copy/paste the output, or use Thonny's "Download" button in the Files panel.</p>
+
+            <div class="ne-code"><span class="comment"># read_log.py -- Display logged data over REPL</span>
+<span class="keyword">import</span> os
+
+filename = <span class="string">"temp_log.csv"</span>
+<span class="keyword">if</span> filename <span class="keyword">in</span> os.listdir():
+    size = os.stat(filename)[<span class="value">6</span>]
+    <span class="function">print</span>(<span class="string">f"File: </span>{filename}<span class="string"> (</span>{size}<span class="string"> bytes)\n"</span>)
+    <span class="keyword">with</span> <span class="function">open</span>(filename, <span class="string">"r"</span>) <span class="keyword">as</span> f:
+        <span class="keyword">for</span> line <span class="keyword">in</span> f:
+            <span class="function">print</span>(line.strip())
+<span class="keyword">else</span>:
+    <span class="function">print</span>(<span class="string">"No log file found."</span>)</div>
+
+            <div class="ne-callout">
+                <strong>Data Analysis Tip:</strong>
+                <p>Once you download the CSV to your computer, open it in a spreadsheet (Excel, Google Sheets, LibreOffice Calc) or use Python with pandas and matplotlib to create time-series charts. The CSV format is universally compatible with data analysis tools.</p>
+            </div>
+        </section>
+
+        <div class="ne-takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>The Pico has ~1.4 MB of user-accessible flash storage for files -- enough for thousands of sensor readings</li>
+                <li>CSV format (comma-separated values) is the simplest way to log structured data that opens in any spreadsheet</li>
+                <li>Use append mode ("a") so existing data is preserved even if the program restarts after power loss</li>
+                <li>Call f.flush() after writes to ensure data reaches flash -- unflushed data lives only in RAM</li>
+                <li>File rotation prevents a single log from filling all available storage</li>
+                <li>Use Thonny's file manager or the REPL to retrieve logged data for analysis on your computer</li>
+            </ul>
+        </div>
+
+        <div class="ne-complete">
+            <button id="completeBtn">Mark Complete</button>
+        </div>
+
+        <nav class="ne-nav">
+            <a href="pv-mp-08.html" class="ne-nav-btn">&lt; Previous: Temperature &amp; ADC</a>
+            <a href="pv-mp-10.html" class="ne-nav-btn primary">Next: I2C and SPI &gt;</a>
+        </nav>
+
+    </div>
+
+    <script src="../../../../components/TenantShell.js"></script>
+    <script>
+        const MODULE_HOUSE = 'matrix';
+        const MODULE_ID = 'pv-mp-09';
+
+        function markComplete() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete(MODULE_HOUSE, MODULE_ID);
+            }
+            var btn = document.getElementById('completeBtn');
+            btn.textContent = 'Completed';
+            btn.disabled = true;
+            btn.style.background = '#c51a4a';
+            btn.style.color = '#fff';
+        }
+
+        document.getElementById('completeBtn').addEventListener('click', markComplete);
+
+        (function() {
+            if (typeof ModuleProgress !== 'undefined' && ModuleProgress.isCompleted(MODULE_HOUSE, MODULE_ID)) {
+                var btn = document.getElementById('completeBtn');
+                btn.textContent = 'Completed';
+                btn.disabled = true;
+                btn.style.background = '#c51a4a';
+                btn.style.color = '#fff';
+            }
+        })();
+    </script>
+</body>
+</html>
