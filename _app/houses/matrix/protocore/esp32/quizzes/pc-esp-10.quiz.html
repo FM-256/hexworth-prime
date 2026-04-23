@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Core 10 Quiz: Deep Sleep and Power Management | ProtoCore ESP32</title>
+    <link rel="stylesheet" href="../../../../../styles/quiz-engine.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #040810 0%, #081020 50%, #0a0c1a 100%);
+            display: flex;
+            flex-direction: column;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        .page-header {
+            padding: 15px 30px;
+            background: rgba(0, 0, 0, 0.4);
+            border-bottom: 1px solid rgba(0, 136, 255, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .page-header a {
+            color: #0088ff;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+        .page-header a:hover { opacity: 0.8; }
+        .brand {
+            font-weight: 600;
+            color: #e0e0e0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .quiz-wrapper {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 30px 20px;
+        }
+        #quiz-container { width: 100%; max-width: 800px; }
+    </style>
+</head>
+<body>
+    <header class="page-header">
+        <a href="../../index.html">&larr; Back to ProtoCore Hub</a>
+        <span class="brand"><img src="/assets/images/icons/icon-brain.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Hexworth Prime</span>
+    </header>
+    <main class="quiz-wrapper">
+        <div id="quiz-container"></div>
+    </main>
+    <script src="../../../../../components/ProgressSystem.js"></script>
+    <script src="../../../../../components/QuizEngine.js"></script>
+    <script>
+        const quiz = new QuizEngine({
+            containerId: 'quiz-container',
+            title: 'Core 10: Deep Sleep and Power Management',
+            description: 'Test your understanding of ESP32 sleep modes, wake sources, ULP co-processor, RTC memory, and battery-powered design patterns.',
+            passingScore: 80,
+            showFeedback: true,
+            randomize: true,
+            theme: 'matrix',
+            achievement: 'pc-esp-10-quiz',
+            moduleId: 'pc-esp-10-quiz',
+            serverGrading: true,
+            houseId: 'matrix',
+            trackProgress: true,
+
+            questions: [
+                {
+                    question: 'How much current does the ESP32 draw in active mode with WiFi enabled?',
+                    options: [
+                        'About 10mA',
+                        'About 68mA',
+                        'About 240mA',
+                        'About 500mA'
+                    ],
+                    explanation: 'The ESP32 draws approximately 240mA in active mode with WiFi enabled. This includes both CPU cores running at 240MHz and the WiFi radio actively transmitting and receiving. Without WiFi (CPU only), it drops to about 68mA. With a 2000mAh LiPo battery, 240mA gives roughly 8 hours of continuous operation, which is why deep sleep is essential for battery-powered designs.'
+                },
+                {
+                    question: 'What is the approximate current consumption of the ESP32 in deep sleep mode?',
+                    options: [
+                        '0.8mA',
+                        '100uA',
+                        '10uA',
+                        '1mA'
+                    ],
+                    explanation: 'Deep sleep draws approximately 10uA (microamps). This is 24,000 times less than the 240mA active mode. At 10uA, a 2000mAh battery would theoretically last over 22 years, though in practice the duty cycle of waking, measuring, and transmitting determines actual battery life. The RTC controller, RTC memory, and configured wake sources remain powered during deep sleep.'
+                },
+                {
+                    question: 'What happens when the ESP32 wakes from deep sleep?',
+                    options: [
+                        'It resumes execution from where it stopped',
+                        'It runs through the bootloader and calls setup() again',
+                        'It jumps directly to loop()',
+                        'It enters light sleep first, then transitions to active'
+                    ],
+                    explanation: 'Waking from deep sleep is a full reboot. The ESP32 runs through the bootloader and calls setup() from the beginning. All RAM variables are lost -- only RTC memory (8KB) persists. This means loop() is effectively never called in deep-sleep-based designs. All application logic goes in setup(): wake, measure, transmit, configure wake source, call esp_deep_sleep_start().'
+                },
+                {
+                    question: 'Which function is called to enter deep sleep?',
+                    options: [
+                        'ESP.deepSleep()',
+                        'esp_deep_sleep_start()',
+                        'sleep_mode(DEEP)',
+                        'power_down()'
+                    ],
+                    explanation: 'The correct function is esp_deep_sleep_start(). This is an ESP-IDF function exposed through the Arduino framework. Before calling it, you must configure at least one wake source (timer, GPIO, touch, or ULP). Execution never continues past this function call -- the next thing that runs is setup() after the wake event triggers a reboot.'
+                },
+                {
+                    question: 'What unit does esp_sleep_enable_timer_wakeup() expect?',
+                    options: [
+                        'Milliseconds',
+                        'Seconds',
+                        'Microseconds',
+                        'Minutes'
+                    ],
+                    explanation: 'esp_sleep_enable_timer_wakeup() takes microseconds as a 64-bit unsigned integer (uint64_t). To sleep for 5 minutes, you calculate: 5 * 60 * 1000000 = 300,000,000 microseconds. The common pattern is to define a multiplier: #define uS_TO_S_FACTOR 1000000ULL, then multiply your desired seconds by this factor. The ULL suffix ensures 64-bit arithmetic to avoid overflow.'
+                },
+                {
+                    question: 'What is the difference between light sleep and deep sleep?',
+                    options: [
+                        'Light sleep uses more power but preserves RAM; deep sleep uses less power but loses RAM',
+                        'Light sleep disables WiFi; deep sleep keeps WiFi active',
+                        'There is no difference -- they are the same mode',
+                        'Light sleep only works on ESP32-S3; deep sleep works on all variants'
+                    ],
+                    explanation: 'Light sleep (~0.8mA) pauses the CPUs via clock gating but preserves all RAM contents. The ESP32 resumes execution exactly where it stopped, in microseconds. Deep sleep (~10uA) powers off the main CPUs and most of RAM, keeping only the RTC domain. Waking from deep sleep is a full reboot. Light sleep is ideal for interactive devices needing fast response; deep sleep is for maximum power savings in sensor nodes.'
+                },
+                {
+                    question: 'Which attribute preserves a variable across deep sleep cycles?',
+                    options: [
+                        'PROGMEM',
+                        'volatile',
+                        'RTC_DATA_ATTR',
+                        'static'
+                    ],
+                    explanation: 'RTC_DATA_ATTR places a variable in the 8KB RTC slow memory, which remains powered during deep sleep. Example: RTC_DATA_ATTR int bootCount = 0; On first boot, bootCount initializes to 0. On subsequent deep sleep wakes, it retains its last value. Regular RAM variables (including static, volatile, and PROGMEM) are all lost when deep sleep powers off the main memory.'
+                },
+                {
+                    question: 'How much RTC memory is available for persistent storage during deep sleep?',
+                    options: [
+                        '512 bytes',
+                        '4KB',
+                        '8KB',
+                        '64KB'
+                    ],
+                    explanation: 'The ESP32 has 8KB of RTC slow memory that persists during deep sleep. This is shared between your RTC_DATA_ATTR variables and the ULP co-processor program. For most applications, 8KB is sufficient for boot counters, WiFi credentials cache, last sensor readings, and state flags. For larger persistent data needs, use NVS flash storage (covered in Core 11), which survives both deep sleep and power loss.'
+                },
+                {
+                    question: 'What does ext0 wake source do?',
+                    options: [
+                        'Wakes when an external timer expires',
+                        'Wakes when a single RTC GPIO pin reaches a specified level (HIGH or LOW)',
+                        'Wakes when any of multiple GPIO pins change state',
+                        'Wakes when an I2C device sends data'
+                    ],
+                    explanation: 'ext0 (esp_sleep_enable_ext0_wakeup) monitors a single RTC GPIO pin and wakes the ESP32 when that pin reaches a specified level -- either HIGH (1) or LOW (0). It is the simplest GPIO wake source. Common uses: button press, PIR motion sensor trigger, door/window reed switch. Only RTC-capable GPIO pins can be used (GPIO 0, 2, 4, 12-15, 25-27, 32-39 on the classic ESP32).'
+                },
+                {
+                    question: 'How does ext1 differ from ext0 for GPIO wake?',
+                    options: [
+                        'ext1 is faster than ext0',
+                        'ext1 monitors multiple RTC GPIO pins simultaneously using a bitmask',
+                        'ext1 only works in light sleep, not deep sleep',
+                        'ext1 uses digital pins instead of analog pins'
+                    ],
+                    explanation: 'ext1 (esp_sleep_enable_ext1_wakeup) monitors multiple RTC GPIO pins simultaneously using a bitmask. You specify which pins to watch and whether to wake when ANY pin goes high (ESP_EXT1_WAKEUP_ANY_HIGH) or when ALL pins go low (ESP_EXT1_WAKEUP_ALL_LOW). This is useful for multi-sensor arrays where any of several sensors should trigger a wake. ext0 only supports a single pin.'
+                },
+                {
+                    question: 'What is the ULP co-processor?',
+                    options: [
+                        'A USB low-power controller for charging',
+                        'An ultra-low-power co-processor that runs independently during deep sleep to monitor sensors',
+                        'A universal logic processor for WiFi packet handling',
+                        'An update loader program for OTA firmware'
+                    ],
+                    explanation: 'The ULP (Ultra Low Power) co-processor is a separate, simple processor in the ESP32 RTC domain that runs its own program during deep sleep. It draws ~150uA while active and can read ADC channels, monitor GPIO pins, perform basic arithmetic, and wake the main CPUs when conditions are met. Example: monitoring soil moisture every 30 seconds and only waking the main ESP32 when moisture drops below a threshold.'
+                },
+                {
+                    question: 'Which function identifies why the ESP32 woke from deep sleep?',
+                    options: [
+                        'esp_reset_reason()',
+                        'esp_sleep_get_wakeup_cause()',
+                        'ESP.getWakeReason()',
+                        'digitalRead(WAKE_PIN)'
+                    ],
+                    explanation: 'esp_sleep_get_wakeup_cause() returns an enum (esp_sleep_wakeup_cause_t) indicating the wake source: ESP_SLEEP_WAKEUP_TIMER, ESP_SLEEP_WAKEUP_EXT0, ESP_SLEEP_WAKEUP_EXT1, ESP_SLEEP_WAKEUP_TOUCHPAD, or ESP_SLEEP_WAKEUP_ULP. On first boot or manual reset, it returns 0 (no wake cause). Check this in setup() to branch logic -- timer wake might mean "take a reading" while ext0 wake might mean "enter config mode."'
+                },
+                {
+                    question: 'What is the "batch and burst" power management pattern?',
+                    options: [
+                        'Sending all sensor data in one large packet at maximum power',
+                        'Storing multiple readings in RTC memory and transmitting them together to reduce WiFi connection frequency',
+                        'Using burst mode on the ADC for faster readings',
+                        'Batching OTA update chunks to reduce download time'
+                    ],
+                    explanation: 'Batch and burst stores multiple sensor readings in RTC memory across several wake cycles, then transmits them all in a single WiFi session. Example: take a temperature reading every 5 minutes (12 readings per hour), but only connect to WiFi once per hour to transmit all 12 readings. This reduces the number of expensive WiFi connections by 12x, dramatically extending battery life since WiFi connection is the most power-hungry operation.'
+                },
+                {
+                    question: 'Why should you cache the WiFi channel and BSSID in RTC memory?',
+                    options: [
+                        'To encrypt the WiFi connection',
+                        'To skip WiFi scanning on wake, reducing reconnection time from 2-5 seconds to 300-800ms',
+                        'To prevent other devices from using the same channel',
+                        'The ESP32 requires cached credentials to connect'
+                    ],
+                    explanation: 'Normal WiFi connection requires scanning all channels to find your access point, which takes 2-5 seconds. By caching the WiFi channel number and router BSSID (MAC address) in RTC memory, the ESP32 can skip scanning and connect directly using WiFi.begin(ssid, pass, channel, bssid). This reduces connection time to 300-800ms, saving significant power per wake cycle. The cache persists across deep sleep but is lost on power loss.'
+                },
+                {
+                    question: 'What is the current consumption of the ESP32 in hibernation mode?',
+                    options: [
+                        '10uA',
+                        '5uA',
+                        '0.8mA',
+                        '100uA'
+                    ],
+                    explanation: 'Hibernation mode draws approximately 5uA -- the absolute minimum power state. In hibernation, everything is off except the RTC timer and one RTC GPIO for wake. There is no ULP co-processor, no RTC memory retention beyond the timer, and waking is a cold boot with no preserved state. Hibernation is 2x more efficient than deep sleep (5uA vs 10uA) but loses the ability to persist data in RTC memory.'
+                }
+            ]
+        });
+        quiz.start();
+    </script>
+</body>
+</html>

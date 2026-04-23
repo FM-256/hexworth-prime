@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Networking | ProtoCore ESP32 Core 15</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #040810 0%, #081020 50%, #0a0c1a 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Electric blue progress bar */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #0088ff; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(4, 8, 16, 0.95);
+            border-top: 1px solid rgba(0, 136, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(0, 136, 255, 0.15); color: #0088ff; border-color: #0088ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #0088ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ffd700; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip */
+        .scenario-strip {
+            background: rgba(0, 136, 255, 0.08); border-left: 3px solid #0088ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(0, 136, 255, 0.08); border: 1px solid rgba(0, 136, 255, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ffd700; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #0088ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #ffd700; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #0088ff; }
+
+        /* Section label */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #0088ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Inline code */
+        .ic {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* SVG diagram containers */
+        .diagram-row {
+            display: flex; gap: 16px; align-items: center; justify-content: center;
+        }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        /* Step-by-step flow list */
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(0, 136, 255, 0.12); border: 1px solid rgba(0, 136, 255, 0.4);
+            color: #0088ff; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        /* Code block */
+        .code-block {
+            background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #ffd700; line-height: 1.6; white-space: pre;
+        }
+        .code-block .cm { color: #64748b; }
+        .code-block .kw { color: #5cb8ff; }
+        .code-block .fn { color: #ffd700; }
+        .code-block .st { color: #86efac; }
+        .code-block .nu { color: #fdba74; }
+
+        /* Two-column code compare */
+        .code-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .code-panel-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.07em; margin-bottom: 5px; }
+
+        /* Hex grid cells */
+        .hex-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(0, 136, 255, 0.25);
+            border-radius: 8px; padding: 12px 14px;
+            text-align: center;
+            opacity: 0;
+            animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #0088ff; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        /* Shared animation keyframes */
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes flow {
+            0%   { stroke-dashoffset: 20; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes glowPulse {
+            0%, 100% { filter: drop-shadow(0 0 4px rgba(0,136,255,0.3)); }
+            50%       { filter: drop-shadow(0 0 14px rgba(0,136,255,0.9)); }
+        }
+        @keyframes dataFlow {
+            0%   { stroke-dashoffset: 14; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes wifiPulse {
+            0%   { opacity: 0.2; transform: scale(0.9); }
+            50%  { opacity: 1; transform: scale(1.05); }
+            100% { opacity: 0.2; transform: scale(0.9); }
+        }
+        @keyframes scanLine {
+            0%   { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .code-compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Advanced Networking -- ProtoCore ESP32 Core 15</h1>
+
+<!-- Electric blue progress bar -->
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; ProtoCore &nbsp;|&nbsp; ESP32 &nbsp;|&nbsp; Core 15</div>
+        <div class="title-hero">
+            <!-- Networking SVG -->
+            <svg width="360" height="140" viewBox="0 0 360 140" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central ESP32 -->
+                <rect x="140" y="40" width="80" height="60" rx="8" fill="rgba(0,136,255,0.1)" stroke="#0088ff" stroke-width="2"
+                    style="animation: glowPulse 2.5s ease-in-out infinite;"/>
+                <text x="180" y="65" text-anchor="middle" font-size="9" fill="#0088ff" font-weight="800" font-family="Segoe UI,sans-serif">ESP32</text>
+                <text x="180" y="78" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Promiscuous</text>
+                <!-- WiFi waves -->
+                <path d="M180,35 Q180,20 195,15" stroke="rgba(255,215,0,0.4)" stroke-width="1.5" fill="none"
+                    style="animation: wifiPulse 2s ease-in-out infinite;"/>
+                <path d="M180,35 Q180,12 200,8" stroke="rgba(255,215,0,0.3)" stroke-width="1" fill="none"
+                    style="animation: wifiPulse 2s ease-in-out infinite 0.3s;"/>
+                <path d="M180,35 Q180,5 205,2" stroke="rgba(255,215,0,0.2)" stroke-width="1" fill="none"
+                    style="animation: wifiPulse 2s ease-in-out infinite 0.6s;"/>
+                <!-- Packet captures -->
+                <rect x="20" y="25" width="80" height="30" rx="4" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1"/>
+                <text x="60" y="38" text-anchor="middle" font-size="6" fill="#ef4444" font-family="Courier New,monospace">DEAUTH FRAME</text>
+                <text x="60" y="48" text-anchor="middle" font-size="5" fill="#94a3b8" font-family="Courier New,monospace">type:0xC0 reason:7</text>
+                <line x1="100" y1="40" x2="135" y2="60" stroke="rgba(239,68,68,0.3)" stroke-width="1" stroke-dasharray="4 2"/>
+                <!-- DNS block -->
+                <rect x="260" y="25" width="80" height="30" rx="4" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1"/>
+                <text x="300" y="38" text-anchor="middle" font-size="6" fill="#3ab577" font-family="Courier New,monospace">DNS SERVER</text>
+                <text x="300" y="48" text-anchor="middle" font-size="5" fill="#94a3b8" font-family="Courier New,monospace">captive portal</text>
+                <line x1="260" y1="40" x2="225" y2="60" stroke="rgba(58,181,119,0.3)" stroke-width="1" stroke-dasharray="4 2"/>
+                <!-- mDNS block -->
+                <rect x="30" y="90" width="75" height="30" rx="4" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1"/>
+                <text x="67" y="103" text-anchor="middle" font-size="6" fill="#a78bfa" font-family="Courier New,monospace">mDNS</text>
+                <text x="67" y="113" text-anchor="middle" font-size="5" fill="#94a3b8" font-family="Courier New,monospace">esp32.local</text>
+                <line x1="105" y1="105" x2="135" y2="85" stroke="rgba(167,139,250,0.3)" stroke-width="1" stroke-dasharray="4 2"/>
+                <!-- Ethernet block -->
+                <rect x="255" y="90" width="75" height="30" rx="4" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1"/>
+                <text x="292" y="103" text-anchor="middle" font-size="6" fill="#06b6d4" font-family="Courier New,monospace">ETHERNET</text>
+                <text x="292" y="113" text-anchor="middle" font-size="5" fill="#94a3b8" font-family="Courier New,monospace">LAN8720</text>
+                <line x1="255" y1="105" x2="225" y2="85" stroke="rgba(6,182,212,0.3)" stroke-width="1" stroke-dasharray="4 2"/>
+            </svg>
+            <div class="big-title">
+                <span class="accent">Advanced</span> Networking
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Promiscuous Mode &nbsp;|&nbsp; Packet Capture &nbsp;|&nbsp; Deauth Detection &nbsp;|&nbsp; Captive Portals &nbsp;|&nbsp; mDNS &nbsp;|&nbsp; Ethernet
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Previous cores connected to WiFi networks and served web pages. This core goes deeper -- into the raw 802.11 frames that WiFi is built from. You will capture packets, detect attacks on your network, build captive portals for device provisioning, and discover services with zero configuration. This is defensive network analysis at the hardware level.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>ProtoCore ESP32</span>
+            <span>Core 15</span>
+            <span>Matrix House</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- PROMISCUOUS MODE ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title"><span class="accent">Promiscuous</span> Mode</div>
+        <div class="slide-subtitle">Capturing raw 802.11 frames -- every packet on the current channel, not just packets addressed to you.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Normal Mode vs Promiscuous</div>
+                <div class="card-desc">In normal (station) mode, the ESP32's WiFi stack filters incoming frames and only passes packets addressed to your MAC address up to your code. In promiscuous mode, the filter is removed. Every frame on the current channel -- from any device, to any device -- gets delivered to your callback function. This is the same mode that Wireshark uses on laptops.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">What You Can See</div>
+                <div class="card-desc">Beacon frames (AP advertisements), probe requests (devices searching for networks), data frames (encrypted payloads between stations and APs), deauthentication frames, authentication frames, association requests. You see the MAC headers and frame metadata. Payload data from encrypted networks remains encrypted -- you see the envelope, not the letter.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">"esp_wifi.h"</span>
+
+<span class="kw">void</span> <span class="fn">sniffer_callback</span>(<span class="kw">void</span> *buf, wifi_promiscuous_pkt_type_t type) {
+    wifi_promiscuous_pkt_t *pkt = (wifi_promiscuous_pkt_t *)buf;
+    wifi_pkt_rx_ctrl_t ctrl = pkt-&gt;rx_ctrl;
+
+    <span class="fn">Serial.printf</span>(<span class="st">"Ch:%d RSSI:%d Len:%d Type:%d\n"</span>,
+        ctrl.channel, ctrl.rssi, ctrl.sig_len, type);
+}
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    <span class="fn">Serial.begin</span>(<span class="nu">115200</span>);
+    <span class="fn">wifi_init_config_t</span> cfg = <span class="fn">WIFI_INIT_CONFIG_DEFAULT</span>();
+    <span class="fn">esp_wifi_init</span>(&amp;cfg);
+    <span class="fn">esp_wifi_set_mode</span>(WIFI_MODE_NULL);
+    <span class="fn">esp_wifi_start</span>();
+    <span class="fn">esp_wifi_set_promiscuous</span>(<span class="kw">true</span>);
+    <span class="fn">esp_wifi_set_promiscuous_rx_cb</span>(sniffer_callback);
+}</div>
+
+        <div class="box box-red">
+            <div class="box-label">Defensive Use Only</div>
+            Promiscuous mode on ESP32 is a powerful defensive monitoring tool. Use it to detect unauthorized devices on your network, identify rogue access points, and monitor for deauthentication attacks. Offensive applications (packet injection, deauth attacks) are illegal without authorization and are covered in Signal House builds with proper ethical framing. This core focuses on detection and analysis.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- CHANNEL HOPPING ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">WiFi <span class="accent">Channel Hopping</span></div>
+        <div class="slide-subtitle">The ESP32 can only listen to one channel at a time. Channel hopping lets you survey the entire 2.4GHz spectrum.</div>
+
+        <div class="diagram-center">
+            <svg width="600" height="90" viewBox="0 0 600 90" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Channel blocks -->
+                <rect x="10" y="20" width="36" height="50" rx="4" fill="rgba(0,136,255,0.15)" stroke="#0088ff" stroke-width="1.5"/>
+                <text x="28" y="40" text-anchor="middle" font-size="8" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Ch1</text>
+                <text x="28" y="55" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">2412</text>
+
+                <rect x="56" y="20" width="36" height="50" rx="4" fill="rgba(255,255,255,0.04)" stroke="rgba(0,136,255,0.3)" stroke-width="1"/>
+                <text x="74" y="40" text-anchor="middle" font-size="8" fill="#475569" font-family="Segoe UI,sans-serif">Ch2</text>
+
+                <rect x="102" y="20" width="36" height="50" rx="4" fill="rgba(255,255,255,0.04)" stroke="rgba(0,136,255,0.3)" stroke-width="1"/>
+                <text x="120" y="40" text-anchor="middle" font-size="8" fill="#475569" font-family="Segoe UI,sans-serif">Ch3</text>
+
+                <text x="170" y="48" text-anchor="middle" font-size="12" fill="#475569" font-family="Segoe UI,sans-serif">...</text>
+
+                <rect x="195" y="20" width="36" height="50" rx="4" fill="rgba(255,215,0,0.1)" stroke="#ffd700" stroke-width="1.5"/>
+                <text x="213" y="40" text-anchor="middle" font-size="8" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">Ch6</text>
+                <text x="213" y="55" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">2437</text>
+
+                <text x="260" y="48" text-anchor="middle" font-size="12" fill="#475569" font-family="Segoe UI,sans-serif">...</text>
+
+                <rect x="285" y="20" width="36" height="50" rx="4" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.5"/>
+                <text x="303" y="40" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Ch11</text>
+                <text x="303" y="55" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">2462</text>
+
+                <rect x="331" y="20" width="36" height="50" rx="4" fill="rgba(255,255,255,0.04)" stroke="rgba(0,136,255,0.3)" stroke-width="1"/>
+                <text x="349" y="40" text-anchor="middle" font-size="8" fill="#475569" font-family="Segoe UI,sans-serif">Ch12</text>
+
+                <rect x="377" y="20" width="36" height="50" rx="4" fill="rgba(255,255,255,0.04)" stroke="rgba(0,136,255,0.3)" stroke-width="1"/>
+                <text x="395" y="40" text-anchor="middle" font-size="8" fill="#475569" font-family="Segoe UI,sans-serif">Ch13</text>
+
+                <!-- Scanning arrow -->
+                <path d="M28,75 L303,75" stroke="rgba(0,136,255,0.4)" stroke-width="1.5" stroke-dasharray="6 3"
+                    style="animation: dataFlow 2s linear infinite;"/>
+                <text x="165" y="87" text-anchor="middle" font-size="7" fill="#0088ff" font-family="Segoe UI,sans-serif">Channel hopping: 200-500ms per channel</text>
+            </svg>
+        </div>
+
+        <div class="code-block"><span class="cm">// Channel hopping with a timer</span>
+<span class="kw">uint8_t</span> currentChannel = <span class="nu">1</span>;
+<span class="kw">const uint8_t</span> MAX_CHANNEL = <span class="nu">13</span>;
+
+<span class="kw">void</span> <span class="fn">hopChannel</span>() {
+    currentChannel++;
+    <span class="kw">if</span> (currentChannel > MAX_CHANNEL) currentChannel = <span class="nu">1</span>;
+    <span class="fn">esp_wifi_set_channel</span>(currentChannel, WIFI_SECOND_CHAN_NONE);
+}
+
+<span class="cm">// In loop(): hop every 200ms</span>
+<span class="kw">unsigned long</span> lastHop = <span class="nu">0</span>;
+<span class="kw">if</span> (<span class="fn">millis</span>() - lastHop > <span class="nu">200</span>) {
+    <span class="fn">hopChannel</span>();
+    lastHop = <span class="fn">millis</span>();
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Dwell Time Tradeoff</div>
+                <div class="card-desc">Stay on a channel too long and you miss activity on other channels. Hop too fast and you miss packets on every channel (you only capture what arrives during your dwell time). 200-500ms per channel is typical for survey mode. Lock to a specific channel when you want to focus on one target AP.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">2.4GHz Only</div>
+                <div class="card-desc">The ESP32's WiFi radio operates on 2.4GHz only (channels 1-13). It cannot capture 5GHz traffic. For full-spectrum monitoring, you would need a 5GHz-capable device. However, many IoT devices, older routers, and Bluetooth all operate in 2.4GHz -- there is plenty to see.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- 802.11 FRAME STRUCTURE ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">802.11 <span class="accent">Frame Structure</span></div>
+        <div class="slide-subtitle">Every WiFi packet has a standard header. Understanding it lets you parse what you capture.</div>
+
+        <div class="diagram-center">
+            <svg width="650" height="80" viewBox="0 0 650 80" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Frame fields -->
+                <rect x="5" y="15" width="60" height="40" rx="3" fill="rgba(0,136,255,0.12)" stroke="#0088ff" stroke-width="1"/>
+                <text x="35" y="32" text-anchor="middle" font-size="7" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Frame</text>
+                <text x="35" y="43" text-anchor="middle" font-size="7" fill="#0088ff" font-family="Segoe UI,sans-serif">Control</text>
+                <text x="35" y="62" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">2 bytes</text>
+
+                <rect x="70" y="15" width="50" height="40" rx="3" fill="rgba(255,215,0,0.08)" stroke="#ffd700" stroke-width="1"/>
+                <text x="95" y="35" text-anchor="middle" font-size="7" fill="#ffd700" font-family="Segoe UI,sans-serif">Duration</text>
+                <text x="95" y="62" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">2 bytes</text>
+
+                <rect x="125" y="15" width="80" height="40" rx="3" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1"/>
+                <text x="165" y="35" text-anchor="middle" font-size="7" fill="#3ab577" font-family="Segoe UI,sans-serif">Addr1 (Dest)</text>
+                <text x="165" y="62" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">6 bytes</text>
+
+                <rect x="210" y="15" width="80" height="40" rx="3" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1"/>
+                <text x="250" y="35" text-anchor="middle" font-size="7" fill="#a78bfa" font-family="Segoe UI,sans-serif">Addr2 (Source)</text>
+                <text x="250" y="62" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">6 bytes</text>
+
+                <rect x="295" y="15" width="80" height="40" rx="3" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1"/>
+                <text x="335" y="35" text-anchor="middle" font-size="7" fill="#06b6d4" font-family="Segoe UI,sans-serif">Addr3 (BSSID)</text>
+                <text x="335" y="62" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">6 bytes</text>
+
+                <rect x="380" y="15" width="55" height="40" rx="3" fill="rgba(255,215,0,0.08)" stroke="#ffd700" stroke-width="1"/>
+                <text x="407" y="32" text-anchor="middle" font-size="7" fill="#ffd700" font-family="Segoe UI,sans-serif">Seq</text>
+                <text x="407" y="43" text-anchor="middle" font-size="7" fill="#ffd700" font-family="Segoe UI,sans-serif">Control</text>
+                <text x="407" y="62" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">2 bytes</text>
+
+                <rect x="440" y="15" width="130" height="40" rx="3" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1"/>
+                <text x="505" y="35" text-anchor="middle" font-size="7" fill="#ef4444" font-family="Segoe UI,sans-serif">Frame Body (Payload)</text>
+                <text x="505" y="62" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">0-2312 bytes</text>
+
+                <rect x="575" y="15" width="55" height="40" rx="3" fill="rgba(148,163,184,0.08)" stroke="#94a3b8" stroke-width="1"/>
+                <text x="602" y="35" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">FCS</text>
+                <text x="602" y="62" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">4 bytes</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Management Frames</div>
+                <div class="card-desc">Type 0. Beacons, probe requests/responses, authentication, association, deauthentication, disassociation. These frames manage the WiFi connection lifecycle. They are NOT encrypted, even on WPA2 networks. This is why deauth attacks work -- management frames have no authentication.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Control Frames</div>
+                <div class="card-desc">Type 1. ACK, RTS (Request to Send), CTS (Clear to Send), Block ACK. These are short frames that coordinate the medium access protocol. They ensure reliable delivery and avoid collisions. Typically 14-20 bytes total.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Data Frames</div>
+                <div class="card-desc">Type 2. The actual payload data. On encrypted networks (WPA2/WPA3), the frame body is encrypted -- you can see the MAC addresses and frame headers but not the content. On open networks, the payload is plaintext.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Frame Control Field</div>
+            The 2-byte Frame Control field contains the protocol version (always 0), frame type (management/control/data), subtype (beacon, deauth, etc.), and flags (ToDS, FromDS, retry, power management). Parsing the type and subtype bytes tells you exactly what kind of frame you captured. Type 0, Subtype 12 = deauthentication. Type 0, Subtype 8 = beacon.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- DEAUTH DETECTION ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title"><span class="accent">Deauthentication</span> Detection</div>
+        <div class="slide-subtitle">Detecting deauth attacks on your network. A practical application of promiscuous mode for network defense.</div>
+
+        <div class="code-block"><span class="cm">// Detect deauthentication frames</span>
+<span class="kw">typedef struct</span> {
+    <span class="kw">uint8_t</span>  frame_ctrl[<span class="nu">2</span>];
+    <span class="kw">uint8_t</span>  duration[<span class="nu">2</span>];
+    <span class="kw">uint8_t</span>  addr1[<span class="nu">6</span>];   <span class="cm">// Destination</span>
+    <span class="kw">uint8_t</span>  addr2[<span class="nu">6</span>];   <span class="cm">// Source</span>
+    <span class="kw">uint8_t</span>  addr3[<span class="nu">6</span>];   <span class="cm">// BSSID</span>
+    <span class="kw">uint8_t</span>  seq_ctrl[<span class="nu">2</span>];
+    <span class="kw">uint16_t</span> reason;     <span class="cm">// Reason code</span>
+} wifi_mgmt_deauth_t;
+
+<span class="kw">void</span> <span class="fn">sniffer_cb</span>(<span class="kw">void</span> *buf, wifi_promiscuous_pkt_type_t type) {
+    <span class="kw">if</span> (type != WIFI_PKT_MGMT) <span class="kw">return</span>;
+    wifi_promiscuous_pkt_t *pkt = (wifi_promiscuous_pkt_t *)buf;
+    <span class="kw">uint8_t</span> frameType = (pkt-&gt;payload[<span class="nu">0</span>] &amp; <span class="nu">0x0C</span>) >> <span class="nu">2</span>;
+    <span class="kw">uint8_t</span> subType   = (pkt-&gt;payload[<span class="nu">0</span>] &amp; <span class="nu">0xF0</span>) >> <span class="nu">4</span>;
+
+    <span class="kw">if</span> (frameType == <span class="nu">0</span> &amp;&amp; subType == <span class="nu">12</span>) {  <span class="cm">// Deauth</span>
+        <span class="fn">Serial.printf</span>(<span class="st">"DEAUTH DETECTED! RSSI:%d\n"</span>, pkt-&gt;rx_ctrl.rssi);
+        <span class="cm">// Alert: flash LED, send notification, log to SD</span>
+    }
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">What Is a Deauth Attack?</div>
+                <div class="card-desc">An attacker sends forged deauthentication frames to disconnect clients from a WiFi network. Because management frames are unauthenticated in WPA2, the victim's device accepts the frame and disconnects. The attacker can then capture the WPA handshake when the client reconnects, or simply deny service. WPA3's Protected Management Frames (PMF) mitigate this.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Detection Indicators</div>
+                <div class="card-desc">A normal network sees occasional deauth frames (clean disconnections). An attack produces a flood -- dozens or hundreds of deauth frames per second, often with broadcast destination (FF:FF:FF:FF:FF:FF). Your detector counts deauth frames per second: if the rate exceeds a threshold (10+/second), raise an alert. Log the source MAC and RSSI for forensics.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Cross-Reference: Signal House</div>
+            The offensive side of deauthentication -- understanding how attackers craft and send deauth frames -- is covered in Signal House builds. This core teaches you to detect and respond to these attacks. Understanding both sides (attack and defense) is essential for network security, but building offensive tools requires the ethical framework and controlled environments that Signal provides.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- DNS SERVER AND CAPTIVE PORTAL ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title"><span class="accent">Captive Portal</span> -- DNS Redirection</div>
+        <div class="slide-subtitle">Run a DNS server on the ESP32 that resolves all domains to itself. Every device that connects sees your configuration page.</div>
+
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>ESP32 starts as Access Point.</strong> Creates a WiFi network (e.g., "ESP32-Setup"). No password or WPA2 -- depends on your use case.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>DHCP assigns IP addresses</strong> to connecting clients. The ESP32's softAP DHCP server handles this automatically.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>DNS server intercepts all queries.</strong> When a client asks for "google.com" or "connectivitycheck.gstatic.com", your DNS server responds with the ESP32's IP (192.168.4.1). Every domain resolves to you.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Web server serves the portal page.</strong> The client's browser loads your configuration form. User enters WiFi credentials, the ESP32 connects to the real network, and the captive portal shuts down.</span></div>
+        </div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">&lt;DNSServer.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;WebServer.h&gt;</span>
+
+<span class="kw">DNSServer</span> dnsServer;
+<span class="kw">WebServer</span> webServer(<span class="nu">80</span>);
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    <span class="fn">WiFi.softAP</span>(<span class="st">"ESP32-Setup"</span>);
+    dnsServer.<span class="fn">start</span>(<span class="nu">53</span>, <span class="st">"*"</span>, WiFi.<span class="fn">softAPIP</span>());  <span class="cm">// All domains -> ESP32</span>
+
+    webServer.<span class="fn">onNotFound</span>([]() {
+        webServer.<span class="fn">send</span>(<span class="nu">200</span>, <span class="st">"text/html"</span>, portalHTML);
+    });
+    webServer.<span class="fn">begin</span>();
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+    dnsServer.<span class="fn">processNextRequest</span>();
+    webServer.<span class="fn">handleClient</span>();
+}</div>
+
+        <div class="box box-green">
+            <div class="box-label">Legitimate Use: Device Provisioning</div>
+            Captive portals are the standard way to configure IoT devices that have no keyboard or screen. The user connects to the device's WiFi, enters their home WiFi credentials through a web form, and the device connects to the real network. Every consumer IoT device from smart plugs to security cameras uses this pattern. The ESP32 WiFiManager library automates the entire flow.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- RAW SOCKETS ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">TCP/UDP <span class="accent">Raw Sockets</span></div>
+        <div class="slide-subtitle">Going below the Arduino WiFiClient abstraction to work with sockets directly using lwIP.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Arduino WiFiClient (High Level)</div>
+                <div class="card-desc"><span class="ic">WiFiClient</span> and <span class="ic">WiFiUDP</span> are Arduino abstractions over the TCP/IP stack. They handle connection management, buffering, and error recovery. Good for HTTP requests, MQTT, and simple communication. But they hide the socket layer and limit control over socket options, timeouts, and non-blocking behavior.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">lwIP Sockets (Low Level)</div>
+                <div class="card-desc">The ESP32 runs lwIP (lightweight IP), a full TCP/IP stack. You can use POSIX-style socket calls: <span class="ic">socket()</span>, <span class="ic">bind()</span>, <span class="ic">listen()</span>, <span class="ic">accept()</span>, <span class="ic">send()</span>, <span class="ic">recv()</span>. Set socket options for keepalive, timeout, buffer sizes, and non-blocking mode. This is the same API used on Linux.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">&lt;lwip/sockets.h&gt;</span>
+
+<span class="cm">// Create a UDP socket and send a packet</span>
+<span class="kw">int</span> sock = <span class="fn">socket</span>(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+
+<span class="kw">struct</span> sockaddr_in dest;
+dest.sin_family = AF_INET;
+dest.sin_port = <span class="fn">htons</span>(<span class="nu">9999</span>);
+<span class="fn">inet_aton</span>(<span class="st">"192.168.1.100"</span>, &amp;dest.sin_addr);
+
+<span class="kw">char</span> *msg = <span class="st">"Hello from ESP32"</span>;
+<span class="fn">sendto</span>(sock, msg, <span class="fn">strlen</span>(msg), <span class="nu">0</span>,
+    (<span class="kw">struct</span> sockaddr *)&amp;dest, <span class="kw">sizeof</span>(dest));
+<span class="fn">close</span>(sock);</div>
+
+        <div class="box box-cyan">
+            <div class="box-label">When to Use Raw Sockets</div>
+            Use raw sockets when you need non-blocking I/O with <span class="ic">select()</span> or <span class="ic">poll()</span>, custom protocols that are not HTTP/MQTT, performance-critical communication with minimal overhead, or multicast/broadcast (which WiFiUDP can do but with less control). The POSIX socket API is portable -- the same code structure works on Linux, macOS, and ESP32.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- MULTICAST AND BROADCAST ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title"><span class="accent">Multicast</span> and Broadcast</div>
+        <div class="slide-subtitle">Sending one packet that reaches multiple devices simultaneously. The foundation of service discovery and group communication.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Broadcast</div>
+                <div class="card-desc">Send to <span class="ic">255.255.255.255</span> or the subnet broadcast address (e.g., 192.168.1.255). Every device on the local network receives the packet. Simple but floods the network. Use for device discovery ("who is out there?") and ARP. No subscription needed -- all devices hear it.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Multicast</div>
+                <div class="card-desc">Send to a multicast group address (224.0.0.0 - 239.255.255.255). Only devices that have joined that group receive the packet. More efficient than broadcast. mDNS uses 224.0.0.251. SSDP (UPnP) uses 239.255.255.250. Devices join groups with <span class="ic">setsockopt(IP_ADD_MEMBERSHIP)</span>.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">ESP32 Device Discovery</div>
+                <div class="card-desc">Build a fleet of ESP32 devices that find each other automatically. Each device broadcasts a heartbeat packet on a multicast group. Other devices listen, build a peer table, and establish direct connections. No central server needed. This is how ESP-NOW mesh networks bootstrap.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// Join a multicast group and listen</span>
+<span class="kw">struct</span> ip_mreq mreq;
+<span class="fn">inet_aton</span>(<span class="st">"239.1.2.3"</span>, &amp;mreq.imr_multiaddr);
+mreq.imr_interface.s_addr = INADDR_ANY;
+<span class="fn">setsockopt</span>(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP, &amp;mreq, <span class="kw">sizeof</span>(mreq));
+
+<span class="cm">// Send to the multicast group</span>
+<span class="kw">struct</span> sockaddr_in mcast_addr;
+mcast_addr.sin_family = AF_INET;
+mcast_addr.sin_port = <span class="fn">htons</span>(<span class="nu">5000</span>);
+<span class="fn">inet_aton</span>(<span class="st">"239.1.2.3"</span>, &amp;mcast_addr.sin_addr);
+<span class="fn">sendto</span>(sock, data, len, <span class="nu">0</span>, (<span class="kw">struct</span> sockaddr *)&amp;mcast_addr, <span class="kw">sizeof</span>(mcast_addr));</div>
+
+        <div class="box box-blue">
+            <div class="box-label">TTL and Scope</div>
+            Multicast TTL (Time to Live) controls how far packets travel. TTL=1 stays on the local subnet (router does not forward). TTL=32 reaches the site. Set TTL with <span class="ic">setsockopt(IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl))</span>. For ESP32 IoT applications, TTL=1 is almost always correct -- you do not want your sensor data leaving your local network.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- MDNS SERVICE DISCOVERY ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title"><span class="accent">mDNS</span> Service Discovery</div>
+        <div class="slide-subtitle">Multicast DNS lets devices find each other by name instead of IP address. No DNS server needed.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-purple">
+                <div class="card-label">What Is mDNS?</div>
+                <div class="card-desc">mDNS (Multicast DNS) resolves hostnames on the local network without a DNS server. Your ESP32 announces itself as <span class="ic">mydevice.local</span>. Any computer or phone on the same network can reach it by name instead of remembering 192.168.1.47. Uses multicast group 224.0.0.251 port 5353. Apple calls it Bonjour. Linux calls it Avahi.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Service Advertisement</div>
+                <div class="card-desc">Beyond hostnames, mDNS can advertise services. Your ESP32 web server announces <span class="ic">_http._tcp</span> on port 80. A temperature sensor announces <span class="ic">_mqtt._tcp</span> on port 1883. Other devices query for services by type and discover all matching devices automatically. Zero configuration networking.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">&lt;ESPmDNS.h&gt;</span>
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    <span class="fn">WiFi.begin</span>(<span class="st">"MyNetwork"</span>, <span class="st">"password"</span>);
+    <span class="cm">// ... wait for connection ...</span>
+
+    <span class="cm">// Start mDNS: device reachable at "sensor1.local"</span>
+    <span class="fn">MDNS.begin</span>(<span class="st">"sensor1"</span>);
+
+    <span class="cm">// Advertise HTTP service on port 80</span>
+    <span class="fn">MDNS.addService</span>(<span class="st">"http"</span>, <span class="st">"tcp"</span>, <span class="nu">80</span>);
+
+    <span class="cm">// Query for other HTTP servers on the network</span>
+    <span class="kw">int</span> n = <span class="fn">MDNS.queryService</span>(<span class="st">"http"</span>, <span class="st">"tcp"</span>);
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nu">0</span>; i &lt; n; i++) {
+        <span class="fn">Serial.printf</span>(<span class="st">"Found: %s (%s:%d)\n"</span>,
+            <span class="fn">MDNS.hostname</span>(i).<span class="fn">c_str</span>(),
+            <span class="fn">MDNS.IP</span>(i).<span class="fn">toString</span>().<span class="fn">c_str</span>(),
+            <span class="fn">MDNS.port</span>(i));
+    }
+}</div>
+
+        <div class="box box-green">
+            <div class="box-label">Practical Application: Fleet Discovery</div>
+            Deploy 10 ESP32 sensor nodes. Each starts mDNS with a unique hostname and advertises its sensor type as a service. A central dashboard ESP32 queries for all <span class="ic">_sensor._tcp</span> services, discovers every node automatically, and starts polling them. Add a new node to the network and it appears in the dashboard without any configuration change. Remove one and the query returns fewer results. Self-organizing sensor networks.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- ETHERNET ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title"><span class="accent">Ethernet</span> -- Wired Networking</div>
+        <div class="slide-subtitle">The ESP32 has a built-in Ethernet MAC. Add a LAN8720 PHY chip and you have wired networking -- no WiFi needed.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">Why Wired?</div>
+                <div class="card-desc">WiFi is convenient but unreliable in industrial environments with RF interference, metal enclosures, and long distances. Ethernet provides deterministic latency, higher bandwidth (100Mbps), and physical security (you have to plug in a cable). Industrial IoT, PoE-powered sensors, and high-reliability applications use wired Ethernet.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">LAN8720 PHY</div>
+                <div class="card-desc">The ESP32 has an Ethernet MAC (Media Access Controller) built in, but no PHY (Physical layer transceiver). The LAN8720 chip converts the MAC's digital signals to the analog signals that travel on an Ethernet cable. ESP32 + LAN8720 boards cost $8-12. Some boards like Olimex ESP32-EVB include Ethernet natively.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">&lt;ETH.h&gt;</span>
+
+<span class="kw">#define</span> <span class="fn">ETH_PHY_ADDR</span>   <span class="nu">0</span>
+<span class="kw">#define</span> <span class="fn">ETH_PHY_MDC</span>    <span class="nu">23</span>
+<span class="kw">#define</span> <span class="fn">ETH_PHY_MDIO</span>   <span class="nu">18</span>
+<span class="kw">#define</span> <span class="fn">ETH_PHY_POWER</span>  <span class="nu">-1</span>
+<span class="kw">#define</span> <span class="fn">ETH_TYPE</span>       ETH_PHY_LAN8720
+
+<span class="kw">void</span> <span class="fn">WiFiEvent</span>(WiFiEvent_t event) {
+    <span class="kw">switch</span> (event) {
+        <span class="kw">case</span> ARDUINO_EVENT_ETH_CONNECTED:
+            <span class="fn">Serial.println</span>(<span class="st">"Ethernet link up"</span>); <span class="kw">break</span>;
+        <span class="kw">case</span> ARDUINO_EVENT_ETH_GOT_IP:
+            <span class="fn">Serial.print</span>(<span class="st">"IP: "</span>);
+            <span class="fn">Serial.println</span>(ETH.<span class="fn">localIP</span>()); <span class="kw">break</span>;
+    }
+}
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    <span class="fn">WiFi.onEvent</span>(WiFiEvent);
+    <span class="fn">ETH.begin</span>(ETH_PHY_ADDR, ETH_PHY_POWER, ETH_PHY_MDC,
+             ETH_PHY_MDIO, ETH_TYPE);
+}</div>
+
+        <div class="box box-blue">
+            <div class="box-label">Dual Stack: WiFi + Ethernet</div>
+            The ESP32 can run WiFi and Ethernet simultaneously. Use Ethernet as the primary connection for reliability and WiFi as a fallback. Or use Ethernet for data transfer and WiFi for configuration. The Arduino Networking APIs work identically on both interfaces -- <span class="ic">HTTPClient</span>, <span class="ic">MQTT</span>, and <span class="ic">WebServer</span> all work over Ethernet without code changes.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- PUTTING IT ALL TOGETHER ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Network <span class="accent">Defense</span> Toolkit</div>
+        <div class="slide-subtitle">Combining promiscuous mode, packet analysis, and alerting into a practical network monitoring device.</div>
+
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Channel-hopping sniffer</strong> captures all 802.11 management frames across channels 1-13. Builds a live table of all access points (beacons) and clients (probe requests) in range.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Deauth detector</strong> counts deauthentication frames per second. When the rate exceeds a threshold, logs the attacker's MAC address, RSSI (approximate distance), and target BSSID.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Rogue AP detector</strong> compares discovered BSSIDs against a whitelist of known access points. New or unexpected APs trigger an alert. Detects evil twin attacks where an attacker mimics your network's SSID.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Alert system</strong> flashes an LED, sounds a buzzer, sends an MQTT notification, or logs to SD card. The ESP32 can also connect to a second WiFi network (in station mode on a different channel) to send alerts while the sniffer runs.</span></div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Cost: Under $10</div>
+                <div class="card-desc">A complete wireless intrusion detection sensor for the cost of a coffee. Deploy one per floor, per building, per network segment. They run 24/7 on USB power. Commercial wireless IDS sensors cost $500-2000 each. The ESP32 cannot match their feature set, but for basic deauth and rogue AP detection, it is remarkably effective.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Limitations</div>
+                <div class="card-desc">2.4GHz only (no 5GHz monitoring). One channel at a time (miss packets during hops). Cannot decrypt WPA2 traffic. Limited processing power for deep packet analysis. No 802.11w (PMF) frame authentication analysis. For production deployment, use proper WIDS tools -- but for learning, the ESP32 teaches the fundamentals.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- SUMMARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Core 15 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Everything you need to remember from this presentation.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Promiscuous mode captures every 802.11 frame on the current channel.</strong> Management frames (beacons, deauth) are unencrypted. Use <span class="ic">esp_wifi_set_promiscuous(true)</span> and register a callback. Channel hopping surveys all 13 channels in the 2.4GHz band.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>802.11 frames have three types: management, control, and data.</strong> The Frame Control field identifies the type and subtype. Deauth = type 0, subtype 12. Beacon = type 0, subtype 8. Parse the first two bytes of the payload to classify any frame.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Deauthentication detection is practical defensive monitoring.</strong> Count deauth frames per second. A flood indicates an active attack. Log the attacker's MAC and RSSI for forensics. Offensive tooling is covered in Signal House with proper ethical framing.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Captive portals use DNS redirection for device provisioning.</strong> ESP32 runs as AP + DNS server + web server. All DNS queries resolve to the ESP32's IP. The user configures WiFi credentials through a web form. Standard IoT provisioning pattern.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>mDNS enables zero-configuration device discovery.</strong> Devices announce themselves as <code>hostname.local</code> and advertise services by type. Query for <code>_http._tcp</code> to find all web servers. No central DNS server needed. Self-organizing networks.</span></div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Advanced Networking Complete</strong> &nbsp;|&nbsp; Promiscuous mode, packet capture, deauth detection, captive portals, mDNS, raw sockets, Ethernet
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; ProtoCore</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* Slide navigation state */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    /* Module completion via ModuleProgress component */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-esp-15-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>

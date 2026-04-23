@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Storage and File Systems | ProtoCore ESP32 Core 11</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #040810 0%, #081020 50%, #0a0c1a 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Electric blue progress bar */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #0088ff; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(4, 8, 16, 0.95);
+            border-top: 1px solid rgba(0, 136, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(0, 136, 255, 0.15); color: #0088ff; border-color: #0088ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #0088ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ffd700; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip */
+        .scenario-strip {
+            background: rgba(0, 136, 255, 0.08); border-left: 3px solid #0088ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(0, 136, 255, 0.08); border: 1px solid rgba(0, 136, 255, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ffd700; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #0088ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #ffd700; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #0088ff; }
+
+        /* Section label */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #0088ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Inline code */
+        .ic {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* SVG diagram containers */
+        .diagram-row {
+            display: flex; gap: 16px; align-items: center; justify-content: center;
+        }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        /* Step-by-step flow list */
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(0, 136, 255, 0.12); border: 1px solid rgba(0, 136, 255, 0.4);
+            color: #0088ff; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        /* Code block */
+        .code-block {
+            background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #ffd700; line-height: 1.6; white-space: pre;
+        }
+        .code-block .cm { color: #64748b; }
+        .code-block .kw { color: #5cb8ff; }
+        .code-block .fn { color: #ffd700; }
+        .code-block .st { color: #86efac; }
+        .code-block .nu { color: #fdba74; }
+
+        /* Two-column code compare */
+        .code-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .code-panel-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.07em; margin-bottom: 5px; }
+
+        /* Hex grid cells */
+        .hex-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(0, 136, 255, 0.25);
+            border-radius: 8px; padding: 12px 14px;
+            text-align: center;
+            opacity: 0;
+            animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #0088ff; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        /* Shared animation keyframes */
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes flow {
+            0%   { stroke-dashoffset: 20; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes glowPulse {
+            0%, 100% { filter: drop-shadow(0 0 4px rgba(0,136,255,0.3)); }
+            50%       { filter: drop-shadow(0 0 14px rgba(0,136,255,0.9)); }
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .code-compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Storage and File Systems -- ProtoCore ESP32 Core 11</h1>
+
+<!-- Electric blue progress bar -->
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; ProtoCore &nbsp;|&nbsp; ESP32 &nbsp;|&nbsp; Core 11</div>
+        <div class="title-hero">
+            <!-- Storage SVG -->
+            <svg width="360" height="140" viewBox="0 0 360 140" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Flash chip -->
+                <rect x="130" y="25" width="100" height="55" rx="6" fill="rgba(0,136,255,0.08)" stroke="#0088ff" stroke-width="2"
+                    style="animation: glowPulse 2.5s ease-in-out infinite;"/>
+                <text x="180" y="48" text-anchor="middle" font-size="10" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">4MB Flash</text>
+                <text x="180" y="64" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">NVS | SPIFFS | App | OTA</text>
+                <!-- Partition lines inside chip -->
+                <line x1="155" y1="70" x2="155" y2="80" stroke="rgba(255,215,0,0.3)" stroke-width="1"/>
+                <line x1="180" y1="70" x2="180" y2="80" stroke="rgba(255,215,0,0.3)" stroke-width="1"/>
+                <line x1="205" y1="70" x2="205" y2="80" stroke="rgba(255,215,0,0.3)" stroke-width="1"/>
+                <!-- SD card to the right -->
+                <rect x="260" y="30" width="50" height="45" rx="5" fill="rgba(255,215,0,0.06)" stroke="#ffd700" stroke-width="1.5"/>
+                <text x="285" y="50" text-anchor="middle" font-size="8" fill="#ffd700" font-weight="600" font-family="Segoe UI,sans-serif">SD</text>
+                <text x="285" y="62" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Card</text>
+                <!-- Arrow flash to SD -->
+                <line x1="235" y1="50" x2="255" y2="50" stroke="rgba(0,136,255,0.3)" stroke-width="1.5" stroke-dasharray="4 3"/>
+                <!-- Labels below -->
+                <text x="180" y="105" text-anchor="middle" font-size="8" fill="#475569" font-family="Segoe UI,sans-serif">Partition Table | NVS Key-Value | File Systems | OTA Updates</text>
+            </svg>
+            <div class="big-title">
+                <span class="accent">Storage</span> and File Systems
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Flash partitions, NVS key-value store, SPIFFS vs LittleFS, SD cards, and over-the-air updates.
+            </div>
+            <div class="title-meta-row">
+                <span>Core 11 of 12</span>
+                <span>12 Slides</span>
+                <span>Storage</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- FLASH ARCHITECTURE ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Flash Memory <span class="accent">Architecture</span></div>
+        <div class="slide-subtitle">The ESP32's 4MB external flash is not one continuous block. It is divided into partitions, each serving a specific purpose.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">External SPI Flash</div>
+                <div class="card-desc">The ESP32 chip itself has no built-in flash. The 4MB (or 8MB/16MB on some modules) is an external SPI flash chip soldered onto the module. Code executes directly from flash via XIP (Execute In Place) through the SPI bus, cached by the MMU.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Partition Table</div>
+                <div class="card-desc">A small data structure at offset 0x8000 in flash that tells the bootloader where each partition starts, its size, type, and label. Think of it as the "table of contents" for flash memory. Without it, the ESP32 cannot find your code or data.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Wear Leveling</div>
+                <div class="card-desc">Flash memory has limited write cycles (~100,000 per sector). The ESP-IDF wear leveling layer distributes writes across sectors to prevent hotspots. NVS and file system partitions use this automatically. You do not need to manage it manually.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Critical Warning</div>
+            Uploading a new sketch erases and rewrites the app partition. Data stored in NVS and SPIFFS partitions is preserved across uploads (unless you explicitly format them or change the partition scheme). This means WiFi credentials and sensor calibration data survive code updates.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- PARTITION TABLE ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">The <span class="accent">Partition Table</span></div>
+        <div class="slide-subtitle">Default partition layouts and how to customize them for your application's needs.</div>
+
+        <div class="code-block"><span class="cm"># Default partition table (4MB flash, no OTA)</span>
+<span class="cm"># Name,    Type,  SubType, Offset,   Size,     Flags</span>
+<span class="fn">nvs</span>,      data,  nvs,     0x9000,   0x5000,
+<span class="fn">otadata</span>,  data,  ota,     0xe000,   0x2000,
+<span class="fn">app0</span>,     app,   ota_0,   0x10000,  0x140000,
+<span class="fn">app1</span>,     app,   ota_1,   0x150000, 0x140000,
+<span class="fn">spiffs</span>,   data,  spiffs,  0x290000, 0x170000,</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">NVS (20KB)</div>
+                <div class="card-desc">Non-Volatile Storage for key-value pairs. Stores WiFi credentials, device settings, calibration data. Uses a log-structured format with automatic wear leveling. This is where <span class="ic">WiFi.begin()</span> saves your credentials.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">App Partitions (1.25MB each)</div>
+                <div class="card-desc">Two app slots (app0 and app1) enable OTA updates. The running app is in one slot while the new firmware downloads to the other. If the update fails, the bootloader rolls back to the previous working version.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">SPIFFS (1.44MB)</div>
+                <div class="card-desc">A flat file system partition for storing files: HTML pages, config files, sensor logs, images. Files persist across reboots and code uploads. You can mount and access it like a regular file system with open/read/write/close.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Custom Partition Tables</div>
+            You can create custom partition tables in CSV format and select them in Arduino IDE under Tools &gt; Partition Scheme. Common reasons: larger app partition for complex code, larger SPIFFS for web server assets, removing OTA to double app space, or adding a dedicated data partition for sensor logs.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- NVS KEY-VALUE STORE ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title"><span class="accent">NVS</span> -- Non-Volatile Storage</div>
+        <div class="slide-subtitle">A key-value store designed for small pieces of persistent data: settings, credentials, counters, and configuration.</div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">&lt;Preferences.h&gt;</span>
+
+<span class="fn">Preferences</span> prefs;
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    <span class="fn">Serial.begin</span>(<span class="nu">115200</span>);
+
+    <span class="cm">// Open namespace "config" in read-write mode</span>
+    prefs.<span class="fn">begin</span>(<span class="st">"config"</span>, <span class="kw">false</span>);
+
+    <span class="cm">// Read boot count (default 0 if not set)</span>
+    <span class="kw">int</span> boots = prefs.<span class="fn">getInt</span>(<span class="st">"bootCount"</span>, <span class="nu">0</span>);
+    boots++;
+    prefs.<span class="fn">putInt</span>(<span class="st">"bootCount"</span>, boots);
+
+    <span class="cm">// Store and retrieve a string</span>
+    prefs.<span class="fn">putString</span>(<span class="st">"deviceName"</span>, <span class="st">"Sensor-A1"</span>);
+    <span class="fn">String</span> name = prefs.<span class="fn">getString</span>(<span class="st">"deviceName"</span>, <span class="st">"Unknown"</span>);
+
+    <span class="fn">Serial.printf</span>(<span class="st">"Boot #%d | Device: %s\n"</span>, boots, name.<span class="fn">c_str</span>());
+
+    prefs.<span class="fn">end</span>();
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Preferences Library</div>
+                <div class="card-desc">The Arduino framework's <span class="ic">Preferences.h</span> is a wrapper around ESP-IDF's NVS API. It organizes data into namespaces (like folders). Each namespace can hold multiple key-value pairs. Supported types: Int, UInt, Long, Float, Double, Bool, String, Bytes.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">NVS vs RTC Memory</div>
+                <div class="card-desc">RTC memory (8KB, Core 10) survives deep sleep but is lost on power loss. NVS survives power loss and code uploads. Use RTC memory for fast-changing temporary state (boot count, WiFi cache) and NVS for permanent configuration (device name, calibration, credentials).</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Namespaces</div>
+            Namespaces prevent key collisions between different parts of your application. Use <span class="ic">prefs.begin("wifi")</span> for network settings and <span class="ic">prefs.begin("sensor")</span> for sensor config. The system WiFi library uses its own namespace internally, so your keys never conflict with stored WiFi credentials.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- SPIFFS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title"><span class="accent">SPIFFS</span> -- SPI Flash File System</div>
+        <div class="slide-subtitle">A flat file system for storing files on the ESP32's internal flash. No directories, but simple and reliable.</div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">&lt;SPIFFS.h&gt;</span>
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    <span class="fn">Serial.begin</span>(<span class="nu">115200</span>);
+
+    <span class="kw">if</span> (!<span class="fn">SPIFFS.begin</span>(<span class="kw">true</span>)) {  <span class="cm">// true = format on first use</span>
+        <span class="fn">Serial.println</span>(<span class="st">"SPIFFS mount failed"</span>);
+        <span class="kw">return</span>;
+    }
+
+    <span class="cm">// Write a file</span>
+    <span class="fn">File</span> f = <span class="fn">SPIFFS.open</span>(<span class="st">"/config.json"</span>, <span class="st">"w"</span>);
+    f.<span class="fn">println</span>(<span class="st">"{\"interval\": 300, \"unit\": \"C\"}"</span>);
+    f.<span class="fn">close</span>();
+
+    <span class="cm">// Read it back</span>
+    f = <span class="fn">SPIFFS.open</span>(<span class="st">"/config.json"</span>, <span class="st">"r"</span>);
+    <span class="fn">Serial.println</span>(f.<span class="fn">readString</span>());
+    f.<span class="fn">close</span>();
+
+    <span class="cm">// Check space</span>
+    <span class="fn">Serial.printf</span>(<span class="st">"Used: %d / Total: %d bytes\n"</span>,
+        <span class="fn">SPIFFS.usedBytes</span>(), <span class="fn">SPIFFS.totalBytes</span>());
+}</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Flat Structure</div>
+                <div class="card-desc">SPIFFS has no real directories. Paths like <span class="ic">/data/log.txt</span> are just file names that contain slashes. You cannot list files in a "directory" or create empty folders. All files exist in one flat namespace with slash-separated names.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Upload Tool</div>
+                <div class="card-desc">Arduino IDE has a SPIFFS upload plugin that packages a <span class="ic">data/</span> folder into a SPIFFS image and flashes it to the partition. This is how you pre-load HTML, CSS, JS, and config files for a web server without embedding them in code.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Deprecated Status</div>
+                <div class="card-desc">SPIFFS is no longer actively maintained by Espressif. It works but has known issues: no directory support, slow with many files, fragmentation over time. For new projects, LittleFS is the recommended replacement. Existing SPIFFS projects continue to work.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- SPIFFS vs LITTLEFS ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">SPIFFS vs <span class="accent">LittleFS</span></div>
+        <div class="slide-subtitle">LittleFS is the modern replacement for SPIFFS. Understanding when to use each is critical for new projects.</div>
+
+        <div class="code-compare">
+            <div>
+                <div class="code-panel-label" style="color:#f87171;">SPIFFS (Legacy)</div>
+                <div class="code-block"><span class="kw">#include</span> <span class="st">&lt;SPIFFS.h&gt;</span>
+
+<span class="fn">SPIFFS.begin</span>(<span class="kw">true</span>);
+<span class="fn">File</span> f = <span class="fn">SPIFFS.open</span>(<span class="st">"/log.txt"</span>, <span class="st">"w"</span>);
+f.<span class="fn">println</span>(<span class="st">"data"</span>);
+f.<span class="fn">close</span>();
+<span class="cm">// No real directories</span>
+<span class="cm">// Slower with many files</span>
+<span class="cm">// No longer maintained</span></div>
+            </div>
+            <div>
+                <div class="code-panel-label" style="color:#3ab577;">LittleFS (Recommended)</div>
+                <div class="code-block"><span class="kw">#include</span> <span class="st">&lt;LittleFS.h&gt;</span>
+
+<span class="fn">LittleFS.begin</span>(<span class="kw">true</span>);
+<span class="fn">LittleFS.mkdir</span>(<span class="st">"/logs"</span>);
+<span class="fn">File</span> f = <span class="fn">LittleFS.open</span>(<span class="st">"/logs/today.txt"</span>, <span class="st">"w"</span>);
+f.<span class="fn">println</span>(<span class="st">"data"</span>);
+f.<span class="fn">close</span>();
+<span class="cm">// Real directory support</span>
+<span class="cm">// Faster, less fragmentation</span></div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Use LittleFS When</div>
+                <div class="card-desc">Starting a new project, need real directories, storing many small files, need reliable power-loss recovery, need consistent performance over time. LittleFS uses a COW (copy-on-write) structure that prevents corruption on unexpected power loss.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Use SPIFFS When</div>
+                <div class="card-desc">Maintaining an existing SPIFFS-based project where migration is not worth the effort. The API is nearly identical -- switching usually means changing <span class="ic">SPIFFS</span> to <span class="ic">LittleFS</span> everywhere and reformatting the partition. Migration is straightforward but requires reflashing data.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">API Compatibility</div>
+            LittleFS and SPIFFS share the same <span class="ic">FS</span> base class. Code that uses <span class="ic">File</span>, <span class="ic">open()</span>, <span class="ic">read()</span>, <span class="ic">write()</span>, <span class="ic">close()</span> works identically on both. The only code change is the include and the mount call. Both use the same SPIFFS-type partition in the partition table.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- SD CARD VIA SPI ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">SD Card via <span class="accent">SPI</span></div>
+        <div class="slide-subtitle">When internal flash is not enough, attach an SD card for gigabytes of storage. Data logging, image capture, and offline buffering.</div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">&lt;SD.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;SPI.h&gt;</span>
+
+<span class="kw">#define</span> <span class="fn">SD_CS</span> <span class="nu">5</span>  <span class="cm">// Chip select pin</span>
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    <span class="fn">Serial.begin</span>(<span class="nu">115200</span>);
+
+    <span class="kw">if</span> (!<span class="fn">SD.begin</span>(<span class="fn">SD_CS</span>)) {
+        <span class="fn">Serial.println</span>(<span class="st">"SD card mount failed"</span>);
+        <span class="kw">return</span>;
+    }
+
+    <span class="cm">// Append sensor data to CSV log</span>
+    <span class="fn">File</span> log = <span class="fn">SD.open</span>(<span class="st">"/sensor_log.csv"</span>, <span class="fn">FILE_APPEND</span>);
+    <span class="kw">if</span> (log) {
+        log.<span class="fn">printf</span>(<span class="st">"%lu,%.2f,%.1f\n"</span>, <span class="fn">millis</span>(), <span class="nu">23.5</span>, <span class="nu">65.2</span>);
+        log.<span class="fn">close</span>();
+    }
+
+    <span class="fn">Serial.printf</span>(<span class="st">"SD Size: %lluMB\n"</span>, <span class="fn">SD.cardSize</span>() / (<span class="nu">1024</span> * <span class="nu">1024</span>));
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">SPI Wiring</div>
+                <div class="card-desc">SD card modules use SPI: MOSI (GPIO 23), MISO (GPIO 19), SCK (GPIO 18), CS (your choice, commonly GPIO 5). The SD library handles the FAT32 file system. Cards up to 32GB (SDHC) work reliably. SDXC (64GB+) may need formatting to FAT32.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Use Cases</div>
+                <div class="card-desc">Long-term data logging (months of sensor data), camera image storage (ESP32-CAM), audio recording, offline data buffering when WiFi is unavailable, firmware update files. The SD card can hold millions of log entries that would never fit in SPIFFS.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Power Consideration</div>
+            SD cards draw 50-100mA during writes. In battery-powered designs, power the SD card module through a GPIO-controlled MOSFET so you can cut power completely during deep sleep. Always call <span class="ic">file.close()</span> before sleeping to prevent data corruption.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- PREFERENCES LIBRARY ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">The <span class="accent">Preferences</span> Library</div>
+        <div class="slide-subtitle">Arduino framework's high-level wrapper around NVS. The easiest way to persistently store settings and configuration.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Supported Types</div>
+                <div class="card-desc"><span class="ic">putInt()</span> / <span class="ic">getInt()</span>, <span class="ic">putFloat()</span> / <span class="ic">getFloat()</span>, <span class="ic">putDouble()</span> / <span class="ic">getDouble()</span>, <span class="ic">putBool()</span> / <span class="ic">getBool()</span>, <span class="ic">putString()</span> / <span class="ic">getString()</span>, <span class="ic">putBytes()</span> / <span class="ic">getBytes()</span>. Each key can be up to 15 characters. Values have type-specific size limits.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Read-Only Mode</div>
+                <div class="card-desc">Open a namespace in read-only mode with <span class="ic">prefs.begin("config", true)</span>. This prevents accidental writes and is slightly faster. Use read-only mode when you only need to retrieve settings during startup without modifying them.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Clearing Data</div>
+                <div class="card-desc"><span class="ic">prefs.remove("key")</span> deletes a single key. <span class="ic">prefs.clear()</span> wipes the entire namespace. <span class="ic">prefs.end()</span> closes the namespace handle. Always call <span class="ic">end()</span> when done to free resources. Factory reset can call <span class="ic">clear()</span> on all namespaces.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Think of Preferences as a persistent dictionary that survives reboots, power loss, and code uploads. It is the ESP32 equivalent of writing settings to a config file on a PC, except the "file" is a wear-leveled key-value store in flash memory.
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Preferences vs File System</div>
+            Use Preferences/NVS for small, structured data: WiFi SSID, device ID, calibration values, feature flags (dozens of keys, each a few bytes). Use SPIFFS/LittleFS for large or unstructured data: HTML pages, JSON configs, sensor log files, certificate bundles (files ranging from KB to MB).
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- OTA UPDATES ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">OTA <span class="accent">Updates</span></div>
+        <div class="slide-subtitle">Over-The-Air firmware updates let you push new code to deployed ESP32 devices without physical access.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">ArduinoOTA</div>
+                <div class="card-desc">Built-in library for LAN-based OTA. The ESP32 advertises itself via mDNS, and Arduino IDE discovers it as a network port. Upload over WiFi instead of USB. Simple setup: <span class="ic">ArduinoOTA.begin()</span> in setup, <span class="ic">ArduinoOTA.handle()</span> in loop. Best for development.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">HTTP OTA</div>
+                <div class="card-desc">Pull firmware from a web server using <span class="ic">httpUpdate.update(url)</span>. The ESP32 downloads a .bin file, writes it to the inactive app partition, and reboots into the new firmware. Best for production deployments where devices check a server for updates.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Rollback Protection</div>
+                <div class="card-desc">The ESP32 bootloader supports automatic rollback. If new firmware crashes during boot (does not call <span class="ic">esp_ota_mark_app_valid()</span> within a timeout), the bootloader reverts to the previous working firmware. This prevents bricked devices from bad updates.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">&lt;ArduinoOTA.h&gt;</span>
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    <span class="fn">WiFi.begin</span>(<span class="st">"SSID"</span>, <span class="st">"password"</span>);
+    <span class="kw">while</span> (<span class="fn">WiFi.status</span>() != <span class="fn">WL_CONNECTED</span>) <span class="fn">delay</span>(<span class="nu">500</span>);
+
+    <span class="fn">ArduinoOTA.setHostname</span>(<span class="st">"esp32-sensor-01"</span>);
+    <span class="fn">ArduinoOTA.setPassword</span>(<span class="st">"ota-secret"</span>);
+    <span class="fn">ArduinoOTA.begin</span>();
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+    <span class="fn">ArduinoOTA.handle</span>();  <span class="cm">// Check for OTA updates</span>
+    <span class="cm">// ... your application code ...</span>
+}</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- OTA DUAL PARTITION ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Dual Partition <span class="accent">OTA Flow</span></div>
+        <div class="slide-subtitle">How the two app partitions work together to enable safe over-the-air updates.</div>
+
+        <div class="step-list">
+            <div class="step-row">
+                <span class="step-num">1</span>
+                <span class="step-text"><strong>Current firmware runs from app0.</strong> The ESP32 is operating normally, executing your application code from the first app partition. The second partition (app1) contains either the previous firmware or is empty.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">2</span>
+                <span class="step-text"><strong>OTA download writes to app1.</strong> New firmware is downloaded chunk by chunk and written to the inactive partition. The running firmware is not touched. If download fails or power is lost, app0 is still intact and the device keeps running.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">3</span>
+                <span class="step-text"><strong>Bootloader flag is set.</strong> After successful download and verification, the OTA library updates the otadata partition to tell the bootloader to boot from app1 on next restart.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">4</span>
+                <span class="step-text"><strong>ESP32 reboots into new firmware.</strong> The bootloader reads otadata and loads app1. If the new firmware calls <span class="ic">esp_ota_mark_app_valid()</span>, the update is confirmed. If it crashes, the bootloader falls back to app0.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">5</span>
+                <span class="step-text"><strong>Next OTA writes to app0.</strong> The roles reverse. Now app0 is the inactive partition. The next update downloads to app0, and the cycle continues. Each update alternates between partitions.</span>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Partition Scheme Selection</div>
+            In Arduino IDE, Tools &gt; Partition Scheme controls the layout. "Default" includes two app partitions for OTA. "No OTA" gives you one large app partition (1.3MB vs 640KB each). "Huge APP" maximizes code space but eliminates OTA capability. Choose based on whether your deployed devices need remote updates.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- READING AND WRITING FILES ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Reading and Writing <span class="accent">Files</span></div>
+        <div class="slide-subtitle">Practical patterns for file I/O on SPIFFS, LittleFS, and SD -- the API is the same across all three.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">File Modes</div>
+                <div class="card-desc"><span class="ic">"r"</span> read, <span class="ic">"w"</span> write (creates or overwrites), <span class="ic">"a"</span> append (creates or adds to end). Use <span class="ic">FILE_APPEND</span> constant for SD library. Always check the return value of <span class="ic">open()</span> -- it returns a falsy File object if the operation fails.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Listing Files</div>
+                <div class="card-desc">Use <span class="ic">File root = fs.open("/")</span> then <span class="ic">File f = root.openNextFile()</span> in a loop. Each File object has <span class="ic">name()</span>, <span class="ic">size()</span>, and <span class="ic">isDirectory()</span>. On LittleFS, directories work naturally. On SPIFFS, everything is a file.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">JSON Config Pattern</div>
+                <div class="card-desc">Store configuration as JSON files in SPIFFS/LittleFS. Use ArduinoJson to parse and serialize. Load config on boot, modify in memory, write back when settings change. This is cleaner than individual NVS keys for complex, nested configuration structures.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Always Close Files</div>
+                <div class="card-desc">Unclosed files can cause data loss and memory leaks. Call <span class="ic">file.close()</span> after every read or write operation. If you forget, data may remain in buffers and never be flushed to flash. This is especially critical before entering deep sleep or resetting.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Space Management</div>
+                <div class="card-desc">Check available space with <span class="ic">fs.totalBytes()</span> and <span class="ic">fs.usedBytes()</span>. For data loggers, implement log rotation: when the file exceeds a size limit, rename it to a backup and start a new file. Delete the oldest backup when space runs low.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Binary Files</div>
+                <div class="card-desc">Use <span class="ic">file.read(buffer, length)</span> and <span class="ic">file.write(buffer, length)</span> for binary data. This is how you store raw sensor readings, images from ESP32-CAM, or pre-compiled data structures. Binary files are more compact than text/CSV formats.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- SUMMARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Core 11 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Everything you need to remember from this presentation.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Flash is partitioned.</strong> The 4MB flash is divided into NVS, app (x2 for OTA), and file system partitions. The partition table at 0x8000 maps the layout. Custom partition tables let you resize based on your needs.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>NVS is for key-value settings.</strong> Use the <code>Preferences</code> library to store WiFi credentials, device names, calibration values, and counters. Data survives reboots, power loss, and code uploads. Organized by namespaces.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>LittleFS replaces SPIFFS.</strong> Both provide file system access on internal flash. LittleFS adds real directory support, better performance, and power-loss resilience. The API is nearly identical -- swap the include and mount call to migrate.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>SD cards extend storage.</strong> Connect via SPI for gigabytes of FAT32 storage. Essential for data logging, image capture, and offline buffering. Power them down via MOSFET during deep sleep to save battery.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>OTA enables remote updates.</strong> Dual app partitions allow safe firmware updates. ArduinoOTA for development, HTTP OTA for production. Automatic rollback prevents bricked devices. Choose your partition scheme based on whether OTA is needed.</span></div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Core 12 -- Security</strong> &nbsp;|&nbsp; Secure Boot, Flash Encryption, HTTPS, MQTT/TLS, WiFi Enterprise, Encrypted NVS
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; ProtoCore</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* Slide navigation state */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    /* Module completion via ModuleProgress component */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-esp-11-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>

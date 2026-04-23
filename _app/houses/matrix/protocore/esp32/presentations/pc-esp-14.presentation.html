@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Peripherals -- MCPWM, RMT, I2S | ProtoCore ESP32 Core 14</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #040810 0%, #081020 50%, #0a0c1a 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Electric blue progress bar */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #0088ff; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(4, 8, 16, 0.95);
+            border-top: 1px solid rgba(0, 136, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(0, 136, 255, 0.15); color: #0088ff; border-color: #0088ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #0088ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ffd700; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip */
+        .scenario-strip {
+            background: rgba(0, 136, 255, 0.08); border-left: 3px solid #0088ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(0, 136, 255, 0.08); border: 1px solid rgba(0, 136, 255, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ffd700; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #0088ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #ffd700; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #0088ff; }
+
+        /* Section label */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #0088ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Inline code */
+        .ic {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* SVG diagram containers */
+        .diagram-row {
+            display: flex; gap: 16px; align-items: center; justify-content: center;
+        }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        /* Step-by-step flow list */
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(0, 136, 255, 0.12); border: 1px solid rgba(0, 136, 255, 0.4);
+            color: #0088ff; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        /* Code block */
+        .code-block {
+            background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #ffd700; line-height: 1.6; white-space: pre;
+        }
+        .code-block .cm { color: #64748b; }
+        .code-block .kw { color: #5cb8ff; }
+        .code-block .fn { color: #ffd700; }
+        .code-block .st { color: #86efac; }
+        .code-block .nu { color: #fdba74; }
+
+        /* Two-column code compare */
+        .code-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .code-panel-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.07em; margin-bottom: 5px; }
+
+        /* Hex grid cells */
+        .hex-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(0, 136, 255, 0.25);
+            border-radius: 8px; padding: 12px 14px;
+            text-align: center;
+            opacity: 0;
+            animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #0088ff; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        /* Shared animation keyframes */
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes flow {
+            0%   { stroke-dashoffset: 20; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes glowPulse {
+            0%, 100% { filter: drop-shadow(0 0 4px rgba(0,136,255,0.3)); }
+            50%       { filter: drop-shadow(0 0 14px rgba(0,136,255,0.9)); }
+        }
+        @keyframes dataFlow {
+            0%   { stroke-dashoffset: 14; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes motorSpin {
+            0%   { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .code-compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">ESP32 Peripherals -- MCPWM, RMT, I2S -- ProtoCore ESP32 Core 14</h1>
+
+<!-- Electric blue progress bar -->
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; ProtoCore &nbsp;|&nbsp; ESP32 &nbsp;|&nbsp; Core 14</div>
+        <div class="title-hero">
+            <!-- Peripherals SVG -->
+            <svg width="360" height="140" viewBox="0 0 360 140" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central chip -->
+                <rect x="130" y="30" width="100" height="80" rx="8" fill="rgba(0,136,255,0.1)" stroke="#0088ff" stroke-width="2"
+                    style="animation: glowPulse 2.5s ease-in-out infinite;"/>
+                <text x="180" y="55" text-anchor="middle" font-size="10" fill="#0088ff" font-weight="800" font-family="Segoe UI,sans-serif">ESP32</text>
+                <text x="180" y="70" text-anchor="middle" font-size="7" fill="#5cb8ff" font-family="Segoe UI,sans-serif">Hardware</text>
+                <text x="180" y="82" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Peripherals</text>
+                <!-- MCPWM left -->
+                <rect x="20" y="20" width="70" height="35" rx="5" fill="rgba(255,215,0,0.08)" stroke="#ffd700" stroke-width="1"/>
+                <text x="55" y="35" text-anchor="middle" font-size="7" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">MCPWM</text>
+                <text x="55" y="47" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">Motor Control</text>
+                <line x1="90" y1="38" x2="125" y2="50" stroke="rgba(255,215,0,0.3)" stroke-width="1.5"/>
+                <!-- RMT right -->
+                <rect x="270" y="20" width="70" height="35" rx="5" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1"/>
+                <text x="305" y="35" text-anchor="middle" font-size="7" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">RMT</text>
+                <text x="305" y="47" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">NeoPixel / IR</text>
+                <line x1="270" y1="38" x2="235" y2="50" stroke="rgba(58,181,119,0.3)" stroke-width="1.5"/>
+                <!-- I2S bottom left -->
+                <rect x="20" y="85" width="70" height="35" rx="5" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1"/>
+                <text x="55" y="100" text-anchor="middle" font-size="7" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">I2S</text>
+                <text x="55" y="112" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">Digital Audio</text>
+                <line x1="90" y1="102" x2="125" y2="90" stroke="rgba(167,139,250,0.3)" stroke-width="1.5"/>
+                <!-- PCNT bottom right -->
+                <rect x="270" y="85" width="70" height="35" rx="5" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1"/>
+                <text x="305" y="100" text-anchor="middle" font-size="7" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">PCNT</text>
+                <text x="305" y="112" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">Pulse Counter</text>
+                <line x1="270" y1="102" x2="235" y2="90" stroke="rgba(6,182,212,0.3)" stroke-width="1.5"/>
+            </svg>
+            <div class="big-title">
+                ESP32 <span class="accent">Peripherals</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                MCPWM &nbsp;|&nbsp; RMT &nbsp;|&nbsp; I2S &nbsp;|&nbsp; PCNT &nbsp;|&nbsp; SDMMC &nbsp;|&nbsp; LED PWM vs MCPWM
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Arduino gives you analogWrite() and that is about it. The ESP32 has dedicated hardware peripherals that handle motor control, LED strip timing, audio streaming, and pulse counting entirely in hardware -- zero CPU load. These are not software abstractions. These are silicon circuits on the chip that Arduino boards simply do not have.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>ProtoCore ESP32</span>
+            <span>Core 14</span>
+            <span>Matrix House</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- MCPWM OVERVIEW ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title"><span class="accent">MCPWM</span> -- Motor Control PWM</div>
+        <div class="slide-subtitle">A dedicated hardware peripheral for generating precise PWM signals with dead-time insertion, fault detection, and synchronized outputs.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Not Just Another PWM</div>
+                <div class="card-desc">Arduino's <span class="ic">analogWrite()</span> generates a basic PWM signal using software timers. MCPWM is a dedicated silicon block with its own clock, comparators, and fault pins. It generates complementary PWM pairs, inserts dead-time between transitions, and shuts down automatically on fault -- all in hardware.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Two MCPWM Units</div>
+                <div class="card-desc">The ESP32 has 2 MCPWM units, each with 3 operators and 2 comparators per operator. That is 6 independent PWM output pairs. Each pair can generate complementary signals (PWMxA and PWMxB) for driving H-bridge motor controllers. More than enough for a dual-motor robot or a 3-phase BLDC motor.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Fault Handling</div>
+                <div class="card-desc">Each MCPWM unit has hardware fault input pins. When a fault signal is detected (overcurrent, overtemperature), the PWM outputs immediately force to a safe state -- both LOW, both HIGH, or tri-state. This happens in nanoseconds, faster than any software interrupt could react. Critical for motor safety.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Why Motors Need Dedicated PWM Hardware</div>
+            When driving motors through an H-bridge, both the high-side and low-side transistors must never be ON simultaneously -- that creates a shoot-through short circuit that destroys the bridge. Dead-time insertion adds a brief gap (100-500ns) between turning one transistor off and the other on. Software PWM cannot guarantee this timing. MCPWM handles it in hardware with configurable dead-time registers.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- MCPWM CODE ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">MCPWM in <span class="accent">Code</span></div>
+        <div class="slide-subtitle">Configuring MCPWM for DC motor speed and direction control via ESP-IDF API.</div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">"driver/mcpwm_prelude.h"</span>
+
+<span class="cm">// 1. Create timer</span>
+mcpwm_timer_handle_t timer;
+mcpwm_timer_config_t timer_cfg = {
+    .group_id = <span class="nu">0</span>,
+    .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
+    .resolution_hz = <span class="nu">10000000</span>,  <span class="cm">// 10MHz resolution</span>
+    .period_ticks = <span class="nu">10000</span>,      <span class="cm">// 1kHz PWM frequency</span>
+    .count_mode = MCPWM_TIMER_COUNT_MODE_UP,
+};
+<span class="fn">mcpwm_new_timer</span>(&amp;timer_cfg, &amp;timer);
+
+<span class="cm">// 2. Create operator and comparator</span>
+mcpwm_oper_handle_t oper;
+<span class="fn">mcpwm_new_operator</span>(&amp;(mcpwm_operator_config_t){.group_id = <span class="nu">0</span>}, &amp;oper);
+<span class="fn">mcpwm_operator_connect_timer</span>(oper, timer);
+
+<span class="cm">// 3. Set duty cycle (0-10000 ticks = 0-100%)</span>
+<span class="fn">mcpwm_comparator_set_compare_value</span>(comparator, <span class="nu">5000</span>);  <span class="cm">// 50% duty</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">Timer, Operator, Comparator</div>
+                <div class="card-desc">MCPWM uses a three-layer hierarchy. The <strong>timer</strong> generates the base frequency. The <strong>operator</strong> manages a PWM output pair. The <strong>comparator</strong> sets the duty cycle by defining when the output transitions within each period. This separation allows multiple operators to share one timer for synchronized multi-channel output.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">ESP-IDF vs Arduino</div>
+                <div class="card-desc">MCPWM is an ESP-IDF API -- there is no Arduino wrapper. You include <span class="ic">driver/mcpwm_prelude.h</span> and use ESP-IDF functions directly inside your Arduino sketch. This is common for ESP32-specific peripherals. The Arduino framework and ESP-IDF coexist in the same project.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Dead-Time Configuration</div>
+            Add dead-time with <span class="ic">mcpwm_dead_time_config_t</span>. Set <span class="ic">.posedge_delay_ticks</span> and <span class="ic">.negedge_delay_ticks</span> independently. At 10MHz timer resolution, each tick is 100ns. A dead-time of 5 ticks = 500ns -- a safe margin for most MOSFET H-bridge drivers. The dead-time is enforced by hardware regardless of CPU load, interrupt latency, or WiFi activity.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- RMT PERIPHERAL ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title"><span class="accent">RMT</span> -- Remote Control Transceiver</div>
+        <div class="slide-subtitle">Originally designed for infrared remote control signals, but its real superpower is driving addressable LEDs.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">NeoPixel / WS2812B Driver</div>
+                <div class="card-desc">WS2812B LEDs require precisely timed pulses: 0.4us HIGH + 0.85us LOW for a '0' bit, 0.8us HIGH + 0.45us LOW for a '1' bit. On Arduino, this is done by disabling interrupts and bit-banging. On ESP32, that fails because WiFi interrupts corrupt the timing. RMT generates the pulses in hardware -- perfect timing, zero CPU involvement, WiFi keeps running.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">IR Transmit and Receive</div>
+                <div class="card-desc">RMT's original purpose. Record incoming IR pulse trains (carrier frequency, mark/space timings) and replay them. Build a universal remote, clone an IR signal, or create an IR-controlled device. The RMT peripheral handles 38kHz carrier modulation in hardware. No timing-critical loops needed.</div>
+            </div>
+        </div>
+
+        <div class="diagram-center">
+            <svg width="500" height="90" viewBox="0 0 500 90" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- RMT block -->
+                <rect x="10" y="20" width="90" height="50" rx="6" fill="rgba(0,136,255,0.1)" stroke="#0088ff" stroke-width="1.5"/>
+                <text x="55" y="42" text-anchor="middle" font-size="8" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">RMT Channel</text>
+                <text x="55" y="55" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Hardware Timer</text>
+                <!-- Signal line -->
+                <polyline points="110,45 130,45 130,25 145,25 145,45 155,45 155,25 175,25 175,45 185,45 185,25 195,25 195,45 220,45"
+                    stroke="#3ab577" stroke-width="2" fill="none"/>
+                <text x="165" y="72" text-anchor="middle" font-size="7" fill="#3ab577" font-family="Segoe UI,sans-serif">Precisely timed pulses</text>
+                <!-- NeoPixel chain -->
+                <circle cx="260" cy="45" r="12" fill="rgba(239,68,68,0.2)" stroke="#ef4444" stroke-width="1.5"/>
+                <circle cx="300" cy="45" r="12" fill="rgba(58,181,119,0.2)" stroke="#3ab577" stroke-width="1.5"/>
+                <circle cx="340" cy="45" r="12" fill="rgba(0,136,255,0.2)" stroke="#0088ff" stroke-width="1.5"/>
+                <circle cx="380" cy="45" r="12" fill="rgba(255,215,0,0.2)" stroke="#ffd700" stroke-width="1.5"/>
+                <line x1="225" y1="45" x2="248" y2="45" stroke="rgba(255,215,0,0.4)" stroke-width="1.5"/>
+                <line x1="272" y1="45" x2="288" y2="45" stroke="rgba(255,215,0,0.3)" stroke-width="1"/>
+                <line x1="312" y1="45" x2="328" y2="45" stroke="rgba(255,215,0,0.3)" stroke-width="1"/>
+                <line x1="352" y1="45" x2="368" y2="45" stroke="rgba(255,215,0,0.3)" stroke-width="1"/>
+                <text x="320" y="72" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">WS2812B LED chain (data cascades)</text>
+            </svg>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">8 RMT Channels</div>
+            The ESP32 has 8 RMT channels (4 TX, 4 RX on newer ESP-IDF). Each channel can independently drive a NeoPixel strip, decode an IR signal, or generate any arbitrary pulse pattern. You can run 4 independent LED strips simultaneously without any CPU overhead. Each channel has its own 256-word memory block for storing pulse definitions.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- RMT NEOPIXEL CODE ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">RMT <span class="accent">NeoPixel</span> Code</div>
+        <div class="slide-subtitle">Driving WS2812B addressable LEDs using ESP-IDF's RMT driver. No bit-banging, no interrupt conflicts.</div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">"led_strip.h"</span>  <span class="cm">// ESP-IDF LED strip component</span>
+
+<span class="kw">#define</span> <span class="fn">LED_PIN</span>    <span class="nu">48</span>
+<span class="kw">#define</span> <span class="fn">NUM_LEDS</span>   <span class="nu">30</span>
+
+led_strip_handle_t strip;
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    led_strip_config_t strip_cfg = {
+        .strip_gpio_num = LED_PIN,
+        .max_leds = NUM_LEDS,
+    };
+    led_strip_rmt_config_t rmt_cfg = {
+        .resolution_hz = <span class="nu">10000000</span>,  <span class="cm">// 10MHz</span>
+    };
+    <span class="fn">led_strip_new_rmt_device</span>(&amp;strip_cfg, &amp;rmt_cfg, &amp;strip);
+    <span class="fn">led_strip_clear</span>(strip);
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nu">0</span>; i &lt; NUM_LEDS; i++) {
+        <span class="fn">led_strip_set_pixel</span>(strip, i, <span class="nu">0</span>, <span class="nu">0</span>, <span class="nu">255</span>);  <span class="cm">// Blue</span>
+    }
+    <span class="fn">led_strip_refresh</span>(strip);  <span class="cm">// Push to LEDs via RMT</span>
+    <span class="fn">delay</span>(<span class="nu">100</span>);
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">FastLED Alternative</div>
+                <div class="card-desc">The popular FastLED library also uses RMT on ESP32 automatically. Install FastLED from Library Manager and it detects ESP32 at compile time, routing all LED data through RMT channels instead of bit-banging. Same API as Arduino, but backed by hardware timing. If you already know FastLED, it just works on ESP32.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">NeoPixelBus Library</div>
+                <div class="card-desc">Another option that explicitly exposes RMT channel selection. <span class="ic">NeoPixelBus&lt;NeoGrbFeature, NeoEsp32RmtNWs2812xMethod&gt;</span> lets you specify which RMT channel to use. Useful when you need fine-grained control over channel allocation, especially when mixing LED strips with IR receivers.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Arduino's analogWrite() Cannot Do This</div>
+            NeoPixel timing requires sub-microsecond precision on a single data line. This is not PWM -- it is a custom serial protocol where the pulse width encodes each bit. Arduino disables interrupts during transmission to guarantee timing. On ESP32, WiFi interrupts fire every few milliseconds and cannot be disabled without breaking connectivity. RMT solves this by generating the pulse train entirely in dedicated hardware, independent of the CPU and its interrupts.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- I2S PERIPHERAL ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title"><span class="accent">I2S</span> -- Inter-IC Sound</div>
+        <div class="slide-subtitle">A hardware peripheral for streaming digital audio data at high speed. Input (microphones) and output (speakers/DACs).</div>
+
+        <div class="hex-grid">
+            <div class="hex-cell">
+                <div class="hex-title">PDM Microphones</div>
+                <div class="hex-desc">INMP441, SPH0645. Digital MEMS microphones that output audio as a Pulse Density Modulation stream. I2S decodes it to PCM samples in hardware. No ADC needed. Studio-quality audio capture from a $2 chip.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">DAC Audio Output</div>
+                <div class="hex-desc">Stream PCM audio samples to an external I2S DAC (MAX98357A, PCM5102) for high-quality speaker output. Or use the ESP32's built-in 8-bit DAC for simple audio playback. The I2S peripheral handles the continuous data stream without CPU intervention.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Two I2S Ports</div>
+                <div class="hex-desc">The ESP32 has 2 independent I2S interfaces (I2S0 and I2S1). Run a microphone on I2S0 and a speaker on I2S1 simultaneously for real-time audio processing, voice recording, or intercom systems.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">DMA Buffering</div>
+                <div class="hex-desc">I2S uses DMA to stream audio data between memory and the peripheral. You configure a ring buffer of DMA descriptors. The hardware cycles through them continuously, reading or writing audio samples without any CPU involvement.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Sample Rates</div>
+                <div class="hex-desc">I2S supports 8kHz to 48kHz (and beyond) at 16-bit or 32-bit depth. Phone quality is 8kHz/16-bit. CD quality is 44.1kHz/16-bit. The ESP32 handles CD-quality audio in both directions simultaneously.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Beyond Audio</div>
+                <div class="hex-desc">I2S is just a high-speed serial interface. People use it for driving LED matrices (parallel output mode), reading camera sensors, and any application that needs a continuous, clocked data stream. The LCD_CAM peripheral on ESP32-S3 evolved from I2S.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Arduino Cannot Do Audio Streaming</div>
+            The Arduino Uno has no I2S peripheral. Playing audio on Arduino means using <span class="ic">tone()</span> for square waves or hacking the PWM timer for crude 8-bit playback. The ESP32's I2S peripheral streams 16-bit stereo audio at 44.1kHz through DMA with zero CPU load. This is a fundamentally different capability, not just a speed improvement.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- I2S CODE ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">I2S <span class="accent">Microphone</span> Recording</div>
+        <div class="slide-subtitle">Capturing audio from an INMP441 PDM microphone using the ESP32's I2S peripheral.</div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">"driver/i2s_std.h"</span>
+
+i2s_chan_handle_t rx_chan;
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    i2s_chan_config_t chan_cfg = <span class="fn">I2S_CHANNEL_DEFAULT_CONFIG</span>(I2S_NUM_0, I2S_ROLE_MASTER);
+    <span class="fn">i2s_new_channel</span>(&amp;chan_cfg, <span class="kw">NULL</span>, &amp;rx_chan);
+
+    i2s_std_config_t std_cfg = {
+        .clk_cfg = <span class="fn">I2S_STD_CLK_DEFAULT_CONFIG</span>(<span class="nu">16000</span>),  <span class="cm">// 16kHz sample rate</span>
+        .slot_cfg = <span class="fn">I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG</span>(
+            I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_MONO),
+        .gpio_cfg = {
+            .bclk = GPIO_NUM_26,
+            .ws   = GPIO_NUM_25,
+            .din  = GPIO_NUM_33,
+        },
+    };
+    <span class="fn">i2s_channel_init_std_mode</span>(rx_chan, &amp;std_cfg);
+    <span class="fn">i2s_channel_enable</span>(rx_chan);
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+    <span class="kw">int16_t</span> samples[<span class="nu">512</span>];
+    <span class="kw">size_t</span> bytes_read;
+    <span class="fn">i2s_channel_read</span>(rx_chan, samples, <span class="kw">sizeof</span>(samples), &amp;bytes_read, portMAX_DELAY);
+    <span class="cm">// Process 512 audio samples here</span>
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">INMP441 Wiring</div>
+                <div class="card-desc">INMP441 needs 4 wires: <span class="ic">WS</span> (word select / left-right clock), <span class="ic">SCK</span> (bit clock), <span class="ic">SD</span> (serial data), and <span class="ic">L/R</span> (tie to GND for left channel or VCC for right). No analog amplifier needed -- the microphone outputs digital audio directly.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Audio Processing</div>
+                <div class="card-desc">Once you have the sample buffer, you can calculate volume (RMS), detect frequency (FFT), apply filters, or stream to a server. The ESP32-S3 with vector instructions can perform real-time FFT at 16kHz. For the classic ESP32, the <span class="ic">arduinoFFT</span> library handles spectrum analysis.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- PCNT PERIPHERAL ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title"><span class="accent">PCNT</span> -- Pulse Counter</div>
+        <div class="slide-subtitle">Hardware pulse counting at up to 40MHz. Rotary encoders, frequency measurement, and RPM sensing without CPU involvement.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">Rotary Encoder Decoding</div>
+                <div class="card-desc">A quadrature encoder outputs two square waves (A and B) 90 degrees apart. Counting pulses on A while checking B's level determines direction. On Arduino, this requires interrupts that fire thousands of times per second. PCNT does it in hardware -- count and direction at any speed, zero CPU load. The counter updates in silicon.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">8 PCNT Units</div>
+                <div class="card-desc">The ESP32 has 8 independent PCNT units, each with 2 channels. Each channel has a signal input and a control input. The control input determines count direction. Configure edge detection (rising, falling, both), count limits, and watchpoint interrupts. Read the counter value at any time -- it is a hardware register.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">"driver/pulse_cnt.h"</span>
+
+pcnt_unit_handle_t pcnt_unit;
+pcnt_unit_config_t unit_cfg = {
+    .high_limit = <span class="nu">1000</span>,
+    .low_limit = -<span class="nu">1000</span>,
+};
+<span class="fn">pcnt_new_unit</span>(&amp;unit_cfg, &amp;pcnt_unit);
+
+pcnt_chan_config_t chan_cfg = {
+    .edge_gpio_num = <span class="nu">34</span>,    <span class="cm">// Encoder A</span>
+    .level_gpio_num = <span class="nu">35</span>,   <span class="cm">// Encoder B (direction)</span>
+};
+pcnt_channel_handle_t chan;
+<span class="fn">pcnt_new_channel</span>(pcnt_unit, &amp;chan_cfg, &amp;chan);
+
+<span class="cm">// Read count value</span>
+<span class="kw">int</span> count;
+<span class="fn">pcnt_unit_get_count</span>(pcnt_unit, &amp;count);</div>
+
+        <div class="box box-blue">
+            <div class="box-label">Why Not Use Interrupts?</div>
+            Software interrupts on Arduino work for slow encoders (manual knobs). But a motor encoder at 10,000 RPM with 1,000 pulses per revolution generates 166,667 interrupts per second. Each interrupt takes microseconds to service. At high speeds, the CPU spends all its time in interrupt handlers and your main loop never runs. PCNT counts at 40MHz in hardware -- the CPU just reads a register when it needs the current position.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- SDMMC INTERFACE ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title"><span class="accent">SDMMC</span> -- Native SD Card</div>
+        <div class="slide-subtitle">The ESP32 has a dedicated SD/MMC host controller that reads SD cards 4-10x faster than SPI mode.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">SPI Mode (Slow)</div>
+                <div class="card-desc">Arduino SD libraries use SPI mode: one data line, shared bus, limited speed. Typical throughput: 1-4 MB/s. Uses standard SPI pins. Simple wiring (4 wires). Good enough for logging sensor data at low rates. This is what most Arduino projects use.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">1-Bit SD Mode</div>
+                <div class="card-desc">SDMMC in 1-bit mode uses the native SD protocol with one data line. Faster than SPI mode due to the dedicated SD protocol (no SPI overhead). Typical throughput: 5-10 MB/s. Uses GPIO 15 (CMD), GPIO 14 (CLK), GPIO 2 (DATA0). Conflicts with the built-in LED on GPIO 2.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">4-Bit SD Mode</div>
+                <div class="card-desc">Full 4-bit SDMMC bus: 4 data lines, clock, and command. Typical throughput: 10-20 MB/s. Uses GPIO 2, 4, 12, 13 for data. GPIO 12 conflict with flash voltage selection requires special handling. Maximum SD card performance on ESP32.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">"SD_MMC.h"</span>
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    <span class="fn">Serial.begin</span>(<span class="nu">115200</span>);
+
+    <span class="cm">// Mount SD card in 1-bit mode (fewer GPIO conflicts)</span>
+    <span class="kw">if</span> (!<span class="fn">SD_MMC.begin</span>(<span class="st">"/sdcard"</span>, <span class="kw">true</span>)) {  <span class="cm">// true = 1-bit mode</span>
+        <span class="fn">Serial.println</span>(<span class="st">"SD mount failed"</span>);
+        <span class="kw">return</span>;
+    }
+    <span class="fn">Serial.printf</span>(<span class="st">"Card size: %lluMB\n"</span>, SD_MMC.<span class="fn">cardSize</span>() / (<span class="nu">1024</span> * <span class="nu">1024</span>));
+}</div>
+
+        <div class="box box-cyan">
+            <div class="box-label">When to Use SDMMC vs SPI SD</div>
+            Use SPI SD when you just need to log sensor data or serve small files. Use SDMMC when you are recording audio (I2S microphone to SD), capturing images (camera module), or serving large files from a web server. The 4-10x speed difference matters when you are writing continuous audio at 44.1kHz/16-bit (176KB/s) or streaming JPEG frames.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- LED PWM vs MCPWM ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">LED PWM vs <span class="accent">MCPWM</span></div>
+        <div class="slide-subtitle">The ESP32 has two separate PWM systems. They serve different purposes. Using the wrong one wastes hardware capabilities.</div>
+
+        <div class="code-compare">
+            <div>
+                <div class="code-panel-label" style="color: #0088ff;">LED PWM (LEDC) -- For LEDs and Servos</div>
+                <div class="code-block"><span class="cm">// 16 independent channels</span>
+<span class="cm">// Up to 40MHz frequency</span>
+<span class="cm">// Up to 20-bit resolution</span>
+<span class="cm">// Hardware fade (smooth dimming)</span>
+<span class="cm">// No dead-time, no fault pins</span>
+
+<span class="fn">ledcSetup</span>(<span class="nu">0</span>, <span class="nu">5000</span>, <span class="nu">8</span>);  <span class="cm">// ch0, 5kHz, 8-bit</span>
+<span class="fn">ledcAttachPin</span>(<span class="nu">2</span>, <span class="nu">0</span>);       <span class="cm">// GPIO 2 to ch0</span>
+<span class="fn">ledcWrite</span>(<span class="nu">0</span>, <span class="nu">128</span>);         <span class="cm">// 50% duty</span>
+
+<span class="cm">// Hardware fade (no loop needed)</span>
+<span class="fn">ledcFade</span>(<span class="nu">0</span>, <span class="nu">0</span>, <span class="nu">255</span>, <span class="nu">2000</span>); <span class="cm">// 0-255 in 2s</span></div>
+            </div>
+            <div>
+                <div class="code-panel-label" style="color: #ffd700;">MCPWM -- For Motors and Power</div>
+                <div class="code-block"><span class="cm">// 2 units x 3 operators = 6 pairs</span>
+<span class="cm">// Complementary output (A + B)</span>
+<span class="cm">// Dead-time insertion</span>
+<span class="cm">// Hardware fault detection</span>
+<span class="cm">// Synchronized multi-channel</span>
+
+<span class="cm">// Use for:</span>
+<span class="cm">// - DC motor H-bridge control</span>
+<span class="cm">// - BLDC motor 3-phase drive</span>
+<span class="cm">// - Power converter switching</span>
+<span class="cm">// - Any application where</span>
+<span class="cm">//   shoot-through protection matters</span></div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Use LEDC For</div>
+                <div class="card-desc">LED brightness control, servo motors (50Hz PWM), buzzer tones, simple speed control with single-direction motor drivers (L298N enable pin), backlight dimming. 16 channels means you can independently control 16 LEDs or servos. Hardware fade generates smooth dimming without a loop.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Use MCPWM For</div>
+                <div class="card-desc">H-bridge motor control, BLDC motor driving, half-bridge and full-bridge power converters, any application requiring complementary PWM signals with dead-time protection. MCPWM's fault input pins provide hardware-level safety shutoff that LEDC does not have.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- PERIPHERAL MAP ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">ESP32 <span class="accent">Peripheral Map</span></div>
+        <div class="slide-subtitle">All the dedicated hardware peripherals that separate the ESP32 from Arduino. Every one of these runs independently of the CPU.</div>
+
+        <div class="hex-grid">
+            <div class="hex-cell">
+                <div class="hex-title">MCPWM x2</div>
+                <div class="hex-desc">Motor control PWM with dead-time, fault pins, and complementary outputs. 6 output pairs total. Not available on any Arduino board.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">RMT x8</div>
+                <div class="hex-desc">Remote Control Transceiver. Generates and captures precise pulse trains. NeoPixels, IR, and custom protocols. 8 channels, 4 TX + 4 RX.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">I2S x2</div>
+                <div class="hex-desc">Digital audio interface. Stream PCM audio in/out via DMA. Microphones, DACs, speakers. Two independent ports for full duplex.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">PCNT x8</div>
+                <div class="hex-desc">Hardware pulse counter. Quadrature encoder decoding, frequency measurement, RPM sensing. 8 units, each with 2 channels.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">SDMMC x1</div>
+                <div class="hex-desc">Native SD card host controller. 1-bit or 4-bit bus mode. 10-20 MB/s throughput. Dedicated silicon, not SPI emulation.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">LEDC x16</div>
+                <div class="hex-desc">LED PWM controller. 16 independent channels with hardware fade. Up to 20-bit resolution. For LEDs, servos, and simple PWM output.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">The GPIO Matrix Enables Everything</div>
+            Unlike Arduino where each peripheral is hard-wired to specific pins, the ESP32's GPIO matrix lets you route any peripheral to (almost) any GPIO pin. MCPWM channel 0 can output on GPIO 15 or GPIO 25 -- you choose. RMT channel 3 can use any available GPIO. This flexibility means you design your PCB first, then assign peripherals to pins in software. The only exceptions are ADC, DAC, and a few strapping pins.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- SUMMARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Core 14 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Everything you need to remember from this presentation.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>MCPWM is dedicated motor control hardware.</strong> Complementary PWM outputs, dead-time insertion, and hardware fault detection. Two units with 6 output pairs. Use it for H-bridge and BLDC motor control where shoot-through protection is critical. LEDC is for LEDs and servos.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>RMT generates and captures precision pulse trains in hardware.</strong> Originally for IR remote signals, but its killer application is driving WS2812B NeoPixel LEDs without disabling interrupts. 8 channels, zero CPU load, WiFi keeps running.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>I2S streams digital audio through DMA.</strong> Two independent ports for microphones (INMP441) and speakers (MAX98357A) simultaneously. Supports 8kHz to 48kHz at 16 or 32-bit depth. CD-quality audio on a $5 chip.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>PCNT counts pulses in hardware at up to 40MHz.</strong> Quadrature encoder decoding without interrupts. 8 units, each with 2 channels. Read the counter register anytime -- the count never misses a pulse regardless of CPU load.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>SDMMC provides native SD card access 4-10x faster than SPI.</strong> Use 1-bit mode to avoid GPIO 12 conflicts. Essential for audio recording, image capture, and high-throughput data logging applications.</span></div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Core 15 -- Advanced Networking</strong> &nbsp;|&nbsp; Promiscuous Mode, Packet Capture, Captive Portals, mDNS
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; ProtoCore</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* Slide navigation state */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    /* Module completion via ModuleProgress component */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-esp-14-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>

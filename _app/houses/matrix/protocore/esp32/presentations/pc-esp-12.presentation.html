@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security | ProtoCore ESP32 Core 12</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #040810 0%, #081020 50%, #0a0c1a 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Electric blue progress bar */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #0088ff; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(4, 8, 16, 0.95);
+            border-top: 1px solid rgba(0, 136, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(0, 136, 255, 0.15); color: #0088ff; border-color: #0088ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #0088ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ffd700; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip */
+        .scenario-strip {
+            background: rgba(0, 136, 255, 0.08); border-left: 3px solid #0088ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(0, 136, 255, 0.08); border: 1px solid rgba(0, 136, 255, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ffd700; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #0088ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #ffd700; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #0088ff; }
+
+        /* Section label */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #0088ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Inline code */
+        .ic {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* SVG diagram containers */
+        .diagram-row {
+            display: flex; gap: 16px; align-items: center; justify-content: center;
+        }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        /* Step-by-step flow list */
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(0, 136, 255, 0.12); border: 1px solid rgba(0, 136, 255, 0.4);
+            color: #0088ff; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        /* Code block */
+        .code-block {
+            background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #ffd700; line-height: 1.6; white-space: pre;
+        }
+        .code-block .cm { color: #64748b; }
+        .code-block .kw { color: #5cb8ff; }
+        .code-block .fn { color: #ffd700; }
+        .code-block .st { color: #86efac; }
+        .code-block .nu { color: #fdba74; }
+
+        /* Two-column code compare */
+        .code-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .code-panel-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.07em; margin-bottom: 5px; }
+
+        /* Hex grid cells */
+        .hex-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(0, 136, 255, 0.25);
+            border-radius: 8px; padding: 12px 14px;
+            text-align: center;
+            opacity: 0;
+            animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #0088ff; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        /* Shared animation keyframes */
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes flow {
+            0%   { stroke-dashoffset: 20; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes glowPulse {
+            0%, 100% { filter: drop-shadow(0 0 4px rgba(0,136,255,0.3)); }
+            50%       { filter: drop-shadow(0 0 14px rgba(0,136,255,0.9)); }
+        }
+        @keyframes shieldPulse {
+            0%, 100% { filter: drop-shadow(0 0 4px rgba(58,181,119,0.3)); }
+            50%       { filter: drop-shadow(0 0 12px rgba(58,181,119,0.8)); }
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .code-compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Security -- ProtoCore ESP32 Core 12</h1>
+
+<!-- Electric blue progress bar -->
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; ProtoCore &nbsp;|&nbsp; ESP32 &nbsp;|&nbsp; Core 12</div>
+        <div class="title-hero">
+            <!-- Security shield SVG -->
+            <svg width="360" height="140" viewBox="0 0 360 140" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Shield outline -->
+                <path d="M180,15 L230,35 L230,75 Q230,110 180,130 Q130,110 130,75 L130,35 Z"
+                    fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="2"
+                    style="animation: shieldPulse 2.5s ease-in-out infinite;"/>
+                <!-- Lock icon in shield -->
+                <rect x="167" y="55" width="26" height="22" rx="4" fill="rgba(0,136,255,0.15)" stroke="#0088ff" stroke-width="1.5"/>
+                <path d="M173,55 L173,48 Q173,40 180,40 Q187,40 187,48 L187,55" fill="none" stroke="#0088ff" stroke-width="1.5"/>
+                <circle cx="180" cy="66" r="3" fill="#ffd700"/>
+                <!-- Labels -->
+                <text x="180" y="100" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">DEFENSE</text>
+                <!-- Side labels -->
+                <text x="90" y="50" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Secure Boot</text>
+                <text x="90" y="65" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Flash Encrypt</text>
+                <text x="270" y="50" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">HTTPS / TLS</text>
+                <text x="270" y="65" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">WPA2-Enterprise</text>
+            </svg>
+            <div class="big-title">
+                ESP32 <span class="accent">Security</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Secure boot, flash encryption, HTTPS, MQTT/TLS, WiFi Enterprise, and defensive security applications.
+            </div>
+            <div class="title-meta-row">
+                <span>Core 12 of 12</span>
+                <span>12 Slides</span>
+                <span>Defensive Security</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- WHY ESP32 SECURITY ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Why <span class="accent">IoT Security</span> Matters</div>
+        <div class="slide-subtitle">Every ESP32 is a networked computer. Without security, it is an open door on your network.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">The Threat Landscape</div>
+                <div class="card-desc">Unencrypted MQTT leaks sensor data. Unsigned firmware allows code injection. Plain HTTP exposes API keys. WiFi credentials stored in cleartext flash can be dumped with a $5 programmer. Every ESP32 deployed without security is a liability.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Defense in Depth</div>
+                <div class="card-desc">ESP32 security is layered: secure boot verifies firmware integrity, flash encryption protects code at rest, TLS encrypts data in transit, and WiFi Enterprise authenticates network access. Each layer addresses a different attack vector.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">This Core's Scope</div>
+                <div class="card-desc">This core focuses on DEFENDING your ESP32 deployments. Offensive WiFi and BLE tooling (Marauder, Army Knife) lives in Signal -- SG-110 and SG-111. Here, we build secure devices. There, you learn to test them.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Real Consequence</div>
+            In 2016, the Mirai botnet compromised 600,000 IoT devices (cameras, routers) using default credentials and no encryption. Those devices launched a DDoS attack that took down Twitter, Netflix, Reddit, and GitHub. Every unsecured ESP32 you deploy is a potential Mirai node.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- SECURE BOOT V2 ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Secure Boot <span class="accent">V2</span></div>
+        <div class="slide-subtitle">Cryptographically verifies that only your signed firmware can run on the device. Prevents code injection and firmware tampering.</div>
+
+        <div class="step-list">
+            <div class="step-row">
+                <span class="step-num">1</span>
+                <span class="step-text"><strong>Generate a signing key pair.</strong> You create an RSA-3072 or ECDSA-256 key pair. The private key stays on your build machine (never on the ESP32). The public key hash is burned into the ESP32's one-time-programmable eFuse.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">2</span>
+                <span class="step-text"><strong>Sign your firmware.</strong> During the build process, <span class="ic">espsecure.py</span> appends a digital signature to the firmware binary using your private key. This signature is unique to both the firmware content and your key.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">3</span>
+                <span class="step-text"><strong>Bootloader verifies on every boot.</strong> When the ESP32 powers on, the bootloader reads the public key hash from eFuse, verifies the firmware signature, and only executes the code if the signature matches. Tampered firmware refuses to boot.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">4</span>
+                <span class="step-text"><strong>OTA updates must also be signed.</strong> Secure boot applies to OTA firmware too. The new firmware must be signed with the same key before the bootloader accepts it. Unsigned OTA updates are rejected at the verification stage.</span>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Irreversible</div>
+            Burning the secure boot key into eFuse is permanent. Once enabled, you can NEVER flash unsigned firmware again. If you lose your signing key, the ESP32 becomes a paperweight. Always back up the key in multiple secure locations before enabling secure boot in production.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- FLASH ENCRYPTION ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Flash <span class="accent">Encryption</span></div>
+        <div class="slide-subtitle">Encrypts the contents of flash memory with AES-256, preventing code and data extraction even with physical access to the chip.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">How It Works</div>
+                <div class="card-desc">The ESP32 generates a random 256-bit AES key and stores it in eFuse (one-time-programmable, read-protected). All flash contents are encrypted with this key. The hardware decrypts data on-the-fly during execution -- your code runs at full speed with zero software overhead.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">What Gets Encrypted</div>
+                <div class="card-desc">The bootloader, application firmware, and any data partitions you mark as encrypted (NVS, OTA data). The partition table itself can also be encrypted. The encryption is transparent -- your code reads and writes normally while the hardware handles crypto.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Development Mode</div>
+                <div class="card-desc">Allows re-flashing encrypted firmware a limited number of times (controlled by an eFuse counter, typically 3 reflashes). Use during development and testing. You can still upload new code, but the counter decrements each time. When it hits zero, the device locks.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Release Mode</div>
+                <div class="card-desc">Permanently locks the flash. No more reflashing via USB. Only signed OTA updates can modify the firmware. Combined with secure boot, this creates a fully locked device. Use for production deployments where physical tampering is a concern.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Attack Scenario Prevented</div>
+            Without flash encryption, an attacker with physical access can desolder the flash chip, read it with a programmer, extract your WiFi credentials, API keys, server URLs, and proprietary algorithms. With flash encryption, the dumped data is indecipherable AES-256 ciphertext.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- HTTPS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">HTTPS with <span class="accent">Certificate Verification</span></div>
+        <div class="slide-subtitle">Encrypting data in transit and verifying server identity prevents eavesdropping and man-in-the-middle attacks.</div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">&lt;WiFiClientSecure.h&gt;</span>
+
+<span class="cm">// Root CA certificate (Let's Encrypt ISRG Root X1)</span>
+<span class="kw">const char</span>* rootCA = \
+<span class="st">"-----BEGIN CERTIFICATE-----\n"</span>
+<span class="st">"MIIFazCCA1OgAwIBAgIRAIIQz7DSQON...\n"</span>
+<span class="st">"-----END CERTIFICATE-----\n"</span>;
+
+<span class="fn">WiFiClientSecure</span> client;
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    <span class="fn">WiFi.begin</span>(<span class="st">"SSID"</span>, <span class="st">"password"</span>);
+    <span class="kw">while</span> (<span class="fn">WiFi.status</span>() != <span class="fn">WL_CONNECTED</span>) <span class="fn">delay</span>(<span class="nu">500</span>);
+
+    client.<span class="fn">setCACert</span>(rootCA);  <span class="cm">// Verify server identity</span>
+
+    <span class="kw">if</span> (client.<span class="fn">connect</span>(<span class="st">"api.example.com"</span>, <span class="nu">443</span>)) {
+        client.<span class="fn">println</span>(<span class="st">"GET /data HTTP/1.1"</span>);
+        client.<span class="fn">println</span>(<span class="st">"Host: api.example.com"</span>);
+        client.<span class="fn">println</span>(<span class="st">"Connection: close"</span>);
+        client.<span class="fn">println</span>();
+    }
+}</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">WiFiClientSecure</div>
+                <div class="card-desc">Drop-in replacement for <span class="ic">WiFiClient</span> that adds TLS encryption. Uses the ESP32's hardware crypto accelerator for AES and SHA operations. TLS handshake takes 1-3 seconds and ~40KB RAM. Supports TLS 1.2 and 1.3.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Root CA Bundles</div>
+                <div class="card-desc">Instead of embedding individual CA certs, use the Mozilla root CA bundle via <span class="ic">esp_crt_bundle_attach()</span>. This validates certificates from any trusted CA, similar to how a browser works. The bundle adds ~60KB to your firmware but covers all major CAs.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Never Skip Verification</div>
+                <div class="card-desc">Calling <span class="ic">client.setInsecure()</span> disables certificate verification. This is tempting for quick testing but makes HTTPS meaningless -- a man-in-the-middle can intercept all traffic. Every production device must verify certificates. No exceptions.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- MQTT OVER TLS ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">MQTT over <span class="accent">TLS</span></div>
+        <div class="slide-subtitle">MQTT is the standard IoT messaging protocol. Without TLS, every sensor reading and command travels in plaintext.</div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">&lt;WiFiClientSecure.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;PubSubClient.h&gt;</span>
+
+<span class="fn">WiFiClientSecure</span> secureClient;
+<span class="fn">PubSubClient</span> mqtt(secureClient);
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    <span class="fn">WiFi.begin</span>(<span class="st">"SSID"</span>, <span class="st">"password"</span>);
+    <span class="kw">while</span> (<span class="fn">WiFi.status</span>() != <span class="fn">WL_CONNECTED</span>) <span class="fn">delay</span>(<span class="nu">500</span>);
+
+    secureClient.<span class="fn">setCACert</span>(brokerCA);      <span class="cm">// Verify broker</span>
+    secureClient.<span class="fn">setCertificate</span>(clientCert);  <span class="cm">// Client identity</span>
+    secureClient.<span class="fn">setPrivateKey</span>(clientKey);    <span class="cm">// Client auth</span>
+
+    mqtt.<span class="fn">setServer</span>(<span class="st">"broker.example.com"</span>, <span class="nu">8883</span>);  <span class="cm">// TLS port</span>
+    mqtt.<span class="fn">connect</span>(<span class="st">"esp32-sensor-01"</span>);
+    mqtt.<span class="fn">publish</span>(<span class="st">"sensors/temp"</span>, <span class="st">"23.5"</span>);
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Port 8883</div>
+                <div class="card-desc">Standard MQTT runs on port 1883 (unencrypted). MQTT over TLS uses port 8883. The TLS layer wraps the MQTT protocol transparently -- you use the same PubSubClient API. The <span class="ic">WiFiClientSecure</span> object handles the encryption underneath.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Mutual TLS (mTLS)</div>
+                <div class="card-desc">Standard TLS verifies the server. Mutual TLS also verifies the client -- the broker checks the ESP32's client certificate. This ensures only authorized devices can publish to your topics. Each device gets a unique certificate, enabling individual device revocation.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Plaintext MQTT Exposure</div>
+            Unencrypted MQTT broadcasts every message as readable text over the network. Anyone on the same WiFi can capture sensor data, device commands, and credentials with a packet sniffer. If your MQTT broker is on the internet, the exposure extends to every network hop between the ESP32 and the broker.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- WIFI ENTERPRISE ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">WiFi <span class="accent">Enterprise</span></div>
+        <div class="slide-subtitle">WPA2-Enterprise with EAP-TLS provides certificate-based WiFi authentication. No shared passwords, individual device identity.</div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">&lt;WiFi.h&gt;</span>
+<span class="kw">#include</span> <span class="st">"esp_wpa2.h"</span>
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    <span class="fn">WiFi.mode</span>(<span class="fn">WIFI_STA</span>);
+    <span class="fn">WiFi.disconnect</span>(<span class="kw">true</span>);
+
+    <span class="fn">esp_wifi_sta_wpa2_ent_set_ca_cert</span>(
+        (<span class="kw">uint8_t</span>*)radiusCA, <span class="fn">strlen</span>(radiusCA));
+    <span class="fn">esp_wifi_sta_wpa2_ent_set_cert_key</span>(
+        (<span class="kw">uint8_t</span>*)clientCert, <span class="fn">strlen</span>(clientCert),
+        (<span class="kw">uint8_t</span>*)clientKey, <span class="fn">strlen</span>(clientKey), NULL, <span class="nu">0</span>);
+    <span class="fn">esp_wifi_sta_wpa2_ent_set_identity</span>(
+        (<span class="kw">uint8_t</span>*)<span class="st">"esp32-device-01"</span>, <span class="fn">strlen</span>(<span class="st">"esp32-device-01"</span>));
+    <span class="fn">esp_wifi_sta_wpa2_ent_enable</span>();
+
+    <span class="fn">WiFi.begin</span>(<span class="st">"CorpNet-Secure"</span>);  <span class="cm">// No password needed</span>
+}</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">WPA2-Enterprise</div>
+                <div class="card-desc">Unlike WPA2-Personal (shared PSK password), Enterprise uses a RADIUS server to authenticate each device individually. Each ESP32 presents its own certificate. Compromising one device does not compromise network access for other devices.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">EAP-TLS</div>
+                <div class="card-desc">The strongest EAP method -- uses mutual certificate authentication. The RADIUS server verifies the device certificate, and the device verifies the RADIUS server certificate. No passwords involved. Used by enterprises, government, and healthcare networks.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Device Revocation</div>
+                <div class="card-desc">If an ESP32 is lost or stolen, revoke its certificate on the RADIUS server. The device can no longer authenticate to WiFi. With WPA2-Personal, you would need to change the password on every device on the network. Enterprise makes individual revocation trivial.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- ENCRYPTED NVS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Encrypted <span class="accent">NVS</span></div>
+        <div class="slide-subtitle">Standard NVS stores key-value pairs in plaintext flash. Encrypted NVS adds AES-XTS encryption for sensitive credentials.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Why Encrypt NVS?</div>
+                <div class="card-desc">NVS stores WiFi passwords, API tokens, device secrets, and certificates. Without encryption, anyone who dumps the flash can read all credentials in plaintext. Encrypted NVS protects this data even if an attacker gains physical access to the flash chip.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">How It Works</div>
+                <div class="card-desc">Encrypted NVS uses a separate NVS key partition that stores the encryption keys. The keys themselves are protected by flash encryption (AES-256). Data is encrypted with AES-XTS before writing to the NVS partition. Reads decrypt transparently -- your code uses the same Preferences API.</div>
+            </div>
+        </div>
+
+        <div class="step-list">
+            <div class="step-row">
+                <span class="step-num">1</span>
+                <span class="step-text"><strong>Enable flash encryption first.</strong> Encrypted NVS depends on flash encryption to protect the NVS key partition. Without flash encryption, the NVS encryption keys themselves would be readable.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">2</span>
+                <span class="step-text"><strong>Create NVS key partition.</strong> Add an <span class="ic">nvs_keys</span> partition to your partition table. This partition stores the AES-XTS keys used to encrypt NVS data. It is automatically generated on first boot.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">3</span>
+                <span class="step-text"><strong>Use normal API.</strong> Your application code does not change. The encryption and decryption happen at the NVS driver level. <span class="ic">putString("apiKey", "sk-abc123")</span> writes encrypted data. <span class="ic">getString("apiKey")</span> returns the decrypted value.</span>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Layered Protection</div>
+            Flash encryption + encrypted NVS + secure boot = triple protection. Flash encryption prevents bulk dumping. Encrypted NVS adds per-key encryption. Secure boot prevents modified firmware from accessing the decryption keys. All three layers must be compromised simultaneously.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- DEFENSIVE APPLICATIONS: WIFI MONITORING ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Defensive App: <span class="accent">WiFi Monitoring</span></div>
+        <div class="slide-subtitle">Using the ESP32's promiscuous mode to detect unauthorized access points, deauthentication attacks, and rogue devices.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Promiscuous Mode</div>
+                <div class="card-desc">The ESP32 can capture all WiFi packets in range, not just those addressed to it. In promiscuous mode, you receive raw 802.11 frames including management, control, and data frames. This enables passive network analysis without joining any network.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Deauth Detection</div>
+                <div class="card-desc">Deauthentication attacks flood clients with forged disconnect frames. An ESP32 in promiscuous mode can detect abnormal deauth packet rates and alert you. If you see hundreds of deauth frames per second, someone is actively attacking your network.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Rogue AP Detection</div>
+                <div class="card-desc">Periodically scan for access points with your SSID but unexpected BSSIDs. An evil twin AP mimics your network name to trick clients into connecting. The ESP32 can maintain a whitelist of known APs and alert when an impersonator appears.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Deploy an ESP32 as a passive WiFi intrusion detection sensor. It monitors the airspace 24/7, detects attacks in real-time, and sends alerts via a secure channel. Cost: $5 in hardware. Enterprise WIDS systems cost thousands. The ESP32 is not a replacement, but it is a powerful supplement.
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Legal Note</div>
+            Passive monitoring (receiving packets without transmitting) is legal in most jurisdictions for your own network. Active injection, jamming, or attacking other networks is illegal under the Computer Fraud and Abuse Act (US), Computer Misuse Act (UK), and similar laws worldwide. This core teaches defense only.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- DEFENSIVE APPLICATIONS: BLE ASSET TRACKING ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Defensive App: <span class="accent">BLE Asset Tracking</span></div>
+        <div class="slide-subtitle">Using BLE scanning to track authorized beacons, detect unauthorized devices, and monitor physical security zones.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">BLE Scanner</div>
+                <div class="card-desc">The ESP32 scans for BLE advertisements continuously. Each BLE device broadcasts its MAC address, name, and signal strength (RSSI). By maintaining a whitelist of known devices, you can detect when unknown BLE devices enter a secure area -- phones, laptops, tracking tags.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">RSSI-Based Proximity</div>
+                <div class="card-desc">Signal strength indicates distance: -30 dBm is very close (within 1m), -60 dBm is in the room, -90 dBm is at the edge of range. Multiple ESP32 sensors can triangulate position. Track asset beacons through a building without GPS.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Tamper Detection</div>
+                <div class="card-desc">Attach BLE beacons to high-value assets (server racks, equipment cases). If a beacon moves outside its expected zone (RSSI changes significantly from baseline), trigger an alert. The ESP32 acts as a fixed sensor monitoring beacon positions.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">MAC Randomization Awareness</div>
+                <div class="card-desc">Modern phones randomize their BLE MAC addresses for privacy. Your scanner will see constantly changing MACs from the same device. Track by manufacturer data and advertisement payload patterns instead of relying solely on MAC addresses.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Low-Power Deployment</div>
+                <div class="card-desc">Combine BLE scanning with deep sleep (Core 10). Wake every 30 seconds, scan for 5 seconds, log results, sleep. Battery-powered BLE sentries can monitor a perimeter for months. Alert via WiFi only when anomalies are detected.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- DEFENSIVE APPLICATIONS: TAMPER DETECTION ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Defensive App: <span class="accent">Tamper Detection</span></div>
+        <div class="slide-subtitle">Physical security monitoring with the ESP32 -- detecting unauthorized access, environmental changes, and hardware tampering.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Enclosure Tamper Switch</div>
+                <div class="card-desc">Wire a micro switch or reed switch to an ext0 wake pin. If the device enclosure is opened, the switch triggers, waking the ESP32 from deep sleep. It can send an alert, log the event, and optionally wipe sensitive credentials from NVS before an attacker can dump flash.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Voltage Glitch Detection</div>
+                <div class="card-desc">Monitor the power supply voltage via ADC. Voltage glitching is a hardware attack technique that injects brief voltage spikes to cause the CPU to skip instructions (bypassing security checks). Abnormal voltage readings trigger defensive actions like credential wipe.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Environmental Monitoring</div>
+                <div class="card-desc">Temperature, humidity, and light sensors detect environmental anomalies. A server room ESP32 alerts if temperature exceeds thresholds. A light sensor inside a sealed enclosure detects when the case is opened. Accelerometers detect if the device is moved.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Credential Zeroization</div>
+                <div class="card-desc">On tamper detection, immediately clear sensitive data: <span class="ic">prefs.clear()</span> wipes NVS credentials, <span class="ic">SPIFFS.format()</span> wipes file system data. With flash encryption enabled, the zeroized data cannot be recovered. This is standard practice for security-sensitive deployments.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Heartbeat Monitoring</div>
+                <div class="card-desc">The ESP32 sends periodic "I'm alive" messages to a central server. If heartbeats stop unexpectedly, the server assumes the device has been tampered with or disabled. Missing heartbeats trigger investigation. Set intervals based on threat level -- every 60 seconds for high-security zones.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- SUMMARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Core 12 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Everything you need to remember from this presentation.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Secure Boot V2 verifies firmware integrity.</strong> RSA/ECDSA signing ensures only your code runs. Key is burned into eFuse permanently. OTA updates must also be signed. Losing the key bricks the device.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Flash encryption protects data at rest.</strong> AES-256 encrypts all flash contents. Hardware decrypts on-the-fly with zero performance cost. Development mode allows limited reflashes. Release mode permanently locks the device.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>TLS encrypts data in transit.</strong> Use <code>WiFiClientSecure</code> for HTTPS and MQTT over TLS (port 8883). Always verify certificates -- never use <code>setInsecure()</code> in production. Mutual TLS authenticates both sides.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>WiFi Enterprise eliminates shared passwords.</strong> WPA2-Enterprise with EAP-TLS gives each device a unique certificate. Individual revocation is possible. No shared PSK that compromises all devices if leaked.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>The ESP32 is a defensive security platform.</strong> WiFi monitoring detects attacks, BLE scanning tracks assets, tamper switches protect enclosures. Offensive tooling lives in Signal (SG-110, SG-111). This core builds the shield.</span></div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>ProtoCore ESP32 Track Complete</strong> &nbsp;|&nbsp; 12 cores covering hardware to security. Build something.
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; ProtoCore</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* Slide navigation state */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    /* Module completion via ModuleProgress component */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-esp-12-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deep Sleep and Power Management | ProtoCore ESP32 Core 10</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #040810 0%, #081020 50%, #0a0c1a 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Electric blue progress bar */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #0088ff; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(4, 8, 16, 0.95);
+            border-top: 1px solid rgba(0, 136, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(0, 136, 255, 0.15); color: #0088ff; border-color: #0088ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #0088ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ffd700; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip */
+        .scenario-strip {
+            background: rgba(0, 136, 255, 0.08); border-left: 3px solid #0088ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(0, 136, 255, 0.08); border: 1px solid rgba(0, 136, 255, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ffd700; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #0088ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #ffd700; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #0088ff; }
+
+        /* Section label */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #0088ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Inline code */
+        .ic {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* SVG diagram containers */
+        .diagram-row {
+            display: flex; gap: 16px; align-items: center; justify-content: center;
+        }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        /* Step-by-step flow list */
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(0, 136, 255, 0.12); border: 1px solid rgba(0, 136, 255, 0.4);
+            color: #0088ff; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        /* Code block */
+        .code-block {
+            background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #ffd700; line-height: 1.6; white-space: pre;
+        }
+        .code-block .cm { color: #64748b; }
+        .code-block .kw { color: #5cb8ff; }
+        .code-block .fn { color: #ffd700; }
+        .code-block .st { color: #86efac; }
+        .code-block .nu { color: #fdba74; }
+
+        /* Two-column code compare */
+        .code-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .code-panel-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.07em; margin-bottom: 5px; }
+
+        /* Hex grid cells */
+        .hex-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(0, 136, 255, 0.25);
+            border-radius: 8px; padding: 12px 14px;
+            text-align: center;
+            opacity: 0;
+            animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #0088ff; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        /* Shared animation keyframes */
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes flow {
+            0%   { stroke-dashoffset: 20; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes glowPulse {
+            0%, 100% { filter: drop-shadow(0 0 4px rgba(0,136,255,0.3)); }
+            50%       { filter: drop-shadow(0 0 14px rgba(0,136,255,0.9)); }
+        }
+        @keyframes sleepFade {
+            0%, 100% { opacity: 0.15; }
+            50%       { opacity: 0.6; }
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .code-compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Deep Sleep and Power Management -- ProtoCore ESP32 Core 10</h1>
+
+<!-- Electric blue progress bar -->
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; ProtoCore &nbsp;|&nbsp; ESP32 &nbsp;|&nbsp; Core 10</div>
+        <div class="title-hero">
+            <!-- Power management SVG -->
+            <svg width="360" height="140" viewBox="0 0 360 140" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Battery outline -->
+                <rect x="120" y="30" width="120" height="70" rx="8" fill="rgba(0,136,255,0.06)" stroke="#0088ff" stroke-width="2"
+                    style="animation: glowPulse 2.5s ease-in-out infinite;"/>
+                <rect x="240" y="50" width="10" height="30" rx="3" fill="rgba(0,136,255,0.15)" stroke="#0088ff" stroke-width="1.5"/>
+                <!-- Battery level bars (fading to show power saving) -->
+                <rect x="130" y="42" width="18" height="46" rx="3" fill="rgba(58,181,119,0.5)"/>
+                <rect x="152" y="42" width="18" height="46" rx="3" fill="rgba(58,181,119,0.35)"/>
+                <rect x="174" y="42" width="18" height="46" rx="3" fill="rgba(58,181,119,0.2)"/>
+                <rect x="196" y="42" width="18" height="46" rx="3" fill="rgba(58,181,119,0.1)"/>
+                <rect x="218" y="42" width="18" height="46" rx="3" fill="rgba(58,181,119,0.05)"/>
+                <!-- Zzz sleep indicator -->
+                <text x="275" y="40" font-size="16" fill="rgba(0,136,255,0.6)" font-weight="700" font-family="Segoe UI,sans-serif"
+                    style="animation: sleepFade 3s ease-in-out infinite;">Z</text>
+                <text x="290" y="30" font-size="12" fill="rgba(0,136,255,0.4)" font-weight="700" font-family="Segoe UI,sans-serif"
+                    style="animation: sleepFade 3s ease-in-out infinite 0.5s;">z</text>
+                <text x="300" y="22" font-size="9" fill="rgba(0,136,255,0.3)" font-weight="700" font-family="Segoe UI,sans-serif"
+                    style="animation: sleepFade 3s ease-in-out infinite 1s;">z</text>
+                <!-- Labels -->
+                <text x="180" y="122" text-anchor="middle" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">240mA Active -- 10uA Deep Sleep -- 5uA Hibernation</text>
+            </svg>
+            <div class="big-title">
+                <span class="accent">Deep Sleep</span> and Power Management
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Taking the ESP32 from 240mA wall-powered to 5uA coin-cell. Sleep modes, wake sources, ULP co-processor, and RTC memory.
+            </div>
+            <div class="title-meta-row">
+                <span>Core 10 of 12</span>
+                <span>12 Slides</span>
+                <span>Power Management</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- WHY POWER MATTERS ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Why <span class="accent">Power Management</span> Matters</div>
+        <div class="slide-subtitle">The ESP32 draws 240mA at full power with WiFi active. A 2000mAh battery lasts 8 hours. Deep sleep extends that to months or years.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">The Problem</div>
+                <div class="card-desc">At 240mA with WiFi on, a 3.7V 2000mAh LiPo battery drains in about 8 hours. For a sensor that reports temperature once every 15 minutes, that is 99.97% wasted power keeping WiFi and CPUs alive between readings.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">The Solution</div>
+                <div class="card-desc">Deep sleep drops consumption to 10uA -- 24,000 times less. The same battery now lasts over 22 years in theory. In practice, wake-transmit-sleep cycles at 15-minute intervals yield 1-3 years depending on transmit duration.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Use Cases</div>
+                <div class="card-desc">Weather stations, soil moisture monitors, mailbox alerts, wildlife cameras, cold chain trackers, remote gate sensors -- any device that wakes briefly, measures, transmits, and sleeps. Battery + solar makes these truly wireless and indefinite.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Key Metric</div>
+            Power budget math is simple: <strong>Battery capacity (mAh) / Average current draw (mA) = Hours of runtime.</strong> The entire goal of power management is minimizing that average current draw by spending as much time as possible in the lowest-power state.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- FIVE SLEEP MODES ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">The Five <span class="accent">Power States</span></div>
+        <div class="slide-subtitle">The ESP32 provides a spectrum of power states, each trading functionality for current reduction.</div>
+
+        <div class="step-list">
+            <div class="step-row">
+                <span class="step-num">1</span>
+                <span class="step-text"><strong>Active Mode (~240mA with WiFi, ~68mA CPU only)</strong> -- Both CPU cores running at 240MHz, WiFi and Bluetooth active, all peripherals available. This is normal operating mode. Full power, full capability.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">2</span>
+                <span class="step-text"><strong>Modem Sleep (~20mA)</strong> -- WiFi/BT radio powered down, both CPUs still running. Useful when doing extended local computation without network access. The radio can be restarted without a full reboot.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">3</span>
+                <span class="step-text"><strong>Light Sleep (~0.8mA)</strong> -- CPUs paused (clock gated), RAM contents preserved, WiFi off. Wakes in microseconds and resumes execution exactly where it stopped. Good for interactive devices that need fast response.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">4</span>
+                <span class="step-text"><strong>Deep Sleep (~10uA)</strong> -- Main CPUs and most peripherals powered off. Only the RTC controller, RTC memory (8KB), and selected wake sources remain powered. Waking triggers a full reboot -- <span class="ic">setup()</span> runs again.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">5</span>
+                <span class="step-text"><strong>Hibernation (~5uA)</strong> -- Everything off except the RTC timer and one RTC GPIO for wake. No ULP, no RTC memory retention beyond the timer. The absolute minimum power state. Waking is a cold boot with no state.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- CURRENT CONSUMPTION TABLE ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Current <span class="accent">Consumption</span> by Mode</div>
+        <div class="slide-subtitle">Actual measured values from Espressif datasheets. These numbers drive every battery life calculation.</div>
+
+        <!-- Visual power comparison -->
+        <div class="diagram-center">
+            <svg width="700" height="180" viewBox="0 0 700 180" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Active bar -->
+                <rect x="30" y="20" width="600" height="24" rx="4" fill="rgba(239,68,68,0.25)" stroke="rgba(239,68,68,0.5)" stroke-width="1"/>
+                <text x="25" y="37" text-anchor="end" font-size="8" fill="#f87171" font-family="Segoe UI,sans-serif">Active</text>
+                <text x="640" y="37" font-size="9" fill="#f87171" font-weight="700" font-family="Courier New,monospace">240 mA</text>
+                <!-- Modem Sleep bar -->
+                <rect x="30" y="52" width="50" height="24" rx="4" fill="rgba(249,115,22,0.25)" stroke="rgba(249,115,22,0.5)" stroke-width="1"/>
+                <text x="25" y="69" text-anchor="end" font-size="8" fill="#fb923c" font-family="Segoe UI,sans-serif">Modem</text>
+                <text x="88" y="69" font-size="9" fill="#fb923c" font-weight="700" font-family="Courier New,monospace">20 mA</text>
+                <!-- Light Sleep bar -->
+                <rect x="30" y="84" width="3" height="24" rx="2" fill="rgba(255,215,0,0.3)" stroke="rgba(255,215,0,0.5)" stroke-width="1"/>
+                <text x="25" y="101" text-anchor="end" font-size="8" fill="#ffd700" font-family="Segoe UI,sans-serif">Light</text>
+                <text x="40" y="101" font-size="9" fill="#ffd700" font-weight="700" font-family="Courier New,monospace">0.8 mA</text>
+                <!-- Deep Sleep bar (nearly invisible) -->
+                <rect x="30" y="116" width="1" height="24" rx="1" fill="rgba(58,181,119,0.4)" stroke="rgba(58,181,119,0.6)" stroke-width="1"/>
+                <text x="25" y="133" text-anchor="end" font-size="8" fill="#3ab577" font-family="Segoe UI,sans-serif">Deep</text>
+                <text x="40" y="133" font-size="9" fill="#3ab577" font-weight="700" font-family="Courier New,monospace">10 uA</text>
+                <!-- Hibernation bar -->
+                <rect x="30" y="148" width="1" height="24" rx="1" fill="rgba(0,136,255,0.4)" stroke="rgba(0,136,255,0.6)" stroke-width="1"/>
+                <text x="25" y="165" text-anchor="end" font-size="8" fill="#0088ff" font-family="Segoe UI,sans-serif">Hiber</text>
+                <text x="40" y="165" font-size="9" fill="#0088ff" font-weight="700" font-family="Courier New,monospace">5 uA</text>
+            </svg>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Scale Context</div>
+            Deep sleep at 10uA is <strong>24,000 times less</strong> than active WiFi at 240mA. The bars above are to scale -- deep sleep and hibernation bars are effectively invisible compared to active mode. This is why sleep modes exist: the difference is not incremental, it is four orders of magnitude.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- DEEP SLEEP BASICS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Entering <span class="accent">Deep Sleep</span></div>
+        <div class="slide-subtitle">One function call puts the ESP32 to sleep. The critical detail: waking from deep sleep is a full reboot.</div>
+
+        <div class="code-block"><span class="cm">// Basic deep sleep with timer wake</span>
+<span class="kw">#define</span> <span class="fn">uS_TO_S_FACTOR</span> <span class="nu">1000000ULL</span>  <span class="cm">// microseconds to seconds</span>
+<span class="kw">#define</span> <span class="fn">TIME_TO_SLEEP</span>  <span class="nu">300</span>          <span class="cm">// sleep for 5 minutes</span>
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    <span class="fn">Serial.begin</span>(<span class="nu">115200</span>);
+    <span class="fn">delay</span>(<span class="nu">1000</span>);
+
+    <span class="fn">Serial.println</span>(<span class="st">"Awake! Taking sensor reading..."</span>);
+    <span class="cm">// ... do work here: read sensor, transmit data ...</span>
+
+    <span class="fn">esp_sleep_enable_timer_wakeup</span>(<span class="fn">TIME_TO_SLEEP</span> * <span class="fn">uS_TO_S_FACTOR</span>);
+    <span class="fn">Serial.println</span>(<span class="st">"Going to deep sleep for 5 minutes..."</span>);
+    <span class="fn">esp_deep_sleep_start</span>();
+    <span class="cm">// Execution never reaches here</span>
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+    <span class="cm">// Never called -- deep sleep reboots to setup()</span>
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Reboot, Not Resume</div>
+                <div class="card-desc">Deep sleep is not like pausing a program. When the ESP32 wakes, it runs through the bootloader and starts <span class="ic">setup()</span> fresh. All RAM variables are lost. <span class="ic">loop()</span> is never called in deep-sleep-based designs -- all logic goes in <span class="ic">setup()</span>.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Timer Resolution</div>
+                <div class="card-desc"><span class="ic">esp_sleep_enable_timer_wakeup()</span> takes microseconds as a 64-bit unsigned integer. The multiplier <span class="ic">1000000ULL</span> converts seconds to microseconds. The RTC timer has ~5% drift, so do not rely on it for precise timekeeping over long periods.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- WAKE SOURCES ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Wake <span class="accent">Sources</span></div>
+        <div class="slide-subtitle">The ESP32 supports multiple ways to wake from deep sleep. You can configure several simultaneously -- whichever triggers first wins.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Timer Wake</div>
+                <div class="card-desc"><span class="ic">esp_sleep_enable_timer_wakeup(us)</span> -- The most common wake source. Set a duration in microseconds. The RTC timer counts down and triggers wake. Used for periodic sensor readings, heartbeat transmissions, and duty-cycle patterns.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Touch Pin Wake</div>
+                <div class="card-desc"><span class="ic">esp_sleep_enable_touchpad_wakeup()</span> -- Wakes when a capacitive touch pin detects contact. Configure the touch threshold before sleeping. Used for user-activated devices like touch-to-wake displays or interactive installations.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">External Wake (ext0)</div>
+                <div class="card-desc"><span class="ic">esp_sleep_enable_ext0_wakeup(pin, level)</span> -- Wakes when a single RTC GPIO reaches the specified level (HIGH or LOW). Only one pin, but simple to configure. Used for button press, motion sensor trigger, or door switch.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">External Wake (ext1)</div>
+                <div class="card-desc"><span class="ic">esp_sleep_enable_ext1_wakeup(mask, mode)</span> -- Monitors multiple RTC GPIO pins simultaneously. Wakes when ANY pin goes high (or ALL pins go low). The bitmask selects which GPIOs to monitor. Used for multi-sensor arrays.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">ULP Wake</div>
+                <div class="card-desc">The ULP co-processor can wake the main CPUs based on programmed conditions -- for example, when an ADC reading exceeds a threshold. This allows sensor monitoring during deep sleep without waking the main system for every reading.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Identifying Wake Cause</div>
+                <div class="card-desc"><span class="ic">esp_sleep_get_wakeup_cause()</span> returns an enum telling you why the ESP32 woke up. Check this in <span class="ic">setup()</span> to branch your logic -- first boot vs timer wake vs button press may require very different behavior.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- WAKE CAUSE CODE ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Detecting <span class="accent">Wake Cause</span></div>
+        <div class="slide-subtitle">Since deep sleep reboots the system, your setup() must determine why it woke up and act accordingly.</div>
+
+        <div class="code-block"><span class="kw">void</span> <span class="fn">setup</span>() {
+    <span class="fn">Serial.begin</span>(<span class="nu">115200</span>);
+    <span class="fn">delay</span>(<span class="nu">1000</span>);
+
+    <span class="fn">esp_sleep_wakeup_cause_t</span> cause = <span class="fn">esp_sleep_get_wakeup_cause</span>();
+
+    <span class="kw">switch</span> (cause) {
+        <span class="kw">case</span> <span class="fn">ESP_SLEEP_WAKEUP_TIMER</span>:
+            <span class="fn">Serial.println</span>(<span class="st">"Woke from timer -- taking scheduled reading"</span>);
+            <span class="fn">readSensorAndTransmit</span>();
+            <span class="kw">break</span>;
+        <span class="kw">case</span> <span class="fn">ESP_SLEEP_WAKEUP_EXT0</span>:
+            <span class="fn">Serial.println</span>(<span class="st">"Woke from button press -- entering config mode"</span>);
+            <span class="fn">startConfigPortal</span>();
+            <span class="kw">break</span>;
+        <span class="kw">case</span> <span class="fn">ESP_SLEEP_WAKEUP_TOUCHPAD</span>:
+            <span class="fn">Serial.println</span>(<span class="st">"Woke from touch -- showing display"</span>);
+            <span class="fn">showLastReading</span>();
+            <span class="kw">break</span>;
+        <span class="kw">default</span>:
+            <span class="fn">Serial.println</span>(<span class="st">"First boot or reset -- initializing"</span>);
+            <span class="fn">firstTimeSetup</span>();
+            <span class="kw">break</span>;
+    }
+
+    <span class="fn">esp_sleep_enable_timer_wakeup</span>(<span class="nu">300</span> * <span class="nu">1000000ULL</span>);
+    <span class="fn">esp_sleep_enable_ext0_wakeup</span>(<span class="fn">GPIO_NUM_33</span>, <span class="nu">1</span>);
+    <span class="fn">esp_deep_sleep_start</span>();
+}</div>
+
+        <div class="box box-green">
+            <div class="box-label">Multiple Wake Sources</div>
+            You can enable timer AND ext0 AND touchpad wake simultaneously. The ESP32 wakes on whichever triggers first. Use <span class="ic">esp_sleep_get_wakeup_cause()</span> to determine which one fired and branch your logic accordingly.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- RTC MEMORY ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title"><span class="accent">RTC Memory</span> -- State Across Sleep</div>
+        <div class="slide-subtitle">Deep sleep erases all RAM. But 8KB of RTC memory survives. Use it to persist counters, calibration data, and boot state.</div>
+
+        <div class="code-block"><span class="cm">// RTC_DATA_ATTR persists across deep sleep cycles</span>
+<span class="fn">RTC_DATA_ATTR</span> <span class="kw">int</span> bootCount = <span class="nu">0</span>;
+<span class="fn">RTC_DATA_ATTR</span> <span class="kw">float</span> lastTemp = <span class="nu">0.0</span>;
+<span class="fn">RTC_DATA_ATTR</span> <span class="kw">unsigned long</span> totalAwakeMs = <span class="nu">0</span>;
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    <span class="kw">unsigned long</span> wakeTime = <span class="fn">millis</span>();
+    bootCount++;
+    <span class="fn">Serial.begin</span>(<span class="nu">115200</span>);
+    <span class="fn">Serial.printf</span>(<span class="st">"Boot #%d | Last temp: %.1fC\n"</span>, bootCount, lastTemp);
+
+    lastTemp = <span class="fn">readTemperature</span>();
+    totalAwakeMs += (<span class="fn">millis</span>() - wakeTime);
+    <span class="fn">Serial.printf</span>(<span class="st">"Total awake time: %lu ms over %d boots\n"</span>, totalAwakeMs, bootCount);
+
+    <span class="fn">esp_sleep_enable_timer_wakeup</span>(<span class="nu">60</span> * <span class="nu">1000000ULL</span>);
+    <span class="fn">esp_deep_sleep_start</span>();
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">RTC_DATA_ATTR</div>
+                <div class="card-desc">Prefix any global variable with <span class="ic">RTC_DATA_ATTR</span> to place it in RTC slow memory. This 8KB region stays powered during deep sleep. On first boot, variables initialize normally. On subsequent boots, they retain their last-written values.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">What to Store</div>
+                <div class="card-desc">Boot counters, last sensor readings, accumulated statistics, calibration offsets, WiFi channel and BSSID (to speed reconnection), error counts. Keep it small -- you only have 8KB. For larger persistent data, use NVS flash (covered in Core 11).</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- ULP CO-PROCESSOR ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">The <span class="accent">ULP</span> Co-Processor</div>
+        <div class="slide-subtitle">An ultra-low-power co-processor that runs independently during deep sleep, monitoring sensors without waking the main CPUs.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">What Is the ULP?</div>
+                <div class="card-desc">The ULP (Ultra Low Power) co-processor is a separate, simple processor inside the ESP32 RTC domain. It runs its own program stored in RTC slow memory. It draws only ~150uA while active and can read ADC channels, monitor GPIO pins, and perform basic math.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">When to Use It</div>
+                <div class="card-desc">When you need to monitor a sensor continuously but only wake the main CPUs when a threshold is crossed. Example: monitoring soil moisture -- the ULP reads the ADC every 30 seconds and only wakes the ESP32 when moisture drops below 30%.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">ULP Capabilities</div>
+                <div class="card-desc">Read ADC (up to 2 channels), read/write GPIO, perform basic arithmetic and comparisons, access RTC memory, control RTC I2C peripheral, and trigger main CPU wake. It cannot access WiFi, Bluetooth, SPI, or main memory.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            The ULP is like a night watchman: the main building (CPUs) is shut down and dark, but the watchman patrols with a flashlight, only calling the manager (waking the CPUs) if something requires attention.
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">ULP Programming</div>
+            The ULP has its own assembly language (or can use the ULP-RISC-V C compiler on ESP32-S2/S3). Programs are loaded into RTC slow memory before entering deep sleep. The ULP program runs in a loop, checking conditions and either going back to sleep or waking the main CPU. Programming the ULP is an advanced topic typically handled through ESP-IDF rather than Arduino.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- BATTERY DESIGN PATTERNS ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Battery-Powered <span class="accent">Design Patterns</span></div>
+        <div class="slide-subtitle">Practical strategies for building ESP32 devices that run on batteries for months or years.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Wake-Measure-Transmit-Sleep</div>
+                <div class="card-desc">The fundamental pattern: wake from deep sleep, read sensor, connect WiFi, transmit data, go back to sleep. Minimize awake time -- every millisecond of WiFi costs power. Cache WiFi channel and BSSID in RTC memory to skip scanning on wake.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Batch and Burst</div>
+                <div class="card-desc">Instead of transmitting every reading, store multiple readings in RTC memory and transmit in batches. Example: take a reading every 5 minutes, transmit a batch of 12 readings every hour. Reduces the number of expensive WiFi connections by 12x.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Adaptive Intervals</div>
+                <div class="card-desc">Adjust sleep duration based on conditions. If temperature is stable, sleep 30 minutes. If it is changing rapidly, sleep 2 minutes. Store the trend in RTC memory to make this decision. Use longer intervals at night when nobody is monitoring.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Disable Unused Hardware</div>
+                <div class="card-desc">Before sleeping, explicitly power down peripherals you do not need. Turn off the ADC, Bluetooth, WiFi radio, and unused GPIO pull-ups. Use <span class="ic">esp_wifi_stop()</span> and <span class="ic">esp_bt_controller_disable()</span> before entering light sleep.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Voltage Monitoring</div>
+                <div class="card-desc">Use an ADC pin with a voltage divider to monitor battery level. If the battery is critically low, skip the WiFi transmission and go straight to hibernation to preserve the last charge. Transmit a low-battery warning at 20% and shut down at 5%.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Fast WiFi Reconnect</div>
+                <div class="card-desc">Normal WiFi connection takes 2-5 seconds. Store the WiFi channel and router BSSID in RTC memory. On wake, use <span class="ic">WiFi.begin(ssid, pass, channel, bssid)</span> to skip scanning. Reconnection drops to 300-800ms, saving significant power per wake cycle.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- SOLAR + DEEP SLEEP ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Solar + Deep Sleep <span class="accent">Duty Cycling</span></div>
+        <div class="slide-subtitle">Combining solar charging with deep sleep creates devices that run indefinitely without maintenance.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Solar Charging Circuit</div>
+                <div class="card-desc">A small 1W-2W solar panel feeds a TP4056 lithium charge controller, which charges a 3.7V LiPo cell. The ESP32 draws power from the battery through a low-dropout (LDO) voltage regulator. Even on cloudy days, a 2W panel provides enough energy to sustain a device that sleeps 99% of the time.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Duty Cycle Math</div>
+                <div class="card-desc">If the ESP32 is awake for 3 seconds every 5 minutes: duty cycle = 3/300 = 1%. Average current = (240mA * 1%) + (10uA * 99%) = 2.41mA. A 2000mAh battery alone lasts 830 hours (34 days). With solar input of even 5mA average, the device runs indefinitely.</div>
+            </div>
+        </div>
+
+        <div class="step-list">
+            <div class="step-row">
+                <span class="step-num">1</span>
+                <span class="step-text"><strong>Size the panel for worst case:</strong> Assume 3-4 hours of effective sun on cloudy winter days. A 2W panel at 5V produces 400mA peak, but average over 24 hours might be only 50mA for 4 hours = ~8.3mA average.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">2</span>
+                <span class="step-text"><strong>Size the battery for night:</strong> At 2.41mA average draw, 16 hours of darkness consumes ~38.6mAh. A 500mAh battery covers multiple days of zero sun. Use 1000-2000mAh for safety margin.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">3</span>
+                <span class="step-text"><strong>Monitor both sides:</strong> Use ADC to read battery voltage AND solar panel voltage. If solar input drops to zero for extended periods (buried in snow, dirty panel), increase sleep interval to extend battery life.</span>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Real World Example</div>
+            A weather station reading temperature, humidity, and barometric pressure every 10 minutes, transmitting via WiFi: ~2mA average draw. With a 2W solar panel and 2000mAh LiPo, this system runs year-round in most climates without any maintenance.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- SUMMARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Core 10 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Everything you need to remember from this presentation.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Five power states exist:</strong> Active (240mA), Modem Sleep (20mA), Light Sleep (0.8mA), Deep Sleep (10uA), and Hibernation (5uA). Deep sleep is the workhorse for battery-powered designs -- 24,000x less current than active mode.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Deep sleep is a reboot.</strong> Call <code>esp_deep_sleep_start()</code> to enter. Waking runs through the bootloader and calls <code>setup()</code> again. All RAM is lost. All logic goes in <code>setup()</code>, not <code>loop()</code>.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Multiple wake sources:</strong> timer, touch pin, ext0 (single GPIO), ext1 (multiple GPIOs), and ULP co-processor. Configure multiple sources simultaneously -- whichever fires first wakes the chip.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>RTC memory (8KB) persists across deep sleep.</strong> Use <code>RTC_DATA_ATTR</code> to store boot counters, last readings, WiFi credentials cache, and state flags. This is how you maintain continuity despite the reboot.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Design for minimum awake time.</strong> Cache WiFi channel/BSSID for fast reconnect, batch readings before transmitting, and adapt sleep intervals to conditions. Solar + deep sleep enables indefinite runtime for remote sensors.</span></div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Core 11 -- Storage and File Systems</strong> &nbsp;|&nbsp; Flash Partitions, NVS, SPIFFS, LittleFS, SD Cards, OTA Updates
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; ProtoCore</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* Slide navigation state */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    /* Module completion via ModuleProgress component */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-esp-10-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Networking Lab | ProtoCore ESP32 Core 15</title>
+    <style>
+        :root {
+            --blue: #0088ff;
+            --blue-dim: rgba(0,136,255,0.15);
+            --blue-border: rgba(0,136,255,0.3);
+            --green: #34d399;
+            --green-dim: rgba(52,211,153,0.1);
+            --green-border: rgba(52,211,153,0.3);
+            --gold: #ffd700;
+            --gold-dim: rgba(255,215,0,0.1);
+            --gold-border: rgba(255,215,0,0.3);
+            --red: #ef4444;
+            --bg: #040810;
+            --bg2: #081020;
+            --bg3: #0c1628;
+            --text: #dbeafe;
+            --text2: #6b82a0;
+            --border: rgba(0,136,255,0.12);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* ---- top bar ---- */
+        .topbar { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .topbar-left { display: flex; align-items: center; gap: 14px; }
+        .back-btn { padding: 6px 14px; background: var(--blue-dim); border: 1px solid var(--blue-border); border-radius: 6px; color: var(--blue); text-decoration: none; font-size: 0.82rem; transition: background 0.2s; }
+        .back-btn:hover { background: rgba(0,136,255,0.25); }
+        .lab-title { font-size: 0.95rem; color: var(--text); }
+        .badge { padding: 3px 10px; border-radius: 10px; font-size: 0.68rem; letter-spacing: 0.06em; }
+        .badge-blue { background: var(--blue-dim); border: 1px solid var(--blue-border); color: var(--blue); }
+        .badge-gold { background: var(--gold-dim); border: 1px solid var(--gold-border); color: var(--gold); }
+        .topbar-right { display: flex; align-items: center; gap: 14px; font-size: 0.82rem; color: var(--text2); }
+        .prog-wrap { width: 130px; height: 5px; background: rgba(0,136,255,0.12); border-radius: 3px; overflow: hidden; }
+        .prog-fill { height: 100%; background: linear-gradient(90deg, var(--blue), #0055cc); border-radius: 3px; transition: width 0.4s ease; }
+        .prog-label { color: var(--blue); font-weight: 500; }
+
+        /* ---- main layout ---- */
+        .workspace { display: grid; grid-template-columns: 1fr 320px; flex: 1; min-height: 0; }
+
+        /* ---- terminal panel (left) ---- */
+        .terminal-panel { display: flex; flex-direction: column; overflow: hidden; }
+        .terminal-toolbar { flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: var(--bg2); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+        .tb-btn { padding: 5px 14px; background: var(--blue-dim); border: 1px solid var(--blue-border); border-radius: 5px; color: var(--blue); font-size: 0.82rem; cursor: pointer; transition: background 0.2s; white-space: nowrap; font-weight: 600; }
+        .tb-btn:hover:not(:disabled) { background: rgba(0,136,255,0.25); }
+        .tb-btn:disabled { opacity: 0.35; cursor: default; }
+        .tb-btn.run { background: rgba(52,211,153,0.12); border-color: var(--green-border); color: var(--green); }
+        .tb-btn.run:hover:not(:disabled) { background: rgba(52,211,153,0.22); }
+        .tb-btn.clear-btn { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.3); color: #f87171; }
+        .toolbar-sep { width: 1px; height: 18px; background: var(--border); }
+        .tb-label { font-size: 0.72rem; color: var(--text2); }
+
+        /* terminal output */
+        .terminal-output { flex: 1; overflow-y: auto; padding: 12px 16px; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.82rem; line-height: 1.7; background: rgba(0,0,0,0.3); }
+        .term-line { animation: fadeIn 0.2s ease; }
+        .term-ok { color: var(--green); }
+        .term-err { color: #f87171; }
+        .term-info { color: var(--blue); }
+        .term-gold { color: var(--gold); }
+        .term-dim { color: var(--text2); }
+        .term-white { color: var(--text); }
+        .term-prompt { color: var(--green); }
+        .term-warn { color: #f97316; }
+        .term-alert { color: #ef4444; font-weight: 700; }
+
+        /* command input */
+        .cmd-input-area { flex-shrink: 0; display: flex; align-items: center; padding: 8px 16px; background: var(--bg2); border-top: 1px solid var(--border); gap: 8px; }
+        .cmd-prompt { color: var(--green); font-family: 'Consolas', monospace; font-size: 0.85rem; }
+        .cmd-input { flex: 1; background: transparent; border: none; outline: none; color: var(--text); font-family: 'Consolas', 'Courier New', monospace; font-size: 0.85rem; }
+        .cmd-input::placeholder { color: #384860; }
+
+        /* ---- task panel (right) ---- */
+        .task-panel { background: var(--bg2); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+        .panel-header { padding: 12px 16px; font-size: 0.7rem; color: var(--text2); letter-spacing: 0.12em; text-transform: uppercase; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .task-list { flex: 1; overflow-y: auto; padding: 12px; }
+        .task-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 9px; padding: 12px 14px; margin-bottom: 8px; transition: all 0.2s; }
+        .task-card.active { border-color: var(--blue); background: rgba(0,136,255,0.06); }
+        .task-card.done { border-color: var(--green-border); background: var(--green-dim); }
+        .task-num { font-size: 0.67rem; color: var(--blue); margin-bottom: 3px; }
+        .task-name { font-size: 0.88rem; color: var(--text); margin-bottom: 3px; display: flex; align-items: center; gap: 6px; }
+        .task-name .chk { font-size: 0.75rem; color: var(--green); margin-left: auto; display: none; }
+        .task-desc { font-size: 0.77rem; color: var(--text2); line-height: 1.45; }
+
+        /* ---- finish overlay ---- */
+        .finish-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 9000; }
+        .finish-overlay.active { display: flex; }
+        .finish-card { background: var(--bg2); border: 1px solid var(--green-border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .finish-title { font-size: 1.5rem; color: var(--gold); margin-bottom: 10px; }
+        .finish-msg { color: var(--text2); font-size: 0.95rem; margin-bottom: 24px; line-height: 1.6; }
+        .finish-btn { padding: 11px 28px; background: linear-gradient(135deg, var(--blue), #0055cc); border: none; border-radius: 8px; color: #fff; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; }
+        .finish-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <header class="topbar">
+        <div class="topbar-left">
+            <a href="../../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Advanced Networking Lab -- Packet Capture and Defense</span>
+            <span class="badge badge-blue">ProtoCore</span>
+            <span class="badge badge-gold">Core 15</span>
+        </div>
+        <div class="topbar-right">
+            <span>Tasks:</span>
+            <div class="prog-wrap"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+            <span class="prog-label" id="progLabel">0 / 10</span>
+        </div>
+    </header>
+
+    <div class="workspace">
+
+        <!-- LEFT: terminal -->
+        <div class="terminal-panel">
+            <div class="terminal-toolbar">
+                <button class="tb-btn run" onclick="runCmd()">Run</button>
+                <button class="tb-btn clear-btn" onclick="clearTerminal()">Clear</button>
+                <div class="toolbar-sep"></div>
+                <span class="tb-label">ESP32 Network Analysis Terminal</span>
+            </div>
+
+            <div class="terminal-output" id="termOutput"></div>
+
+            <div class="cmd-input-area">
+                <span class="cmd-prompt">esp32&gt;</span>
+                <input class="cmd-input" id="cmdInput" type="text" placeholder="Type a command and press Enter..." autocomplete="off" spellcheck="false">
+            </div>
+        </div>
+
+        <!-- RIGHT: task panel -->
+        <aside class="task-panel">
+            <div class="panel-header">Lab Tasks</div>
+            <div class="task-list" id="taskList"></div>
+        </aside>
+    </div>
+
+    <!-- finish overlay -->
+    <div class="finish-overlay" id="finishOverlay">
+        <div class="finish-card">
+            <div class="finish-title">Advanced Networking Lab Complete</div>
+            <div class="finish-msg">You have captured 802.11 frames, detected deauthentication attacks, built a captive portal with DNS redirection, and discovered services via mDNS. Your ESP32 is now a network analysis platform.</div>
+            <button class="finish-btn" onclick="finishLab()">Return to ProtoCore Hub</button>
+        </div>
+    </div>
+
+<script>
+(function () {
+    'use strict';
+
+    /* ---- task definitions ---- */
+    var TASKS = [
+        { id: 1, name: 'Enable promiscuous mode', desc: 'Run: promisc start' },
+        { id: 2, name: 'Capture beacon frames', desc: 'Run: capture beacons -- observe nearby access point advertisements.' },
+        { id: 3, name: 'Hop across WiFi channels', desc: 'Run: channel hop -- scan channels 1-13 to survey the spectrum.' },
+        { id: 4, name: 'Capture and parse a frame', desc: 'Run: capture parse -- decode an 802.11 frame header into its fields.' },
+        { id: 5, name: 'Detect a deauth attack', desc: 'Run: detect deauth -- monitor for deauthentication frame floods.' },
+        { id: 6, name: 'Start a captive portal', desc: 'Run: portal start -- launch AP + DNS server + web server.' },
+        { id: 7, name: 'Test DNS redirection', desc: 'Run: portal dns test -- verify all domains resolve to the ESP32.' },
+        { id: 8, name: 'Start mDNS service', desc: 'Run: mdns start sensor1 -- register hostname and advertise HTTP service.' },
+        { id: 9, name: 'Discover mDNS services', desc: 'Run: mdns discover http -- find all HTTP services on the network.' },
+        { id: 10, name: 'Scan for rogue access points', desc: 'Run: detect rogue -- compare discovered APs against a whitelist.' }
+    ];
+
+    /* ---- state ---- */
+    var completedTasks = {};
+    var promiscEnabled = false;
+    var portalStarted = false;
+    var mdnsStarted = false;
+    var activeTaskId = 1;
+
+    /* ---- simulated network data ---- */
+    var SIM_APS = [
+        { ssid: 'HomeNetwork-5G', bssid: 'AA:BB:CC:11:22:33', ch: 6, rssi: -42, enc: 'WPA2' },
+        { ssid: 'OfficeWiFi', bssid: 'DD:EE:FF:44:55:66', ch: 1, rssi: -58, enc: 'WPA2' },
+        { ssid: 'IoT-Sensors', bssid: '11:22:33:AA:BB:CC', ch: 11, rssi: -65, enc: 'WPA2' },
+        { ssid: 'Guest_Network', bssid: '44:55:66:DD:EE:FF', ch: 6, rssi: -71, enc: 'Open' },
+        { ssid: 'CoffeShop_Free', bssid: '77:88:99:AA:BB:CC', ch: 3, rssi: -78, enc: 'Open' },
+        { ssid: 'HomeNetwork-5G', bssid: 'DE:AD:BE:EF:00:01', ch: 6, rssi: -35, enc: 'Open' }
+    ];
+
+    var SIM_PROBES = [
+        { mac: 'A1:B2:C3:D4:E5:F6', ssid: 'HomeNetwork-5G', rssi: -45 },
+        { mac: 'F6:E5:D4:C3:B2:A1', ssid: '', rssi: -62 },
+        { mac: '12:34:56:78:9A:BC', ssid: 'Starbucks_WiFi', rssi: -70 }
+    ];
+
+    var WHITELIST = ['AA:BB:CC:11:22:33', 'DD:EE:FF:44:55:66', '11:22:33:AA:BB:CC', '44:55:66:DD:EE:FF'];
+
+    /* ---- init ---- */
+    function init() {
+        buildTaskList();
+        updateProgress();
+        highlightTask(1);
+
+        var input = document.getElementById('cmdInput');
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); runCmd(); }
+        });
+
+        termLine('ESP32 Network Analysis Terminal v1.0', 'term-info');
+        termLine('WiFi radio: 2.4GHz 802.11 b/g/n', 'term-dim');
+        termLine('Type "help" for available commands.', 'term-dim');
+        termLine('', '');
+    }
+
+    /* ---- task list builder ---- */
+    function buildTaskList() {
+        var list = document.getElementById('taskList');
+        TASKS.forEach(function(t) {
+            var card = document.createElement('div');
+            card.className = 'task-card';
+            card.id = 'tc-' + t.id;
+            card.innerHTML = '<div class="task-num">Task ' + t.id + '</div><div class="task-name">' + t.name + '<span class="chk" id="ck-' + t.id + '">Done</span></div><div class="task-desc">' + t.desc + '</div>';
+            list.appendChild(card);
+        });
+    }
+
+    /* ---- progress ---- */
+    function updateProgress() {
+        var count = Object.keys(completedTasks).length;
+        var pct = (count / TASKS.length) * 100;
+        document.getElementById('progFill').style.width = pct + '%';
+        document.getElementById('progLabel').textContent = count + ' / ' + TASKS.length;
+    }
+
+    function completeTask(id) {
+        if (completedTasks[id]) return;
+        completedTasks[id] = true;
+        var card = document.getElementById('tc-' + id);
+        if (card) card.className = 'task-card done';
+        var chk = document.getElementById('ck-' + id);
+        if (chk) chk.style.display = 'inline';
+        updateProgress();
+
+        var next = TASKS.find(function(t) { return !completedTasks[t.id]; });
+        if (next) highlightTask(next.id);
+
+        if (Object.keys(completedTasks).length === TASKS.length) {
+            setTimeout(function() {
+                document.getElementById('finishOverlay').classList.add('active');
+            }, 600);
+        }
+    }
+
+    function highlightTask(id) {
+        activeTaskId = id;
+        TASKS.forEach(function(t) {
+            var card = document.getElementById('tc-' + t.id);
+            if (card && !completedTasks[t.id]) {
+                card.className = (t.id === id) ? 'task-card active' : 'task-card';
+            }
+        });
+    }
+
+    /* ---- terminal output ---- */
+    function termLine(msg, cls) {
+        var panel = document.getElementById('termOutput');
+        var div = document.createElement('div');
+        div.className = 'term-line ' + (cls || 'term-white');
+        div.textContent = msg;
+        panel.appendChild(div);
+        panel.scrollTop = panel.scrollHeight;
+    }
+
+    function randomMac() {
+        var hex = '0123456789AB';
+        var mac = '';
+        for (var i = 0; i < 6; i++) {
+            if (i > 0) mac += ':';
+            mac += hex[Math.floor(Math.random() * 16)] + hex[Math.floor(Math.random() * 16)];
+        }
+        return mac;
+    }
+
+    /* ---- command processor ---- */
+    window.runCmd = function() {
+        var input = document.getElementById('cmdInput');
+        var cmd = input.value.trim();
+        input.value = '';
+        if (!cmd) return;
+
+        termLine('esp32> ' + cmd, 'term-prompt');
+        var parts = cmd.toLowerCase().split(/\s+/);
+
+        switch (parts[0]) {
+            case 'help':
+                termLine('Commands:', 'term-info');
+                termLine('  promisc start|stop      -- Enable/disable promiscuous mode', 'term-dim');
+                termLine('  capture beacons         -- Capture beacon frames from nearby APs', 'term-dim');
+                termLine('  capture parse           -- Capture and parse a frame header', 'term-dim');
+                termLine('  channel hop             -- Hop across channels 1-13', 'term-dim');
+                termLine('  channel set <n>         -- Lock to specific channel', 'term-dim');
+                termLine('  detect deauth           -- Monitor for deauth frame floods', 'term-dim');
+                termLine('  detect rogue            -- Scan for rogue access points', 'term-dim');
+                termLine('  portal start            -- Start captive portal (AP + DNS + HTTP)', 'term-dim');
+                termLine('  portal stop             -- Stop captive portal', 'term-dim');
+                termLine('  portal dns test         -- Test DNS redirection', 'term-dim');
+                termLine('  mdns start <hostname>   -- Start mDNS responder', 'term-dim');
+                termLine('  mdns discover <service> -- Discover mDNS services', 'term-dim');
+                break;
+
+            case 'promisc':
+                handlePromisc(parts);
+                break;
+
+            case 'capture':
+                handleCapture(parts);
+                break;
+
+            case 'channel':
+                handleChannel(parts);
+                break;
+
+            case 'detect':
+                handleDetect(parts);
+                break;
+
+            case 'portal':
+                handlePortal(parts);
+                break;
+
+            case 'mdns':
+                handleMdns(parts);
+                break;
+
+            default:
+                termLine('Unknown command: ' + parts[0] + '. Type "help" for commands.', 'term-err');
+        }
+    };
+
+    /* ---- promisc commands ---- */
+    function handlePromisc(parts) {
+        if (parts[1] === 'start') {
+            termLine('[WIFI] Setting mode to WIFI_MODE_NULL...', 'term-info');
+            setTimeout(function() {
+                termLine('[WIFI] esp_wifi_set_promiscuous(true) -- OK', 'term-ok');
+                termLine('[WIFI] Promiscuous callback registered', 'term-ok');
+                termLine('[WIFI] Listening on channel 1 (2412 MHz)', 'term-ok');
+                termLine('[WIFI] Ready to capture raw 802.11 frames', 'term-ok');
+                promiscEnabled = true;
+                completeTask(1);
+            }, 300);
+        } else if (parts[1] === 'stop') {
+            termLine('[WIFI] esp_wifi_set_promiscuous(false) -- OK', 'term-ok');
+            promiscEnabled = false;
+        } else {
+            termLine('Usage: promisc start|stop', 'term-err');
+        }
+    }
+
+    /* ---- capture commands ---- */
+    function handleCapture(parts) {
+        if (!promiscEnabled) {
+            termLine('[WIFI] Error: Promiscuous mode not enabled. Run: promisc start', 'term-err');
+            return;
+        }
+
+        if (parts[1] === 'beacons') {
+            termLine('[CAPTURE] Listening for beacon frames (5 seconds)...', 'term-info');
+            var delay = 400;
+            SIM_APS.forEach(function(ap, i) {
+                setTimeout(function() {
+                    termLine('[BEACON] SSID="' + ap.ssid + '" BSSID=' + ap.bssid +
+                        ' Ch=' + ap.ch + ' RSSI=' + ap.rssi + 'dBm ' + ap.enc, 'term-gold');
+                }, delay * (i + 1));
+            });
+            setTimeout(function() {
+                termLine('[CAPTURE] ' + SIM_APS.length + ' unique APs discovered', 'term-ok');
+                // Also show probe requests
+                termLine('', '');
+                termLine('[PROBE] Client probe requests detected:', 'term-info');
+                SIM_PROBES.forEach(function(p) {
+                    termLine('[PROBE] MAC=' + p.mac + ' SSID="' + (p.ssid || '<broadcast>') + '" RSSI=' + p.rssi + 'dBm', 'term-dim');
+                });
+                completeTask(2);
+            }, delay * (SIM_APS.length + 1));
+
+        } else if (parts[1] === 'parse') {
+            termLine('[CAPTURE] Capturing next management frame...', 'term-info');
+            setTimeout(function() {
+                termLine('[FRAME] Raw bytes (first 24):', 'term-gold');
+                termLine('  80 00 00 00 FF FF FF FF FF FF AA BB CC 11 22 33', 'term-dim');
+                termLine('  AA BB CC 11 22 33 60 48', 'term-dim');
+                termLine('', '');
+                termLine('[PARSE] Frame Control: 0x0080', 'term-info');
+                termLine('  Protocol Version: 0', 'term-dim');
+                termLine('  Type: 0 (Management)', 'term-dim');
+                termLine('  Subtype: 8 (Beacon)', 'term-dim');
+                termLine('  Flags: ToDS=0, FromDS=0, Retry=0', 'term-dim');
+                termLine('[PARSE] Duration: 0x0000', 'term-dim');
+                termLine('[PARSE] Addr1 (Dest): FF:FF:FF:FF:FF:FF (Broadcast)', 'term-ok');
+                termLine('[PARSE] Addr2 (Source): AA:BB:CC:11:22:33', 'term-ok');
+                termLine('[PARSE] Addr3 (BSSID): AA:BB:CC:11:22:33', 'term-ok');
+                termLine('[PARSE] Sequence: 0x4860 (seq=1155, frag=0)', 'term-dim');
+                completeTask(4);
+            }, 500);
+        } else {
+            termLine('Usage: capture beacons|parse', 'term-err');
+        }
+    }
+
+    /* ---- channel commands ---- */
+    function handleChannel(parts) {
+        if (!promiscEnabled) {
+            termLine('[WIFI] Error: Promiscuous mode not enabled. Run: promisc start', 'term-err');
+            return;
+        }
+
+        if (parts[1] === 'hop') {
+            termLine('[CHANNEL] Starting channel hop (200ms dwell time)...', 'term-info');
+            for (var ch = 1; ch <= 13; ch++) {
+                (function(c) {
+                    setTimeout(function() {
+                        var freq = 2407 + c * 5;
+                        var pkts = Math.floor(Math.random() * 30 + 2);
+                        var aps = Math.floor(Math.random() * 4);
+                        termLine('[CH ' + (c < 10 ? ' ' : '') + c + '] ' + freq + 'MHz -- ' + pkts + ' frames, ' + aps + ' APs', (aps > 0 ? 'term-ok' : 'term-dim'));
+                    }, c * 180);
+                })(ch);
+            }
+            setTimeout(function() {
+                termLine('[CHANNEL] Hop complete: 13 channels surveyed', 'term-ok');
+                termLine('[CHANNEL] Most active: Channel 6 (typical default for US routers)', 'term-info');
+                completeTask(3);
+            }, 14 * 180);
+
+        } else if (parts[1] === 'set') {
+            var n = parseInt(parts[2]);
+            if (!n || n < 1 || n > 13) {
+                termLine('[CHANNEL] Error: Channel must be 1-13', 'term-err');
+                return;
+            }
+            var freq = 2407 + n * 5;
+            termLine('[CHANNEL] Locked to channel ' + n + ' (' + freq + ' MHz)', 'term-ok');
+        } else {
+            termLine('Usage: channel hop | channel set <1-13>', 'term-err');
+        }
+    }
+
+    /* ---- detect commands ---- */
+    function handleDetect(parts) {
+        if (parts[1] === 'deauth') {
+            if (!promiscEnabled) {
+                termLine('[WIFI] Error: Promiscuous mode not enabled. Run: promisc start', 'term-err');
+                return;
+            }
+            termLine('[DEAUTH] Monitoring for deauthentication frames...', 'term-info');
+            termLine('[DEAUTH] Threshold: 10 frames/second = attack', 'term-dim');
+
+            setTimeout(function() { termLine('[DEAUTH] Ch6: 1 deauth frame (normal disconnect)', 'term-dim'); }, 400);
+            setTimeout(function() { termLine('[DEAUTH] Ch6: 0 deauth frames', 'term-dim'); }, 800);
+            setTimeout(function() {
+                termLine('', '');
+                termLine('[ALERT] DEAUTH FLOOD DETECTED ON CHANNEL 6!', 'term-alert');
+                termLine('[ALERT] 47 deauth frames in 1 second', 'term-alert');
+                termLine('[ALERT] Source MAC: DE:AD:BE:EF:00:01', 'term-err');
+                termLine('[ALERT] Target BSSID: AA:BB:CC:11:22:33 (HomeNetwork-5G)', 'term-err');
+                termLine('[ALERT] Destination: FF:FF:FF:FF:FF:FF (broadcast -- all clients)', 'term-err');
+                termLine('[ALERT] RSSI: -35dBm (very close -- within 10 meters)', 'term-warn');
+                termLine('[ALERT] Reason code: 7 (Class 3 frame from nonassociated station)', 'term-dim');
+                termLine('', '');
+                termLine('[DEAUTH] Recommendation: Enable WPA3 with PMF (Protected Management Frames)', 'term-info');
+                termLine('[DEAUTH] Recommendation: Investigate MAC DE:AD:BE:EF:00:01', 'term-info');
+                completeTask(5);
+            }, 1200);
+
+        } else if (parts[1] === 'rogue') {
+            if (!promiscEnabled) {
+                termLine('[WIFI] Error: Promiscuous mode not enabled. Run: promisc start', 'term-err');
+                return;
+            }
+            termLine('[ROGUE] Scanning all channels for access points...', 'term-info');
+            termLine('[ROGUE] Whitelist: ' + WHITELIST.length + ' known BSSIDs', 'term-dim');
+
+            setTimeout(function() {
+                SIM_APS.forEach(function(ap) {
+                    var known = WHITELIST.indexOf(ap.bssid) !== -1;
+                    if (known) {
+                        termLine('[OK] ' + ap.ssid + ' (' + ap.bssid + ') -- known AP', 'term-ok');
+                    } else {
+                        termLine('[ROGUE] ' + ap.ssid + ' (' + ap.bssid + ') -- NOT IN WHITELIST', 'term-alert');
+                    }
+                });
+                termLine('', '');
+                termLine('[ROGUE] ALERT: Evil twin detected!', 'term-alert');
+                termLine('[ROGUE] SSID "HomeNetwork-5G" seen on two BSSIDs:', 'term-err');
+                termLine('[ROGUE]   Legit: AA:BB:CC:11:22:33 (RSSI -42, WPA2)', 'term-ok');
+                termLine('[ROGUE]   Rogue: DE:AD:BE:EF:00:01 (RSSI -35, Open!)', 'term-err');
+                termLine('[ROGUE] The rogue AP is stronger AND unencrypted -- classic evil twin', 'term-warn');
+                completeTask(10);
+            }, 800);
+        } else {
+            termLine('Usage: detect deauth|rogue', 'term-err');
+        }
+    }
+
+    /* ---- portal commands ---- */
+    function handlePortal(parts) {
+        if (parts[1] === 'start') {
+            termLine('[PORTAL] Starting captive portal...', 'term-info');
+            setTimeout(function() {
+                termLine('[AP] WiFi.softAP("ESP32-Setup") -- OK', 'term-ok');
+                termLine('[AP] AP IP: 192.168.4.1', 'term-ok');
+                termLine('[DNS] DNSServer started on port 53', 'term-ok');
+                termLine('[DNS] Wildcard rule: * -> 192.168.4.1', 'term-ok');
+                termLine('[HTTP] WebServer started on port 80', 'term-ok');
+                termLine('[PORTAL] Captive portal active -- connect to "ESP32-Setup"', 'term-gold');
+                portalStarted = true;
+                completeTask(6);
+            }, 500);
+
+        } else if (parts[1] === 'dns' && parts[2] === 'test') {
+            if (!portalStarted) {
+                termLine('[PORTAL] Error: Portal not started. Run: portal start', 'term-err');
+                return;
+            }
+            termLine('[DNS] Testing DNS redirection...', 'term-info');
+            var domains = ['google.com', 'connectivitycheck.gstatic.com', 'apple.com', 'example.org'];
+            domains.forEach(function(d, i) {
+                setTimeout(function() {
+                    termLine('[DNS] ' + d + ' -> 192.168.4.1 (redirected)', 'term-ok');
+                }, (i + 1) * 200);
+            });
+            setTimeout(function() {
+                termLine('[DNS] All queries redirect to ESP32 -- captive portal working', 'term-ok');
+                termLine('[HTTP] Client connected: MAC=A1:B2:C3:D4:E5:F6', 'term-info');
+                termLine('[HTTP] GET / -> 200 (portal page served, 2.4KB)', 'term-dim');
+                completeTask(7);
+            }, (domains.length + 1) * 200);
+
+        } else if (parts[1] === 'stop') {
+            termLine('[PORTAL] Stopping captive portal...', 'term-info');
+            termLine('[HTTP] WebServer stopped', 'term-ok');
+            termLine('[DNS] DNSServer stopped', 'term-ok');
+            termLine('[AP] SoftAP disabled', 'term-ok');
+            portalStarted = false;
+        } else {
+            termLine('Usage: portal start|stop|dns test', 'term-err');
+        }
+    }
+
+    /* ---- mDNS commands ---- */
+    function handleMdns(parts) {
+        if (parts[1] === 'start') {
+            var hostname = parts[2] || 'esp32device';
+            termLine('[mDNS] Starting mDNS responder...', 'term-info');
+            setTimeout(function() {
+                termLine('[mDNS] MDNS.begin("' + hostname + '") -- OK', 'term-ok');
+                termLine('[mDNS] Hostname: ' + hostname + '.local', 'term-ok');
+                termLine('[mDNS] Advertising service: _http._tcp port 80', 'term-ok');
+                termLine('[mDNS] Multicast group 224.0.0.251:5353 joined', 'term-dim');
+                termLine('[mDNS] Device reachable at http://' + hostname + '.local', 'term-gold');
+                mdnsStarted = true;
+                completeTask(8);
+            }, 400);
+
+        } else if (parts[1] === 'discover') {
+            if (!mdnsStarted) {
+                termLine('[mDNS] Error: mDNS not started. Run: mdns start <hostname>', 'term-err');
+                return;
+            }
+            var service = parts[2] || 'http';
+            termLine('[mDNS] Querying for _' + service + '._tcp services...', 'term-info');
+            setTimeout(function() {
+                termLine('[mDNS] Sending multicast query to 224.0.0.251:5353', 'term-dim');
+            }, 200);
+            setTimeout(function() {
+                termLine('[FOUND] sensor1.local (192.168.1.47:80) -- _http._tcp', 'term-ok');
+                termLine('[FOUND] gateway.local (192.168.1.10:80) -- _http._tcp', 'term-ok');
+                termLine('[FOUND] temp-node-3.local (192.168.1.52:80) -- _http._tcp', 'term-ok');
+                termLine('[mDNS] 3 services discovered -- zero configuration', 'term-ok');
+                completeTask(9);
+            }, 700);
+        } else {
+            termLine('Usage: mdns start <hostname> | mdns discover <service>', 'term-err');
+        }
+    }
+
+    /* ---- clear terminal ---- */
+    window.clearTerminal = function() {
+        document.getElementById('termOutput').innerHTML = '';
+        termLine('Terminal cleared.', 'term-dim');
+    };
+
+    /* ---- finish lab ---- */
+    window.finishLab = function() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-esp-15-lab', { returnUrl: '../../index.html' });
+        } else {
+            window.location.href = '../../index.html';
+        }
+    };
+
+    document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>

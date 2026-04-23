@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Core 12 Quiz: Security | ProtoCore ESP32</title>
+    <link rel="stylesheet" href="../../../../../styles/quiz-engine.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #040810 0%, #081020 50%, #0a0c1a 100%);
+            display: flex;
+            flex-direction: column;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        .page-header {
+            padding: 15px 30px;
+            background: rgba(0, 0, 0, 0.4);
+            border-bottom: 1px solid rgba(0, 136, 255, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .page-header a {
+            color: #0088ff;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+        .page-header a:hover { opacity: 0.8; }
+        .brand {
+            font-weight: 600;
+            color: #e0e0e0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .quiz-wrapper {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 30px 20px;
+        }
+        #quiz-container { width: 100%; max-width: 800px; }
+    </style>
+</head>
+<body>
+    <header class="page-header">
+        <a href="../../index.html">&larr; Back to ProtoCore Hub</a>
+        <span class="brand"><img src="/assets/images/icons/icon-brain.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Hexworth Prime</span>
+    </header>
+    <main class="quiz-wrapper">
+        <div id="quiz-container"></div>
+    </main>
+    <script src="../../../../../components/ProgressSystem.js"></script>
+    <script src="../../../../../components/QuizEngine.js"></script>
+    <script>
+        const quiz = new QuizEngine({
+            containerId: 'quiz-container',
+            title: 'Core 12: Security',
+            description: 'Test your understanding of ESP32 secure boot, flash encryption, HTTPS/TLS, MQTT security, WiFi Enterprise, encrypted NVS, and defensive security applications.',
+            passingScore: 80,
+            showFeedback: true,
+            randomize: true,
+            theme: 'matrix',
+            achievement: 'pc-esp-12-quiz',
+            moduleId: 'pc-esp-12-quiz',
+            serverGrading: true,
+            houseId: 'matrix',
+            trackProgress: true,
+
+            questions: [
+                {
+                    question: 'What does Secure Boot V2 protect against?',
+                    options: [
+                        'WiFi password theft',
+                        'Firmware tampering and unauthorized code execution',
+                        'Power supply voltage attacks',
+                        'Bluetooth pairing exploits'
+                    ],
+                    explanation: 'Secure Boot V2 cryptographically verifies firmware integrity on every boot. It ensures only code signed with your private key can execute on the device. If an attacker modifies the firmware (injecting malicious code, backdoors, or modified behavior), the signature check fails and the bootloader refuses to run the tampered code. This applies to both locally flashed firmware and OTA updates.'
+                },
+                {
+                    question: 'Where is the Secure Boot public key hash stored?',
+                    options: [
+                        'In the NVS partition',
+                        'In the bootloader code',
+                        'In the ESP32 eFuse (one-time-programmable memory)',
+                        'On an external secure element chip'
+                    ],
+                    explanation: 'The public key hash is burned into the ESP32 eFuse, which is one-time-programmable (OTP) memory. Once written, it cannot be changed or erased. The private key stays on your build machine and is never stored on the device. On every boot, the bootloader reads the key hash from eFuse, computes the hash of the public key embedded in the firmware, and verifies the firmware signature. This is irreversible -- losing your private key means the device cannot accept new firmware.'
+                },
+                {
+                    question: 'What encryption algorithm does ESP32 flash encryption use?',
+                    options: [
+                        'RSA-2048',
+                        'AES-256',
+                        'ChaCha20',
+                        'Triple DES'
+                    ],
+                    explanation: 'ESP32 flash encryption uses AES-256, a symmetric encryption algorithm. The ESP32 generates a random 256-bit key and stores it in read-protected eFuse. All flash contents are encrypted with this key. The hardware crypto accelerator decrypts data on-the-fly during code execution and data reads, with zero performance overhead. This prevents extraction of code, credentials, and data even if an attacker desolders and dumps the flash chip.'
+                },
+                {
+                    question: 'What is the difference between flash encryption development mode and release mode?',
+                    options: [
+                        'Development mode is faster; release mode is slower but more secure',
+                        'Development mode allows limited reflashes via USB; release mode permanently locks the device to OTA-only updates',
+                        'Development mode encrypts only code; release mode encrypts everything',
+                        'There is no difference -- they use the same encryption'
+                    ],
+                    explanation: 'Development mode allows re-flashing encrypted firmware a limited number of times (typically 3, controlled by an eFuse counter). Each USB reflash decrements the counter. When it reaches zero, USB flashing is locked. Release mode immediately and permanently locks USB flashing -- only signed OTA updates can modify firmware. Use development mode while testing, then switch to release mode for production deployment.'
+                },
+                {
+                    question: 'Which class provides TLS-encrypted network connections on ESP32?',
+                    options: [
+                        'WiFiClient',
+                        'WiFiClientSecure',
+                        'SecureSocket',
+                        'TLSClient'
+                    ],
+                    explanation: 'WiFiClientSecure is a drop-in replacement for WiFiClient that adds TLS encryption. It uses the ESP32 hardware crypto accelerator for AES and SHA operations. The TLS handshake takes 1-3 seconds and requires approximately 40KB of RAM. It supports TLS 1.2 and 1.3. Use setCACert() to verify server certificates, and optionally setCertificate()/setPrivateKey() for mutual TLS (client authentication).'
+                },
+                {
+                    question: 'Why is calling client.setInsecure() dangerous in production?',
+                    options: [
+                        'It slows down the connection',
+                        'It disables certificate verification, allowing man-in-the-middle attacks to intercept all traffic',
+                        'It exposes the device MAC address',
+                        'It disables encryption entirely'
+                    ],
+                    explanation: 'setInsecure() disables server certificate verification. The TLS connection is still encrypted, but the client does not verify who it is talking to. A man-in-the-middle attacker can present their own certificate, decrypt the traffic, read/modify data, re-encrypt it, and forward it to the real server. The ESP32 would never know. This defeats the entire purpose of HTTPS. Every production device must verify server certificates. No exceptions.'
+                },
+                {
+                    question: 'What port does MQTT over TLS use?',
+                    options: [
+                        '1883',
+                        '443',
+                        '8883',
+                        '8080'
+                    ],
+                    explanation: 'MQTT over TLS uses port 8883 as the standard encrypted port. Unencrypted MQTT uses port 1883. The TLS layer wraps the MQTT protocol transparently -- you use the same PubSubClient API, but pass a WiFiClientSecure object instead of WiFiClient as the underlying transport. The PubSubClient library does not handle encryption itself; it relies on the secure client object provided to it.'
+                },
+                {
+                    question: 'What does mutual TLS (mTLS) add beyond standard TLS?',
+                    options: [
+                        'Double encryption strength',
+                        'The server also verifies the client certificate, ensuring only authorized devices can connect',
+                        'Automatic certificate renewal',
+                        'Faster handshake times'
+                    ],
+                    explanation: 'Standard TLS only verifies the server (the ESP32 checks the broker/server certificate). Mutual TLS (mTLS) adds client verification -- the server/broker also checks the ESP32 client certificate. This ensures only authorized devices can publish to your MQTT topics or access your API. Each device gets a unique certificate, enabling individual device revocation without affecting other devices. This is critical for fleet management.'
+                },
+                {
+                    question: 'How does WPA2-Enterprise differ from WPA2-Personal?',
+                    options: [
+                        'Enterprise uses stronger encryption',
+                        'Enterprise authenticates each device individually via a RADIUS server instead of sharing a single password',
+                        'Enterprise only works with access points that cost over $500',
+                        'Enterprise does not support ESP32 devices'
+                    ],
+                    explanation: 'WPA2-Personal uses a single Pre-Shared Key (PSK) password shared by all devices on the network. If one device is compromised, the password is exposed for all. WPA2-Enterprise uses a RADIUS server to authenticate each device individually, typically via certificates (EAP-TLS). Compromising one device does not compromise others. Individual device revocation is possible by revoking its certificate on the RADIUS server.'
+                },
+                {
+                    question: 'What is EAP-TLS?',
+                    options: [
+                        'An encryption protocol for Bluetooth',
+                        'A certificate-based WiFi authentication method where both the device and RADIUS server verify each other',
+                        'An error correction protocol for WiFi',
+                        'An ESP32-specific authentication library'
+                    ],
+                    explanation: 'EAP-TLS (Extensible Authentication Protocol - Transport Layer Security) is the strongest EAP method for WiFi Enterprise. It uses mutual certificate authentication: the RADIUS server verifies the device certificate, and the device verifies the RADIUS server certificate. No passwords are involved -- authentication is entirely certificate-based. This is used by enterprises, government agencies, and healthcare networks where individual device identity and revocation are requirements.'
+                },
+                {
+                    question: 'Why does encrypted NVS depend on flash encryption?',
+                    options: [
+                        'Encrypted NVS uses the same encryption key as flash encryption',
+                        'The NVS encryption keys are stored in a separate key partition that is protected by flash encryption',
+                        'Flash encryption provides the random number generator needed for NVS',
+                        'They share the same hardware accelerator and cannot run independently'
+                    ],
+                    explanation: 'Encrypted NVS stores its AES-XTS encryption keys in a separate nvs_keys partition. Without flash encryption, this key partition would be readable in plaintext, defeating the purpose of encrypting NVS data. Flash encryption protects the key partition (along with all other flash contents), ensuring the NVS encryption keys cannot be extracted even with physical access to the flash chip. It is a layered security model.'
+                },
+                {
+                    question: 'What can the ESP32 detect in promiscuous WiFi mode for defensive monitoring?',
+                    options: [
+                        'Encrypted file contents on other devices',
+                        'Deauthentication attacks, rogue access points, and unauthorized devices in range',
+                        'Passwords transmitted over HTTPS',
+                        'Bluetooth device firmware versions'
+                    ],
+                    explanation: 'In promiscuous mode, the ESP32 captures all 802.11 frames in range, including management frames. It can detect deauthentication floods (a common WiFi attack), rogue access points impersonating your SSID (evil twins), and unauthorized devices entering a monitored area. This makes the ESP32 an inexpensive passive WiFi intrusion detection sensor. Note: this is passive monitoring only -- active attacks are illegal.'
+                },
+                {
+                    question: 'How can BLE scanning be used for physical security?',
+                    options: [
+                        'By jamming unauthorized BLE signals',
+                        'By tracking authorized BLE beacons and alerting when unknown devices appear or assets move outside expected zones',
+                        'By encrypting all BLE communications in range',
+                        'By disabling BLE on unauthorized devices'
+                    ],
+                    explanation: 'The ESP32 continuously scans for BLE advertisements, recording MAC addresses, names, and signal strength (RSSI). By maintaining a whitelist of known devices/beacons, it can detect when unknown BLE devices enter a secure area. RSSI values indicate distance, enabling proximity-based alerts. Beacons attached to assets trigger alerts if they move outside expected zones (RSSI changes significantly from baseline). Multiple ESP32 sensors can triangulate positions.'
+                },
+                {
+                    question: 'What should an ESP32 do when a tamper switch is triggered?',
+                    options: [
+                        'Continue normal operation and log the event',
+                        'Send an alert and optionally wipe sensitive credentials from NVS to prevent extraction',
+                        'Enter deep sleep to conserve power',
+                        'Reset WiFi credentials and reconnect'
+                    ],
+                    explanation: 'On tamper detection, the ESP32 should immediately take defensive action: send an alert via a secure channel if possible, then wipe sensitive data using prefs.clear() for NVS credentials and optionally SPIFFS.format() for file system data. With flash encryption enabled, zeroized data cannot be recovered. This is standard practice for security-sensitive deployments -- if physical security is compromised, cryptographic credentials must be destroyed before an attacker can extract them.'
+                },
+                {
+                    question: 'Which statement correctly describes the scope of ESP32 security in this track?',
+                    options: [
+                        'This core teaches WiFi hacking and BLE exploitation',
+                        'This core focuses on defensive security -- offensive WiFi/BLE tooling is covered in Signal (SG-110, SG-111)',
+                        'This core covers both offensive and defensive security equally',
+                        'Security is only relevant for commercial products, not learning projects'
+                    ],
+                    explanation: 'Core 12 focuses exclusively on DEFENDING ESP32 deployments: secure boot, flash encryption, TLS, WiFi Enterprise, and defensive monitoring applications. Offensive WiFi and BLE tooling (ESP32 Marauder, WiFi Army Knife) lives in Signal -- specifically SG-110 and SG-111. The distinction matters: this core builds the shield, Signal teaches you to test it. Both perspectives are valuable, but they require different contexts and legal considerations.'
+                }
+            ]
+        });
+        quiz.start();
+    </script>
+</body>
+</html>

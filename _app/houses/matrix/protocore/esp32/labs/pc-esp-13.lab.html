@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Display GUI Lab | ProtoCore ESP32 Core 13</title>
+    <style>
+        :root {
+            --blue: #0088ff;
+            --blue-dim: rgba(0,136,255,0.15);
+            --blue-border: rgba(0,136,255,0.3);
+            --green: #34d399;
+            --green-dim: rgba(52,211,153,0.1);
+            --green-border: rgba(52,211,153,0.3);
+            --gold: #ffd700;
+            --gold-dim: rgba(255,215,0,0.1);
+            --gold-border: rgba(255,215,0,0.3);
+            --red: #ef4444;
+            --bg: #040810;
+            --bg2: #081020;
+            --bg3: #0c1628;
+            --text: #dbeafe;
+            --text2: #6b82a0;
+            --border: rgba(0,136,255,0.12);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* ---- top bar ---- */
+        .topbar { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .topbar-left { display: flex; align-items: center; gap: 14px; }
+        .back-btn { padding: 6px 14px; background: var(--blue-dim); border: 1px solid var(--blue-border); border-radius: 6px; color: var(--blue); text-decoration: none; font-size: 0.82rem; transition: background 0.2s; }
+        .back-btn:hover { background: rgba(0,136,255,0.25); }
+        .lab-title { font-size: 0.95rem; color: var(--text); }
+        .badge { padding: 3px 10px; border-radius: 10px; font-size: 0.68rem; letter-spacing: 0.06em; }
+        .badge-blue { background: var(--blue-dim); border: 1px solid var(--blue-border); color: var(--blue); }
+        .badge-gold { background: var(--gold-dim); border: 1px solid var(--gold-border); color: var(--gold); }
+        .topbar-right { display: flex; align-items: center; gap: 14px; font-size: 0.82rem; color: var(--text2); }
+        .prog-wrap { width: 130px; height: 5px; background: rgba(0,136,255,0.12); border-radius: 3px; overflow: hidden; }
+        .prog-fill { height: 100%; background: linear-gradient(90deg, var(--blue), #0055cc); border-radius: 3px; transition: width 0.4s ease; }
+        .prog-label { color: var(--blue); font-weight: 500; }
+
+        /* ---- main layout ---- */
+        .workspace { display: grid; grid-template-columns: 1fr 320px; flex: 1; min-height: 0; }
+
+        /* ---- display panel (left) ---- */
+        .display-panel { display: flex; flex-direction: column; overflow: hidden; }
+
+        /* toolbar */
+        .display-toolbar { flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: var(--bg2); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+        .tb-btn { padding: 5px 14px; background: var(--blue-dim); border: 1px solid var(--blue-border); border-radius: 5px; color: var(--blue); font-size: 0.82rem; cursor: pointer; transition: background 0.2s; white-space: nowrap; font-weight: 600; }
+        .tb-btn:hover:not(:disabled) { background: rgba(0,136,255,0.25); }
+        .tb-btn:disabled { opacity: 0.35; cursor: default; }
+        .tb-btn.run { background: rgba(52,211,153,0.12); border-color: var(--green-border); color: var(--green); }
+        .tb-btn.run:hover:not(:disabled) { background: rgba(52,211,153,0.22); }
+        .tb-btn.clear { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.3); color: #f87171; }
+        .toolbar-sep { width: 1px; height: 18px; background: var(--border); }
+        .tb-select { padding: 5px 10px; background: var(--bg3); border: 1px solid var(--blue-border); border-radius: 5px; color: var(--text); font-size: 0.8rem; cursor: pointer; }
+        .tb-select option { background: var(--bg2); color: var(--text); }
+        .tb-label { font-size: 0.72rem; color: var(--text2); }
+
+        /* simulated TFT display */
+        .tft-area { flex: 1; display: flex; align-items: center; justify-content: center; background: var(--bg3); min-height: 0; padding: 16px; }
+        .tft-frame { border: 3px solid rgba(0,136,255,0.3); border-radius: 10px; padding: 8px; background: rgba(0,0,0,0.5); display: inline-block; }
+        .tft-screen { width: 320px; height: 240px; background: #000; position: relative; overflow: hidden; image-rendering: pixelated; }
+        .tft-screen canvas { display: block; }
+
+        /* touch overlay */
+        .touch-indicator { position: absolute; width: 20px; height: 20px; border: 2px solid var(--gold); border-radius: 50%; transform: translate(-50%,-50%); pointer-events: none; display: none; opacity: 0.8; }
+
+        /* code input area */
+        .code-input-area { flex-shrink: 0; display: flex; flex-direction: column; border-top: 1px solid var(--border); }
+        .code-input-header { display: flex; align-items: center; gap: 10px; padding: 6px 14px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .code-input-header span { font-size: 0.72rem; color: var(--text2); letter-spacing: 0.08em; text-transform: uppercase; }
+        .code-input { height: 140px; background: var(--bg3); color: #e2e8f0; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.82rem; padding: 10px 14px; border: none; outline: none; resize: none; line-height: 1.7; overflow-y: auto; white-space: pre; }
+        .code-input::placeholder { color: #384860; }
+
+        /* output panel */
+        .output-panel { flex-shrink: 0; height: 60px; background: rgba(0,0,0,0.4); border-top: 1px solid var(--border); overflow-y: auto; padding: 6px 14px; font-family: 'Consolas', monospace; font-size: 0.72rem; color: var(--text2); line-height: 1.5; }
+        .output-panel .out-ok { color: var(--green); }
+        .output-panel .out-err { color: #f87171; }
+        .output-panel .out-info { color: var(--blue); }
+
+        /* ---- task panel (right) ---- */
+        .task-panel { background: var(--bg2); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+        .panel-header { padding: 12px 16px; font-size: 0.7rem; color: var(--text2); letter-spacing: 0.12em; text-transform: uppercase; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .task-list { flex: 1; overflow-y: auto; padding: 12px; }
+        .task-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 9px; padding: 12px 14px; margin-bottom: 8px; transition: all 0.2s; }
+        .task-card.active { border-color: var(--blue); background: rgba(0,136,255,0.06); }
+        .task-card.done { border-color: var(--green-border); background: var(--green-dim); }
+        .task-num { font-size: 0.67rem; color: var(--blue); margin-bottom: 3px; }
+        .task-name { font-size: 0.88rem; color: var(--text); margin-bottom: 3px; display: flex; align-items: center; gap: 6px; }
+        .task-name .chk { font-size: 0.75rem; color: var(--green); margin-left: auto; display: none; }
+        .task-desc { font-size: 0.77rem; color: var(--text2); line-height: 1.45; }
+
+        /* ---- finish overlay ---- */
+        .finish-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 9000; }
+        .finish-overlay.active { display: flex; }
+        .finish-card { background: var(--bg2); border: 1px solid var(--green-border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .finish-title { font-size: 1.5rem; color: var(--gold); margin-bottom: 10px; }
+        .finish-msg { color: var(--text2); font-size: 0.95rem; margin-bottom: 24px; line-height: 1.6; }
+        .finish-btn { padding: 11px 28px; background: linear-gradient(135deg, var(--blue), #0055cc); border: none; border-radius: 8px; color: #fff; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; }
+        .finish-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <header class="topbar">
+        <div class="topbar-left">
+            <a href="../../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Display GUI Lab -- Displays and User Interfaces</span>
+            <span class="badge badge-blue">ProtoCore</span>
+            <span class="badge badge-gold">Core 13</span>
+        </div>
+        <div class="topbar-right">
+            <span>Tasks:</span>
+            <div class="prog-wrap"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+            <span class="prog-label" id="progLabel">0 / 10</span>
+        </div>
+    </header>
+
+    <div class="workspace">
+
+        <!-- LEFT: simulated TFT display + code -->
+        <div class="display-panel">
+            <div class="display-toolbar">
+                <button class="tb-btn run" id="btnRun" onclick="runCode()">Run</button>
+                <button class="tb-btn clear" id="btnClear" onclick="clearScreen()">Clear Screen</button>
+                <div class="toolbar-sep"></div>
+                <span class="tb-label">Display:</span>
+                <select class="tb-select" id="selDisplay" onchange="handleDisplaySelect()">
+                    <option value="st7789">ST7789 240x320</option>
+                    <option value="gc9a01">GC9A01 240x240 Round</option>
+                    <option value="ssd1306">SSD1306 128x64 OLED</option>
+                </select>
+                <span class="tb-label">Touch:</span>
+                <select class="tb-select" id="selTouch">
+                    <option value="off">Off</option>
+                    <option value="on">Enabled</option>
+                </select>
+            </div>
+
+            <div class="tft-area">
+                <div class="tft-frame" id="tftFrame">
+                    <div class="tft-screen" id="tftScreen">
+                        <canvas id="tftCanvas" width="320" height="240"></canvas>
+                        <div class="touch-indicator" id="touchDot"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-input-area">
+                <div class="code-input-header">
+                    <span>TFT_eSPI Commands</span>
+                </div>
+                <textarea class="code-input" id="codeInput" spellcheck="false" placeholder="// Type display commands here, then click Run
+// Examples:
+//   fillScreen(BLACK)
+//   drawRect(10, 10, 100, 50, BLUE)
+//   drawString('Hello ESP32', 20, 80, WHITE)
+//   fillCircle(120, 160, 40, GOLD)
+//   drawGauge(160, 120, 60, 75, GREEN)"></textarea>
+            </div>
+
+            <div class="output-panel" id="outputPanel">
+                <div class="out-info">TFT Display Simulator -- Ready. Type commands and click Run.</div>
+            </div>
+        </div>
+
+        <!-- RIGHT: task panel -->
+        <aside class="task-panel">
+            <div class="panel-header">Lab Tasks</div>
+            <div class="task-list" id="taskList"></div>
+        </aside>
+    </div>
+
+    <!-- finish overlay -->
+    <div class="finish-overlay" id="finishOverlay">
+        <div class="finish-card">
+            <div class="finish-title">Display GUI Lab Complete</div>
+            <div class="finish-msg">You have drawn shapes, rendered text, built gauges, created a dashboard layout, and handled touch input on a simulated TFT display. Your ESP32 now has a face.</div>
+            <button class="finish-btn" onclick="finishLab()">Return to ProtoCore Hub</button>
+        </div>
+    </div>
+
+<script>
+(function () {
+    'use strict';
+
+    /* ---- color palette ---- */
+    var COLORS = {
+        BLACK: '#000000', WHITE: '#ffffff', RED: '#ef4444', GREEN: '#34d399',
+        BLUE: '#0088ff', YELLOW: '#ffd700', GOLD: '#ffd700', CYAN: '#06b6d4',
+        MAGENTA: '#d946ef', ORANGE: '#f97316', NAVY: '#001f4d', DARKGREEN: '#065f46',
+        GREY: '#6b7280', GRAY: '#6b7280', PURPLE: '#a78bfa'
+    };
+
+    function resolveColor(c) {
+        if (!c) return '#0088ff';
+        var upper = c.toUpperCase().trim();
+        if (COLORS[upper]) return COLORS[upper];
+        if (c.charAt(0) === '#') return c;
+        return '#0088ff';
+    }
+
+    /* ---- task definitions ---- */
+    var TASKS = [
+        { id: 1, name: 'Fill the screen with a color', desc: 'Use fillScreen(BLACK) or any color. This clears the display and sets a background.' },
+        { id: 2, name: 'Draw a rectangle', desc: 'Use drawRect(x, y, w, h, COLOR) to draw a rectangle outline on the display.' },
+        { id: 3, name: 'Draw a filled circle', desc: 'Use fillCircle(x, y, radius, COLOR) to draw a filled circle.' },
+        { id: 4, name: 'Draw text on the display', desc: 'Use drawString(\'text\', x, y, COLOR) to render text at a position.' },
+        { id: 5, name: 'Draw a line', desc: 'Use drawLine(x1, y1, x2, y2, COLOR) to draw a line between two points.' },
+        { id: 6, name: 'Draw a filled rectangle', desc: 'Use fillRect(x, y, w, h, COLOR) to draw a filled rectangle (a solid block).' },
+        { id: 7, name: 'Draw a gauge', desc: 'Use drawGauge(cx, cy, radius, percent, COLOR) to draw an arc gauge showing a percentage value.' },
+        { id: 8, name: 'Create a dashboard layout', desc: 'Draw at least 3 different elements (text + shape + gauge) to create a sensor dashboard look.' },
+        { id: 9, name: 'Enable touch and tap the screen', desc: 'Set Touch to Enabled in the toolbar, then click on the display to register a touch event.' },
+        { id: 10, name: 'Draw a response to touch input', desc: 'With touch enabled, tap the display. A marker circle will appear at the touch point, demonstrating touch-to-draw interaction.' }
+    ];
+
+    /* ---- state ---- */
+    var completedTasks = {};
+    var canvas, ctx;
+    var drawHistory = [];
+    var touchEnabled = false;
+    var activeTaskId = 1;
+
+    /* ---- init ---- */
+    function init() {
+        canvas = document.getElementById('tftCanvas');
+        ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        buildTaskList();
+        updateProgress();
+        highlightTask(1);
+
+        canvas.addEventListener('click', handleTouch);
+        document.getElementById('selTouch').addEventListener('change', function() {
+            touchEnabled = this.value === 'on';
+            if (touchEnabled) addOutput('Touch input enabled', 'out-ok');
+        });
+    }
+
+    /* ---- task list builder ---- */
+    function buildTaskList() {
+        var list = document.getElementById('taskList');
+        TASKS.forEach(function(t) {
+            var card = document.createElement('div');
+            card.className = 'task-card';
+            card.id = 'tc-' + t.id;
+            card.innerHTML = '<div class="task-num">Task ' + t.id + '</div><div class="task-name">' + t.name + '<span class="chk" id="ck-' + t.id + '">Done</span></div><div class="task-desc">' + t.desc + '</div>';
+            list.appendChild(card);
+        });
+    }
+
+    /* ---- progress ---- */
+    function updateProgress() {
+        var count = Object.keys(completedTasks).length;
+        var pct = (count / TASKS.length) * 100;
+        document.getElementById('progFill').style.width = pct + '%';
+        document.getElementById('progLabel').textContent = count + ' / ' + TASKS.length;
+    }
+
+    function completeTask(id) {
+        if (completedTasks[id]) return;
+        completedTasks[id] = true;
+        var card = document.getElementById('tc-' + id);
+        if (card) card.className = 'task-card done';
+        var chk = document.getElementById('ck-' + id);
+        if (chk) chk.style.display = 'inline';
+        updateProgress();
+
+        var next = TASKS.find(function(t) { return !completedTasks[t.id]; });
+        if (next) highlightTask(next.id);
+
+        if (Object.keys(completedTasks).length === TASKS.length) {
+            setTimeout(function() {
+                document.getElementById('finishOverlay').classList.add('active');
+            }, 600);
+        }
+    }
+
+    function highlightTask(id) {
+        activeTaskId = id;
+        TASKS.forEach(function(t) {
+            var card = document.getElementById('tc-' + t.id);
+            if (card && !completedTasks[t.id]) {
+                card.className = (t.id === id) ? 'task-card active' : 'task-card';
+            }
+        });
+    }
+
+    /* ---- output panel ---- */
+    function addOutput(msg, cls) {
+        var panel = document.getElementById('outputPanel');
+        var div = document.createElement('div');
+        div.className = cls || '';
+        div.textContent = msg;
+        panel.appendChild(div);
+        panel.scrollTop = panel.scrollHeight;
+    }
+
+    /* ---- display commands ---- */
+    function execCommand(line) {
+        line = line.trim();
+        if (!line || line.indexOf('//') === 0) return;
+
+        var m;
+
+        // fillScreen(COLOR)
+        m = line.match(/^fillScreen\s*\(\s*(\w+)\s*\)$/i);
+        if (m) {
+            ctx.fillStyle = resolveColor(m[1]);
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            addOutput('fillScreen(' + m[1] + ')', 'out-ok');
+            drawHistory.push('fillScreen');
+            completeTask(1);
+            return;
+        }
+
+        // drawRect(x, y, w, h, COLOR)
+        m = line.match(/^drawRect\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\w+)\s*\)$/i);
+        if (m) {
+            ctx.strokeStyle = resolveColor(m[5]);
+            ctx.lineWidth = 2;
+            ctx.strokeRect(+m[1], +m[2], +m[3], +m[4]);
+            addOutput('drawRect at (' + m[1] + ',' + m[2] + ') size ' + m[3] + 'x' + m[4], 'out-ok');
+            drawHistory.push('drawRect');
+            completeTask(2);
+            return;
+        }
+
+        // fillRect(x, y, w, h, COLOR)
+        m = line.match(/^fillRect\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\w+)\s*\)$/i);
+        if (m) {
+            ctx.fillStyle = resolveColor(m[5]);
+            ctx.fillRect(+m[1], +m[2], +m[3], +m[4]);
+            addOutput('fillRect at (' + m[1] + ',' + m[2] + ') size ' + m[3] + 'x' + m[4], 'out-ok');
+            drawHistory.push('fillRect');
+            completeTask(6);
+            return;
+        }
+
+        // fillCircle(x, y, r, COLOR)
+        m = line.match(/^fillCircle\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\w+)\s*\)$/i);
+        if (m) {
+            ctx.fillStyle = resolveColor(m[4]);
+            ctx.beginPath();
+            ctx.arc(+m[1], +m[2], +m[3], 0, Math.PI * 2);
+            ctx.fill();
+            addOutput('fillCircle at (' + m[1] + ',' + m[2] + ') r=' + m[3], 'out-ok');
+            drawHistory.push('fillCircle');
+            completeTask(3);
+            return;
+        }
+
+        // drawCircle(x, y, r, COLOR)
+        m = line.match(/^drawCircle\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\w+)\s*\)$/i);
+        if (m) {
+            ctx.strokeStyle = resolveColor(m[4]);
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(+m[1], +m[2], +m[3], 0, Math.PI * 2);
+            ctx.stroke();
+            addOutput('drawCircle at (' + m[1] + ',' + m[2] + ') r=' + m[3], 'out-ok');
+            drawHistory.push('drawCircle');
+            return;
+        }
+
+        // drawLine(x1, y1, x2, y2, COLOR)
+        m = line.match(/^drawLine\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\w+)\s*\)$/i);
+        if (m) {
+            ctx.strokeStyle = resolveColor(m[5]);
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(+m[1], +m[2]);
+            ctx.lineTo(+m[3], +m[4]);
+            ctx.stroke();
+            addOutput('drawLine (' + m[1] + ',' + m[2] + ') to (' + m[3] + ',' + m[4] + ')', 'out-ok');
+            drawHistory.push('drawLine');
+            completeTask(5);
+            return;
+        }
+
+        // drawString('text', x, y, COLOR)
+        m = line.match(/^drawString\s*\(\s*'([^']*)'\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\w+)\s*\)$/i);
+        if (!m) m = line.match(/^drawString\s*\(\s*"([^"]*)"\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\w+)\s*\)$/i);
+        if (m) {
+            ctx.fillStyle = resolveColor(m[4]);
+            ctx.font = '16px Consolas, Courier New, monospace';
+            ctx.fillText(m[1], +m[2], +m[3] + 14);
+            addOutput('drawString "' + m[1] + '" at (' + m[2] + ',' + m[3] + ')', 'out-ok');
+            drawHistory.push('drawString');
+            completeTask(4);
+            return;
+        }
+
+        // drawGauge(cx, cy, radius, percent, COLOR)
+        m = line.match(/^drawGauge\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\w+)\s*\)$/i);
+        if (m) {
+            var cx = +m[1], cy = +m[2], r = +m[3], pct = +m[4];
+            var color = resolveColor(m[5]);
+            // Background arc
+            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+            ctx.lineWidth = 8;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0.75 * Math.PI, 2.25 * Math.PI);
+            ctx.stroke();
+            // Value arc
+            var endAngle = 0.75 * Math.PI + (pct / 100) * 1.5 * Math.PI;
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 8;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0.75 * Math.PI, endAngle);
+            ctx.stroke();
+            ctx.lineCap = 'butt';
+            // Percentage text
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 14px Consolas, monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(pct + '%', cx, cy + 5);
+            ctx.textAlign = 'start';
+            addOutput('drawGauge at (' + cx + ',' + cy + ') ' + pct + '%', 'out-ok');
+            drawHistory.push('drawGauge');
+            completeTask(7);
+            return;
+        }
+
+        addOutput('Unknown command: ' + line, 'out-err');
+    }
+
+    /* ---- run button ---- */
+    window.runCode = function() {
+        var code = document.getElementById('codeInput').value;
+        var lines = code.split('\n');
+        var preCount = drawHistory.length;
+
+        lines.forEach(function(line) {
+            execCommand(line);
+        });
+
+        // Check task 8: dashboard layout (3+ different element types)
+        if (!completedTasks[8]) {
+            var types = {};
+            drawHistory.forEach(function(t) { types[t] = true; });
+            var uniqueTypes = Object.keys(types).filter(function(t) { return t !== 'fillScreen'; });
+            if (uniqueTypes.length >= 3) completeTask(8);
+        }
+    };
+
+    /* ---- clear screen ---- */
+    window.clearScreen = function() {
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        addOutput('Screen cleared', 'out-info');
+    };
+
+    /* ---- display select ---- */
+    window.handleDisplaySelect = function() {
+        var sel = document.getElementById('selDisplay').value;
+        var screen = document.getElementById('tftScreen');
+        if (sel === 'gc9a01') {
+            canvas.width = 240; canvas.height = 240;
+            screen.style.width = '240px'; screen.style.height = '240px';
+            screen.style.borderRadius = '120px';
+            addOutput('Display: GC9A01 240x240 Round', 'out-info');
+        } else if (sel === 'ssd1306') {
+            canvas.width = 256; canvas.height = 128;
+            screen.style.width = '256px'; screen.style.height = '128px';
+            screen.style.borderRadius = '0';
+            addOutput('Display: SSD1306 128x64 (2x scale)', 'out-info');
+        } else {
+            canvas.width = 320; canvas.height = 240;
+            screen.style.width = '320px'; screen.style.height = '240px';
+            screen.style.borderRadius = '0';
+            addOutput('Display: ST7789 240x320', 'out-info');
+        }
+        ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    };
+
+    /* ---- touch handling ---- */
+    function handleTouch(e) {
+        if (!touchEnabled) return;
+        var rect = canvas.getBoundingClientRect();
+        var x = Math.round((e.clientX - rect.left) * (canvas.width / rect.width));
+        var y = Math.round((e.clientY - rect.top) * (canvas.height / rect.height));
+
+        addOutput('Touch at: (' + x + ', ' + y + ')', 'out-ok');
+
+        // Show touch dot
+        var dot = document.getElementById('touchDot');
+        dot.style.display = 'block';
+        dot.style.left = e.clientX - canvas.parentElement.getBoundingClientRect().left + 'px';
+        dot.style.top = e.clientY - canvas.parentElement.getBoundingClientRect().top + 'px';
+        setTimeout(function() { dot.style.display = 'none'; }, 500);
+
+        // Task 9: register a touch
+        if (!completedTasks[9]) completeTask(9);
+
+        // Task 10: draw at touch point
+        ctx.fillStyle = '#ffd700';
+        ctx.beginPath();
+        ctx.arc(x, y, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#0088ff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(x, y, 12, 0, Math.PI * 2);
+        ctx.stroke();
+        addOutput('Drew touch marker at (' + x + ', ' + y + ')', 'out-ok');
+        if (!completedTasks[10]) completeTask(10);
+    }
+
+    /* ---- finish lab ---- */
+    window.finishLab = function() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-esp-13-lab', { returnUrl: '../../index.html' });
+        } else {
+            window.location.href = '../../index.html';
+        }
+    };
+
+    document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>

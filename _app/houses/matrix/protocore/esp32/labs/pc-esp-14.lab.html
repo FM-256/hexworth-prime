@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Peripherals Lab | ProtoCore ESP32 Core 14</title>
+    <style>
+        :root {
+            --blue: #0088ff;
+            --blue-dim: rgba(0,136,255,0.15);
+            --blue-border: rgba(0,136,255,0.3);
+            --green: #34d399;
+            --green-dim: rgba(52,211,153,0.1);
+            --green-border: rgba(52,211,153,0.3);
+            --gold: #ffd700;
+            --gold-dim: rgba(255,215,0,0.1);
+            --gold-border: rgba(255,215,0,0.3);
+            --red: #ef4444;
+            --bg: #040810;
+            --bg2: #081020;
+            --bg3: #0c1628;
+            --text: #dbeafe;
+            --text2: #6b82a0;
+            --border: rgba(0,136,255,0.12);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* ---- top bar ---- */
+        .topbar { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .topbar-left { display: flex; align-items: center; gap: 14px; }
+        .back-btn { padding: 6px 14px; background: var(--blue-dim); border: 1px solid var(--blue-border); border-radius: 6px; color: var(--blue); text-decoration: none; font-size: 0.82rem; transition: background 0.2s; }
+        .back-btn:hover { background: rgba(0,136,255,0.25); }
+        .lab-title { font-size: 0.95rem; color: var(--text); }
+        .badge { padding: 3px 10px; border-radius: 10px; font-size: 0.68rem; letter-spacing: 0.06em; }
+        .badge-blue { background: var(--blue-dim); border: 1px solid var(--blue-border); color: var(--blue); }
+        .badge-gold { background: var(--gold-dim); border: 1px solid var(--gold-border); color: var(--gold); }
+        .topbar-right { display: flex; align-items: center; gap: 14px; font-size: 0.82rem; color: var(--text2); }
+        .prog-wrap { width: 130px; height: 5px; background: rgba(0,136,255,0.12); border-radius: 3px; overflow: hidden; }
+        .prog-fill { height: 100%; background: linear-gradient(90deg, var(--blue), #0055cc); border-radius: 3px; transition: width 0.4s ease; }
+        .prog-label { color: var(--blue); font-weight: 500; }
+
+        /* ---- main layout ---- */
+        .workspace { display: grid; grid-template-columns: 1fr 320px; flex: 1; min-height: 0; }
+
+        /* ---- terminal panel (left) ---- */
+        .terminal-panel { display: flex; flex-direction: column; overflow: hidden; }
+        .terminal-toolbar { flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: var(--bg2); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+        .tb-btn { padding: 5px 14px; background: var(--blue-dim); border: 1px solid var(--blue-border); border-radius: 5px; color: var(--blue); font-size: 0.82rem; cursor: pointer; transition: background 0.2s; white-space: nowrap; font-weight: 600; }
+        .tb-btn:hover:not(:disabled) { background: rgba(0,136,255,0.25); }
+        .tb-btn:disabled { opacity: 0.35; cursor: default; }
+        .tb-btn.run { background: rgba(52,211,153,0.12); border-color: var(--green-border); color: var(--green); }
+        .tb-btn.run:hover:not(:disabled) { background: rgba(52,211,153,0.22); }
+        .tb-btn.clear-btn { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.3); color: #f87171; }
+        .toolbar-sep { width: 1px; height: 18px; background: var(--border); }
+        .tb-label { font-size: 0.72rem; color: var(--text2); }
+
+        /* terminal output */
+        .terminal-output { flex: 1; overflow-y: auto; padding: 12px 16px; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.82rem; line-height: 1.7; background: rgba(0,0,0,0.3); }
+        .term-line { animation: fadeIn 0.2s ease; }
+        .term-ok { color: var(--green); }
+        .term-err { color: #f87171; }
+        .term-info { color: var(--blue); }
+        .term-gold { color: var(--gold); }
+        .term-dim { color: var(--text2); }
+        .term-white { color: var(--text); }
+        .term-prompt { color: var(--green); }
+
+        /* NeoPixel strip visualization */
+        .neopixel-strip { flex-shrink: 0; display: flex; align-items: center; gap: 4px; padding: 10px 16px; background: var(--bg2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); min-height: 50px; flex-wrap: wrap; }
+        .neopixel-strip .strip-label { font-size: 0.68rem; color: var(--text2); text-transform: uppercase; letter-spacing: 0.08em; margin-right: 8px; }
+        .neo-led { width: 16px; height: 16px; border-radius: 50%; background: #111; border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s; }
+
+        /* command input */
+        .cmd-input-area { flex-shrink: 0; display: flex; align-items: center; padding: 8px 16px; background: var(--bg2); border-top: 1px solid var(--border); gap: 8px; }
+        .cmd-prompt { color: var(--green); font-family: 'Consolas', monospace; font-size: 0.85rem; }
+        .cmd-input { flex: 1; background: transparent; border: none; outline: none; color: var(--text); font-family: 'Consolas', 'Courier New', monospace; font-size: 0.85rem; }
+        .cmd-input::placeholder { color: #384860; }
+
+        /* ---- task panel (right) ---- */
+        .task-panel { background: var(--bg2); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+        .panel-header { padding: 12px 16px; font-size: 0.7rem; color: var(--text2); letter-spacing: 0.12em; text-transform: uppercase; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .task-list { flex: 1; overflow-y: auto; padding: 12px; }
+        .task-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 9px; padding: 12px 14px; margin-bottom: 8px; transition: all 0.2s; }
+        .task-card.active { border-color: var(--blue); background: rgba(0,136,255,0.06); }
+        .task-card.done { border-color: var(--green-border); background: var(--green-dim); }
+        .task-num { font-size: 0.67rem; color: var(--blue); margin-bottom: 3px; }
+        .task-name { font-size: 0.88rem; color: var(--text); margin-bottom: 3px; display: flex; align-items: center; gap: 6px; }
+        .task-name .chk { font-size: 0.75rem; color: var(--green); margin-left: auto; display: none; }
+        .task-desc { font-size: 0.77rem; color: var(--text2); line-height: 1.45; }
+
+        /* ---- finish overlay ---- */
+        .finish-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 9000; }
+        .finish-overlay.active { display: flex; }
+        .finish-card { background: var(--bg2); border: 1px solid var(--green-border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .finish-title { font-size: 1.5rem; color: var(--gold); margin-bottom: 10px; }
+        .finish-msg { color: var(--text2); font-size: 0.95rem; margin-bottom: 24px; line-height: 1.6; }
+        .finish-btn { padding: 11px 28px; background: linear-gradient(135deg, var(--blue), #0055cc); border: none; border-radius: 8px; color: #fff; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; }
+        .finish-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <header class="topbar">
+        <div class="topbar-left">
+            <a href="../../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Peripherals Lab -- MCPWM, RMT, I2S</span>
+            <span class="badge badge-blue">ProtoCore</span>
+            <span class="badge badge-gold">Core 14</span>
+        </div>
+        <div class="topbar-right">
+            <span>Tasks:</span>
+            <div class="prog-wrap"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+            <span class="prog-label" id="progLabel">0 / 10</span>
+        </div>
+    </header>
+
+    <div class="workspace">
+
+        <!-- LEFT: terminal + NeoPixel strip -->
+        <div class="terminal-panel">
+            <div class="terminal-toolbar">
+                <button class="tb-btn run" onclick="runCmd()">Run</button>
+                <button class="tb-btn clear-btn" onclick="clearTerminal()">Clear</button>
+                <div class="toolbar-sep"></div>
+                <span class="tb-label">ESP32 Peripheral Terminal Simulator</span>
+            </div>
+
+            <div class="terminal-output" id="termOutput"></div>
+
+            <div class="neopixel-strip" id="neoStrip">
+                <span class="strip-label">NeoPixel Strip (RMT)</span>
+            </div>
+
+            <div class="cmd-input-area">
+                <span class="cmd-prompt">esp32&gt;</span>
+                <input class="cmd-input" id="cmdInput" type="text" placeholder="Type a command and press Enter..." autocomplete="off" spellcheck="false">
+            </div>
+        </div>
+
+        <!-- RIGHT: task panel -->
+        <aside class="task-panel">
+            <div class="panel-header">Lab Tasks</div>
+            <div class="task-list" id="taskList"></div>
+        </aside>
+    </div>
+
+    <!-- finish overlay -->
+    <div class="finish-overlay" id="finishOverlay">
+        <div class="finish-card">
+            <div class="finish-title">Peripherals Lab Complete</div>
+            <div class="finish-msg">You have driven NeoPixels via RMT, recorded audio via I2S, controlled a motor via MCPWM, and read a pulse counter via PCNT. These are the hardware peripherals that set the ESP32 apart from Arduino.</div>
+            <button class="finish-btn" onclick="finishLab()">Return to ProtoCore Hub</button>
+        </div>
+    </div>
+
+<script>
+(function () {
+    'use strict';
+
+    var NUM_LEDS = 16;
+
+    /* ---- task definitions ---- */
+    var TASKS = [
+        { id: 1, name: 'Initialize the RMT NeoPixel strip', desc: 'Run: rmt init 16' },
+        { id: 2, name: 'Set all LEDs to blue', desc: 'Run: neo fill 0 0 255' },
+        { id: 3, name: 'Create a rainbow pattern', desc: 'Run: neo rainbow' },
+        { id: 4, name: 'Run a chase animation', desc: 'Run: neo chase RED' },
+        { id: 5, name: 'Initialize I2S microphone', desc: 'Run: i2s init mic 16000' },
+        { id: 6, name: 'Record a 2-second audio sample', desc: 'Run: i2s record 2' },
+        { id: 7, name: 'Analyze audio volume (RMS)', desc: 'Run: i2s rms' },
+        { id: 8, name: 'Initialize MCPWM for motor control', desc: 'Run: mcpwm init' },
+        { id: 9, name: 'Set motor speed to 75%', desc: 'Run: mcpwm duty 75' },
+        { id: 10, name: 'Read the pulse counter', desc: 'Run: pcnt read' }
+    ];
+
+    /* ---- state ---- */
+    var completedTasks = {};
+    var rmtInitialized = false;
+    var i2sInitialized = false;
+    var mcpwmInitialized = false;
+    var audioRecorded = false;
+    var ledColors = [];
+    var chaseInterval = null;
+    var activeTaskId = 1;
+
+    /* ---- init ---- */
+    function init() {
+        buildTaskList();
+        buildNeoStrip();
+        updateProgress();
+        highlightTask(1);
+
+        var input = document.getElementById('cmdInput');
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); runCmd(); }
+        });
+
+        termLine('ESP32 Peripheral Terminal v1.0', 'term-info');
+        termLine('Available peripherals: RMT, I2S, MCPWM, PCNT', 'term-dim');
+        termLine('Type "help" for available commands.', 'term-dim');
+        termLine('', '');
+    }
+
+    /* ---- NeoPixel strip builder ---- */
+    function buildNeoStrip() {
+        var strip = document.getElementById('neoStrip');
+        for (var i = 0; i < NUM_LEDS; i++) {
+            var led = document.createElement('div');
+            led.className = 'neo-led';
+            led.id = 'neo-' + i;
+            strip.appendChild(led);
+            ledColors.push([0, 0, 0]);
+        }
+    }
+
+    function setLed(idx, r, g, b) {
+        if (idx < 0 || idx >= NUM_LEDS) return;
+        ledColors[idx] = [r, g, b];
+        var el = document.getElementById('neo-' + idx);
+        if (el) {
+            el.style.background = 'rgb(' + r + ',' + g + ',' + b + ')';
+            el.style.boxShadow = (r + g + b > 30) ? '0 0 8px rgba(' + r + ',' + g + ',' + b + ',0.6)' : 'none';
+        }
+    }
+
+    function clearLeds() {
+        for (var i = 0; i < NUM_LEDS; i++) setLed(i, 0, 0, 0);
+    }
+
+    /* ---- task list builder ---- */
+    function buildTaskList() {
+        var list = document.getElementById('taskList');
+        TASKS.forEach(function(t) {
+            var card = document.createElement('div');
+            card.className = 'task-card';
+            card.id = 'tc-' + t.id;
+            card.innerHTML = '<div class="task-num">Task ' + t.id + '</div><div class="task-name">' + t.name + '<span class="chk" id="ck-' + t.id + '">Done</span></div><div class="task-desc">' + t.desc + '</div>';
+            list.appendChild(card);
+        });
+    }
+
+    /* ---- progress ---- */
+    function updateProgress() {
+        var count = Object.keys(completedTasks).length;
+        var pct = (count / TASKS.length) * 100;
+        document.getElementById('progFill').style.width = pct + '%';
+        document.getElementById('progLabel').textContent = count + ' / ' + TASKS.length;
+    }
+
+    function completeTask(id) {
+        if (completedTasks[id]) return;
+        completedTasks[id] = true;
+        var card = document.getElementById('tc-' + id);
+        if (card) card.className = 'task-card done';
+        var chk = document.getElementById('ck-' + id);
+        if (chk) chk.style.display = 'inline';
+        updateProgress();
+
+        var next = TASKS.find(function(t) { return !completedTasks[t.id]; });
+        if (next) highlightTask(next.id);
+
+        if (Object.keys(completedTasks).length === TASKS.length) {
+            setTimeout(function() {
+                document.getElementById('finishOverlay').classList.add('active');
+            }, 600);
+        }
+    }
+
+    function highlightTask(id) {
+        activeTaskId = id;
+        TASKS.forEach(function(t) {
+            var card = document.getElementById('tc-' + t.id);
+            if (card && !completedTasks[t.id]) {
+                card.className = (t.id === id) ? 'task-card active' : 'task-card';
+            }
+        });
+    }
+
+    /* ---- terminal output ---- */
+    function termLine(msg, cls) {
+        var panel = document.getElementById('termOutput');
+        var div = document.createElement('div');
+        div.className = 'term-line ' + (cls || 'term-white');
+        div.textContent = msg;
+        panel.appendChild(div);
+        panel.scrollTop = panel.scrollHeight;
+    }
+
+    /* ---- command processor ---- */
+    window.runCmd = function() {
+        var input = document.getElementById('cmdInput');
+        var cmd = input.value.trim();
+        input.value = '';
+        if (!cmd) return;
+
+        termLine('esp32> ' + cmd, 'term-prompt');
+        var parts = cmd.toLowerCase().split(/\s+/);
+
+        switch (parts[0]) {
+            case 'help':
+                termLine('Commands:', 'term-info');
+                termLine('  rmt init <num_leds>     -- Initialize RMT NeoPixel strip', 'term-dim');
+                termLine('  neo fill <r> <g> <b>    -- Fill all LEDs with color', 'term-dim');
+                termLine('  neo set <idx> <r> <g> <b> -- Set individual LED', 'term-dim');
+                termLine('  neo rainbow             -- Apply rainbow pattern', 'term-dim');
+                termLine('  neo chase <COLOR>       -- Run chase animation', 'term-dim');
+                termLine('  neo clear               -- Turn off all LEDs', 'term-dim');
+                termLine('  i2s init mic <rate>     -- Initialize I2S microphone', 'term-dim');
+                termLine('  i2s record <seconds>    -- Record audio sample', 'term-dim');
+                termLine('  i2s rms                 -- Calculate RMS volume', 'term-dim');
+                termLine('  mcpwm init              -- Initialize MCPWM motor control', 'term-dim');
+                termLine('  mcpwm duty <percent>    -- Set motor duty cycle', 'term-dim');
+                termLine('  mcpwm stop              -- Stop motor', 'term-dim');
+                termLine('  pcnt read               -- Read pulse counter value', 'term-dim');
+                break;
+
+            case 'rmt':
+                handleRmt(parts);
+                break;
+
+            case 'neo':
+                handleNeo(parts);
+                break;
+
+            case 'i2s':
+                handleI2s(parts);
+                break;
+
+            case 'mcpwm':
+                handleMcpwm(parts);
+                break;
+
+            case 'pcnt':
+                handlePcnt(parts);
+                break;
+
+            default:
+                termLine('Unknown command: ' + parts[0] + '. Type "help" for commands.', 'term-err');
+        }
+    };
+
+    /* ---- RMT commands ---- */
+    function handleRmt(parts) {
+        if (parts[1] === 'init') {
+            var n = parseInt(parts[2]) || NUM_LEDS;
+            termLine('[RMT] Initializing RMT channel 0...', 'term-info');
+            setTimeout(function() {
+                termLine('[RMT] LED strip configured: ' + n + ' LEDs on GPIO 48', 'term-ok');
+                termLine('[RMT] Resolution: 10MHz, RMT channel allocated', 'term-ok');
+                rmtInitialized = true;
+                completeTask(1);
+            }, 300);
+        } else {
+            termLine('Usage: rmt init <num_leds>', 'term-err');
+        }
+    }
+
+    /* ---- NeoPixel commands ---- */
+    function handleNeo(parts) {
+        if (!rmtInitialized) {
+            termLine('[RMT] Error: RMT not initialized. Run: rmt init 16', 'term-err');
+            return;
+        }
+        if (chaseInterval) { clearInterval(chaseInterval); chaseInterval = null; }
+
+        if (parts[1] === 'fill') {
+            var r = parseInt(parts[2]) || 0;
+            var g = parseInt(parts[3]) || 0;
+            var b = parseInt(parts[4]) || 0;
+            for (var i = 0; i < NUM_LEDS; i++) setLed(i, r, g, b);
+            termLine('[RMT] Fill: RGB(' + r + ',' + g + ',' + b + ') applied to all ' + NUM_LEDS + ' LEDs', 'term-ok');
+            termLine('[RMT] led_strip_refresh() -- DMA transfer complete', 'term-ok');
+            if (b > 200) completeTask(2);
+
+        } else if (parts[1] === 'set') {
+            var idx = parseInt(parts[2]) || 0;
+            var sr = parseInt(parts[3]) || 0;
+            var sg = parseInt(parts[4]) || 0;
+            var sb = parseInt(parts[5]) || 0;
+            setLed(idx, sr, sg, sb);
+            termLine('[RMT] LED ' + idx + ' set to RGB(' + sr + ',' + sg + ',' + sb + ')', 'term-ok');
+
+        } else if (parts[1] === 'rainbow') {
+            for (var ri = 0; ri < NUM_LEDS; ri++) {
+                var hue = (ri / NUM_LEDS) * 360;
+                var rgb = hslToRgb(hue, 100, 50);
+                setLed(ri, rgb[0], rgb[1], rgb[2]);
+            }
+            termLine('[RMT] Rainbow pattern applied -- ' + NUM_LEDS + ' LEDs with full spectrum', 'term-ok');
+            completeTask(3);
+
+        } else if (parts[1] === 'chase') {
+            var color = (parts[2] || 'red').toUpperCase();
+            var cr = 255, cg = 0, cb = 0;
+            if (color === 'BLUE') { cr = 0; cg = 0; cb = 255; }
+            else if (color === 'GREEN') { cr = 0; cg = 200; cb = 100; }
+            else if (color === 'GOLD' || color === 'YELLOW') { cr = 255; cg = 215; cb = 0; }
+
+            var pos = 0;
+            termLine('[RMT] Chase animation started: ' + color, 'term-ok');
+            chaseInterval = setInterval(function() {
+                clearLeds();
+                setLed(pos % NUM_LEDS, cr, cg, cb);
+                setLed((pos + 1) % NUM_LEDS, Math.floor(cr * 0.4), Math.floor(cg * 0.4), Math.floor(cb * 0.4));
+                pos++;
+            }, 120);
+            completeTask(4);
+
+        } else if (parts[1] === 'clear') {
+            clearLeds();
+            termLine('[RMT] All LEDs cleared', 'term-ok');
+
+        } else {
+            termLine('Usage: neo fill|set|rainbow|chase|clear', 'term-err');
+        }
+    }
+
+    /* ---- I2S commands ---- */
+    function handleI2s(parts) {
+        if (parts[1] === 'init' && parts[2] === 'mic') {
+            var rate = parseInt(parts[3]) || 16000;
+            termLine('[I2S] Initializing I2S0 in RX mode...', 'term-info');
+            setTimeout(function() {
+                termLine('[I2S] INMP441 PDM microphone configured', 'term-ok');
+                termLine('[I2S] Sample rate: ' + rate + 'Hz, 16-bit mono', 'term-ok');
+                termLine('[I2S] GPIO: BCLK=26, WS=25, DIN=33', 'term-ok');
+                termLine('[I2S] DMA buffer: 8 descriptors x 1024 bytes', 'term-ok');
+                i2sInitialized = true;
+                completeTask(5);
+            }, 500);
+        } else if (parts[1] === 'record') {
+            if (!i2sInitialized) {
+                termLine('[I2S] Error: I2S not initialized. Run: i2s init mic 16000', 'term-err');
+                return;
+            }
+            var dur = parseInt(parts[2]) || 2;
+            termLine('[I2S] Recording ' + dur + ' seconds of audio...', 'term-info');
+            setTimeout(function() {
+                termLine('[I2S] Recording...', 'term-gold');
+            }, 200);
+            setTimeout(function() {
+                var samples = dur * 16000;
+                var bytes = samples * 2;
+                termLine('[I2S] Recording complete: ' + samples + ' samples (' + bytes + ' bytes)', 'term-ok');
+                termLine('[I2S] Peak amplitude: 2847 / 32768 (8.7%)', 'term-ok');
+                termLine('[I2S] Buffer stored in SRAM for analysis', 'term-ok');
+                audioRecorded = true;
+                completeTask(6);
+            }, 500 + dur * 300);
+        } else if (parts[1] === 'rms') {
+            if (!audioRecorded) {
+                termLine('[I2S] Error: No audio recorded. Run: i2s record 2', 'term-err');
+                return;
+            }
+            termLine('[I2S] Calculating RMS volume...', 'term-info');
+            setTimeout(function() {
+                var rms = (Math.random() * 400 + 100).toFixed(1);
+                var db = (20 * Math.log10(rms / 32768)).toFixed(1);
+                termLine('[I2S] RMS amplitude: ' + rms + ' / 32768', 'term-ok');
+                termLine('[I2S] Volume: ' + db + ' dBFS', 'term-ok');
+                termLine('[I2S] Noise floor detected -- ambient room audio', 'term-dim');
+                completeTask(7);
+            }, 300);
+        } else {
+            termLine('Usage: i2s init mic <rate> | i2s record <seconds> | i2s rms', 'term-err');
+        }
+    }
+
+    /* ---- MCPWM commands ---- */
+    function handleMcpwm(parts) {
+        if (parts[1] === 'init') {
+            termLine('[MCPWM] Initializing MCPWM unit 0, operator 0...', 'term-info');
+            setTimeout(function() {
+                termLine('[MCPWM] Timer: 10MHz resolution, 1kHz PWM frequency', 'term-ok');
+                termLine('[MCPWM] Dead-time: 500ns rising, 500ns falling', 'term-ok');
+                termLine('[MCPWM] Fault pin: GPIO 27 (active low)', 'term-ok');
+                termLine('[MCPWM] Output A: GPIO 15, Output B: GPIO 16', 'term-ok');
+                termLine('[MCPWM] Motor control ready -- duty at 0%', 'term-ok');
+                mcpwmInitialized = true;
+                completeTask(8);
+            }, 400);
+        } else if (parts[1] === 'duty') {
+            if (!mcpwmInitialized) {
+                termLine('[MCPWM] Error: MCPWM not initialized. Run: mcpwm init', 'term-err');
+                return;
+            }
+            var duty = parseInt(parts[2]);
+            if (isNaN(duty) || duty < 0 || duty > 100) {
+                termLine('[MCPWM] Error: Duty must be 0-100', 'term-err');
+                return;
+            }
+            var ticks = Math.round(duty * 100);
+            termLine('[MCPWM] Setting duty cycle to ' + duty + '% (' + ticks + '/10000 ticks)', 'term-ok');
+            termLine('[MCPWM] PWM A: ' + duty + '% HIGH, PWM B: ' + duty + '% LOW (complementary)', 'term-ok');
+            termLine('[MCPWM] Dead-time enforced: 500ns gap between transitions', 'term-dim');
+            if (duty >= 75) completeTask(9);
+        } else if (parts[1] === 'stop') {
+            if (!mcpwmInitialized) {
+                termLine('[MCPWM] Error: MCPWM not initialized', 'term-err');
+                return;
+            }
+            termLine('[MCPWM] Motor stopped -- duty set to 0%', 'term-ok');
+            termLine('[MCPWM] Both outputs forced LOW (safe state)', 'term-ok');
+        } else {
+            termLine('Usage: mcpwm init | mcpwm duty <percent> | mcpwm stop', 'term-err');
+        }
+    }
+
+    /* ---- PCNT commands ---- */
+    function handlePcnt(parts) {
+        if (parts[1] === 'read') {
+            termLine('[PCNT] Reading pulse counter unit 0...', 'term-info');
+            setTimeout(function() {
+                var count = Math.floor(Math.random() * 5000 + 1000);
+                var rpm = Math.floor(count * 60 / 1000);
+                termLine('[PCNT] Counter value: ' + count + ' pulses', 'term-ok');
+                termLine('[PCNT] Encoder: Channel A=GPIO34, Channel B=GPIO35', 'term-ok');
+                termLine('[PCNT] Estimated RPM: ' + rpm + ' (1000 PPR encoder)', 'term-ok');
+                termLine('[PCNT] Direction: Forward (B leads A)', 'term-dim');
+                completeTask(10);
+            }, 200);
+        } else {
+            termLine('Usage: pcnt read', 'term-err');
+        }
+    }
+
+    /* ---- HSL to RGB helper ---- */
+    function hslToRgb(h, s, l) {
+        s /= 100; l /= 100;
+        var c = (1 - Math.abs(2 * l - 1)) * s;
+        var x = c * (1 - Math.abs((h / 60) % 2 - 1));
+        var m = l - c / 2;
+        var r, g, b;
+        if (h < 60) { r = c; g = x; b = 0; }
+        else if (h < 120) { r = x; g = c; b = 0; }
+        else if (h < 180) { r = 0; g = c; b = x; }
+        else if (h < 240) { r = 0; g = x; b = c; }
+        else if (h < 300) { r = x; g = 0; b = c; }
+        else { r = c; g = 0; b = x; }
+        return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
+    }
+
+    /* ---- clear terminal ---- */
+    window.clearTerminal = function() {
+        document.getElementById('termOutput').innerHTML = '';
+        termLine('Terminal cleared.', 'term-dim');
+    };
+
+    /* ---- finish lab ---- */
+    window.finishLab = function() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-esp-14-lab', { returnUrl: '../../index.html' });
+        } else {
+            window.location.href = '../../index.html';
+        }
+    };
+
+    document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>
