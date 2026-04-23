@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bluetooth: Classic and BLE | ProtoCore ESP32 Core 4</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #040810 0%, #081020 50%, #0a0c1a 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Electric blue progress bar */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #0088ff; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(4, 8, 16, 0.95);
+            border-top: 1px solid rgba(0, 136, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(0, 136, 255, 0.15); color: #0088ff; border-color: #0088ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #0088ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ffd700; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip */
+        .scenario-strip {
+            background: rgba(0, 136, 255, 0.08); border-left: 3px solid #0088ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(0, 136, 255, 0.08); border: 1px solid rgba(0, 136, 255, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ffd700; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #0088ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #ffd700; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #0088ff; }
+
+        /* Section label */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #0088ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Inline code */
+        .ic {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* SVG diagram containers */
+        .diagram-row {
+            display: flex; gap: 16px; align-items: center; justify-content: center;
+        }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        /* Step-by-step flow list */
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(0, 136, 255, 0.12); border: 1px solid rgba(0, 136, 255, 0.4);
+            color: #0088ff; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        /* Code block */
+        .code-block {
+            background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #ffd700; line-height: 1.6; white-space: pre;
+        }
+        .code-block .cm { color: #64748b; }
+        .code-block .kw { color: #5cb8ff; }
+        .code-block .fn { color: #ffd700; }
+        .code-block .st { color: #86efac; }
+        .code-block .nu { color: #fdba74; }
+
+        /* Two-column code compare */
+        .code-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .code-panel-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.07em; margin-bottom: 5px; }
+
+        /* Hex grid cells */
+        .hex-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(0, 136, 255, 0.25);
+            border-radius: 8px; padding: 12px 14px;
+            text-align: center;
+            opacity: 0;
+            animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #0088ff; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        /* Shared animation keyframes */
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes flow {
+            0%   { stroke-dashoffset: 20; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes boxGrow {
+            from { opacity: 0; transform: scale(0.7); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes entityPop {
+            from { opacity: 0; transform: scale(0.6) translateY(6px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes dataFlow {
+            0%   { stroke-dashoffset: 14; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes glowPulse {
+            0%, 100% { filter: drop-shadow(0 0 4px rgba(0,136,255,0.3)); }
+            50%       { filter: drop-shadow(0 0 14px rgba(0,136,255,0.9)); }
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .code-compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Bluetooth: Classic and BLE -- ProtoCore ESP32 Core 4</h1>
+
+<!-- Electric blue progress bar -->
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; ProtoCore &nbsp;|&nbsp; ESP32 &nbsp;|&nbsp; Core 4</div>
+        <div class="title-hero">
+            <svg width="360" height="130" viewBox="0 0 360 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Bluetooth rune symbol -->
+                <polygon points="180,10 180,120 210,90 180,65 210,40" fill="none" stroke="#0088ff" stroke-width="2.5"
+                    style="animation: glowPulse 2s ease-in-out infinite;"/>
+                <line x1="180" y1="10" x2="150" y2="40" stroke="#0088ff" stroke-width="2.5"/>
+                <line x1="180" y1="120" x2="150" y2="90" stroke="#0088ff" stroke-width="2.5"/>
+                <!-- Radio waves left -->
+                <path d="M130,55 Q120,65 130,75" stroke="rgba(0,136,255,0.4)" stroke-width="1.5" fill="none" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="12;0" dur="1s" repeatCount="indefinite"/>
+                </path>
+                <path d="M118,48 Q104,65 118,82" stroke="rgba(0,136,255,0.25)" stroke-width="1" fill="none" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="12;0" dur="1.2s" repeatCount="indefinite" begin="0.2s"/>
+                </path>
+                <!-- Radio waves right -->
+                <path d="M230,55 Q240,65 230,75" stroke="rgba(255,215,0,0.4)" stroke-width="1.5" fill="none" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="12;0" dur="1s" repeatCount="indefinite" begin="0.1s"/>
+                </path>
+                <path d="M242,48 Q256,65 242,82" stroke="rgba(255,215,0,0.25)" stroke-width="1" fill="none" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="12;0" dur="1.2s" repeatCount="indefinite" begin="0.3s"/>
+                </path>
+                <!-- ESP32 box left -->
+                <rect x="20" y="40" width="70" height="50" rx="6" fill="rgba(0,136,255,0.06)" stroke="rgba(0,136,255,0.25)" stroke-width="1"
+                    style="animation: boxGrow 0.4s ease forwards 0.3s; opacity:0;"/>
+                <text x="55" y="62" text-anchor="middle" font-size="8" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">ESP32</text>
+                <text x="55" y="74" text-anchor="middle" font-size="7" fill="#5cb8ff" font-family="Segoe UI,sans-serif">BLE Server</text>
+                <!-- Phone box right -->
+                <rect x="270" y="40" width="70" height="50" rx="6" fill="rgba(255,215,0,0.06)" stroke="rgba(255,215,0,0.25)" stroke-width="1"
+                    style="animation: boxGrow 0.4s ease forwards 0.4s; opacity:0;"/>
+                <text x="305" y="62" text-anchor="middle" font-size="8" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">Phone</text>
+                <text x="305" y="74" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">BLE Client</text>
+            </svg>
+            <div class="big-title">
+                <span class="accent">Bluetooth:</span> Classic and BLE
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                SPP &nbsp;|&nbsp; BLE GATT &nbsp;|&nbsp; Server &amp; Client &nbsp;|&nbsp; Notifications &nbsp;|&nbsp; Security
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Your ESP32 has a dual-mode Bluetooth radio built into the chip. Bluetooth Classic streams audio and data like a serial cable. BLE whispers tiny packets on coin-cell power. This core teaches you both -- when to use the firehose and when to use the whisper.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>ProtoCore ESP32</span>
+            <span>Core 4 of 10</span>
+            <span>Matrix House</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- BLUETOOTH CLASSIC SPP ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Bluetooth Classic: <span class="accent">Serial Port Profile (SPP)</span></div>
+        <div class="slide-subtitle">Bluetooth Classic turns the air into a serial cable. SPP gives you a wireless UART -- the same TX/RX you already know.</div>
+
+        <div class="diagram-center">
+            <svg width="600" height="90" viewBox="0 0 600 90" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="20" y="15" width="140" height="60" rx="8" fill="rgba(0,136,255,0.08)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="90" y="38" text-anchor="middle" font-size="9" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">ESP32</text>
+                <text x="90" y="52" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">BluetoothSerial</text>
+                <text x="90" y="64" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">SerialBT.begin()</text>
+                <line x1="162" y1="45" x2="238" y2="45" stroke="rgba(0,136,255,0.5)" stroke-width="1.5" stroke-dasharray="5,3">
+                    <animate attributeName="stroke-dashoffset" values="16;0" dur="0.8s" repeatCount="indefinite"/>
+                </line>
+                <text x="200" y="38" text-anchor="middle" font-size="7" fill="#5cb8ff" font-family="Segoe UI,sans-serif">SPP</text>
+                <rect x="240" y="15" width="140" height="60" rx="8" fill="rgba(255,215,0,0.08)" stroke="#ffd700" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="310" y="38" text-anchor="middle" font-size="9" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">PC / Phone</text>
+                <text x="310" y="52" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Serial Terminal</text>
+                <text x="310" y="64" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Pair + Connect</text>
+                <rect x="440" y="15" width="140" height="60" rx="8" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="510" y="35" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Why SPP?</text>
+                <text x="510" y="50" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Up to 3 Mbps</text>
+                <text x="510" y="62" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Stream-oriented data</text>
+            </svg>
+        </div>
+
+        <div class="code-block"><span class="cm">// Bluetooth Classic -- SPP example</span>
+<span class="kw">#include</span> <span class="st">"BluetoothSerial.h"</span>
+
+BluetoothSerial <span class="fn">SerialBT</span>;
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    Serial.<span class="fn">begin</span>(<span class="nu">115200</span>);
+    SerialBT.<span class="fn">begin</span>(<span class="st">"ESP32-Classic"</span>);  <span class="cm">// Device name</span>
+    Serial.<span class="fn">println</span>(<span class="st">"Bluetooth Classic ready. Pair from your phone."</span>);
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+    <span class="kw">if</span> (SerialBT.<span class="fn">available</span>()) {
+        <span class="kw">char</span> c = SerialBT.<span class="fn">read</span>();
+        Serial.<span class="fn">write</span>(c);            <span class="cm">// Echo to USB serial</span>
+    }
+    <span class="kw">if</span> (Serial.<span class="fn">available</span>()) {
+        SerialBT.<span class="fn">write</span>(Serial.<span class="fn">read</span>());  <span class="cm">// Forward to BT</span>
+    }
+}</div>
+
+        <div class="box box-blue">
+            <div class="box-label">How It Works</div>
+            The ESP32's <span class="ic">BluetoothSerial</span> library wraps the SPP profile. You call <span class="ic">SerialBT.begin("name")</span> to advertise, then use <span class="ic">read()</span> and <span class="ic">write()</span> exactly like hardware serial. On the other end, a phone or PC pairs with the ESP32 and opens a serial terminal app. Data flows both ways -- wireless UART. Classic Bluetooth uses more power than BLE but handles continuous data streams better.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- BLE CONCEPTS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">BLE Fundamentals: <span class="accent">GATT Architecture</span></div>
+        <div class="slide-subtitle">BLE organizes data into a hierarchy: Profile > Service > Characteristic > Descriptor. Every BLE interaction follows this structure.</div>
+
+        <div class="diagram-center">
+            <svg width="650" height="140" viewBox="0 0 650 140" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Profile -->
+                <rect x="10" y="10" width="120" height="50" rx="8" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="1.5"
+                    style="animation: boxGrow 0.3s ease forwards 0.1s; opacity:0;"/>
+                <text x="70" y="32" text-anchor="middle" font-size="9" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Profile</text>
+                <text x="70" y="46" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Collection of Services</text>
+                <line x1="132" y1="35" x2="170" y2="35" stroke="rgba(167,139,250,0.4)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.8s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="168,31 176,35 168,39" fill="#a78bfa"/>
+                <!-- Service -->
+                <rect x="178" y="10" width="120" height="50" rx="8" fill="rgba(0,136,255,0.1)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: boxGrow 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="238" y="32" text-anchor="middle" font-size="9" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Service</text>
+                <text x="238" y="46" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">UUID-identified group</text>
+                <line x1="300" y1="35" x2="338" y2="35" stroke="rgba(0,136,255,0.4)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.8s" repeatCount="indefinite" begin="0.15s"/>
+                </line>
+                <polygon points="336,31 344,35 336,39" fill="#0088ff"/>
+                <!-- Characteristic -->
+                <rect x="346" y="10" width="140" height="50" rx="8" fill="rgba(255,215,0,0.1)" stroke="#ffd700" stroke-width="1.5"
+                    style="animation: boxGrow 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="416" y="32" text-anchor="middle" font-size="9" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">Characteristic</text>
+                <text x="416" y="46" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Read / Write / Notify</text>
+                <line x1="488" y1="35" x2="520" y2="35" stroke="rgba(255,215,0,0.4)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.8s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+                <polygon points="518,31 526,35 518,39" fill="#ffd700"/>
+                <!-- Descriptor -->
+                <rect x="528" y="10" width="110" height="50" rx="8" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="583" y="32" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Descriptor</text>
+                <text x="583" y="46" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Metadata (CCCD)</text>
+                <!-- Annotation -->
+                <text x="325" y="90" text-anchor="middle" font-size="8" fill="#475569" font-family="Segoe UI,sans-serif">Each level has a UUID. Standard UUIDs are 16-bit (0x180D = Heart Rate). Custom UUIDs are 128-bit.</text>
+                <text x="325" y="106" text-anchor="middle" font-size="8" fill="#475569" font-family="Segoe UI,sans-serif">CCCD = Client Characteristic Configuration Descriptor -- enables/disables notifications.</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Service</div>
+                <div class="card-desc">A logical grouping of related data. A heart rate monitor has a Heart Rate Service (0x180D). Each service is identified by a UUID and contains one or more characteristics. Standard services use 16-bit UUIDs assigned by the Bluetooth SIG. Custom services use 128-bit UUIDs you generate yourself.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Characteristic</div>
+                <div class="card-desc">The actual data point. Inside the Heart Rate Service, a Heart Rate Measurement characteristic holds the BPM value. Characteristics have properties: <strong>Read</strong> (client pulls data), <strong>Write</strong> (client pushes data), <strong>Notify</strong> (server pushes updates automatically). One service can contain many characteristics.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Descriptor</div>
+            Descriptors are metadata attached to a characteristic. The most important is the <strong>CCCD</strong> (Client Characteristic Configuration Descriptor, UUID 0x2902). When a client writes 0x0001 to the CCCD, it tells the server "start sending me notifications." Writing 0x0000 disables them. Without enabling the CCCD, notifications never flow -- even if the characteristic supports them.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- BLE SERVER ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">BLE Server: <span class="accent">Advertise and Serve</span></div>
+        <div class="slide-subtitle">The ESP32 becomes a BLE peripheral -- advertising its presence, waiting for connections, and serving data through GATT.</div>
+
+        <div class="code-block"><span class="cm">// BLE Server -- create service + characteristic</span>
+<span class="kw">#include</span> <span class="st">&lt;BLEDevice.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;BLEServer.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;BLEUtils.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;BLE2902.h&gt;</span>
+
+<span class="kw">#define</span> SERVICE_UUID        <span class="st">"12345678-1234-1234-1234-123456789abc"</span>
+<span class="kw">#define</span> CHARACTERISTIC_UUID <span class="st">"abcdefab-1234-1234-1234-abcdefabcdef"</span>
+
+BLECharacteristic *pCharacteristic;
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    BLEDevice::<span class="fn">init</span>(<span class="st">"ESP32-BLE"</span>);
+    BLEServer *pServer = BLEDevice::<span class="fn">createServer</span>();
+    BLEService *pService = pServer-><span class="fn">createService</span>(SERVICE_UUID);
+    pCharacteristic = pService-><span class="fn">createCharacteristic</span>(
+        CHARACTERISTIC_UUID,
+        BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY
+    );
+    pCharacteristic-><span class="fn">addDescriptor</span>(<span class="kw">new</span> BLE2902());
+    pService-><span class="fn">start</span>();
+    BLEDevice::<span class="fn">startAdvertising</span>();
+}</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Step 1: Init</div>
+                <div class="card-desc"><span class="ic">BLEDevice::init("name")</span> initializes the BLE stack and sets the device name that appears during scanning.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Step 2: Create</div>
+                <div class="card-desc">Create a server, then a service with your UUID, then characteristics inside the service. Each characteristic gets properties (Read, Write, Notify).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Step 3: Advertise</div>
+                <div class="card-desc"><span class="ic">startAdvertising()</span> begins broadcasting advertisement packets. Clients can now discover the ESP32 by scanning.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">UUID Generation</div>
+            Never use the example UUIDs in production. Generate your own 128-bit UUIDs using a tool like <span class="ic">uuidgen</span> on Linux/Mac or an online UUID generator. Two devices sharing the same custom UUID will confuse clients. Standard Bluetooth SIG UUIDs (16-bit, like 0x180F for Battery Service) are reserved for their defined purposes.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- BLE CLIENT ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">BLE Client: <span class="accent">Scan, Connect, Read</span></div>
+        <div class="slide-subtitle">The ESP32 can also act as a BLE central -- scanning for peripherals, connecting to them, and reading their characteristics.</div>
+
+        <div class="diagram-center">
+            <svg width="600" height="90" viewBox="0 0 600 90" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="20" y="15" width="100" height="60" rx="8" fill="rgba(0,136,255,0.1)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: boxGrow 0.3s ease forwards 0.1s; opacity:0;"/>
+                <text x="70" y="38" text-anchor="middle" font-size="8" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Scan</text>
+                <text x="70" y="52" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Find devices</text>
+                <line x1="122" y1="45" x2="158" y2="45" stroke="rgba(0,136,255,0.4)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.8s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="156,41 164,45 156,49" fill="#0088ff"/>
+                <rect x="166" y="15" width="100" height="60" rx="8" fill="rgba(255,215,0,0.1)" stroke="#ffd700" stroke-width="1.5"
+                    style="animation: boxGrow 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="216" y="38" text-anchor="middle" font-size="8" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">Filter</text>
+                <text x="216" y="52" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">By name/UUID</text>
+                <line x1="268" y1="45" x2="304" y2="45" stroke="rgba(255,215,0,0.4)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.8s" repeatCount="indefinite" begin="0.15s"/>
+                </line>
+                <polygon points="302,41 310,45 302,49" fill="#ffd700"/>
+                <rect x="312" y="15" width="100" height="60" rx="8" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="362" y="38" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Connect</text>
+                <text x="362" y="52" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Establish link</text>
+                <line x1="414" y1="45" x2="450" y2="45" stroke="rgba(58,181,119,0.4)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.8s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+                <polygon points="448,41 456,45 448,49" fill="#3ab577"/>
+                <rect x="458" y="15" width="120" height="60" rx="8" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="1.5"
+                    style="animation: boxGrow 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="518" y="38" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Read / Write</text>
+                <text x="518" y="52" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Access GATT data</text>
+            </svg>
+        </div>
+
+        <div class="code-block"><span class="cm">// BLE Client -- scan and connect</span>
+<span class="kw">#include</span> <span class="st">&lt;BLEDevice.h&gt;</span>
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    BLEDevice::<span class="fn">init</span>(<span class="st">""</span>);
+    BLEScan *pScan = BLEDevice::<span class="fn">getScan</span>();
+    pScan-><span class="fn">setActiveScan</span>(<span class="kw">true</span>);
+    BLEScanResults results = pScan-><span class="fn">start</span>(<span class="nu">5</span>);  <span class="cm">// Scan for 5 seconds</span>
+
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nu">0</span>; i &lt; results.<span class="fn">getCount</span>(); i++) {
+        BLEAdvertisedDevice device = results.<span class="fn">getDevice</span>(i);
+        Serial.<span class="fn">println</span>(device.<span class="fn">getName</span>().c_str());
+        Serial.<span class="fn">println</span>(device.<span class="fn">getAddress</span>().toString().c_str());
+        Serial.<span class="fn">printf</span>(<span class="st">"RSSI: %d\n"</span>, device.<span class="fn">getRSSI</span>());
+    }
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Active vs Passive Scan</div>
+                <div class="card-desc"><strong>Passive scan:</strong> listens for advertisement packets only. <strong>Active scan:</strong> sends a scan request after receiving an advertisement, which triggers the peripheral to send additional data in a scan response. Active scan gives more information but uses more power.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">After Connection</div>
+                <div class="card-desc">Once connected, you get a <span class="ic">BLEClient</span> object. Call <span class="ic">getService(uuid)</span> to find a service, then <span class="ic">getCharacteristic(uuid)</span> to access data. Use <span class="ic">readValue()</span> to pull data or <span class="ic">writeValue()</span> to push it. The connection stays open until you call <span class="ic">disconnect()</span> or the peripheral drops it.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- BLE NOTIFICATIONS ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">BLE Notifications: <span class="accent">Push, Don't Poll</span></div>
+        <div class="slide-subtitle">Instead of the client asking "has the data changed?" every second, the server pushes updates automatically. This is how BLE stays power-efficient.</div>
+
+        <div class="diagram-center">
+            <svg width="500" height="110" viewBox="0 0 500 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Server -->
+                <rect x="20" y="25" width="120" height="60" rx="8" fill="rgba(0,136,255,0.1)" stroke="#0088ff" stroke-width="1.5"/>
+                <text x="80" y="48" text-anchor="middle" font-size="9" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">BLE Server</text>
+                <text x="80" y="62" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">setValue() + notify()</text>
+                <!-- Notification arrows -->
+                <line x1="142" y1="40" x2="258" y2="40" stroke="#ffd700" stroke-width="1.5" stroke-dasharray="5,3">
+                    <animate attributeName="stroke-dashoffset" values="16;0" dur="0.6s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="256,36 264,40 256,44" fill="#ffd700"/>
+                <text x="200" y="34" text-anchor="middle" font-size="7" fill="#ffd700" font-family="Segoe UI,sans-serif">NOTIFY</text>
+                <line x1="142" y1="68" x2="258" y2="68" stroke="#ffd700" stroke-width="1" stroke-dasharray="5,3" opacity="0.5">
+                    <animate attributeName="stroke-dashoffset" values="16;0" dur="0.6s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+                <polygon points="256,64 264,68 256,72" fill="#ffd700" opacity="0.5"/>
+                <!-- Client -->
+                <rect x="266" y="25" width="120" height="60" rx="8" fill="rgba(255,215,0,0.1)" stroke="#ffd700" stroke-width="1.5"/>
+                <text x="326" y="48" text-anchor="middle" font-size="9" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">BLE Client</text>
+                <text x="326" y="62" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">onNotify callback</text>
+            </svg>
+        </div>
+
+        <div class="code-block"><span class="cm">// Server side -- send notification</span>
+<span class="kw">void</span> <span class="fn">loop</span>() {
+    <span class="kw">float</span> temp = <span class="fn">readTemperature</span>();
+    pCharacteristic-><span class="fn">setValue</span>(String(temp).c_str());
+    pCharacteristic-><span class="fn">notify</span>();   <span class="cm">// Push to all subscribed clients</span>
+    <span class="fn">delay</span>(<span class="nu">2000</span>);
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Notification vs Indication</div>
+                <div class="card-desc"><strong>Notification:</strong> server pushes data, no acknowledgment required. Fast but unreliable -- if the packet is lost, the server does not know. <strong>Indication:</strong> server pushes data, client must acknowledge receipt. Slower but guaranteed delivery. Use notifications for sensor streams, indications for critical commands.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Subscribing to Notifications</div>
+                <div class="card-desc">The client must write to the CCCD descriptor (0x2902) to enable notifications. Without this step, calling <span class="ic">notify()</span> on the server does nothing. The BLE2902 descriptor class handles this automatically when added to a characteristic. On the client side, <span class="ic">registerForNotify(callback)</span> sets up the handler.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Power Savings</div>
+            Polling wastes radio power -- the client must wake up, send a read request, wait for a response, every single interval. Notifications let the client sleep until the server has something to say. A BLE sensor using notifications can run for months on a coin cell battery. The same sensor with polling might last days.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- BLE VS CLASSIC ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">BLE vs Classic: <span class="accent">When to Use Which</span></div>
+        <div class="slide-subtitle">The ESP32 supports both. The right choice depends on your data volume, power budget, and latency requirements.</div>
+
+        <div class="hex-grid">
+            <div class="hex-cell">
+                <div class="hex-title">Data Rate</div>
+                <div class="hex-desc">Classic: up to 3 Mbps. BLE: ~100 Kbps effective. Classic wins for audio, file transfer, and continuous streams.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Power Draw</div>
+                <div class="hex-desc">BLE: microamps in sleep, milliamps during short bursts. Classic: tens of milliamps continuously. BLE wins for battery devices.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Range</div>
+                <div class="hex-desc">Both: ~10-30 meters typical. BLE 5.0 Long Range mode extends to 200+ meters at reduced data rate. Classic has no equivalent.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Connection Time</div>
+                <div class="hex-desc">Classic: seconds to pair and connect. BLE: milliseconds to connect after bonding. BLE is designed for quick, intermittent contact.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Use Cases -- Classic</div>
+                <div class="hex-desc">Audio streaming (A2DP), wireless serial debug, file transfer (OBEX), tethering. Anything that needs sustained throughput.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Use Cases -- BLE</div>
+                <div class="hex-desc">Sensor beacons, fitness trackers, smart home buttons, proximity tags, medical devices. Small packets, long battery life.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Dual-Mode Advantage</div>
+            The ESP32 is dual-mode: it runs Classic and BLE simultaneously on the same radio. You can stream audio over Classic while sending sensor notifications over BLE. Most smartphones also support dual-mode, so your ESP32 project can use whichever protocol fits each feature. This is rare in microcontrollers -- most BLE-only chips (nRF52, STM32WB) cannot do Classic at all.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- ADVERTISING ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">BLE Advertising: <span class="accent">Broadcasting Your Presence</span></div>
+        <div class="slide-subtitle">Before any connection happens, the peripheral must advertise. The advertisement packet is a 31-byte broadcast that tells the world "I exist."</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Advertisement Packet</div>
+                <div class="card-desc">Maximum 31 bytes. Contains flags, device name (or partial name), service UUIDs, TX power level, and manufacturer-specific data. Limited space forces you to be selective about what you include.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Scan Response</div>
+                <div class="card-desc">An additional 31 bytes sent only when a scanner requests it (active scan). Use this for the full device name, additional service UUIDs, or custom data that does not fit in the primary advertisement.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Advertising Interval</div>
+                <div class="card-desc">How often the peripheral broadcasts: 20ms to 10.24s. Shorter intervals mean faster discovery but higher power consumption. Typical: 100-500ms for interactive devices, 1-2s for beacons.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// Customize advertising parameters</span>
+BLEAdvertising *pAdvertising = BLEDevice::<span class="fn">getAdvertising</span>();
+pAdvertising-><span class="fn">addServiceUUID</span>(SERVICE_UUID);
+pAdvertising-><span class="fn">setScanResponse</span>(<span class="kw">true</span>);
+pAdvertising-><span class="fn">setMinPreferred</span>(<span class="nu">0x06</span>);  <span class="cm">// Connection interval hint</span>
+pAdvertising-><span class="fn">setMaxPreferred</span>(<span class="nu">0x12</span>);
+BLEDevice::<span class="fn">startAdvertising</span>();
+Serial.<span class="fn">println</span>(<span class="st">"Advertising started -- waiting for connections..."</span>);</div>
+
+        <div class="box box-blue">
+            <div class="box-label">iBeacon / Eddystone</div>
+            BLE advertisements can broadcast data without ever connecting. Apple's iBeacon and Google's Eddystone encode location identifiers, URLs, or telemetry data directly in the advertisement packet. The ESP32 can act as a beacon -- broadcasting a UUID, major/minor values, or a URL that any nearby phone can detect. No pairing required. This is how retail stores trigger location-based notifications.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- SERVER CALLBACKS ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Server Callbacks: <span class="accent">React to Events</span></div>
+        <div class="slide-subtitle">The BLE server fires callbacks when clients connect, disconnect, or write to characteristics. These are your hooks for application logic.</div>
+
+        <div class="code-block"><span class="cm">// Connection callbacks</span>
+<span class="kw">class</span> MyServerCallbacks : <span class="kw">public</span> BLEServerCallbacks {
+    <span class="kw">void</span> <span class="fn">onConnect</span>(BLEServer *pServer) {
+        Serial.<span class="fn">println</span>(<span class="st">"Client connected"</span>);
+    }
+    <span class="kw">void</span> <span class="fn">onDisconnect</span>(BLEServer *pServer) {
+        Serial.<span class="fn">println</span>(<span class="st">"Client disconnected -- restarting advertising"</span>);
+        BLEDevice::<span class="fn">startAdvertising</span>();  <span class="cm">// Re-advertise after disconnect</span>
+    }
+};
+
+<span class="cm">// Characteristic write callback</span>
+<span class="kw">class</span> MyCharCallbacks : <span class="kw">public</span> BLECharacteristicCallbacks {
+    <span class="kw">void</span> <span class="fn">onWrite</span>(BLECharacteristic *pChar) {
+        String value = pChar-><span class="fn">getValue</span>();
+        Serial.<span class="fn">print</span>(<span class="st">"Received: "</span>);
+        Serial.<span class="fn">println</span>(value.c_str());
+    }
+};
+
+<span class="cm">// Attach callbacks in setup()</span>
+pServer-><span class="fn">setCallbacks</span>(<span class="kw">new</span> MyServerCallbacks());
+pCharacteristic-><span class="fn">setCallbacks</span>(<span class="kw">new</span> MyCharCallbacks());</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Re-Advertising</div>
+                <div class="card-desc">When a client disconnects, the ESP32 stops advertising by default. You must call <span class="ic">startAdvertising()</span> again in the <span class="ic">onDisconnect</span> callback, or no new clients can find your device. This is one of the most common BLE beginner mistakes.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Write Handling</div>
+                <div class="card-desc">The <span class="ic">onWrite</span> callback fires when a client writes to a characteristic. Use this to receive commands: "LED ON", "SET_TEMP 72", or raw binary data. Parse the incoming value and act on it. This is how a phone app controls the ESP32.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- BLE SECURITY ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">BLE Security: <span class="accent">Pairing and Bonding</span></div>
+        <div class="slide-subtitle">Without security, anyone in range can connect to your BLE device and read or write data. Pairing adds authentication. Bonding remembers it.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Pairing</div>
+                <div class="card-desc">The process of establishing a temporary encrypted link. Both devices agree on encryption keys. Methods: <strong>Just Works</strong> (no user interaction, vulnerable to MITM), <strong>Passkey</strong> (6-digit PIN), <strong>Numeric Comparison</strong> (confirm matching numbers on both screens).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Bonding</div>
+                <div class="card-desc">Saves the pairing keys to flash so the devices remember each other. Next time they meet, they reconnect without the pairing process. The ESP32 stores bonded device keys in NVS (Non-Volatile Storage). Bonded devices reconnect in milliseconds.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">MITM Protection</div>
+                <div class="card-desc">"Just Works" pairing provides encryption but zero MITM protection -- an attacker can intercept the key exchange. For any security-sensitive application, use Passkey or Numeric Comparison. The ESP32 supports all pairing methods through the <span class="ic">BLESecurity</span> class.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// Enable BLE security with passkey</span>
+BLESecurity *pSecurity = <span class="kw">new</span> BLESecurity();
+pSecurity-><span class="fn">setAuthenticationMode</span>(ESP_LE_AUTH_REQ_SC_MITM_BOND);
+pSecurity-><span class="fn">setCapability</span>(ESP_IO_CAP_OUT);        <span class="cm">// Display only</span>
+pSecurity-><span class="fn">setInitEncryptionKey</span>(ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK);
+esp_ble_gap_set_security_param(ESP_BLE_SM_SET_STATIC_PASSKEY, &amp;passkey, <span class="kw">sizeof</span>(<span class="kw">uint32_t</span>));</div>
+
+        <div class="box box-red">
+            <div class="box-label">Security Reality Check</div>
+            BLE security is not a fortress. The 2.4 GHz radio can be sniffed with a $20 dongle and Wireshark. "Just Works" pairing is trivially broken by MITM attacks. Even passkey pairing with a 6-digit PIN has only 1 million combinations. For truly sensitive data, encrypt at the application layer (AES-256) on top of BLE's link-layer encryption. BLE security is a lock on the door, not a vault.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- MULTI-DEVICE PATTERNS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Multi-Device Patterns: <span class="accent">Mesh and Gateway</span></div>
+        <div class="slide-subtitle">One ESP32 can connect to multiple BLE peripherals simultaneously, or act as both a server and client at the same time.</div>
+
+        <div class="diagram-center">
+            <svg width="500" height="140" viewBox="0 0 500 140" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central ESP32 -->
+                <rect x="190" y="40" width="120" height="60" rx="10" fill="rgba(0,136,255,0.12)" stroke="#0088ff" stroke-width="2"
+                    style="animation: glowPulse 2.5s ease-in-out infinite;"/>
+                <text x="250" y="65" text-anchor="middle" font-size="10" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">ESP32</text>
+                <text x="250" y="80" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Server + Client</text>
+                <!-- Sensor 1 -->
+                <rect x="10" y="10" width="90" height="40" rx="6" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="55" y="35" text-anchor="middle" font-size="7" fill="#3ab577" font-family="Segoe UI,sans-serif">Temp Sensor</text>
+                <line x1="102" y1="30" x2="188" y2="55" stroke="rgba(58,181,119,0.3)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <!-- Sensor 2 -->
+                <rect x="10" y="90" width="90" height="40" rx="6" fill="rgba(255,215,0,0.08)" stroke="#ffd700" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="55" y="115" text-anchor="middle" font-size="7" fill="#ffd700" font-family="Segoe UI,sans-serif">Door Lock</text>
+                <line x1="102" y1="110" x2="188" y2="85" stroke="rgba(255,215,0,0.3)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <!-- Phone -->
+                <rect x="400" y="40" width="90" height="60" rx="6" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="445" y="65" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Phone</text>
+                <text x="445" y="80" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Dashboard</text>
+                <line x1="312" y1="70" x2="398" y2="70" stroke="rgba(167,139,250,0.4)" stroke-width="1.5" stroke-dasharray="5,3">
+                    <animate attributeName="stroke-dashoffset" values="16;0" dur="0.8s" repeatCount="indefinite"/>
+                </line>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Gateway Pattern</div>
+                <div class="card-desc">The ESP32 acts as a BLE client to multiple sensors (thermometers, locks, motion detectors) and simultaneously serves aggregated data to a phone via its BLE server interface. The phone sees one device but gets data from many. This is the IoT gateway pattern -- the ESP32 bridges BLE sensor networks to user interfaces.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Connection Limits</div>
+                <div class="card-desc">The ESP32 can maintain up to ~9 simultaneous BLE connections (depends on configuration and memory). Each connection uses a connection handle and consumes RAM. For large sensor networks, consider connectionless advertising (beacons) where the ESP32 scans for broadcast data without connecting.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">ESP-BLE-Mesh</div>
+            Espressif provides an ESP-BLE-Mesh library that implements the Bluetooth Mesh standard. Mesh lets hundreds of BLE devices relay messages to each other, covering an entire building. Each node can act as a relay. The ESP32 can be a mesh node, proxy, or provisioner. This is the protocol behind commercial smart lighting systems like those from IKEA and Philips.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- SUMMARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Core 4 Summary: <span class="accent">Bluetooth Mastery</span></div>
+        <div class="slide-subtitle">Bluetooth Classic for throughput, BLE for efficiency. The ESP32 gives you both on one chip.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Bluetooth Classic SPP is wireless UART.</strong> Use <code>BluetoothSerial</code> to create a serial bridge. <code>SerialBT.begin("name")</code> advertises, <code>read()</code>/<code>write()</code> moves data. Best for continuous streams and audio.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>BLE uses GATT: Service > Characteristic > Descriptor.</strong> Services group related data by UUID. Characteristics hold values with Read/Write/Notify properties. Descriptors (CCCD) control notification subscriptions.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>BLE Server advertises and serves data.</strong> <code>BLEDevice::init()</code>, create server, create service, add characteristics, start advertising. Clients discover and connect to read your data.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>BLE Client scans, connects, and reads.</strong> <code>getScan()->start(5)</code> discovers nearby peripherals. Connect by address, find the target service UUID, and read or write characteristics.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Notifications push data efficiently.</strong> The server calls <code>notify()</code> and subscribed clients receive updates instantly without polling. This is how BLE achieves months of battery life on coin cells.</span></div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Core 5 -- HTTP and Web Servers</strong> &nbsp;|&nbsp; HTTP Client, Web Server, Dynamic Pages, WebSocket, mDNS
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; ProtoCore</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* Slide navigation state */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    /* Module completion via ModuleProgress component */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-esp-04-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>

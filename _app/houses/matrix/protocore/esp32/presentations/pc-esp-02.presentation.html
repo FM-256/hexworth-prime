@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPIO and Peripherals | ProtoCore ESP32 Core 2</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #040810 0%, #081020 50%, #0a0c1a 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #0088ff; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(4, 8, 16, 0.95);
+            border-top: 1px solid rgba(0, 136, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(0, 136, 255, 0.15); color: #0088ff; border-color: #0088ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #0088ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ffd700; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(0, 136, 255, 0.08); border-left: 3px solid #0088ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(0, 136, 255, 0.08); border: 1px solid rgba(0, 136, 255, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ffd700; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #0088ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #ffd700; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #0088ff; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #0088ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .diagram-row { display: flex; gap: 16px; align-items: center; justify-content: center; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(0, 136, 255, 0.12); border: 1px solid rgba(0, 136, 255, 0.4);
+            color: #0088ff; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #ffd700; line-height: 1.6; white-space: pre;
+        }
+        .code-block .cm { color: #64748b; }
+        .code-block .kw { color: #5cb8ff; }
+        .code-block .fn { color: #ffd700; }
+        .code-block .st { color: #86efac; }
+        .code-block .nu { color: #fdba74; }
+
+        .code-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .code-panel-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.07em; margin-bottom: 5px; }
+
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(0, 136, 255, 0.25);
+            border-radius: 8px; padding: 12px 14px; text-align: center;
+            opacity: 0; animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #0088ff; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes entityPop { from { opacity: 0; transform: scale(0.6) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes lightningStrike { 0% { opacity: 0; } 10% { opacity: 1; } 20% { opacity: 0; } 30% { opacity: 1; } 40% { opacity: 0.3; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+        @keyframes glowPulse { 0%, 100% { filter: drop-shadow(0 0 4px rgba(0,136,255,0.3)); } 50% { filter: drop-shadow(0 0 14px rgba(0,136,255,0.9)); } }
+        @keyframes dataFlow { 0% { stroke-dashoffset: 14; } 100% { stroke-dashoffset: 0; } }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .code-compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">GPIO and Peripherals -- ProtoCore ESP32 Core 2</h1>
+
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; ProtoCore &nbsp;|&nbsp; ESP32 &nbsp;|&nbsp; Core 2</div>
+        <div class="title-hero">
+            <svg width="360" height="120" viewBox="0 0 360 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central chip -->
+                <rect x="130" y="20" width="100" height="80" rx="8" fill="rgba(0,136,255,0.1)" stroke="#0088ff" stroke-width="2"
+                    style="animation: glowPulse 2.5s ease-in-out infinite;"/>
+                <text x="180" y="50" text-anchor="middle" font-size="10" fill="#0088ff" font-weight="800" font-family="Segoe UI,sans-serif">GPIO</text>
+                <text x="180" y="65" text-anchor="middle" font-size="7" fill="#5cb8ff" font-family="Segoe UI,sans-serif">Matrix</text>
+                <text x="180" y="80" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">Any Pin = Any Function</text>
+                <!-- Pin lines radiating out -->
+                <line x1="125" y1="40" x2="80" y2="30" stroke="rgba(255,215,0,0.3)" stroke-width="1.5" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="12;0" dur="0.8s" repeatCount="indefinite"/></line>
+                <line x1="125" y1="60" x2="80" y2="60" stroke="rgba(0,136,255,0.3)" stroke-width="1.5" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="12;0" dur="1s" repeatCount="indefinite"/></line>
+                <line x1="125" y1="80" x2="80" y2="90" stroke="rgba(58,181,119,0.3)" stroke-width="1.5" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="12;0" dur="0.9s" repeatCount="indefinite"/></line>
+                <line x1="235" y1="40" x2="280" y2="30" stroke="rgba(239,68,68,0.3)" stroke-width="1.5" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="12;0" dur="0.8s" repeatCount="indefinite" begin="0.2s"/></line>
+                <line x1="235" y1="60" x2="280" y2="60" stroke="rgba(167,139,250,0.3)" stroke-width="1.5" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="12;0" dur="1s" repeatCount="indefinite" begin="0.1s"/></line>
+                <line x1="235" y1="80" x2="280" y2="90" stroke="rgba(249,115,22,0.3)" stroke-width="1.5" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="12;0" dur="0.9s" repeatCount="indefinite" begin="0.3s"/></line>
+                <!-- Labels -->
+                <text x="60" y="33" text-anchor="middle" font-size="6.5" fill="#ffd700" font-family="Segoe UI,sans-serif">Touch</text>
+                <text x="60" y="63" text-anchor="middle" font-size="6.5" fill="#0088ff" font-family="Segoe UI,sans-serif">ADC</text>
+                <text x="60" y="93" text-anchor="middle" font-size="6.5" fill="#3ab577" font-family="Segoe UI,sans-serif">DAC</text>
+                <text x="300" y="33" text-anchor="middle" font-size="6.5" fill="#ef4444" font-family="Segoe UI,sans-serif">PWM</text>
+                <text x="300" y="63" text-anchor="middle" font-size="6.5" fill="#a78bfa" font-family="Segoe UI,sans-serif">Hall</text>
+                <text x="300" y="93" text-anchor="middle" font-size="6.5" fill="#f97316" font-family="Segoe UI,sans-serif">IRQ</text>
+            </svg>
+            <div class="big-title">
+                <span class="accent">GPIO</span> and Peripherals
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                GPIO Matrix &nbsp;|&nbsp; Touch Pins &nbsp;|&nbsp; ADC &nbsp;|&nbsp; DAC &nbsp;|&nbsp; LEDC PWM &nbsp;|&nbsp; Interrupts
+            </div>
+        </div>
+        <div class="scenario-strip">
+            On the Arduino Uno, each pin has a fixed purpose. On the ESP32, the GPIO matrix lets you assign almost any peripheral function to almost any pin. Touch sensing, analog-to-digital conversion, digital-to-analog output, Hall effect magnetic detection -- all built into the silicon, no external components required.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>ProtoCore ESP32</span>
+            <span>Core 2 of 10</span>
+            <span>Matrix House</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- GPIO MATRIX ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">The <span class="accent">GPIO Matrix</span></div>
+        <div class="slide-subtitle">A crossbar switch inside the chip that routes any peripheral signal to (almost) any GPIO pin.</div>
+
+        <div class="diagram-center">
+            <svg width="600" height="130" viewBox="0 0 600 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Peripheral block -->
+                <rect x="30" y="15" width="150" height="100" rx="8" fill="rgba(0,136,255,0.08)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="105" y="35" text-anchor="middle" font-size="9" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Peripherals</text>
+                <text x="105" y="52" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">UART, SPI, I2C</text>
+                <text x="105" y="66" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">LEDC, PCNT</text>
+                <text x="105" y="80" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">RMT, MCPWM</text>
+                <text x="105" y="94" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">I2S, SDIO</text>
+
+                <!-- Matrix block -->
+                <rect x="225" y="25" width="150" height="80" rx="8" fill="rgba(255,215,0,0.08)" stroke="#ffd700" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="300" y="55" text-anchor="middle" font-size="10" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">GPIO MATRIX</text>
+                <text x="300" y="72" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Crossbar Switch</text>
+                <text x="300" y="86" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Software-configured routing</text>
+
+                <!-- Pin block -->
+                <rect x="420" y="15" width="150" height="100" rx="8" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="495" y="35" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">GPIO Pins</text>
+                <text x="495" y="52" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">GPIO 0-39</text>
+                <text x="495" y="66" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">34 usable pins</text>
+                <text x="495" y="80" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Each configurable</text>
+                <text x="495" y="94" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">independently</text>
+
+                <!-- Arrows -->
+                <line x1="184" y1="65" x2="222" y2="65" stroke="rgba(0,136,255,0.4)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/></line>
+                <line x1="378" y1="65" x2="416" y2="65" stroke="rgba(58,181,119,0.4)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/></line>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">How It Works</div>
+                <div class="card-desc">The GPIO matrix is a programmable routing table inside the ESP32. When you call a function like <span class="ic">SPI.begin(CLK, MISO, MOSI, CS)</span> with custom pin numbers, the matrix routes those peripheral signals to the physical pins you specified. On Arduino, SPI pins are fixed. On ESP32, you choose.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Exceptions</div>
+                <div class="card-desc">GPIO 34-39 are input-only (no output capability, no internal pull-up). GPIO 6-11 are connected to the onboard flash memory and must not be used for general I/O. GPIO 0, 2, 5, 12, 15 have special boot-mode functions -- avoid them for critical inputs that might be held low during boot.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Arduino vs ESP32 Pin Philosophy</div>
+            On Arduino, you memorize which pins do what. On ESP32, you tell the chip which pins should do what. This is a fundamental shift in hardware thinking. Instead of "SPI is on pins 10-13," you write <span class="ic">SPI.begin(18, 19, 23, 5)</span> and the GPIO matrix handles the routing. Change your mind? Change the pin numbers. The hardware adapts to your software, not the other way around.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- DIGITAL I/O ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Digital <span class="accent">I/O</span></div>
+        <div class="slide-subtitle">Reading and writing digital signals. Same API as Arduino, with ESP32-specific considerations.</div>
+
+        <div class="code-block"><span class="cm">// Digital output -- blink an LED on GPIO 2</span>
+<span class="fn">pinMode</span>(<span class="nu">2</span>, <span class="kw">OUTPUT</span>);
+<span class="fn">digitalWrite</span>(<span class="nu">2</span>, <span class="kw">HIGH</span>);  <span class="cm">// 3.3V (not 5V)</span>
+
+<span class="cm">// Digital input -- read a button on GPIO 4</span>
+<span class="fn">pinMode</span>(<span class="nu">4</span>, <span class="kw">INPUT_PULLUP</span>);
+<span class="kw">int</span> state = <span class="fn">digitalRead</span>(<span class="nu">4</span>);  <span class="cm">// LOW when pressed (active low)</span>
+
+<span class="cm">// Internal pull-up and pull-down both available</span>
+<span class="fn">pinMode</span>(<span class="nu">15</span>, <span class="kw">INPUT_PULLDOWN</span>);  <span class="cm">// ESP32-only: pull-down resistor</span></div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">OUTPUT: 3.3V</div>
+                <div class="card-desc"><span class="ic">digitalWrite(pin, HIGH)</span> outputs 3.3V on ESP32 (not 5V like Arduino). Current limit per pin is about 12mA recommended, 40mA absolute max. Enough for LEDs with a resistor, not enough for motors.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">INPUT_PULLUP</div>
+                <div class="card-desc">Works identically to Arduino. Enables the internal pull-up resistor (~45K ohm). Pin reads HIGH by default, LOW when grounded. Standard for buttons. Available on GPIO 0-33 (not on input-only pins 34-39).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">INPUT_PULLDOWN</div>
+                <div class="card-desc">ESP32-only feature -- Arduino Uno does not have internal pull-down resistors. Pin reads LOW by default, HIGH when connected to 3.3V. Useful when you want active-high button logic without external resistors.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- TOUCH PINS ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title"><span class="accent">Touch</span> Pins -- Capacitive Sensing</div>
+        <div class="slide-subtitle">10 GPIO pins double as capacitive touch sensors. Detect finger contact with no external hardware.</div>
+
+        <div class="code-block"><span class="cm">// Read capacitive touch value on GPIO 4 (Touch0)</span>
+<span class="kw">int</span> touchValue = <span class="fn">touchRead</span>(<span class="nu">4</span>);
+<span class="fn">Serial.println</span>(touchValue);
+
+<span class="cm">// Typical values:</span>
+<span class="cm">//   Not touched: 60-80</span>
+<span class="cm">//   Touched:     10-20</span>
+<span class="cm">//   Threshold varies by environment</span>
+
+<span class="cm">// Touch-triggered interrupt</span>
+<span class="fn">touchAttachInterrupt</span>(<span class="nu">4</span>, callback, <span class="nu">40</span>);  <span class="cm">// threshold = 40</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Touch Pin Map</div>
+                <div class="card-desc">Touch0 = GPIO 4, Touch1 = GPIO 0, Touch2 = GPIO 2, Touch3 = GPIO 15, Touch4 = GPIO 13, Touch5 = GPIO 12, Touch6 = GPIO 14, Touch7 = GPIO 27, Touch8 = GPIO 33, Touch9 = GPIO 32. Ten channels total. Wire a bare copper pad, foil strip, or even a fruit to the pin and detect touch.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">How It Works</div>
+                <div class="card-desc">The ESP32 measures the capacitance on the pin. Your finger adds capacitance (human body is a conductor). The measured value drops when you touch the electrode. No buttons, no mechanical parts, no wear-out. Perfect for waterproof enclosures, custom keypads, and proximity detection.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">No External Hardware Required</div>
+            This is the key advantage. On Arduino, capacitive touch sensing requires an external MPR121 or similar IC plus a library. On ESP32, the hardware is built into the silicon. Just connect a conductive surface to the GPIO pin and call <span class="ic">touchRead()</span>. Calibrate the threshold for your specific setup by reading untouched values first.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- HALL EFFECT SENSOR ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Hall Effect <span class="accent">Sensor</span></div>
+        <div class="slide-subtitle">A magnetic field detector built into the ESP32 silicon. No external sensor needed.</div>
+
+        <div class="code-block"><span class="cm">// Read the built-in Hall effect sensor</span>
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    <span class="fn">Serial.begin</span>(<span class="nu">115200</span>);
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+    <span class="kw">int</span> hallValue = <span class="fn">hallRead</span>();
+    <span class="fn">Serial.print</span>(<span class="st">"Hall sensor: "</span>);
+    <span class="fn">Serial.println</span>(hallValue);
+    <span class="fn">delay</span>(<span class="nu">500</span>);
+}
+<span class="cm">// No magnet: ~0 to +/-30 (baseline noise)</span>
+<span class="cm">// North pole near chip: large positive value</span>
+<span class="cm">// South pole near chip: large negative value</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-purple">
+                <div class="card-label">What Is It?</div>
+                <div class="card-desc">The Hall effect sensor detects magnetic fields. It is integrated directly into the ESP32 die, near the center of the chip. When a magnet approaches the chip package, the sensor output changes proportionally to the magnetic field strength and polarity.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Use Cases</div>
+                <div class="card-desc">Door/window open-close detection (magnet on door, ESP32 on frame). RPM measurement (magnet on rotating shaft). Contactless switches. Proximity sensing for magnets. The sensitivity is moderate -- the magnet needs to be within a few centimeters of the chip.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Limitations</div>
+            The built-in Hall sensor is convenient but not precision-grade. It shares ADC channels internally, so simultaneous ADC readings can affect accuracy. For precise magnetic field measurement, use an external sensor like the HMC5883L or MLX90393. The built-in sensor is best for binary detection (magnet present or not) rather than precise field measurement.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- ADC ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">12-bit <span class="accent">ADC</span> -- Analog to Digital</div>
+        <div class="slide-subtitle">Two ADC units with 18 channels total. 12-bit resolution (0-4095). But beware: the ADC is non-linear.</div>
+
+        <div class="code-block"><span class="cm">// Read analog voltage on GPIO 34 (ADC1_CH6)</span>
+<span class="kw">int</span> raw = <span class="fn">analogRead</span>(<span class="nu">34</span>);        <span class="cm">// 0-4095 (12-bit)</span>
+<span class="kw">float</span> voltage = raw * <span class="nu">3.3</span> / <span class="nu">4095</span>; <span class="cm">// Convert to voltage</span>
+
+<span class="cm">// Change resolution (default = 12)</span>
+<span class="fn">analogReadResolution</span>(<span class="nu">10</span>);       <span class="cm">// Now returns 0-1023 like Arduino</span>
+
+<span class="cm">// Attenuation controls input voltage range</span>
+<span class="fn">analogSetAttenuation</span>(<span class="fn">ADC_11db</span>);  <span class="cm">// 0-3.3V (default)</span>
+<span class="cm">// ADC_0db  = 0-1.1V  (most accurate)</span>
+<span class="cm">// ADC_2_5db = 0-1.5V</span>
+<span class="cm">// ADC_6db  = 0-2.2V</span>
+<span class="cm">// ADC_11db = 0-3.3V  (full range, least accurate)</span></div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Non-Linear Warning</div>
+                <div class="card-desc">The ESP32 ADC is notoriously non-linear, especially at the extremes. Readings near 0V and 3.3V are inaccurate. The middle range (0.15V-2.45V) is reasonable. For precision, use a lookup table calibration or an external ADC like the ADS1115.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">ADC1 vs ADC2</div>
+                <div class="card-desc">ADC1 (GPIO 32-39) works independently. ADC2 (GPIO 0, 2, 4, 12-15, 25-27) cannot be used while WiFi is active. If you need analog reads with WiFi, use ADC1 pins only. This is a common trap that causes mysterious failures.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Attenuation</div>
+                <div class="card-desc">Attenuation controls the input voltage range. At 0dB, the ADC reads 0-1.1V with the best accuracy. At 11dB (default), it reads the full 0-3.3V range but with reduced accuracy. Choose the attenuation that matches your signal range for best results.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- DAC ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title"><span class="accent">DAC</span> -- Digital to Analog Output</div>
+        <div class="slide-subtitle">Two 8-bit DAC channels output true analog voltages. Not PWM approximation -- real analog.</div>
+
+        <div class="code-block"><span class="cm">// DAC output on GPIO 25 (DAC1) or GPIO 26 (DAC2)</span>
+<span class="fn">dacWrite</span>(<span class="nu">25</span>, <span class="nu">0</span>);     <span class="cm">// 0V</span>
+<span class="fn">dacWrite</span>(<span class="nu">25</span>, <span class="nu">128</span>);   <span class="cm">// ~1.65V (half of 3.3V)</span>
+<span class="fn">dacWrite</span>(<span class="nu">25</span>, <span class="nu">255</span>);   <span class="cm">// ~3.3V</span>
+
+<span class="cm">// Generate a sawtooth wave</span>
+<span class="kw">void</span> <span class="fn">loop</span>() {
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nu">0</span>; i &lt; <span class="nu">256</span>; i++) {
+        <span class="fn">dacWrite</span>(<span class="nu">25</span>, i);
+        <span class="fn">delayMicroseconds</span>(<span class="nu">100</span>);
+    }
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">True Analog Output</div>
+                <div class="card-desc">Unlike PWM (which rapidly switches between 0V and 3.3V to approximate intermediate voltages), the DAC outputs a genuine steady voltage. GPIO 25 is DAC channel 1, GPIO 26 is DAC channel 2. Only these two pins support DAC output. 8-bit resolution means 256 voltage steps from 0V to 3.3V.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Use Cases</div>
+                <div class="card-desc">Audio output (simple waveforms, tones). Voltage references for comparator circuits. Driving analog meters. Signal generation for testing. Note: for quality audio, use an external I2S DAC -- the built-in DAC has limited resolution and can introduce noise.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Arduino Uno Has No DAC</div>
+            The Arduino Uno can only approximate analog output using PWM (<span class="ic">analogWrite()</span>). The ESP32 has two hardware DAC channels that output true analog voltages plus a far more capable PWM system (LEDC). This gives you both options -- real analog for steady voltages and PWM for motor/LED dimming.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- LEDC PWM ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">LEDC <span class="accent">PWM</span> -- Software-Defined PWM</div>
+        <div class="slide-subtitle">16 independent PWM channels with configurable frequency and resolution. Far more capable than Arduino's fixed PWM.</div>
+
+        <div class="code-block"><span class="cm">// ESP32 Arduino Core 3.x API (ledcAttach)</span>
+<span class="kw">const int</span> ledPin = <span class="nu">2</span>;
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    <span class="cm">// Attach pin to LEDC with frequency and resolution</span>
+    <span class="fn">ledcAttach</span>(ledPin, <span class="nu">5000</span>, <span class="nu">8</span>);  <span class="cm">// 5kHz, 8-bit (0-255)</span>
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+    <span class="cm">// Fade LED up</span>
+    <span class="kw">for</span> (<span class="kw">int</span> duty = <span class="nu">0</span>; duty &lt;= <span class="nu">255</span>; duty++) {
+        <span class="fn">ledcWrite</span>(ledPin, duty);
+        <span class="fn">delay</span>(<span class="nu">10</span>);
+    }
+    <span class="cm">// Fade LED down</span>
+    <span class="kw">for</span> (<span class="kw">int</span> duty = <span class="nu">255</span>; duty &gt;= <span class="nu">0</span>; duty--) {
+        <span class="fn">ledcWrite</span>(ledPin, duty);
+        <span class="fn">delay</span>(<span class="nu">10</span>);
+    }
+}</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Configurable Frequency</div>
+                <div class="card-desc">Arduino PWM is fixed at ~490Hz or ~980Hz depending on the pin. ESP32 LEDC lets you set any frequency from 1Hz to 40MHz. Need 1kHz for a buzzer? 25kHz for a silent motor driver? 50Hz for a servo? Just specify the frequency.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Configurable Resolution</div>
+                <div class="card-desc">Choose from 1-bit to 16-bit resolution. 8-bit gives 256 steps (like Arduino). 16-bit gives 65,536 steps for ultra-smooth fading. Higher resolution requires lower frequency -- the product of frequency x 2^resolution cannot exceed 80MHz.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">16 Independent Channels</div>
+                <div class="card-desc">The ESP32 has 16 LEDC channels (8 high-speed, 8 low-speed). Each channel can have its own frequency and duty cycle. Multiple pins can share a channel for synchronized output. Arduino Uno has only 6 PWM pins with fixed frequencies.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- PWM DEEP DIVE ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">PWM <span class="accent">Frequency vs Resolution</span></div>
+        <div class="slide-subtitle">There is a tradeoff: higher frequency means lower maximum resolution. The timer clock is 80MHz.</div>
+
+        <div class="diagram-center">
+            <svg width="600" height="110" viewBox="0 0 600 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="20" y="10" width="160" height="90" rx="8" fill="rgba(0,136,255,0.08)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="100" y="32" text-anchor="middle" font-size="8" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Low Frequency</text>
+                <text x="100" y="50" text-anchor="middle" font-size="7" fill="#ffd700" font-family="Segoe UI,sans-serif">1kHz, 16-bit</text>
+                <text x="100" y="65" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">65,536 duty steps</text>
+                <text x="100" y="80" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Ultra-smooth LED fading</text>
+
+                <rect x="220" y="10" width="160" height="90" rx="8" fill="rgba(255,215,0,0.08)" stroke="#ffd700" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="300" y="32" text-anchor="middle" font-size="8" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">Medium Frequency</text>
+                <text x="300" y="50" text-anchor="middle" font-size="7" fill="#0088ff" font-family="Segoe UI,sans-serif">5kHz, 13-bit</text>
+                <text x="300" y="65" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">8,192 duty steps</text>
+                <text x="300" y="80" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">General purpose</text>
+
+                <rect x="420" y="10" width="160" height="90" rx="8" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="500" y="32" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">High Frequency</text>
+                <text x="500" y="50" text-anchor="middle" font-size="7" fill="#ef4444" font-family="Segoe UI,sans-serif">312kHz, 8-bit</text>
+                <text x="500" y="65" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">256 duty steps</text>
+                <text x="500" y="80" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Fast switching</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">The Math</div>
+                <div class="card-desc">Max resolution bits = log2(80,000,000 / frequency). At 5kHz: log2(80M / 5K) = log2(16000) = ~13.9 bits, so 13-bit max. At 1kHz: log2(80K) = ~16.3 bits, so 16-bit max. At 312.5kHz: log2(256) = 8 bits max. Choose the combination that fits your application.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Common Configurations</div>
+                <div class="card-desc">LED dimming: 5kHz, 8-bit or 13-bit. Motor control: 25kHz, 8-bit (silent operation above human hearing). Servo control: 50Hz, 16-bit (precise positioning). Buzzer/tone: variable frequency, 1-bit (on/off is enough). Match the config to the device.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- GPIO INTERRUPTS ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">GPIO <span class="accent">Interrupts</span></div>
+        <div class="slide-subtitle">React to pin state changes instantly without polling. Every GPIO pin on the ESP32 supports interrupts.</div>
+
+        <div class="code-block"><span class="kw">volatile bool</span> buttonPressed = <span class="kw">false</span>;
+
+<span class="kw">void</span> <span class="fn">IRAM_ATTR</span> <span class="fn">handleButton</span>() {
+    buttonPressed = <span class="kw">true</span>;
+}
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    <span class="fn">Serial.begin</span>(<span class="nu">115200</span>);
+    <span class="fn">pinMode</span>(<span class="nu">4</span>, <span class="kw">INPUT_PULLUP</span>);
+    <span class="fn">attachInterrupt</span>(<span class="nu">4</span>, handleButton, <span class="kw">FALLING</span>);
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+    <span class="kw">if</span> (buttonPressed) {
+        <span class="fn">Serial.println</span>(<span class="st">"Button pressed!"</span>);
+        buttonPressed = <span class="kw">false</span>;
+    }
+}</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">IRAM_ATTR Required</div>
+                <div class="card-desc">Interrupt handlers on ESP32 MUST be marked with <span class="ic">IRAM_ATTR</span>. This places the function in internal RAM instead of flash. Flash access can be blocked during WiFi operations -- if the ISR is in flash, the system crashes. This attribute is not needed on Arduino Uno.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Trigger Modes</div>
+                <div class="card-desc"><span class="ic">RISING</span> -- low to high transition. <span class="ic">FALLING</span> -- high to low. <span class="ic">CHANGE</span> -- any transition. <span class="ic">LOW</span> -- while pin is low. <span class="ic">HIGH</span> -- while pin is high. All five modes are supported on every GPIO pin.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">ISR Rules</div>
+                <div class="card-desc">Keep interrupt handlers short. No Serial.print, no delay, no WiFi calls inside the ISR. Set a volatile flag and handle the work in loop(). The ISR fires on Core 0 by default -- keep it fast to avoid blocking WiFi. Debounce buttons in software using millis() in loop().</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- PIN REFERENCE ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">ESP32 <span class="accent">Pin Reference</span></div>
+        <div class="slide-subtitle">Quick reference for which pins do what. Bookmark this slide.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Safe General Purpose</div>
+                <div class="card-desc">GPIO 4, 13, 14, 16, 17, 18, 19, 21, 22, 23, 25, 26, 27, 32, 33. These pins have no boot-mode conflicts and work reliably for input, output, and peripheral routing. Start here.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Input Only (34-39)</div>
+                <div class="card-desc">GPIO 34, 35, 36 (VP), 39 (VN). No output, no internal pull-up/pull-down. ADC1 channels only. Good for sensor inputs and analog reads. Cannot drive LEDs or outputs.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Do Not Touch (6-11)</div>
+                <div class="card-desc">GPIO 6, 7, 8, 9, 10, 11. Connected to the onboard SPI flash. Using these pins will crash the ESP32 or corrupt the firmware. They are exposed on some boards but must never be used.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Boot-Mode Sensitive</div>
+                <div class="card-desc">GPIO 0 (must be HIGH to boot normally), GPIO 2 (must float or be LOW for download mode), GPIO 5 (affects SDIO timing), GPIO 12 (affects flash voltage), GPIO 15 (affects boot log output). Usable after boot but avoid pull-down resistors on these during startup.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Touch Pins</div>
+                <div class="card-desc">GPIO 0, 2, 4, 12, 13, 14, 15, 27, 32, 33. Ten capacitive touch channels. Use <span class="ic">touchRead(pin)</span>. Can also be used as normal GPIO when touch sensing is not needed.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">DAC Pins</div>
+                <div class="card-desc">GPIO 25 (DAC1), GPIO 26 (DAC2). Only these two pins support true analog output via <span class="ic">dacWrite()</span>. All other pins are limited to digital output or PWM.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- SUMMARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Core 2 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Everything you need to remember from this presentation.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>The GPIO matrix routes any peripheral to (almost) any pin.</strong> Unlike Arduino's fixed pin assignments, the ESP32 lets you choose which pins do what. Exceptions: GPIO 34-39 are input-only, GPIO 6-11 are flash-reserved.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>10 capacitive touch pins require no external hardware.</strong> Call <code>touchRead(pin)</code> and detect finger contact. Values drop when touched. Perfect for custom buttons and proximity sensors.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>The 12-bit ADC is powerful but non-linear.</strong> Use ADC1 (GPIO 32-39) when WiFi is active. ADC2 conflicts with WiFi. Calibrate for accuracy. Choose attenuation to match your voltage range.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Two DAC channels output true analog voltage</strong> on GPIO 25 and 26. 8-bit resolution, 0-3.3V range. Arduino has no DAC -- only PWM approximation.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>LEDC PWM has 16 channels with configurable frequency and resolution.</strong> Use <code>ledcAttach(pin, freq, bits)</code>. Frequency x 2^bits must not exceed 80MHz. Mark ISR handlers with <code>IRAM_ATTR</code> or the system will crash when WiFi is active.</span></div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Core 3 -- WiFi Fundamentals</strong> &nbsp;|&nbsp; Station Mode, AP Mode, Scanning, Events, Security
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; ProtoCore</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-esp-02-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>

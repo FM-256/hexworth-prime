@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTTP and Web Servers | ProtoCore ESP32 Core 5</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #040810 0%, #081020 50%, #0a0c1a 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #0088ff; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(4, 8, 16, 0.95);
+            border-top: 1px solid rgba(0, 136, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(0, 136, 255, 0.15); color: #0088ff; border-color: #0088ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #0088ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ffd700; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(0, 136, 255, 0.08); border-left: 3px solid #0088ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(0, 136, 255, 0.08); border: 1px solid rgba(0, 136, 255, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ffd700; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #0088ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #ffd700; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #0088ff; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #0088ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(0, 136, 255, 0.12); border: 1px solid rgba(0, 136, 255, 0.4);
+            color: #0088ff; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #ffd700; line-height: 1.6; white-space: pre;
+        }
+        .code-block .cm { color: #64748b; }
+        .code-block .kw { color: #5cb8ff; }
+        .code-block .fn { color: #ffd700; }
+        .code-block .st { color: #86efac; }
+        .code-block .nu { color: #fdba74; }
+
+        .code-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .code-panel-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.07em; margin-bottom: 5px; }
+
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(0, 136, 255, 0.25);
+            border-radius: 8px; padding: 12px 14px; text-align: center;
+            opacity: 0; animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #0088ff; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes boxGrow {
+            from { opacity: 0; transform: scale(0.7); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes glowPulse {
+            0%, 100% { filter: drop-shadow(0 0 4px rgba(0,136,255,0.3)); }
+            50%       { filter: drop-shadow(0 0 14px rgba(0,136,255,0.9)); }
+        }
+        @keyframes dataFlow {
+            0%   { stroke-dashoffset: 14; }
+            100% { stroke-dashoffset: 0; }
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .code-compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">HTTP and Web Servers -- ProtoCore ESP32 Core 5</h1>
+
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; ProtoCore &nbsp;|&nbsp; ESP32 &nbsp;|&nbsp; Core 5</div>
+        <div class="title-hero">
+            <svg width="360" height="130" viewBox="0 0 360 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Globe/network icon -->
+                <circle cx="180" cy="60" r="40" fill="none" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: glowPulse 2.5s ease-in-out infinite;"/>
+                <ellipse cx="180" cy="60" rx="20" ry="40" fill="none" stroke="rgba(0,136,255,0.4)" stroke-width="1"/>
+                <line x1="140" y1="45" x2="220" y2="45" stroke="rgba(0,136,255,0.3)" stroke-width="1"/>
+                <line x1="140" y1="75" x2="220" y2="75" stroke="rgba(0,136,255,0.3)" stroke-width="1"/>
+                <!-- Data packets -->
+                <circle cx="140" cy="60" r="3" fill="#ffd700" style="animation: pulse 1.5s ease-in-out infinite;"/>
+                <circle cx="220" cy="60" r="3" fill="#ffd700" style="animation: pulse 1.5s ease-in-out infinite 0.5s;"/>
+                <!-- ESP32 box -->
+                <rect x="20" y="35" width="70" height="50" rx="6" fill="rgba(0,136,255,0.06)" stroke="rgba(0,136,255,0.25)" stroke-width="1"
+                    style="animation: boxGrow 0.4s ease forwards 0.3s; opacity:0;"/>
+                <text x="55" y="57" text-anchor="middle" font-size="8" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">ESP32</text>
+                <text x="55" y="69" text-anchor="middle" font-size="7" fill="#5cb8ff" font-family="Segoe UI,sans-serif">Web Server</text>
+                <!-- Browser box -->
+                <rect x="270" y="35" width="70" height="50" rx="6" fill="rgba(255,215,0,0.06)" stroke="rgba(255,215,0,0.25)" stroke-width="1"
+                    style="animation: boxGrow 0.4s ease forwards 0.4s; opacity:0;"/>
+                <text x="305" y="57" text-anchor="middle" font-size="8" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">Browser</text>
+                <text x="305" y="69" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Dashboard</text>
+            </svg>
+            <div class="big-title">
+                <span class="accent">HTTP</span> and Web Servers
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                HTTP Client &nbsp;|&nbsp; Web Server &nbsp;|&nbsp; Dynamic Pages &nbsp;|&nbsp; HTTPS &nbsp;|&nbsp; WebSocket &nbsp;|&nbsp; mDNS
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Your ESP32 is not just a sensor -- it is a web server. Type an IP address into your browser and the ESP32 serves a dashboard showing live sensor data, handles form submissions, and pushes real-time updates over WebSocket. No cloud required. The entire stack runs on a $4 chip.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>ProtoCore ESP32</span>
+            <span>Core 5 of 10</span>
+            <span>Matrix House</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- HTTP CLIENT GET ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">ESP32 as HTTP Client: <span class="accent">GET Requests</span></div>
+        <div class="slide-subtitle">The ESP32 can fetch data from any web API -- weather, time, stock prices. It speaks HTTP natively over WiFi.</div>
+
+        <div class="code-block"><span class="cm">// HTTP GET request</span>
+<span class="kw">#include</span> <span class="st">&lt;WiFi.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;HTTPClient.h&gt;</span>
+
+<span class="kw">void</span> <span class="fn">fetchData</span>() {
+    HTTPClient http;
+    http.<span class="fn">begin</span>(<span class="st">"http://api.example.com/sensor/1"</span>);
+    <span class="kw">int</span> httpCode = http.<span class="fn">GET</span>();
+
+    <span class="kw">if</span> (httpCode == <span class="nu">200</span>) {
+        String payload = http.<span class="fn">getString</span>();
+        Serial.<span class="fn">println</span>(payload);
+    } <span class="kw">else</span> {
+        Serial.<span class="fn">printf</span>(<span class="st">"HTTP error: %d\n"</span>, httpCode);
+    }
+    http.<span class="fn">end</span>();  <span class="cm">// Always close the connection</span>
+}</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">HTTPClient</div>
+                <div class="card-desc">The built-in <span class="ic">HTTPClient</span> library handles connection, request formatting, and response parsing. Call <span class="ic">begin(url)</span>, execute the method (GET/POST), read the response, then <span class="ic">end()</span>.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Status Codes</div>
+                <div class="card-desc">200 = success. 301/302 = redirect. 404 = not found. 500 = server error. Always check the return code before reading the payload. Negative values mean a connection or DNS failure.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Memory</div>
+                <div class="card-desc">The ESP32 has ~320KB of usable RAM. Large HTTP responses can exhaust it. Use <span class="ic">getStream()</span> for chunked reading of large payloads instead of <span class="ic">getString()</span> which buffers everything in RAM.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- HTTP CLIENT POST ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">HTTP POST: <span class="accent">Sending Data</span></div>
+        <div class="slide-subtitle">POST sends sensor data to a cloud API or database. The ESP32 formats JSON, sets headers, and sends the request.</div>
+
+        <div class="code-block"><span class="cm">// HTTP POST with JSON body</span>
+<span class="kw">#include</span> <span class="st">&lt;ArduinoJson.h&gt;</span>
+
+<span class="kw">void</span> <span class="fn">sendSensorData</span>(<span class="kw">float</span> temp, <span class="kw">float</span> humidity) {
+    HTTPClient http;
+    http.<span class="fn">begin</span>(<span class="st">"http://api.example.com/data"</span>);
+    http.<span class="fn">addHeader</span>(<span class="st">"Content-Type"</span>, <span class="st">"application/json"</span>);
+
+    JsonDocument doc;
+    doc[<span class="st">"temperature"</span>] = temp;
+    doc[<span class="st">"humidity"</span>] = humidity;
+    doc[<span class="st">"device"</span>] = <span class="st">"ESP32-001"</span>;
+
+    String json;
+    <span class="fn">serializeJson</span>(doc, json);
+
+    <span class="kw">int</span> httpCode = http.<span class="fn">POST</span>(json);
+    Serial.<span class="fn">printf</span>(<span class="st">"POST response: %d\n"</span>, httpCode);
+    http.<span class="fn">end</span>();
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">ArduinoJson Library</div>
+                <div class="card-desc">The de-facto JSON library for embedded systems. <span class="ic">JsonDocument</span> allocates memory for your JSON tree. <span class="ic">serializeJson()</span> converts it to a string. <span class="ic">deserializeJson()</span> parses incoming JSON. Install it via the Arduino Library Manager -- it is the most-downloaded Arduino library in existence.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Headers Matter</div>
+                <div class="card-desc">Always set <span class="ic">Content-Type: application/json</span> when sending JSON. APIs that expect JSON will reject requests without this header. You can also add authentication headers: <span class="ic">Authorization: Bearer YOUR_TOKEN</span>. The <span class="ic">addHeader()</span> method accepts any key-value pair.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">JSON Parsing on Response</div>
+            When a GET response returns JSON, parse it with ArduinoJson: <span class="ic">deserializeJson(doc, payload)</span>. Then access fields like <span class="ic">doc["temperature"].as&lt;float&gt;()</span>. Always check the return value of <span class="ic">deserializeJson()</span> -- it returns <span class="ic">DeserializationError::Ok</span> on success, or an error code if the JSON is malformed or too large for your allocated buffer.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- WEB SERVER BASICS ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">ESP32 as Web Server: <span class="accent">Serve HTML</span></div>
+        <div class="slide-subtitle">The ESP32 runs a web server on port 80. Browsers connect to its IP and receive HTML pages served from flash memory.</div>
+
+        <div class="code-block"><span class="cm">// Basic web server</span>
+<span class="kw">#include</span> <span class="st">&lt;WebServer.h&gt;</span>
+
+WebServer server(<span class="nu">80</span>);
+
+<span class="kw">void</span> <span class="fn">handleRoot</span>() {
+    server.<span class="fn">send</span>(<span class="nu">200</span>, <span class="st">"text/html"</span>,
+        <span class="st">"&lt;h1&gt;ESP32 Web Server&lt;/h1&gt;"</span>
+        <span class="st">"&lt;p&gt;Uptime: "</span> + String(<span class="fn">millis</span>() / <span class="nu">1000</span>) + <span class="st">" seconds&lt;/p&gt;"</span>
+    );
+}
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    WiFi.<span class="fn">begin</span>(<span class="st">"SSID"</span>, <span class="st">"password"</span>);
+    <span class="kw">while</span> (WiFi.<span class="fn">status</span>() != WL_CONNECTED) <span class="fn">delay</span>(<span class="nu">500</span>);
+    server.<span class="fn">on</span>(<span class="st">"/"</span>, handleRoot);
+    server.<span class="fn">begin</span>();
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+    server.<span class="fn">handleClient</span>();
+}</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Routes</div>
+                <div class="card-desc"><span class="ic">server.on("/path", handler)</span> maps a URL path to a callback function. You can define as many routes as you need: <span class="ic">/</span> for the homepage, <span class="ic">/api/data</span> for JSON, <span class="ic">/config</span> for settings.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">server.send()</div>
+                <div class="card-desc">Three arguments: HTTP status code, content type, and body. Use <span class="ic">text/html</span> for web pages, <span class="ic">application/json</span> for API responses. The response is sent immediately to the client.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">handleClient()</div>
+                <div class="card-desc">Must be called in <span class="ic">loop()</span> continuously. It checks for incoming HTTP connections and dispatches them to the correct route handler. If you block loop() with delays, the server becomes unresponsive.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- DYNAMIC PAGES ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Dynamic Pages: <span class="accent">Sensor Data in HTML</span></div>
+        <div class="slide-subtitle">Build HTML strings that include live sensor readings. Every time the browser refreshes, it gets the latest values.</div>
+
+        <div class="code-block"><span class="cm">// Dynamic sensor dashboard</span>
+<span class="kw">void</span> <span class="fn">handleDashboard</span>() {
+    <span class="kw">float</span> temp = <span class="fn">readTemperature</span>();
+    <span class="kw">float</span> hum  = <span class="fn">readHumidity</span>();
+
+    String html = <span class="st">"&lt;!DOCTYPE html&gt;&lt;html&gt;&lt;head&gt;"</span>;
+    html += <span class="st">"&lt;meta http-equiv='refresh' content='5'&gt;"</span>;
+    html += <span class="st">"&lt;style&gt;body{font-family:sans-serif;background:#111;color:#eee;padding:40px;}"</span>;
+    html += <span class="st">".card{background:#1a1a2e;border:1px solid #0088ff;border-radius:12px;"</span>;
+    html += <span class="st">"padding:20px;margin:10px;display:inline-block;}&lt;/style&gt;&lt;/head&gt;&lt;body&gt;"</span>;
+    html += <span class="st">"&lt;h1&gt;ESP32 Sensor Dashboard&lt;/h1&gt;"</span>;
+    html += <span class="st">"&lt;div class='card'&gt;&lt;h2&gt;"</span> + String(temp) + <span class="st">" C&lt;/h2&gt;&lt;p&gt;Temperature&lt;/p&gt;&lt;/div&gt;"</span>;
+    html += <span class="st">"&lt;div class='card'&gt;&lt;h2&gt;"</span> + String(hum)  + <span class="st">" %&lt;/h2&gt;&lt;p&gt;Humidity&lt;/p&gt;&lt;/div&gt;"</span>;
+    html += <span class="st">"&lt;/body&gt;&lt;/html&gt;"</span>;
+
+    server.<span class="fn">send</span>(<span class="nu">200</span>, <span class="st">"text/html"</span>, html);
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Auto-Refresh</div>
+                <div class="card-desc">The <span class="ic">meta http-equiv='refresh' content='5'</span> tag tells the browser to reload the page every 5 seconds. Simple but causes a full page flash on each reload. For smoother updates, use JavaScript with fetch() or WebSocket (covered in slide 10).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">String Building</div>
+                <div class="card-desc">Building HTML with String concatenation works for small pages but fragments heap memory on large ones. For production dashboards, store HTML templates in PROGMEM or SPIFFS and use placeholder replacement (<span class="ic">%TEMP%</span> replaced with the actual value at serve time).</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">SPIFFS / LittleFS</div>
+            The ESP32 has a flash file system (SPIFFS or LittleFS) where you can store HTML, CSS, JavaScript, and image files. Upload a complete website to the flash and serve it with <span class="ic">server.serveStatic("/", SPIFFS, "/")</span>. This separates your web frontend from your Arduino C++ code, making both easier to maintain. LittleFS is the recommended replacement for SPIFFS -- it handles wear leveling and power-loss recovery better.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- FORM HANDLING ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Form Handling: <span class="accent">POST Data Parsing</span></div>
+        <div class="slide-subtitle">HTML forms let users configure the ESP32 from a browser -- set WiFi credentials, adjust thresholds, name the device.</div>
+
+        <div class="code-compare">
+            <div>
+                <div class="code-panel-label" style="color: #0088ff;">HTML Form</div>
+                <div class="code-block"><span class="st">&lt;form method="POST" action="/config"&gt;</span>
+  <span class="st">&lt;label&gt;LED Brightness:&lt;/label&gt;</span>
+  <span class="st">&lt;input type="range" name="bright"</span>
+    <span class="st">min="0" max="255" value="128"&gt;</span>
+  <span class="st">&lt;label&gt;Update Interval (s):&lt;/label&gt;</span>
+  <span class="st">&lt;input type="number" name="interval"</span>
+    <span class="st">value="5"&gt;</span>
+  <span class="st">&lt;button type="submit"&gt;Apply&lt;/button&gt;</span>
+<span class="st">&lt;/form&gt;</span></div>
+            </div>
+            <div>
+                <div class="code-panel-label" style="color: #ffd700;">Server Handler</div>
+                <div class="code-block"><span class="kw">void</span> <span class="fn">handleConfig</span>() {
+  <span class="kw">if</span> (server.<span class="fn">method</span>() == HTTP_POST) {
+    String bright = server.<span class="fn">arg</span>(<span class="st">"bright"</span>);
+    String interval = server.<span class="fn">arg</span>(<span class="st">"interval"</span>);
+
+    <span class="fn">analogWrite</span>(LED_PIN, bright.<span class="fn">toInt</span>());
+    updateInterval = interval.<span class="fn">toInt</span>() * <span class="nu">1000</span>;
+
+    server.<span class="fn">send</span>(<span class="nu">200</span>, <span class="st">"text/html"</span>,
+      <span class="st">"&lt;p&gt;Settings saved.&lt;/p&gt;"</span>);
+  }
+}
+
+server.<span class="fn">on</span>(<span class="st">"/config"</span>, HTTP_POST,
+    handleConfig);</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">server.arg()</div>
+                <div class="card-desc">Extracts a named form field from the POST body. <span class="ic">server.arg("bright")</span> returns the value of the input named "bright". Works with both URL-encoded form data and query string parameters. Use <span class="ic">server.hasArg("name")</span> to check if a field exists before reading it.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Persistent Settings</div>
+                <div class="card-desc">Form values disappear on reboot unless you save them. Use the ESP32's <span class="ic">Preferences</span> library to store settings in NVS (Non-Volatile Storage). <span class="ic">preferences.putInt("bright", val)</span> writes to flash. <span class="ic">preferences.getInt("bright", 128)</span> reads with a default fallback.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- HTTPS AND TLS ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">HTTPS and TLS: <span class="accent">Encrypted Communication</span></div>
+        <div class="slide-subtitle">HTTP sends data in plaintext. HTTPS wraps it in TLS encryption. The ESP32 supports both as client and server.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">HTTPS Client</div>
+                <div class="card-desc">Use <span class="ic">WiFiClientSecure</span> instead of <span class="ic">WiFiClient</span>. Set the CA certificate with <span class="ic">setCACert()</span> to verify the server's identity. Without certificate verification, you are vulnerable to man-in-the-middle attacks -- the same as ignoring browser SSL warnings.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Certificate Pinning</div>
+                <div class="card-desc">Embed the server's root CA certificate in your firmware. The ESP32 verifies the server's certificate chain against this root. If someone intercepts the connection with a fake certificate, the TLS handshake fails. Store certificates in PROGMEM to save RAM.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">HTTPS Server</div>
+                <div class="card-desc">The ESP32 can serve HTTPS using a self-signed or CA-signed certificate stored in flash. TLS handshakes are CPU-intensive -- the ESP32 handles 2-3 concurrent HTTPS clients at most. Use HTTPS for configuration pages, not high-traffic sensor APIs.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// HTTPS client with certificate verification</span>
+<span class="kw">#include</span> <span class="st">&lt;WiFiClientSecure.h&gt;</span>
+
+<span class="kw">const char</span>* rootCA = \
+<span class="st">"-----BEGIN CERTIFICATE-----\n"</span>
+<span class="st">"MIIFYjCCBEqgAwIBAgIQ...\n"</span>
+<span class="st">"-----END CERTIFICATE-----\n"</span>;
+
+WiFiClientSecure client;
+client.<span class="fn">setCACert</span>(rootCA);
+
+HTTPClient http;
+http.<span class="fn">begin</span>(client, <span class="st">"https://api.example.com/secure"</span>);
+<span class="kw">int</span> code = http.<span class="fn">GET</span>();</div>
+
+        <div class="box box-red">
+            <div class="box-label">Never Skip Verification</div>
+            Calling <span class="ic">client.setInsecure()</span> disables certificate verification entirely. This makes HTTPS pointless -- you get encryption but no authentication. An attacker can present any certificate and your ESP32 will accept it. Only use <span class="ic">setInsecure()</span> during development. In production, always pin a CA certificate.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- ROUTES AND API DESIGN ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">REST API Design: <span class="accent">Structured Routes</span></div>
+        <div class="slide-subtitle">Organize your ESP32 web server like a real API. Clean routes, proper HTTP methods, JSON responses.</div>
+
+        <div class="code-block"><span class="cm">// RESTful API routes on ESP32</span>
+server.<span class="fn">on</span>(<span class="st">"/"</span>,          HTTP_GET,  serveDashboard);
+server.<span class="fn">on</span>(<span class="st">"/api/sensors"</span>, HTTP_GET,  getSensors);     <span class="cm">// GET  = read data</span>
+server.<span class="fn">on</span>(<span class="st">"/api/led"</span>,     HTTP_POST, setLED);         <span class="cm">// POST = change state</span>
+server.<span class="fn">on</span>(<span class="st">"/api/config"</span>,  HTTP_GET,  getConfig);
+server.<span class="fn">on</span>(<span class="st">"/api/config"</span>,  HTTP_POST, updateConfig);
+server.<span class="fn">onNotFound</span>(handle404);
+
+<span class="kw">void</span> <span class="fn">getSensors</span>() {
+    JsonDocument doc;
+    doc[<span class="st">"temperature"</span>] = <span class="fn">readTemp</span>();
+    doc[<span class="st">"humidity"</span>]    = <span class="fn">readHumidity</span>();
+    doc[<span class="st">"uptime"</span>]      = <span class="fn">millis</span>() / <span class="nu">1000</span>;
+    String json;
+    <span class="fn">serializeJson</span>(doc, json);
+    server.<span class="fn">send</span>(<span class="nu">200</span>, <span class="st">"application/json"</span>, json);
+}
+
+<span class="kw">void</span> <span class="fn">handle404</span>() {
+    server.<span class="fn">send</span>(<span class="nu">404</span>, <span class="st">"application/json"</span>, <span class="st">"{\"error\":\"not found\"}"</span>);
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">HTTP Methods</div>
+                <div class="card-desc"><strong>GET</strong> reads data without changing state. <strong>POST</strong> creates or modifies state. <strong>PUT</strong> replaces a resource. <strong>DELETE</strong> removes one. The ESP32 WebServer supports all methods. Using them correctly makes your API predictable and self-documenting.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">CORS Headers</div>
+                <div class="card-desc">If your dashboard's JavaScript makes fetch() calls to the ESP32 API from a different origin, the browser blocks it (CORS policy). Add <span class="ic">server.sendHeader("Access-Control-Allow-Origin", "*")</span> to allow cross-origin requests. Handle OPTIONS preflight requests too.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- ASYNC WEB SERVER ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Async Web Server: <span class="accent">ESPAsyncWebServer</span></div>
+        <div class="slide-subtitle">The built-in WebServer is blocking -- one client at a time. ESPAsyncWebServer handles multiple concurrent connections without blocking loop().</div>
+
+        <div class="code-block"><span class="cm">// Async web server (non-blocking)</span>
+<span class="kw">#include</span> <span class="st">&lt;ESPAsyncWebServer.h&gt;</span>
+
+AsyncWebServer server(<span class="nu">80</span>);
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    WiFi.<span class="fn">begin</span>(<span class="st">"SSID"</span>, <span class="st">"password"</span>);
+    <span class="kw">while</span> (WiFi.<span class="fn">status</span>() != WL_CONNECTED) <span class="fn">delay</span>(<span class="nu">500</span>);
+
+    server.<span class="fn">on</span>(<span class="st">"/"</span>, HTTP_GET, [](<span class="kw">AsyncWebServerRequest</span> *request) {
+        request-><span class="fn">send</span>(<span class="nu">200</span>, <span class="st">"text/html"</span>, <span class="st">"&lt;h1&gt;Async!&lt;/h1&gt;"</span>);
+    });
+
+    server.<span class="fn">on</span>(<span class="st">"/api/temp"</span>, HTTP_GET, [](<span class="kw">AsyncWebServerRequest</span> *request) {
+        request-><span class="fn">send</span>(<span class="nu">200</span>, <span class="st">"application/json"</span>,
+            <span class="st">"{\"temp\":"</span> + String(<span class="fn">readTemp</span>()) + <span class="st">"}"</span>);
+    });
+
+    server.<span class="fn">begin</span>();
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+    <span class="cm">// No handleClient() needed -- server runs in background</span>
+    <span class="fn">readSensors</span>();
+    <span class="fn">delay</span>(<span class="nu">100</span>);
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Why Async?</div>
+                <div class="card-desc">The synchronous <span class="ic">WebServer</span> blocks during each request. If a client is slow, all other clients wait. ESPAsyncWebServer uses the ESP32's RTOS task system to handle connections in parallel. Your <span class="ic">loop()</span> stays free for sensor reading, motor control, or whatever else the device needs to do.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Template Processor</div>
+                <div class="card-desc">ESPAsyncWebServer has a built-in template processor. Store HTML in SPIFFS with placeholders like <span class="ic">%TEMPERATURE%</span>. The processor calls your function to replace each placeholder at serve time: <span class="ic">request->send(SPIFFS, "/index.html", "text/html", false, processor)</span>.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- WEBSOCKET ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">WebSocket: <span class="accent">Real-Time Bidirectional</span></div>
+        <div class="slide-subtitle">HTTP is request-response. WebSocket is a persistent, full-duplex channel. The ESP32 pushes data to the browser the instant it changes.</div>
+
+        <div class="diagram-center">
+            <svg width="500" height="90" viewBox="0 0 500 90" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="20" y="15" width="130" height="60" rx="8" fill="rgba(0,136,255,0.1)" stroke="#0088ff" stroke-width="1.5"/>
+                <text x="85" y="38" text-anchor="middle" font-size="9" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">ESP32</text>
+                <text x="85" y="52" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">WebSocket Server</text>
+                <!-- Bidirectional arrows -->
+                <line x1="152" y1="38" x2="268" y2="38" stroke="#ffd700" stroke-width="1.5" stroke-dasharray="5,3">
+                    <animate attributeName="stroke-dashoffset" values="16;0" dur="0.6s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="266,34 274,38 266,42" fill="#ffd700"/>
+                <line x1="268" y1="52" x2="152" y2="52" stroke="#0088ff" stroke-width="1.5" stroke-dasharray="5,3">
+                    <animate attributeName="stroke-dashoffset" values="16;0" dur="0.6s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+                <polygon points="154,48 146,52 154,56" fill="#0088ff"/>
+                <text x="210" y="32" text-anchor="middle" font-size="7" fill="#ffd700" font-family="Segoe UI,sans-serif">Push sensor data</text>
+                <text x="210" y="64" text-anchor="middle" font-size="7" fill="#5cb8ff" font-family="Segoe UI,sans-serif">Send commands</text>
+                <rect x="270" y="15" width="130" height="60" rx="8" fill="rgba(255,215,0,0.1)" stroke="#ffd700" stroke-width="1.5"/>
+                <text x="335" y="38" text-anchor="middle" font-size="9" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">Browser</text>
+                <text x="335" y="52" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Live Dashboard</text>
+            </svg>
+        </div>
+
+        <div class="code-compare">
+            <div>
+                <div class="code-panel-label" style="color: #0088ff;">ESP32 (Server)</div>
+                <div class="code-block">AsyncWebSocket ws(<span class="st">"/ws"</span>);
+
+<span class="kw">void</span> <span class="fn">onWsEvent</span>(AsyncWebSocket *s,
+    AsyncWebSocketClient *c,
+    AwsEventType type, <span class="kw">void</span> *arg,
+    uint8_t *data, size_t len) {
+  <span class="kw">if</span> (type == WS_EVT_DATA) {
+    <span class="cm">// Client sent a message</span>
+    String msg = String((<span class="kw">char</span>*)data);
+    <span class="kw">if</span> (msg == <span class="st">"LED_ON"</span>)
+      <span class="fn">digitalWrite</span>(LED, HIGH);
+  }
+}
+
+<span class="cm">// In loop: push data</span>
+ws.<span class="fn">textAll</span>(sensorJson);</div>
+            </div>
+            <div>
+                <div class="code-panel-label" style="color: #ffd700;">Browser (Client)</div>
+                <div class="code-block"><span class="kw">const</span> ws = <span class="kw">new</span> WebSocket(
+  <span class="st">"ws://"</span> + location.host + <span class="st">"/ws"</span>
+);
+
+ws.onmessage = (e) =&gt; {
+  <span class="kw">const</span> data = JSON.parse(e.data);
+  tempEl.textContent =
+    data.temperature + <span class="st">" C"</span>;
+};
+
+<span class="cm">// Send command to ESP32</span>
+btn.onclick = () =&gt; {
+  ws.send(<span class="st">"LED_ON"</span>);
+};</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Why WebSocket Over HTTP Polling?</div>
+            HTTP polling sends a request every N seconds, each with full HTTP headers (~300 bytes overhead). WebSocket opens one connection and keeps it open. After the initial handshake, messages are just 2-10 bytes of framing overhead. For a dashboard updating every 100ms, WebSocket uses 100x less bandwidth than HTTP polling. The ESP32 can handle 4-8 concurrent WebSocket clients.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- MDNS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">mDNS: <span class="accent">Access by Hostname</span></div>
+        <div class="slide-subtitle">Instead of remembering 192.168.1.47, type "esp32.local" in your browser. mDNS makes the ESP32 discoverable by name on the local network.</div>
+
+        <div class="code-block"><span class="cm">// mDNS setup</span>
+<span class="kw">#include</span> <span class="st">&lt;ESPmDNS.h&gt;</span>
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    WiFi.<span class="fn">begin</span>(<span class="st">"SSID"</span>, <span class="st">"password"</span>);
+    <span class="kw">while</span> (WiFi.<span class="fn">status</span>() != WL_CONNECTED) <span class="fn">delay</span>(<span class="nu">500</span>);
+
+    <span class="kw">if</span> (MDNS.<span class="fn">begin</span>(<span class="st">"sensor-hub"</span>)) {
+        Serial.<span class="fn">println</span>(<span class="st">"mDNS: http://sensor-hub.local"</span>);
+        MDNS.<span class="fn">addService</span>(<span class="st">"http"</span>, <span class="st">"tcp"</span>, <span class="nu">80</span>);
+    }
+    server.<span class="fn">begin</span>();
+}</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">How mDNS Works</div>
+                <div class="card-desc">mDNS (Multicast DNS) broadcasts hostname-to-IP mappings on the local network using multicast UDP on port 5353. When you type "sensor-hub.local" in a browser, your computer sends a multicast query. The ESP32 responds with its IP address. No DNS server needed.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Service Discovery</div>
+                <div class="card-desc"><span class="ic">MDNS.addService("http", "tcp", 80)</span> announces that the ESP32 is running an HTTP service on port 80. Tools like Bonjour Browser or avahi-browse can discover all mDNS services on the network automatically. This is how printers advertise themselves.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Platform Support</div>
+                <div class="card-desc">macOS and Linux support mDNS natively (via Bonjour / Avahi). Windows requires Bonjour to be installed (comes with iTunes) or uses the built-in mDNS resolver in modern versions. Android does not support .local domains in browsers -- use the IP address or a dedicated app.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- SUMMARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Core 5 Summary: <span class="accent">The ESP32 Web Stack</span></div>
+        <div class="slide-subtitle">HTTP client, web server, REST APIs, WebSocket, HTTPS, mDNS -- all running on a $4 microcontroller.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>HTTP Client with <code>HTTPClient</code>.</strong> <code>http.begin(url)</code>, <code>GET()</code> or <code>POST(json)</code>, check the status code, read the response, <code>end()</code>. Use ArduinoJson for JSON serialization and parsing.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Web Server with <code>WebServer</code>.</strong> Define routes with <code>server.on("/path", handler)</code>. Respond with <code>server.send(200, type, body)</code>. Call <code>server.handleClient()</code> in loop(). ESPAsyncWebServer removes the blocking constraint.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Dynamic pages embed sensor data in HTML.</strong> Build HTML strings with <code>String()</code> concatenation or use template processors with SPIFFS-stored files. Auto-refresh with meta tags or JavaScript fetch() for smoother updates.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>WebSocket enables real-time push.</strong> One persistent connection, minimal framing overhead. The ESP32 pushes sensor data the instant it changes. The browser sends commands back. No polling, no page reloads.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>HTTPS and mDNS round out the stack.</strong> <code>WiFiClientSecure</code> + CA pinning for encrypted API calls. <code>ESPmDNS</code> for hostname access. Together they make the ESP32 a professional-grade edge device.</span></div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Core 6 -- MQTT and IoT Protocols</strong> &nbsp;|&nbsp; MQTT Pub/Sub, QoS, Mosquitto, TLS, Edge Device Patterns
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; ProtoCore</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-esp-05-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>

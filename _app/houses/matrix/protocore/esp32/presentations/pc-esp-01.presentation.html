@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meet the ESP32 | ProtoCore ESP32 Core 1</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #040810 0%, #081020 50%, #0a0c1a 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Electric blue progress bar */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #0088ff; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(4, 8, 16, 0.95);
+            border-top: 1px solid rgba(0, 136, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(0, 136, 255, 0.15); color: #0088ff; border-color: #0088ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #0088ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ffd700; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip */
+        .scenario-strip {
+            background: rgba(0, 136, 255, 0.08); border-left: 3px solid #0088ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(0, 136, 255, 0.08); border: 1px solid rgba(0, 136, 255, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ffd700; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #0088ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #ffd700; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #0088ff; }
+
+        /* Section label */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #0088ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Inline code */
+        .ic {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* SVG diagram containers */
+        .diagram-row {
+            display: flex; gap: 16px; align-items: center; justify-content: center;
+        }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        /* Step-by-step flow list */
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(0, 136, 255, 0.12); border: 1px solid rgba(0, 136, 255, 0.4);
+            color: #0088ff; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        /* Code block */
+        .code-block {
+            background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #ffd700; line-height: 1.6; white-space: pre;
+        }
+        .code-block .cm { color: #64748b; }
+        .code-block .kw { color: #5cb8ff; }
+        .code-block .fn { color: #ffd700; }
+        .code-block .st { color: #86efac; }
+        .code-block .nu { color: #fdba74; }
+
+        /* Two-column code compare */
+        .code-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .code-panel-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.07em; margin-bottom: 5px; }
+
+        /* Hex grid cells */
+        .hex-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(0, 136, 255, 0.25);
+            border-radius: 8px; padding: 12px 14px;
+            text-align: center;
+            opacity: 0;
+            animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #0088ff; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        /* Shared animation keyframes */
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes flow {
+            0%   { stroke-dashoffset: 20; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes boxGrow {
+            from { opacity: 0; transform: scale(0.7); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes entityPop {
+            from { opacity: 0; transform: scale(0.6) translateY(6px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes sparkTravel {
+            0%   { offset-distance: 0%; opacity: 0; }
+            10%  { opacity: 1; }
+            90%  { opacity: 1; }
+            100% { offset-distance: 100%; opacity: 0; }
+        }
+        @keyframes blink-led {
+            0%, 49% { fill: #ffd700; filter: drop-shadow(0 0 6px #ffd700); }
+            50%, 100% { fill: #3a3a00; filter: none; }
+        }
+        @keyframes glowPulse {
+            0%, 100% { filter: drop-shadow(0 0 4px rgba(0,136,255,0.3)); }
+            50%       { filter: drop-shadow(0 0 14px rgba(0,136,255,0.9)); }
+        }
+        @keyframes lightningStrike {
+            0%   { opacity: 0; }
+            10%  { opacity: 1; }
+            20%  { opacity: 0; }
+            30%  { opacity: 1; }
+            40%  { opacity: 0.3; }
+            50%  { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+        @keyframes dataFlow {
+            0%   { stroke-dashoffset: 14; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes wifiPulse {
+            0%   { opacity: 0.2; transform: scale(0.9); }
+            50%  { opacity: 1; transform: scale(1.05); }
+            100% { opacity: 0.2; transform: scale(0.9); }
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .code-compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Meet the ESP32 -- ProtoCore ESP32 Core 1</h1>
+
+<!-- Electric blue progress bar -->
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; ProtoCore &nbsp;|&nbsp; ESP32 &nbsp;|&nbsp; Core 1</div>
+        <div class="title-hero">
+            <!-- ESP32 chip SVG -->
+            <svg width="360" height="140" viewBox="0 0 360 140" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central chip -->
+                <rect x="130" y="30" width="100" height="80" rx="8" fill="rgba(0,136,255,0.1)" stroke="#0088ff" stroke-width="2"
+                    style="animation: glowPulse 2.5s ease-in-out infinite;"/>
+                <text x="180" y="60" text-anchor="middle" font-size="11" fill="#0088ff" font-weight="800" font-family="Segoe UI,sans-serif">ESP32</text>
+                <text x="180" y="76" text-anchor="middle" font-size="7" fill="#5cb8ff" font-family="Segoe UI,sans-serif">Dual-Core 240MHz</text>
+                <text x="180" y="90" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">WiFi + Bluetooth</text>
+                <!-- Antenna arcs -->
+                <path d="M180,25 Q180,10 195,8" stroke="rgba(255,215,0,0.4)" stroke-width="1.5" fill="none"
+                    style="animation: wifiPulse 2s ease-in-out infinite;"/>
+                <path d="M180,25 Q180,5 200,2" stroke="rgba(255,215,0,0.3)" stroke-width="1" fill="none"
+                    style="animation: wifiPulse 2s ease-in-out infinite 0.3s;"/>
+                <path d="M180,25 Q180,0 205,-3" stroke="rgba(255,215,0,0.2)" stroke-width="1" fill="none"
+                    style="animation: wifiPulse 2s ease-in-out infinite 0.6s;"/>
+                <!-- Pin rows left -->
+                <line x1="125" y1="45" x2="100" y2="45" stroke="rgba(0,136,255,0.3)" stroke-width="1.5"/>
+                <line x1="125" y1="60" x2="100" y2="60" stroke="rgba(0,136,255,0.3)" stroke-width="1.5"/>
+                <line x1="125" y1="75" x2="100" y2="75" stroke="rgba(0,136,255,0.3)" stroke-width="1.5"/>
+                <line x1="125" y1="90" x2="100" y2="90" stroke="rgba(0,136,255,0.3)" stroke-width="1.5"/>
+                <!-- Pin rows right -->
+                <line x1="235" y1="45" x2="260" y2="45" stroke="rgba(0,136,255,0.3)" stroke-width="1.5"/>
+                <line x1="235" y1="60" x2="260" y2="60" stroke="rgba(0,136,255,0.3)" stroke-width="1.5"/>
+                <line x1="235" y1="75" x2="260" y2="75" stroke="rgba(0,136,255,0.3)" stroke-width="1.5"/>
+                <line x1="235" y1="90" x2="260" y2="90" stroke="rgba(0,136,255,0.3)" stroke-width="1.5"/>
+                <!-- Label left -->
+                <text x="55" y="65" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">GPIO Matrix</text>
+                <text x="55" y="78" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">34 Pins</text>
+                <!-- Label right -->
+                <text x="305" y="65" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">ADC / DAC</text>
+                <text x="305" y="78" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Touch / PWM</text>
+                <!-- Lightning bolt accent -->
+                <polygon points="180,118 172,135 178,135 168,155 190,138 183,138 194,118"
+                    fill="rgba(255,215,0,0.12)" stroke="#ffd700" stroke-width="1"
+                    style="animation: lightningStrike 1.8s ease-in-out infinite;" transform="scale(0.6) translate(120,-25)"/>
+            </svg>
+            <div class="big-title">
+                <span class="accent">Meet the ESP32:</span> WiFi Meets Microcontroller
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Chip Family &nbsp;|&nbsp; Dual-Core Architecture &nbsp;|&nbsp; Dev Boards &nbsp;|&nbsp; Frameworks &nbsp;|&nbsp; First Blink
+            </div>
+        </div>
+        <div class="scenario-strip">
+            The Arduino taught you how a microcontroller thinks. Now you meet the ESP32 -- a dual-core processor with built-in WiFi and Bluetooth that costs less than a cup of coffee. Same C/C++ language. Massively more power. This is where embedded programming meets the network.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>ProtoCore ESP32</span>
+            <span>Core 1 of 10</span>
+            <span>Matrix House</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- THE ESP32 FAMILY ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">The <span class="accent">ESP32</span> Family Tree</div>
+        <div class="slide-subtitle">Espressif Systems makes a family of chips. Each variant targets different use cases and price points.</div>
+
+        <div class="hex-grid">
+            <div class="hex-cell">
+                <div class="hex-title">ESP32 (Classic)</div>
+                <div class="hex-desc">Xtensa LX6 dual-core @ 240MHz. WiFi + Bluetooth Classic + BLE. The original workhorse. Most documentation, most libraries, most community support.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">ESP32-S2</div>
+                <div class="hex-desc">Xtensa LX7 single-core. WiFi only, no Bluetooth. Native USB (HID/CDC). Lower power, lower cost. Good for USB peripherals and simple IoT.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">ESP32-S3</div>
+                <div class="hex-desc">Xtensa LX7 dual-core @ 240MHz. WiFi + BLE 5.0. Vector instructions for AI/ML at the edge. Native USB. The premium variant.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">ESP32-C3</div>
+                <div class="hex-desc">RISC-V single-core @ 160MHz. WiFi + BLE 5.0. Smallest, cheapest. Open-source CPU architecture. Drop-in replacement for ESP8266.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">ESP32-C6</div>
+                <div class="hex-desc">RISC-V single-core. WiFi 6 + BLE 5.0 + 802.15.4 (Thread/Zigbee). The Matter/smart-home chip. Future of IoT connectivity.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">ESP32-H2</div>
+                <div class="hex-desc">RISC-V single-core. BLE 5.0 + 802.15.4 only. No WiFi. Purpose-built for Thread, Zigbee, and Matter mesh networks.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Which One Are We Using?</div>
+            This track uses the original <strong>ESP32</strong> (Xtensa LX6 dual-core). It has the widest library support, the most tutorials, and the most forgiving ecosystem for learners. Everything you learn here transfers directly to the S3, C3, and C6 variants -- the APIs are nearly identical. Master the classic, and the rest are just pin count and feature flag differences.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- THE FAMILY TREE CONTINUED ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Family at a <span class="accent">Glance</span></div>
+        <div class="slide-subtitle">Side-by-side comparison of key specifications across the ESP32 family.</div>
+
+        <div class="diagram-center">
+            <svg width="700" height="180" viewBox="0 0 700 180" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Header row -->
+                <text x="60" y="20" text-anchor="middle" font-size="8" fill="#475569" font-weight="700" font-family="Segoe UI,sans-serif">CHIP</text>
+                <text x="175" y="20" text-anchor="middle" font-size="8" fill="#475569" font-weight="700" font-family="Segoe UI,sans-serif">CPU</text>
+                <text x="310" y="20" text-anchor="middle" font-size="8" fill="#475569" font-weight="700" font-family="Segoe UI,sans-serif">CORES</text>
+                <text x="410" y="20" text-anchor="middle" font-size="8" fill="#475569" font-weight="700" font-family="Segoe UI,sans-serif">WIFI</text>
+                <text x="510" y="20" text-anchor="middle" font-size="8" fill="#475569" font-weight="700" font-family="Segoe UI,sans-serif">BT</text>
+                <text x="620" y="20" text-anchor="middle" font-size="8" fill="#475569" font-weight="700" font-family="Segoe UI,sans-serif">BEST FOR</text>
+                <line x1="10" y1="28" x2="690" y2="28" stroke="rgba(0,136,255,0.2)" stroke-width="1"/>
+
+                <!-- ESP32 row (highlighted) -->
+                <rect x="5" y="32" width="690" height="22" rx="3" fill="rgba(0,136,255,0.08)" stroke="rgba(0,136,255,0.3)" stroke-width="1"/>
+                <text x="60" y="47" text-anchor="middle" font-size="8" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">ESP32</text>
+                <text x="175" y="47" text-anchor="middle" font-size="7.5" fill="#e2e8f0" font-family="Segoe UI,sans-serif">Xtensa LX6 240MHz</text>
+                <text x="310" y="47" text-anchor="middle" font-size="7.5" fill="#ffd700" font-family="Segoe UI,sans-serif">2</text>
+                <text x="410" y="47" text-anchor="middle" font-size="7.5" fill="#3ab577" font-family="Segoe UI,sans-serif">b/g/n</text>
+                <text x="510" y="47" text-anchor="middle" font-size="7.5" fill="#3ab577" font-family="Segoe UI,sans-serif">Classic+BLE</text>
+                <text x="620" y="47" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">General purpose</text>
+
+                <!-- S2 -->
+                <text x="60" y="72" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="600" font-family="Segoe UI,sans-serif">ESP32-S2</text>
+                <text x="175" y="72" text-anchor="middle" font-size="7.5" fill="#e2e8f0" font-family="Segoe UI,sans-serif">Xtensa LX7 240MHz</text>
+                <text x="310" y="72" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">1</text>
+                <text x="410" y="72" text-anchor="middle" font-size="7.5" fill="#3ab577" font-family="Segoe UI,sans-serif">b/g/n</text>
+                <text x="510" y="72" text-anchor="middle" font-size="7.5" fill="#ef4444" font-family="Segoe UI,sans-serif">None</text>
+                <text x="620" y="72" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">USB devices</text>
+
+                <!-- S3 -->
+                <text x="60" y="97" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="600" font-family="Segoe UI,sans-serif">ESP32-S3</text>
+                <text x="175" y="97" text-anchor="middle" font-size="7.5" fill="#e2e8f0" font-family="Segoe UI,sans-serif">Xtensa LX7 240MHz</text>
+                <text x="310" y="97" text-anchor="middle" font-size="7.5" fill="#ffd700" font-family="Segoe UI,sans-serif">2</text>
+                <text x="410" y="97" text-anchor="middle" font-size="7.5" fill="#3ab577" font-family="Segoe UI,sans-serif">b/g/n</text>
+                <text x="510" y="97" text-anchor="middle" font-size="7.5" fill="#3ab577" font-family="Segoe UI,sans-serif">BLE 5.0</text>
+                <text x="620" y="97" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">AI/ML at edge</text>
+
+                <!-- C3 -->
+                <text x="60" y="122" text-anchor="middle" font-size="8" fill="#06b6d4" font-weight="600" font-family="Segoe UI,sans-serif">ESP32-C3</text>
+                <text x="175" y="122" text-anchor="middle" font-size="7.5" fill="#e2e8f0" font-family="Segoe UI,sans-serif">RISC-V 160MHz</text>
+                <text x="310" y="122" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">1</text>
+                <text x="410" y="122" text-anchor="middle" font-size="7.5" fill="#3ab577" font-family="Segoe UI,sans-serif">b/g/n</text>
+                <text x="510" y="122" text-anchor="middle" font-size="7.5" fill="#3ab577" font-family="Segoe UI,sans-serif">BLE 5.0</text>
+                <text x="620" y="122" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Budget IoT</text>
+
+                <!-- C6 -->
+                <text x="60" y="147" text-anchor="middle" font-size="8" fill="#06b6d4" font-weight="600" font-family="Segoe UI,sans-serif">ESP32-C6</text>
+                <text x="175" y="147" text-anchor="middle" font-size="7.5" fill="#e2e8f0" font-family="Segoe UI,sans-serif">RISC-V 160MHz</text>
+                <text x="310" y="147" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">1</text>
+                <text x="410" y="147" text-anchor="middle" font-size="7.5" fill="#3ab577" font-family="Segoe UI,sans-serif">WiFi 6</text>
+                <text x="510" y="147" text-anchor="middle" font-size="7.5" fill="#3ab577" font-family="Segoe UI,sans-serif">BLE+Thread</text>
+                <text x="620" y="147" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Smart home</text>
+
+                <!-- H2 -->
+                <text x="60" y="172" text-anchor="middle" font-size="8" fill="#06b6d4" font-weight="600" font-family="Segoe UI,sans-serif">ESP32-H2</text>
+                <text x="175" y="172" text-anchor="middle" font-size="7.5" fill="#e2e8f0" font-family="Segoe UI,sans-serif">RISC-V 96MHz</text>
+                <text x="310" y="172" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">1</text>
+                <text x="410" y="172" text-anchor="middle" font-size="7.5" fill="#ef4444" font-family="Segoe UI,sans-serif">None</text>
+                <text x="510" y="172" text-anchor="middle" font-size="7.5" fill="#3ab577" font-family="Segoe UI,sans-serif">BLE+Thread</text>
+                <text x="620" y="172" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Mesh networks</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">Xtensa vs RISC-V</div>
+                <div class="card-desc">The older chips (ESP32, S2, S3) use Tensilica's proprietary Xtensa cores. The newer chips (C3, C6, H2) use RISC-V, an open-source instruction set. Both run the same ESP-IDF framework and Arduino libraries. The switch to RISC-V lowers Espressif's licensing costs and opens the CPU architecture for inspection.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Trend Line</div>
+                <div class="card-desc">Espressif is moving toward specialization. The classic ESP32 does everything. Newer chips pick specific niches -- USB devices (S2), edge AI (S3), budget IoT (C3), smart home (C6), mesh-only (H2). Pick the chip that fits the job; do not overpay for features you will not use.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- DUAL CORE ARCHITECTURE ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Xtensa LX6 <span class="accent">Dual-Core</span> Architecture</div>
+        <div class="slide-subtitle">Two independent processor cores running at 240MHz. One handles your application, the other handles WiFi/Bluetooth.</div>
+
+        <div class="diagram-center">
+            <svg width="650" height="160" viewBox="0 0 650 160" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Core 0 -->
+                <rect x="40" y="20" width="200" height="120" rx="10" fill="rgba(0,136,255,0.08)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="140" y="42" text-anchor="middle" font-size="10" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">PRO_CPU (Core 0)</text>
+                <text x="140" y="60" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">Protocol CPU</text>
+                <text x="140" y="78" text-anchor="middle" font-size="7.5" fill="#e2e8f0" font-family="Segoe UI,sans-serif">WiFi stack</text>
+                <text x="140" y="92" text-anchor="middle" font-size="7.5" fill="#e2e8f0" font-family="Segoe UI,sans-serif">Bluetooth stack</text>
+                <text x="140" y="106" text-anchor="middle" font-size="7.5" fill="#e2e8f0" font-family="Segoe UI,sans-serif">System tasks</text>
+                <text x="140" y="128" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Managed by FreeRTOS</text>
+
+                <!-- Core 1 -->
+                <rect x="410" y="20" width="200" height="120" rx="10" fill="rgba(255,215,0,0.08)" stroke="#ffd700" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="510" y="42" text-anchor="middle" font-size="10" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">APP_CPU (Core 1)</text>
+                <text x="510" y="60" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">Application CPU</text>
+                <text x="510" y="78" text-anchor="middle" font-size="7.5" fill="#e2e8f0" font-family="Segoe UI,sans-serif">Your setup() code</text>
+                <text x="510" y="92" text-anchor="middle" font-size="7.5" fill="#e2e8f0" font-family="Segoe UI,sans-serif">Your loop() code</text>
+                <text x="510" y="106" text-anchor="middle" font-size="7.5" fill="#e2e8f0" font-family="Segoe UI,sans-serif">User tasks</text>
+                <text x="510" y="128" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Arduino runs here by default</text>
+
+                <!-- Shared bus -->
+                <rect x="260" y="55" width="130" height="50" rx="6" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="325" y="75" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="600" font-family="Segoe UI,sans-serif">Shared Bus</text>
+                <text x="325" y="90" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">520KB SRAM</text>
+
+                <!-- Arrows -->
+                <line x1="244" y1="80" x2="258" y2="80" stroke="rgba(0,136,255,0.4)" stroke-width="1.5" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="12;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <line x1="392" y1="80" x2="408" y2="80" stroke="rgba(255,215,0,0.4)" stroke-width="1.5" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="12;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Why Two Cores Matter</div>
+                <div class="card-desc">On a single-core Arduino, calling <span class="ic">delay(1000)</span> blocks everything -- including WiFi. On the ESP32, your application code runs on Core 1 while Core 0 keeps WiFi and Bluetooth alive. Network packets keep flowing even when your loop is busy with sensor reads or calculations.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">FreeRTOS Under the Hood</div>
+                <div class="card-desc">The ESP32 runs FreeRTOS, a real-time operating system, to schedule tasks across both cores. When you write Arduino code, it runs as a single FreeRTOS task pinned to Core 1. Advanced users can create additional tasks and pin them to specific cores -- but that is a Core 7 topic.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Key Difference from Arduino</div>
+            The Arduino Uno has one core running at 16MHz with no OS. The ESP32 has two cores running at 240MHz with FreeRTOS. That is a 15x clock speed advantage per core and two cores instead of one. The tradeoff: more power means more complexity. This track builds up that complexity layer by layer.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- 3.3V LOGIC ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title"><span class="accent">3.3V</span> Logic -- Level Shifting Warning</div>
+        <div class="slide-subtitle">The ESP32 runs on 3.3V logic. Arduino runs on 5V. Mixing them without a level shifter can destroy the ESP32.</div>
+
+        <div class="diagram-center">
+            <svg width="600" height="120" viewBox="0 0 600 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Arduino side -->
+                <rect x="30" y="20" width="160" height="80" rx="8" fill="rgba(0,136,255,0.06)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="110" y="42" text-anchor="middle" font-size="9" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Arduino Uno</text>
+                <text x="110" y="58" text-anchor="middle" font-size="8" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">5V Logic</text>
+                <text x="110" y="74" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">HIGH = 5V</text>
+                <text x="110" y="86" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">5V tolerant pins</text>
+
+                <!-- Danger zone -->
+                <rect x="220" y="30" width="160" height="60" rx="6" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5"
+                    style="animation: entityPop 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="300" y="55" text-anchor="middle" font-size="9" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">DANGER ZONE</text>
+                <text x="300" y="72" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">5V into 3.3V pin = damage</text>
+
+                <!-- ESP32 side -->
+                <rect x="410" y="20" width="160" height="80" rx="8" fill="rgba(255,215,0,0.06)" stroke="#ffd700" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="490" y="42" text-anchor="middle" font-size="9" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">ESP32</text>
+                <text x="490" y="58" text-anchor="middle" font-size="8" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">3.3V Logic</text>
+                <text x="490" y="74" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">HIGH = 3.3V</text>
+                <text x="490" y="86" text-anchor="middle" font-size="7" fill="#ef4444" font-family="Segoe UI,sans-serif">NOT 5V tolerant</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Never Do This</div>
+                <div class="card-desc">Never connect a 5V output directly to an ESP32 GPIO pin. The pin's maximum voltage is 3.3V. Exceeding it will permanently damage the GPIO or destroy the chip entirely. This includes 5V sensors, 5V Arduino outputs, and 5V logic ICs.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Level Shifter</div>
+                <div class="card-desc">A bidirectional level shifter converts 5V signals to 3.3V and vice versa. Modules cost under $2. Connect the high side to 5V, the low side to 3.3V, and run your signals through it. Required whenever mixing voltage domains.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Voltage Divider</div>
+                <div class="card-desc">For one-way conversion (5V to 3.3V input), two resistors in a voltage divider work. A 1K/2K divider drops 5V to 3.33V. Cheap and fast for simple input signals. Not suitable for bidirectional or high-speed data lines.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Rule of Thumb</div>
+            If a component says "5V logic" in its datasheet and you are connecting it to an ESP32, you need a level shifter or voltage divider. No exceptions. The ESP32 will not warn you -- it will simply stop working. Check voltage compatibility before every new connection.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- DEVELOPMENT BOARDS ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Development <span class="accent">Boards</span></div>
+        <div class="slide-subtitle">The ESP32 chip is tiny. Development boards add USB, voltage regulation, buttons, and headers to make it breadboard-friendly.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">ESP32 DevKit V1 (DOIT)</div>
+                <div class="card-desc">The most common board. 30 or 38 pins, micro-USB, onboard LED, EN and BOOT buttons. CP2102 or CH340 USB-to-serial chip. Costs $4-8. This is the "Arduino Uno" of the ESP32 world -- the default recommendation for beginners. Works with every tutorial.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">ESP-WROOM-32</div>
+                <div class="card-desc">Espressif's reference module. The ESP32 chip plus flash memory, crystal oscillator, and PCB antenna in a shielded metal can. Most third-party boards use WROOM modules. When a board says "WROOM-32," it means the official Espressif module is soldered on.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">TTGO T-Display</div>
+                <div class="card-desc">ESP32 board with a built-in 1.14" color TFT display. Great for projects that need a screen without wiring one. USB-C, 135x240 pixel display. More expensive (~$10) but eliminates display wiring entirely.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">NodeMCU-32S</div>
+                <div class="card-desc">Community-designed board similar to the popular NodeMCU ESP8266 boards. Wider than DevKit V1, sometimes easier to use on a breadboard because it leaves more open rows. Good alternative if DevKit V1 is unavailable.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Which Board for This Track?</div>
+            Any ESP32 DevKit V1 clone will work. They cost $4-8 and are available everywhere. Look for: USB connector, EN button, BOOT button, 30+ pins, and "ESP32-WROOM-32" printed on the metal shield. Avoid boards labeled "ESP8266" -- that is the older, single-core predecessor with no Bluetooth and less memory.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- TWO FRAMEWORKS ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Two Frameworks: <span class="accent">ESP-IDF</span> vs <span class="accent">Arduino-ESP32</span></div>
+        <div class="slide-subtitle">You can program the ESP32 two ways. This track uses Arduino-ESP32 for familiarity, but you should know both exist.</div>
+
+        <div class="code-compare">
+            <div>
+                <div class="code-panel-label" style="color: #0088ff;">ESP-IDF (Official SDK)</div>
+                <div class="code-block"><span class="cm">// Espressif IoT Development Framework</span>
+<span class="cm">// C-based, uses CMake build system</span>
+<span class="cm">// Full access to all hardware features</span>
+<span class="cm">// FreeRTOS tasks, event loops, components</span>
+<span class="cm">// Steeper learning curve</span>
+<span class="cm">// Professional / production use</span>
+
+<span class="kw">#include</span> <span class="st">"esp_wifi.h"</span>
+<span class="kw">#include</span> <span class="st">"esp_event.h"</span>
+<span class="kw">void</span> <span class="fn">app_main</span>(<span class="kw">void</span>) {
+    <span class="cm">// Your entry point</span>
+}</div>
+            </div>
+            <div>
+                <div class="code-panel-label" style="color: #ffd700;">Arduino-ESP32 (Arduino Core)</div>
+                <div class="code-block"><span class="cm">// Arduino framework running on ESP32</span>
+<span class="cm">// Same setup()/loop() you already know</span>
+<span class="cm">// Uses ESP-IDF under the hood</span>
+<span class="cm">// Thousands of Arduino libraries work</span>
+<span class="cm">// Easier learning curve</span>
+<span class="cm">// Prototyping / education / hobby</span>
+
+<span class="kw">#include</span> <span class="st">&lt;WiFi.h&gt;</span>
+
+<span class="kw">void</span> <span class="fn">setup</span>() { }
+<span class="kw">void</span> <span class="fn">loop</span>() { }</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">ESP-IDF: Full Power</div>
+                <div class="card-desc">Direct access to every ESP32 feature. Component-based architecture. CMake build system. Required for commercial products, advanced power management, and custom WiFi/BLE stacks. The learning curve is significant but the control is total.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Arduino-ESP32: Fast Start</div>
+                <div class="card-desc">Wraps ESP-IDF in the familiar Arduino API. Your existing Arduino knowledge transfers directly. Most Arduino libraries work without modification. You can even call ESP-IDF functions from Arduino code when you need lower-level access.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">This Track Uses Arduino-ESP32</div>
+            You already know <span class="ic">setup()</span> and <span class="ic">loop()</span> from the Arduino track. Arduino-ESP32 lets you use that knowledge immediately while adding WiFi, Bluetooth, and dual-core capabilities. When you outgrow Arduino, ESP-IDF is waiting -- and everything you learn about the hardware transfers directly.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- BOARD MANAGER SETUP ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Board Manager <span class="accent">Setup</span></div>
+        <div class="slide-subtitle">Adding ESP32 support to the Arduino IDE takes three steps.</div>
+
+        <div class="step-list">
+            <div class="step-row">
+                <span class="step-num">1</span>
+                <span class="step-text"><strong>Open Preferences.</strong> In Arduino IDE 2.x, go to File &gt; Preferences. Find the "Additional Boards Manager URLs" field at the bottom of the dialog.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">2</span>
+                <span class="step-text"><strong>Add the ESP32 URL.</strong> Paste this URL into the field:</span>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="st">https://espressif.github.io/arduino-esp32/package_esp32_index.json</span></div>
+
+        <div class="step-list">
+            <div class="step-row">
+                <span class="step-num">3</span>
+                <span class="step-text"><strong>Install via Board Manager.</strong> Open Tools &gt; Board &gt; Boards Manager. Search for "esp32". Install "esp32 by Espressif Systems." This downloads the toolchain, compiler, and all ESP32 board definitions. Takes 1-3 minutes.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">4</span>
+                <span class="step-text"><strong>Select your board.</strong> After installation, go to Tools &gt; Board &gt; esp32 &gt; "ESP32 Dev Module" (or "DOIT ESP32 DEVKIT V1"). Select the correct COM port under Tools &gt; Port.</span>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">USB Driver Note</div>
+                <div class="card-desc">Most ESP32 DevKit boards use a CP2102 or CH340 USB-to-serial chip. Windows usually auto-installs the driver. If your board does not appear in the Port list, download the driver from Silicon Labs (CP2102) or WCH (CH340) and install manually.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Upload Speed</div>
+                <div class="card-desc">The default upload speed for ESP32 is 921600 baud -- much faster than Arduino's 115200. If uploads fail, try lowering to 115200 under Tools &gt; Upload Speed. Cheap USB cables sometimes cannot sustain high baud rates.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- FIRST BLINK ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">First Blink on <span class="accent">ESP32</span></div>
+        <div class="slide-subtitle">The same Blink concept, adapted for ESP32 hardware. The built-in LED is on GPIO 2 (not pin 13).</div>
+
+        <div class="code-block"><span class="cm">// ESP32 Blink -- built-in LED on GPIO 2</span>
+<span class="kw">#define</span> <span class="fn">LED_BUILTIN</span> <span class="nu">2</span>
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    <span class="fn">pinMode</span>(<span class="fn">LED_BUILTIN</span>, <span class="kw">OUTPUT</span>);
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+    <span class="fn">digitalWrite</span>(<span class="fn">LED_BUILTIN</span>, <span class="kw">HIGH</span>);
+    <span class="fn">delay</span>(<span class="nu">1000</span>);
+    <span class="fn">digitalWrite</span>(<span class="fn">LED_BUILTIN</span>, <span class="kw">LOW</span>);
+    <span class="fn">delay</span>(<span class="nu">1000</span>);
+}</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">GPIO 2, Not Pin 13</div>
+                <div class="card-desc">Most ESP32 DevKit boards wire the onboard LED to GPIO 2. Some boards (like the T-Display) have no onboard LED at all. Check your board's pinout diagram. The <span class="ic">#define LED_BUILTIN 2</span> line makes the code explicit.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Upload Sequence</div>
+                <div class="card-desc">Some ESP32 boards require you to hold the BOOT button while uploading. Press and hold BOOT, click Upload, wait for "Connecting..." in the output, then release BOOT. Newer boards with auto-reset circuitry do not need this.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Same API, Different Hardware</div>
+                <div class="card-desc">Notice the code is identical to Arduino Blink except for the pin number. <span class="ic">pinMode()</span>, <span class="ic">digitalWrite()</span>, and <span class="ic">delay()</span> work exactly the same. The Arduino-ESP32 core maps these familiar functions to ESP32 hardware registers behind the scenes.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- SERIAL OUTPUT ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Serial <span class="accent">Output</span> on ESP32</div>
+        <div class="slide-subtitle">Serial communication works the same way, but with one important difference: default baud rate is 115200.</div>
+
+        <div class="code-block"><span class="kw">void</span> <span class="fn">setup</span>() {
+    <span class="fn">Serial.begin</span>(<span class="nu">115200</span>);  <span class="cm">// ESP32 default baud rate</span>
+    <span class="fn">delay</span>(<span class="nu">1000</span>);            <span class="cm">// Wait for Serial Monitor to connect</span>
+
+    <span class="fn">Serial.println</span>(<span class="st">"ESP32 booted"</span>);
+    <span class="fn">Serial.print</span>(<span class="st">"CPU Freq: "</span>);
+    <span class="fn">Serial.print</span>(<span class="fn">getCpuFrequencyMhz</span>());
+    <span class="fn">Serial.println</span>(<span class="st">" MHz"</span>);
+    <span class="fn">Serial.print</span>(<span class="st">"Free heap: "</span>);
+    <span class="fn">Serial.print</span>(<span class="fn">ESP.getFreeHeap</span>());
+    <span class="fn">Serial.println</span>(<span class="st">" bytes"</span>);
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+    <span class="fn">Serial.println</span>(<span class="st">"Running..."</span>);
+    <span class="fn">delay</span>(<span class="nu">2000</span>);
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">115200 Baud, Not 9600</div>
+                <div class="card-desc">The ESP32 ecosystem uses 115200 baud as the default. This is 12x faster than Arduino's traditional 9600. Make sure the Serial Monitor baud rate matches. If you see garbled characters, the baud rates are mismatched. Some ESP32 boot messages also print at 115200 by default.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">ESP32-Specific Functions</div>
+                <div class="card-desc"><span class="ic">getCpuFrequencyMhz()</span> returns the CPU clock speed. <span class="ic">ESP.getFreeHeap()</span> reports available RAM. <span class="ic">ESP.getChipModel()</span> identifies the chip variant. These ESP32-only functions help you understand what hardware your code is running on.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">The delay(1000) After Serial.begin</div>
+            The <span class="ic">delay(1000)</span> after <span class="ic">Serial.begin()</span> gives the USB-to-serial chip time to initialize and the Serial Monitor time to connect. Without it, early print statements may be lost. This is an ESP32-specific quirk -- the USB connection negotiation takes longer than on Arduino boards.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- ESP32 vs ARDUINO ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">ESP32 vs <span class="accent">Arduino Uno</span></div>
+        <div class="slide-subtitle">Same programming model, vastly different hardware. Here is what changes and what stays the same.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Clock Speed</div>
+                <div class="card-desc">Arduino Uno: 16MHz, single core. ESP32: 240MHz, dual core. That is a 30x raw compute advantage. Code that was too slow on Arduino often runs effortlessly on ESP32.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Memory</div>
+                <div class="card-desc">Uno: 32KB flash, 2KB SRAM. ESP32: 4MB flash, 520KB SRAM. You can store large web pages, JSON configs, and SSL certificates directly in ESP32 flash. Memory is rarely a constraint.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Connectivity</div>
+                <div class="card-desc">Uno: none built in (shields required). ESP32: WiFi 802.11 b/g/n + Bluetooth Classic + BLE. The ESP32 is a network device out of the box. No shields, no add-on modules.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Voltage</div>
+                <div class="card-desc">Uno: 5V logic, 5V tolerant. ESP32: 3.3V logic, NOT 5V tolerant. This is the most dangerous difference. Always check voltage compatibility before connecting components.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">ADC Resolution</div>
+                <div class="card-desc">Uno: 10-bit ADC (0-1023). ESP32: 12-bit ADC (0-4095). Four times the resolution for analog readings. However, the ESP32 ADC is non-linear and requires calibration for accuracy.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Programming Model</div>
+                <div class="card-desc">Both use <span class="ic">setup()</span> and <span class="ic">loop()</span>. Both use <span class="ic">pinMode()</span>, <span class="ic">digitalWrite()</span>, <span class="ic">Serial.println()</span>. If your Arduino code does not use hardware-specific features, it often compiles for ESP32 with zero changes.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- SUMMARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Core 1 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Everything you need to remember from this presentation.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>ESP32 is a dual-core microcontroller with built-in WiFi and Bluetooth.</strong> Made by Espressif Systems. Runs at 240MHz with 520KB SRAM and 4MB flash. It is not just "a faster Arduino" -- it is a fundamentally different class of hardware.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>The chip family has six variants.</strong> ESP32 (classic dual-core), S2 (USB), S3 (AI), C3 (budget RISC-V), C6 (WiFi 6 + Thread), H2 (mesh only). This track uses the classic ESP32 because it has the widest library and community support.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>3.3V logic is non-negotiable.</strong> The ESP32 is NOT 5V tolerant. Connecting a 5V signal directly to a GPIO pin will damage the chip. Use level shifters or voltage dividers when interfacing with 5V components.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Two frameworks exist.</strong> ESP-IDF (full power, steep curve) and Arduino-ESP32 (familiar API, fast start). This track uses Arduino-ESP32. Your <code>setup()</code> and <code>loop()</code> knowledge transfers directly.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>The built-in LED is on GPIO 2</strong> (not pin 13). Serial uses 115200 baud by default (not 9600). Add <code>delay(1000)</code> after <code>Serial.begin()</code> to let the USB connection initialize. These are the three most common ESP32 gotchas for Arduino users.</span></div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Core 2 -- GPIO and Peripherals</strong> &nbsp;|&nbsp; GPIO Matrix, Touch Pins, ADC, DAC, LEDC PWM, Interrupts
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; ProtoCore</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* Slide navigation state */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    /* Module completion via ModuleProgress component */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-esp-01-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>

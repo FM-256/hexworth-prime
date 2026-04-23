@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FreeRTOS Synchronization | ProtoCore ESP32 Core 8</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #040810 0%, #081020 50%, #0a0c1a 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #0088ff; transition: width 0.4s ease; z-index: 200;
+        }
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(4, 8, 16, 0.95);
+            border-top: 1px solid rgba(0, 136, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(0, 136, 255, 0.15); color: #0088ff; border-color: #0088ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #0088ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ffd700; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip {
+            background: rgba(0, 136, 255, 0.08); border-left: 3px solid #0088ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(0, 136, 255, 0.08); border: 1px solid rgba(0, 136, 255, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ffd700; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #0088ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #ffd700; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #0088ff; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #0088ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+        .ic {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+        .diagram-row { display: flex; gap: 16px; align-items: center; justify-content: center; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(0, 136, 255, 0.12); border: 1px solid rgba(0, 136, 255, 0.4);
+            color: #0088ff; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+        .code-block {
+            background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #ffd700; line-height: 1.6; white-space: pre;
+        }
+        .code-block .cm { color: #64748b; }
+        .code-block .kw { color: #5cb8ff; }
+        .code-block .fn { color: #ffd700; }
+        .code-block .st { color: #86efac; }
+        .code-block .nu { color: #fdba74; }
+        .code-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .code-panel-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.07em; margin-bottom: 5px; }
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(0, 136, 255, 0.25);
+            border-radius: 8px; padding: 12px 14px; text-align: center;
+            opacity: 0; animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #0088ff; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes entityPop { from { opacity: 0; transform: scale(0.6) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes dataFlow { 0% { stroke-dashoffset: 14; } 100% { stroke-dashoffset: 0; } }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .code-compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">FreeRTOS Synchronization -- ProtoCore ESP32 Core 8</h1>
+
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; ProtoCore &nbsp;|&nbsp; ESP32 &nbsp;|&nbsp; Core 8</div>
+        <div class="title-hero">
+            <svg width="360" height="120" viewBox="0 0 360 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Task A -->
+                <rect x="30" y="25" width="80" height="70" rx="8" fill="rgba(0,136,255,0.08)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.1s; opacity:0;"/>
+                <text x="70" y="50" text-anchor="middle" font-size="9" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Task A</text>
+                <text x="70" y="65" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Producer</text>
+
+                <!-- Queue/Semaphore in center -->
+                <rect x="140" y="30" width="80" height="60" rx="10" fill="rgba(255,215,0,0.1)" stroke="#ffd700" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.2s; opacity:0;"/>
+                <text x="180" y="55" text-anchor="middle" font-size="9" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">Queue</text>
+                <text x="180" y="70" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Sync</text>
+
+                <!-- Task B -->
+                <rect x="250" y="25" width="80" height="70" rx="8" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.3s; opacity:0;"/>
+                <text x="290" y="50" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Task B</text>
+                <text x="290" y="65" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Consumer</text>
+
+                <!-- Data flow arrows -->
+                <line x1="112" y1="55" x2="138" y2="55" stroke="rgba(0,136,255,0.5)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <line x1="222" y1="55" x2="248" y2="55" stroke="rgba(58,181,119,0.5)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+            </svg>
+            <div class="big-title">
+                FreeRTOS <span class="accent">Synchronization</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Semaphores &nbsp;|&nbsp; Mutexes &nbsp;|&nbsp; Queues &nbsp;|&nbsp; Event Groups &nbsp;|&nbsp; Deadlock
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Two tasks reading the same sensor. Three tasks writing to the same display. A producer generating data faster than the consumer can process it. Without synchronization, your data corrupts, your system deadlocks, and your device crashes. This core gives you the tools to prevent it.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>ProtoCore ESP32</span>
+            <span>Core 8</span>
+            <span>Matrix House</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- BINARY SEMAPHORES ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Binary <span class="accent">Semaphores</span></div>
+        <div class="slide-subtitle">A binary semaphore is a flag with two states: available or taken. Used for signaling between tasks or from an ISR to a task.</div>
+
+        <div class="code-block"><span class="kw">SemaphoreHandle_t</span> xSemaphore = <span class="kw">NULL</span>;
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  xSemaphore = <span class="fn">xSemaphoreCreateBinary</span>();  <span class="cm">// Starts empty (not available)</span>
+}
+
+<span class="kw">void</span> <span class="fn">isrHandler</span>() {
+  <span class="fn">xSemaphoreGiveFromISR</span>(xSemaphore, <span class="kw">NULL</span>);  <span class="cm">// Signal from interrupt</span>
+}
+
+<span class="kw">void</span> <span class="fn">workerTask</span>(<span class="kw">void</span> *p) {
+  <span class="kw">for</span> (;;) {
+    <span class="kw">if</span> (<span class="fn">xSemaphoreTake</span>(xSemaphore, <span class="fn">portMAX_DELAY</span>)) {
+      <span class="fn">processEvent</span>();  <span class="cm">// Runs only when semaphore is given</span>
+    }
+  }
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Signaling Pattern</div>
+                <div class="card-desc">The classic use: an ISR gives the semaphore to wake a task. The task blocks on <span class="ic">xSemaphoreTake()</span> until the ISR fires. This moves heavy processing out of the interrupt context into a normal task where it is safe to call blocking functions.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Not for Mutual Exclusion</div>
+                <div class="card-desc">Binary semaphores lack priority inheritance. If a low-priority task holds a binary semaphore and a high-priority task needs it, a medium-priority task can preempt the low-priority one indefinitely. This is priority inversion. Use a mutex instead for protecting shared resources.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- COUNTING SEMAPHORES ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Counting <span class="accent">Semaphores</span></div>
+        <div class="slide-subtitle">A counting semaphore tracks multiple available resources or accumulated events. The count increments on Give and decrements on Take.</div>
+
+        <div class="code-block"><span class="cm">// Create a counting semaphore: max count 5, initial count 5</span>
+<span class="kw">SemaphoreHandle_t</span> xSlots = <span class="fn">xSemaphoreCreateCounting</span>(<span class="nu">5</span>, <span class="nu">5</span>);
+
+<span class="kw">void</span> <span class="fn">producerTask</span>(<span class="kw">void</span> *p) {
+  <span class="kw">for</span> (;;) {
+    <span class="kw">if</span> (<span class="fn">xSemaphoreTake</span>(xSlots, <span class="fn">pdMS_TO_TICKS</span>(<span class="nu">1000</span>))) {
+      <span class="fn">useResource</span>();      <span class="cm">// Got a slot (count decremented)</span>
+      <span class="fn">xSemaphoreGive</span>(xSlots);  <span class="cm">// Release slot (count incremented)</span>
+    } <span class="kw">else</span> {
+      <span class="cm">// Timed out -- all 5 slots busy for 1 second</span>
+    }
+  }
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Resource Pool</div>
+                <div class="card-desc">Use counting semaphores to manage a pool of identical resources. Example: 3 SPI buses, 5 database connections, or 10 buffer slots. The count tracks how many are available. When count hits zero, new requests block until a resource is returned.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Event Counting</div>
+                <div class="card-desc">Use counting semaphores to count events without losing them. Each <span class="ic">xSemaphoreGive()</span> increments the count. Even if the consumer task is slow, events accumulate. A binary semaphore would lose rapid events because it caps at 1.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- MUTEX ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title"><span class="accent">Mutex</span> -- Mutual Exclusion</div>
+        <div class="slide-subtitle">A mutex is a special semaphore designed for protecting shared resources. It includes priority inheritance to prevent priority inversion.</div>
+
+        <div class="code-block"><span class="kw">SemaphoreHandle_t</span> xMutex = <span class="kw">NULL</span>;
+<span class="kw">int</span> sharedCounter = <span class="nu">0</span>;
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  xMutex = <span class="fn">xSemaphoreCreateMutex</span>();  <span class="cm">// Starts available (unlike binary sem)</span>
+}
+
+<span class="kw">void</span> <span class="fn">incrementTask</span>(<span class="kw">void</span> *p) {
+  <span class="kw">for</span> (;;) {
+    <span class="kw">if</span> (<span class="fn">xSemaphoreTake</span>(xMutex, <span class="fn">portMAX_DELAY</span>)) {
+      sharedCounter++;         <span class="cm">// Safe: only one task can be here</span>
+      <span class="fn">xSemaphoreGive</span>(xMutex);  <span class="cm">// Release the mutex</span>
+    }
+    <span class="fn">vTaskDelay</span>(<span class="fn">pdMS_TO_TICKS</span>(<span class="nu">100</span>));
+  }
+}</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Priority Inheritance</div>
+                <div class="card-desc">If a high-priority task blocks on a mutex held by a low-priority task, the low-priority task temporarily inherits the high priority. This prevents medium-priority tasks from preempting the holder and causing unbounded delays.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Ownership</div>
+                <div class="card-desc">A mutex has an owner -- the task that took it. Only the owner can give it back. This prevents a common bug where one task takes the mutex and a different task accidentally releases it. Binary semaphores have no ownership concept.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Keep It Short</div>
+                <div class="card-desc">Hold the mutex for the minimum time necessary. Take it, modify the shared data, give it back. Never call blocking functions (vTaskDelay, Serial.print) while holding a mutex -- this extends the critical section and blocks other tasks.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- QUEUES ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">FreeRTOS <span class="accent">Queues</span></div>
+        <div class="slide-subtitle">Queues are the primary mechanism for passing data between tasks. They are thread-safe FIFO buffers with built-in blocking.</div>
+
+        <div class="code-block"><span class="kw">QueueHandle_t</span> sensorQueue;
+
+<span class="kw">typedef struct</span> {
+  <span class="kw">float</span> temperature;
+  <span class="kw">float</span> humidity;
+  <span class="kw">uint32_t</span> timestamp;
+} <span class="kw">SensorData_t</span>;
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+  sensorQueue = <span class="fn">xQueueCreate</span>(<span class="nu">10</span>, <span class="kw">sizeof</span>(<span class="kw">SensorData_t</span>));  <span class="cm">// 10-item queue</span>
+}
+
+<span class="kw">void</span> <span class="fn">sensorTask</span>(<span class="kw">void</span> *p) {       <span class="cm">// PRODUCER</span>
+  <span class="kw">SensorData_t</span> data;
+  <span class="kw">for</span> (;;) {
+    data.temperature = <span class="fn">readTemp</span>();
+    data.humidity = <span class="fn">readHumidity</span>();
+    data.timestamp = <span class="fn">millis</span>();
+    <span class="fn">xQueueSend</span>(sensorQueue, &data, <span class="fn">pdMS_TO_TICKS</span>(<span class="nu">100</span>));
+    <span class="fn">vTaskDelay</span>(<span class="fn">pdMS_TO_TICKS</span>(<span class="nu">500</span>));
+  }
+}
+
+<span class="kw">void</span> <span class="fn">displayTask</span>(<span class="kw">void</span> *p) {      <span class="cm">// CONSUMER</span>
+  <span class="kw">SensorData_t</span> received;
+  <span class="kw">for</span> (;;) {
+    <span class="kw">if</span> (<span class="fn">xQueueReceive</span>(sensorQueue, &received, <span class="fn">portMAX_DELAY</span>)) {
+      <span class="fn">updateDisplay</span>(received.temperature, received.humidity);
+    }
+  }
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">xQueueSend</div>
+                <div class="card-desc">Copies data into the queue (by value, not by reference). If the queue is full, the sender blocks for up to the specified timeout. Use <span class="ic">xQueueSendFromISR()</span> when sending from an interrupt.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">xQueueReceive</div>
+                <div class="card-desc">Copies data out of the queue into your variable. If the queue is empty, the receiver blocks. <span class="ic">portMAX_DELAY</span> means block forever until data arrives. <span class="ic">xQueuePeek()</span> reads without removing.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- EVENT GROUPS ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Event <span class="accent">Groups</span></div>
+        <div class="slide-subtitle">Event groups let a task wait for multiple conditions simultaneously using bit flags. Think of them as a multi-channel signal system.</div>
+
+        <div class="code-block"><span class="kw">#define</span> WIFI_CONNECTED_BIT  (<span class="nu">1</span> << <span class="nu">0</span>)   <span class="cm">// Bit 0</span>
+<span class="kw">#define</span> MQTT_CONNECTED_BIT  (<span class="nu">1</span> << <span class="nu">1</span>)   <span class="cm">// Bit 1</span>
+<span class="kw">#define</span> SENSOR_READY_BIT    (<span class="nu">1</span> << <span class="nu">2</span>)   <span class="cm">// Bit 2</span>
+
+<span class="kw">EventGroupHandle_t</span> xEvents = <span class="fn">xEventGroupCreate</span>();
+
+<span class="cm">// In WiFi callback:</span>
+<span class="fn">xEventGroupSetBits</span>(xEvents, WIFI_CONNECTED_BIT);
+
+<span class="cm">// In main task -- wait for ALL three conditions:</span>
+<span class="fn">xEventGroupWaitBits</span>(
+  xEvents,
+  WIFI_CONNECTED_BIT | MQTT_CONNECTED_BIT | SENSOR_READY_BIT,
+  <span class="kw">pdFALSE</span>,      <span class="cm">// Don't clear bits on exit</span>
+  <span class="kw">pdTRUE</span>,       <span class="cm">// Wait for ALL bits (AND logic)</span>
+  <span class="fn">portMAX_DELAY</span>
+);</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Wait for ALL (AND)</div>
+                <div class="card-desc">Set the <span class="ic">xWaitForAllBits</span> parameter to <span class="ic">pdTRUE</span>. The task unblocks only when every specified bit is set. Use for startup sequences where all subsystems must be ready before proceeding.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Wait for ANY (OR)</div>
+                <div class="card-desc">Set <span class="ic">xWaitForAllBits</span> to <span class="ic">pdFALSE</span>. The task unblocks when any one of the specified bits is set. Use for tasks that respond to multiple independent events from different sources.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">24-Bit Limit</div>
+            Event groups on ESP32 support 24 usable bits (bits 0-23). The upper 8 bits are reserved by FreeRTOS internally. Each bit represents one boolean condition. For most applications, 24 flags is more than sufficient. If you need more, create additional event groups.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- TASK NOTIFICATIONS ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Task <span class="accent">Notifications</span></div>
+        <div class="slide-subtitle">A lightweight alternative to semaphores and event groups. Each task has a built-in 32-bit notification value -- no need to create a separate object.</div>
+
+        <div class="code-block"><span class="kw">TaskHandle_t</span> workerHandle = <span class="kw">NULL</span>;
+
+<span class="kw">void</span> <span class="fn">senderTask</span>(<span class="kw">void</span> *p) {
+  <span class="kw">for</span> (;;) {
+    <span class="cm">// Notify the worker task (like giving a binary semaphore)</span>
+    <span class="fn">xTaskNotifyGive</span>(workerHandle);
+    <span class="fn">vTaskDelay</span>(<span class="fn">pdMS_TO_TICKS</span>(<span class="nu">500</span>));
+  }
+}
+
+<span class="kw">void</span> <span class="fn">workerTask</span>(<span class="kw">void</span> *p) {
+  <span class="kw">for</span> (;;) {
+    <span class="cm">// Block until notified (like taking a binary semaphore)</span>
+    <span class="fn">ulTaskNotifyTake</span>(<span class="kw">pdTRUE</span>, <span class="fn">portMAX_DELAY</span>);
+    <span class="fn">doWork</span>();
+  }
+}</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">45% Faster</div>
+                <div class="card-desc">Task notifications are significantly faster than semaphores because they use the task's built-in notification value -- no dynamic memory allocation, no linked list traversal. FreeRTOS benchmarks show ~45% faster unblocking compared to binary semaphores.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Limitation: One-to-One</div>
+                <div class="card-desc">A task notification goes to one specific task (you must know the handle). It cannot broadcast to multiple tasks like an event group can. It also cannot be used from an ISR to wake multiple tasks simultaneously.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Modes</div>
+                <div class="card-desc"><span class="ic">xTaskNotifyGive</span> / <span class="ic">ulTaskNotifyTake</span> for simple signaling. <span class="ic">xTaskNotify</span> with action flags for setting bits, incrementing, or overwriting the 32-bit notification value for richer communication.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- DEADLOCK ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title"><span class="accent">Deadlock</span> -- The Silent Killer</div>
+        <div class="slide-subtitle">Deadlock occurs when two or more tasks are waiting for each other to release resources, creating a circular dependency. No task can proceed.</div>
+
+        <div class="diagram-center">
+            <svg width="400" height="140" viewBox="0 0 400 140" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="30" y="30" width="120" height="40" rx="8" fill="rgba(0,136,255,0.1)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="90" y="55" text-anchor="middle" font-size="9" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">Task A</text>
+                <text x="90" y="85" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Holds Mutex 1</text>
+                <text x="90" y="97" text-anchor="middle" font-size="7" fill="#ef4444" font-family="Segoe UI,sans-serif">Wants Mutex 2</text>
+
+                <rect x="250" y="30" width="120" height="40" rx="8" fill="rgba(255,215,0,0.1)" stroke="#ffd700" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="310" y="55" text-anchor="middle" font-size="9" fill="#ffd700" font-weight="700" font-family="Segoe UI,sans-serif">Task B</text>
+                <text x="310" y="85" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Holds Mutex 2</text>
+                <text x="310" y="97" text-anchor="middle" font-size="7" fill="#ef4444" font-family="Segoe UI,sans-serif">Wants Mutex 1</text>
+
+                <!-- Circular arrows -->
+                <path d="M152,42 Q200,15 248,42" fill="none" stroke="rgba(239,68,68,0.5)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.5s" repeatCount="indefinite"/>
+                </path>
+                <path d="M248,58 Q200,85 152,58" fill="none" stroke="rgba(239,68,68,0.5)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.5s" repeatCount="indefinite" begin="0.3s"/>
+                </path>
+                <text x="200" y="125" text-anchor="middle" font-size="10" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">DEADLOCK</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Prevention: Lock Ordering</div>
+                <div class="card-desc">Always acquire mutexes in the same order across all tasks. If every task takes Mutex 1 before Mutex 2, circular dependencies cannot form. This is the most reliable prevention strategy.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Prevention: Timeouts</div>
+                <div class="card-desc">Use a timeout with <span class="ic">xSemaphoreTake()</span> instead of <span class="ic">portMAX_DELAY</span>. If the timeout expires, the task can release any mutexes it already holds and retry. This breaks the deadlock at the cost of complexity.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Prevention: Single Mutex</div>
+                <div class="card-desc">If possible, protect all shared resources with a single mutex. Deadlock requires at least two locks. One lock means no circular dependency is possible. Trade-off: reduced concurrency.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- PRIORITY INVERSION ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Priority <span class="accent">Inversion</span></div>
+        <div class="slide-subtitle">When a high-priority task waits for a low-priority task, and a medium-priority task runs instead. The priority order is effectively inverted.</div>
+
+        <div class="step-list">
+            <div class="step-row">
+                <span class="step-num">1</span>
+                <span class="step-text"><strong>Low-priority Task L</strong> acquires a binary semaphore protecting a shared resource.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">2</span>
+                <span class="step-text"><strong>High-priority Task H</strong> becomes ready and tries to take the same semaphore. It blocks because L holds it.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">3</span>
+                <span class="step-text"><strong>Medium-priority Task M</strong> becomes ready. Since L is not blocked (it is running), M preempts L.</span>
+            </div>
+            <div class="step-row">
+                <span class="step-num">4</span>
+                <span class="step-text"><strong>Result:</strong> M runs, L is preempted, H is blocked. The highest-priority task waits for the lowest-priority task, which is preempted by the medium-priority task. H effectively has the lowest priority.</span>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Solution: Use Mutex</div>
+                <div class="card-desc">A FreeRTOS mutex includes priority inheritance. When Task H blocks on a mutex held by Task L, FreeRTOS temporarily raises L's priority to match H. Now M cannot preempt L, L finishes quickly, releases the mutex, and H runs immediately.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Binary Semaphore = No Inheritance</div>
+                <div class="card-desc">Binary semaphores do not implement priority inheritance. If you use a binary semaphore for mutual exclusion instead of a mutex, you are vulnerable to unbounded priority inversion. Always use <span class="ic">xSemaphoreCreateMutex()</span> for resource protection.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Mars Pathfinder Bug (1997)</div>
+            The Mars Pathfinder rover experienced repeated system resets on Mars caused by priority inversion. A low-priority meteorological task held a shared bus mutex, a high-priority bus management task needed it, and a medium-priority communication task kept preempting the meteorological task. NASA fixed it remotely by enabling priority inheritance. This is the most famous real-world priority inversion bug in history.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- WATCHDOG TIMERS ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Watchdog <span class="accent">Timers</span></div>
+        <div class="slide-subtitle">Hardware safety nets that reset the system when software fails to respond. The ESP32 has two independent watchdog systems.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Task Watchdog Timer (TWDT)</div>
+                <div class="card-desc">Monitors subscribed FreeRTOS tasks. Each subscribed task must call <span class="ic">esp_task_wdt_reset()</span> within the timeout period (default 5 seconds). The idle tasks are subscribed by default. If a task starves the idle task, the TWDT fires.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Interrupt Watchdog (IWDT)</div>
+                <div class="card-desc">Monitors interrupt latency. If interrupts are disabled or a critical section runs for longer than ~300ms, the IWDT triggers a panic. This catches infinite loops inside ISRs or excessively long <span class="ic">taskENTER_CRITICAL()</span> sections.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// Subscribe a custom task to the TWDT</span>
+<span class="kw">#include</span> <span class="st">"esp_task_wdt.h"</span>
+
+<span class="kw">void</span> <span class="fn">criticalTask</span>(<span class="kw">void</span> *p) {
+  <span class="fn">esp_task_wdt_add</span>(<span class="kw">NULL</span>);           <span class="cm">// Subscribe this task</span>
+  <span class="kw">for</span> (;;) {
+    <span class="fn">doWork</span>();
+    <span class="fn">esp_task_wdt_reset</span>();             <span class="cm">// Feed the watchdog</span>
+    <span class="fn">vTaskDelay</span>(<span class="fn">pdMS_TO_TICKS</span>(<span class="nu">100</span>));
+  }
+}</div>
+
+        <div class="box box-blue">
+            <div class="box-label">When to Subscribe Tasks</div>
+            Subscribe tasks to the TWDT when they perform critical operations that must not hang -- sensor reading loops, communication handlers, or motor controllers. If the task hangs due to a bug, hardware failure, or infinite loop, the watchdog detects it and resets the system rather than leaving it in an undefined state.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- CHOOSING THE RIGHT PRIMITIVE ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Choosing the Right <span class="accent">Primitive</span></div>
+        <div class="slide-subtitle">Each synchronization tool has a specific purpose. Using the wrong one leads to bugs.</div>
+
+        <div class="hex-grid">
+            <div class="hex-cell">
+                <div class="hex-title">Mutex</div>
+                <div class="hex-desc">Protect shared data. One task at a time. Priority inheritance. Has ownership.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Binary Semaphore</div>
+                <div class="hex-desc">Signal from ISR to task. Unblock a waiting task. No ownership. No inheritance.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Counting Semaphore</div>
+                <div class="hex-desc">Manage resource pools. Count events. Multiple tokens available. No inheritance.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Queue</div>
+                <div class="hex-desc">Pass data between tasks. FIFO order. Copies data by value. Thread-safe buffer.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Event Group</div>
+                <div class="hex-desc">Wait for multiple conditions. AND/OR logic. 24 boolean flags. Broadcast to many tasks.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Task Notification</div>
+                <div class="hex-desc">Lightweight 1-to-1 signal. 45% faster than semaphore. Built into every task. No allocation.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Common Mistakes</div>
+            Using a binary semaphore instead of a mutex for mutual exclusion (no priority inheritance). Using a global variable without any protection (data corruption). Using a queue to pass a pointer to stack-allocated data (dangling pointer when sender returns). Holding a mutex across a vTaskDelay (starves other tasks needing the resource).
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- SUMMARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Core 8 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">FreeRTOS Synchronization -- key takeaways from this core.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">01</span><span class="fact-text">Binary semaphores signal between tasks or from ISRs. They are not for mutual exclusion.</span></div>
+            <div class="fact-row"><span class="fact-num">02</span><span class="fact-text">Counting semaphores manage resource pools or accumulate events without losing them.</span></div>
+            <div class="fact-row"><span class="fact-num">03</span><span class="fact-text">Mutexes protect shared resources with ownership and priority inheritance. Always prefer mutex over binary semaphore for data protection.</span></div>
+            <div class="fact-row"><span class="fact-num">04</span><span class="fact-text">Queues pass data between tasks by value. <code>xQueueSend()</code> to enqueue, <code>xQueueReceive()</code> to dequeue.</span></div>
+            <div class="fact-row"><span class="fact-num">05</span><span class="fact-text">Event groups wait for multiple conditions with AND/OR logic using 24 bit flags.</span></div>
+            <div class="fact-row"><span class="fact-num">06</span><span class="fact-text">Task notifications are the fastest signaling mechanism -- 45% faster, zero allocation, but 1-to-1 only.</span></div>
+            <div class="fact-row"><span class="fact-num">07</span><span class="fact-text">Deadlock = circular wait. Prevent with lock ordering, timeouts, or single-mutex design.</span></div>
+            <div class="fact-row"><span class="fact-num">08</span><span class="fact-text">Priority inversion = high-priority task blocked by low-priority holder while medium runs. Mutex solves it via priority inheritance.</span></div>
+            <div class="fact-row"><span class="fact-num">09</span><span class="fact-text">Watchdog timers (Task WDT + Interrupt WDT) catch hung tasks and reset the system automatically.</span></div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Next: Core 9</div>
+            Core 9 covers ESP-NOW mesh networking -- direct device-to-device communication without WiFi infrastructure. You will build multi-node networks using the synchronization primitives learned here to coordinate data between ESP32 nodes.
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; ProtoCore</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-esp-08-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>

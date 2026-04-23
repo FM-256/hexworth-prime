@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MQTT Lab: Publish, Subscribe, Monitor | ProtoCore ESP32 Core 6</title>
+    <style>
+        :root {
+            --blue: #0088ff;
+            --blue-dim: rgba(0,136,255,0.15);
+            --blue-border: rgba(0,136,255,0.3);
+            --green: #34d399;
+            --green-dim: rgba(52,211,153,0.1);
+            --green-border: rgba(52,211,153,0.3);
+            --gold: #ffd700;
+            --gold-dim: rgba(255,215,0,0.1);
+            --gold-border: rgba(255,215,0,0.3);
+            --red: #ef4444;
+            --bg: #040810;
+            --bg2: #081020;
+            --bg3: #0c1628;
+            --text: #dbeafe;
+            --text2: #6b82a0;
+            --border: rgba(0,136,255,0.12);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        .topbar { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .topbar-left { display: flex; align-items: center; gap: 14px; }
+        .back-btn { padding: 6px 14px; background: var(--blue-dim); border: 1px solid var(--blue-border); border-radius: 6px; color: var(--blue); text-decoration: none; font-size: 0.82rem; transition: background 0.2s; }
+        .back-btn:hover { background: rgba(0,136,255,0.25); }
+        .lab-title { font-size: 0.95rem; color: var(--text); }
+        .badge { padding: 3px 10px; border-radius: 10px; font-size: 0.68rem; letter-spacing: 0.06em; }
+        .badge-blue { background: var(--blue-dim); border: 1px solid var(--blue-border); color: var(--blue); }
+        .badge-gold { background: var(--gold-dim); border: 1px solid var(--gold-border); color: var(--gold); }
+        .topbar-right { display: flex; align-items: center; gap: 14px; font-size: 0.82rem; color: var(--text2); }
+        .prog-wrap { width: 130px; height: 5px; background: rgba(0,136,255,0.12); border-radius: 3px; overflow: hidden; }
+        .prog-fill { height: 100%; background: linear-gradient(90deg, var(--blue), #0055cc); border-radius: 3px; transition: width 0.4s ease; }
+        .prog-label { color: var(--blue); font-weight: 500; }
+
+        .workspace { display: grid; grid-template-columns: 1fr 1fr 280px; flex: 1; min-height: 0; }
+
+        /* MQTT controls panel */
+        .mqtt-panel { display: flex; flex-direction: column; overflow: hidden; border-right: 1px solid var(--border); }
+        .mqtt-header { flex-shrink: 0; padding: 10px 16px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .mqtt-header-title { font-size: 0.72rem; color: var(--text2); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+        .conn-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .mqtt-input { padding: 5px 10px; background: var(--bg3); border: 1px solid var(--border); border-radius: 5px; color: var(--text); font-size: 0.78rem; font-family: 'Consolas', monospace; }
+        .mqtt-input:focus { border-color: var(--blue); outline: none; }
+        .mqtt-input.wide { flex: 1; min-width: 120px; }
+        .tb-btn { padding: 5px 14px; background: var(--blue-dim); border: 1px solid var(--blue-border); border-radius: 5px; color: var(--blue); font-size: 0.82rem; cursor: pointer; transition: background 0.2s; white-space: nowrap; font-weight: 600; }
+        .tb-btn:hover:not(:disabled) { background: rgba(0,136,255,0.25); }
+        .tb-btn:disabled { opacity: 0.35; cursor: default; }
+        .tb-btn.connect { background: rgba(52,211,153,0.12); border-color: var(--green-border); color: var(--green); }
+        .tb-btn.connect:hover:not(:disabled) { background: rgba(52,211,153,0.22); }
+        .tb-btn.disconnect { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.3); color: var(--red); }
+
+        /* Pub/Sub sections */
+        .mqtt-section { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+        .mqtt-section-title { font-size: 0.7rem; color: var(--blue); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; font-weight: 700; }
+        .mqtt-row { display: flex; gap: 8px; margin-bottom: 6px; align-items: center; }
+        .mqtt-row label { font-size: 0.72rem; color: var(--text2); min-width: 50px; }
+        .mqtt-select { padding: 5px 8px; background: var(--bg3); border: 1px solid var(--border); border-radius: 5px; color: var(--text); font-size: 0.78rem; }
+
+        /* Subscription list */
+        .sub-list { padding: 8px 16px; flex: 1; overflow-y: auto; }
+        .sub-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; margin-bottom: 5px; font-size: 0.78rem; }
+        .sub-topic { color: var(--gold); font-family: 'Consolas', monospace; }
+        .sub-remove { background: none; border: none; color: #f87171; cursor: pointer; font-size: 0.75rem; padding: 2px 6px; }
+
+        /* Message feed panel */
+        .feed-panel { display: flex; flex-direction: column; overflow: hidden; }
+        .feed-header { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .feed-header span { font-size: 0.72rem; color: var(--text2); letter-spacing: 0.1em; text-transform: uppercase; }
+        .feed-area { flex: 1; overflow-y: auto; padding: 8px 12px; background: rgba(0,0,0,0.2); }
+        .msg-item { padding: 8px 10px; background: var(--bg3); border-left: 3px solid var(--blue); border-radius: 0 6px 6px 0; margin-bottom: 6px; animation: fadeIn 0.3s ease; }
+        .msg-item.pub { border-left-color: var(--green); }
+        .msg-item.sub { border-left-color: var(--gold); }
+        .msg-item.sys { border-left-color: #475569; }
+        .msg-topic { font-size: 0.72rem; color: var(--blue); font-family: 'Consolas', monospace; }
+        .msg-payload { font-size: 0.82rem; color: var(--text); margin-top: 2px; font-family: 'Consolas', monospace; }
+        .msg-meta { font-size: 0.65rem; color: #475569; margin-top: 2px; }
+
+        /* Broker status */
+        .broker-status { flex-shrink: 0; padding: 8px 16px; background: var(--bg2); border-top: 1px solid var(--border); }
+        .broker-row { display: flex; justify-content: space-between; font-size: 0.72rem; margin-bottom: 2px; }
+        .broker-label { color: var(--text2); }
+        .broker-val { font-family: 'Consolas', monospace; }
+        .broker-val.connected { color: var(--green); }
+        .broker-val.disconnected { color: #475569; }
+
+        /* Task panel */
+        .task-panel { background: var(--bg2); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+        .panel-header { padding: 12px 16px; font-size: 0.7rem; color: var(--text2); letter-spacing: 0.12em; text-transform: uppercase; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .task-list { flex: 1; overflow-y: auto; padding: 12px; }
+        .task-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 9px; padding: 12px 14px; margin-bottom: 8px; transition: all 0.2s; }
+        .task-card.active { border-color: var(--blue); background: rgba(0,136,255,0.06); }
+        .task-card.done { border-color: var(--green-border); background: var(--green-dim); }
+        .task-num { font-size: 0.67rem; color: var(--blue); margin-bottom: 3px; }
+        .task-name { font-size: 0.88rem; color: var(--text); margin-bottom: 3px; display: flex; align-items: center; gap: 6px; }
+        .task-name .chk { font-size: 0.75rem; color: var(--green); margin-left: auto; display: none; }
+        .task-desc { font-size: 0.77rem; color: var(--text2); line-height: 1.45; }
+
+        .finish-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 9000; }
+        .finish-overlay.active { display: flex; }
+        .finish-card { background: var(--bg2); border: 1px solid var(--green-border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .finish-title { font-size: 1.5rem; color: var(--gold); margin-bottom: 10px; }
+        .finish-msg { color: var(--text2); font-size: 0.95rem; margin-bottom: 24px; line-height: 1.6; }
+        .finish-btn { padding: 11px 28px; background: linear-gradient(135deg, var(--blue), #0055cc); border: none; border-radius: 8px; color: #fff; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; }
+        .finish-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+        @media (max-width: 900px) { .workspace { grid-template-columns: 1fr; } .feed-panel, .task-panel { display: none; } }
+    </style>
+</head>
+<body>
+
+    <header class="topbar">
+        <div class="topbar-left">
+            <a href="../../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">MQTT -- Publish, Subscribe, Monitor</span>
+            <span class="badge badge-blue">ProtoCore</span>
+            <span class="badge badge-gold">Core 6</span>
+        </div>
+        <div class="topbar-right">
+            <span>Tasks:</span>
+            <div class="prog-wrap"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+            <span class="prog-label" id="progLabel">0 / 10</span>
+        </div>
+    </header>
+
+    <div class="workspace">
+
+        <!-- LEFT: MQTT Controls -->
+        <div class="mqtt-panel">
+            <div class="mqtt-header">
+                <div class="mqtt-header-title">Broker Connection</div>
+                <div class="conn-row">
+                    <input type="text" class="mqtt-input wide" id="brokerHost" value="broker.hivemq.com" placeholder="Broker host">
+                    <input type="text" class="mqtt-input" id="brokerPort" value="1883" placeholder="Port" style="width:60px;">
+                    <button class="tb-btn connect" id="btnConnect" onclick="doConnect()">Connect</button>
+                </div>
+                <div class="conn-row" style="margin-top:6px;">
+                    <label style="font-size:0.72rem;color:var(--text2);">Client ID:</label>
+                    <input type="text" class="mqtt-input wide" id="clientId" value="ESP32-Lab-01" placeholder="Client ID">
+                </div>
+            </div>
+
+            <div class="mqtt-section">
+                <div class="mqtt-section-title">Publish</div>
+                <div class="mqtt-row">
+                    <label>Topic:</label>
+                    <input type="text" class="mqtt-input wide" id="pubTopic" placeholder="home/office/temperature">
+                </div>
+                <div class="mqtt-row">
+                    <label>Payload:</label>
+                    <input type="text" class="mqtt-input wide" id="pubPayload" placeholder='{"temp": 23.5}'>
+                </div>
+                <div class="mqtt-row">
+                    <label>QoS:</label>
+                    <select class="mqtt-select" id="pubQos">
+                        <option value="0">QoS 0</option>
+                        <option value="1" selected>QoS 1</option>
+                        <option value="2">QoS 2</option>
+                    </select>
+                    <label style="margin-left:8px;"><input type="checkbox" id="pubRetain"> Retain</label>
+                    <button class="tb-btn" onclick="doPublish()" style="margin-left:auto;">Publish</button>
+                </div>
+            </div>
+
+            <div class="mqtt-section">
+                <div class="mqtt-section-title">Subscribe</div>
+                <div class="mqtt-row">
+                    <label>Topic:</label>
+                    <input type="text" class="mqtt-input wide" id="subTopic" placeholder="home/office/#">
+                    <button class="tb-btn" onclick="doSubscribe()">Subscribe</button>
+                </div>
+            </div>
+
+            <div class="mqtt-section-title" style="padding:8px 16px 0;">Active Subscriptions</div>
+            <div class="sub-list" id="subList">
+                <div style="font-size:0.75rem;color:#475569;padding:8px;">No active subscriptions.</div>
+            </div>
+        </div>
+
+        <!-- CENTER: Message Feed -->
+        <div class="feed-panel">
+            <div class="feed-header">
+                <span>Message Feed</span>
+                <button class="tb-btn" onclick="clearFeed()" style="padding:3px 10px;font-size:0.72rem;">Clear</button>
+            </div>
+            <div class="feed-area" id="feedArea">
+                <div class="msg-item sys">
+                    <div class="msg-topic">system</div>
+                    <div class="msg-payload">MQTT Lab Simulator ready. Connect to a broker to begin.</div>
+                    <div class="msg-meta">QoS 0 | System</div>
+                </div>
+            </div>
+            <div class="broker-status">
+                <div class="broker-row"><span class="broker-label">Status:</span><span class="broker-val disconnected" id="bsStatus">Disconnected</span></div>
+                <div class="broker-row"><span class="broker-label">Broker:</span><span class="broker-val disconnected" id="bsBroker">--</span></div>
+                <div class="broker-row"><span class="broker-label">Messages In:</span><span class="broker-val" id="bsMsgIn" style="color:var(--gold);">0</span></div>
+                <div class="broker-row"><span class="broker-label">Messages Out:</span><span class="broker-val" id="bsMsgOut" style="color:var(--green);">0</span></div>
+            </div>
+        </div>
+
+        <!-- RIGHT: Tasks -->
+        <aside class="task-panel">
+            <div class="panel-header">Lab Tasks</div>
+            <div class="task-list" id="taskList"></div>
+        </aside>
+    </div>
+
+    <div class="finish-overlay" id="finishOverlay">
+        <div class="finish-card">
+            <div class="finish-title">MQTT Protocol Mastered</div>
+            <div class="finish-msg">You connected to a broker, published sensor data, subscribed to topics with wildcards, observed QoS levels, used retained messages, set up a Last Will, and built a complete pub/sub pipeline. The ESP32 is now an IoT edge device.</div>
+            <button class="finish-btn" onclick="finishLab()">Return to ProtoCore Hub</button>
+        </div>
+    </div>
+
+<script>
+(function () {
+    'use strict';
+
+    var TASKS = [
+        { id: 1, name: 'Connect to the broker', desc: 'Enter broker details and click Connect.' },
+        { id: 2, name: 'Subscribe to a topic', desc: 'Subscribe to home/office/temperature.' },
+        { id: 3, name: 'Publish a temperature reading', desc: 'Publish to home/office/temperature with a value like "23.5".' },
+        { id: 4, name: 'Subscribe with a wildcard', desc: 'Subscribe to home/office/# to catch all office topics.' },
+        { id: 5, name: 'Publish to multiple topics', desc: 'Publish to home/office/humidity with a value.' },
+        { id: 6, name: 'Use QoS 1', desc: 'Publish a message with QoS 1 and observe the PUBACK.' },
+        { id: 7, name: 'Publish a retained message', desc: 'Check the Retain box and publish. The broker stores it.' },
+        { id: 8, name: 'Publish JSON payload', desc: 'Publish a JSON object like {"temp":23.5,"hum":47}.' },
+        { id: 9, name: 'Observe incoming messages', desc: 'See at least 5 messages arrive in the feed.' },
+        { id: 10, name: 'Disconnect cleanly', desc: 'Click Disconnect to send a proper DISCONNECT packet.' }
+    ];
+
+    var completedTasks = {};
+    var connected = false;
+    var subscriptions = [];
+    var msgInCount = 0;
+    var msgOutCount = 0;
+    var totalMsgReceived = 0;
+    var publishedTopics = [];
+    var simulatedInterval = null;
+    var activeTaskId = 1;
+
+    function init() {
+        buildTaskList();
+        updateProgress();
+        highlightTask(1);
+    }
+
+    function buildTaskList() {
+        var list = document.getElementById('taskList');
+        TASKS.forEach(function(t) {
+            var card = document.createElement('div');
+            card.className = 'task-card';
+            card.id = 'tc-' + t.id;
+            card.innerHTML = '<div class="task-num">Task ' + t.id + '</div><div class="task-name">' + t.name + '<span class="chk" id="ck-' + t.id + '">Done</span></div><div class="task-desc">' + t.desc + '</div>';
+            list.appendChild(card);
+        });
+    }
+
+    function updateProgress() {
+        var count = Object.keys(completedTasks).length;
+        var pct = (count / TASKS.length) * 100;
+        document.getElementById('progFill').style.width = pct + '%';
+        document.getElementById('progLabel').textContent = count + ' / ' + TASKS.length;
+    }
+
+    function completeTask(id) {
+        if (completedTasks[id]) return;
+        completedTasks[id] = true;
+        var card = document.getElementById('tc-' + id);
+        if (card) card.className = 'task-card done';
+        var chk = document.getElementById('ck-' + id);
+        if (chk) chk.style.display = 'inline';
+        updateProgress();
+        var next = TASKS.find(function(t) { return !completedTasks[t.id]; });
+        if (next) highlightTask(next.id);
+        if (Object.keys(completedTasks).length === TASKS.length) {
+            setTimeout(function() { document.getElementById('finishOverlay').classList.add('active'); }, 600);
+        }
+    }
+
+    function highlightTask(id) {
+        activeTaskId = id;
+        TASKS.forEach(function(t) {
+            var card = document.getElementById('tc-' + t.id);
+            if (card && !completedTasks[t.id]) {
+                card.className = (t.id === id) ? 'task-card active' : 'task-card';
+            }
+        });
+    }
+
+    function addFeedMsg(topic, payload, type, qos, retained) {
+        var feed = document.getElementById('feedArea');
+        var div = document.createElement('div');
+        div.className = 'msg-item ' + (type || 'sub');
+        var now = new Date();
+        var time = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0') + ':' + now.getSeconds().toString().padStart(2,'0');
+        div.innerHTML = '<div class="msg-topic">' + topic + '</div><div class="msg-payload">' + payload + '</div><div class="msg-meta">QoS ' + (qos || 0) + ' | ' + (retained ? 'Retained | ' : '') + time + ' | ' + (type === 'pub' ? 'Published' : type === 'sys' ? 'System' : 'Received') + '</div>';
+        feed.appendChild(div);
+        feed.scrollTop = feed.scrollHeight;
+    }
+
+    function updateBrokerStatus() {
+        document.getElementById('bsMsgIn').textContent = msgInCount;
+        document.getElementById('bsMsgOut').textContent = msgOutCount;
+    }
+
+    function topicMatches(filter, topic) {
+        var fp = filter.split('/');
+        var tp = topic.split('/');
+        for (var i = 0; i < fp.length; i++) {
+            if (fp[i] === '#') return true;
+            if (fp[i] === '+') continue;
+            if (i >= tp.length || fp[i] !== tp[i]) return false;
+        }
+        return fp.length === tp.length;
+    }
+
+    function simulateIncoming(topic, payload) {
+        var matched = subscriptions.some(function(s) { return topicMatches(s, topic); });
+        if (matched) {
+            msgInCount++;
+            totalMsgReceived++;
+            addFeedMsg(topic, payload, 'sub', 0, false);
+            updateBrokerStatus();
+            if (totalMsgReceived >= 5) completeTask(9);
+        }
+    }
+
+    window.doConnect = function() {
+        if (connected) {
+            /* Disconnect */
+            connected = false;
+            if (simulatedInterval) { clearInterval(simulatedInterval); simulatedInterval = null; }
+            document.getElementById('bsStatus').textContent = 'Disconnected';
+            document.getElementById('bsStatus').className = 'broker-val disconnected';
+            document.getElementById('bsBroker').textContent = '--';
+            document.getElementById('bsBroker').className = 'broker-val disconnected';
+            document.getElementById('btnConnect').textContent = 'Connect';
+            document.getElementById('btnConnect').className = 'tb-btn connect';
+            addFeedMsg('$SYS', 'DISCONNECT sent. Clean shutdown.', 'sys', 0, false);
+            completeTask(10);
+            return;
+        }
+
+        var host = document.getElementById('brokerHost').value.trim();
+        var port = document.getElementById('brokerPort').value.trim();
+        var clientId = document.getElementById('clientId').value.trim();
+
+        if (!host || !clientId) {
+            addFeedMsg('$SYS', 'Error: Broker host and Client ID required.', 'sys', 0, false);
+            return;
+        }
+
+        addFeedMsg('$SYS', 'Connecting to ' + host + ':' + port + ' as ' + clientId + '...', 'sys', 0, false);
+
+        setTimeout(function() {
+            connected = true;
+            document.getElementById('bsStatus').textContent = 'Connected';
+            document.getElementById('bsStatus').className = 'broker-val connected';
+            document.getElementById('bsBroker').textContent = host + ':' + port;
+            document.getElementById('bsBroker').className = 'broker-val connected';
+            document.getElementById('btnConnect').textContent = 'Disconnect';
+            document.getElementById('btnConnect').className = 'tb-btn disconnect';
+            addFeedMsg('$SYS', 'CONNACK received. Connected successfully.', 'sys', 0, false);
+            completeTask(1);
+
+            /* Start simulated background messages */
+            simulatedInterval = setInterval(function() {
+                if (!connected) return;
+                var topics = [
+                    { t: 'home/office/temperature', v: (21 + Math.random()*4).toFixed(1) },
+                    { t: 'home/office/humidity', v: (40 + Math.random()*20).toFixed(0) },
+                    { t: 'home/kitchen/temperature', v: (19 + Math.random()*5).toFixed(1) },
+                    { t: 'home/office/motion', v: Math.random() > 0.7 ? 'detected' : 'clear' }
+                ];
+                var pick = topics[Math.floor(Math.random() * topics.length)];
+                simulateIncoming(pick.t, pick.v);
+            }, 3000);
+        }, 600);
+    };
+
+    window.doSubscribe = function() {
+        if (!connected) {
+            addFeedMsg('$SYS', 'Error: Not connected to broker.', 'sys', 0, false);
+            return;
+        }
+        var topic = document.getElementById('subTopic').value.trim();
+        if (!topic) {
+            addFeedMsg('$SYS', 'Error: Enter a topic to subscribe to.', 'sys', 0, false);
+            return;
+        }
+        if (subscriptions.indexOf(topic) !== -1) {
+            addFeedMsg('$SYS', 'Already subscribed to ' + topic, 'sys', 0, false);
+            return;
+        }
+        subscriptions.push(topic);
+        addFeedMsg('$SYS', 'SUBACK: Subscribed to ' + topic, 'sys', 0, false);
+        renderSubList();
+        document.getElementById('subTopic').value = '';
+
+        if (topic.indexOf('#') !== -1 || topic.indexOf('+') !== -1) {
+            completeTask(4);
+        }
+        if (/temperature/i.test(topic)) completeTask(2);
+    };
+
+    function renderSubList() {
+        var list = document.getElementById('subList');
+        if (subscriptions.length === 0) {
+            list.innerHTML = '<div style="font-size:0.75rem;color:#475569;padding:8px;">No active subscriptions.</div>';
+            return;
+        }
+        list.innerHTML = '';
+        subscriptions.forEach(function(s, i) {
+            var div = document.createElement('div');
+            div.className = 'sub-item';
+            div.innerHTML = '<span class="sub-topic">' + s + '</span><button class="sub-remove" onclick="removeSub(' + i + ')">Unsub</button>';
+            list.appendChild(div);
+        });
+    }
+
+    window.removeSub = function(idx) {
+        var topic = subscriptions[idx];
+        subscriptions.splice(idx, 1);
+        addFeedMsg('$SYS', 'Unsubscribed from ' + topic, 'sys', 0, false);
+        renderSubList();
+    };
+
+    window.doPublish = function() {
+        if (!connected) {
+            addFeedMsg('$SYS', 'Error: Not connected to broker.', 'sys', 0, false);
+            return;
+        }
+        var topic = document.getElementById('pubTopic').value.trim();
+        var payload = document.getElementById('pubPayload').value.trim();
+        var qos = parseInt(document.getElementById('pubQos').value);
+        var retain = document.getElementById('pubRetain').checked;
+
+        if (!topic) {
+            addFeedMsg('$SYS', 'Error: Enter a topic to publish to.', 'sys', 0, false);
+            return;
+        }
+        if (!payload) {
+            addFeedMsg('$SYS', 'Error: Enter a payload.', 'sys', 0, false);
+            return;
+        }
+
+        msgOutCount++;
+        addFeedMsg(topic, payload, 'pub', qos, retain);
+        updateBrokerStatus();
+
+        if (!publishedTopics.includes(topic)) publishedTopics.push(topic);
+
+        /* Simulate echo back to own subscriptions */
+        setTimeout(function() { simulateIncoming(topic, payload); }, 200);
+
+        /* QoS feedback */
+        if (qos >= 1) {
+            setTimeout(function() {
+                addFeedMsg('$SYS', 'PUBACK received for ' + topic + ' (QoS ' + qos + ')', 'sys', qos, false);
+                completeTask(6);
+            }, 150);
+        }
+
+        /* Check task completions */
+        if (/temperature/i.test(topic)) completeTask(3);
+        if (publishedTopics.length >= 2) completeTask(5);
+        if (retain) completeTask(7);
+
+        /* JSON check */
+        try {
+            JSON.parse(payload);
+            completeTask(8);
+        } catch(e) {}
+    };
+
+    window.clearFeed = function() {
+        document.getElementById('feedArea').innerHTML = '';
+    };
+
+    window.finishLab = function() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-esp-06-lab', { returnUrl: '../../index.html' });
+        } else {
+            window.location.href = '../../index.html';
+        }
+    };
+
+    document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>

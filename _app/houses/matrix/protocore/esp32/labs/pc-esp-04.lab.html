@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bluetooth Lab: BLE Advertise, GATT, and Scan | ProtoCore ESP32 Core 4</title>
+    <style>
+        :root {
+            --blue: #0088ff;
+            --blue-dim: rgba(0,136,255,0.15);
+            --blue-border: rgba(0,136,255,0.3);
+            --green: #34d399;
+            --green-dim: rgba(52,211,153,0.1);
+            --green-border: rgba(52,211,153,0.3);
+            --gold: #ffd700;
+            --gold-dim: rgba(255,215,0,0.1);
+            --gold-border: rgba(255,215,0,0.3);
+            --red: #ef4444;
+            --bg: #040810;
+            --bg2: #081020;
+            --bg3: #0c1628;
+            --text: #dbeafe;
+            --text2: #6b82a0;
+            --border: rgba(0,136,255,0.12);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        .topbar { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .topbar-left { display: flex; align-items: center; gap: 14px; }
+        .back-btn { padding: 6px 14px; background: var(--blue-dim); border: 1px solid var(--blue-border); border-radius: 6px; color: var(--blue); text-decoration: none; font-size: 0.82rem; transition: background 0.2s; }
+        .back-btn:hover { background: rgba(0,136,255,0.25); }
+        .lab-title { font-size: 0.95rem; color: var(--text); }
+        .badge { padding: 3px 10px; border-radius: 10px; font-size: 0.68rem; letter-spacing: 0.06em; }
+        .badge-blue { background: var(--blue-dim); border: 1px solid var(--blue-border); color: var(--blue); }
+        .badge-gold { background: var(--gold-dim); border: 1px solid var(--gold-border); color: var(--gold); }
+        .topbar-right { display: flex; align-items: center; gap: 14px; font-size: 0.82rem; color: var(--text2); }
+        .prog-wrap { width: 130px; height: 5px; background: rgba(0,136,255,0.12); border-radius: 3px; overflow: hidden; }
+        .prog-fill { height: 100%; background: linear-gradient(90deg, var(--blue), #0055cc); border-radius: 3px; transition: width 0.4s ease; }
+        .prog-label { color: var(--blue); font-weight: 500; }
+
+        .workspace { display: grid; grid-template-columns: 1fr 320px; flex: 1; min-height: 0; }
+
+        /* Terminal panel */
+        .terminal-panel { display: flex; flex-direction: column; overflow: hidden; }
+        .terminal-toolbar { flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: var(--bg2); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+        .tb-btn { padding: 5px 14px; background: var(--blue-dim); border: 1px solid var(--blue-border); border-radius: 5px; color: var(--blue); font-size: 0.82rem; cursor: pointer; transition: background 0.2s; white-space: nowrap; font-weight: 600; }
+        .tb-btn:hover:not(:disabled) { background: rgba(0,136,255,0.25); }
+        .tb-btn:disabled { opacity: 0.35; cursor: default; }
+        .tb-btn.run { background: rgba(52,211,153,0.12); border-color: var(--green-border); color: var(--green); }
+        .tb-btn.run:hover:not(:disabled) { background: rgba(52,211,153,0.22); }
+        .toolbar-sep { width: 1px; height: 18px; background: var(--border); }
+
+        .terminal-area { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+        .terminal-input-wrap { display: flex; padding: 0; border-bottom: 1px solid var(--border); }
+        .terminal-prompt { padding: 8px 12px; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.82rem; color: var(--green); background: var(--bg3); white-space: nowrap; user-select: none; }
+        .terminal-input { flex: 1; background: var(--bg3); color: #e2e8f0; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.82rem; padding: 8px 10px; border: none; outline: none; }
+        .terminal-input::placeholder { color: #384860; }
+        .terminal-output { flex: 1; overflow-y: auto; padding: 10px 14px; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.78rem; color: var(--text2); line-height: 1.6; background: rgba(0,0,0,0.3); }
+        .terminal-output .t-ok { color: var(--green); }
+        .terminal-output .t-err { color: #f87171; }
+        .terminal-output .t-info { color: var(--blue); }
+        .terminal-output .t-gold { color: var(--gold); }
+        .terminal-output .t-dim { color: #475569; }
+
+        /* Device status panel */
+        .device-panel { flex-shrink: 0; border-top: 1px solid var(--border); padding: 12px 16px; background: var(--bg2); }
+        .device-panel-title { font-size: 0.7rem; color: var(--text2); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; }
+        .device-row { display: flex; justify-content: space-between; font-size: 0.78rem; margin-bottom: 4px; }
+        .device-label { color: var(--text2); }
+        .device-value { color: var(--blue); font-family: 'Consolas', monospace; }
+        .device-value.active { color: var(--green); }
+        .device-value.inactive { color: #475569; }
+
+        /* Task panel */
+        .task-panel { background: var(--bg2); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+        .panel-header { padding: 12px 16px; font-size: 0.7rem; color: var(--text2); letter-spacing: 0.12em; text-transform: uppercase; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .task-list { flex: 1; overflow-y: auto; padding: 12px; }
+        .task-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 9px; padding: 12px 14px; margin-bottom: 8px; transition: all 0.2s; }
+        .task-card.active { border-color: var(--blue); background: rgba(0,136,255,0.06); }
+        .task-card.done { border-color: var(--green-border); background: var(--green-dim); }
+        .task-num { font-size: 0.67rem; color: var(--blue); margin-bottom: 3px; }
+        .task-name { font-size: 0.88rem; color: var(--text); margin-bottom: 3px; display: flex; align-items: center; gap: 6px; }
+        .task-name .chk { font-size: 0.75rem; color: var(--green); margin-left: auto; display: none; }
+        .task-desc { font-size: 0.77rem; color: var(--text2); line-height: 1.45; }
+
+        .finish-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 9000; }
+        .finish-overlay.active { display: flex; }
+        .finish-card { background: var(--bg2); border: 1px solid var(--green-border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .finish-title { font-size: 1.5rem; color: var(--gold); margin-bottom: 10px; }
+        .finish-msg { color: var(--text2); font-size: 0.95rem; margin-bottom: 24px; line-height: 1.6; }
+        .finish-btn { padding: 11px 28px; background: linear-gradient(135deg, var(--blue), #0055cc); border: none; border-radius: 8px; color: #fff; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; }
+        .finish-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <header class="topbar">
+        <div class="topbar-left">
+            <a href="../../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Bluetooth -- BLE Advertise, GATT, Scan</span>
+            <span class="badge badge-blue">ProtoCore</span>
+            <span class="badge badge-gold">Core 4</span>
+        </div>
+        <div class="topbar-right">
+            <span>Tasks:</span>
+            <div class="prog-wrap"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+            <span class="prog-label" id="progLabel">0 / 8</span>
+        </div>
+    </header>
+
+    <div class="workspace">
+
+        <!-- LEFT: Terminal -->
+        <div class="terminal-panel">
+            <div class="terminal-toolbar">
+                <button class="tb-btn run" id="btnRun" onclick="runCommand()">Run</button>
+                <button class="tb-btn" id="btnClear" onclick="clearTerminal()">Clear</button>
+                <div class="toolbar-sep"></div>
+                <span style="font-size:0.75rem;color:var(--text2);">ESP32 BLE Simulator -- type commands below</span>
+            </div>
+
+            <div class="terminal-area">
+                <div class="terminal-input-wrap">
+                    <span class="terminal-prompt">esp32$</span>
+                    <input type="text" class="terminal-input" id="termInput" placeholder="Type a BLE command..." autocomplete="off" spellcheck="false">
+                </div>
+                <div class="terminal-output" id="termOutput">
+                    <div class="t-info">ESP32 BLE Lab Simulator v1.0</div>
+                    <div class="t-dim">Type 'help' for available commands.</div>
+                    <div class="t-dim">---</div>
+                </div>
+            </div>
+
+            <div class="device-panel">
+                <div class="device-panel-title">BLE Device Status</div>
+                <div class="device-row"><span class="device-label">BLE Stack:</span><span class="device-value inactive" id="dsBle">Not initialized</span></div>
+                <div class="device-row"><span class="device-label">Device Name:</span><span class="device-value inactive" id="dsName">--</span></div>
+                <div class="device-row"><span class="device-label">Advertising:</span><span class="device-value inactive" id="dsAdv">Off</span></div>
+                <div class="device-row"><span class="device-label">Service UUID:</span><span class="device-value inactive" id="dsService">--</span></div>
+                <div class="device-row"><span class="device-label">Characteristic:</span><span class="device-value inactive" id="dsChar">--</span></div>
+                <div class="device-row"><span class="device-label">Connections:</span><span class="device-value inactive" id="dsConn">0</span></div>
+            </div>
+        </div>
+
+        <!-- RIGHT: Tasks -->
+        <aside class="task-panel">
+            <div class="panel-header">Lab Tasks</div>
+            <div class="task-list" id="taskList"></div>
+        </aside>
+    </div>
+
+    <div class="finish-overlay" id="finishOverlay">
+        <div class="finish-card">
+            <div class="finish-title">Bluetooth Unlocked</div>
+            <div class="finish-msg">You initialized BLE, created a GATT service with a characteristic, started advertising, scanned for devices, connected, read a value, sent a notification, and stopped advertising. The ESP32 Bluetooth radio is under your command.</div>
+            <button class="finish-btn" onclick="finishLab()">Return to ProtoCore Hub</button>
+        </div>
+    </div>
+
+<script>
+(function () {
+    'use strict';
+
+    var TASKS = [
+        { id: 1, name: 'Initialize BLE stack', desc: 'Run: ble init "MyESP32"' },
+        { id: 2, name: 'Create a GATT service', desc: 'Run: ble create-service 180F' },
+        { id: 3, name: 'Add a characteristic', desc: 'Run: ble add-char 2A19 read notify' },
+        { id: 4, name: 'Start advertising', desc: 'Run: ble advertise start' },
+        { id: 5, name: 'Scan for nearby devices', desc: 'Run: ble scan 5' },
+        { id: 6, name: 'Connect to a discovered device', desc: 'Run: ble connect <address>' },
+        { id: 7, name: 'Read a characteristic value', desc: 'Run: ble read 2A19' },
+        { id: 8, name: 'Send a notification', desc: 'Run: ble notify 2A19 "Battery: 87%"' }
+    ];
+
+    var completedTasks = {};
+    var bleInitialized = false;
+    var deviceName = '';
+    var serviceCreated = false;
+    var serviceUUID = '';
+    var charCreated = false;
+    var charUUID = '';
+    var charProps = '';
+    var advertising = false;
+    var scannedDevices = [];
+    var connectedDevice = null;
+    var charValue = '87';
+    var activeTaskId = 1;
+
+    /* Simulated nearby BLE devices */
+    var nearbyDevices = [
+        { name: 'FitBand-Pro', addr: 'AA:BB:CC:11:22:33', rssi: -42, services: ['180D'] },
+        { name: 'SmartLock-7F', addr: 'DD:EE:FF:44:55:66', rssi: -58, services: ['1812'] },
+        { name: 'TempSensor-01', addr: '11:22:33:AA:BB:CC', rssi: -65, services: ['181A'] },
+        { name: '', addr: '77:88:99:DD:EE:FF', rssi: -71, services: ['180F'] }
+    ];
+
+    function init() {
+        buildTaskList();
+        updateProgress();
+        highlightTask(1);
+        var input = document.getElementById('termInput');
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); runCommand(); }
+        });
+    }
+
+    function buildTaskList() {
+        var list = document.getElementById('taskList');
+        TASKS.forEach(function(t) {
+            var card = document.createElement('div');
+            card.className = 'task-card';
+            card.id = 'tc-' + t.id;
+            card.innerHTML = '<div class="task-num">Task ' + t.id + '</div><div class="task-name">' + t.name + '<span class="chk" id="ck-' + t.id + '">Done</span></div><div class="task-desc">' + t.desc + '</div>';
+            list.appendChild(card);
+        });
+    }
+
+    function updateProgress() {
+        var count = Object.keys(completedTasks).length;
+        var pct = (count / TASKS.length) * 100;
+        document.getElementById('progFill').style.width = pct + '%';
+        document.getElementById('progLabel').textContent = count + ' / ' + TASKS.length;
+    }
+
+    function completeTask(id) {
+        if (completedTasks[id]) return;
+        completedTasks[id] = true;
+        var card = document.getElementById('tc-' + id);
+        if (card) card.className = 'task-card done';
+        var chk = document.getElementById('ck-' + id);
+        if (chk) chk.style.display = 'inline';
+        updateProgress();
+        var next = TASKS.find(function(t) { return !completedTasks[t.id]; });
+        if (next) highlightTask(next.id);
+        if (Object.keys(completedTasks).length === TASKS.length) {
+            setTimeout(function() { document.getElementById('finishOverlay').classList.add('active'); }, 600);
+        }
+    }
+
+    function highlightTask(id) {
+        activeTaskId = id;
+        TASKS.forEach(function(t) {
+            var card = document.getElementById('tc-' + t.id);
+            if (card && !completedTasks[t.id]) {
+                card.className = (t.id === id) ? 'task-card active' : 'task-card';
+            }
+        });
+    }
+
+    function addLine(msg, cls) {
+        var panel = document.getElementById('termOutput');
+        var div = document.createElement('div');
+        div.className = cls || '';
+        div.textContent = msg;
+        div.style.animation = 'fadeIn 0.3s ease';
+        panel.appendChild(div);
+        panel.scrollTop = panel.scrollHeight;
+    }
+
+    function updateStatus(id, val, active) {
+        var el = document.getElementById(id);
+        if (el) {
+            el.textContent = val;
+            el.className = 'device-value ' + (active ? 'active' : 'inactive');
+        }
+    }
+
+    window.runCommand = function() {
+        var input = document.getElementById('termInput');
+        var cmd = input.value.trim();
+        input.value = '';
+        if (!cmd) return;
+
+        addLine('esp32$ ' + cmd, 't-dim');
+        processCommand(cmd);
+    };
+
+    window.clearTerminal = function() {
+        document.getElementById('termOutput').innerHTML = '';
+        addLine('Terminal cleared.', 't-dim');
+    };
+
+    function processCommand(cmd) {
+        var parts = cmd.split(/\s+/);
+        var base = parts[0].toLowerCase();
+
+        if (base === 'help') {
+            addLine('Available commands:', 't-info');
+            addLine('  ble init "<name>"          Initialize BLE with device name', '');
+            addLine('  ble create-service <uuid>  Create a GATT service', '');
+            addLine('  ble add-char <uuid> <props> Add characteristic (read/write/notify)', '');
+            addLine('  ble advertise start|stop   Start or stop advertising', '');
+            addLine('  ble scan <seconds>         Scan for nearby BLE devices', '');
+            addLine('  ble connect <address>      Connect to a BLE peripheral', '');
+            addLine('  ble read <char-uuid>       Read a characteristic value', '');
+            addLine('  ble notify <uuid> "<msg>"  Send a notification', '');
+            addLine('  ble status                 Show current BLE state', '');
+            addLine('  clear                      Clear terminal', '');
+            return;
+        }
+
+        if (base === 'clear') { clearTerminal(); return; }
+
+        if (base !== 'ble') {
+            addLine('Unknown command: ' + base + '. Type "help" for available commands.', 't-err');
+            return;
+        }
+
+        var sub = (parts[1] || '').toLowerCase();
+
+        /* ble init */
+        if (sub === 'init') {
+            var nameMatch = cmd.match(/init\s+["']([^"']+)["']/i) || cmd.match(/init\s+(\S+)/i);
+            if (!nameMatch) {
+                addLine('Usage: ble init "DeviceName"', 't-err');
+                return;
+            }
+            deviceName = nameMatch[1];
+            bleInitialized = true;
+            addLine('BLE stack initialized.', 't-ok');
+            addLine('Device name set to: ' + deviceName, 't-info');
+            addLine('MAC address: ' + generateMAC(), 't-dim');
+            updateStatus('dsBle', 'Initialized', true);
+            updateStatus('dsName', deviceName, true);
+            completeTask(1);
+            return;
+        }
+
+        if (!bleInitialized) {
+            addLine('Error: BLE not initialized. Run "ble init" first.', 't-err');
+            return;
+        }
+
+        /* ble create-service */
+        if (sub === 'create-service') {
+            var sUUID = parts[2] || '';
+            if (!sUUID) {
+                addLine('Usage: ble create-service <UUID>', 't-err');
+                return;
+            }
+            serviceUUID = sUUID.toUpperCase();
+            serviceCreated = true;
+            addLine('GATT Service created: 0x' + serviceUUID, 't-ok');
+            addLine('Service handle: 0x0028', 't-dim');
+            updateStatus('dsService', '0x' + serviceUUID, true);
+            completeTask(2);
+            return;
+        }
+
+        /* ble add-char */
+        if (sub === 'add-char') {
+            if (!serviceCreated) {
+                addLine('Error: No service created. Run "ble create-service" first.', 't-err');
+                return;
+            }
+            var cUUID = parts[2] || '';
+            var props = parts.slice(3).join(', ') || 'read';
+            if (!cUUID) {
+                addLine('Usage: ble add-char <UUID> [read] [write] [notify]', 't-err');
+                return;
+            }
+            charUUID = cUUID.toUpperCase();
+            charProps = props;
+            charCreated = true;
+            addLine('Characteristic added: 0x' + charUUID, 't-ok');
+            addLine('Properties: ' + props, 't-info');
+            addLine('Descriptor CCCD (0x2902) attached.', 't-dim');
+            updateStatus('dsChar', '0x' + charUUID + ' (' + props + ')', true);
+            completeTask(3);
+            return;
+        }
+
+        /* ble advertise */
+        if (sub === 'advertise') {
+            var action = (parts[2] || '').toLowerCase();
+            if (action === 'start') {
+                if (!charCreated) {
+                    addLine('Warning: Advertising with no characteristics. Clients won\'t find usable data.', 't-gold');
+                }
+                advertising = true;
+                addLine('Advertising started.', 't-ok');
+                addLine('Broadcasting: "' + deviceName + '"', 't-info');
+                addLine('Service UUID: 0x' + (serviceUUID || 'NONE'), 't-dim');
+                addLine('Interval: 100ms | TX Power: 3 dBm', 't-dim');
+                updateStatus('dsAdv', 'Active', true);
+                completeTask(4);
+            } else if (action === 'stop') {
+                advertising = false;
+                addLine('Advertising stopped.', 't-ok');
+                updateStatus('dsAdv', 'Off', false);
+            } else {
+                addLine('Usage: ble advertise start|stop', 't-err');
+            }
+            return;
+        }
+
+        /* ble scan */
+        if (sub === 'scan') {
+            var duration = parseInt(parts[2]) || 5;
+            addLine('Scanning for ' + duration + ' seconds (active scan)...', 't-info');
+            scannedDevices = [];
+            setTimeout(function() {
+                addLine('--- Scan Results ---', 't-gold');
+                nearbyDevices.forEach(function(d, i) {
+                    var name = d.name || '(unknown)';
+                    addLine('  [' + (i+1) + '] ' + name + '  ' + d.addr + '  RSSI: ' + d.rssi + ' dBm  Services: [' + d.services.join(', ') + ']', '');
+                    scannedDevices.push(d);
+                });
+                addLine('Found ' + nearbyDevices.length + ' devices.', 't-ok');
+                completeTask(5);
+            }, Math.min(duration, 3) * 400);
+            return;
+        }
+
+        /* ble connect */
+        if (sub === 'connect') {
+            var addr = (parts[2] || '').toUpperCase();
+            if (!addr) {
+                addLine('Usage: ble connect <address>', 't-err');
+                return;
+            }
+            var target = scannedDevices.find(function(d) { return d.addr === addr; });
+            if (!target) {
+                target = nearbyDevices.find(function(d) { return d.addr === addr; });
+                if (!target) {
+                    addLine('Error: Device ' + addr + ' not found. Run "ble scan" first.', 't-err');
+                    return;
+                }
+            }
+            addLine('Connecting to ' + addr + '...', 't-info');
+            setTimeout(function() {
+                connectedDevice = target;
+                var name = target.name || '(unknown)';
+                addLine('Connected to ' + name + ' (' + addr + ')', 't-ok');
+                addLine('MTU: 517 | Connection interval: 7.5ms', 't-dim');
+                addLine('Discovered ' + target.services.length + ' service(s).', 't-info');
+                updateStatus('dsConn', '1 (' + name + ')', true);
+                completeTask(6);
+            }, 800);
+            return;
+        }
+
+        /* ble read */
+        if (sub === 'read') {
+            var rUUID = (parts[2] || '').toUpperCase();
+            if (!rUUID) {
+                addLine('Usage: ble read <char-uuid>', 't-err');
+                return;
+            }
+            if (!connectedDevice && !charCreated) {
+                addLine('Error: Not connected to any device and no local characteristic.', 't-err');
+                return;
+            }
+            addLine('Reading characteristic 0x' + rUUID + '...', 't-info');
+            setTimeout(function() {
+                addLine('Value: ' + charValue, 't-ok');
+                addLine('Length: ' + charValue.length + ' bytes', 't-dim');
+                completeTask(7);
+            }, 300);
+            return;
+        }
+
+        /* ble notify */
+        if (sub === 'notify') {
+            var nUUID = (parts[2] || '').toUpperCase();
+            var msgMatch = cmd.match(/notify\s+\S+\s+["']([^"']+)["']/i) || cmd.match(/notify\s+\S+\s+(.+)/i);
+            var notifyMsg = msgMatch ? msgMatch[1] : charValue;
+            if (!nUUID) {
+                addLine('Usage: ble notify <char-uuid> "message"', 't-err');
+                return;
+            }
+            if (!charCreated && !connectedDevice) {
+                addLine('Error: No characteristic to notify on.', 't-err');
+                return;
+            }
+            addLine('Sending notification on 0x' + nUUID + '...', 't-info');
+            setTimeout(function() {
+                addLine('Notification sent: "' + notifyMsg + '"', 't-ok');
+                addLine('Delivered to 1 subscribed client(s).', 't-dim');
+                completeTask(8);
+            }, 300);
+            return;
+        }
+
+        /* ble status */
+        if (sub === 'status') {
+            addLine('--- BLE Status ---', 't-gold');
+            addLine('  Initialized: ' + (bleInitialized ? 'Yes' : 'No'), '');
+            addLine('  Device Name: ' + (deviceName || '--'), '');
+            addLine('  Service: ' + (serviceUUID ? '0x' + serviceUUID : 'None'), '');
+            addLine('  Characteristic: ' + (charUUID ? '0x' + charUUID + ' (' + charProps + ')' : 'None'), '');
+            addLine('  Advertising: ' + (advertising ? 'Active' : 'Off'), '');
+            addLine('  Connected: ' + (connectedDevice ? connectedDevice.name || connectedDevice.addr : 'None'), '');
+            return;
+        }
+
+        addLine('Unknown BLE subcommand: ' + sub + '. Type "help" for commands.', 't-err');
+    }
+
+    function generateMAC() {
+        var hex = '0123456789ABCDEF';
+        var mac = '';
+        for (var i = 0; i < 6; i++) {
+            if (i > 0) mac += ':';
+            mac += hex[Math.floor(Math.random()*16)] + hex[Math.floor(Math.random()*16)];
+        }
+        return mac;
+    }
+
+    window.finishLab = function() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-esp-04-lab', { returnUrl: '../../index.html' });
+        } else {
+            window.location.href = '../../index.html';
+        }
+    };
+
+    document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>

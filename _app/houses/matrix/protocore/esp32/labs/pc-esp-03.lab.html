@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terminal Lab: WiFi Fundamentals | ProtoCore ESP32 Core 3</title>
+    <style>
+        :root {
+            --blue: #0088ff;
+            --blue-dim: rgba(0,136,255,0.15);
+            --blue-border: rgba(0,136,255,0.3);
+            --green: #34d399;
+            --green-dim: rgba(52,211,153,0.1);
+            --green-border: rgba(52,211,153,0.3);
+            --gold: #ffd700;
+            --gold-dim: rgba(255,215,0,0.1);
+            --gold-border: rgba(255,215,0,0.3);
+            --red: #ef4444;
+            --bg: #040810;
+            --bg2: #081020;
+            --bg3: #0c1628;
+            --text: #dbeafe;
+            --text2: #6b82a0;
+            --border: rgba(0,136,255,0.12);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        .topbar { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .topbar-left { display: flex; align-items: center; gap: 14px; }
+        .back-btn { padding: 6px 14px; background: var(--blue-dim); border: 1px solid var(--blue-border); border-radius: 6px; color: var(--blue); text-decoration: none; font-size: 0.82rem; transition: background 0.2s; }
+        .back-btn:hover { background: rgba(0,136,255,0.25); }
+        .lab-title { font-size: 0.95rem; color: var(--text); }
+        .badge { padding: 3px 10px; border-radius: 10px; font-size: 0.68rem; letter-spacing: 0.06em; }
+        .badge-blue { background: var(--blue-dim); border: 1px solid var(--blue-border); color: var(--blue); }
+        .badge-gold { background: var(--gold-dim); border: 1px solid var(--gold-border); color: var(--gold); }
+        .topbar-right { display: flex; align-items: center; gap: 14px; font-size: 0.82rem; color: var(--text2); }
+        .prog-wrap { width: 130px; height: 5px; background: rgba(0,136,255,0.12); border-radius: 3px; overflow: hidden; }
+        .prog-fill { height: 100%; background: linear-gradient(90deg, var(--blue), #0055cc); border-radius: 3px; transition: width 0.4s ease; }
+        .prog-label { color: var(--blue); font-weight: 500; }
+
+        .workspace { display: grid; grid-template-columns: 1fr 320px; flex: 1; min-height: 0; }
+
+        /* Terminal */
+        .terminal-panel { display: flex; flex-direction: column; overflow: hidden; }
+        .terminal-header { flex-shrink: 0; padding: 8px 16px; background: var(--bg2); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+        .terminal-header span { font-size: 0.75rem; color: var(--text2); letter-spacing: 0.08em; text-transform: uppercase; }
+        .terminal-header .baud { font-size: 0.75rem; color: var(--gold); }
+        .terminal-body { flex: 1; overflow-y: auto; padding: 12px 16px; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.82rem; background: rgba(0,0,0,0.3); line-height: 1.7; }
+        .terminal-body .line-out { color: var(--green); }
+        .terminal-body .line-err { color: #f87171; }
+        .terminal-body .line-info { color: var(--blue); }
+        .terminal-body .line-sys { color: var(--gold); }
+        .terminal-input-row { flex-shrink: 0; display: flex; align-items: center; gap: 0; border-top: 1px solid var(--border); background: var(--bg2); }
+        .terminal-prompt { padding: 10px 12px; font-family: 'Consolas', monospace; font-size: 0.82rem; color: var(--blue); user-select: none; }
+        .terminal-input { flex: 1; padding: 10px 12px 10px 0; font-family: 'Consolas', monospace; font-size: 0.82rem; color: var(--text); background: transparent; border: none; outline: none; }
+
+        /* Task panel */
+        .task-panel { background: var(--bg2); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+        .panel-header { padding: 12px 16px; font-size: 0.7rem; color: var(--text2); letter-spacing: 0.12em; text-transform: uppercase; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .task-list { flex: 1; overflow-y: auto; padding: 12px; }
+        .task-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 9px; padding: 12px 14px; margin-bottom: 8px; transition: all 0.2s; }
+        .task-card.active { border-color: var(--blue); background: rgba(0,136,255,0.06); }
+        .task-card.done { border-color: var(--green-border); background: var(--green-dim); }
+        .task-num { font-size: 0.67rem; color: var(--blue); margin-bottom: 3px; }
+        .task-name { font-size: 0.88rem; color: var(--text); margin-bottom: 3px; display: flex; align-items: center; gap: 6px; }
+        .task-name .chk { font-size: 0.75rem; color: var(--green); margin-left: auto; display: none; }
+        .task-desc { font-size: 0.77rem; color: var(--text2); line-height: 1.45; }
+
+        .finish-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 9000; }
+        .finish-overlay.active { display: flex; }
+        .finish-card { background: var(--bg2); border: 1px solid var(--green-border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .finish-title { font-size: 1.5rem; color: var(--gold); margin-bottom: 10px; }
+        .finish-msg { color: var(--text2); font-size: 0.95rem; margin-bottom: 24px; line-height: 1.6; }
+        .finish-btn { padding: 11px 28px; background: linear-gradient(135deg, var(--blue), #0055cc); border: none; border-radius: 8px; color: #fff; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; }
+        .finish-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <header class="topbar">
+        <div class="topbar-left">
+            <a href="../../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Terminal Lab -- WiFi Fundamentals</span>
+            <span class="badge badge-blue">ProtoCore</span>
+            <span class="badge badge-gold">Core 3</span>
+        </div>
+        <div class="topbar-right">
+            <span>Tasks:</span>
+            <div class="prog-wrap"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+            <span class="prog-label" id="progLabel">0 / 8</span>
+        </div>
+    </header>
+
+    <div class="workspace">
+        <div class="terminal-panel">
+            <div class="terminal-header">
+                <span>ESP32 WiFi Terminal</span>
+                <span class="baud">115200 baud</span>
+            </div>
+            <div class="terminal-body" id="termBody">
+                <div class="line-sys">ESP32 WiFi Lab -- Interactive Terminal</div>
+                <div class="line-info">Type "help" for available commands.</div>
+                <div class="line-info">Simulated ESP32 WiFi environment ready.</div>
+            </div>
+            <div class="terminal-input-row">
+                <span class="terminal-prompt">esp32&gt;</span>
+                <input class="terminal-input" id="termInput" type="text" spellcheck="false" autofocus>
+            </div>
+        </div>
+
+        <aside class="task-panel">
+            <div class="panel-header">Lab Tasks</div>
+            <div class="task-list" id="taskList"></div>
+        </aside>
+    </div>
+
+    <div class="finish-overlay" id="finishOverlay">
+        <div class="finish-card">
+            <div class="finish-title">WiFi Fundamentals Mastered</div>
+            <div class="finish-msg">You have scanned nearby networks, connected to WiFi, verified your IP address, created an access point, checked connected stations, configured a static IP, set a hostname, and read your MAC address. The ESP32 is now a network device.</div>
+            <button class="finish-btn" onclick="finishLab()">Return to ProtoCore Hub</button>
+        </div>
+    </div>
+
+<script>
+(function () {
+    'use strict';
+
+    var TASKS = [
+        { id: 1, name: 'Scan for nearby WiFi networks', desc: 'Type: wifi.scan' },
+        { id: 2, name: 'Connect to a WiFi network', desc: 'Type: wifi.connect HexNet password123' },
+        { id: 3, name: 'Check your IP address', desc: 'Type: wifi.ip' },
+        { id: 4, name: 'Create an access point', desc: 'Type: wifi.ap ESP32-Lab mypassword' },
+        { id: 5, name: 'Check connected stations', desc: 'Type: wifi.stations' },
+        { id: 6, name: 'Configure a static IP', desc: 'Type: wifi.static 192.168.1.200 192.168.1.1 255.255.255.0' },
+        { id: 7, name: 'Set a hostname', desc: 'Type: wifi.hostname esp32-sensor' },
+        { id: 8, name: 'Read your MAC address', desc: 'Type: wifi.mac' }
+    ];
+
+    var completedTasks = {};
+    var history = [];
+    var historyIdx = -1;
+    var wifiConnected = false;
+    var wifiSSID = '';
+    var wifiIP = '';
+    var apActive = false;
+    var apSSID = '';
+    var staticIP = null;
+    var hostname = 'esp32';
+
+    /* Simulated nearby networks */
+    var nearbyNetworks = [
+        { ssid: 'HexNet', rssi: -42, ch: 6, enc: 'WPA2' },
+        { ssid: 'HomeRouter_5G', rssi: -55, ch: 11, enc: 'WPA2' },
+        { ssid: 'Neighbor_WiFi', rssi: -68, ch: 1, enc: 'WPA2' },
+        { ssid: 'CoffeeShop', rssi: -72, ch: 6, enc: 'Open' },
+        { ssid: 'LabNetwork', rssi: -51, ch: 3, enc: 'WPA3' },
+        { ssid: 'IoT_Devices', rssi: -60, ch: 9, enc: 'WPA2' },
+        { ssid: '', rssi: -80, ch: 1, enc: 'WPA2' }
+    ];
+
+    function init() {
+        buildTaskList();
+        updateProgress();
+        highlightTask(1);
+
+        var input = document.getElementById('termInput');
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                var cmd = input.value.trim();
+                if (cmd) {
+                    history.push(cmd);
+                    historyIdx = history.length;
+                    processCommand(cmd);
+                }
+                input.value = '';
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (historyIdx > 0) { historyIdx--; input.value = history[historyIdx]; }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (historyIdx < history.length - 1) { historyIdx++; input.value = history[historyIdx]; }
+                else { historyIdx = history.length; input.value = ''; }
+            }
+        });
+    }
+
+    function buildTaskList() {
+        var list = document.getElementById('taskList');
+        TASKS.forEach(function(t) {
+            var card = document.createElement('div');
+            card.className = 'task-card';
+            card.id = 'tc-' + t.id;
+            card.innerHTML = '<div class="task-num">Task ' + t.id + '</div><div class="task-name">' + t.name + '<span class="chk" id="ck-' + t.id + '">Done</span></div><div class="task-desc">' + t.desc + '</div>';
+            list.appendChild(card);
+        });
+    }
+
+    function updateProgress() {
+        var count = Object.keys(completedTasks).length;
+        var pct = (count / TASKS.length) * 100;
+        document.getElementById('progFill').style.width = pct + '%';
+        document.getElementById('progLabel').textContent = count + ' / ' + TASKS.length;
+    }
+
+    function completeTask(id) {
+        if (completedTasks[id]) return;
+        completedTasks[id] = true;
+        var card = document.getElementById('tc-' + id);
+        if (card) card.className = 'task-card done';
+        var chk = document.getElementById('ck-' + id);
+        if (chk) chk.style.display = 'inline';
+        updateProgress();
+        var next = TASKS.find(function(t) { return !completedTasks[t.id]; });
+        if (next) highlightTask(next.id);
+        if (Object.keys(completedTasks).length === TASKS.length) {
+            setTimeout(function() { document.getElementById('finishOverlay').classList.add('active'); }, 600);
+        }
+    }
+
+    function highlightTask(id) {
+        TASKS.forEach(function(t) {
+            var card = document.getElementById('tc-' + t.id);
+            if (card && !completedTasks[t.id]) {
+                card.className = (t.id === id) ? 'task-card active' : 'task-card';
+            }
+        });
+    }
+
+    function addLine(text, cls) {
+        var body = document.getElementById('termBody');
+        var div = document.createElement('div');
+        div.className = cls || 'line-out';
+        div.textContent = text;
+        div.style.animation = 'fadeIn 0.2s ease';
+        body.appendChild(div);
+        body.scrollTop = body.scrollHeight;
+    }
+
+    function processCommand(cmd) {
+        addLine('esp32> ' + cmd, 'line-info');
+        var parts = cmd.split(/\s+/);
+        var op = parts[0].toLowerCase();
+
+        switch (op) {
+            case 'help':
+                addLine('Available commands:', 'line-sys');
+                addLine('  wifi.scan                         -- Scan nearby WiFi networks', 'line-out');
+                addLine('  wifi.connect <ssid> <password>    -- Connect to a network (STA mode)', 'line-out');
+                addLine('  wifi.disconnect                   -- Disconnect from WiFi', 'line-out');
+                addLine('  wifi.status                       -- Show connection status', 'line-out');
+                addLine('  wifi.ip                           -- Show current IP address', 'line-out');
+                addLine('  wifi.mac                          -- Show MAC address', 'line-out');
+                addLine('  wifi.hostname <name>              -- Set device hostname', 'line-out');
+                addLine('  wifi.ap <ssid> <password>         -- Create an access point', 'line-out');
+                addLine('  wifi.ap.stop                      -- Stop access point', 'line-out');
+                addLine('  wifi.stations                     -- List connected AP clients', 'line-out');
+                addLine('  wifi.static <ip> <gw> <subnet>    -- Configure static IP', 'line-out');
+                addLine('  wifi.rssi                         -- Show signal strength', 'line-out');
+                addLine('  clear                             -- Clear terminal', 'line-out');
+                break;
+
+            case 'wifi.scan':
+                addLine('WiFi.mode(WIFI_STA)', 'line-info');
+                addLine('Scanning...', 'line-info');
+                setTimeout(function() {
+                    addLine('Scan complete. ' + nearbyNetworks.length + ' networks found:', 'line-out');
+                    addLine('', 'line-out');
+                    addLine('  #  SSID                              Ch  RSSI   Security', 'line-sys');
+                    addLine('  -- --------------------------------  --  -----  ----------', 'line-sys');
+                    nearbyNetworks.forEach(function(n, i) {
+                        var name = n.ssid || '(hidden)';
+                        while (name.length < 34) name += ' ';
+                        var ch = String(n.ch);
+                        while (ch.length < 2) ch = ' ' + ch;
+                        addLine('  ' + (i + 1) + (i < 9 ? ')' : ')') + ' ' + name + ch + '  ' + n.rssi + '  ' + n.enc, 'line-out');
+                    });
+                    completeTask(1);
+                }, 800);
+                break;
+
+            case 'wifi.connect':
+                var ssid = parts[1];
+                var pass = parts[2];
+                if (!ssid) { addLine('Usage: wifi.connect <ssid> <password>', 'line-err'); break; }
+                var found = nearbyNetworks.find(function(n) { return n.ssid === ssid; });
+                if (!found) { addLine('Error: Network "' + ssid + '" not found. Run wifi.scan first.', 'line-err'); break; }
+                if (found.enc !== 'Open' && !pass) { addLine('Error: Network requires a password.', 'line-err'); break; }
+                addLine('WiFi.begin("' + ssid + '", "***")', 'line-info');
+                addLine('Connecting...', 'line-info');
+                setTimeout(function() {
+                    addLine('ARDUINO_EVENT_WIFI_STA_CONNECTED', 'line-sys');
+                }, 500);
+                setTimeout(function() {
+                    wifiConnected = true;
+                    wifiSSID = ssid;
+                    wifiIP = staticIP || '192.168.1.' + (50 + Math.floor(Math.random() * 150));
+                    addLine('ARDUINO_EVENT_WIFI_STA_GOT_IP', 'line-sys');
+                    addLine('Connected to: ' + ssid, 'line-out');
+                    addLine('IP address:   ' + wifiIP, 'line-out');
+                    addLine('RSSI:         ' + found.rssi + ' dBm', 'line-out');
+                    addLine('Channel:      ' + found.ch, 'line-out');
+                    completeTask(2);
+                }, 1200);
+                break;
+
+            case 'wifi.disconnect':
+                if (!wifiConnected) { addLine('Not connected.', 'line-err'); break; }
+                wifiConnected = false;
+                addLine('ARDUINO_EVENT_WIFI_STA_DISCONNECTED', 'line-sys');
+                addLine('Disconnected from ' + wifiSSID, 'line-out');
+                wifiSSID = '';
+                wifiIP = '';
+                break;
+
+            case 'wifi.status':
+                if (wifiConnected) {
+                    addLine('WiFi Status: WL_CONNECTED', 'line-out');
+                    addLine('SSID: ' + wifiSSID, 'line-out');
+                    addLine('IP:   ' + wifiIP, 'line-out');
+                } else {
+                    addLine('WiFi Status: WL_DISCONNECTED', 'line-err');
+                }
+                if (apActive) {
+                    addLine('AP Status: Active', 'line-out');
+                    addLine('AP SSID: ' + apSSID, 'line-out');
+                    addLine('AP IP: 192.168.4.1', 'line-out');
+                }
+                break;
+
+            case 'wifi.ip':
+                if (!wifiConnected) { addLine('Not connected. IP unavailable.', 'line-err'); break; }
+                addLine('WiFi.localIP() = ' + wifiIP, 'line-out');
+                addLine('Subnet:  255.255.255.0', 'line-out');
+                addLine('Gateway: 192.168.1.1', 'line-out');
+                addLine('DNS:     192.168.1.1', 'line-out');
+                completeTask(3);
+                break;
+
+            case 'wifi.mac':
+                var mac = 'A4:CF:12:' +
+                    ('0' + Math.floor(Math.random() * 256).toString(16)).slice(-2).toUpperCase() + ':' +
+                    ('0' + Math.floor(Math.random() * 256).toString(16)).slice(-2).toUpperCase() + ':' +
+                    ('0' + Math.floor(Math.random() * 256).toString(16)).slice(-2).toUpperCase();
+                addLine('WiFi.macAddress() = ' + mac, 'line-out');
+                addLine('MAC address is unique to this chip and persists across reboots.', 'line-info');
+                completeTask(8);
+                break;
+
+            case 'wifi.hostname':
+                var hname = parts[1];
+                if (!hname) { addLine('Usage: wifi.hostname <name>', 'line-err'); break; }
+                hostname = hname;
+                addLine('WiFi.setHostname("' + hname + '")', 'line-out');
+                addLine('Hostname set to: ' + hname, 'line-out');
+                addLine('Device will appear as "' + hname + '" on your router.', 'line-info');
+                completeTask(7);
+                break;
+
+            case 'wifi.ap':
+                var apName = parts[1];
+                var apPass = parts[2];
+                if (!apName) { addLine('Usage: wifi.ap <ssid> <password>', 'line-err'); break; }
+                if (apPass && apPass.length < 8) { addLine('Error: AP password must be at least 8 characters (WPA2 requirement).', 'line-err'); break; }
+                addLine('WiFi.mode(WIFI_AP)', 'line-info');
+                addLine('WiFi.softAP("' + apName + '", "***")', 'line-info');
+                setTimeout(function() {
+                    apActive = true;
+                    apSSID = apName;
+                    addLine('Access point created:', 'line-out');
+                    addLine('  SSID:     ' + apName, 'line-out');
+                    addLine('  AP IP:    192.168.4.1', 'line-out');
+                    addLine('  Channel:  1', 'line-out');
+                    addLine('  Security: ' + (apPass ? 'WPA2' : 'Open'), 'line-out');
+                    addLine('  Max clients: 4', 'line-out');
+                    completeTask(4);
+                }, 600);
+                break;
+
+            case 'wifi.ap.stop':
+                if (!apActive) { addLine('No access point is running.', 'line-err'); break; }
+                apActive = false;
+                addLine('Access point "' + apSSID + '" stopped.', 'line-out');
+                apSSID = '';
+                break;
+
+            case 'wifi.stations':
+                if (!apActive) { addLine('No access point is running. Create one with wifi.ap first.', 'line-err'); break; }
+                var stationCount = 1 + Math.floor(Math.random() * 3);
+                addLine('WiFi.softAPgetStationNum() = ' + stationCount, 'line-out');
+                addLine('Connected stations:', 'line-sys');
+                for (var s = 0; s < stationCount; s++) {
+                    var smac = 'B8:27:EB:' +
+                        ('0' + Math.floor(Math.random() * 256).toString(16)).slice(-2).toUpperCase() + ':' +
+                        ('0' + Math.floor(Math.random() * 256).toString(16)).slice(-2).toUpperCase() + ':' +
+                        ('0' + Math.floor(Math.random() * 256).toString(16)).slice(-2).toUpperCase();
+                    addLine('  ' + (s + 1) + ') MAC: ' + smac + '  IP: 192.168.4.' + (s + 2), 'line-out');
+                }
+                completeTask(5);
+                break;
+
+            case 'wifi.static':
+                var sip = parts[1];
+                var sgw = parts[2];
+                var ssn = parts[3];
+                if (!sip || !sgw || !ssn) { addLine('Usage: wifi.static <ip> <gateway> <subnet>', 'line-err'); break; }
+                var ipRegex = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
+                if (!ipRegex.test(sip) || !ipRegex.test(sgw) || !ipRegex.test(ssn)) {
+                    addLine('Error: Invalid IP format. Use dotted decimal (e.g., 192.168.1.200).', 'line-err');
+                    break;
+                }
+                staticIP = sip;
+                addLine('WiFi.config(' + sip + ', ' + sgw + ', ' + ssn + ', 8.8.8.8)', 'line-out');
+                addLine('Static IP configured:', 'line-out');
+                addLine('  IP:      ' + sip, 'line-out');
+                addLine('  Gateway: ' + sgw, 'line-out');
+                addLine('  Subnet:  ' + ssn, 'line-out');
+                addLine('  DNS:     8.8.8.8', 'line-out');
+                addLine('Note: Static IP takes effect on next wifi.connect.', 'line-info');
+                if (wifiConnected) {
+                    wifiIP = sip;
+                    addLine('Updated current connection to ' + sip, 'line-out');
+                }
+                completeTask(6);
+                break;
+
+            case 'wifi.rssi':
+                if (!wifiConnected) { addLine('Not connected. Cannot read RSSI.', 'line-err'); break; }
+                var net = nearbyNetworks.find(function(n) { return n.ssid === wifiSSID; });
+                var rssi = net ? net.rssi : -65;
+                var quality = rssi > -50 ? 'Excellent' : rssi > -60 ? 'Good' : rssi > -70 ? 'Fair' : 'Weak';
+                addLine('WiFi.RSSI() = ' + rssi + ' dBm (' + quality + ')', 'line-out');
+                break;
+
+            case 'clear':
+                document.getElementById('termBody').innerHTML = '';
+                addLine('Terminal cleared.', 'line-info');
+                break;
+
+            default:
+                addLine('Unknown command: ' + op + '. Type "help" for available commands.', 'line-err');
+        }
+    }
+
+    window.finishLab = function() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-esp-03-lab', { returnUrl: '../../index.html' });
+        } else {
+            window.location.href = '../../index.html';
+        }
+    };
+
+    document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>

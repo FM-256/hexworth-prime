@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Core 8 Quiz: FreeRTOS Synchronization | ProtoCore ESP32</title>
+    <link rel="stylesheet" href="../../../../../styles/quiz-engine.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #040810 0%, #081020 50%, #0a0c1a 100%);
+            display: flex;
+            flex-direction: column;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        .page-header {
+            padding: 15px 30px;
+            background: rgba(0, 0, 0, 0.4);
+            border-bottom: 1px solid rgba(0, 136, 255, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .page-header a {
+            color: #0088ff;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+        .page-header a:hover { opacity: 0.8; }
+        .brand {
+            font-weight: 600;
+            color: #e0e0e0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .quiz-wrapper {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 30px 20px;
+        }
+        #quiz-container { width: 100%; max-width: 800px; }
+    </style>
+</head>
+<body>
+    <header class="page-header">
+        <a href="../../index.html">&larr; Back to ProtoCore Hub</a>
+        <span class="brand"><img src="/assets/images/icons/icon-brain.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Hexworth Prime</span>
+    </header>
+    <main class="quiz-wrapper">
+        <div id="quiz-container"></div>
+    </main>
+    <script src="../../../../../components/ProgressSystem.js"></script>
+    <script src="../../../../../components/QuizEngine.js"></script>
+    <script>
+        const quiz = new QuizEngine({
+            containerId: 'quiz-container',
+            title: 'Core 8: FreeRTOS Synchronization',
+            description: 'Test your understanding of semaphores, mutexes, queues, event groups, task notifications, deadlock, priority inversion, and watchdog timers.',
+            passingScore: 80,
+            showFeedback: true,
+            randomize: true,
+            theme: 'matrix',
+            achievement: 'pc-esp-08-quiz',
+            moduleId: 'pc-esp-08-quiz',
+            serverGrading: true,
+            houseId: 'matrix',
+            trackProgress: true,
+
+            questions: [
+                {
+                    question: 'What is the primary purpose of a binary semaphore in FreeRTOS?',
+                    options: [
+                        'Protecting shared data from concurrent access',
+                        'Signaling between tasks or from an ISR to a task',
+                        'Passing data between tasks',
+                        'Counting available resources in a pool'
+                    ],
+                    explanation: 'A binary semaphore is primarily used for signaling -- notifying a task that an event has occurred. The classic pattern is an interrupt service routine (ISR) giving the semaphore to wake a waiting task. The task blocks on xSemaphoreTake() until the ISR fires and calls xSemaphoreGiveFromISR(). This moves heavy processing out of interrupt context into a normal task. Binary semaphores should NOT be used for mutual exclusion (protecting shared data) because they lack priority inheritance, making them vulnerable to priority inversion. Use a mutex for data protection instead.'
+                },
+                {
+                    question: 'What key feature does a mutex have that a binary semaphore lacks?',
+                    options: [
+                        'The ability to count multiple resources',
+                        'Priority inheritance to prevent priority inversion',
+                        'The ability to be used from an ISR',
+                        'Support for timeout parameters'
+                    ],
+                    explanation: 'A FreeRTOS mutex includes priority inheritance. If a high-priority task blocks on a mutex held by a low-priority task, the scheduler temporarily raises the low-priority task\'s priority to match the high-priority one. This prevents a medium-priority task from preempting the mutex holder and causing unbounded delays (priority inversion). A mutex also has ownership -- only the task that took the mutex can give it back. Binary semaphores have neither feature, making them unsuitable for protecting shared resources. The Mars Pathfinder bug in 1997 is the most famous example of priority inversion causing real-world failures.'
+                },
+                {
+                    question: 'How does a counting semaphore differ from a binary semaphore?',
+                    options: [
+                        'It can only be used from interrupt context',
+                        'It maintains a count that can be greater than 1, tracking multiple resources or events',
+                        'It includes priority inheritance',
+                        'It can only be used between tasks on the same core'
+                    ],
+                    explanation: 'A counting semaphore maintains an integer count that increments on each Give and decrements on each Take. Unlike a binary semaphore (which caps at 1), a counting semaphore can track multiple available resources (e.g., 5 SPI buses, 10 buffer slots) or accumulate rapid events without losing them. When the count reaches zero, subsequent Take calls block until a Give increments the count. This makes counting semaphores ideal for resource pool management and event counting. Like binary semaphores, counting semaphores do not include priority inheritance.'
+                },
+                {
+                    question: 'What function creates a FreeRTOS queue, and what does it return?',
+                    options: [
+                        'createQueue() -- returns a pointer to the first element',
+                        'xQueueCreate(length, itemSize) -- returns a QueueHandle_t',
+                        'QueueInit(size) -- returns an integer ID',
+                        'newQueue(type, capacity) -- returns a Queue object'
+                    ],
+                    explanation: 'xQueueCreate(length, itemSize) creates a new queue. The first parameter is how many items the queue can hold, and the second is the size of each item in bytes (use sizeof() for structs). It returns a QueueHandle_t that you use with xQueueSend() and xQueueReceive(). Queues are thread-safe FIFO buffers -- the primary mechanism for passing data between tasks in FreeRTOS. Data is copied by value into the queue (not by reference), so the sender\'s data can go out of scope without affecting the queued copy. If the queue is full, xQueueSend() blocks for up to the specified timeout.'
+                },
+                {
+                    question: 'What is the correct way to send data to a FreeRTOS queue?',
+                    options: [
+                        'queue.push(data)',
+                        'xQueueSend(queueHandle, &data, timeout)',
+                        'QueueWrite(queueHandle, data, length)',
+                        'xQueueAdd(queueHandle, data)'
+                    ],
+                    explanation: 'xQueueSend(queueHandle, &data, timeout) sends data to the back of the queue. The second parameter is a pointer to the data to copy -- use the address-of operator (&). The third parameter is the maximum time to wait if the queue is full (in ticks, or portMAX_DELAY for infinite wait). The data is copied by value into the queue, so the original variable can be modified or go out of scope after the call. For sending from an ISR, use xQueueSendFromISR() instead. xQueueSendToFront() sends to the front of the queue (LIFO behavior for that item).'
+                },
+                {
+                    question: 'What are event groups used for in FreeRTOS?',
+                    options: [
+                        'Logging system events to flash memory',
+                        'Waiting for multiple conditions simultaneously using bit flags with AND/OR logic',
+                        'Counting the number of events that have occurred',
+                        'Scheduling periodic events at fixed intervals'
+                    ],
+                    explanation: 'Event groups let a task wait for multiple boolean conditions using bit flags. Each bit represents one condition (e.g., WIFI_READY, SENSOR_INIT, MQTT_CONNECTED). A task can wait for ALL specified bits (AND logic) or ANY of them (OR logic) using xEventGroupWaitBits(). Other tasks or ISRs set bits with xEventGroupSetBits(). This is ideal for startup sequences where multiple subsystems must initialize before the main task proceeds. ESP32 FreeRTOS supports 24 usable bits per event group (bits 0-23). For more flags, create additional event groups.'
+                },
+                {
+                    question: 'Why are task notifications considered faster than binary semaphores?',
+                    options: [
+                        'They use hardware acceleration',
+                        'They bypass the FreeRTOS scheduler',
+                        'They use the task\'s built-in notification value -- no dynamic memory allocation or list traversal needed',
+                        'They only work on Core 1 which is faster'
+                    ],
+                    explanation: 'Task notifications are approximately 45% faster than binary semaphores because every FreeRTOS task already has a built-in 32-bit notification value. No additional object needs to be created (no xSemaphoreCreateBinary call), no memory is allocated from the heap, and no linked list of waiting tasks needs to be traversed. The notification is part of the task\'s own control block. The trade-off is that notifications are strictly one-to-one: you must know the target task\'s handle, and you cannot broadcast to multiple tasks like you can with an event group or queue.'
+                },
+                {
+                    question: 'What is deadlock, and what is its most common cause in FreeRTOS?',
+                    options: [
+                        'A task running too slowly -- caused by insufficient stack size',
+                        'Two or more tasks waiting for each other to release resources -- caused by circular mutex dependencies',
+                        'A task being deleted while holding a semaphore -- caused by vTaskDelete',
+                        'The watchdog timer firing -- caused by missing delay calls'
+                    ],
+                    explanation: 'Deadlock occurs when two or more tasks are each waiting for a resource held by the other, creating a circular dependency. The most common scenario: Task A holds Mutex 1 and waits for Mutex 2. Task B holds Mutex 2 and waits for Mutex 1. Neither can proceed. Prevention strategies include: always acquiring mutexes in the same order across all tasks (lock ordering), using timeouts instead of portMAX_DELAY so tasks can release and retry, or reducing the number of mutexes to one (eliminating circular dependency at the cost of concurrency). Deadlock requires at least two locks.'
+                },
+                {
+                    question: 'What is priority inversion?',
+                    options: [
+                        'When a task\'s priority is automatically increased by the scheduler',
+                        'When a high-priority task is effectively blocked by a medium-priority task because a low-priority task holds a needed resource',
+                        'When two tasks swap their priority levels',
+                        'When the idle task runs at a higher priority than user tasks'
+                    ],
+                    explanation: 'Priority inversion occurs when: (1) a low-priority task L acquires a resource, (2) a high-priority task H tries to acquire the same resource and blocks, (3) a medium-priority task M preempts L and runs. Now H (highest priority) waits for L, which is preempted by M (medium priority). The priority order is inverted -- H effectively has the lowest priority. FreeRTOS mutexes solve this with priority inheritance: when H blocks on L\'s mutex, L\'s priority is temporarily raised to match H, preventing M from preempting L. Binary semaphores do not have this feature, which is why mutexes should always be used for mutual exclusion.'
+                },
+                {
+                    question: 'What is the difference between the Task Watchdog Timer (TWDT) and the Interrupt Watchdog on ESP32?',
+                    options: [
+                        'They are the same thing with different names',
+                        'TWDT monitors FreeRTOS tasks for starvation; Interrupt Watchdog monitors interrupt latency and critical section duration',
+                        'TWDT is hardware-based; Interrupt Watchdog is software-based',
+                        'TWDT resets the board; Interrupt Watchdog only logs a warning'
+                    ],
+                    explanation: 'The ESP32 has two independent watchdog systems. The Task Watchdog Timer (TWDT) monitors registered FreeRTOS tasks. Each subscribed task must call esp_task_wdt_reset() within the timeout period (default 5 seconds). The idle tasks are subscribed by default -- if a user task starves the idle task (by never blocking), the TWDT fires. The Interrupt Watchdog monitors interrupt latency and triggers if interrupts are disabled for too long (default ~300ms). They produce different error messages: "task_wdt" for TWDT and "Interrupt wdt timeout" for the interrupt watchdog.'
+                },
+                {
+                    question: 'When using xSemaphoreTake() with portMAX_DELAY, what happens?',
+                    options: [
+                        'The task waits for exactly 1 second',
+                        'The task blocks indefinitely until the semaphore/mutex becomes available',
+                        'The function returns immediately with an error',
+                        'The system resets after 5 seconds'
+                    ],
+                    explanation: 'portMAX_DELAY means the task will block indefinitely -- it will wait forever until the semaphore or mutex becomes available. The task moves to the Blocked state and uses zero CPU while waiting. When the resource is released by another task, the blocked task moves to Ready and then to Running. While convenient, using portMAX_DELAY makes deadlock possible because the task can never time out and release other resources it might hold. For safer designs, use a finite timeout like pdMS_TO_TICKS(5000), check the return value, and handle the timeout case (e.g., release other held mutexes and retry).'
+                },
+                {
+                    question: 'What is the maximum number of encrypted peers ESP-NOW supports on a single ESP32?',
+                    options: [
+                        '20 encrypted peers',
+                        '6 encrypted peers (plus up to 14 unencrypted, 20 total)',
+                        '10 encrypted peers',
+                        '3 encrypted peers'
+                    ],
+                    explanation: 'ESP-NOW supports a maximum of 20 registered peers per device, but only 6 of those can use encryption. The remaining 14 must be unencrypted. If all 20 peers are unencrypted, you get the full 20. This limitation exists because encrypted peers require storing per-peer encryption keys (LMK -- Local Master Key) and maintaining CCMP cipher state, which consumes significantly more memory. For networks requiring more than 6 encrypted connections, consider using application-layer encryption (AES in software) instead of ESP-NOW\'s built-in CCMP encryption.'
+                },
+                {
+                    question: 'Why should you avoid calling Serial.print() inside an ESP-NOW onReceive callback?',
+                    options: [
+                        'Serial.print() is not available in callback context',
+                        'The callback runs in the WiFi task context on Core 0 at high priority -- heavy operations cause watchdog timeouts and WiFi instability',
+                        'Serial output is disabled during ESP-NOW communication',
+                        'Serial.print() would corrupt the received data'
+                    ],
+                    explanation: 'ESP-NOW callbacks (onSend and onReceive) execute in the WiFi task context on Core 0 at a high priority level. Calling blocking functions, performing heavy computation, or printing large strings with Serial.print() inside these callbacks delays WiFi processing and can trigger watchdog timeouts. The correct pattern is to copy incoming data to a FreeRTOS queue inside the callback (fast, non-blocking) and return immediately. A separate task then reads from the queue and performs the actual processing, including Serial output, at a normal priority level.'
+                },
+                {
+                    question: 'What is the recommended practice for holding a mutex?',
+                    options: [
+                        'Hold it for as long as the task needs the resource, including during vTaskDelay calls',
+                        'Take it, modify the shared data, give it back immediately -- minimize the time the mutex is held',
+                        'Hold it for the entire lifetime of the task',
+                        'Only take it when the task priority is the highest'
+                    ],
+                    explanation: 'The golden rule for mutexes is: hold it for the minimum time necessary. Take the mutex, perform the critical operation (read or write shared data), and release it immediately. Never call blocking functions like vTaskDelay(), Serial.print(), or network operations while holding a mutex. Holding a mutex for extended periods blocks all other tasks that need the same resource, reducing system concurrency and responsiveness. If you need to hold a lock during a complex operation, consider copying the shared data under the lock and then processing the copy after releasing it.'
+                },
+                {
+                    question: 'How many usable bit flags does a single FreeRTOS event group support on ESP32?',
+                    options: [
+                        '8 bits',
+                        '16 bits',
+                        '24 bits',
+                        '32 bits'
+                    ],
+                    explanation: 'A FreeRTOS event group on ESP32 supports 24 usable bits (bits 0 through 23). The upper 8 bits of the 32-bit event group value are reserved for internal FreeRTOS use. Each bit represents one boolean condition that can be independently set, cleared, and waited on. 24 flags is more than sufficient for most embedded applications. If you need more, create additional event groups. Event bits are set with xEventGroupSetBits() and waited on with xEventGroupWaitBits(), which supports both AND (wait for all specified bits) and OR (wait for any specified bit) logic.'
+                }
+            ]
+        });
+        quiz.start();
+    </script>
+</body>
+</html>

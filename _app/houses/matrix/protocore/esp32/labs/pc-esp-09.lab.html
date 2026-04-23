@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP-NOW Mesh Networking Lab | ProtoCore ESP32 Core 9</title>
+    <style>
+        :root {
+            --blue: #0088ff;
+            --blue-dim: rgba(0,136,255,0.15);
+            --blue-border: rgba(0,136,255,0.3);
+            --green: #34d399;
+            --green-dim: rgba(52,211,153,0.1);
+            --green-border: rgba(52,211,153,0.3);
+            --gold: #ffd700;
+            --gold-dim: rgba(255,215,0,0.1);
+            --gold-border: rgba(255,215,0,0.3);
+            --red: #ef4444;
+            --bg: #040810;
+            --bg2: #081020;
+            --bg3: #0c1628;
+            --text: #dbeafe;
+            --text2: #6b82a0;
+            --border: rgba(0,136,255,0.12);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        .topbar { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .topbar-left { display: flex; align-items: center; gap: 14px; }
+        .back-btn { padding: 6px 14px; background: var(--blue-dim); border: 1px solid var(--blue-border); border-radius: 6px; color: var(--blue); text-decoration: none; font-size: 0.82rem; transition: background 0.2s; }
+        .back-btn:hover { background: rgba(0,136,255,0.25); }
+        .lab-title { font-size: 0.95rem; color: var(--text); }
+        .badge { padding: 3px 10px; border-radius: 10px; font-size: 0.68rem; letter-spacing: 0.06em; }
+        .badge-blue { background: var(--blue-dim); border: 1px solid var(--blue-border); color: var(--blue); }
+        .badge-gold { background: var(--gold-dim); border: 1px solid var(--gold-border); color: var(--gold); }
+        .topbar-right { display: flex; align-items: center; gap: 14px; font-size: 0.82rem; color: var(--text2); }
+        .prog-wrap { width: 130px; height: 5px; background: rgba(0,136,255,0.12); border-radius: 3px; overflow: hidden; }
+        .prog-fill { height: 100%; background: linear-gradient(90deg, var(--blue), #0055cc); border-radius: 3px; transition: width 0.4s ease; }
+        .prog-label { color: var(--blue); font-weight: 500; }
+
+        .workspace { display: grid; grid-template-columns: 1fr 320px; flex: 1; min-height: 0; }
+
+        .terminal-panel { display: flex; flex-direction: column; overflow: hidden; }
+        .term-toolbar { flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: var(--bg2); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+        .tb-btn { padding: 5px 14px; background: var(--blue-dim); border: 1px solid var(--blue-border); border-radius: 5px; color: var(--blue); font-size: 0.82rem; cursor: pointer; transition: background 0.2s; font-weight: 600; }
+        .tb-btn:hover:not(:disabled) { background: rgba(0,136,255,0.25); }
+        .tb-btn:disabled { opacity: 0.35; cursor: default; }
+        .tb-btn.run { background: rgba(52,211,153,0.12); border-color: var(--green-border); color: var(--green); }
+        .tb-btn.run:hover:not(:disabled) { background: rgba(52,211,153,0.22); }
+        .tb-btn.reset-btn { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); color: var(--red); }
+        .toolbar-sep { width: 1px; height: 18px; background: var(--border); }
+        .tb-label { font-size: 0.72rem; color: var(--text2); }
+        .tb-select { padding: 5px 10px; background: var(--bg3); border: 1px solid var(--blue-border); border-radius: 5px; color: var(--text); font-size: 0.8rem; cursor: pointer; }
+        .tb-select option { background: var(--bg2); color: var(--text); }
+
+        .code-area { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+        .code-editor-wrap { flex: 1; display: flex; overflow: hidden; }
+        .line-numbers { background: var(--bg2); color: #475569; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.82rem; padding: 12px 8px 12px 12px; text-align: right; line-height: 1.7; user-select: none; overflow: hidden; min-width: 38px; border-right: 1px solid var(--border); }
+        .code-editor { flex: 1; background: var(--bg3); color: #e2e8f0; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.82rem; padding: 12px 14px; border: none; outline: none; resize: none; line-height: 1.7; tab-size: 2; overflow: auto; white-space: pre; }
+        .code-editor::placeholder { color: #384860; }
+
+        .output-panel { flex-shrink: 0; height: 200px; background: rgba(0,0,0,0.4); border-top: 1px solid var(--border); overflow-y: auto; padding: 8px 14px; font-family: 'Consolas', monospace; font-size: 0.75rem; color: var(--text2); line-height: 1.5; }
+        .output-panel .out-ok { color: var(--green); }
+        .output-panel .out-err { color: #f87171; }
+        .output-panel .out-info { color: var(--blue); }
+        .output-panel .out-gold { color: var(--gold); }
+        .output-panel .out-nodeA { color: #06b6d4; }
+        .output-panel .out-nodeB { color: #a78bfa; }
+        .output-panel .out-nodeC { color: #3ab577; }
+        .output-panel .out-send { color: #f97316; }
+
+        /* Mesh status bar */
+        .mesh-status { flex-shrink: 0; display: flex; align-items: center; gap: 16px; padding: 8px 16px; background: var(--bg2); border-top: 1px solid var(--border); font-size: 0.75rem; }
+        .node-indicator { display: flex; align-items: center; gap: 5px; }
+        .node-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .node-dot.offline { background: #475569; }
+        .node-dot.online { background: var(--green); box-shadow: 0 0 6px rgba(52,211,153,0.5); }
+        .node-label { color: var(--text2); }
+
+        .task-panel { background: var(--bg2); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+        .panel-header { padding: 12px 16px; font-size: 0.7rem; color: var(--text2); letter-spacing: 0.12em; text-transform: uppercase; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .task-list { flex: 1; overflow-y: auto; padding: 12px; }
+        .task-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 9px; padding: 12px 14px; margin-bottom: 8px; transition: all 0.2s; }
+        .task-card.active { border-color: var(--blue); background: rgba(0,136,255,0.06); }
+        .task-card.done { border-color: var(--green-border); background: var(--green-dim); }
+        .task-num { font-size: 0.67rem; color: var(--blue); margin-bottom: 3px; }
+        .task-name { font-size: 0.88rem; color: var(--text); margin-bottom: 3px; display: flex; align-items: center; gap: 6px; }
+        .task-name .chk { font-size: 0.75rem; color: var(--green); margin-left: auto; display: none; }
+        .task-desc { font-size: 0.77rem; color: var(--text2); line-height: 1.45; }
+
+        .finish-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 9000; }
+        .finish-overlay.active { display: flex; }
+        .finish-card { background: var(--bg2); border: 1px solid var(--green-border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .finish-title { font-size: 1.5rem; color: var(--gold); margin-bottom: 10px; }
+        .finish-msg { color: var(--text2); font-size: 0.95rem; margin-bottom: 24px; line-height: 1.6; }
+        .finish-btn { padding: 11px 28px; background: linear-gradient(135deg, var(--blue), #0055cc); border: none; border-radius: 8px; color: #fff; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; }
+        .finish-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <header class="topbar">
+        <div class="topbar-left">
+            <a href="../../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">ESP-NOW Mesh Networking Lab</span>
+            <span class="badge badge-blue">ProtoCore</span>
+            <span class="badge badge-gold">Core 9</span>
+        </div>
+        <div class="topbar-right">
+            <span>Tasks:</span>
+            <div class="prog-wrap"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+            <span class="prog-label" id="progLabel">0 / 8</span>
+        </div>
+    </header>
+
+    <div class="workspace">
+        <div class="terminal-panel">
+            <div class="term-toolbar">
+                <button class="tb-btn run" id="btnRun" onclick="doCompileAndRun()">Compile & Upload</button>
+                <button class="tb-btn reset-btn" onclick="doReset()">Reset Board</button>
+                <div class="toolbar-sep"></div>
+                <span class="tb-label">Node:</span>
+                <select class="tb-select" id="selNode" onchange="handleNodeSelect()">
+                    <option value="A">Node A (Sensor)</option>
+                    <option value="B">Node B (Relay)</option>
+                    <option value="C">Node C (Gateway)</option>
+                </select>
+                <span class="tb-label">| Simulated Mesh Network</span>
+            </div>
+
+            <div class="code-area">
+                <div class="code-editor-wrap">
+                    <div class="line-numbers" id="lineNums">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20</div>
+                    <textarea class="code-editor" id="codeEditor" spellcheck="false" placeholder="// ESP-NOW Mesh Lab -- Write firmware for your selected node
+// Include: #include <esp_now.h> and #include <WiFi.h>
+// Init: WiFi.mode(WIFI_STA); esp_now_init();
+// Register peers with esp_now_add_peer()
+// Send data with esp_now_send()
+// Register callbacks with esp_now_register_send_cb / recv_cb"></textarea>
+                </div>
+            </div>
+
+            <div class="output-panel" id="outputPanel">
+                <div class="out-info">ESP-NOW Mesh Network Lab -- Ready</div>
+                <div class="out-info">3-node simulated mesh: Node A (sensor) -> Node B (relay) -> Node C (gateway)</div>
+            </div>
+
+            <div class="mesh-status">
+                <div class="node-indicator"><div class="node-dot online" id="dotA"></div><span class="node-label">Node A: AA:BB:CC:11:22:33</span></div>
+                <div class="node-indicator"><div class="node-dot online" id="dotB"></div><span class="node-label">Node B: AA:BB:CC:44:55:66</span></div>
+                <div class="node-indicator"><div class="node-dot online" id="dotC"></div><span class="node-label">Node C: AA:BB:CC:77:88:99</span></div>
+            </div>
+        </div>
+
+        <aside class="task-panel">
+            <div class="panel-header">Lab Tasks</div>
+            <div class="task-list" id="taskList"></div>
+        </aside>
+    </div>
+
+    <div class="finish-overlay" id="finishOverlay">
+        <div class="finish-card">
+            <div class="finish-title">Mesh Network Online</div>
+            <div class="finish-msg">You initialized ESP-NOW, registered peers, sent unicast and broadcast data, built relay logic for multi-hop communication, and handled send/receive callbacks. Your mesh is operational.</div>
+            <button class="finish-btn" onclick="finishLab()">Return to ProtoCore Hub</button>
+        </div>
+    </div>
+
+<script>
+(function () {
+    'use strict';
+
+    var TASKS = [
+        { id: 1, name: 'Initialize ESP-NOW', desc: 'Include esp_now.h and WiFi.h. Set WiFi.mode(WIFI_STA) and call esp_now_init() in setup(). Print the MAC address.' },
+        { id: 2, name: 'Register a peer', desc: 'Create an esp_now_peer_info_t, set the MAC address of another node, and add it with esp_now_add_peer().' },
+        { id: 3, name: 'Define a data struct', desc: 'Create a typedef struct with at least nodeId, a data value, and a timestamp field. Must be under 250 bytes.' },
+        { id: 4, name: 'Send data with esp_now_send', desc: 'Populate your struct and send it to the registered peer using esp_now_send(). Call it in loop() with a delay.' },
+        { id: 5, name: 'Register onSend callback', desc: 'Write an onSend callback that prints the delivery status (success/fail). Register it with esp_now_register_send_cb.' },
+        { id: 6, name: 'Register onReceive callback', desc: 'Write an onReceive callback that copies incoming data into your struct and prints it. Register with esp_now_register_recv_cb.' },
+        { id: 7, name: 'Broadcast to all nodes', desc: 'Register the broadcast address (FF:FF:FF:FF:FF:FF) as a peer and send a discovery message to all nodes in range.' },
+        { id: 8, name: 'Relay message (A -> B -> C)', desc: 'In onReceive on Node B, forward the received packet to Node C using esp_now_send. Build the multi-hop relay chain.' }
+    ];
+
+    var completedTasks = {};
+    var selectedNode = 'A';
+
+    function init() {
+        buildTaskList();
+        updateProgress();
+        highlightTask(1);
+        var editor = document.getElementById('codeEditor');
+        editor.addEventListener('input', updateLineNumbers);
+        editor.addEventListener('scroll', syncScroll);
+        updateLineNumbers();
+    }
+
+    function buildTaskList() {
+        var list = document.getElementById('taskList');
+        TASKS.forEach(function(t) {
+            var card = document.createElement('div');
+            card.className = 'task-card';
+            card.id = 'tc-' + t.id;
+            card.innerHTML = '<div class="task-num">Task ' + t.id + '</div><div class="task-name">' + t.name + '<span class="chk" id="ck-' + t.id + '">Done</span></div><div class="task-desc">' + t.desc + '</div>';
+            list.appendChild(card);
+        });
+    }
+
+    function updateProgress() {
+        var count = Object.keys(completedTasks).length;
+        var pct = (count / TASKS.length) * 100;
+        document.getElementById('progFill').style.width = pct + '%';
+        document.getElementById('progLabel').textContent = count + ' / ' + TASKS.length;
+    }
+
+    function completeTask(id) {
+        if (completedTasks[id]) return;
+        completedTasks[id] = true;
+        var card = document.getElementById('tc-' + id);
+        if (card) card.className = 'task-card done';
+        var chk = document.getElementById('ck-' + id);
+        if (chk) chk.style.display = 'inline';
+        updateProgress();
+        var next = TASKS.find(function(t) { return !completedTasks[t.id]; });
+        if (next) highlightTask(next.id);
+        if (Object.keys(completedTasks).length === TASKS.length) {
+            setTimeout(function() { document.getElementById('finishOverlay').classList.add('active'); }, 600);
+        }
+    }
+
+    function highlightTask(id) {
+        TASKS.forEach(function(t) {
+            var card = document.getElementById('tc-' + t.id);
+            if (card && !completedTasks[t.id]) {
+                card.className = (t.id === id) ? 'task-card active' : 'task-card';
+            }
+        });
+    }
+
+    function updateLineNumbers() {
+        var editor = document.getElementById('codeEditor');
+        var lines = editor.value.split('\n').length;
+        if (lines < 20) lines = 20;
+        var nums = '';
+        for (var i = 1; i <= lines; i++) nums += i + '\n';
+        document.getElementById('lineNums').textContent = nums;
+    }
+
+    function syncScroll() {
+        document.getElementById('lineNums').scrollTop = document.getElementById('codeEditor').scrollTop;
+    }
+
+    function addOutput(msg, cls) {
+        var panel = document.getElementById('outputPanel');
+        var div = document.createElement('div');
+        div.className = cls || '';
+        div.textContent = msg;
+        div.style.animation = 'fadeIn 0.3s ease';
+        panel.appendChild(div);
+        panel.scrollTop = panel.scrollHeight;
+    }
+
+    function clearOutput() { document.getElementById('outputPanel').innerHTML = ''; }
+    function getCode() { return document.getElementById('codeEditor').value; }
+    function codeHas(p) { return p.test(getCode()); }
+
+    window.handleNodeSelect = function() {
+        selectedNode = document.getElementById('selNode').value;
+        addOutput('[Mesh] Switched to Node ' + selectedNode + ' firmware view', 'out-info');
+    };
+
+    window.doCompileAndRun = function() {
+        var code = getCode().trim();
+        if (!code) { addOutput('Error: Code editor is empty.', 'out-err'); return; }
+
+        clearOutput();
+        addOutput('Compiling ESP-NOW firmware for Node ' + selectedNode + '...', 'out-info');
+
+        if (!codeHas(/void\s+setup\s*\(\s*\)/)) { setTimeout(function() { addOutput('Error: Missing setup() function.', 'out-err'); }, 400); return; }
+        if (!codeHas(/void\s+loop\s*\(\s*\)/))  { setTimeout(function() { addOutput('Error: Missing loop() function.', 'out-err'); }, 400); return; }
+
+        var hasEspNowInclude = codeHas(/include.*esp_now/) || codeHas(/include.*<esp_now\.h>/);
+        var hasWiFiInclude = codeHas(/include.*WiFi/);
+        var hasWiFiMode = codeHas(/WiFi\s*\.\s*mode\s*\(/);
+        var hasEspNowInit = codeHas(/esp_now_init\s*\(/);
+        var hasAddPeer = codeHas(/esp_now_add_peer\s*\(/);
+        var hasPeerInfo = codeHas(/esp_now_peer_info_t/);
+        var hasStruct = codeHas(/typedef\s+struct/) || codeHas(/struct\s+\w+\s*\{/);
+        var hasSend = codeHas(/esp_now_send\s*\(/);
+        var hasSendCb = codeHas(/esp_now_register_send_cb\s*\(/);
+        var hasRecvCb = codeHas(/esp_now_register_recv_cb\s*\(/);
+        var hasOnSend = codeHas(/void\s+on[Ss]end\s*\(/) || codeHas(/send_cb\s*\(/);
+        var hasOnReceive = codeHas(/void\s+on[Rr]eceive\s*\(/) || codeHas(/recv_cb\s*\(/);
+        var hasBroadcast = codeHas(/0xFF\s*,\s*0xFF\s*,\s*0xFF\s*,\s*0xFF\s*,\s*0xFF\s*,\s*0xFF/);
+        var hasMacPrint = codeHas(/WiFi\s*\.\s*macAddress\s*\(\s*\)/);
+        var hasMemcpy = codeHas(/memcpy\s*\(/);
+        var hasForward = codeHas(/esp_now_send/) && hasOnReceive;
+
+        setTimeout(function() { addOutput('Linking ESP-NOW + WiFi libraries...', 'out-info'); }, 300);
+        setTimeout(function() { addOutput('Uploading to Node ' + selectedNode + '...', 'out-info'); }, 700);
+        setTimeout(function() { addOutput('Writing at 0x10000... [##########] 100%', 'out-info'); }, 1000);
+
+        setTimeout(function() {
+            addOutput('--- Serial Monitor: Node ' + selectedNode + ' ---', 'out-gold');
+
+            /* Task 1: Init */
+            if (hasWiFiMode && hasEspNowInit) {
+                addOutput('[Node ' + selectedNode + '] WiFi mode: STATION', 'out-nodeA');
+                addOutput('[Node ' + selectedNode + '] ESP-NOW initialized successfully', 'out-ok');
+                if (hasMacPrint) {
+                    var macs = { A: 'AA:BB:CC:11:22:33', B: 'AA:BB:CC:44:55:66', C: 'AA:BB:CC:77:88:99' };
+                    addOutput('[Node ' + selectedNode + '] MAC: ' + macs[selectedNode], 'out-nodeA');
+                }
+                completeTask(1);
+            }
+
+            /* Task 2: Add peer */
+            if (hasAddPeer && hasPeerInfo) {
+                setTimeout(function() {
+                    addOutput('[Node ' + selectedNode + '] Peer registered successfully', 'out-ok');
+                    addOutput('[Node ' + selectedNode + '] Channel: 0 (auto), Encrypt: false', 'out-nodeA');
+                    completeTask(2);
+                }, 400);
+            }
+
+            /* Task 3: Struct */
+            if (hasStruct) {
+                setTimeout(function() {
+                    addOutput('[Node ' + selectedNode + '] Data struct defined (< 250 bytes)', 'out-ok');
+                    completeTask(3);
+                }, 600);
+            }
+
+            /* Task 4: Send */
+            if (hasSend && hasStruct) {
+                setTimeout(function() {
+                    for (var i = 1; i <= 3; i++) {
+                        (function(n) {
+                            setTimeout(function() {
+                                addOutput('[Node ' + selectedNode + ' -> TX] Sent packet #' + n + ' (nodeId: 1, value: ' + (21.5 + n * 0.3).toFixed(1) + 'C)', 'out-send');
+                            }, n * 300);
+                        })(i);
+                    }
+                    completeTask(4);
+                }, 800);
+            }
+
+            /* Task 5: onSend callback */
+            if (hasSendCb && hasOnSend) {
+                setTimeout(function() {
+                    addOutput('[onSend] Delivery to AA:BB:CC:44:55:66 -- SUCCESS (ACK)', 'out-ok');
+                    addOutput('[onSend] Delivery to AA:BB:CC:44:55:66 -- SUCCESS (ACK)', 'out-ok');
+                    completeTask(5);
+                }, 1800);
+            }
+
+            /* Task 6: onReceive callback */
+            if (hasRecvCb && hasOnReceive) {
+                setTimeout(function() {
+                    addOutput('[onReceive] 12 bytes from AA:BB:CC:11:22:33', 'out-nodeB');
+                    addOutput('[onReceive] nodeId: 1, value: 22.1C, timestamp: 5420', 'out-nodeB');
+                    addOutput('[onReceive] 12 bytes from AA:BB:CC:11:22:33', 'out-nodeB');
+                    addOutput('[onReceive] nodeId: 1, value: 22.4C, timestamp: 7430', 'out-nodeB');
+                    completeTask(6);
+                }, 2200);
+            }
+
+            /* Task 7: Broadcast */
+            if (hasBroadcast && hasSend) {
+                setTimeout(function() {
+                    addOutput('[Broadcast] Sending discovery to FF:FF:FF:FF:FF:FF', 'out-send');
+                    addOutput('[Broadcast] Node B received discovery', 'out-nodeB');
+                    addOutput('[Broadcast] Node C received discovery', 'out-nodeC');
+                    addOutput('[Broadcast] 2 nodes discovered in range', 'out-ok');
+                    completeTask(7);
+                }, 2800);
+            }
+
+            /* Task 8: Relay A -> B -> C */
+            if (hasForward && hasAddPeer) {
+                setTimeout(function() {
+                    addOutput('--- Multi-Hop Relay Test ---', 'out-gold');
+                    addOutput('[Node A] Sending sensor data to Node B...', 'out-nodeA');
+                    setTimeout(function() {
+                        addOutput('[Node B] Received from Node A -- forwarding to Node C', 'out-nodeB');
+                    }, 400);
+                    setTimeout(function() {
+                        addOutput('[Node C] Received relayed data from Node A (via B)', 'out-nodeC');
+                        addOutput('[Node C] nodeId: 1, value: 22.7C, hops: 2', 'out-nodeC');
+                        addOutput('[Mesh] End-to-end relay A -> B -> C successful', 'out-ok');
+                        completeTask(8);
+                    }, 800);
+                }, 3200);
+            }
+
+        }, 1400);
+    };
+
+    window.doReset = function() {
+        clearOutput();
+        addOutput('--- Board reset ---', 'out-info');
+        addOutput('ESP-NOW Mesh Network Lab -- Ready', 'out-info');
+    };
+
+    window.finishLab = function() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-esp-09-lab', { returnUrl: '../../index.html' });
+        } else {
+            window.location.href = '../../index.html';
+        }
+    };
+
+    document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>

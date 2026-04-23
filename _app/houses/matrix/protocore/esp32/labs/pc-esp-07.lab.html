@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FreeRTOS Fundamentals Lab | ProtoCore ESP32 Core 7</title>
+    <style>
+        :root {
+            --blue: #0088ff;
+            --blue-dim: rgba(0,136,255,0.15);
+            --blue-border: rgba(0,136,255,0.3);
+            --green: #34d399;
+            --green-dim: rgba(52,211,153,0.1);
+            --green-border: rgba(52,211,153,0.3);
+            --gold: #ffd700;
+            --gold-dim: rgba(255,215,0,0.1);
+            --gold-border: rgba(255,215,0,0.3);
+            --red: #ef4444;
+            --bg: #040810;
+            --bg2: #081020;
+            --bg3: #0c1628;
+            --text: #dbeafe;
+            --text2: #6b82a0;
+            --border: rgba(0,136,255,0.12);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        .topbar { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .topbar-left { display: flex; align-items: center; gap: 14px; }
+        .back-btn { padding: 6px 14px; background: var(--blue-dim); border: 1px solid var(--blue-border); border-radius: 6px; color: var(--blue); text-decoration: none; font-size: 0.82rem; transition: background 0.2s; }
+        .back-btn:hover { background: rgba(0,136,255,0.25); }
+        .lab-title { font-size: 0.95rem; color: var(--text); }
+        .badge { padding: 3px 10px; border-radius: 10px; font-size: 0.68rem; letter-spacing: 0.06em; }
+        .badge-blue { background: var(--blue-dim); border: 1px solid var(--blue-border); color: var(--blue); }
+        .badge-gold { background: var(--gold-dim); border: 1px solid var(--gold-border); color: var(--gold); }
+        .topbar-right { display: flex; align-items: center; gap: 14px; font-size: 0.82rem; color: var(--text2); }
+        .prog-wrap { width: 130px; height: 5px; background: rgba(0,136,255,0.12); border-radius: 3px; overflow: hidden; }
+        .prog-fill { height: 100%; background: linear-gradient(90deg, var(--blue), #0055cc); border-radius: 3px; transition: width 0.4s ease; }
+        .prog-label { color: var(--blue); font-weight: 500; }
+
+        .workspace { display: grid; grid-template-columns: 1fr 320px; flex: 1; min-height: 0; }
+
+        /* Terminal panel */
+        .terminal-panel { display: flex; flex-direction: column; overflow: hidden; }
+        .term-toolbar { flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+        .tb-btn { padding: 5px 14px; background: var(--blue-dim); border: 1px solid var(--blue-border); border-radius: 5px; color: var(--blue); font-size: 0.82rem; cursor: pointer; transition: background 0.2s; font-weight: 600; }
+        .tb-btn:hover:not(:disabled) { background: rgba(0,136,255,0.25); }
+        .tb-btn:disabled { opacity: 0.35; cursor: default; }
+        .tb-btn.run { background: rgba(52,211,153,0.12); border-color: var(--green-border); color: var(--green); }
+        .tb-btn.run:hover:not(:disabled) { background: rgba(52,211,153,0.22); }
+        .tb-btn.reset-btn { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); color: var(--red); }
+        .toolbar-sep { width: 1px; height: 18px; background: var(--border); }
+        .tb-label { font-size: 0.72rem; color: var(--text2); }
+
+        .code-area { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+        .code-editor-wrap { flex: 1; display: flex; overflow: hidden; }
+        .line-numbers { background: var(--bg2); color: #475569; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.82rem; padding: 12px 8px 12px 12px; text-align: right; line-height: 1.7; user-select: none; overflow: hidden; min-width: 38px; border-right: 1px solid var(--border); }
+        .code-editor { flex: 1; background: var(--bg3); color: #e2e8f0; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.82rem; padding: 12px 14px; border: none; outline: none; resize: none; line-height: 1.7; tab-size: 2; overflow: auto; white-space: pre; }
+        .code-editor::placeholder { color: #384860; }
+
+        .output-panel { flex-shrink: 0; height: 200px; background: rgba(0,0,0,0.4); border-top: 1px solid var(--border); overflow-y: auto; padding: 8px 14px; font-family: 'Consolas', monospace; font-size: 0.75rem; color: var(--text2); line-height: 1.5; }
+        .output-panel .out-ok { color: var(--green); }
+        .output-panel .out-err { color: #f87171; }
+        .output-panel .out-info { color: var(--blue); }
+        .output-panel .out-gold { color: var(--gold); }
+        .output-panel .out-task0 { color: #06b6d4; }
+        .output-panel .out-task1 { color: #a78bfa; }
+
+        /* Task panel */
+        .task-panel { background: var(--bg2); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+        .panel-header { padding: 12px 16px; font-size: 0.7rem; color: var(--text2); letter-spacing: 0.12em; text-transform: uppercase; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .task-list { flex: 1; overflow-y: auto; padding: 12px; }
+        .task-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 9px; padding: 12px 14px; margin-bottom: 8px; transition: all 0.2s; }
+        .task-card.active { border-color: var(--blue); background: rgba(0,136,255,0.06); }
+        .task-card.done { border-color: var(--green-border); background: var(--green-dim); }
+        .task-num { font-size: 0.67rem; color: var(--blue); margin-bottom: 3px; }
+        .task-name { font-size: 0.88rem; color: var(--text); margin-bottom: 3px; display: flex; align-items: center; gap: 6px; }
+        .task-name .chk { font-size: 0.75rem; color: var(--green); margin-left: auto; display: none; }
+        .task-desc { font-size: 0.77rem; color: var(--text2); line-height: 1.45; }
+
+        .finish-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 9000; }
+        .finish-overlay.active { display: flex; }
+        .finish-card { background: var(--bg2); border: 1px solid var(--green-border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .finish-title { font-size: 1.5rem; color: var(--gold); margin-bottom: 10px; }
+        .finish-msg { color: var(--text2); font-size: 0.95rem; margin-bottom: 24px; line-height: 1.6; }
+        .finish-btn { padding: 11px 28px; background: linear-gradient(135deg, var(--blue), #0055cc); border: none; border-radius: 8px; color: #fff; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; }
+        .finish-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <header class="topbar">
+        <div class="topbar-left">
+            <a href="../../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">FreeRTOS Fundamentals Lab</span>
+            <span class="badge badge-blue">ProtoCore</span>
+            <span class="badge badge-gold">Core 7</span>
+        </div>
+        <div class="topbar-right">
+            <span>Tasks:</span>
+            <div class="prog-wrap"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+            <span class="prog-label" id="progLabel">0 / 8</span>
+        </div>
+    </header>
+
+    <div class="workspace">
+        <div class="terminal-panel">
+            <div class="term-toolbar">
+                <button class="tb-btn run" id="btnRun" onclick="doCompileAndRun()">Compile & Upload</button>
+                <button class="tb-btn reset-btn" onclick="doReset()">Reset Board</button>
+                <div class="toolbar-sep"></div>
+                <span class="tb-label">ESP32-DevKit v1 | COM5 | 115200 baud</span>
+            </div>
+
+            <div class="code-area">
+                <div class="code-editor-wrap">
+                    <div class="line-numbers" id="lineNums">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20</div>
+                    <textarea class="code-editor" id="codeEditor" spellcheck="false" placeholder="// Write your FreeRTOS task code here...
+// Use xTaskCreate() or xTaskCreatePinnedToCore()
+// Tasks must contain an infinite loop (for(;;))
+// Use vTaskDelay(pdMS_TO_TICKS(ms)) to yield CPU"></textarea>
+                </div>
+            </div>
+
+            <div class="output-panel" id="outputPanel">
+                <div class="out-info">ESP32 FreeRTOS Lab -- Ready</div>
+                <div class="out-info">Board: ESP32-DevKit v1 (Dual-Core 240MHz, 520KB SRAM)</div>
+            </div>
+        </div>
+
+        <aside class="task-panel">
+            <div class="panel-header">Lab Tasks</div>
+            <div class="task-list" id="taskList"></div>
+        </aside>
+    </div>
+
+    <div class="finish-overlay" id="finishOverlay">
+        <div class="finish-card">
+            <div class="finish-title">FreeRTOS Mastered</div>
+            <div class="finish-msg">You created tasks, pinned them to cores, observed preemptive scheduling, monitored stack usage, and managed task lifecycle with vTaskDelete. The RTOS is yours to command.</div>
+            <button class="finish-btn" onclick="finishLab()">Return to ProtoCore Hub</button>
+        </div>
+    </div>
+
+<script>
+(function () {
+    'use strict';
+
+    var TASKS = [
+        { id: 1, name: 'Create a basic task with xTaskCreate', desc: 'Write a task function with an infinite loop that prints a message using Serial.println. Create it in setup() with xTaskCreate.' },
+        { id: 2, name: 'Use vTaskDelay for timing', desc: 'Add vTaskDelay(pdMS_TO_TICKS(1000)) to your task. Observe the 1-second interval in the output.' },
+        { id: 3, name: 'Create a second task', desc: 'Create a second task that runs at a different interval (e.g., 500ms). Both tasks should print to Serial.' },
+        { id: 4, name: 'Pin a task to Core 0', desc: 'Use xTaskCreatePinnedToCore to pin a task to Core 0. Print the core ID with xPortGetCoreID().' },
+        { id: 5, name: 'Pin a task to Core 1', desc: 'Pin another task to Core 1 and print its core ID. You should see tasks running on both cores simultaneously.' },
+        { id: 6, name: 'Set different priorities', desc: 'Create tasks with different priorities (e.g., 1 and 3). Observe how the higher-priority task runs first when both are ready.' },
+        { id: 7, name: 'Monitor stack usage', desc: 'Call uxTaskGetStackHighWaterMark(NULL) inside a task and print the result. This shows minimum free stack.' },
+        { id: 8, name: 'Delete a task with vTaskDelete', desc: 'Create a task that runs 5 times then calls vTaskDelete(NULL) to terminate itself. Observe it stop while other tasks continue.' }
+    ];
+
+    var completedTasks = {};
+    var uploadCount = 0;
+
+    function init() {
+        buildTaskList();
+        updateProgress();
+        highlightTask(1);
+        var editor = document.getElementById('codeEditor');
+        editor.addEventListener('input', updateLineNumbers);
+        editor.addEventListener('scroll', syncScroll);
+        updateLineNumbers();
+    }
+
+    function buildTaskList() {
+        var list = document.getElementById('taskList');
+        TASKS.forEach(function(t) {
+            var card = document.createElement('div');
+            card.className = 'task-card';
+            card.id = 'tc-' + t.id;
+            card.innerHTML = '<div class="task-num">Task ' + t.id + '</div><div class="task-name">' + t.name + '<span class="chk" id="ck-' + t.id + '">Done</span></div><div class="task-desc">' + t.desc + '</div>';
+            list.appendChild(card);
+        });
+    }
+
+    function updateProgress() {
+        var count = Object.keys(completedTasks).length;
+        var pct = (count / TASKS.length) * 100;
+        document.getElementById('progFill').style.width = pct + '%';
+        document.getElementById('progLabel').textContent = count + ' / ' + TASKS.length;
+    }
+
+    function completeTask(id) {
+        if (completedTasks[id]) return;
+        completedTasks[id] = true;
+        var card = document.getElementById('tc-' + id);
+        if (card) card.className = 'task-card done';
+        var chk = document.getElementById('ck-' + id);
+        if (chk) chk.style.display = 'inline';
+        updateProgress();
+        var next = TASKS.find(function(t) { return !completedTasks[t.id]; });
+        if (next) highlightTask(next.id);
+        if (Object.keys(completedTasks).length === TASKS.length) {
+            setTimeout(function() { document.getElementById('finishOverlay').classList.add('active'); }, 600);
+        }
+    }
+
+    function highlightTask(id) {
+        TASKS.forEach(function(t) {
+            var card = document.getElementById('tc-' + t.id);
+            if (card && !completedTasks[t.id]) {
+                card.className = (t.id === id) ? 'task-card active' : 'task-card';
+            }
+        });
+    }
+
+    function updateLineNumbers() {
+        var editor = document.getElementById('codeEditor');
+        var lines = editor.value.split('\n').length;
+        if (lines < 20) lines = 20;
+        var nums = '';
+        for (var i = 1; i <= lines; i++) nums += i + '\n';
+        document.getElementById('lineNums').textContent = nums;
+    }
+
+    function syncScroll() {
+        document.getElementById('lineNums').scrollTop = document.getElementById('codeEditor').scrollTop;
+    }
+
+    function addOutput(msg, cls) {
+        var panel = document.getElementById('outputPanel');
+        var div = document.createElement('div');
+        div.className = cls || '';
+        div.textContent = msg;
+        div.style.animation = 'fadeIn 0.3s ease';
+        panel.appendChild(div);
+        panel.scrollTop = panel.scrollHeight;
+    }
+
+    function clearOutput() {
+        document.getElementById('outputPanel').innerHTML = '';
+    }
+
+    function getCode() {
+        return document.getElementById('codeEditor').value;
+    }
+
+    function codeHas(pattern) {
+        return pattern.test(getCode());
+    }
+
+    /* Compile & Upload */
+    window.doCompileAndRun = function() {
+        var code = getCode().trim();
+        if (!code) {
+            addOutput('Error: Code editor is empty.', 'out-err');
+            return;
+        }
+
+        clearOutput();
+        addOutput('Compiling for ESP32 (Xtensa LX6, dual-core)...', 'out-info');
+
+        var hasSetup = codeHas(/void\s+setup\s*\(\s*\)/);
+        var hasLoop = codeHas(/void\s+loop\s*\(\s*\)/);
+
+        if (!hasSetup) {
+            setTimeout(function() { addOutput('Error: Missing setup() function.', 'out-err'); }, 400);
+            return;
+        }
+        if (!hasLoop) {
+            setTimeout(function() { addOutput('Error: Missing loop() function.', 'out-err'); }, 400);
+            return;
+        }
+
+        var hasXTaskCreate = codeHas(/xTaskCreate\s*\(/);
+        var hasXTaskCreatePinned = codeHas(/xTaskCreatePinnedToCore\s*\(/);
+        var hasVTaskDelay = codeHas(/vTaskDelay\s*\(/);
+        var hasTaskFunc = codeHas(/void\s+\w+\s*\(\s*void\s*\*/) || codeHas(/void\s+\w+Task\s*\(/);
+        var hasForLoop = codeHas(/for\s*\(\s*;;\s*\)/) || codeHas(/while\s*\(\s*(1|true)\s*\)/);
+        var hasPinnedCore0 = codeHas(/xTaskCreatePinnedToCore[\s\S]*?,\s*0\s*\)/);
+        var hasPinnedCore1 = codeHas(/xTaskCreatePinnedToCore[\s\S]*?,\s*1\s*\)/);
+        var hasGetCoreID = codeHas(/xPortGetCoreID\s*\(\s*\)/);
+        var hasPriority = codeHas(/xTaskCreate(PinnedToCore)?\s*\([\s\S]*?,\s*[2-9]\d*/);
+        var hasHighWaterMark = codeHas(/uxTaskGetStackHighWaterMark\s*\(/);
+        var hasVTaskDelete = codeHas(/vTaskDelete\s*\(/);
+        var hasSecondTask = (code.match(/xTaskCreate(PinnedToCore)?\s*\(/g) || []).length >= 2;
+        var hasSerialPrint = codeHas(/Serial\s*\.\s*print(ln|f)?\s*\(/);
+
+        setTimeout(function() {
+            addOutput('Linking FreeRTOS kernel (ESP-IDF v5.1)...', 'out-info');
+        }, 300);
+
+        setTimeout(function() {
+            var size = 148000 + Math.floor(code.length * 8);
+            addOutput('Sketch uses ' + size + ' bytes (11%) of program storage.', 'out-ok');
+            addOutput('Uploading to ESP32 on COM5...', 'out-info');
+        }, 700);
+
+        setTimeout(function() {
+            addOutput('Writing at 0x10000... [##########] 100%', 'out-info');
+            addOutput('Hard resetting via RTS pin...', 'out-info');
+        }, 1200);
+
+        setTimeout(function() {
+            addOutput('--- Serial Monitor (115200 baud) ---', 'out-gold');
+            uploadCount++;
+
+            if (!hasTaskFunc && !hasXTaskCreate && !hasXTaskCreatePinned) {
+                addOutput('No FreeRTOS tasks detected. Create a task with xTaskCreate().', 'out-err');
+                return;
+            }
+
+            /* Task 1: Basic xTaskCreate */
+            if ((hasXTaskCreate || hasXTaskCreatePinned) && hasForLoop && hasSerialPrint) {
+                addOutput('[Task1] Running on core ' + (hasGetCoreID ? '1' : '1'), 'out-task0');
+                var msgMatch = code.match(/Serial\s*\.\s*println\s*\(\s*"([^"]+)"\s*\)/);
+                var msg = msgMatch ? msgMatch[1] : 'Task running';
+                var t = 0;
+                for (var i = 0; i < 5; i++) {
+                    (function(idx) {
+                        setTimeout(function() { addOutput('[Task1] ' + msg, 'out-task0'); }, 200 * idx);
+                    })(i);
+                    t = 200 * i;
+                }
+                completeTask(1);
+            }
+
+            /* Task 2: vTaskDelay */
+            if (hasVTaskDelay) {
+                setTimeout(function() {
+                    addOutput('[Scheduler] vTaskDelay detected -- CPU yielded to other tasks', 'out-ok');
+                    completeTask(2);
+                }, 1200);
+            }
+
+            /* Task 3: Second task */
+            if (hasSecondTask) {
+                setTimeout(function() {
+                    addOutput('[Task2] Second task active', 'out-task1');
+                    addOutput('[Task1] Still running', 'out-task0');
+                    addOutput('[Task2] Interleaved output confirms multitasking', 'out-task1');
+                    completeTask(3);
+                }, 1800);
+            }
+
+            /* Task 4: Pinned to Core 0 */
+            if (hasPinnedCore0 && hasGetCoreID) {
+                setTimeout(function() {
+                    addOutput('[Core0Task] Running on core 0 (PRO_CPU)', 'out-task0');
+                    addOutput('[Core0Task] xPortGetCoreID() = 0', 'out-task0');
+                    completeTask(4);
+                }, 2200);
+            } else if (hasPinnedCore0) {
+                setTimeout(function() {
+                    addOutput('[Core0Task] Running on core 0', 'out-task0');
+                    completeTask(4);
+                }, 2200);
+            }
+
+            /* Task 5: Pinned to Core 1 */
+            if (hasPinnedCore1 && hasGetCoreID) {
+                setTimeout(function() {
+                    addOutput('[Core1Task] Running on core 1 (APP_CPU)', 'out-task1');
+                    addOutput('[Core1Task] xPortGetCoreID() = 1', 'out-task1');
+                    completeTask(5);
+                }, 2600);
+            } else if (hasPinnedCore1) {
+                setTimeout(function() {
+                    addOutput('[Core1Task] Running on core 1', 'out-task1');
+                    completeTask(5);
+                }, 2600);
+            }
+
+            /* Task 6: Different priorities */
+            if (hasPriority && hasSecondTask) {
+                setTimeout(function() {
+                    addOutput('[Scheduler] Priority comparison:', 'out-gold');
+                    addOutput('[HighPriority] Runs first -- preempts lower priority', 'out-task1');
+                    addOutput('[LowPriority]  Runs when high-priority task blocks', 'out-task0');
+                    completeTask(6);
+                }, 3000);
+            }
+
+            /* Task 7: Stack high water mark */
+            if (hasHighWaterMark) {
+                setTimeout(function() {
+                    addOutput('[StackMonitor] High water mark: 412 words (1648 bytes free)', 'out-ok');
+                    addOutput('[StackMonitor] Stack usage is within safe limits', 'out-ok');
+                    completeTask(7);
+                }, 3400);
+            }
+
+            /* Task 8: vTaskDelete */
+            if (hasVTaskDelete) {
+                setTimeout(function() {
+                    addOutput('[TempTask] Iteration 1/5', 'out-task1');
+                    addOutput('[TempTask] Iteration 2/5', 'out-task1');
+                    addOutput('[TempTask] Iteration 3/5', 'out-task1');
+                    addOutput('[TempTask] Iteration 4/5', 'out-task1');
+                    addOutput('[TempTask] Iteration 5/5 -- calling vTaskDelete(NULL)', 'out-task1');
+                    addOutput('[FreeRTOS] Task "TempTask" deleted. Memory freed.', 'out-gold');
+                    addOutput('[OtherTask] Still running after TempTask deleted', 'out-task0');
+                    completeTask(8);
+                }, 3800);
+            }
+
+        }, 1700);
+    };
+
+    window.doReset = function() {
+        clearOutput();
+        addOutput('--- Board reset ---', 'out-info');
+        addOutput('ESP32 FreeRTOS Lab -- Ready', 'out-info');
+    };
+
+    window.finishLab = function() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-esp-07-lab', { returnUrl: '../../index.html' });
+        } else {
+            window.location.href = '../../index.html';
+        }
+    };
+
+    document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WiFi Fundamentals | ProtoCore ESP32 Core 3</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #040810 0%, #081020 50%, #0a0c1a 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #0088ff; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(4, 8, 16, 0.95);
+            border-top: 1px solid rgba(0, 136, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(0, 136, 255, 0.15); color: #0088ff; border-color: #0088ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #0088ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ffd700; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(0, 136, 255, 0.08); border-left: 3px solid #0088ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(0, 136, 255, 0.08); border: 1px solid rgba(0, 136, 255, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ffd700; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #0088ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #ffd700; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #0088ff; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #0088ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #ffd700;
+            background: rgba(255, 215, 0, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(0, 136, 255, 0.12); border: 1px solid rgba(0, 136, 255, 0.4);
+            color: #0088ff; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #ffd700; line-height: 1.6; white-space: pre;
+        }
+        .code-block .cm { color: #64748b; }
+        .code-block .kw { color: #5cb8ff; }
+        .code-block .fn { color: #ffd700; }
+        .code-block .st { color: #86efac; }
+        .code-block .nu { color: #fdba74; }
+
+        .code-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .code-panel-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.07em; margin-bottom: 5px; }
+
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(0, 136, 255, 0.25);
+            border-radius: 8px; padding: 12px 14px; text-align: center;
+            opacity: 0; animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #0088ff; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes entityPop { from { opacity: 0; transform: scale(0.6) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes glowPulse { 0%, 100% { filter: drop-shadow(0 0 4px rgba(0,136,255,0.3)); } 50% { filter: drop-shadow(0 0 14px rgba(0,136,255,0.9)); } }
+        @keyframes wifiPulse { 0% { opacity: 0.2; transform: scale(0.9); } 50% { opacity: 1; transform: scale(1.05); } 100% { opacity: 0.2; transform: scale(0.9); } }
+        @keyframes dataFlow { 0% { stroke-dashoffset: 14; } 100% { stroke-dashoffset: 0; } }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .code-compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">WiFi Fundamentals -- ProtoCore ESP32 Core 3</h1>
+
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; ProtoCore &nbsp;|&nbsp; ESP32 &nbsp;|&nbsp; Core 3</div>
+        <div class="title-hero">
+            <svg width="360" height="120" viewBox="0 0 360 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Router/AP icon -->
+                <rect x="140" y="50" width="80" height="40" rx="6" fill="rgba(0,136,255,0.1)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: glowPulse 2.5s ease-in-out infinite;"/>
+                <text x="180" y="72" text-anchor="middle" font-size="8" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">ESP32</text>
+                <text x="180" y="84" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">802.11 b/g/n</text>
+                <!-- WiFi arcs -->
+                <path d="M180,45 Q180,35 195,30" stroke="rgba(255,215,0,0.5)" stroke-width="2" fill="none"
+                    style="animation: wifiPulse 1.5s ease-in-out infinite;"/>
+                <path d="M180,45 Q180,28 200,20" stroke="rgba(255,215,0,0.35)" stroke-width="1.5" fill="none"
+                    style="animation: wifiPulse 1.5s ease-in-out infinite 0.2s;"/>
+                <path d="M180,45 Q180,20 205,10" stroke="rgba(255,215,0,0.2)" stroke-width="1" fill="none"
+                    style="animation: wifiPulse 1.5s ease-in-out infinite 0.4s;"/>
+                <path d="M180,45 Q180,35 165,30" stroke="rgba(255,215,0,0.5)" stroke-width="2" fill="none"
+                    style="animation: wifiPulse 1.5s ease-in-out infinite 0.1s;"/>
+                <path d="M180,45 Q180,28 160,20" stroke="rgba(255,215,0,0.35)" stroke-width="1.5" fill="none"
+                    style="animation: wifiPulse 1.5s ease-in-out infinite 0.3s;"/>
+                <path d="M180,45 Q180,20 155,10" stroke="rgba(255,215,0,0.2)" stroke-width="1" fill="none"
+                    style="animation: wifiPulse 1.5s ease-in-out infinite 0.5s;"/>
+                <!-- Device icons -->
+                <rect x="40" y="70" width="50" height="30" rx="4" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="65" y="88" text-anchor="middle" font-size="6" fill="#3ab577" font-family="Segoe UI,sans-serif">Phone</text>
+                <rect x="270" y="70" width="50" height="30" rx="4" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="295" y="88" text-anchor="middle" font-size="6" fill="#a78bfa" font-family="Segoe UI,sans-serif">Laptop</text>
+                <!-- Connection lines -->
+                <line x1="95" y1="85" x2="137" y2="75" stroke="rgba(58,181,119,0.3)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="12;0" dur="1s" repeatCount="indefinite"/></line>
+                <line x1="265" y1="85" x2="223" y2="75" stroke="rgba(167,139,250,0.3)" stroke-width="1" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="12;0" dur="1s" repeatCount="indefinite"/></line>
+            </svg>
+            <div class="big-title">
+                <span class="accent">WiFi</span> Fundamentals
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Station Mode &nbsp;|&nbsp; AP Mode &nbsp;|&nbsp; Scanning &nbsp;|&nbsp; Events &nbsp;|&nbsp; DHCP &nbsp;|&nbsp; Security
+            </div>
+        </div>
+        <div class="scenario-strip">
+            The ESP32's killer feature is built-in WiFi. No shields, no add-on modules -- the radio is on the same chip as the processor. In this core you learn to connect to networks, create hotspots, scan the airwaves, and handle the connection lifecycle. This is where your microcontroller joins the network.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>ProtoCore ESP32</span>
+            <span>Core 3 of 10</span>
+            <span>Matrix House</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- 802.11 OVERVIEW ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">802.11 <span class="accent">b/g/n</span> at 2.4GHz</div>
+        <div class="slide-subtitle">The ESP32 supports WiFi on the 2.4GHz band. Here is what that means in practical terms.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">802.11b (1999)</div>
+                <div class="card-desc">Up to 11 Mbps. Long range, high compatibility. The slowest standard but still useful for IoT devices that send small packets. The ESP32 supports it for backward compatibility with old access points.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">802.11g (2003)</div>
+                <div class="card-desc">Up to 54 Mbps. Backward compatible with 802.11b. Good balance of speed and range. Most IoT devices negotiate this standard automatically.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">802.11n (2009)</div>
+                <div class="card-desc">Up to 150 Mbps (single spatial stream on 2.4GHz). The fastest standard the ESP32 supports. Uses wider channels and MIMO techniques. Preferred when available.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">2.4GHz Only</div>
+                <div class="card-desc">The classic ESP32 operates exclusively on the 2.4GHz band. It cannot connect to 5GHz networks. If your router broadcasts separate SSIDs for 2.4GHz and 5GHz, the ESP32 can only see the 2.4GHz one. Most routers also have a combined mode where the ESP32 will auto-select the 2.4GHz band.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Range and Interference</div>
+                <div class="card-desc">2.4GHz has better wall penetration than 5GHz but more interference (microwaves, Bluetooth, other WiFi devices, baby monitors). The ESP32's onboard PCB antenna has a typical range of 10-30 meters indoors. External antenna connectors (U.FL) on some boards extend this significantly.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">For IoT, 2.4GHz Is Actually Ideal</div>
+            IoT devices typically send small amounts of data infrequently. They need range and wall penetration more than raw speed. 2.4GHz delivers both. A sensor that sends a temperature reading every 30 seconds does not need 5GHz gigabit speeds -- it needs reliable connectivity through walls and across rooms.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- STATION MODE ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title"><span class="accent">Station</span> Mode -- Connect to WiFi</div>
+        <div class="slide-subtitle">Station mode (STA) connects the ESP32 to an existing WiFi network, just like your phone or laptop.</div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">&lt;WiFi.h&gt;</span>
+
+<span class="kw">const char</span>* ssid     = <span class="st">"YourNetworkName"</span>;
+<span class="kw">const char</span>* password = <span class="st">"YourPassword"</span>;
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    <span class="fn">Serial.begin</span>(<span class="nu">115200</span>);
+    <span class="fn">WiFi.mode</span>(<span class="fn">WIFI_STA</span>);
+    <span class="fn">WiFi.begin</span>(ssid, password);
+
+    <span class="fn">Serial.print</span>(<span class="st">"Connecting"</span>);
+    <span class="kw">while</span> (<span class="fn">WiFi.status</span>() != <span class="fn">WL_CONNECTED</span>) {
+        <span class="fn">delay</span>(<span class="nu">500</span>);
+        <span class="fn">Serial.print</span>(<span class="st">"."</span>);
+    }
+    <span class="fn">Serial.println</span>(<span class="st">"\nConnected!"</span>);
+    <span class="fn">Serial.print</span>(<span class="st">"IP: "</span>);
+    <span class="fn">Serial.println</span>(<span class="fn">WiFi.localIP</span>());
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">WiFi.mode(WIFI_STA)</div>
+                <div class="card-desc">Explicitly sets the ESP32 to station mode. The ESP32 defaults to STA+AP mode if not set. Best practice is to always declare the mode explicitly. <span class="ic">WIFI_STA</span> means "client only" -- it connects to an access point but does not create one.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">WiFi.status()</div>
+                <div class="card-desc">Returns the connection state. <span class="ic">WL_CONNECTED</span> means success. Other values: <span class="ic">WL_DISCONNECTED</span>, <span class="ic">WL_CONNECT_FAILED</span> (wrong password), <span class="ic">WL_NO_SSID_AVAIL</span> (network not found). Always check status before assuming connectivity.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Security: Never Hardcode Credentials in Production</div>
+            The example above hardcodes the SSID and password directly in the source code. This is fine for learning and prototyping. In production, store credentials in NVS (non-volatile storage) or use a WiFi provisioning flow where the user enters credentials via a captive portal or Bluetooth.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- AP MODE ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title"><span class="accent">AP</span> Mode -- Create a Hotspot</div>
+        <div class="slide-subtitle">Access Point mode turns the ESP32 into a WiFi hotspot. Other devices connect to it directly.</div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">&lt;WiFi.h&gt;</span>
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    <span class="fn">Serial.begin</span>(<span class="nu">115200</span>);
+    <span class="fn">WiFi.mode</span>(<span class="fn">WIFI_AP</span>);
+    <span class="fn">WiFi.softAP</span>(<span class="st">"ESP32-Hotspot"</span>, <span class="st">"password123"</span>);
+
+    <span class="fn">Serial.print</span>(<span class="st">"AP IP: "</span>);
+    <span class="fn">Serial.println</span>(<span class="fn">WiFi.softAPIP</span>());
+    <span class="cm">// Default AP IP: 192.168.4.1</span>
+}
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+    <span class="fn">Serial.print</span>(<span class="st">"Connected stations: "</span>);
+    <span class="fn">Serial.println</span>(<span class="fn">WiFi.softAPgetStationNum</span>());
+    <span class="fn">delay</span>(<span class="nu">5000</span>);
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">When to Use AP Mode</div>
+                <div class="card-desc">Initial device configuration (user connects to ESP32, opens a web page, enters their real WiFi credentials). Direct device-to-phone communication without a router. Field deployments where no infrastructure WiFi exists. Sensor hubs that collect data from nearby devices.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">AP Limitations</div>
+                <div class="card-desc">Maximum 10 connected stations (configurable, default is 4). No internet access through the AP unless you also connect to a router in STA+AP mode. The AP runs its own DHCP server, assigning IPs in the 192.168.4.x range. Channel defaults to 1 but is configurable.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">softAP() Parameters</div>
+            <span class="ic">WiFi.softAP(ssid, password, channel, hidden, max_connection)</span>. Password must be at least 8 characters for WPA2. Pass an empty string for an open network (not recommended). Channel 1-13 (varies by region). Hidden = 1 hides the SSID from scans. max_connection caps the number of clients.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- STA+AP SIMULTANEOUS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title"><span class="accent">STA+AP</span> Simultaneous Mode</div>
+        <div class="slide-subtitle">The ESP32 can connect to a WiFi network AND run its own hotspot at the same time.</div>
+
+        <div class="diagram-center">
+            <svg width="650" height="130" viewBox="0 0 650 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Router -->
+                <rect x="30" y="30" width="120" height="70" rx="8" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="90" y="55" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Your Router</text>
+                <text x="90" y="72" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Internet access</text>
+                <text x="90" y="84" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">192.168.1.x</text>
+
+                <!-- ESP32 -->
+                <rect x="250" y="15" width="150" height="100" rx="8" fill="rgba(0,136,255,0.08)" stroke="#0088ff" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="325" y="38" text-anchor="middle" font-size="10" fill="#0088ff" font-weight="700" font-family="Segoe UI,sans-serif">ESP32</text>
+                <text x="325" y="55" text-anchor="middle" font-size="7" fill="#ffd700" font-family="Segoe UI,sans-serif">WIFI_AP_STA</text>
+                <text x="325" y="72" text-anchor="middle" font-size="7" fill="#3ab577" font-family="Segoe UI,sans-serif">STA: 192.168.1.50</text>
+                <text x="325" y="86" text-anchor="middle" font-size="7" fill="#a78bfa" font-family="Segoe UI,sans-serif">AP: 192.168.4.1</text>
+                <text x="325" y="100" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">Both interfaces active</text>
+
+                <!-- Phone -->
+                <rect x="500" y="30" width="120" height="70" rx="8" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="560" y="55" text-anchor="middle" font-size="9" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Phone</text>
+                <text x="560" y="72" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Connected to AP</text>
+                <text x="560" y="84" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">192.168.4.2</text>
+
+                <!-- Arrows -->
+                <line x1="154" y1="65" x2="247" y2="65" stroke="rgba(58,181,119,0.4)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/></line>
+                <line x1="403" y1="65" x2="496" y2="65" stroke="rgba(167,139,250,0.4)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/></line>
+            </svg>
+        </div>
+
+        <div class="code-block"><span class="fn">WiFi.mode</span>(<span class="fn">WIFI_AP_STA</span>);
+<span class="fn">WiFi.begin</span>(ssid, password);         <span class="cm">// Connect to router (STA)</span>
+<span class="fn">WiFi.softAP</span>(<span class="st">"ESP32-Config"</span>, <span class="st">"pass"</span>);  <span class="cm">// Create hotspot (AP)</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">Use Case: Provisioning</div>
+                <div class="card-desc">Start in AP mode so the user can connect and enter WiFi credentials via a web page. Once configured, switch to STA mode (or STA+AP) to connect to the real network while keeping the configuration portal accessible as a fallback.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Use Case: Bridge</div>
+                <div class="card-desc">The ESP32 connects to the internet via STA, and nearby devices connect to it via AP. The ESP32 acts as a local gateway -- collecting sensor data from AP clients and forwarding it to a cloud server over the STA connection.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- WIFI SCANNING ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">WiFi <span class="accent">Scanning</span></div>
+        <div class="slide-subtitle">Discover nearby networks: SSID, signal strength (RSSI), channel, and encryption type.</div>
+
+        <div class="code-block"><span class="kw">#include</span> <span class="st">&lt;WiFi.h&gt;</span>
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    <span class="fn">Serial.begin</span>(<span class="nu">115200</span>);
+    <span class="fn">WiFi.mode</span>(<span class="fn">WIFI_STA</span>);
+    <span class="fn">WiFi.disconnect</span>();  <span class="cm">// Ensure clean state</span>
+
+    <span class="kw">int</span> n = <span class="fn">WiFi.scanNetworks</span>();
+    <span class="fn">Serial.println</span>(<span class="st">"Scan complete"</span>);
+
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nu">0</span>; i &lt; n; i++) {
+        <span class="fn">Serial.printf</span>(<span class="st">"%2d) %-32s  Ch:%2d  RSSI:%4d  %s\n"</span>,
+            i + <span class="nu">1</span>,
+            <span class="fn">WiFi.SSID</span>(i).c_str(),
+            <span class="fn">WiFi.channel</span>(i),
+            <span class="fn">WiFi.RSSI</span>(i),
+            (<span class="fn">WiFi.encryptionType</span>(i) == <span class="fn">WIFI_AUTH_OPEN</span>) ? <span class="st">"Open"</span> : <span class="st">"Encrypted"</span>
+        );
+    }
+}</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">RSSI</div>
+                <div class="card-desc">Received Signal Strength Indicator, measured in dBm. -30 = excellent (very close to AP). -50 = good. -70 = fair. -80 = weak. -90 = barely usable. Useful for determining optimal device placement or building a signal strength map.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Channel</div>
+                <div class="card-desc">2.4GHz WiFi uses channels 1-13. Non-overlapping channels: 1, 6, 11. Knowing which channel a network uses helps avoid interference. The ESP32 scans all channels during <span class="ic">WiFi.scanNetworks()</span>.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Encryption Type</div>
+                <div class="card-desc"><span class="ic">WIFI_AUTH_OPEN</span>, <span class="ic">WIFI_AUTH_WEP</span>, <span class="ic">WIFI_AUTH_WPA_PSK</span>, <span class="ic">WIFI_AUTH_WPA2_PSK</span>, <span class="ic">WIFI_AUTH_WPA3_PSK</span>. The scan reveals the security posture of every nearby network. Useful for security auditing labs.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- WIFI EVENTS ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">WiFi <span class="accent">Events</span> and Auto-Reconnection</div>
+        <div class="slide-subtitle">React to connection changes without polling. Event callbacks fire when WiFi state changes.</div>
+
+        <div class="code-block"><span class="kw">void</span> <span class="fn">onWiFiEvent</span>(<span class="kw">WiFiEvent_t</span> event) {
+    <span class="kw">switch</span> (event) {
+        <span class="kw">case</span> <span class="fn">ARDUINO_EVENT_WIFI_STA_CONNECTED</span>:
+            <span class="fn">Serial.println</span>(<span class="st">"Connected to AP"</span>);
+            <span class="kw">break</span>;
+        <span class="kw">case</span> <span class="fn">ARDUINO_EVENT_WIFI_STA_GOT_IP</span>:
+            <span class="fn">Serial.print</span>(<span class="st">"Got IP: "</span>);
+            <span class="fn">Serial.println</span>(<span class="fn">WiFi.localIP</span>());
+            <span class="kw">break</span>;
+        <span class="kw">case</span> <span class="fn">ARDUINO_EVENT_WIFI_STA_DISCONNECTED</span>:
+            <span class="fn">Serial.println</span>(<span class="st">"Disconnected -- reconnecting..."</span>);
+            <span class="fn">WiFi.reconnect</span>();
+            <span class="kw">break</span>;
+    }
+}
+
+<span class="kw">void</span> <span class="fn">setup</span>() {
+    <span class="fn">WiFi.onEvent</span>(onWiFiEvent);
+    <span class="fn">WiFi.begin</span>(ssid, password);
+}</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Event-Driven Architecture</div>
+                <div class="card-desc">Instead of polling <span class="ic">WiFi.status()</span> in every loop iteration, register an event handler with <span class="ic">WiFi.onEvent()</span>. The callback fires asynchronously when state changes occur. This is cleaner and more responsive than polling.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Auto-Reconnection</div>
+                <div class="card-desc">WiFi connections drop. Routers reboot, signals fluctuate, interference spikes. Robust ESP32 code always handles disconnection gracefully. Call <span class="ic">WiFi.reconnect()</span> in the disconnect event handler. Add a backoff delay for persistent failures.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">FreeRTOS Connection</div>
+            WiFi events run on FreeRTOS tasks under the hood. The WiFi stack runs on Core 0, and event callbacks execute in the system event loop task. Core 7 explains why this works -- how FreeRTOS schedules tasks across both cores and why your loop() on Core 1 is not blocked by WiFi processing on Core 0.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- STATIC IP vs DHCP ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Static IP vs <span class="accent">DHCP</span></div>
+        <div class="slide-subtitle">By default, the ESP32 gets an IP address from DHCP. You can also assign a fixed IP.</div>
+
+        <div class="code-compare">
+            <div>
+                <div class="code-panel-label" style="color: #0088ff;">DHCP (Default)</div>
+                <div class="code-block"><span class="cm">// Let the router assign an IP</span>
+<span class="fn">WiFi.begin</span>(ssid, password);
+<span class="cm">// IP assigned automatically</span>
+<span class="cm">// Changes if DHCP lease expires</span>
+<span class="cm">// Simplest approach</span>
+<span class="cm">// Good for most projects</span></div>
+            </div>
+            <div>
+                <div class="code-panel-label" style="color: #ffd700;">Static IP</div>
+                <div class="code-block"><span class="kw">IPAddress</span> ip(<span class="nu">192,168,1,200</span>);
+<span class="kw">IPAddress</span> gw(<span class="nu">192,168,1,1</span>);
+<span class="kw">IPAddress</span> sn(<span class="nu">255,255,255,0</span>);
+<span class="kw">IPAddress</span> dns(<span class="nu">8,8,8,8</span>);
+
+<span class="fn">WiFi.config</span>(ip, gw, sn, dns);
+<span class="fn">WiFi.begin</span>(ssid, password);
+<span class="cm">// Always at 192.168.1.200</span></div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">When to Use DHCP</div>
+                <div class="card-desc">Most projects. The router manages IP assignment, and you read the IP after connection with <span class="ic">WiFi.localIP()</span>. For devices that report to a cloud server (MQTT, HTTP POST), the device initiates the connection, so its local IP does not matter.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">When to Use Static IP</div>
+                <div class="card-desc">When the ESP32 runs a web server that other devices need to find. When you need predictable addressing for firewall rules. When DHCP is slow and you want faster connection times (skipping DHCP negotiation saves 1-3 seconds on boot).</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Static IP Gotcha</div>
+            If you set a static IP, you must also set the gateway, subnet mask, and DNS server. If any of these are wrong, the ESP32 will appear connected but will not be able to reach the internet. The gateway is usually your router's IP. DNS can be your router or a public DNS like 8.8.8.8 (Google) or 1.1.1.1 (Cloudflare).
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- WIFI SECURITY ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">WiFi <span class="accent">Security</span></div>
+        <div class="slide-subtitle">Understanding WPA2, WPA3, and the security implications of IoT devices on your network.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">WPA2-PSK (Current Standard)</div>
+                <div class="card-desc">Pre-Shared Key authentication. All devices on the network share the same password. AES-CCMP encryption. The ESP32 fully supports WPA2-PSK. This is what most home and office networks use today. Secure enough for most IoT applications when combined with a strong password.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">WPA3-PSK (Next Generation)</div>
+                <div class="card-desc">Simultaneous Authentication of Equals (SAE) replaces the 4-way handshake. Resistant to offline dictionary attacks. Forward secrecy protects past traffic even if the password is later compromised. The ESP32 supports WPA3 in newer IDF versions (v4.3+). Not all access points support WPA3 yet.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Open Networks</div>
+                <div class="card-desc">No encryption, no authentication. Anyone can see all traffic. Never use for anything sensitive. The ESP32 can connect to open networks but should only do so for initial provisioning or testing.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">WEP (Broken)</div>
+                <div class="card-desc">Wired Equivalent Privacy from 1999. Cracked in minutes with freely available tools. The ESP32 supports WEP for backward compatibility, but you should never use it. If your network uses WEP, upgrade immediately.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">WPA2-Enterprise</div>
+                <div class="card-desc">Uses RADIUS authentication with individual usernames and passwords (or certificates). Common in corporate and university networks. The ESP32 supports WPA2-Enterprise with EAP-PEAP and EAP-TTLS. Configuration is more complex but provides per-user authentication.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- SECURITY BEST PRACTICES ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">IoT <span class="accent">Security</span> Best Practices</div>
+        <div class="slide-subtitle">Your ESP32 is a network device. Treat it like one.</div>
+
+        <div class="hex-grid">
+            <div class="hex-cell">
+                <div class="hex-title">Use HTTPS</div>
+                <div class="hex-desc">Never send sensitive data over plain HTTP. The ESP32 supports TLS/SSL for encrypted connections. Use WiFiClientSecure for HTTPS requests. Pin certificates for extra security.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Credential Storage</div>
+                <div class="hex-desc">Store WiFi passwords and API keys in NVS (Non-Volatile Storage), not in source code. Use the Preferences library for simple key-value storage that survives reboots and reflashing.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">OTA Updates</div>
+                <div class="hex-desc">Over-The-Air firmware updates should be signed and verified. An attacker on the network could push malicious firmware if OTA is unprotected. Use ArduinoOTA with a password at minimum.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Network Isolation</div>
+                <div class="hex-desc">Put IoT devices on a separate VLAN or guest network. If an ESP32 is compromised, the attacker should not have access to your main network, file shares, or other sensitive devices.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Minimize Attack Surface</div>
+                <div class="hex-desc">Disable WiFi when not needed. Do not run a web server if you only need outbound connections. Close ports you do not use. The fewer services exposed, the smaller the attack surface.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Monitor and Log</div>
+                <div class="hex-desc">Log connection attempts, failed authentications, and unusual traffic patterns. The Serial Monitor is your first debugging tool, but consider sending logs to a syslog server for persistent monitoring.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- PRACTICAL PATTERNS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Practical WiFi <span class="accent">Patterns</span></div>
+        <div class="slide-subtitle">Common patterns you will use in almost every WiFi project.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Connection with Timeout</div>
+                <div class="card-desc">Do not wait forever for WiFi to connect. Set a timeout (10-30 seconds). If connection fails, enter AP mode so the user can reconfigure. This prevents the device from hanging indefinitely if the network is down or credentials are wrong.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Hostname</div>
+                <div class="card-desc">Set a custom hostname so the ESP32 appears with a readable name on your router's device list: <span class="ic">WiFi.setHostname("esp32-sensor")</span>. Call this before <span class="ic">WiFi.begin()</span>. Much easier than identifying devices by MAC address.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">MAC Address</div>
+                <div class="card-desc">Every ESP32 has a unique MAC address. Read it with <span class="ic">WiFi.macAddress()</span>. Useful for device identification, MAC-based access control lists on routers, and device provisioning systems. The MAC persists across reboots and reflashing.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">WiFi Power Management</div>
+                <div class="card-desc">The WiFi radio draws ~100-170mA when active. For battery projects, use <span class="ic">WiFi.setSleep(true)</span> for light sleep mode or disconnect WiFi entirely between transmissions. Deep sleep (covered in a later core) can reduce consumption to microamps.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// Connection with timeout pattern</span>
+<span class="fn">WiFi.begin</span>(ssid, password);
+<span class="kw">unsigned long</span> startAttempt = <span class="fn">millis</span>();
+<span class="kw">while</span> (<span class="fn">WiFi.status</span>() != <span class="fn">WL_CONNECTED</span> &&
+       <span class="fn">millis</span>() - startAttempt &lt; <span class="nu">15000</span>) {
+    <span class="fn">delay</span>(<span class="nu">100</span>);
+}
+<span class="kw">if</span> (<span class="fn">WiFi.status</span>() != <span class="fn">WL_CONNECTED</span>) {
+    <span class="fn">Serial.println</span>(<span class="st">"Failed -- starting AP mode"</span>);
+    <span class="fn">WiFi.mode</span>(<span class="fn">WIFI_AP</span>);
+    <span class="fn">WiFi.softAP</span>(<span class="st">"ESP32-Setup"</span>);
+}</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- SUMMARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Core 3 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Everything you need to remember from this presentation.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>The ESP32 supports 802.11 b/g/n on 2.4GHz only.</strong> No 5GHz support on the classic ESP32. Range is typically 10-30 meters indoors with the onboard antenna. 2.4GHz provides good wall penetration for IoT applications.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Three WiFi modes: STA, AP, and STA+AP.</strong> Station mode connects to a router. AP mode creates a hotspot. STA+AP runs both simultaneously. Use <code>WiFi.mode()</code> to set explicitly.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>WiFi scanning reveals SSID, RSSI, channel, and encryption type.</strong> Use <code>WiFi.scanNetworks()</code> to discover nearby networks. RSSI values: -30 excellent, -50 good, -70 fair, -80 weak.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>WiFi events replace polling.</strong> Register callbacks with <code>WiFi.onEvent()</code>. Handle disconnection by calling <code>WiFi.reconnect()</code>. WiFi events run on FreeRTOS tasks under the hood. Core 7 explains why this works.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Security is not optional.</strong> Use WPA2 or WPA3, store credentials in NVS, use HTTPS for data transmission, isolate IoT devices on a separate network, and always implement connection timeout with AP-mode fallback.</span></div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Core 4 -- Web Server</strong> &nbsp;|&nbsp; HTTP Server, HTML Pages, REST APIs, WebSocket
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; ProtoCore</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'pc-esp-03-pres', { returnUrl: '../../index.html' });
+        }
+    }
+</script>
+</body>
+</html>
