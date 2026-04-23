@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Core 13 Quiz: Displays and User Interfaces | ProtoCore ESP32</title>
+    <link rel="stylesheet" href="../../../../../styles/quiz-engine.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #040810 0%, #081020 50%, #0a0c1a 100%);
+            display: flex;
+            flex-direction: column;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        .page-header {
+            padding: 15px 30px;
+            background: rgba(0, 0, 0, 0.4);
+            border-bottom: 1px solid rgba(0, 136, 255, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .page-header a {
+            color: #0088ff;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+        .page-header a:hover { opacity: 0.8; }
+        .brand {
+            font-weight: 600;
+            color: #e0e0e0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .quiz-wrapper {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 30px 20px;
+        }
+        #quiz-container { width: 100%; max-width: 800px; }
+    </style>
+</head>
+<body>
+    <header class="page-header">
+        <a href="../../index.html">&larr; Back to ProtoCore Hub</a>
+        <span class="brand"><img src="/assets/images/icons/icon-brain.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Hexworth Prime</span>
+    </header>
+    <main class="quiz-wrapper">
+        <div id="quiz-container"></div>
+    </main>
+    <script src="../../../../../components/ProgressSystem.js"></script>
+    <script src="../../../../../components/QuizEngine.js"></script>
+    <script>
+        const quiz = new QuizEngine({
+            containerId: 'quiz-container',
+            title: 'Core 13: Displays and User Interfaces',
+            description: 'Test your understanding of SPI TFT displays, I2C OLEDs, TFT_eSPI, LVGL, touch input, sprites, DMA buffering, and T-Display boards.',
+            passingScore: 80,
+            showFeedback: true,
+            randomize: true,
+            theme: 'matrix',
+            achievement: 'pc-esp-13-quiz',
+            moduleId: 'pc-esp-13-quiz',
+            serverGrading: true,
+            houseId: 'matrix',
+            trackProgress: true,
+
+            questions: [
+                {
+                    question: 'What color depth do most SPI TFT displays used with ESP32 support?',
+                    options: [
+                        '1-bit monochrome',
+                        '8-bit (256 colors)',
+                        '16-bit RGB565 (65,536 colors)',
+                        '24-bit RGB888 (16.7 million colors)'
+                    ],
+                    explanation: 'Most SPI TFT displays used with ESP32 use 16-bit RGB565 color encoding: 5 bits for red, 6 bits for green, and 5 bits for blue, giving 65,536 possible colors. Each pixel takes 2 bytes of memory. This is a compromise between color fidelity and bandwidth -- 24-bit color would require 50% more SPI bandwidth per frame, which would reduce the achievable frame rate. RGB565 provides visually good color at half the cost of full 24-bit color.'
+                },
+                {
+                    question: 'How many bytes does a full 240x320 framebuffer require at RGB565?',
+                    options: [
+                        '38,400 bytes',
+                        '76,800 bytes',
+                        '153,600 bytes',
+                        '230,400 bytes'
+                    ],
+                    explanation: 'A 240x320 framebuffer at RGB565 (2 bytes per pixel) requires 240 x 320 x 2 = 153,600 bytes. The ESP32 has 520KB of SRAM, so a single full-screen framebuffer uses about 30% of available RAM. This is why sprite-based rendering (drawing to a smaller off-screen buffer and pushing sections) is common on ESP32 -- it reduces memory usage while still eliminating screen flicker.'
+                },
+                {
+                    question: 'What is the I2C address of the SSD1306 OLED display?',
+                    options: [
+                        '0x27',
+                        '0x3C',
+                        '0x48',
+                        '0x68'
+                    ],
+                    explanation: 'The SSD1306 OLED display typically uses I2C address 0x3C (some variants use 0x3D, selectable via a solder jumper or resistor on the module). 0x27 is commonly used by I2C LCD backpacks. 0x48 is used by ADS1115 ADC modules. 0x68 is used by MPU6050 IMU and DS3231 RTC modules. If the OLED does not respond, run an I2C scanner sketch to verify the address.'
+                },
+                {
+                    question: 'Why is TFT_eSPI faster than Adafruit GFX on ESP32?',
+                    options: [
+                        'It uses a newer version of the SPI protocol',
+                        'It uses compile-time configuration and ESP32-specific SPI DMA optimizations',
+                        'It compresses pixel data before transmission',
+                        'It uses the second CPU core exclusively for display updates'
+                    ],
+                    explanation: 'TFT_eSPI is faster because it uses compile-time configuration (User_Setup.h) that lets the compiler optimize SPI transactions at build time, eliminating runtime overhead. It also uses ESP32-specific SPI DMA transfers, optimized fill algorithms, and hardware-accelerated features. Adafruit GFX is designed to be portable across all Arduino-compatible boards, so it cannot use platform-specific optimizations. TFT_eSPI is ESP32-only (and a few other platforms) but achieves 2-5x the performance.'
+                },
+                {
+                    question: 'What is the purpose of a TFT_eSprite in the TFT_eSPI library?',
+                    options: [
+                        'To animate character graphics on screen',
+                        'To draw to an off-screen RAM buffer and push the completed frame to the display in one transaction',
+                        'To store font data in compressed format',
+                        'To manage multiple display controllers simultaneously'
+                    ],
+                    explanation: 'A TFT_eSprite is an off-screen RAM buffer (framebuffer) that you draw to before pushing the completed image to the display. This eliminates screen flicker because the user never sees the intermediate drawing steps -- they only see the final composed frame when pushSprite() transfers the entire buffer to the display via SPI. Without sprites, each draw call immediately updates the screen, causing visible flickering during complex screen updates.'
+                },
+                {
+                    question: 'What does LVGL stand for?',
+                    options: [
+                        'Low Voltage Graphics Library',
+                        'Light and Versatile Graphics Library',
+                        'Linux Visual GUI Layer',
+                        'Lightweight Vector Graphics Loader'
+                    ],
+                    explanation: 'LVGL stands for Light and Versatile Graphics Library. It is an open-source embedded GUI framework that provides professional-grade UI widgets (buttons, sliders, charts, gauges, keyboards) for microcontrollers. LVGL handles layout, animation, event callbacks, dirty rectangle tracking, and input device management. It runs on ESP32 with TFT_eSPI as the display driver, bringing desktop-class UI capabilities to embedded devices.'
+                },
+                {
+                    question: 'What three things does LVGL need to run on ESP32?',
+                    options: [
+                        'A GPU, a framebuffer, and a mouse driver',
+                        'A display driver, a tick source, and a task handler',
+                        'WiFi connection, cloud API key, and a web browser',
+                        'An RTOS, a file system, and a network stack'
+                    ],
+                    explanation: 'LVGL requires three things: (1) a display driver (flush callback that pushes pixels to the screen -- TFT_eSPI serves this role), (2) a tick source (calling lv_tick_inc() every millisecond so LVGL can track time for animations and input), and (3) a task handler (calling lv_timer_handler() in your loop so LVGL can process events, update animations, and redraw dirty regions). These three components connect LVGL to the ESP32 hardware.'
+                },
+                {
+                    question: 'What is the difference between the XPT2046 and FT6236 touch controllers?',
+                    options: [
+                        'XPT2046 is capacitive, FT6236 is resistive',
+                        'XPT2046 is resistive (SPI), FT6236 is capacitive (I2C)',
+                        'XPT2046 supports multi-touch, FT6236 does not',
+                        'They are identical controllers from different manufacturers'
+                    ],
+                    explanation: 'The XPT2046 is a resistive touch controller that communicates over SPI and requires calibration (mapping raw ADC values to screen coordinates). It works with gloves and stylus but is less accurate. The FT6236 is a capacitive touch controller that uses I2C and supports multi-touch (2 points). It reports screen coordinates directly without calibration and is more accurate and responsive, but does not work with gloves.'
+                },
+                {
+                    question: 'Why should you avoid using delay() in ESP32 display code?',
+                    options: [
+                        'delay() damages the TFT display controller',
+                        'delay() freezes all processing -- no touch response, no UI updates, no animations',
+                        'delay() conflicts with the SPI bus clock',
+                        'delay() is not supported on ESP32'
+                    ],
+                    explanation: 'delay() blocks the CPU for the specified duration. During that time, no touch input is processed, no LVGL animations run, no screen updates occur, and no sensor readings happen. The UI appears frozen. Instead, use millis()-based timing: check if enough time has elapsed, perform the action, then return to the loop immediately. This allows the display, touch input, and animations to continue running smoothly between sensor reads. LVGL handles this automatically with its built-in timer system.'
+                },
+                {
+                    question: 'What display does the LILYGO T-Display-S3 include?',
+                    options: [
+                        '0.96" SSD1306 OLED',
+                        '1.9" ST7789 TFT (170x320)',
+                        '2.4" ILI9341 TFT (240x320)',
+                        '3.5" ILI9488 TFT (320x480)'
+                    ],
+                    explanation: 'The LILYGO T-Display-S3 includes a 1.9-inch ST7789 TFT display with 170x320 resolution. It integrates an ESP32-S3 with 16MB flash and 8MB PSRAM, USB-C, and optional capacitive touch. TFT_eSPI includes a pre-built configuration file for this board (Setup206_LilyGo_T_Display_S3.h). The PSRAM makes it ideal for LVGL with large display buffers. It is currently the most popular ESP32 display development board.'
+                },
+                {
+                    question: 'What does DMA do for display rendering on ESP32?',
+                    options: [
+                        'It compresses the display data to reduce memory usage',
+                        'It transfers framebuffer data to the display via SPI without CPU involvement',
+                        'It accelerates the drawing of shapes using hardware geometry units',
+                        'It manages the display backlight brightness automatically'
+                    ],
+                    explanation: 'DMA (Direct Memory Access) allows the SPI peripheral to transfer the framebuffer data to the display without CPU involvement. While DMA pushes the current frame to the screen, the CPU is free to start drawing the next frame. This effectively doubles the rendering throughput because draw time and transfer time overlap instead of being sequential. Without DMA, the CPU must wait for each SPI byte to be transmitted, wasting cycles. DMA is configured in TFT_eSPI via #define USE_DMA in User_Setup.h.'
+                },
+                {
+                    question: 'What is the advantage of double buffering with DMA?',
+                    options: [
+                        'It halves the memory required for display rendering',
+                        'It allows the CPU to draw the next frame while DMA pushes the current frame',
+                        'It provides 3D rendering capabilities',
+                        'It enables the display to show two different images simultaneously'
+                    ],
+                    explanation: 'Double buffering uses two framebuffers (A and B). While DMA transfers buffer A to the display, the CPU draws the next frame into buffer B. When the DMA transfer completes, the buffers swap roles. The CPU never waits for SPI, and the display never shows a partially drawn frame. The tradeoff is double the RAM usage -- two 240x240 sprites at RGB565 use 230,400 bytes. On ESP32 with PSRAM, this is practical. Without PSRAM, partial sprite rendering (rendering in horizontal bands) is the alternative.'
+                },
+                {
+                    question: 'How do you configure the display driver and pins in TFT_eSPI?',
+                    options: [
+                        'Pass parameters to the TFT_eSPI constructor at runtime',
+                        'Edit the User_Setup.h file in the library folder at compile time',
+                        'Upload a JSON configuration file to the ESP32 SPIFFS',
+                        'Set environment variables before compiling'
+                    ],
+                    explanation: 'TFT_eSPI uses compile-time configuration through the User_Setup.h header file in the library folder. You uncomment and set #define directives for the display driver (ST7789_DRIVER, ILI9341_DRIVER, etc.), GPIO pin assignments (TFT_MOSI, TFT_SCLK, TFT_CS, TFT_DC, TFT_RST), SPI frequency, and optional features like DMA. This approach allows the compiler to optimize SPI transactions at build time, eliminating the runtime overhead of checking configuration variables on every pixel transfer.'
+                },
+                {
+                    question: 'What makes the GC9A01 display unique among common ESP32 TFT displays?',
+                    options: [
+                        'It supports 24-bit color depth',
+                        'It is a round (circular) 240x240 display',
+                        'It uses I2C instead of SPI',
+                        'It has a built-in touch controller'
+                    ],
+                    explanation: 'The GC9A01 drives a round (circular) 240x240 pixel display, making it perfect for gauge-style UIs, clocks, speedometers, and dashboard dials. Despite the circular shape, the display controller still addresses a 240x240 square pixel grid -- the round mask is physical, not digital. It uses the same SPI interface and TFT_eSPI configuration pattern as rectangular ST7789 and ILI9341 displays. The visual impact of a round gauge display is significantly higher than the same UI on a rectangular screen.'
+                },
+                {
+                    question: 'Why do small OLED displays use I2C while larger TFT displays use SPI?',
+                    options: [
+                        'OLEDs cannot physically connect to SPI buses',
+                        'I2C is limited to ~400KHz, which is fast enough for small displays but too slow for large ones',
+                        'SPI requires too many pins for small displays',
+                        'TFT controllers are not compatible with I2C protocol'
+                    ],
+                    explanation: 'I2C runs at up to 400KHz (standard fast mode), while ESP32 SPI can run at 40-80MHz -- roughly 100-200 times faster. A 128x64 monochrome OLED has a 1,024-byte framebuffer that transfers in ~20ms at 400KHz I2C. That is fast enough for status displays. But a 240x320 RGB565 TFT has a 153,600-byte framebuffer that would take over 3 seconds at I2C speeds -- completely unusable for interactive UIs. SPI transfers it in ~30ms at 40MHz, enabling 30+ FPS. The tradeoff: SPI uses 4-6 wires versus I2C\'s 2 wires.'
+                }
+            ]
+        });
+        quiz.start();
+    </script>
+</body>
+</html>
