@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Core 9 Quiz: ESP-NOW Mesh Networking | ProtoCore ESP32</title>
+    <link rel="stylesheet" href="../../../../../styles/quiz-engine.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #040810 0%, #081020 50%, #0a0c1a 100%);
+            display: flex;
+            flex-direction: column;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        .page-header {
+            padding: 15px 30px;
+            background: rgba(0, 0, 0, 0.4);
+            border-bottom: 1px solid rgba(0, 136, 255, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .page-header a {
+            color: #0088ff;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+        .page-header a:hover { opacity: 0.8; }
+        .brand {
+            font-weight: 600;
+            color: #e0e0e0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .quiz-wrapper {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 30px 20px;
+        }
+        #quiz-container { width: 100%; max-width: 800px; }
+    </style>
+</head>
+<body>
+    <header class="page-header">
+        <a href="../../index.html">&larr; Back to ProtoCore Hub</a>
+        <span class="brand"><img src="/assets/images/icons/icon-brain.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Hexworth Prime</span>
+    </header>
+    <main class="quiz-wrapper">
+        <div id="quiz-container"></div>
+    </main>
+    <script src="../../../../../components/ProgressSystem.js"></script>
+    <script src="../../../../../components/QuizEngine.js"></script>
+    <script>
+        const quiz = new QuizEngine({
+            containerId: 'quiz-container',
+            title: 'Core 9: ESP-NOW Mesh Networking',
+            description: 'Test your understanding of ESP-NOW protocol, broadcast vs unicast, peer registration, data structures, callbacks, mesh relay, and coexistence with WiFi.',
+            passingScore: 80,
+            showFeedback: true,
+            randomize: true,
+            theme: 'matrix',
+            achievement: 'pc-esp-09-quiz',
+            moduleId: 'pc-esp-09-quiz',
+            serverGrading: true,
+            houseId: 'matrix',
+            trackProgress: true,
+
+            questions: [
+                {
+                    question: 'What is ESP-NOW?',
+                    options: [
+                        'A WiFi protocol that requires a router for communication',
+                        'A connectionless, peer-to-peer wireless protocol developed by Espressif that does not require WiFi infrastructure',
+                        'A Bluetooth mesh networking standard',
+                        'A cellular IoT protocol for ESP32'
+                    ],
+                    explanation: 'ESP-NOW is a proprietary wireless protocol developed by Espressif Systems. It operates on top of the WiFi data link layer (802.11) using vendor-specific action frames, but it bypasses the entire TCP/IP stack. No router, no access point, no DHCP, no IP addresses needed. Devices communicate directly using only their MAC addresses. This results in extremely low latency (~1ms) compared to standard WiFi (50-200ms). ESP-NOW is ideal for fast, lightweight device-to-device communication in sensor networks, remote controls, and mesh relays.'
+                },
+                {
+                    question: 'What is the maximum payload size for a single ESP-NOW packet?',
+                    options: [
+                        '64 bytes',
+                        '250 bytes',
+                        '1024 bytes',
+                        '1500 bytes'
+                    ],
+                    explanation: 'ESP-NOW packets have a maximum payload of 250 bytes. This is a hard limit imposed by the protocol -- you cannot send more data in a single packet. Your data struct must fit within this size. Use sizeof() to verify. If you need to transmit more than 250 bytes, you must implement a fragmentation scheme: split the data across multiple packets with sequence numbers so the receiver can reassemble them in order. For most sensor data, control signals, and status messages, 250 bytes is more than sufficient.'
+                },
+                {
+                    question: 'What WiFi mode must be set before initializing ESP-NOW?',
+                    options: [
+                        'WIFI_OFF',
+                        'WIFI_AP (Access Point only)',
+                        'WIFI_STA (Station) or WIFI_AP_STA',
+                        'No WiFi mode is needed'
+                    ],
+                    explanation: 'ESP-NOW requires WiFi hardware to be initialized, so you must call WiFi.mode() with either WIFI_STA (station mode) or WIFI_AP_STA (access point + station) before calling esp_now_init(). You do not need to actually connect to a WiFi network -- just setting the mode is sufficient. WIFI_STA is the most common choice for pure ESP-NOW devices. WIFI_AP_STA is used when a device needs both ESP-NOW communication and WiFi internet access simultaneously (the gateway pattern). WIFI_OFF would disable the radio entirely, making ESP-NOW impossible.'
+                },
+                {
+                    question: 'What is the difference between ESP-NOW broadcast and unicast?',
+                    options: [
+                        'There is no difference -- all ESP-NOW sends are broadcast',
+                        'Broadcast sends to all devices in range (no ACK); unicast targets one specific peer (with delivery ACK)',
+                        'Broadcast is encrypted; unicast is not',
+                        'Broadcast uses WiFi; unicast uses Bluetooth'
+                    ],
+                    explanation: 'Broadcast sends a packet to the broadcast MAC address (FF:FF:FF:FF:FF:FF), which every ESP-NOW device in range receives. There is no delivery acknowledgment -- the sender never knows if anyone received it. Unicast targets a specific registered peer by MAC address. The receiver\'s WiFi radio sends an acknowledgment frame, and the sender\'s onSend callback reports ESP_NOW_SEND_SUCCESS or ESP_NOW_SEND_FAIL. Broadcast is useful for discovery (announcing presence), while unicast is preferred for reliable data transfer between known peers.'
+                },
+                {
+                    question: 'How do you register a peer for ESP-NOW communication?',
+                    options: [
+                        'Call esp_now_connect() with the peer\'s IP address',
+                        'Fill an esp_now_peer_info_t struct with the peer\'s MAC address and call esp_now_add_peer()',
+                        'Send a broadcast and peers auto-register',
+                        'Call WiFi.addPeer() with the peer\'s hostname'
+                    ],
+                    explanation: 'To register a peer, create an esp_now_peer_info_t struct, copy the target device\'s 6-byte MAC address into peer_addr using memcpy(), set the channel (0 for current channel), set encrypt to true or false, and call esp_now_add_peer(&peerInfo). You can register up to 20 peers total (6 encrypted + 14 unencrypted). The peer\'s MAC address must be known in advance -- either hardcoded from a Serial Monitor readout, or discovered dynamically via broadcast. There is no automatic peer discovery built into ESP-NOW; you must implement it yourself if needed.'
+                },
+                {
+                    question: 'What happens to data inside an ESP-NOW onReceive callback after the callback returns?',
+                    options: [
+                        'The data persists in a buffer until explicitly freed',
+                        'The data pointer becomes invalid -- you must copy the data during the callback',
+                        'The data is automatically saved to flash memory',
+                        'The data is forwarded to the next registered callback'
+                    ],
+                    explanation: 'The data pointer passed to the onReceive callback is only valid during the callback execution. Once the callback returns, the buffer is reused by the WiFi subsystem and the pointer becomes invalid (dangling pointer). You must copy the data to your own variable or queue during the callback using memcpy(). The recommended pattern is: copy data into a struct, push it to a FreeRTOS queue with xQueueSendFromISR(), and let a separate task process it. Never store the raw pointer for later use -- it will point to garbage.'
+                },
+                {
+                    question: 'What does the onSend callback report for broadcast packets?',
+                    options: [
+                        'ESP_NOW_SEND_FAIL because no specific peer acknowledges',
+                        'ESP_NOW_SEND_SUCCESS always, because broadcast does not expect acknowledgment',
+                        'The number of devices that received the packet',
+                        'Nothing -- onSend is not called for broadcast'
+                    ],
+                    explanation: 'The onSend callback always reports ESP_NOW_SEND_SUCCESS for broadcast packets, regardless of whether any device actually received them. This is because broadcast by definition does not expect an acknowledgment from any specific receiver -- it is a fire-and-forget transmission. For unicast packets, the callback accurately reports whether the target peer\'s WiFi radio acknowledged the frame. This is why unicast is preferred for reliable communication -- you know if the packet was received. For critical broadcast messages, implement application-layer acknowledgment where receivers send a unicast reply.'
+                },
+                {
+                    question: 'How do you build a multi-hop relay with ESP-NOW (A -> B -> C)?',
+                    options: [
+                        'ESP-NOW has built-in mesh routing that handles this automatically',
+                        'Node B receives data from A in its onReceive callback and calls esp_now_send() to forward it to C',
+                        'Configure Node A with Node C\'s MAC address and ESP-NOW routes through B automatically',
+                        'Use esp_now_relay() to set up forwarding rules'
+                    ],
+                    explanation: 'ESP-NOW has no built-in mesh routing or relay capability. Multi-hop communication must be implemented manually. Node B receives data from Node A in its onReceive callback, then calls esp_now_send() with Node C\'s MAC address to forward the data. For robust mesh operation, include a hop counter in your data struct (increment on each relay, drop if max hops exceeded to prevent loops) and a packet ID (sender MAC + sequence number) so relay nodes can detect and drop duplicate packets. Routing tables can be hardcoded or built dynamically via broadcast discovery.'
+                },
+                {
+                    question: 'What constraint applies when using ESP-NOW and WiFi simultaneously?',
+                    options: [
+                        'They cannot be used at the same time',
+                        'ESP-NOW must be disabled before connecting to WiFi',
+                        'Both must operate on the same WiFi channel',
+                        'ESP-NOW data rate is reduced by 50%'
+                    ],
+                    explanation: 'ESP-NOW and WiFi can coexist on the same ESP32, but they must share the same radio channel. If the ESP32 connects to a WiFi router on channel 6, ESP-NOW also transmits and receives on channel 6. All ESP-NOW peers must be on the same channel to communicate. For devices not connected to WiFi, set the channel manually with esp_wifi_set_channel(). If channels do not match, packets are silently dropped -- no error, no callback, just silence. The gateway pattern leverages this: sensor nodes use ESP-NOW only, while a gateway node uses both ESP-NOW (channel-matched) and WiFi for cloud connectivity.'
+                },
+                {
+                    question: 'How many total peers can a single ESP32 register for ESP-NOW?',
+                    options: [
+                        '10 peers',
+                        '20 peers',
+                        '50 peers',
+                        'Unlimited peers'
+                    ],
+                    explanation: 'A single ESP32 can register up to 20 ESP-NOW peers. Of these, a maximum of 6 can use encryption (CCMP with per-peer LMK keys), and the remaining 14 must be unencrypted. If you do not use encryption, all 20 can be unencrypted peers. This limit is imposed by the ESP-NOW implementation in the Espressif SDK. For networks with more than 20 nodes, use a hierarchical design: gateway nodes that bridge between clusters of up to 20 peers. Broadcast messages do not require peer registration for receiving, but sending broadcast still requires adding the broadcast address as a peer.'
+                },
+                {
+                    question: 'What addressing system does ESP-NOW use to identify devices?',
+                    options: [
+                        'IP addresses assigned by DHCP',
+                        'Device names registered with a central server',
+                        'MAC addresses -- 6-byte hardware addresses unique to each ESP32',
+                        'Bluetooth UUIDs'
+                    ],
+                    explanation: 'ESP-NOW identifies devices exclusively by their 6-byte MAC address (Media Access Control address). Every ESP32 has a unique MAC address burned into its eFuse memory at the factory. There are no IP addresses, no hostnames, no DHCP, and no DNS. To communicate with a specific device, you must know its exact MAC address. The simplest approach is to read it with WiFi.macAddress() and hardcode it in peer firmware. For dynamic networks, use broadcast discovery: new nodes announce their MAC address via broadcast, and existing nodes add them as peers automatically.'
+                },
+                {
+                    question: 'What is the approximate line-of-sight range of ESP-NOW?',
+                    options: [
+                        '10-30 meters',
+                        '50-100 meters',
+                        '200-480 meters',
+                        '1-5 kilometers'
+                    ],
+                    explanation: 'ESP-NOW has an approximate line-of-sight range of 200-480 meters, depending on antenna type, transmit power, and environmental conditions. This is comparable to standard WiFi range because ESP-NOW uses the same 802.11 radio hardware and frequencies (2.4 GHz). Walls, vegetation, and other obstacles significantly reduce range. With external antennas and high transmit power settings, some users report ranges exceeding 400 meters in open areas. For distances beyond single-hop range, use relay nodes to create a multi-hop mesh that extends total coverage.'
+                },
+                {
+                    question: 'What encryption does ESP-NOW use for encrypted peers?',
+                    options: [
+                        'AES-128 in CBC mode',
+                        'CCMP (the same encryption used in WPA2)',
+                        'RSA-2048 public key encryption',
+                        'XOR-based simple encryption'
+                    ],
+                    explanation: 'ESP-NOW uses CCMP (Counter Mode with CBC-MAC Protocol) encryption, which is the same encryption standard used in WPA2 WiFi security. It is based on AES-128 in CCM mode, providing both confidentiality and integrity. ESP-NOW uses a two-key system: a device-wide PMK (Primary Master Key, 16 bytes) and a per-peer LMK (Local Master Key, 16 bytes). Both sender and receiver must have matching keys. The PMK and LMK together derive the session encryption key. CCMP is a strong, well-vetted encryption standard -- the same one protecting billions of WiFi connections worldwide.'
+                },
+                {
+                    question: 'When is ESP-NOW NOT the right choice?',
+                    options: [
+                        'When you need fast, local device-to-device communication',
+                        'When you need to send data to a cloud server, transfer large files, or communicate with phones/tablets',
+                        'When you need a sensor network without WiFi infrastructure',
+                        'When you need low-latency remote control signals'
+                    ],
+                    explanation: 'ESP-NOW is wrong for: sending data to cloud servers (no internet connectivity -- use WiFi/MQTT), transferring large files (250-byte packet limit makes this impractical), communicating with phones or tablets (they do not support ESP-NOW -- use BLE or WiFi), and networks with more than 20 direct peers. ESP-NOW excels at fast, lightweight, local communication between ESP32 devices with no infrastructure requirements. For internet connectivity, use standard WiFi. For phone communication, use BLE. The gateway pattern combines both: ESP-NOW from sensors to a gateway, then WiFi from the gateway to the cloud.'
+                },
+                {
+                    question: 'What is the recommended pattern for processing data received in an ESP-NOW onReceive callback?',
+                    options: [
+                        'Process the data directly inside the callback with Serial.print and delay calls',
+                        'Copy the data to a FreeRTOS queue inside the callback and process it in a separate task',
+                        'Store the data pointer in a global variable for later processing',
+                        'Write the data directly to SPIFFS inside the callback'
+                    ],
+                    explanation: 'The recommended pattern is to copy incoming data into a local struct using memcpy(), push it to a FreeRTOS queue with xQueueSendFromISR(), and return from the callback immediately. A separate FreeRTOS task reads from the queue and performs actual processing (Serial output, display updates, file writes, network forwarding). This keeps the callback fast and non-blocking, preventing WiFi instability and watchdog timeouts. Never store the raw data pointer (it becomes invalid after the callback returns), never call blocking functions in the callback, and never perform heavy computation in callback context.'
+                }
+            ]
+        });
+        quiz.start();
+    </script>
+</body>
+</html>
