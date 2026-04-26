@@ -183,6 +183,12 @@ async function cmdScan(args, flags) {
     console.log('');
     console.log(`  ${C.dim}Findings store: ${store.findings.length} total${C.reset}`);
 
+    // Step 2b: Auto-save scan history snapshot
+    if (spokes.history && spokes.history.save) {
+        console.log('');
+        spokes.history.save();
+    }
+
     // Step 3: Publish to Firestore if --publish flag
     if (publish) {
         const duration = Date.now() - scanStart;
