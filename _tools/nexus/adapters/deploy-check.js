@@ -522,6 +522,209 @@ module.exports = function createDeployCheckAdapter({ name, dataPath, projectRoot
         };
     }
 
+    // ── Check 14: Git Conflict Markers — unresolved merges break pages instantly ──
+    function checkConflictMarkers(changedFiles) {
+        const issues = [];
+        changedFiles.forEach(f => {
+            if (f.match(/\.(webp|png|jpg|gif|ico|woff|woff2|pdf)$/)) return;
+            const fullPath = path.join(projectRoot, f);
+            if (!fs.existsSync(fullPath)) return;
+            try {
+                const content = fs.readFileSync(fullPath, 'utf8');
+                if (/^<{7}\s/m.test(content) || /^={7}$/m.test(content) || /^>{7}\s/m.test(content)) {
+                    issues.push(`${f}: git conflict markers found — unresolved merge`);
+                }
+            } catch (e) { /* skip */ }
+        });
+
+        return {
+            name: 'Conflict Markers',
+            pass: issues.length === 0,
+            count: issues.length,
+            details: issues.length ? issues.slice(0, 10) : ['No conflict markers'],
+            severity: issues.length ? 'critical' : 'info'
+        };
+    }
+
+    // ── Check 15: Empty Content — skeleton pages with no real content ──
+    function checkEmptyContent(changedFiles) {
+        const htmlFiles = changedFiles.filter(f => f.endsWith('.html') && f.startsWith('_app/') && !f.includes('_archive/'));
+        if (htmlFiles.length === 0) return { name: 'Empty Content', pass: true, count: 0, details: ['No HTML changed'], severity: 'info' };
+
+        const issues = [];
+        htmlFiles.forEach(f => {
+            const fullPath = path.join(projectRoot, f);
+            if (!fs.existsSync(fullPath)) return;
+            const content = fs.readFileSync(fullPath, 'utf8');
+
+            // Skip JS-rendered applets (they have <div id="..."> + <script> pattern)
+            if (content.includes('Renderer') || content.includes('.init(') || f.includes('.applet.html')) return;
+
+            const bodyMatch = content.match(/<body[\s\S]*?>([\s\S]*)<\/body>/i);
+            if (bodyMatch) {
+                const bodyText = bodyMatch[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+                if (bodyText.length < 50) {
+                    issues.push(`${f}: body has only ${bodyText.length} chars of text — likely skeleton`);
+                }
+            }
+        });
+
+        return {
+            name: 'Empty Content',
+            pass: issues.length === 0,
+            count: issues.length,
+            details: issues.length ? issues.slice(0, 10) : ['All pages have content'],
+            severity: issues.length ? 'high' : 'info'
+        };
+    }
+
+    // ── Check 16: HTTP Links — flag insecure http:// in production content ──
+    function checkHttpLinks(changedFiles) {
+        const htmlFiles = changedFiles.filter(f => f.endsWith('.html') && f.startsWith('_app/houses/'));
+        if (htmlFiles.length === 0) return { name: 'HTTPS', pass: true, count: 0, details: ['No house HTML changed'], severity: 'info' };
+
+        const issues = [];
+        htmlFiles.slice(0, 50).forEach(f => {
+            const fullPath = path.join(projectRoot, f);
+            if (!fs.existsSync(fullPath)) return;
+            const content = fs.readFileSync(fullPath, 'utf8');
+            // Match http:// in href or src (not localhost, not example.com, not teaching content)
+            const httpMatches = content.match(/(?:href|src)=["']http:\/\/(?!localhost|127\.0\.0\.1|example\.com)[^"']+["']/gi);
+            if (httpMatches && httpMatches.length > 0) {
+                issues.push(`${f}: ${httpMatches.length} insecure http:// link(s)`);
+            }
+        });
+
+        return {
+            name: 'HTTPS',
+            pass: issues.length === 0,
+            count: issues.length,
+            details: issues.length ? issues.slice(0, 10) : ['All external links use HTTPS'],
+            severity: issues.length ? 'medium' : 'info'
+        };
+    }
+
+    // ── Check 17: Accessibility — missing alt, viewport, lang on changed files ──
+    function checkAccessibility(changedFiles) {
+        const htmlFiles = changedFiles.filter(f => f.endsWith('.html') && f.startsWith('_app/houses/'));
+        if (htmlFiles.length === 0) return { name: 'Accessibility', pass: true, count: 0, details: ['No house HTML changed'], severity: 'info' };
+
+        const issues = [];
+        htmlFiles.slice(0, 50).forEach(f => {
+            const fullPath = path.join(projectRoot, f);
+            if (!fs.existsSync(fullPath)) return;
+            const content = fs.readFileSync(fullPath, 'utf8');
+
+            // Check for missing viewport meta
+            if (!content.includes('name="viewport"') && !content.includes("name='viewport'")) {
+                issues.push(`${f}: missing <meta name="viewport"> — breaks mobile`);
+            }
+
+            // Check for missing lang attribute on html
+            if (/<html(?!\s[^>]*lang=)/i.test(content)) {
+                issues.push(`${f}: <html> missing lang attribute`);
+            }
+
+            // Check for img without alt (only new images, not icons with alt="")
+            const imgNoAlt = content.match(/<img(?![^>]*alt=)[^>]*>/gi);
+            if (imgNoAlt && imgNoAlt.length > 0) {
+                // Filter out icons that intentionally have no alt
+                const real = imgNoAlt.filter(tag => !tag.includes('icon-') && !tag.includes('emblem'));
+                if (real.length > 0) {
+                    issues.push(`${f}: ${real.length} <img> tag(s) without alt attribute`);
+                }
+            }
+        });
+
+        return {
+            name: 'Accessibility',
+            pass: issues.length === 0,
+            count: issues.length,
+            details: issues.length ? issues.slice(0, 10) : ['Accessibility checks passed'],
+            severity: issues.length ? 'medium' : 'info'
+        };
+    }
+
+    // ── Check 18: Console.log Regression — new debug logging in components ──
+    function checkConsoleLog(changedFiles) {
+        const jsFiles = changedFiles.filter(f =>
+            f.endsWith('.js') && f.startsWith('_app/components/') && !f.includes('test')
+        );
+        if (jsFiles.length === 0) return { name: 'Console.log', pass: true, count: 0, details: ['No component JS changed'], severity: 'info' };
+
+        const issues = [];
+        jsFiles.forEach(f => {
+            const fullPath = path.join(projectRoot, f);
+            if (!fs.existsSync(fullPath)) return;
+            const content = fs.readFileSync(fullPath, 'utf8');
+            const matches = content.match(/console\.(log|debug|warn)\(/g);
+            if (matches && matches.length > 3) {
+                issues.push(`${f}: ${matches.length} console.log calls — remove before production`);
+            }
+        });
+
+        return {
+            name: 'Console.log',
+            pass: issues.length === 0,
+            count: issues.length,
+            details: issues.length ? issues : ['No excessive console logging in components'],
+            severity: issues.length ? 'warning' : 'info'
+        };
+    }
+
+    // ── Check 19: TODO/FIXME — unfinished work heading to production ──
+    function checkTodoFixme(changedFiles) {
+        const codeFiles = changedFiles.filter(f =>
+            (f.endsWith('.html') || f.endsWith('.js')) && f.startsWith('_app/') && !f.includes('_archive/')
+        );
+        if (codeFiles.length === 0) return { name: 'TODO/FIXME', pass: true, count: 0, details: ['No code files changed'], severity: 'info' };
+
+        const issues = [];
+        codeFiles.slice(0, 50).forEach(f => {
+            const fullPath = path.join(projectRoot, f);
+            if (!fs.existsSync(fullPath)) return;
+            const content = fs.readFileSync(fullPath, 'utf8');
+            const todos = content.match(/\/\/\s*(TODO|FIXME|HACK|XXX)\b/gi);
+            if (todos && todos.length > 0) {
+                issues.push(`${f}: ${todos.length} ${todos[0].trim()} marker(s)`);
+            }
+        });
+
+        return {
+            name: 'TODO/FIXME',
+            pass: true, // Advisory only — don't block
+            count: issues.length,
+            details: issues.length ? issues.slice(0, 10) : ['No TODO/FIXME markers'],
+            severity: issues.length ? 'info' : 'info'
+        };
+    }
+
+    // ── Check 20: Quiz Answer Leak — serverGrading:true but still has correct: field ──
+    function checkQuizAnswerLeak(changedFiles) {
+        const quizFiles = changedFiles.filter(f => f.includes('.quiz.html'));
+        if (quizFiles.length === 0) return { name: 'Answer Leak', pass: true, count: 0, details: ['No quiz files changed'], severity: 'info' };
+
+        const issues = [];
+        quizFiles.forEach(f => {
+            const fullPath = path.join(projectRoot, f);
+            if (!fs.existsSync(fullPath)) return;
+            const content = fs.readFileSync(fullPath, 'utf8');
+            const hasServerGrading = /serverGrading\s*:\s*true/.test(content);
+            const hasCorrectField = /correct\s*:\s*\d+/.test(content);
+            if (hasServerGrading && hasCorrectField) {
+                issues.push(`${f}: has serverGrading:true but also correct: field — answers exposed in source`);
+            }
+        });
+
+        return {
+            name: 'Answer Leak',
+            pass: issues.length === 0,
+            count: issues.length,
+            details: issues.length ? issues : ['No answer leaks in changed quizzes'],
+            severity: issues.length ? 'high' : 'info'
+        };
+    }
+
     // ── Main: Run all checks ──
     function runFullCheck(quick = false) {
         const changedFiles = getChangedFiles();
@@ -532,6 +735,9 @@ module.exports = function createDeployCheckAdapter({ name, dataPath, projectRoot
         checks.push(checkRegression());
         checks.push(checkSecrets(changedFiles));
 
+        // Critical checks (always run even in quick mode)
+        checks.push(checkConflictMarkers(changedFiles));
+
         if (!quick) {
             // Structural checks
             checks.push(checkQuizKeys(changedFiles));
@@ -539,12 +745,19 @@ module.exports = function createDeployCheckAdapter({ name, dataPath, projectRoot
             checks.push(checkBrokenLinks(changedFiles));
             checks.push(checkHtmlSyntax(changedFiles));
             checks.push(checkModuleProgressDep(changedFiles));
+            checks.push(checkEmptyContent(changedFiles));
             // Content checks
             checks.push(checkQuizAnswerVerification(changedFiles));
+            checks.push(checkQuizAnswerLeak(changedFiles));
             checks.push(checkFirebaseConfig(changedFiles));
             checks.push(checkFileSize(changedFiles));
             checks.push(checkDuplicateIds(changedFiles));
             checks.push(checkEmoji(changedFiles));
+            // Quality checks
+            checks.push(checkHttpLinks(changedFiles));
+            checks.push(checkAccessibility(changedFiles));
+            checks.push(checkConsoleLog(changedFiles));
+            checks.push(checkTodoFixme(changedFiles));
         }
 
         // Overall verdict
