@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-04-21 1:59:58 PM
+                    Scanned: 2026-04-26 11:59:13 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,20 +10,20 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 4372 |
-| Directories | 1086 |
-| Content Files | 4372 |
-| Scan Duration | 2143ms |
+| Files Scanned | 4745 |
+| Directories | 1142 |
+| Content Files | 4745 |
+| Scan Duration | 506ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| presentation | 1959 |
-| html | 1442 |
-| lab | 447 |
-| quiz | 333 |
-| applet | 191 |
+| presentation | 2110 |
+| html | 1458 |
+| lab | 526 |
+| quiz | 459 |
+| applet | 192 |
 
 ### ContentCatalog Validation
 
@@ -31,8 +31,8 @@
 |--------|-------|
 | Total Modules | 1894 |
 | Available | 1889 |
-| Missing Hrefs (CAT-001) | 8 |
-| Undeclared Files (CAT-002) | 448 |
+| Missing Hrefs (CAT-001) | 0 |
+| Undeclared Files (CAT-002) | 807 |
 | Empty Hrefs (CAT-003) | 0 |
 
 
@@ -40,19 +40,19 @@
 
 | Severity | Count |
 |----------|-------|
-| Critical | 24 |
-| Suspect | 58 |
-| Warning | 2360 |
-| Info | 460 |
-| **Total** | **14892** |
+| Critical | 0 |
+| Suspect | 62 |
+| Warning | 2194 |
+| Info | 477 |
+| **Total** | **16882** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 2861 |
-| Not Ready | 69 |
-| Unknown | 1442 |
+| Ready | 3272 |
+| Not Ready | 15 |
+| Unknown | 1458 |
 
 
 ## FILE HIERARCHY
@@ -1777,6 +1777,49 @@
 │   │   │       │   └── 📍 index.html
 │   │   │       └── 📁 reviews [modules]
 │   │   │           └── 📄 cloud-wsa-review.module.html
+│   │   ├── 📁 ms-102
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📁 labs [labs]
+│   │   │   │   ├── 🔬 ms102-ch01-tenant.lab.html
+│   │   │   │   ├── 🔬 ms102-ch02-users-groups.lab.html
+│   │   │   │   ├── 🔬 ms102-ch03-roles-access.lab.html
+│   │   │   │   ├── 🔬 ms102-ch04-entra-auth.lab.html
+│   │   │   │   ├── 🔬 ms102-ch05-exchange.lab.html
+│   │   │   │   ├── 🔬 ms102-ch06-sharepoint.lab.html
+│   │   │   │   ├── 🔬 ms102-ch07-teams.lab.html
+│   │   │   │   └── 🔬 ms102-ch08-security-compliance.lab.html
+│   │   │   ├── 📁 presentations [presentations]
+│   │   │   │   ├── 📊 ms102-ch01-tenant.presentation.html
+│   │   │   │   ├── 📊 ms102-ch02-users-groups.presentation.html
+│   │   │   │   ├── 📊 ms102-ch03-roles-access.presentation.html
+│   │   │   │   ├── 📊 ms102-ch04-entra-auth.presentation.html
+│   │   │   │   ├── 📊 ms102-ch05-exchange.presentation.html
+│   │   │   │   ├── 📊 ms102-ch06-sharepoint.presentation.html
+│   │   │   │   ├── 📊 ms102-ch07-teams.presentation.html
+│   │   │   │   └── 📊 ms102-ch08-security-compliance.presentation.html
+│   │   │   └── 📁 quizzes [quizzes]
+│   │   │       ├── ❓ ms102-ch01.quiz.html
+│   │   │       ├── ❓ ms102-ch02.quiz.html
+│   │   │       ├── ❓ ms102-ch03.quiz.html
+│   │   │       ├── ❓ ms102-ch04.quiz.html
+│   │   │       ├── ❓ ms102-ch05.quiz.html
+│   │   │       ├── ❓ ms102-ch06.quiz.html
+│   │   │       ├── ❓ ms102-ch07.quiz.html
+│   │   │       └── ❓ ms102-ch08.quiz.html
+│   │   ├── 📁 ms-900
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📁 labs [labs]
+│   │   │   │   ├── 🔬 ms900-ch01-cloud-m365.lab.html
+│   │   │   │   ├── 🔬 ms900-ch02-security-compliance.lab.html
+│   │   │   │   └── 🔬 ms900-ch03-pricing-support.lab.html
+│   │   │   ├── 📁 presentations [presentations]
+│   │   │   │   ├── 📊 ms900-ch01-cloud-m365.presentation.html
+│   │   │   │   ├── 📊 ms900-ch02-security-compliance.presentation.html
+│   │   │   │   └── 📊 ms900-ch03-pricing-support.presentation.html
+│   │   │   └── 📁 quizzes [quizzes]
+│   │   │       ├── ❓ ms900-ch01.quiz.html
+│   │   │       ├── ❓ ms900-ch02.quiz.html
+│   │   │       └── ❓ ms900-ch03.quiz.html
 │   │   ├── 📁 openstack
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📁 labs [labs]
@@ -1795,6 +1838,26 @@
 │   │   │   │   └── ❓ cloud-openstack-projects-quiz.quiz.html
 │   │   │   └── 📁 reviews
 │   │   │       └── 📄 cloud-openstack-comprehensive-review.html
+│   │   ├── 📁 pl-300
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📁 labs [labs]
+│   │   │   │   ├── 🔬 pl300-ch01-prepare-data.lab.html
+│   │   │   │   ├── 🔬 pl300-ch02-model-data.lab.html
+│   │   │   │   ├── 🔬 pl300-ch03-visualize.lab.html
+│   │   │   │   ├── 🔬 pl300-ch04-deploy.lab.html
+│   │   │   │   └── 🔬 pl300-ch05-dax.lab.html
+│   │   │   ├── 📁 presentations [presentations]
+│   │   │   │   ├── 📊 pl300-ch01-prepare-data.presentation.html
+│   │   │   │   ├── 📊 pl300-ch02-model-data.presentation.html
+│   │   │   │   ├── 📊 pl300-ch03-visualize.presentation.html
+│   │   │   │   ├── 📊 pl300-ch04-deploy.presentation.html
+│   │   │   │   └── 📊 pl300-ch05-dax.presentation.html
+│   │   │   └── 📁 quizzes [quizzes]
+│   │   │       ├── ❓ pl300-ch01.quiz.html
+│   │   │       ├── ❓ pl300-ch02.quiz.html
+│   │   │       ├── ❓ pl300-ch03.quiz.html
+│   │   │       ├── ❓ pl300-ch04.quiz.html
+│   │   │       └── ❓ pl300-ch05.quiz.html
 │   │   ├── 📁 presentations [presentations]
 │   │   │   ├── 📊 cloud-aws-fundamentals.presentation.html
 │   │   │   ├── 📊 cloud-azure-fundamentals.presentation.html
@@ -2610,6 +2673,12 @@
 │   ├── 📁 devops-fundamentals
 │   │   └── 📍 index.html
 │   ├── 🏠 divergent [house:divergent]
+│   │   ├── 📁 cybersecurity-policy
+│   │   │   ├── 📁 exams
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📁 labs [labs]
+│   │   │   ├── 📁 presentations [presentations]
+│   │   │   └── 📁 quizzes [quizzes]
 │   │   ├── 📁 ethics-it
 │   │   │   ├── 📄 eth-01.html
 │   │   │   ├── 📄 eth-02.html
@@ -3132,7 +3201,9 @@
 │   │   ├── 📁 labs [labs]
 │   │   │   ├── 🔬 forge-admin-tools.lab.html
 │   │   │   ├── 🔬 forge-control-panel.lab.html
+│   │   │   ├── 🔬 forge-core2-roleplay.lab.html
 │   │   │   ├── 🔬 forge-hardware-essentials.lab.html
+│   │   │   ├── 🔬 forge-lab-macos-linux.lab.html
 │   │   │   ├── 🔬 forge-system-tools.lab.html
 │   │   │   ├── 🔬 forge-windows-editions.lab.html
 │   │   │   └── 🔬 forge-windows-settings.lab.html
@@ -3232,6 +3303,12 @@
 │   │   │       ├── 📄 forge-md101-midterm-review.html
 │   │   │       └── 📍 index.html
 │   │   ├── 📁 presentations [presentations]
+│   │   │   ├── 📊 forge-admin-tools.presentation.html
+│   │   │   ├── 📊 forge-control-panel.presentation.html
+│   │   │   ├── 📊 forge-macos-linux-basics.presentation.html
+│   │   │   ├── 📊 forge-system-tools.presentation.html
+│   │   │   ├── 📊 forge-windows-editions.presentation.html
+│   │   │   └── 📊 forge-windows-settings.presentation.html
 │   │   ├── 📁 quizzes [quizzes]
 │   │   │   ├── ❓ forge-aplus-core2-ch19-22.quiz.html
 │   │   │   ├── ❓ forge-aplus-core2.quiz.html
@@ -3389,7 +3466,296 @@
 │   │   │       ├── ❓ ala-w2.quiz.html
 │   │   │       ├── ❓ ala-w3.quiz.html
 │   │   │       └── ❓ ala-w4.quiz.html
-│   │   └── 📍 index.html
+│   │   ├── 📍 index.html
+│   │   ├── 📁 piverse
+│   │   │   ├── 📁 electronics
+│   │   │   │   ├── 📍 index.html
+│   │   │   │   ├── 📁 labs [labs]
+│   │   │   │   │   ├── 🔬 pv-e-01.lab.html
+│   │   │   │   │   ├── 🔬 pv-e-02.lab.html
+│   │   │   │   │   ├── 🔬 pv-e-03.lab.html
+│   │   │   │   │   ├── 🔬 pv-e-04.lab.html
+│   │   │   │   │   ├── 🔬 pv-e-05.lab.html
+│   │   │   │   │   ├── 🔬 pv-e-06.lab.html
+│   │   │   │   │   ├── 🔬 pv-e-07.lab.html
+│   │   │   │   │   ├── 🔬 pv-e-08.lab.html
+│   │   │   │   │   ├── 🔬 pv-e-09.lab.html
+│   │   │   │   │   └── 🔬 pv-e-10.lab.html
+│   │   │   │   ├── 📁 presentations [presentations]
+│   │   │   │   │   ├── 📊 pv-e-01.presentation.html
+│   │   │   │   │   ├── 📊 pv-e-02.presentation.html
+│   │   │   │   │   ├── 📊 pv-e-03.presentation.html
+│   │   │   │   │   ├── 📊 pv-e-04.presentation.html
+│   │   │   │   │   ├── 📊 pv-e-05.presentation.html
+│   │   │   │   │   ├── 📊 pv-e-06.presentation.html
+│   │   │   │   │   ├── 📊 pv-e-07.presentation.html
+│   │   │   │   │   ├── 📊 pv-e-08.presentation.html
+│   │   │   │   │   ├── 📊 pv-e-09.presentation.html
+│   │   │   │   │   └── 📊 pv-e-10.presentation.html
+│   │   │   │   └── 📁 quizzes [quizzes]
+│   │   │   │       ├── ❓ pv-e-01.quiz.html
+│   │   │   │       ├── ❓ pv-e-02.quiz.html
+│   │   │   │       ├── ❓ pv-e-03.quiz.html
+│   │   │   │       ├── ❓ pv-e-04.quiz.html
+│   │   │   │       ├── ❓ pv-e-05.quiz.html
+│   │   │   │       ├── ❓ pv-e-06.quiz.html
+│   │   │   │       ├── ❓ pv-e-07.quiz.html
+│   │   │   │       ├── ❓ pv-e-08.quiz.html
+│   │   │   │       ├── ❓ pv-e-09.quiz.html
+│   │   │   │       └── ❓ pv-e-10.quiz.html
+│   │   │   ├── 📁 engineering
+│   │   │   │   ├── 📍 index.html
+│   │   │   │   ├── 📁 labs [labs]
+│   │   │   │   │   ├── 🔬 pv-b-01.lab.html
+│   │   │   │   │   ├── 🔬 pv-b-02.lab.html
+│   │   │   │   │   ├── 🔬 pv-b-03.lab.html
+│   │   │   │   │   ├── 🔬 pv-b-04.lab.html
+│   │   │   │   │   ├── 🔬 pv-b-05.lab.html
+│   │   │   │   │   ├── 🔬 pv-b-06.lab.html
+│   │   │   │   │   ├── 🔬 pv-b-07.lab.html
+│   │   │   │   │   └── 🔬 pv-b-08.lab.html
+│   │   │   │   ├── 📁 presentations [presentations]
+│   │   │   │   │   ├── 📊 pv-b-01.presentation.html
+│   │   │   │   │   ├── 📊 pv-b-02.presentation.html
+│   │   │   │   │   ├── 📊 pv-b-03.presentation.html
+│   │   │   │   │   ├── 📊 pv-b-04.presentation.html
+│   │   │   │   │   ├── 📊 pv-b-05.presentation.html
+│   │   │   │   │   ├── 📊 pv-b-06.presentation.html
+│   │   │   │   │   ├── 📊 pv-b-07.presentation.html
+│   │   │   │   │   └── 📊 pv-b-08.presentation.html
+│   │   │   │   └── 📁 quizzes [quizzes]
+│   │   │   │       ├── ❓ pv-b-01.quiz.html
+│   │   │   │       ├── ❓ pv-b-02.quiz.html
+│   │   │   │       ├── ❓ pv-b-03.quiz.html
+│   │   │   │       ├── ❓ pv-b-04.quiz.html
+│   │   │   │       ├── ❓ pv-b-05.quiz.html
+│   │   │   │       ├── ❓ pv-b-06.quiz.html
+│   │   │   │       ├── ❓ pv-b-07.quiz.html
+│   │   │   │       └── ❓ pv-b-08.quiz.html
+│   │   │   ├── 📁 fundamentals
+│   │   │   │   ├── 📍 index.html
+│   │   │   │   ├── 📁 labs [labs]
+│   │   │   │   │   ├── 🔬 pv-f-01.lab.html
+│   │   │   │   │   ├── 🔬 pv-f-02.lab.html
+│   │   │   │   │   ├── 🔬 pv-f-03.lab.html
+│   │   │   │   │   ├── 🔬 pv-f-04.lab.html
+│   │   │   │   │   ├── 🔬 pv-f-05.lab.html
+│   │   │   │   │   ├── 🔬 pv-f-06.lab.html
+│   │   │   │   │   ├── 🔬 pv-f-07.lab.html
+│   │   │   │   │   ├── 🔬 pv-f-08.lab.html
+│   │   │   │   │   ├── 🔬 pv-f-09.lab.html
+│   │   │   │   │   └── 🔬 pv-f-10.lab.html
+│   │   │   │   ├── 📁 presentations [presentations]
+│   │   │   │   │   ├── 📊 pv-f-01.presentation.html
+│   │   │   │   │   ├── 📊 pv-f-02.presentation.html
+│   │   │   │   │   ├── 📊 pv-f-03.presentation.html
+│   │   │   │   │   ├── 📊 pv-f-04.presentation.html
+│   │   │   │   │   ├── 📊 pv-f-05.presentation.html
+│   │   │   │   │   ├── 📊 pv-f-06.presentation.html
+│   │   │   │   │   ├── 📊 pv-f-07.presentation.html
+│   │   │   │   │   ├── 📊 pv-f-08.presentation.html
+│   │   │   │   │   ├── 📊 pv-f-09.presentation.html
+│   │   │   │   │   └── 📊 pv-f-10.presentation.html
+│   │   │   │   └── 📁 quizzes [quizzes]
+│   │   │   │       ├── ❓ pv-f-01.quiz.html
+│   │   │   │       ├── ❓ pv-f-02.quiz.html
+│   │   │   │       ├── ❓ pv-f-03.quiz.html
+│   │   │   │       ├── ❓ pv-f-04.quiz.html
+│   │   │   │       ├── ❓ pv-f-05.quiz.html
+│   │   │   │       ├── ❓ pv-f-06.quiz.html
+│   │   │   │       ├── ❓ pv-f-07.quiz.html
+│   │   │   │       ├── ❓ pv-f-08.quiz.html
+│   │   │   │       ├── ❓ pv-f-09.quiz.html
+│   │   │   │       └── ❓ pv-f-10.quiz.html
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📁 maker
+│   │   │   │   ├── 📍 index.html
+│   │   │   │   ├── 📁 labs [labs]
+│   │   │   │   │   ├── 🔬 pv-m-01.lab.html
+│   │   │   │   │   ├── 🔬 pv-m-02.lab.html
+│   │   │   │   │   ├── 🔬 pv-m-03.lab.html
+│   │   │   │   │   ├── 🔬 pv-m-04.lab.html
+│   │   │   │   │   ├── 🔬 pv-m-05.lab.html
+│   │   │   │   │   ├── 🔬 pv-m-06.lab.html
+│   │   │   │   │   ├── 🔬 pv-m-07.lab.html
+│   │   │   │   │   ├── 🔬 pv-m-08.lab.html
+│   │   │   │   │   ├── 🔬 pv-m-09.lab.html
+│   │   │   │   │   └── 🔬 pv-m-10.lab.html
+│   │   │   │   ├── 📁 presentations [presentations]
+│   │   │   │   │   ├── 📊 pv-m-01.presentation.html
+│   │   │   │   │   ├── 📊 pv-m-02.presentation.html
+│   │   │   │   │   ├── 📊 pv-m-03.presentation.html
+│   │   │   │   │   ├── 📊 pv-m-04.presentation.html
+│   │   │   │   │   ├── 📊 pv-m-05.presentation.html
+│   │   │   │   │   ├── 📊 pv-m-06.presentation.html
+│   │   │   │   │   ├── 📊 pv-m-07.presentation.html
+│   │   │   │   │   ├── 📊 pv-m-08.presentation.html
+│   │   │   │   │   ├── 📊 pv-m-09.presentation.html
+│   │   │   │   │   └── 📊 pv-m-10.presentation.html
+│   │   │   │   └── 📁 quizzes [quizzes]
+│   │   │   │       ├── ❓ pv-m-01.quiz.html
+│   │   │   │       ├── ❓ pv-m-02.quiz.html
+│   │   │   │       ├── ❓ pv-m-03.quiz.html
+│   │   │   │       ├── ❓ pv-m-04.quiz.html
+│   │   │   │       ├── ❓ pv-m-05.quiz.html
+│   │   │   │       ├── ❓ pv-m-06.quiz.html
+│   │   │   │       ├── ❓ pv-m-07.quiz.html
+│   │   │   │       ├── ❓ pv-m-08.quiz.html
+│   │   │   │       ├── ❓ pv-m-09.quiz.html
+│   │   │   │       └── ❓ pv-m-10.quiz.html
+│   │   │   └── 📁 micropython
+│   │   │       ├── 📍 index.html
+│   │   │       ├── 📁 labs [labs]
+│   │   │       │   ├── 🔬 pv-mp-01.lab.html
+│   │   │       │   ├── 🔬 pv-mp-02.lab.html
+│   │   │       │   ├── 🔬 pv-mp-03.lab.html
+│   │   │       │   ├── 🔬 pv-mp-04.lab.html
+│   │   │       │   ├── 🔬 pv-mp-05.lab.html
+│   │   │       │   ├── 🔬 pv-mp-06.lab.html
+│   │   │       │   ├── 🔬 pv-mp-07.lab.html
+│   │   │       │   ├── 🔬 pv-mp-08.lab.html
+│   │   │       │   ├── 🔬 pv-mp-09.lab.html
+│   │   │       │   ├── 🔬 pv-mp-10.lab.html
+│   │   │       │   ├── 🔬 pv-mp-11.lab.html
+│   │   │       │   └── 🔬 pv-mp-12.lab.html
+│   │   │       ├── 📁 presentations [presentations]
+│   │   │       │   ├── 📊 pv-mp-01.presentation.html
+│   │   │       │   ├── 📊 pv-mp-02.presentation.html
+│   │   │       │   ├── 📊 pv-mp-03.presentation.html
+│   │   │       │   ├── 📊 pv-mp-04.presentation.html
+│   │   │       │   ├── 📊 pv-mp-05.presentation.html
+│   │   │       │   ├── 📊 pv-mp-06.presentation.html
+│   │   │       │   ├── 📊 pv-mp-07.presentation.html
+│   │   │       │   ├── 📊 pv-mp-08.presentation.html
+│   │   │       │   ├── 📊 pv-mp-09.presentation.html
+│   │   │       │   ├── 📊 pv-mp-10.presentation.html
+│   │   │       │   ├── 📊 pv-mp-11.presentation.html
+│   │   │       │   └── 📊 pv-mp-12.presentation.html
+│   │   │       └── 📁 quizzes [quizzes]
+│   │   │           ├── ❓ pv-mp-01.quiz.html
+│   │   │           ├── ❓ pv-mp-02.quiz.html
+│   │   │           ├── ❓ pv-mp-03.quiz.html
+│   │   │           ├── ❓ pv-mp-04.quiz.html
+│   │   │           ├── ❓ pv-mp-05.quiz.html
+│   │   │           ├── ❓ pv-mp-06.quiz.html
+│   │   │           ├── ❓ pv-mp-07.quiz.html
+│   │   │           ├── ❓ pv-mp-08.quiz.html
+│   │   │           ├── ❓ pv-mp-09.quiz.html
+│   │   │           ├── ❓ pv-mp-10.quiz.html
+│   │   │           ├── ❓ pv-mp-11.quiz.html
+│   │   │           └── ❓ pv-mp-12.quiz.html
+│   │   └── 📁 protocore
+│   │       ├── 📁 arduino
+│   │       │   ├── 📁 labs [labs]
+│   │       │   │   ├── 🔬 pc-ard-01.lab.html
+│   │       │   │   ├── 🔬 pc-ard-02.lab.html
+│   │       │   │   ├── 🔬 pc-ard-03.lab.html
+│   │       │   │   ├── 🔬 pc-ard-04.lab.html
+│   │       │   │   ├── 🔬 pc-ard-05.lab.html
+│   │       │   │   ├── 🔬 pc-ard-06.lab.html
+│   │       │   │   ├── 🔬 pc-ard-07.lab.html
+│   │       │   │   ├── 🔬 pc-ard-08.lab.html
+│   │       │   │   ├── 🔬 pc-ard-09.lab.html
+│   │       │   │   ├── 🔬 pc-ard-10.lab.html
+│   │       │   │   ├── 🔬 pc-ard-11.lab.html
+│   │       │   │   ├── 🔬 pc-ard-12.lab.html
+│   │       │   │   ├── 🔬 pc-ard-13.lab.html
+│   │       │   │   ├── 🔬 pc-ard-14.lab.html
+│   │       │   │   ├── 🔬 pc-ard-15.lab.html
+│   │       │   │   ├── 🔬 pc-ard-16.lab.html
+│   │       │   │   ├── 🔬 pc-ard-17.lab.html
+│   │       │   │   ├── 🔬 pc-ard-18.lab.html
+│   │       │   │   └── 🔬 pc-ard-19.lab.html
+│   │       │   ├── 📁 presentations [presentations]
+│   │       │   │   ├── 📊 pc-ard-01.presentation.html
+│   │       │   │   ├── 📊 pc-ard-02.presentation.html
+│   │       │   │   ├── 📊 pc-ard-03.presentation.html
+│   │       │   │   ├── 📊 pc-ard-04.presentation.html
+│   │       │   │   ├── 📊 pc-ard-05.presentation.html
+│   │       │   │   ├── 📊 pc-ard-06.presentation.html
+│   │       │   │   ├── 📊 pc-ard-07.presentation.html
+│   │       │   │   ├── 📊 pc-ard-08.presentation.html
+│   │       │   │   ├── 📊 pc-ard-09.presentation.html
+│   │       │   │   ├── 📊 pc-ard-10.presentation.html
+│   │       │   │   ├── 📊 pc-ard-11.presentation.html
+│   │       │   │   ├── 📊 pc-ard-12.presentation.html
+│   │       │   │   ├── 📊 pc-ard-13.presentation.html
+│   │       │   │   ├── 📊 pc-ard-14.presentation.html
+│   │       │   │   ├── 📊 pc-ard-15.presentation.html
+│   │       │   │   ├── 📊 pc-ard-16.presentation.html
+│   │       │   │   ├── 📊 pc-ard-17.presentation.html
+│   │       │   │   ├── 📊 pc-ard-18.presentation.html
+│   │       │   │   └── 📊 pc-ard-19.presentation.html
+│   │       │   └── 📁 quizzes [quizzes]
+│   │       │       ├── ❓ pc-ard-01.quiz.html
+│   │       │       ├── ❓ pc-ard-02.quiz.html
+│   │       │       ├── ❓ pc-ard-03.quiz.html
+│   │       │       ├── ❓ pc-ard-04.quiz.html
+│   │       │       ├── ❓ pc-ard-05.quiz.html
+│   │       │       ├── ❓ pc-ard-06.quiz.html
+│   │       │       ├── ❓ pc-ard-07.quiz.html
+│   │       │       ├── ❓ pc-ard-08.quiz.html
+│   │       │       ├── ❓ pc-ard-09.quiz.html
+│   │       │       ├── ❓ pc-ard-10.quiz.html
+│   │       │       ├── ❓ pc-ard-11.quiz.html
+│   │       │       ├── ❓ pc-ard-12.quiz.html
+│   │       │       ├── ❓ pc-ard-13.quiz.html
+│   │       │       ├── ❓ pc-ard-14.quiz.html
+│   │       │       ├── ❓ pc-ard-15.quiz.html
+│   │       │       ├── ❓ pc-ard-16.quiz.html
+│   │       │       ├── ❓ pc-ard-17.quiz.html
+│   │       │       ├── ❓ pc-ard-18.quiz.html
+│   │       │       └── ❓ pc-ard-19.quiz.html
+│   │       ├── 📁 esp32
+│   │       │   ├── 📁 labs [labs]
+│   │       │   │   ├── 🔬 pc-esp-01.lab.html
+│   │       │   │   ├── 🔬 pc-esp-02.lab.html
+│   │       │   │   ├── 🔬 pc-esp-03.lab.html
+│   │       │   │   ├── 🔬 pc-esp-04.lab.html
+│   │       │   │   ├── 🔬 pc-esp-05.lab.html
+│   │       │   │   ├── 🔬 pc-esp-06.lab.html
+│   │       │   │   ├── 🔬 pc-esp-07.lab.html
+│   │       │   │   ├── 🔬 pc-esp-08.lab.html
+│   │       │   │   ├── 🔬 pc-esp-09.lab.html
+│   │       │   │   ├── 🔬 pc-esp-10.lab.html
+│   │       │   │   ├── 🔬 pc-esp-11.lab.html
+│   │       │   │   ├── 🔬 pc-esp-12.lab.html
+│   │       │   │   ├── 🔬 pc-esp-13.lab.html
+│   │       │   │   ├── 🔬 pc-esp-14.lab.html
+│   │       │   │   └── 🔬 pc-esp-15.lab.html
+│   │       │   ├── 📁 presentations [presentations]
+│   │       │   │   ├── 📊 pc-esp-01.presentation.html
+│   │       │   │   ├── 📊 pc-esp-02.presentation.html
+│   │       │   │   ├── 📊 pc-esp-03.presentation.html
+│   │       │   │   ├── 📊 pc-esp-04.presentation.html
+│   │       │   │   ├── 📊 pc-esp-05.presentation.html
+│   │       │   │   ├── 📊 pc-esp-06.presentation.html
+│   │       │   │   ├── 📊 pc-esp-07.presentation.html
+│   │       │   │   ├── 📊 pc-esp-08.presentation.html
+│   │       │   │   ├── 📊 pc-esp-09.presentation.html
+│   │       │   │   ├── 📊 pc-esp-10.presentation.html
+│   │       │   │   ├── 📊 pc-esp-11.presentation.html
+│   │       │   │   ├── 📊 pc-esp-12.presentation.html
+│   │       │   │   ├── 📊 pc-esp-13.presentation.html
+│   │       │   │   ├── 📊 pc-esp-14.presentation.html
+│   │       │   │   └── 📊 pc-esp-15.presentation.html
+│   │       │   └── 📁 quizzes [quizzes]
+│   │       │       ├── ❓ pc-esp-01.quiz.html
+│   │       │       ├── ❓ pc-esp-02.quiz.html
+│   │       │       ├── ❓ pc-esp-03.quiz.html
+│   │       │       ├── ❓ pc-esp-04.quiz.html
+│   │       │       ├── ❓ pc-esp-05.quiz.html
+│   │       │       ├── ❓ pc-esp-06.quiz.html
+│   │       │       ├── ❓ pc-esp-07.quiz.html
+│   │       │       ├── ❓ pc-esp-08.quiz.html
+│   │       │       ├── ❓ pc-esp-09.quiz.html
+│   │       │       ├── ❓ pc-esp-10.quiz.html
+│   │       │       ├── ❓ pc-esp-11.quiz.html
+│   │       │       ├── ❓ pc-esp-12.quiz.html
+│   │       │       ├── ❓ pc-esp-13.quiz.html
+│   │       │       ├── ❓ pc-esp-14.quiz.html
+│   │       │       └── ❓ pc-esp-15.quiz.html
+│   │       └── 📍 index.html
 │   ├── 🏠 script [house:script]
 │   │   ├── 📁 applets [applets]
 │   │   │   ├── 📍 index.html
@@ -4417,6 +4783,55 @@
 │   │   ├── 📁 reviews
 │   │   │   ├── 📍 index.html
 │   │   │   └── 📄 shield-feh-review.html
+│   │   ├── 📁 sc-200
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📁 labs [labs]
+│   │   │   │   ├── 🔬 sc200-ch01-defender-xdr.lab.html
+│   │   │   │   ├── 🔬 sc200-ch02-defender-endpoint.lab.html
+│   │   │   │   ├── 🔬 sc200-ch03-defender-office.lab.html
+│   │   │   │   ├── 🔬 sc200-ch04-defender-identity.lab.html
+│   │   │   │   ├── 🔬 sc200-ch05-defender-cloud-apps.lab.html
+│   │   │   │   ├── 🔬 sc200-ch06-sentinel-setup.lab.html
+│   │   │   │   ├── 🔬 sc200-ch07-sentinel-detection.lab.html
+│   │   │   │   ├── 🔬 sc200-ch08-sentinel-response.lab.html
+│   │   │   │   └── 🔬 sc200-ch09-sentinel-hunting.lab.html
+│   │   │   ├── 📁 presentations [presentations]
+│   │   │   │   ├── 📊 sc200-ch01-defender-xdr.presentation.html
+│   │   │   │   ├── 📊 sc200-ch02-defender-endpoint.presentation.html
+│   │   │   │   ├── 📊 sc200-ch03-defender-office.presentation.html
+│   │   │   │   ├── 📊 sc200-ch04-defender-identity.presentation.html
+│   │   │   │   ├── 📊 sc200-ch05-defender-cloud-apps.presentation.html
+│   │   │   │   ├── 📊 sc200-ch06-sentinel-setup.presentation.html
+│   │   │   │   ├── 📊 sc200-ch07-sentinel-detection.presentation.html
+│   │   │   │   ├── 📊 sc200-ch08-sentinel-response.presentation.html
+│   │   │   │   └── 📊 sc200-ch09-sentinel-hunting.presentation.html
+│   │   │   └── 📁 quizzes [quizzes]
+│   │   │       ├── ❓ sc200-ch01.quiz.html
+│   │   │       ├── ❓ sc200-ch02.quiz.html
+│   │   │       ├── ❓ sc200-ch03.quiz.html
+│   │   │       ├── ❓ sc200-ch04.quiz.html
+│   │   │       ├── ❓ sc200-ch05.quiz.html
+│   │   │       ├── ❓ sc200-ch06.quiz.html
+│   │   │       ├── ❓ sc200-ch07.quiz.html
+│   │   │       ├── ❓ sc200-ch08.quiz.html
+│   │   │       └── ❓ sc200-ch09.quiz.html
+│   │   ├── 📁 sc-900
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📁 labs [labs]
+│   │   │   │   ├── 🔬 sc900-ch01-concepts.lab.html
+│   │   │   │   ├── 🔬 sc900-ch02-entra-id.lab.html
+│   │   │   │   ├── 🔬 sc900-ch03-security-solutions.lab.html
+│   │   │   │   └── 🔬 sc900-ch04-compliance.lab.html
+│   │   │   ├── 📁 presentations [presentations]
+│   │   │   │   ├── 📊 sc900-ch01-concepts.presentation.html
+│   │   │   │   ├── 📊 sc900-ch02-entra-id.presentation.html
+│   │   │   │   ├── 📊 sc900-ch03-security-solutions.presentation.html
+│   │   │   │   └── 📊 sc900-ch04-compliance.presentation.html
+│   │   │   └── 📁 quizzes [quizzes]
+│   │   │       ├── ❓ sc900-ch01.quiz.html
+│   │   │       ├── ❓ sc900-ch02.quiz.html
+│   │   │       ├── ❓ sc900-ch03.quiz.html
+│   │   │       └── ❓ sc900-ch04.quiz.html
 │   │   ├── 📁 security-101
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📊 shield-sec101-m01.presentation.html
@@ -4785,6 +5200,8 @@
 │       │   │   ├── 🔬 dns-troubleshooting.lab.html
 │       │   │   ├── 🔬 firewall-rules.lab.html
 │       │   │   ├── 🔬 midterm-gui.lab.html
+│       │   │   ├── 🔬 n10009-ch01-security.lab.html
+│       │   │   ├── 🔬 n10009-ch02-troubleshooting.lab.html
 │       │   │   ├── 🔬 ne01-osi-scenario.lab.html
 │       │   │   ├── 🔬 ne01-wireshark-gui.lab.html
 │       │   │   ├── 🔬 ne02-tcpip-scenario.lab.html
@@ -4840,6 +5257,8 @@
 │       │   │   ├── 📊 icmp.presentation.html
 │       │   │   ├── 📊 ipsec-gre.presentation.html
 │       │   │   ├── 📊 ipv6.presentation.html
+│       │   │   ├── 📊 n10009-ch01-security.presentation.html
+│       │   │   ├── 📊 n10009-ch02-troubleshooting.presentation.html
 │       │   │   ├── 📊 nat.presentation.html
 │       │   │   ├── 📊 network-access-methods.presentation.html
 │       │   │   ├── 📊 network-essentials.presentation.html
@@ -4869,6 +5288,8 @@
 │       │   │   ├── ❓ ch7-20.quiz.html
 │       │   │   ├── ❓ dns-dhcp.quiz.html
 │       │   │   ├── ❓ infrastructure.quiz.html
+│       │   │   ├── ❓ n10009-ch01.quiz.html
+│       │   │   ├── ❓ n10009-ch02.quiz.html
 │       │   │   ├── ❓ operations.quiz.html
 │       │   │   ├── ❓ osi.quiz.html
 │       │   │   ├── ❓ routing.quiz.html
@@ -5247,6 +5668,7 @@
 │   ├── 📄 web-react-router.html
 │   ├── 📄 web-rest-api.html
 │   └── 📄 web-topology-visualizer.html
+├── 📄 pulse.html
 ├── 📄 quickstart.html
 ├── 📁 scripts
 ├── 📁 shield
@@ -5279,16 +5701,16 @@
 │   │   │   └── 📄 sg-92-swarm-simulator.html
 │   │   ├── 📁 esp32-s3-arsenal
 │   │   │   ├── 📍 index.html
-│   │   │   ├── 📄 sg-100-marauder-firmware.html
-│   │   │   ├── 📄 sg-101-custom-army-knife.html
-│   │   │   ├── 🔬 sg-102-defense-lab.html
-│   │   │   ├── 📄 sg-93-s3-setup.html
-│   │   │   ├── 📄 sg-94-rubber-ducky-s3.html
-│   │   │   ├── 📄 sg-95-wifi-recon-s3.html
-│   │   │   ├── 📄 sg-96-ble-swiss-army.html
-│   │   │   ├── 📄 sg-97-usb-mass-storage.html
-│   │   │   ├── 📄 sg-98-network-impersonation.html
-│   │   │   └── 📄 sg-99-wifi-deauther-detector.html
+│   │   │   ├── 📄 sg-103-s3-setup.html
+│   │   │   ├── 📄 sg-104-rubber-ducky-s3.html
+│   │   │   ├── 📄 sg-105-wifi-recon-s3.html
+│   │   │   ├── 📄 sg-106-ble-swiss-army.html
+│   │   │   ├── 📄 sg-107-usb-mass-storage.html
+│   │   │   ├── 📄 sg-108-network-impersonation.html
+│   │   │   ├── 📄 sg-109-wifi-deauther-detector.html
+│   │   │   ├── 📄 sg-110-marauder-firmware.html
+│   │   │   ├── 📄 sg-111-custom-army-knife.html
+│   │   │   └── 🔬 sg-112-defense-lab.html
 │   │   ├── 📁 field-prep
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📄 sg-31-bootable-usb.html
@@ -5357,6 +5779,13 @@
 │   │   │   ├── 📄 sg-80-power-supply.html
 │   │   │   ├── 📄 sg-81-i2c-sensor-board.html
 │   │   │   └── 📄 sg-82-rf-pcb-design.html
+│   │   ├── 📁 pico-builds
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📄 sg-113-traffic-light.html
+│   │   │   ├── 📄 sg-114-reaction-game.html
+│   │   │   ├── 📄 sg-115-pir-alarm.html
+│   │   │   ├── 📄 sg-116-temp-logger.html
+│   │   │   └── 📄 sg-117-wifi-weather.html
 │   │   ├── 📁 privacy-builds
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📄 sg-16-encrypted-dead-drop.html
@@ -5913,6 +6342,7 @@
 | cloud-cse-module06.lab | lab | ✓ | 0 |
 | cloud-cse-module07.lab | lab | ✓ | 0 |
 | cloud-cse-module08.lab | lab | ✓ | 0 |
+| cloud-gui.lab | presentation | ✓ | 0 |
 | cloud-lab.lab | lab | ✓ | 0 |
 | cloud-ps.lab | lab | ✓ | 0 |
 | cloud-security.lab | lab | ✓ | 0 |
@@ -5973,6 +6403,39 @@
 | cloud-pslab.module | lab | ✓ | 0 |
 | cloud-presentation.module | presentation | ✓ | 0 |
 | cloud-pslab.module | lab | ✓ | 0 |
+| ms102-ch01-tenant.lab | lab | ✓ | 0 |
+| ms102-ch02-users-groups.lab | lab | ✓ | 0 |
+| ms102-ch03-roles-access.lab | lab | ✓ | 0 |
+| ms102-ch04-entra-auth.lab | lab | ✓ | 0 |
+| ms102-ch05-exchange.lab | presentation | ✓ | 0 |
+| ms102-ch06-sharepoint.lab | presentation | ✓ | 0 |
+| ms102-ch07-teams.lab | presentation | ✓ | 0 |
+| ms102-ch08-security-compliance.lab | presentation | ✓ | 0 |
+| ms102-ch01-tenant.presentation | presentation | ✓ | 0 |
+| ms102-ch02-users-groups.presentation | presentation | ✓ | 0 |
+| ms102-ch03-roles-access.presentation | presentation | ✓ | 0 |
+| ms102-ch04-entra-auth.presentation | presentation | ✓ | 0 |
+| ms102-ch05-exchange.presentation | presentation | ✓ | 0 |
+| ms102-ch06-sharepoint.presentation | presentation | ✓ | 0 |
+| ms102-ch07-teams.presentation | presentation | ✓ | 0 |
+| ms102-ch08-security-compliance.presentation | presentation | ✓ | 0 |
+| ms102-ch01-quiz | quiz | ✓ | 0 |
+| ms102-ch02-quiz | quiz | ✓ | 0 |
+| ms102-ch03-quiz | quiz | ✓ | 0 |
+| ms102-ch04-quiz | quiz | ✓ | 0 |
+| ms102-ch05-quiz | quiz | ✓ | 0 |
+| ms102-ch06-quiz | quiz | ✓ | 0 |
+| ms102-ch07-quiz | quiz | ✓ | 1 |
+| ms102-ch08-quiz | quiz | ✓ | 0 |
+| ms900-ch01-cloud-m365.lab | presentation | ✓ | 0 |
+| ms900-ch02-security-compliance.lab | lab | ✓ | 0 |
+| ms900-ch03-pricing-support.lab | presentation | ✓ | 0 |
+| ms900-ch01-cloud-m365.presentation | presentation | ✓ | 0 |
+| ms900-ch02-security-compliance.presentation | presentation | ✓ | 0 |
+| ms900-ch03-pricing-support.presentation | presentation | ✓ | 0 |
+| ms900-ch01-quiz | quiz | ✓ | 0 |
+| ms900-ch02-quiz | quiz | ✓ | 0 |
+| ms900-ch03-quiz | quiz | ✓ | 0 |
 | cloud-openstack-advanced-ops.lab | presentation | ✓ | 0 |
 | cloud-openstack-install.lab | presentation | ✓ | 0 |
 | cloud-openstack-launch-vm.lab | presentation | ✓ | 0 |
@@ -5984,6 +6447,22 @@
 | openstack-intro-quiz | quiz | ✓ | 0 |
 | openstack-operation-quiz | quiz | ✓ | 0 |
 | openstack-projects-quiz | quiz | ✓ | 0 |
+| index | applet | ✓ | 1 |
+| pl300-ch01-prepare-data.lab | presentation | ✓ | 0 |
+| pl300-ch02-model-data.lab | presentation | ✓ | 0 |
+| pl300-ch03-visualize.lab | presentation | ✓ | 0 |
+| pl300-ch04-deploy.lab | presentation | ✓ | 0 |
+| pl300-ch05-dax.lab | presentation | ✓ | 0 |
+| pl300-ch01-prepare-data.presentation | presentation | ✓ | 0 |
+| pl300-ch02-model-data.presentation | presentation | ✓ | 0 |
+| pl300-ch03-visualize.presentation | presentation | ✓ | 0 |
+| pl300-ch04-deploy.presentation | presentation | ✓ | 0 |
+| pl300-ch05-dax.presentation | presentation | ✓ | 0 |
+| pl300-ch01-quiz | quiz | ✓ | 0 |
+| pl300-ch02-quiz | quiz | ✓ | 0 |
+| pl300-ch03-quiz | quiz | ✓ | 1 |
+| pl300-ch04-quiz | quiz | ✓ | 1 |
+| pl300-ch05-quiz | quiz | ✓ | 0 |
 | cloud-aws-fundamentals.presentation | presentation | ✓ | 0 |
 | cloud-azure-fundamentals.presentation | presentation | ✓ | 0 |
 | cloud-cloud.presentation | presentation | ✓ | 0 |
@@ -6569,21 +7048,22 @@
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
-| eth-01 | quiz | ✓ | 1 |
-| eth-02 | quiz | ✓ | 1 |
-| eth-03 | quiz | ✓ | 1 |
-| eth-04 | quiz | ✓ | 1 |
-| eth-05 | quiz | ✓ | 1 |
-| eth-06 | quiz | ✓ | 1 |
-| eth-07 | quiz | ✓ | 1 |
-| eth-08 | quiz | ✓ | 1 |
-| eth-09 | quiz | ✓ | 1 |
-| eth-10 | quiz | ✓ | 1 |
-| eth-11 | quiz | ✓ | 1 |
-| eth-12 | quiz | ✓ | 1 |
-| eth-13 | quiz | ✓ | 1 |
-| eth-14 | quiz | ✓ | 1 |
-| eth-15 | quiz | ✓ | 1 |
+| index | presentation | ✓ | 1 |
+| eth-01 | quiz | ✓ | 0 |
+| eth-02 | quiz | ✓ | 0 |
+| eth-03 | quiz | ✓ | 0 |
+| eth-04 | quiz | ✓ | 0 |
+| eth-05 | quiz | ✓ | 0 |
+| eth-06 | quiz | ✓ | 0 |
+| eth-07 | quiz | ✓ | 0 |
+| eth-08 | quiz | ✓ | 0 |
+| eth-09 | quiz | ✓ | 0 |
+| eth-10 | quiz | ✓ | 0 |
+| eth-11 | quiz | ✓ | 0 |
+| eth-12 | quiz | ✓ | 0 |
+| eth-13 | quiz | ✓ | 0 |
+| eth-14 | quiz | ✓ | 0 |
+| eth-15 | quiz | ✓ | 0 |
 | eth-r1 | presentation | ✓ | 0 |
 | eth-r2 | presentation | ✓ | 0 |
 | eth-r3 | presentation | ✓ | 0 |
@@ -6732,6 +7212,7 @@
 | eye-threat-hunting-lab.applet | applet | ✓ | 1 |
 | eye-threat-modeler | applet | ✓ | 1 |
 | eye-hunting.lab | presentation | ✓ | 0 |
+| eye-log-detective.lab | presentation | ✓ | 0 |
 | eye-siem.lab | presentation | ✓ | 0 |
 | eye-log-basics.presentation | presentation | ✓ | 0 |
 | eye-log-correlation.presentation | presentation | ✓ | 0 |
@@ -6888,7 +7369,9 @@
 | forge-root-access.applet | applet | ✓ | 1 |
 | forge-admin-tools.lab | lab | ✓ | 0 |
 | forge-control-panel.lab | lab | ✓ | 0 |
+| forge-core2-roleplay.lab | lab | ✓ | 0 |
 | forge-hardware-essentials.lab | lab | ✓ | 0 |
+| forge-lab-macos-linux.lab | lab | ✓ | 0 |
 | forge-system-tools.lab | lab | ✓ | 0 |
 | forge-windows-editions.lab | lab | ✓ | 0 |
 | forge-windows-settings.lab | lab | ✓ | 0 |
@@ -6974,6 +7457,12 @@
 | forge-md101-comprehensive-review | presentation | ✓ | 0 |
 | forge-md101-final-review | presentation | ✓ | 0 |
 | forge-md101-midterm-review | presentation | ✓ | 0 |
+| forge-admin-tools.presentation | presentation | ✓ | 0 |
+| forge-control-panel.presentation | presentation | ✓ | 0 |
+| forge-macos-linux-basics.presentation | presentation | ✓ | 0 |
+| forge-system-tools.presentation | presentation | ✓ | 0 |
+| forge-windows-editions.presentation | presentation | ✓ | 0 |
+| forge-windows-settings.presentation | presentation | ✓ | 0 |
 | aplus-core2-ch19-22 | quiz | ✓ | 0 |
 | aplus-core2 | quiz | ✓ | 0 |
 | hardware-essentials | quiz | ✓ | 0 |
@@ -7043,25 +7532,25 @@
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
-| ala-01 | quiz | ✓ | 1 |
-| ala-02 | quiz | ✓ | 1 |
-| ala-03 | quiz | ✓ | 1 |
-| ala-04 | quiz | ✓ | 1 |
-| ala-05 | quiz | ✓ | 1 |
-| ala-06 | quiz | ✓ | 1 |
-| ala-07 | quiz | ✓ | 1 |
-| ala-08 | quiz | ✓ | 1 |
-| ala-09 | quiz | ✓ | 1 |
-| ala-10 | quiz | ✓ | 1 |
-| ala-11 | quiz | ✓ | 1 |
-| ala-12 | quiz | ✓ | 1 |
-| ala-13 | quiz | ✓ | 1 |
-| ala-14 | quiz | ✓ | 1 |
-| ala-15 | quiz | ✓ | 1 |
-| ala-16 | quiz | ✓ | 1 |
-| ala-17 | quiz | ✓ | 1 |
-| ala-18 | quiz | ✓ | 1 |
-| ala-19 | quiz | ✓ | 1 |
+| ala-01 | quiz | ✓ | 0 |
+| ala-02 | quiz | ✓ | 0 |
+| ala-03 | quiz | ✓ | 0 |
+| ala-04 | quiz | ✓ | 0 |
+| ala-05 | quiz | ✓ | 0 |
+| ala-06 | quiz | ✓ | 0 |
+| ala-07 | quiz | ✓ | 0 |
+| ala-08 | quiz | ✓ | 0 |
+| ala-09 | quiz | ✓ | 0 |
+| ala-10 | quiz | ✓ | 0 |
+| ala-11 | quiz | ✓ | 0 |
+| ala-12 | quiz | ✓ | 0 |
+| ala-13 | quiz | ✓ | 0 |
+| ala-14 | quiz | ✓ | 0 |
+| ala-15 | quiz | ✓ | 0 |
+| ala-16 | quiz | ✓ | 0 |
+| ala-17 | quiz | ✓ | 0 |
+| ala-18 | quiz | ✓ | 0 |
+| ala-19 | quiz | ✓ | 0 |
 | ala-r1 | presentation | ✓ | 0 |
 | ala-r2 | presentation | ✓ | 0 |
 | ala-r3 | presentation | ✓ | 0 |
@@ -7089,6 +7578,258 @@
 | ala-w2-quiz | quiz | ✓ | 0 |
 | ala-w3-quiz | quiz | ✓ | 0 |
 | ala-w4-quiz | quiz | ✓ | 0 |
+| pv-e-01.lab | lab | ✓ | 0 |
+| pv-e-02.lab | lab | ✓ | 0 |
+| pv-e-03.lab | lab | ✓ | 0 |
+| pv-e-04.lab | lab | ✓ | 0 |
+| pv-e-05.lab | lab | ✓ | 0 |
+| pv-e-06.lab | lab | ✓ | 0 |
+| pv-e-07.lab | lab | ✓ | 0 |
+| pv-e-08.lab | lab | ✓ | 0 |
+| pv-e-09.lab | lab | ✓ | 0 |
+| pv-e-10.lab | lab | ✓ | 0 |
+| pv-e-01.presentation | presentation | ✓ | 0 |
+| pv-e-02.presentation | presentation | ✓ | 0 |
+| pv-e-03.presentation | presentation | ✓ | 0 |
+| pv-e-04.presentation | presentation | ✓ | 0 |
+| pv-e-05.presentation | presentation | ✓ | 0 |
+| pv-e-06.presentation | presentation | ✓ | 0 |
+| pv-e-07.presentation | presentation | ✓ | 0 |
+| pv-e-08.presentation | presentation | ✓ | 0 |
+| pv-e-09.presentation | presentation | ✓ | 0 |
+| pv-e-10.presentation | presentation | ✓ | 0 |
+| pv-e-01-quiz | quiz | ✓ | 0 |
+| pv-e-02-quiz | quiz | ✓ | 0 |
+| pv-e-03-quiz | quiz | ✓ | 0 |
+| pv-e-04-quiz | quiz | ✓ | 0 |
+| pv-e-05-quiz | quiz | ✓ | 0 |
+| pv-e-06-quiz | quiz | ✓ | 0 |
+| pv-e-07-quiz | quiz | ✓ | 0 |
+| pv-e-08-quiz | quiz | ✓ | 0 |
+| pv-e-09-quiz | quiz | ✓ | 0 |
+| pv-e-10-quiz | quiz | ✓ | 0 |
+| pv-b-01.lab | lab | ✓ | 0 |
+| pv-b-02.lab | lab | ✓ | 0 |
+| pv-b-03.lab | lab | ✓ | 0 |
+| pv-b-04.lab | lab | ✓ | 0 |
+| pv-b-05.lab | lab | ✓ | 0 |
+| pv-b-06.lab | lab | ✓ | 0 |
+| pv-b-07.lab | lab | ✓ | 0 |
+| pv-b-08.lab | lab | ✓ | 0 |
+| pv-b-01.presentation | presentation | ✓ | 0 |
+| pv-b-02.presentation | presentation | ✓ | 0 |
+| pv-b-03.presentation | presentation | ✓ | 0 |
+| pv-b-04.presentation | presentation | ✓ | 0 |
+| pv-b-05.presentation | presentation | ✓ | 0 |
+| pv-b-06.presentation | presentation | ✓ | 0 |
+| pv-b-07.presentation | presentation | ✓ | 0 |
+| pv-b-08.presentation | presentation | ✓ | 0 |
+| pv-b-01-quiz | quiz | ✓ | 0 |
+| pv-b-02-quiz | quiz | ✓ | 0 |
+| pv-b-03-quiz | quiz | ✓ | 0 |
+| pv-b-04-quiz | quiz | ✓ | 0 |
+| pv-b-05-quiz | quiz | ✓ | 0 |
+| pv-b-06-quiz | quiz | ✓ | 0 |
+| pv-b-07-quiz | quiz | ✓ | 0 |
+| pv-b-08-quiz | quiz | ✓ | 0 |
+| pv-f-01.lab | presentation | ✓ | 0 |
+| pv-f-02.lab | presentation | ✓ | 0 |
+| pv-f-03.lab | presentation | ✓ | 0 |
+| pv-f-04.lab | lab | ✓ | 0 |
+| pv-f-05.lab | presentation | ✓ | 0 |
+| pv-f-06.lab | lab | ✓ | 0 |
+| pv-f-07.lab | lab | ✓ | 0 |
+| pv-f-08.lab | lab | ✓ | 0 |
+| pv-f-09.lab | presentation | ✓ | 0 |
+| pv-f-10.lab | presentation | ✓ | 0 |
+| pv-f-01.presentation | presentation | ✓ | 0 |
+| pv-f-02.presentation | presentation | ✓ | 0 |
+| pv-f-03.presentation | presentation | ✓ | 0 |
+| pv-f-04.presentation | presentation | ✓ | 0 |
+| pv-f-05.presentation | presentation | ✓ | 0 |
+| pv-f-06.presentation | presentation | ✓ | 0 |
+| pv-f-07.presentation | presentation | ✓ | 0 |
+| pv-f-08.presentation | presentation | ✓ | 0 |
+| pv-f-09.presentation | presentation | ✓ | 0 |
+| pv-f-10.presentation | presentation | ✓ | 0 |
+| pv-f-01-quiz | quiz | ✓ | 0 |
+| pv-f-02-quiz | quiz | ✓ | 0 |
+| pv-f-03-quiz | quiz | ✓ | 0 |
+| pv-f-04-quiz | quiz | ✓ | 0 |
+| pv-f-05-quiz | quiz | ✓ | 1 |
+| pv-f-06-quiz | quiz | ✓ | 0 |
+| pv-f-07-quiz | quiz | ✓ | 1 |
+| pv-f-08-quiz | quiz | ✓ | 0 |
+| pv-f-09-quiz | quiz | ✓ | 0 |
+| pv-f-10-quiz | quiz | ✓ | 0 |
+| pv-m-01.lab | presentation | ✓ | 0 |
+| pv-m-02.lab | presentation | ✓ | 0 |
+| pv-m-03.lab | presentation | ✓ | 0 |
+| pv-m-04.lab | presentation | ✓ | 0 |
+| pv-m-05.lab | presentation | ✓ | 0 |
+| pv-m-06.lab | lab | ✓ | 0 |
+| pv-m-07.lab | lab | ✓ | 0 |
+| pv-m-08.lab | lab | ✓ | 0 |
+| pv-m-09.lab | lab | ✓ | 0 |
+| pv-m-10.lab | lab | ✓ | 0 |
+| pv-m-01.presentation | presentation | ✓ | 0 |
+| pv-m-02.presentation | presentation | ✓ | 0 |
+| pv-m-03.presentation | presentation | ✓ | 0 |
+| pv-m-04.presentation | presentation | ✓ | 0 |
+| pv-m-05.presentation | presentation | ✓ | 0 |
+| pv-m-06.presentation | presentation | ✓ | 0 |
+| pv-m-07.presentation | presentation | ✓ | 0 |
+| pv-m-08.presentation | presentation | ✓ | 0 |
+| pv-m-09.presentation | presentation | ✓ | 0 |
+| pv-m-10.presentation | presentation | ✓ | 0 |
+| pv-m-01-quiz | quiz | ✓ | 0 |
+| pv-m-02-quiz | quiz | ✓ | 0 |
+| pv-m-03-quiz | quiz | ✓ | 0 |
+| pv-m-04-quiz | quiz | ✓ | 0 |
+| pv-m-05-quiz | quiz | ✓ | 0 |
+| pv-m-06-quiz | quiz | ✓ | 0 |
+| pv-m-07-quiz | quiz | ✓ | 0 |
+| pv-m-08-quiz | quiz | ✓ | 0 |
+| pv-m-09-quiz | quiz | ✓ | 1 |
+| pv-m-10-quiz | quiz | ✓ | 0 |
+| pv-mp-01.lab | lab | ✓ | 0 |
+| pv-mp-02.lab | lab | ✓ | 0 |
+| pv-mp-03.lab | lab | ✓ | 0 |
+| pv-mp-04.lab | lab | ✓ | 0 |
+| pv-mp-05.lab | presentation | ✓ | 0 |
+| pv-mp-06.lab | presentation | ✓ | 0 |
+| pv-mp-07.lab | presentation | ✓ | 0 |
+| pv-mp-08.lab | presentation | ✓ | 0 |
+| pv-mp-09.lab | presentation | ✓ | 0 |
+| pv-mp-10.lab | presentation | ✓ | 0 |
+| pv-mp-11.lab | lab | ✓ | 0 |
+| pv-mp-12.lab | lab | ✓ | 0 |
+| pv-mp-01.presentation | presentation | ✓ | 0 |
+| pv-mp-02.presentation | presentation | ✓ | 0 |
+| pv-mp-03.presentation | presentation | ✓ | 0 |
+| pv-mp-04.presentation | presentation | ✓ | 0 |
+| pv-mp-05.presentation | presentation | ✓ | 0 |
+| pv-mp-06.presentation | presentation | ✓ | 0 |
+| pv-mp-07.presentation | presentation | ✓ | 0 |
+| pv-mp-08.presentation | presentation | ✓ | 0 |
+| pv-mp-09.presentation | presentation | ✓ | 0 |
+| pv-mp-10.presentation | presentation | ✓ | 0 |
+| pv-mp-11.presentation | presentation | ✓ | 0 |
+| pv-mp-12.presentation | presentation | ✓ | 0 |
+| pv-mp-01-quiz | quiz | ✓ | 0 |
+| pv-mp-02-quiz | quiz | ✓ | 0 |
+| pv-mp-03-quiz | quiz | ✓ | 0 |
+| pv-mp-04-quiz | quiz | ✓ | 0 |
+| pv-mp-05-quiz | quiz | ✓ | 0 |
+| pv-mp-06-quiz | quiz | ✓ | 0 |
+| pv-mp-07-quiz | quiz | ✓ | 0 |
+| pv-mp-08-quiz | quiz | ✓ | 0 |
+| pv-mp-09-quiz | quiz | ✓ | 0 |
+| pv-mp-10-quiz | quiz | ✓ | 0 |
+| pv-mp-11-quiz | quiz | ✓ | 0 |
+| pv-mp-12-quiz | quiz | ✓ | 0 |
+| pc-ard-01.lab | lab | ✓ | 0 |
+| pc-ard-02.lab | lab | ✓ | 0 |
+| pc-ard-03.lab | lab | ✓ | 0 |
+| pc-ard-04.lab | lab | ✓ | 0 |
+| pc-ard-05.lab | lab | ✓ | 0 |
+| pc-ard-06.lab | presentation | ✓ | 0 |
+| pc-ard-07.lab | presentation | ✓ | 0 |
+| pc-ard-08.lab | presentation | ✓ | 0 |
+| pc-ard-09.lab | lab | ✓ | 0 |
+| pc-ard-10.lab | lab | ✓ | 0 |
+| pc-ard-11.lab | presentation | ✓ | 0 |
+| pc-ard-12.lab | lab | ✓ | 0 |
+| pc-ard-13.lab | lab | ✓ | 0 |
+| pc-ard-14.lab | lab | ✓ | 0 |
+| pc-ard-15.lab | presentation | ✓ | 0 |
+| pc-ard-16.lab | lab | ✓ | 0 |
+| pc-ard-17.lab | lab | ✓ | 0 |
+| pc-ard-18.lab | lab | ✓ | 0 |
+| pc-ard-19.lab | lab | ✓ | 0 |
+| pc-ard-01.presentation | presentation | ✓ | 0 |
+| pc-ard-02.presentation | presentation | ✓ | 0 |
+| pc-ard-03.presentation | presentation | ✓ | 0 |
+| pc-ard-04.presentation | presentation | ✓ | 0 |
+| pc-ard-05.presentation | presentation | ✓ | 0 |
+| pc-ard-06.presentation | presentation | ✓ | 0 |
+| pc-ard-07.presentation | presentation | ✓ | 0 |
+| pc-ard-08.presentation | presentation | ✓ | 0 |
+| pc-ard-09.presentation | presentation | ✓ | 0 |
+| pc-ard-10.presentation | presentation | ✓ | 0 |
+| pc-ard-11.presentation | presentation | ✓ | 0 |
+| pc-ard-12.presentation | presentation | ✓ | 0 |
+| pc-ard-13.presentation | presentation | ✓ | 0 |
+| pc-ard-14.presentation | presentation | ✓ | 0 |
+| pc-ard-15.presentation | presentation | ✓ | 0 |
+| pc-ard-16.presentation | presentation | ✓ | 0 |
+| pc-ard-17.presentation | presentation | ✓ | 0 |
+| pc-ard-18.presentation | presentation | ✓ | 0 |
+| pc-ard-19.presentation | presentation | ✓ | 0 |
+| pc-ard-01-quiz | quiz | ✓ | 1 |
+| pc-ard-02-quiz | quiz | ✓ | 0 |
+| pc-ard-03-quiz | quiz | ✓ | 0 |
+| pc-ard-04-quiz | quiz | ✓ | 0 |
+| pc-ard-05-quiz | quiz | ✓ | 0 |
+| pc-ard-06-quiz | quiz | ✓ | 0 |
+| pc-ard-07-quiz | quiz | ✓ | 0 |
+| pc-ard-08-quiz | quiz | ✓ | 0 |
+| pc-ard-09-quiz | quiz | ✓ | 0 |
+| pc-ard-10-quiz | quiz | ✓ | 0 |
+| pc-ard-11-quiz | quiz | ✓ | 0 |
+| pc-ard-12-quiz | quiz | ✓ | 0 |
+| pc-ard-13-quiz | quiz | ✓ | 0 |
+| pc-ard-14-quiz | quiz | ✓ | 0 |
+| pc-ard-15-quiz | quiz | ✓ | 1 |
+| pc-ard-16-quiz | quiz | ✓ | 0 |
+| pc-ard-17-quiz | quiz | ✓ | 0 |
+| pc-ard-18-quiz | quiz | ✓ | 0 |
+| pc-ard-19-quiz | quiz | ✓ | 0 |
+| pc-esp-01.lab | lab | ✓ | 0 |
+| pc-esp-02.lab | lab | ✓ | 0 |
+| pc-esp-03.lab | lab | ✓ | 0 |
+| pc-esp-04.lab | lab | ✓ | 0 |
+| pc-esp-05.lab | lab | ✓ | 0 |
+| pc-esp-06.lab | presentation | ✓ | 0 |
+| pc-esp-07.lab | lab | ✓ | 0 |
+| pc-esp-08.lab | lab | ✓ | 0 |
+| pc-esp-09.lab | lab | ✓ | 0 |
+| pc-esp-10.lab | lab | ✓ | 0 |
+| pc-esp-11.lab | lab | ✓ | 0 |
+| pc-esp-12.lab | lab | ✓ | 0 |
+| pc-esp-13.lab | presentation | ✓ | 0 |
+| pc-esp-14.lab | lab | ✓ | 0 |
+| pc-esp-15.lab | lab | ✓ | 0 |
+| pc-esp-01.presentation | presentation | ✓ | 0 |
+| pc-esp-02.presentation | presentation | ✓ | 0 |
+| pc-esp-03.presentation | presentation | ✓ | 0 |
+| pc-esp-04.presentation | presentation | ✓ | 0 |
+| pc-esp-05.presentation | presentation | ✓ | 0 |
+| pc-esp-06.presentation | presentation | ✓ | 0 |
+| pc-esp-07.presentation | presentation | ✓ | 0 |
+| pc-esp-08.presentation | presentation | ✓ | 0 |
+| pc-esp-09.presentation | presentation | ✓ | 0 |
+| pc-esp-10.presentation | presentation | ✓ | 0 |
+| pc-esp-11.presentation | presentation | ✓ | 0 |
+| pc-esp-12.presentation | presentation | ✓ | 0 |
+| pc-esp-13.presentation | presentation | ✓ | 0 |
+| pc-esp-14.presentation | presentation | ✓ | 0 |
+| pc-esp-15.presentation | presentation | ✓ | 0 |
+| pc-esp-01-quiz | quiz | ✓ | 0 |
+| pc-esp-02-quiz | quiz | ✓ | 0 |
+| pc-esp-03-quiz | quiz | ✓ | 0 |
+| pc-esp-04-quiz | quiz | ✓ | 0 |
+| pc-esp-05-quiz | quiz | ✓ | 0 |
+| pc-esp-06-quiz | quiz | ✓ | 1 |
+| pc-esp-07-quiz | quiz | ✓ | 0 |
+| pc-esp-08-quiz | quiz | ✓ | 0 |
+| pc-esp-09-quiz | quiz | ✓ | 0 |
+| pc-esp-10-quiz | quiz | ✓ | 1 |
+| pc-esp-11-quiz | quiz | ✓ | 0 |
+| pc-esp-12-quiz | quiz | ✓ | 0 |
+| pc-esp-13-quiz | quiz | ✓ | 1 |
+| pc-esp-14-quiz | quiz | ✓ | 0 |
+| pc-esp-15-quiz | quiz | ✓ | 0 |
 
 ### SCRIPT (Automation)
 ──────────────────────────────────────────────────
@@ -7640,27 +8381,27 @@
 | pis-final | quiz | ✓ | 0 |
 | pis-midterm | quiz | ✓ | 0 |
 | index | applet | ✓ | 1 |
-| pis-01 | quiz | ✓ | 1 |
-| pis-02 | quiz | ✓ | 1 |
-| pis-03 | quiz | ✓ | 1 |
-| pis-04 | quiz | ✓ | 1 |
-| pis-05 | quiz | ✓ | 1 |
-| pis-06 | quiz | ✓ | 1 |
-| pis-07 | quiz | ✓ | 1 |
-| pis-08 | quiz | ✓ | 1 |
-| pis-09 | quiz | ✓ | 1 |
-| pis-10 | quiz | ✓ | 1 |
-| pis-11 | quiz | ✓ | 1 |
-| pis-12 | quiz | ✓ | 1 |
-| pis-13 | quiz | ✓ | 1 |
-| pis-14 | quiz | ✓ | 1 |
-| pis-15 | quiz | ✓ | 1 |
-| pis-16 | quiz | ✓ | 1 |
-| pis-17 | quiz | ✓ | 1 |
-| pis-18 | quiz | ✓ | 1 |
-| pis-19 | quiz | ✓ | 1 |
-| pis-20 | quiz | ✓ | 1 |
-| pis-21 | quiz | ✓ | 1 |
+| pis-01 | quiz | ✓ | 0 |
+| pis-02 | quiz | ✓ | 0 |
+| pis-03 | quiz | ✓ | 0 |
+| pis-04 | quiz | ✓ | 0 |
+| pis-05 | quiz | ✓ | 0 |
+| pis-06 | quiz | ✓ | 0 |
+| pis-07 | quiz | ✓ | 0 |
+| pis-08 | quiz | ✓ | 0 |
+| pis-09 | quiz | ✓ | 0 |
+| pis-10 | quiz | ✓ | 0 |
+| pis-11 | quiz | ✓ | 0 |
+| pis-12 | quiz | ✓ | 0 |
+| pis-13 | quiz | ✓ | 0 |
+| pis-14 | quiz | ✓ | 0 |
+| pis-15 | quiz | ✓ | 0 |
+| pis-16 | quiz | ✓ | 0 |
+| pis-17 | quiz | ✓ | 0 |
+| pis-18 | quiz | ✓ | 0 |
+| pis-19 | quiz | ✓ | 0 |
+| pis-20 | quiz | ✓ | 0 |
+| pis-21 | quiz | ✓ | 0 |
 | pis-r1 | presentation | ✓ | 0 |
 | pis-r2 | presentation | ✓ | 0 |
 | pis-r3 | presentation | ✓ | 0 |
@@ -7738,6 +8479,45 @@
 | shield-network-security | quiz | ✓ | 0 |
 | shield-security-fundamentals | quiz | ✓ | 0 |
 | shield-threats | quiz | ✓ | 0 |
+| sc200-ch01-defender-xdr.lab | lab | ✓ | 0 |
+| sc200-ch02-defender-endpoint.lab | lab | ✓ | 0 |
+| sc200-ch03-defender-office.lab | lab | ✓ | 0 |
+| sc200-ch04-defender-identity.lab | lab | ✓ | 0 |
+| sc200-ch05-defender-cloud-apps.lab | lab | ✓ | 0 |
+| sc200-ch06-sentinel-setup.lab | lab | ✓ | 0 |
+| sc200-ch07-sentinel-detection.lab | lab | ✓ | 0 |
+| sc200-ch08-sentinel-response.lab | presentation | ✓ | 0 |
+| sc200-ch09-sentinel-hunting.lab | lab | ✓ | 0 |
+| sc200-ch01-defender-xdr.presentation | presentation | ✓ | 0 |
+| sc200-ch02-defender-endpoint.presentation | presentation | ✓ | 0 |
+| sc200-ch03-defender-office.presentation | presentation | ✓ | 0 |
+| sc200-ch04-defender-identity.presentation | presentation | ✓ | 0 |
+| sc200-ch05-defender-cloud-apps.presentation | presentation | ✓ | 0 |
+| sc200-ch06-sentinel-setup.presentation | presentation | ✓ | 0 |
+| sc200-ch07-sentinel-detection.presentation | presentation | ✓ | 0 |
+| sc200-ch08-sentinel-response.presentation | presentation | ✓ | 0 |
+| sc200-ch09-sentinel-hunting.presentation | presentation | ✓ | 0 |
+| sc200-ch01-quiz | quiz | ✓ | 0 |
+| sc200-ch02-quiz | quiz | ✓ | 0 |
+| sc200-ch03-quiz | quiz | ✓ | 0 |
+| sc200-ch04-quiz | quiz | ✓ | 0 |
+| sc200-ch05-quiz | quiz | ✓ | 0 |
+| sc200-ch06-quiz | quiz | ✓ | 0 |
+| sc200-ch07-quiz | quiz | ✓ | 0 |
+| sc200-ch08-quiz | quiz | ✓ | 1 |
+| sc200-ch09-quiz | quiz | ✓ | 1 |
+| sc900-ch01-concepts.lab | lab | ✓ | 0 |
+| sc900-ch02-entra-id.lab | lab | ✓ | 0 |
+| sc900-ch03-security-solutions.lab | presentation | ✓ | 0 |
+| sc900-ch04-compliance.lab | presentation | ✓ | 0 |
+| sc900-ch01-concepts.presentation | presentation | ✓ | 0 |
+| sc900-ch02-entra-id.presentation | presentation | ✓ | 0 |
+| sc900-ch03-security-solutions.presentation | presentation | ✓ | 0 |
+| sc900-ch04-compliance.presentation | presentation | ✓ | 0 |
+| sc900-ch01-quiz | quiz | ✓ | 0 |
+| sc900-ch02-quiz | quiz | ✓ | 0 |
+| sc900-ch03-quiz | quiz | ✓ | 0 |
+| sc900-ch04-quiz | quiz | ✓ | 0 |
 | shield-sec101-m01.presentation | presentation | ✓ | 0 |
 | shield-sec101-m02.presentation | presentation | ✓ | 0 |
 | shield-sec101-m03.presentation | presentation | ✓ | 0 |
@@ -8356,6 +9136,8 @@
 | index | applet | ✓ | 1 |
 | dns-troubleshooting.lab | lab | ✓ | 0 |
 | firewall-rules.lab | lab | ✓ | 0 |
+| n10009-ch01-security.lab | lab | ✓ | 0 |
+| n10009-ch02-troubleshooting.lab | lab | ✓ | 0 |
 | ne01-osi-scenario.lab | lab | ✓ | 0 |
 | ne02-tcpip-scenario.lab | lab | ✓ | 0 |
 | ne03-subnet-scenario.lab | lab | ✓ | 0 |
@@ -8398,6 +9180,8 @@
 | icmp.presentation | presentation | ✓ | 0 |
 | ipsec-gre.presentation | presentation | ✓ | 0 |
 | ipv6.presentation | presentation | ✓ | 0 |
+| n10009-ch01-security.presentation | presentation | ✓ | 0 |
+| n10009-ch02-troubleshooting.presentation | presentation | ✓ | 0 |
 | nat.presentation | presentation | ✓ | 0 |
 | network-access-methods.presentation | presentation | ✓ | 0 |
 | network-essentials.presentation | presentation | ✓ | 0 |
@@ -8424,18 +9208,20 @@
 | wireless-architecture.presentation | presentation | ✓ | 0 |
 | wireless.presentation | presentation | ✓ | 0 |
 | ch7-20.quiz | presentation | ✓ | 0 |
-| dns-dhcp.quiz | presentation | ✓ | 0 |
-| infrastructure.quiz | presentation | ✓ | 0 |
-| operations.quiz | presentation | ✓ | 0 |
-| osi.quiz | presentation | ✓ | 0 |
-| routing.quiz | presentation | ✓ | 0 |
-| security.quiz | presentation | ✓ | 0 |
+| web-dns-dhcp-quiz | quiz | ✓ | 0 |
+| web-infrastructure-quiz | quiz | ✓ | 0 |
+| n10009-ch01-quiz | quiz | ✓ | 0 |
+| n10009-ch02-quiz | quiz | ✓ | 0 |
+| web-operations-quiz | quiz | ✓ | 0 |
+| web-osi-quiz | quiz | ✓ | 0 |
+| web-routing-quiz | quiz | ✓ | 0 |
+| web-security-quiz | quiz | ✓ | 0 |
 | web-subnetting-quiz | quiz | ✓ | 0 |
-| switching.quiz | presentation | ✓ | 0 |
-| tcpip.quiz | presentation | ✓ | 0 |
-| troubleshooting.quiz | presentation | ✓ | 0 |
-| wan-cloud.quiz | presentation | ✓ | 0 |
-| wireless.quiz | presentation | ✓ | 0 |
+| web-switching-quiz | quiz | ✓ | 0 |
+| web-tcpip-quiz | quiz | ✓ | 0 |
+| web-troubleshooting-quiz | quiz | ✓ | 0 |
+| web-wan-cloud-quiz | quiz | ✓ | 0 |
+| web-wireless-quiz | quiz | ✓ | 0 |
 | acl.tool | presentation | ✓ | 0 |
 | cable.tool | presentation | ✓ | 0 |
 | devices.tool | presentation | ✓ | 0 |
@@ -8529,96 +9315,7 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### CRITICAL (24)
-
-**[REG-ORPHAN-001]** Registry declares 'forge-windows-editions' but file is missing: houses/forge/presentations/forge-windows-editions.presentation.html
-  Fix: Remove entry 'forge-windows-editions' from content-registry.js OR restore the missing file
-
-**[REG-ORPHAN-001]** Registry declares 'forge-windows-settings' but file is missing: houses/forge/presentations/forge-windows-settings.presentation.html
-  Fix: Remove entry 'forge-windows-settings' from content-registry.js OR restore the missing file
-
-**[REG-ORPHAN-001]** Registry declares 'forge-control-panel' but file is missing: houses/forge/presentations/forge-control-panel.presentation.html
-  Fix: Remove entry 'forge-control-panel' from content-registry.js OR restore the missing file
-
-**[REG-ORPHAN-001]** Registry declares 'forge-admin-tools' but file is missing: houses/forge/presentations/forge-admin-tools.presentation.html
-  Fix: Remove entry 'forge-admin-tools' from content-registry.js OR restore the missing file
-
-**[REG-ORPHAN-001]** Registry declares 'forge-system-tools' but file is missing: houses/forge/presentations/forge-system-tools.presentation.html
-  Fix: Remove entry 'forge-system-tools' from content-registry.js OR restore the missing file
-
-**[REG-ORPHAN-001]** Registry declares 'forge-macos-linux-basics' but file is missing: houses/forge/presentations/forge-macos-linux-basics.presentation.html
-  Fix: Remove entry 'forge-macos-linux-basics' from content-registry.js OR restore the missing file
-
-**[REG-ORPHAN-001]** Registry declares 'forge-macos-linux-basics' but file is missing: houses/forge/labs/forge-lab-macos-linux.lab.html
-  Fix: Remove entry 'forge-macos-linux-basics' from content-registry.js OR restore the missing file
-
-**[REG-ORPHAN-001]** Registry declares 'forge-macos-linux-lab' but file is missing: houses/forge/labs/forge-lab-macos-linux.lab.html
-  Fix: Remove entry 'forge-macos-linux-lab' from content-registry.js OR restore the missing file
-
-**[REG-ORPHAN-001]** Registry declares 'forge-core2-roleplay' but file is missing: houses/forge/labs/forge-core2-roleplay.lab.html
-  Fix: Remove entry 'forge-core2-roleplay' from content-registry.js OR restore the missing file
-
-**[ASGN-001]** Item assignment for 'forge-windows-editions' resolves to nonexistent file: houses/forge/presentations/forge-windows-editions.presentation.html
-  File: `./components/LearningPaths.js`
-  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/forge/presentations/forge-windows-editions.presentation.html
-
-**[ASGN-001]** Item assignment for 'forge-windows-settings' resolves to nonexistent file: houses/forge/presentations/forge-windows-settings.presentation.html
-  File: `./components/LearningPaths.js`
-  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/forge/presentations/forge-windows-settings.presentation.html
-
-**[ASGN-001]** Item assignment for 'forge-control-panel' resolves to nonexistent file: houses/forge/presentations/forge-control-panel.presentation.html
-  File: `./components/LearningPaths.js`
-  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/forge/presentations/forge-control-panel.presentation.html
-
-**[ASGN-001]** Item assignment for 'forge-admin-tools' resolves to nonexistent file: houses/forge/presentations/forge-admin-tools.presentation.html
-  File: `./components/LearningPaths.js`
-  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/forge/presentations/forge-admin-tools.presentation.html
-
-**[ASGN-001]** Item assignment for 'forge-system-tools' resolves to nonexistent file: houses/forge/presentations/forge-system-tools.presentation.html
-  File: `./components/LearningPaths.js`
-  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/forge/presentations/forge-system-tools.presentation.html
-
-**[ASGN-001]** Item assignment for 'forge-macos-linux-basics' resolves to nonexistent file: houses/forge/presentations/forge-macos-linux-basics.presentation.html
-  File: `./components/LearningPaths.js`
-  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/forge/presentations/forge-macos-linux-basics.presentation.html
-
-**[CAT-001]** Module 'forge-windows-editions' href 'presentations/forge-windows-editions.presentation.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'forge-windows-editions'
-
-**[CAT-001]** Module 'forge-windows-settings' href 'presentations/forge-windows-settings.presentation.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'forge-windows-settings'
-
-**[CAT-001]** Module 'forge-control-panel' href 'presentations/forge-control-panel.presentation.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'forge-control-panel'
-
-**[CAT-001]** Module 'forge-admin-tools' href 'presentations/forge-admin-tools.presentation.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'forge-admin-tools'
-
-**[CAT-001]** Module 'forge-system-tools' href 'presentations/forge-system-tools.presentation.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'forge-system-tools'
-
-**[CAT-001]** Module 'forge-macos-linux-basics' href 'presentations/forge-macos-linux-basics.presentation.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'forge-macos-linux-basics'
-
-**[CAT-001]** Module 'forge-macos-linux-lab' href 'labs/forge-lab-macos-linux.lab.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'forge-macos-linux-lab'
-
-**[CAT-001]** Module 'forge-core2-roleplay-lab' href 'labs/forge-core2-roleplay.lab.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'forge-core2-roleplay-lab'
-
-**[QUIZ-005]** Answer key has 15 answers but quiz has 16 questions for moduleId "az104-ch06-quiz" — grading will be wrong
-  File: `houses/cloud/az-104/quizzes/az104-ch06.quiz.html`
-  Fix: Update quiz_keys.json to have exactly 16 answers for "az104-ch06-quiz"
-
-### SUSPECT (58) — heuristic, needs review
+### SUSPECT (62) — heuristic, needs review
 
 **[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
   File: `components/IntegrityLockscreen.js`
@@ -8704,6 +9401,14 @@
   File: `houses/cloud/az-104/labs/az104-ch05-networking.lab.html`
   Fix: Add fallback: (parseInt(value, 10) || 0)
 
+**[MATH-001]** Unguarded parseInt() in arithmetic — NaN will propagate if input is invalid
+  File: `houses/cloud/ms-102/labs/ms102-ch05-exchange.lab.html`
+  Fix: Add fallback: (parseInt(value, 10) || 0)
+
+**[MATH-001]** Unguarded parseInt() in arithmetic — NaN will propagate if input is invalid
+  File: `houses/cloud/ms-102/labs/ms102-ch06-sharepoint.lab.html`
+  Fix: Add fallback: (parseInt(value, 10) || 0)
+
 **[HEUR-004]** console.log() in inline script (production hygiene)
   File: `houses/code/armory/compare.html`
   Fix: Remove console.log or replace with proper logging
@@ -8723,6 +9428,10 @@
 **[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
   File: `houses/key/labs/key-hmac.lab.html`
   Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-01.quiz.html`
+  Fix: Remove console.log or replace with proper logging
 
 **[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
   File: `houses/script/applets/python/script-python-chapter2-strings.applet.html`
@@ -8800,6 +9509,10 @@
   File: `houses/script/exams/script-python-exam-chapter2.exam.html`
   Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
 
+**[HEUR-005]** Duplicate script include: "../../../../components/ModuleProgress.js" loaded 2 times (lines 255, 536)
+  File: `houses/script/linux/labs/script-mission-permissions.lab.html`
+  Fix: Remove duplicate <script src="../../../../components/ModuleProgress.js"> tag
+
 **[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
   File: `houses/script/modules/python/script-python-immersive-chapter1.module.html`
   Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
@@ -8852,7 +9565,7 @@
   File: `houses/web/simulators/web-interactive-network-simulatorv2.simulator.html`
   Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
 
-### WARNING (2360)
+### WARNING (2194)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `about.html`
@@ -10814,6 +11527,198 @@
   File: `houses/cloud/games/cloud-api-foundations-lab.applet.html`
   Fix: Add entry to content-registry.js
 
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-102/labs/ms102-ch01-tenant.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-102/labs/ms102-ch02-users-groups.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-102/labs/ms102-ch03-roles-access.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-102/labs/ms102-ch04-entra-auth.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-102/labs/ms102-ch05-exchange.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-102/labs/ms102-ch06-sharepoint.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-102/labs/ms102-ch07-teams.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-102/labs/ms102-ch08-security-compliance.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-102/presentations/ms102-ch01-tenant.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-102/presentations/ms102-ch02-users-groups.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-102/presentations/ms102-ch03-roles-access.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-102/presentations/ms102-ch04-entra-auth.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-102/presentations/ms102-ch05-exchange.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-102/presentations/ms102-ch06-sharepoint.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-102/presentations/ms102-ch07-teams.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-102/presentations/ms102-ch08-security-compliance.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-102/quizzes/ms102-ch01.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-102/quizzes/ms102-ch02.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-102/quizzes/ms102-ch03.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-102/quizzes/ms102-ch04.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-102/quizzes/ms102-ch05.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-102/quizzes/ms102-ch06.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-102/quizzes/ms102-ch07.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-102/quizzes/ms102-ch08.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-900/labs/ms900-ch01-cloud-m365.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-900/labs/ms900-ch02-security-compliance.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-900/labs/ms900-ch03-pricing-support.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-900/presentations/ms900-ch01-cloud-m365.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-900/presentations/ms900-ch02-security-compliance.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-900/presentations/ms900-ch03-pricing-support.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-900/quizzes/ms900-ch01.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-900/quizzes/ms900-ch02.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/ms-900/quizzes/ms900-ch03.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/pl-300/labs/pl300-ch01-prepare-data.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/pl-300/labs/pl300-ch02-model-data.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/pl-300/labs/pl300-ch03-visualize.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/pl-300/labs/pl300-ch04-deploy.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/pl-300/labs/pl300-ch05-dax.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/pl-300/presentations/pl300-ch01-prepare-data.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/pl-300/presentations/pl300-ch02-model-data.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/pl-300/presentations/pl300-ch03-visualize.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/pl-300/presentations/pl300-ch04-deploy.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/pl-300/presentations/pl300-ch05-dax.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/pl-300/quizzes/pl300-ch01.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/pl-300/quizzes/pl300-ch02.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/pl-300/quizzes/pl300-ch03.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/pl-300/quizzes/pl300-ch04.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/pl-300/quizzes/pl300-ch05.quiz.html`
+  Fix: Add entry to content-registry.js
+
 **[TRACK-002]** Presentation has slides but no progress tracking
   File: `houses/cloud/server-plus/index.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
@@ -12718,6 +13623,10 @@
   File: `houses/dark-arts/vault/ehe/da-ad-attack-lab.lab.html`
   Fix: Add entry to content-registry.js
 
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/divergent/cybersecurity-policy/index.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/divergent/ethics-it/eth-01.html`
   Fix: Add entry to content-registry.js
@@ -13260,6 +14169,1014 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/matrix/adv-linux/quizzes/ala-w4.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/electronics/labs/pv-e-01.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/electronics/labs/pv-e-02.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/electronics/labs/pv-e-03.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/electronics/labs/pv-e-04.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/electronics/labs/pv-e-05.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/electronics/labs/pv-e-06.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/electronics/labs/pv-e-07.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/electronics/labs/pv-e-08.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/electronics/labs/pv-e-09.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/electronics/labs/pv-e-10.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/electronics/presentations/pv-e-01.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/electronics/presentations/pv-e-02.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/electronics/presentations/pv-e-03.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/electronics/presentations/pv-e-04.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/electronics/presentations/pv-e-05.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/electronics/presentations/pv-e-06.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/electronics/presentations/pv-e-07.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/electronics/presentations/pv-e-08.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/electronics/presentations/pv-e-09.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/electronics/presentations/pv-e-10.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/electronics/quizzes/pv-e-01.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/electronics/quizzes/pv-e-02.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/electronics/quizzes/pv-e-03.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/electronics/quizzes/pv-e-04.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/electronics/quizzes/pv-e-05.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/electronics/quizzes/pv-e-06.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/electronics/quizzes/pv-e-07.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/electronics/quizzes/pv-e-08.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/electronics/quizzes/pv-e-09.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/electronics/quizzes/pv-e-10.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/engineering/labs/pv-b-01.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/engineering/labs/pv-b-02.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/engineering/labs/pv-b-03.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/engineering/labs/pv-b-04.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/engineering/labs/pv-b-05.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/engineering/labs/pv-b-06.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/engineering/labs/pv-b-07.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/engineering/labs/pv-b-08.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/engineering/presentations/pv-b-01.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/engineering/presentations/pv-b-02.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/engineering/presentations/pv-b-03.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/engineering/presentations/pv-b-04.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/engineering/presentations/pv-b-05.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/engineering/presentations/pv-b-06.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/engineering/presentations/pv-b-07.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/engineering/presentations/pv-b-08.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/engineering/quizzes/pv-b-01.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/engineering/quizzes/pv-b-02.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/engineering/quizzes/pv-b-03.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/engineering/quizzes/pv-b-04.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/engineering/quizzes/pv-b-05.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/engineering/quizzes/pv-b-06.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/engineering/quizzes/pv-b-07.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/engineering/quizzes/pv-b-08.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/fundamentals/labs/pv-f-01.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/fundamentals/labs/pv-f-02.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/fundamentals/labs/pv-f-03.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/fundamentals/labs/pv-f-04.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/fundamentals/labs/pv-f-05.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/fundamentals/labs/pv-f-06.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/fundamentals/labs/pv-f-07.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/fundamentals/labs/pv-f-08.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/fundamentals/labs/pv-f-09.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/fundamentals/labs/pv-f-10.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/fundamentals/presentations/pv-f-01.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/fundamentals/presentations/pv-f-02.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/fundamentals/presentations/pv-f-03.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/fundamentals/presentations/pv-f-04.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/fundamentals/presentations/pv-f-05.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/fundamentals/presentations/pv-f-06.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/fundamentals/presentations/pv-f-07.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/fundamentals/presentations/pv-f-08.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/fundamentals/presentations/pv-f-09.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/fundamentals/presentations/pv-f-10.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/fundamentals/quizzes/pv-f-01.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/fundamentals/quizzes/pv-f-02.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/fundamentals/quizzes/pv-f-03.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/fundamentals/quizzes/pv-f-04.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/fundamentals/quizzes/pv-f-05.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/fundamentals/quizzes/pv-f-06.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/fundamentals/quizzes/pv-f-07.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/fundamentals/quizzes/pv-f-08.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/fundamentals/quizzes/pv-f-09.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/fundamentals/quizzes/pv-f-10.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/maker/labs/pv-m-01.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/maker/labs/pv-m-02.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/maker/labs/pv-m-03.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/maker/labs/pv-m-04.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/maker/labs/pv-m-05.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/maker/labs/pv-m-06.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/maker/labs/pv-m-07.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/maker/labs/pv-m-08.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/maker/labs/pv-m-09.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/maker/labs/pv-m-10.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/maker/presentations/pv-m-01.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/maker/presentations/pv-m-02.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/maker/presentations/pv-m-03.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/maker/presentations/pv-m-04.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/maker/presentations/pv-m-05.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/maker/presentations/pv-m-06.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/maker/presentations/pv-m-07.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/maker/presentations/pv-m-08.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/maker/presentations/pv-m-09.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/maker/presentations/pv-m-10.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/maker/quizzes/pv-m-01.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/maker/quizzes/pv-m-02.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/maker/quizzes/pv-m-03.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/maker/quizzes/pv-m-04.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/maker/quizzes/pv-m-05.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/maker/quizzes/pv-m-06.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/maker/quizzes/pv-m-07.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/maker/quizzes/pv-m-08.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/maker/quizzes/pv-m-09.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/maker/quizzes/pv-m-10.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/labs/pv-mp-01.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/labs/pv-mp-02.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/labs/pv-mp-03.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/labs/pv-mp-04.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/labs/pv-mp-05.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/labs/pv-mp-06.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/labs/pv-mp-07.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/labs/pv-mp-08.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/labs/pv-mp-09.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/labs/pv-mp-10.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/labs/pv-mp-11.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/labs/pv-mp-12.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/presentations/pv-mp-01.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/presentations/pv-mp-02.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/presentations/pv-mp-03.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/presentations/pv-mp-04.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/presentations/pv-mp-05.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/presentations/pv-mp-06.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/presentations/pv-mp-07.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/presentations/pv-mp-08.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/presentations/pv-mp-09.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/presentations/pv-mp-10.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/presentations/pv-mp-11.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/presentations/pv-mp-12.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/quizzes/pv-mp-01.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/quizzes/pv-mp-02.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/quizzes/pv-mp-03.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/quizzes/pv-mp-04.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/quizzes/pv-mp-05.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/quizzes/pv-mp-06.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/quizzes/pv-mp-07.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/quizzes/pv-mp-08.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/quizzes/pv-mp-09.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/quizzes/pv-mp-10.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/quizzes/pv-mp-11.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/piverse/micropython/quizzes/pv-mp-12.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/labs/pc-ard-01.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/labs/pc-ard-02.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/labs/pc-ard-03.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/labs/pc-ard-04.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/labs/pc-ard-05.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/labs/pc-ard-06.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/labs/pc-ard-07.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/labs/pc-ard-08.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/labs/pc-ard-09.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/labs/pc-ard-10.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/labs/pc-ard-11.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/labs/pc-ard-12.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/labs/pc-ard-13.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/labs/pc-ard-14.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/labs/pc-ard-15.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/labs/pc-ard-16.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/labs/pc-ard-17.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/labs/pc-ard-18.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/labs/pc-ard-19.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/presentations/pc-ard-01.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/presentations/pc-ard-02.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/presentations/pc-ard-03.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/presentations/pc-ard-04.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/presentations/pc-ard-05.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/presentations/pc-ard-06.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/presentations/pc-ard-07.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/presentations/pc-ard-08.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/presentations/pc-ard-09.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/presentations/pc-ard-10.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/presentations/pc-ard-11.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/presentations/pc-ard-12.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/presentations/pc-ard-13.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/presentations/pc-ard-14.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/presentations/pc-ard-15.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/presentations/pc-ard-16.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/presentations/pc-ard-17.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/presentations/pc-ard-18.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/presentations/pc-ard-19.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-01.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-02.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-03.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-04.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-05.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-06.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-07.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-08.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-09.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-10.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-11.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-12.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-13.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-14.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-15.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-16.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-17.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-18.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-19.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/labs/pc-esp-01.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/labs/pc-esp-02.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/labs/pc-esp-03.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/labs/pc-esp-04.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/labs/pc-esp-05.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/labs/pc-esp-06.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/labs/pc-esp-07.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/labs/pc-esp-08.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/labs/pc-esp-09.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/labs/pc-esp-10.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/labs/pc-esp-11.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/labs/pc-esp-12.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/labs/pc-esp-13.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/labs/pc-esp-14.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/labs/pc-esp-15.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/presentations/pc-esp-01.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/presentations/pc-esp-02.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/presentations/pc-esp-03.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/presentations/pc-esp-04.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/presentations/pc-esp-05.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/presentations/pc-esp-06.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/presentations/pc-esp-07.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/presentations/pc-esp-08.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/presentations/pc-esp-09.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/presentations/pc-esp-10.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/presentations/pc-esp-11.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/presentations/pc-esp-12.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/presentations/pc-esp-13.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/presentations/pc-esp-14.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/presentations/pc-esp-15.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-01.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-02.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-03.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-04.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-05.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-06.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-07.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-08.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-09.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-10.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-11.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-12.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-13.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-14.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-15.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -13912,6 +15829,162 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/ms-security/ms-sec-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-200/labs/sc200-ch01-defender-xdr.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-200/labs/sc200-ch02-defender-endpoint.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-200/labs/sc200-ch03-defender-office.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-200/labs/sc200-ch04-defender-identity.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-200/labs/sc200-ch05-defender-cloud-apps.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-200/labs/sc200-ch06-sentinel-setup.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-200/labs/sc200-ch07-sentinel-detection.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-200/labs/sc200-ch08-sentinel-response.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-200/labs/sc200-ch09-sentinel-hunting.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-200/presentations/sc200-ch01-defender-xdr.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-200/presentations/sc200-ch02-defender-endpoint.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-200/presentations/sc200-ch03-defender-office.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-200/presentations/sc200-ch04-defender-identity.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-200/presentations/sc200-ch05-defender-cloud-apps.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-200/presentations/sc200-ch06-sentinel-setup.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-200/presentations/sc200-ch07-sentinel-detection.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-200/presentations/sc200-ch08-sentinel-response.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-200/presentations/sc200-ch09-sentinel-hunting.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-200/quizzes/sc200-ch01.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-200/quizzes/sc200-ch02.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-200/quizzes/sc200-ch03.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-200/quizzes/sc200-ch04.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-200/quizzes/sc200-ch05.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-200/quizzes/sc200-ch06.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-200/quizzes/sc200-ch07.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-200/quizzes/sc200-ch08.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-200/quizzes/sc200-ch09.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-900/labs/sc900-ch01-concepts.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-900/labs/sc900-ch02-entra-id.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-900/labs/sc900-ch03-security-solutions.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-900/labs/sc900-ch04-compliance.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-900/presentations/sc900-ch01-concepts.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-900/presentations/sc900-ch02-entra-id.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-900/presentations/sc900-ch03-security-solutions.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-900/presentations/sc900-ch04-compliance.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-900/quizzes/sc900-ch01.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-900/quizzes/sc900-ch02.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-900/quizzes/sc900-ch03.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/sc-900/quizzes/sc900-ch04.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -14763,6 +16836,14 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/network-plus/labs/n10009-ch01-security.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/network-plus/labs/n10009-ch02-troubleshooting.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/web/network-plus/labs/ne01-osi-scenario.lab.html`
   Fix: Add entry to content-registry.js
 
@@ -14931,6 +17012,14 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/network-plus/presentations/n10009-ch01-security.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/network-plus/presentations/n10009-ch02-troubleshooting.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/web/network-plus/presentations/nat.presentation.html`
   Fix: Add entry to content-registry.js
 
@@ -15043,11 +17132,15 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/quizzes/operations.quiz.html`
+  File: `houses/web/network-plus/quizzes/n10009-ch01.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/quizzes/osi.quiz.html`
+  File: `houses/web/network-plus/quizzes/n10009-ch02.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/network-plus/quizzes/operations.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -15831,14 +17924,6 @@
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
 **[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `dark-arts/vault/ids-evasion-lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `dark-arts/vault/index.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
   File: `dark-arts/vault/owasp-top10-lab.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
@@ -15847,2043 +17932,7 @@
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
 **[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `dark-arts/vault/session-hijacking-lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
   File: `funding/index.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/ai/agents/ai13-01-agent-patterns.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/ai/agents/ai13-02-langchain.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/ai/agents/ai13-03-crewai.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/ai/agents/ai13-04-autogen.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/ai/agents/ai13-05-tool-use.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/ai/agents/ai13-06-rag.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/ai/agents/ai13-07-vector-databases.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/ai/agents/ai13-08-agent-eval.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/ai/agents/index.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/ai/automation/ai15-01-n8n-fundamentals.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/ai/automation/ai15-02-ai-workflows.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/ai/automation/ai15-03-webhooks.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/ai/automation/ai15-04-chatbots.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/ai/automation/ai15-05-content-generation.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/ai/automation/ai15-06-monitoring.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/ai/automation/index.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cli-tools/ai14-01-ollama.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cli-tools/ai14-02-lm-studio.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cli-tools/ai14-03-openai-cli.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cli-tools/ai14-04-azure-ai.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cli-tools/ai14-05-prompt-tools.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cli-tools/ai14-06-dev-env.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cli-tools/index.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/deep-learning/cx-dl-01.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/deep-learning/cx-dl-02.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/deep-learning/cx-dl-03.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/deep-learning/cx-dl-04.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/deep-learning/cx-dl-05.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/deep-learning/cx-dl-06.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/deep-learning/cx-dl-07.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/deep-learning/cx-dl-08.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/deep-learning/cx-dl-09.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/deep-learning/cx-dl-10.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../../index.html" climbs 5 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/nlp/cx-nlp-01.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/nlp/cx-nlp-01.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../../index.html" climbs 5 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/nlp/cx-nlp-02.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/nlp/cx-nlp-02.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../../index.html" climbs 5 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/nlp/cx-nlp-03.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/nlp/cx-nlp-03.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../../index.html" climbs 5 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/nlp/cx-nlp-04.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/nlp/cx-nlp-04.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../../index.html" climbs 5 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/nlp/cx-nlp-05.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/nlp/cx-nlp-05.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../../index.html" climbs 5 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/nlp/cx-nlp-06.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/nlp/cx-nlp-06.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../../index.html" climbs 5 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/nlp/cx-nlp-07.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/nlp/cx-nlp-07.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../../index.html" climbs 5 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/nlp/cx-nlp-08.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/nlp/cx-nlp-08.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../../index.html" climbs 5 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/nlp/cx-nlp-09.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/nlp/cx-nlp-09.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../../index.html" climbs 5 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/nlp/cx-nlp-10.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/nlp/cx-nlp-10.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../../index.html" climbs 5 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/nlp/index.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/nlp/index.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../../index.html" climbs 5 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/rl/cx-rl-01.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/rl/cx-rl-01.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../../index.html" climbs 5 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/rl/cx-rl-02.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/rl/cx-rl-02.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../../index.html" climbs 5 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/rl/cx-rl-03.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/rl/cx-rl-03.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../../index.html" climbs 5 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/rl/cx-rl-04.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/rl/cx-rl-04.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../../index.html" climbs 5 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/rl/cx-rl-05.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/rl/cx-rl-05.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../../index.html" climbs 5 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/rl/cx-rl-06.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/rl/cx-rl-06.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../../index.html" climbs 5 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/rl/cx-rl-07.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/rl/cx-rl-07.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../../index.html" climbs 5 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/rl/cx-rl-08.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/rl/cx-rl-08.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../../index.html" climbs 5 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/rl/cx-rl-09.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/rl/cx-rl-09.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../../index.html" climbs 5 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/rl/cx-rl-10.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/rl/cx-rl-10.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../../index.html" climbs 5 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/rl/index.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/rl/index.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../../index.html" climbs 5 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/transformers/cx-rnn-06.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/transformers/cx-rnn-06.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../../index.html" climbs 5 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/transformers/cx-rnn-07.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/transformers/cx-rnn-07.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../../index.html" climbs 5 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/transformers/cx-rnn-08.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/transformers/cx-rnn-08.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../../index.html" climbs 5 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/transformers/cx-rnn-09.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/transformers/cx-rnn-09.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../../index.html" climbs 5 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/transformers/cx-rnn-10.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/ai/cortex/transformers/cx-rnn-10.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/ai/modules/ai-nocode-platforms.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/api/cloud-patterns/index.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/api/design/index.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/cse/index.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/games/cloud-api-foundations-lab.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/games/cloud-destroyer.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/labs/cloud-cse-module07.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/labs/cloud-cse-module08.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/labs/cloud-lab.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/modules/wsa/cloud-gui-style-samples.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/modules/wsa/m08-dns/cloud-presentation.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/modules/wsa/m09-dhcp/cloud-presentation.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/modules/wsa/m10-group-policy/cloud-presentation.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/modules/wsa/m11-iis/cloud-presentation.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/modules/wsa/m12-remote-desktop/cloud-presentation.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/modules/wsa/m13-certificate-services/cloud-presentation.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/modules/wsa/m14-advanced-networking/cloud-presentation.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/modules/wsa/m15-ad-sites/cloud-presentation.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/modules/wsa/m16-backup-recovery/cloud-presentation.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/modules/wsa/m17-firewall-security/cloud-presentation.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/presentations/cloud-aws-fundamentals.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/presentations/cloud-azure-fundamentals.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/presentations/cloud-cloud.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/presentations/cloud-cse-module01.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/presentations/cloud-cse-module02.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/presentations/cloud-cse-module03.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-022]** Over-deep relative link: "../../../index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/cloud/presentations/cloud-cse-module04.presentation.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/cloud/presentations/cloud-cse-module05.presentation.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/presentations/cloud-cse-module07.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/presentations/cloud-cse-module08.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-022]** Over-deep relative link: "../../../index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/cloud/tools/cloud-ch01-cloud-models.tool.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/cloud/tools/cloud-ch02-aws-account.tool.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/cloud/tools/cloud-ch03-support-plans.tool.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/cloud/tools/cloud-ch04-aws-regions.tool.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/cloud/tools/cloud-ch05-security.tool.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/cloud/tools/cloud-ch06-aws-tools.tool.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/cloud/tools/cloud-ch07-compute-services.tool.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/cloud/tools/cloud-ch07-ec2-instance.tool.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/cloud/tools/cloud-ch08-storage-services.tool.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/cloud/tools/cloud-ch09-database-services.tool.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/cloud/tools/cloud-ch10-vpc-networking.tool.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/cloud/tools/cloud-ch11-automation.tool.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/cloud/tools/cloud-ch12-use-cases.tool.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/cloud/tools/cloud-cloud.tool.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/capstone/ac-cap-01.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/capstone/ac-cap-02.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/capstone/ac-cap-03.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/capstone/ac-cap-04.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/capstone/ac-cap-05.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/capstone/ac-cap-06.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/capstone/ac-cap-07.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/capstone/ac-cap-08.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/capstone/ac-cap-09.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/capstone/ac-cap-10.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/capstone/index.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/challenges/ac-ch-01.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/challenges/ac-ch-02.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/challenges/ac-ch-03.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/challenges/ac-ch-04.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/challenges/ac-ch-05.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/challenges/ac-ch-06.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/challenges/ac-ch-07.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/challenges/ac-ch-08.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/challenges/ac-ch-09.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/challenges/ac-ch-10.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/challenges/index.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../houses/code/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/data-structures/ac-ds-07.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../houses/code/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/data-structures/ac-ds-08.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../houses/code/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/data-structures/ac-ds-09.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../houses/code/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/data-structures/ac-ds-10.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/geometry/ac-geo-01.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/geometry/ac-geo-02.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/geometry/ac-geo-03.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/geometry/ac-geo-04.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/geometry/ac-geo-05.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/geometry/ac-geo-06.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/geometry/ac-geo-07.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/geometry/ac-geo-08.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/geometry/ac-geo-09.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/geometry/ac-geo-10.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/geometry/index.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../houses/code/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/sorting/ac-sort-01.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../houses/code/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/sorting/ac-sort-02.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../houses/code/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/sorting/ac-sort-03.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../houses/code/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/sorting/ac-sort-04.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../houses/code/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/sorting/ac-sort-05.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../houses/code/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/sorting/ac-sort-06.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../houses/code/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/sorting/ac-sort-07.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../houses/code/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/sorting/ac-sort-08.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../houses/code/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/sorting/ac-sort-09.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../houses/code/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/code/algorithm-chamber/sorting/ac-sort-10.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/code/applets/code-docker-playground.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/code/applets/code-kubernetes-cluster-sim.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/code/games/code-build-breaker.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/code/labs/code-cicd.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/code/labs/code-cloudformation.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/code/labs/code-docker.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/code/labs/code-kubernetes.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/code/labs/code-terraform.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/code/labs/code-unit-testing.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/code/presentations/code-agile-sdlc.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/code/presentations/code-automation.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/code/presentations/code-cicd-fundamentals.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/code/presentations/code-cloudformation-fundamentals.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/code/presentations/code-docker-fundamentals.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/code/presentations/code-git-basics.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/code/presentations/code-kubernetes-fundamentals.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/code/presentations/code-terraform-fundamentals.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/code/python-for-it/labs/pfi-sandbox-tour.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/code/python-for-it/labs/pfi-w1-checkpoint.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/code/python-for-it/labs/pfi-w1-sandbox.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/code/python-for-it/labs/pfi-w2-checkpoint.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/code/python-for-it/labs/pfi-w2-sandbox.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/code/python-for-it/labs/pfi-w3-checkpoint.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/code/python-for-it/labs/pfi-w3-sandbox.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/code/python-for-it/labs/pfi-w4-checkpoint.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/code/python-for-it/labs/pfi-w4-sandbox.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-022]** Over-deep relative link: "../../../index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/code/reviews/code-devops-comprehensive-review.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/code/tools/code-automation.tool.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/code/tools/code-sprint.tool.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/dark-arts/games/dark-container-security-lab.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/dark-arts/games/dark-ids-evasion-lab.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/dark-arts/games/dark-m365-attack-lab.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/dark-arts/games/dark-malware-specimen-lab.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/dark-arts/games/dark-network-forensics-lab.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/dark-arts/games/dark-osint-recon-lab.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/dark-arts/games/dark-phishing-campaign-lab.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/dark-arts/games/dark-slowloris-dos-lab.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/dark-arts/presentations/dark-arts-feh-01.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/dark-arts/presentations/dark-arts-feh-02.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/dark-arts/presentations/dark-arts-feh-03.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/dark-arts/presentations/dark-arts-feh-04.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/dark-arts/presentations/dark-arts-feh-05.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/dark-arts/presentations/dark-arts-feh-06.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/dark-arts/presentations/dark-arts-feh-07.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/dark-arts/presentations/dark-arts-feh-08.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/dark-arts/presentations/dark-arts-feh-09.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/dark-arts/presentations/dark-arts-feh-10.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/dark-arts/tools/ctf-leaderboard/dark-arts-sample.tool.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/dark-arts/tools/ctf-leaderboard/index.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/divergent/ethics-it/eth-08.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/divergent/ethics-it/eth-09.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/divergent/ethics-it/eth-10.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/divergent/ethics-it/eth-11.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/divergent/ethics-it/eth-12.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/divergent/ethics-it/eth-13.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/divergent/ethics-it/eth-14.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/divergent/ethics-it/eth-15.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/divergent/ethics-it/labs/eth-l01-vw-emissions/index.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/divergent/ethics-it/labs/eth-l02-sony-breach/index.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/divergent/ethics-it/labs/eth-l03-snowden-files/index.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/divergent/ethics-it/labs/eth-l04-ip-war/index.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/divergent/ethics-it/labs/eth-l05-autonomous-decision/index.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/divergent/ethics-it/labs/eth-l06-the-algorithm/index.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/divergent/ethics-it/labs/eth-l07-the-platform/index.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/divergent/ethics-it/labs/eth-l08-the-whistleblower/index.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/divergent/ethics-it/labs/eth-l09-the-gig/index.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/divergent/ethics-it/labs/eth-l10-the-code/index.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/eye/applets/cyberops/week5/labs/eye-soc-triage.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/eye/applets/osint/eye-google-dorking.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/eye/cysa/index.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/eye/games/eye-detection-engineering.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/eye/games/eye-log-analysis-lab.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/eye/games/eye-log-centipede.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/eye/games/eye-security-onion-soc.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/eye/games/eye-threat-hunting-lab.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/eye/labs/eye-correlation.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/eye/labs/eye-incident-timeline.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/eye/labs/eye-siem.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/eye/labs/eye-soc.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/eye/labs/eye-traffic.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/eye/presentations/eye-log-correlation.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/eye/presentations/eye-network-traffic-analysis.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/eye/presentations/eye-siem-fundamentals.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/eye/presentations/eye-soc-operations.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/eye/tools/eye-correlation.tool.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/eye/tools/eye-packet.tool.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/eye/tools/eye-siem.tool.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/eye/tools/eye-soc.tool.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/forge/applets/comptia-aplus/forge-core2-quiz-ch19-22.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/forge/applets/comptia-aplus/forge-os-core.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/forge/applets/comptia-aplus/forge-windows-shortcuts.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-022]** Over-deep relative link: "../../../index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/forge/applets/forge-command-translator.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/forge/applets/hardware/forge-backup-strategy-planner.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../../houses/forge/index.html" climbs 5 levels but file is only 3 level(s) deep in house — link escapes house directory
-  File: `houses/forge/applets/hardware/multimeter/forge-multimeter-jedit-v1.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 4 levels for house root)
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/forge/games/forge-chip-match.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/forge/games/forge-rack-stack.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/forge/labs/forge-admin-tools.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/forge/labs/forge-control-panel.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/forge/labs/forge-system-tools.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/forge/labs/forge-windows-editions.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/forge/labs/forge-windows-settings.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-022]** Over-deep relative link: "../../../dispatch/boxes/nt1-network-troubleshoot/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/forge/md-100/index.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/forge/reviews/forge-aplus-jeopardy.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/forge/tools/forge-os-core.tool.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-022]** Over-deep relative link: "../../../index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/forge/tools/forge-raid-level.tool.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/key/games/key-cipher-bubbles.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/key/games/key-crypto-pong.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/key/labs/key-attack.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-022]** Over-deep relative link: "../../../index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/key/labs/key-crypto-stego.lab.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/key/labs/key-firewall-builder.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-022]** Over-deep relative link: "../../../index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/key/modules/key-hash-stego-intro.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/key/presentations/key-advanced-symmetric.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/key/presentations/key-certificates.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/key/presentations/key-cryptanalysis.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/key/presentations/key-cryptography-fundamentals.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/key/presentations/key-derivation.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-022]** Over-deep relative link: "../../../index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/key/presentations/key-elliptic-curve.presentation.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/key/presentations/key-encryption-basics.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/key/presentations/key-management.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/key/presentations/key-message-authentication.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/key/presentations/key-post-quantum.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/key/presentations/key-tls-ssl.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/applets/linux/script-bash-scripting-playground.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/applets/linux/script-command-translator.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/applets/linux/script-lab-macos-linux.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/applets/linux/script-lab-macos-linux.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/applets/powershell/script-powershell-playground.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/applets/powershell/script-windows-cli-tools.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/applets/powershell/script-windows-troubleshooting.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/applets/python/script-python-chapter1.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/applets/python/script-python-chapter2-strings.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/applets/python/script-python-chapter3-flow-control.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/applets/python/script-python-chapter4-functions.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/applets/python/script-python-chapter5-collections.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/applets/python/script-python-chapter6-dictionaries.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/applets/python/script-python-chapter7-file-handling.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/applets/python/script-python-chapter8-oop.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/applets/script-automation-intro.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/applets/script-backup-strategies.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/applets/script-log-analysis.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/applets/script-pwsh-admin.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/applets/script-pwsh-fundamentals.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/applets/script-pwsh-pipeline.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/applets/script-pwsh-scripting.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/applets/script-reporting-automation.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-022]** Over-deep relative link: "../../../arctic/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-001-intro.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../arctic/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-002-intro.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../arctic/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-003-intro.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../arctic/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-004-intro.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../arctic/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-005-intro.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../arctic/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-006-intro.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../arctic/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-007-intro.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../arctic/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-008-intro.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../arctic/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-009-intro.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../arctic/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-010-intro.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../arctic/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-011-intro.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../arctic/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-012-intro.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../arctic/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-013-intro.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../arctic/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-014-intro.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../arctic/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-015-intro.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../arctic/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-016-intro.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../arctic/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-017-intro.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../arctic/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-018-intro.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../arctic/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-019-intro.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../arctic/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-020-intro.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../arctic/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-021-intro.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../arctic/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-022-intro.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../arctic/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-023-intro.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../arctic/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-024-intro.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../arctic/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-025-intro.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../arctic/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-026-intro.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../arctic/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-027-intro.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../arctic/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-028-intro.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../arctic/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-029-intro.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../arctic/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-030-intro.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../arctic/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-031-intro.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/clh/script-clh-031.lab.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/courses/clh/index.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/games/script-pipe-snake.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/index.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/labs/linux/script-bash-arrays.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/labs/linux/script-bash-basics.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/labs/linux/script-bash-conditionals.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/labs/linux/script-bash-conditions-drill.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/labs/linux/script-bash-cron-setup-prep.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/labs/linux/script-bash-cron.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/labs/linux/script-bash-functions.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/labs/linux/script-bash-io-redirect.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/labs/linux/script-bash-log-processor-prep.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/labs/linux/script-bash-loops-drill.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/labs/linux/script-bash-loops.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/labs/linux/script-bash-pipes.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/labs/linux/script-bash-redirect-drill.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/labs/linux/script-bash-variables-drill.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/labs/script-cron-builder.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/labs/script-patch-tuesday.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/linux/index.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/linux/tools/script-service.tool.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-01-intro.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-02-select.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-03-where.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-04-sorting.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-05-foundations.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-06-crud.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-07-nulls.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-08-strings.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-09-numbers.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-10-dates.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-11-data.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-12-inner-join.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-13-outer-joins.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-14-advanced-joins.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-15-subqueries.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-16-ctes.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-17-joins.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-18-aggregates.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-19-group-by.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-20-window-funcs.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-21-pivoting.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-22-analytics.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-23-data-types.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-24-constraints.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-25-indexes.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-26-metadata.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-27-admin.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-28-ingestion.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-29-errors.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-30-quality.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-31-pipelines.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-32-engineering.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-33-sql.quiz.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-34-advanced.quiz.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/databases/script-db-35-capstone.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/index.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-01-welcome.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-02-first-commands.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-03-getting-help.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-04-terminal-environment.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-05-section1-practice.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-06-navigation.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-07-listing-files.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-08-file-operations.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-09-copy-move.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-10-viewing-files.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-11-finding-files.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-12-section2-practice.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-13-grep-basics.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-14-regular-expressions.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-15-sed-editor.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-16-awk-processing.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-17-sort-uniq.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-18-cut-paste.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-19-text-pipelines.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-20-section3-practice.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-21-users-groups.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-22-file-permissions.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-23-chmod.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-24-chown.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-25-sudo.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-26-special-permissions.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-27-section4-practice.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-28-process-basics.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-29-ps-top.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-30-background-jobs.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-31-signals-kill.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-32-cron.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-33-systemd.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-34-section5-practice.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-35-network-info.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-36-connectivity.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-37-dns-tools.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-38-downloading.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-39-ssh-basics.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-40-section6-practice.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/shell-scripting/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-41-first-script.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-42-variables.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-43-user-input.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-44-conditionals.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-45-loops.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-46-functions.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-47-practical-scripts.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-48-section7-practice.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-49-links.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-50-text-editors.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-51-package-management.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-52-environment-path.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../arctic/districts/cli-fundamentals/index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/script/modules/linux-mastery/script-lm-53-next-steps.module.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/modules/python/script-certificate.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-022]** Over-deep relative link: "../../../index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/tools/script-automation.tool.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/tools/script-linux-permissions.tool.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-022]** Over-deep relative link: "../../../index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/script/tools/script-log-management.tool.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/tools/script-package-manager.tool.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/tools/script-process-management.tool.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/script/tools/script-windows-registry.tool.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/shield/applets/network/shield-browser-security-hardening.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/shield/applets/network/shield-home-network-security.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/shield/applets/network/shield-linux-firewall-builder.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/shield/applets/threats/shield-malware-types.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/shield/games/shield-debugger.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/shield/games/shield-dr-malware.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/shield/games/shield-social-engineer.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/shield/games/shield-threat-swarm.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/shield/games/shield-web-security-headers-lab.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/shield/infosec/presentations/pis-w4-incident-response.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/shield/presentations/shield-cia-triad.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/shield/presentations/shield-security-fundamentals.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/shield/presentations/shield-social-engineering.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-022]** Over-deep relative link: "../../../index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/shield/tools/shield-google-dorking-osint.tool.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/web/applets/ip-addressing/web-binary-decimal-converter.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/web/applets/services/web-server-comparison.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../../index.html" climbs 4 levels but file is only 2 level(s) deep in house — link escapes house directory
-  File: `houses/web/applets/services/web-smb-file-sharing.applet.html`
-  Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/web/games/web-packet-invaders.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/web/games/web-subnet-siege.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/web/index.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/web/network-plus/index.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/web/presentations/web-cables.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/web/presentations/web-devices.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/web/presentations/web-etherchannel.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/web/presentations/web-fhrp.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/web/presentations/web-ipv6.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/web/presentations/web-osi-deep-dive.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/web/presentations/web-osi-model.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/web/presentations/web-osi.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/web/presentations/web-topologies.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/web/presentations/web-wireless-architecture.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/web/quizzes/web-networking-ch7-10.quiz.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/web/quizzes/web-networking-final-review.quiz.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/web/reviews/web-api-interceptor.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/web/simulators/index.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/web/tools/web-sqlmap.tool.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
 **[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
@@ -18162,7 +18211,7 @@
   File: `operator/missions/windows-cmd-02.mission.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
-### INFO (460)
+### INFO (477)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `about.html`
@@ -18409,6 +18458,22 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/ms-102/quizzes/ms102-ch07.quiz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/pl-300/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/pl-300/quizzes/pl300-ch03.quiz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/pl-300/quizzes/pl300-ch04.quiz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/cloud/quizzes/cloud-cse-module05.quiz.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -18613,6 +18678,38 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/matrix/piverse/fundamentals/quizzes/pv-f-05.quiz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/matrix/piverse/fundamentals/quizzes/pv-f-07.quiz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/matrix/piverse/maker/quizzes/pv-m-09.quiz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-01.quiz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-15.quiz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-06.quiz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-10.quiz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-13.quiz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/script/applets/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -18686,6 +18783,14 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/shield/isc2-cc/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/sc-200/quizzes/sc200-ch08.quiz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/sc-200/quizzes/sc200-ch09.quiz.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -19621,6 +19726,18 @@
   Fix: Manual review required - path is constructed dynamically
 
 **[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/cloud/ms-102/labs/ms102-ch06-sharepoint.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/cloud/ms-102/labs/ms102-ch07-teams.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `houses/cloud/ms-900/labs/ms900-ch03-pricing-support.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
   File: `houses/cloud/presentations/cloud-aws-fundamentals.presentation.html`
   Fix: Manual review required - path is constructed dynamically
 
@@ -20000,7 +20117,7 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (1625)
+### Unregistered Content (1969)
 
 | Path | Type | House |
 |------|------|-------|
@@ -20490,6 +20607,54 @@
 | houses/cloud/az-900/quizzes/az900-ch02.quiz.html | quiz | cloud |
 | houses/cloud/az-900/quizzes/az900-ch03.quiz.html | quiz | cloud |
 | houses/cloud/games/cloud-api-foundations-lab.applet.html | applet | cloud |
+| houses/cloud/ms-102/labs/ms102-ch01-tenant.lab.html | lab | cloud |
+| houses/cloud/ms-102/labs/ms102-ch02-users-groups.lab.html | lab | cloud |
+| houses/cloud/ms-102/labs/ms102-ch03-roles-access.lab.html | lab | cloud |
+| houses/cloud/ms-102/labs/ms102-ch04-entra-auth.lab.html | lab | cloud |
+| houses/cloud/ms-102/labs/ms102-ch05-exchange.lab.html | presentation | cloud |
+| houses/cloud/ms-102/labs/ms102-ch06-sharepoint.lab.html | presentation | cloud |
+| houses/cloud/ms-102/labs/ms102-ch07-teams.lab.html | presentation | cloud |
+| houses/cloud/ms-102/labs/ms102-ch08-security-compliance.lab.html | presentation | cloud |
+| houses/cloud/ms-102/presentations/ms102-ch01-tenant.presentation.html | presentation | cloud |
+| houses/cloud/ms-102/presentations/ms102-ch02-users-groups.presentation.html | presentation | cloud |
+| houses/cloud/ms-102/presentations/ms102-ch03-roles-access.presentation.html | presentation | cloud |
+| houses/cloud/ms-102/presentations/ms102-ch04-entra-auth.presentation.html | presentation | cloud |
+| houses/cloud/ms-102/presentations/ms102-ch05-exchange.presentation.html | presentation | cloud |
+| houses/cloud/ms-102/presentations/ms102-ch06-sharepoint.presentation.html | presentation | cloud |
+| houses/cloud/ms-102/presentations/ms102-ch07-teams.presentation.html | presentation | cloud |
+| houses/cloud/ms-102/presentations/ms102-ch08-security-compliance.presentation.html | presentation | cloud |
+| houses/cloud/ms-102/quizzes/ms102-ch01.quiz.html | quiz | cloud |
+| houses/cloud/ms-102/quizzes/ms102-ch02.quiz.html | quiz | cloud |
+| houses/cloud/ms-102/quizzes/ms102-ch03.quiz.html | quiz | cloud |
+| houses/cloud/ms-102/quizzes/ms102-ch04.quiz.html | quiz | cloud |
+| houses/cloud/ms-102/quizzes/ms102-ch05.quiz.html | quiz | cloud |
+| houses/cloud/ms-102/quizzes/ms102-ch06.quiz.html | quiz | cloud |
+| houses/cloud/ms-102/quizzes/ms102-ch07.quiz.html | quiz | cloud |
+| houses/cloud/ms-102/quizzes/ms102-ch08.quiz.html | quiz | cloud |
+| houses/cloud/ms-900/labs/ms900-ch01-cloud-m365.lab.html | presentation | cloud |
+| houses/cloud/ms-900/labs/ms900-ch02-security-compliance.lab.html | lab | cloud |
+| houses/cloud/ms-900/labs/ms900-ch03-pricing-support.lab.html | presentation | cloud |
+| houses/cloud/ms-900/presentations/ms900-ch01-cloud-m365.presentation.html | presentation | cloud |
+| houses/cloud/ms-900/presentations/ms900-ch02-security-compliance.presentation.html | presentation | cloud |
+| houses/cloud/ms-900/presentations/ms900-ch03-pricing-support.presentation.html | presentation | cloud |
+| houses/cloud/ms-900/quizzes/ms900-ch01.quiz.html | quiz | cloud |
+| houses/cloud/ms-900/quizzes/ms900-ch02.quiz.html | quiz | cloud |
+| houses/cloud/ms-900/quizzes/ms900-ch03.quiz.html | quiz | cloud |
+| houses/cloud/pl-300/labs/pl300-ch01-prepare-data.lab.html | presentation | cloud |
+| houses/cloud/pl-300/labs/pl300-ch02-model-data.lab.html | presentation | cloud |
+| houses/cloud/pl-300/labs/pl300-ch03-visualize.lab.html | presentation | cloud |
+| houses/cloud/pl-300/labs/pl300-ch04-deploy.lab.html | presentation | cloud |
+| houses/cloud/pl-300/labs/pl300-ch05-dax.lab.html | presentation | cloud |
+| houses/cloud/pl-300/presentations/pl300-ch01-prepare-data.presentation.html | presentation | cloud |
+| houses/cloud/pl-300/presentations/pl300-ch02-model-data.presentation.html | presentation | cloud |
+| houses/cloud/pl-300/presentations/pl300-ch03-visualize.presentation.html | presentation | cloud |
+| houses/cloud/pl-300/presentations/pl300-ch04-deploy.presentation.html | presentation | cloud |
+| houses/cloud/pl-300/presentations/pl300-ch05-dax.presentation.html | presentation | cloud |
+| houses/cloud/pl-300/quizzes/pl300-ch01.quiz.html | quiz | cloud |
+| houses/cloud/pl-300/quizzes/pl300-ch02.quiz.html | quiz | cloud |
+| houses/cloud/pl-300/quizzes/pl300-ch03.quiz.html | quiz | cloud |
+| houses/cloud/pl-300/quizzes/pl300-ch04.quiz.html | quiz | cloud |
+| houses/cloud/pl-300/quizzes/pl300-ch05.quiz.html | quiz | cloud |
 | houses/code/algorithm-chamber/capstone/ac-cap-01.html | presentation | code |
 | houses/code/algorithm-chamber/capstone/ac-cap-02.html | presentation | code |
 | houses/code/algorithm-chamber/capstone/ac-cap-03.html | presentation | code |
@@ -21095,6 +21260,258 @@
 | houses/matrix/adv-linux/quizzes/ala-w2.quiz.html | quiz | matrix |
 | houses/matrix/adv-linux/quizzes/ala-w3.quiz.html | quiz | matrix |
 | houses/matrix/adv-linux/quizzes/ala-w4.quiz.html | quiz | matrix |
+| houses/matrix/piverse/electronics/labs/pv-e-01.lab.html | lab | matrix |
+| houses/matrix/piverse/electronics/labs/pv-e-02.lab.html | lab | matrix |
+| houses/matrix/piverse/electronics/labs/pv-e-03.lab.html | lab | matrix |
+| houses/matrix/piverse/electronics/labs/pv-e-04.lab.html | lab | matrix |
+| houses/matrix/piverse/electronics/labs/pv-e-05.lab.html | lab | matrix |
+| houses/matrix/piverse/electronics/labs/pv-e-06.lab.html | lab | matrix |
+| houses/matrix/piverse/electronics/labs/pv-e-07.lab.html | lab | matrix |
+| houses/matrix/piverse/electronics/labs/pv-e-08.lab.html | lab | matrix |
+| houses/matrix/piverse/electronics/labs/pv-e-09.lab.html | lab | matrix |
+| houses/matrix/piverse/electronics/labs/pv-e-10.lab.html | lab | matrix |
+| houses/matrix/piverse/electronics/presentations/pv-e-01.presentation.html | presentation | matrix |
+| houses/matrix/piverse/electronics/presentations/pv-e-02.presentation.html | presentation | matrix |
+| houses/matrix/piverse/electronics/presentations/pv-e-03.presentation.html | presentation | matrix |
+| houses/matrix/piverse/electronics/presentations/pv-e-04.presentation.html | presentation | matrix |
+| houses/matrix/piverse/electronics/presentations/pv-e-05.presentation.html | presentation | matrix |
+| houses/matrix/piverse/electronics/presentations/pv-e-06.presentation.html | presentation | matrix |
+| houses/matrix/piverse/electronics/presentations/pv-e-07.presentation.html | presentation | matrix |
+| houses/matrix/piverse/electronics/presentations/pv-e-08.presentation.html | presentation | matrix |
+| houses/matrix/piverse/electronics/presentations/pv-e-09.presentation.html | presentation | matrix |
+| houses/matrix/piverse/electronics/presentations/pv-e-10.presentation.html | presentation | matrix |
+| houses/matrix/piverse/electronics/quizzes/pv-e-01.quiz.html | quiz | matrix |
+| houses/matrix/piverse/electronics/quizzes/pv-e-02.quiz.html | quiz | matrix |
+| houses/matrix/piverse/electronics/quizzes/pv-e-03.quiz.html | quiz | matrix |
+| houses/matrix/piverse/electronics/quizzes/pv-e-04.quiz.html | quiz | matrix |
+| houses/matrix/piverse/electronics/quizzes/pv-e-05.quiz.html | quiz | matrix |
+| houses/matrix/piverse/electronics/quizzes/pv-e-06.quiz.html | quiz | matrix |
+| houses/matrix/piverse/electronics/quizzes/pv-e-07.quiz.html | quiz | matrix |
+| houses/matrix/piverse/electronics/quizzes/pv-e-08.quiz.html | quiz | matrix |
+| houses/matrix/piverse/electronics/quizzes/pv-e-09.quiz.html | quiz | matrix |
+| houses/matrix/piverse/electronics/quizzes/pv-e-10.quiz.html | quiz | matrix |
+| houses/matrix/piverse/engineering/labs/pv-b-01.lab.html | lab | matrix |
+| houses/matrix/piverse/engineering/labs/pv-b-02.lab.html | lab | matrix |
+| houses/matrix/piverse/engineering/labs/pv-b-03.lab.html | lab | matrix |
+| houses/matrix/piverse/engineering/labs/pv-b-04.lab.html | lab | matrix |
+| houses/matrix/piverse/engineering/labs/pv-b-05.lab.html | lab | matrix |
+| houses/matrix/piverse/engineering/labs/pv-b-06.lab.html | lab | matrix |
+| houses/matrix/piverse/engineering/labs/pv-b-07.lab.html | lab | matrix |
+| houses/matrix/piverse/engineering/labs/pv-b-08.lab.html | lab | matrix |
+| houses/matrix/piverse/engineering/presentations/pv-b-01.presentation.html | presentation | matrix |
+| houses/matrix/piverse/engineering/presentations/pv-b-02.presentation.html | presentation | matrix |
+| houses/matrix/piverse/engineering/presentations/pv-b-03.presentation.html | presentation | matrix |
+| houses/matrix/piverse/engineering/presentations/pv-b-04.presentation.html | presentation | matrix |
+| houses/matrix/piverse/engineering/presentations/pv-b-05.presentation.html | presentation | matrix |
+| houses/matrix/piverse/engineering/presentations/pv-b-06.presentation.html | presentation | matrix |
+| houses/matrix/piverse/engineering/presentations/pv-b-07.presentation.html | presentation | matrix |
+| houses/matrix/piverse/engineering/presentations/pv-b-08.presentation.html | presentation | matrix |
+| houses/matrix/piverse/engineering/quizzes/pv-b-01.quiz.html | quiz | matrix |
+| houses/matrix/piverse/engineering/quizzes/pv-b-02.quiz.html | quiz | matrix |
+| houses/matrix/piverse/engineering/quizzes/pv-b-03.quiz.html | quiz | matrix |
+| houses/matrix/piverse/engineering/quizzes/pv-b-04.quiz.html | quiz | matrix |
+| houses/matrix/piverse/engineering/quizzes/pv-b-05.quiz.html | quiz | matrix |
+| houses/matrix/piverse/engineering/quizzes/pv-b-06.quiz.html | quiz | matrix |
+| houses/matrix/piverse/engineering/quizzes/pv-b-07.quiz.html | quiz | matrix |
+| houses/matrix/piverse/engineering/quizzes/pv-b-08.quiz.html | quiz | matrix |
+| houses/matrix/piverse/fundamentals/labs/pv-f-01.lab.html | presentation | matrix |
+| houses/matrix/piverse/fundamentals/labs/pv-f-02.lab.html | presentation | matrix |
+| houses/matrix/piverse/fundamentals/labs/pv-f-03.lab.html | presentation | matrix |
+| houses/matrix/piverse/fundamentals/labs/pv-f-04.lab.html | lab | matrix |
+| houses/matrix/piverse/fundamentals/labs/pv-f-05.lab.html | presentation | matrix |
+| houses/matrix/piverse/fundamentals/labs/pv-f-06.lab.html | lab | matrix |
+| houses/matrix/piverse/fundamentals/labs/pv-f-07.lab.html | lab | matrix |
+| houses/matrix/piverse/fundamentals/labs/pv-f-08.lab.html | lab | matrix |
+| houses/matrix/piverse/fundamentals/labs/pv-f-09.lab.html | presentation | matrix |
+| houses/matrix/piverse/fundamentals/labs/pv-f-10.lab.html | presentation | matrix |
+| houses/matrix/piverse/fundamentals/presentations/pv-f-01.presentation.html | presentation | matrix |
+| houses/matrix/piverse/fundamentals/presentations/pv-f-02.presentation.html | presentation | matrix |
+| houses/matrix/piverse/fundamentals/presentations/pv-f-03.presentation.html | presentation | matrix |
+| houses/matrix/piverse/fundamentals/presentations/pv-f-04.presentation.html | presentation | matrix |
+| houses/matrix/piverse/fundamentals/presentations/pv-f-05.presentation.html | presentation | matrix |
+| houses/matrix/piverse/fundamentals/presentations/pv-f-06.presentation.html | presentation | matrix |
+| houses/matrix/piverse/fundamentals/presentations/pv-f-07.presentation.html | presentation | matrix |
+| houses/matrix/piverse/fundamentals/presentations/pv-f-08.presentation.html | presentation | matrix |
+| houses/matrix/piverse/fundamentals/presentations/pv-f-09.presentation.html | presentation | matrix |
+| houses/matrix/piverse/fundamentals/presentations/pv-f-10.presentation.html | presentation | matrix |
+| houses/matrix/piverse/fundamentals/quizzes/pv-f-01.quiz.html | quiz | matrix |
+| houses/matrix/piverse/fundamentals/quizzes/pv-f-02.quiz.html | quiz | matrix |
+| houses/matrix/piverse/fundamentals/quizzes/pv-f-03.quiz.html | quiz | matrix |
+| houses/matrix/piverse/fundamentals/quizzes/pv-f-04.quiz.html | quiz | matrix |
+| houses/matrix/piverse/fundamentals/quizzes/pv-f-05.quiz.html | quiz | matrix |
+| houses/matrix/piverse/fundamentals/quizzes/pv-f-06.quiz.html | quiz | matrix |
+| houses/matrix/piverse/fundamentals/quizzes/pv-f-07.quiz.html | quiz | matrix |
+| houses/matrix/piverse/fundamentals/quizzes/pv-f-08.quiz.html | quiz | matrix |
+| houses/matrix/piverse/fundamentals/quizzes/pv-f-09.quiz.html | quiz | matrix |
+| houses/matrix/piverse/fundamentals/quizzes/pv-f-10.quiz.html | quiz | matrix |
+| houses/matrix/piverse/maker/labs/pv-m-01.lab.html | presentation | matrix |
+| houses/matrix/piverse/maker/labs/pv-m-02.lab.html | presentation | matrix |
+| houses/matrix/piverse/maker/labs/pv-m-03.lab.html | presentation | matrix |
+| houses/matrix/piverse/maker/labs/pv-m-04.lab.html | presentation | matrix |
+| houses/matrix/piverse/maker/labs/pv-m-05.lab.html | presentation | matrix |
+| houses/matrix/piverse/maker/labs/pv-m-06.lab.html | lab | matrix |
+| houses/matrix/piverse/maker/labs/pv-m-07.lab.html | lab | matrix |
+| houses/matrix/piverse/maker/labs/pv-m-08.lab.html | lab | matrix |
+| houses/matrix/piverse/maker/labs/pv-m-09.lab.html | lab | matrix |
+| houses/matrix/piverse/maker/labs/pv-m-10.lab.html | lab | matrix |
+| houses/matrix/piverse/maker/presentations/pv-m-01.presentation.html | presentation | matrix |
+| houses/matrix/piverse/maker/presentations/pv-m-02.presentation.html | presentation | matrix |
+| houses/matrix/piverse/maker/presentations/pv-m-03.presentation.html | presentation | matrix |
+| houses/matrix/piverse/maker/presentations/pv-m-04.presentation.html | presentation | matrix |
+| houses/matrix/piverse/maker/presentations/pv-m-05.presentation.html | presentation | matrix |
+| houses/matrix/piverse/maker/presentations/pv-m-06.presentation.html | presentation | matrix |
+| houses/matrix/piverse/maker/presentations/pv-m-07.presentation.html | presentation | matrix |
+| houses/matrix/piverse/maker/presentations/pv-m-08.presentation.html | presentation | matrix |
+| houses/matrix/piverse/maker/presentations/pv-m-09.presentation.html | presentation | matrix |
+| houses/matrix/piverse/maker/presentations/pv-m-10.presentation.html | presentation | matrix |
+| houses/matrix/piverse/maker/quizzes/pv-m-01.quiz.html | quiz | matrix |
+| houses/matrix/piverse/maker/quizzes/pv-m-02.quiz.html | quiz | matrix |
+| houses/matrix/piverse/maker/quizzes/pv-m-03.quiz.html | quiz | matrix |
+| houses/matrix/piverse/maker/quizzes/pv-m-04.quiz.html | quiz | matrix |
+| houses/matrix/piverse/maker/quizzes/pv-m-05.quiz.html | quiz | matrix |
+| houses/matrix/piverse/maker/quizzes/pv-m-06.quiz.html | quiz | matrix |
+| houses/matrix/piverse/maker/quizzes/pv-m-07.quiz.html | quiz | matrix |
+| houses/matrix/piverse/maker/quizzes/pv-m-08.quiz.html | quiz | matrix |
+| houses/matrix/piverse/maker/quizzes/pv-m-09.quiz.html | quiz | matrix |
+| houses/matrix/piverse/maker/quizzes/pv-m-10.quiz.html | quiz | matrix |
+| houses/matrix/piverse/micropython/labs/pv-mp-01.lab.html | lab | matrix |
+| houses/matrix/piverse/micropython/labs/pv-mp-02.lab.html | lab | matrix |
+| houses/matrix/piverse/micropython/labs/pv-mp-03.lab.html | lab | matrix |
+| houses/matrix/piverse/micropython/labs/pv-mp-04.lab.html | lab | matrix |
+| houses/matrix/piverse/micropython/labs/pv-mp-05.lab.html | presentation | matrix |
+| houses/matrix/piverse/micropython/labs/pv-mp-06.lab.html | presentation | matrix |
+| houses/matrix/piverse/micropython/labs/pv-mp-07.lab.html | presentation | matrix |
+| houses/matrix/piverse/micropython/labs/pv-mp-08.lab.html | presentation | matrix |
+| houses/matrix/piverse/micropython/labs/pv-mp-09.lab.html | presentation | matrix |
+| houses/matrix/piverse/micropython/labs/pv-mp-10.lab.html | presentation | matrix |
+| houses/matrix/piverse/micropython/labs/pv-mp-11.lab.html | lab | matrix |
+| houses/matrix/piverse/micropython/labs/pv-mp-12.lab.html | lab | matrix |
+| houses/matrix/piverse/micropython/presentations/pv-mp-01.presentation.html | presentation | matrix |
+| houses/matrix/piverse/micropython/presentations/pv-mp-02.presentation.html | presentation | matrix |
+| houses/matrix/piverse/micropython/presentations/pv-mp-03.presentation.html | presentation | matrix |
+| houses/matrix/piverse/micropython/presentations/pv-mp-04.presentation.html | presentation | matrix |
+| houses/matrix/piverse/micropython/presentations/pv-mp-05.presentation.html | presentation | matrix |
+| houses/matrix/piverse/micropython/presentations/pv-mp-06.presentation.html | presentation | matrix |
+| houses/matrix/piverse/micropython/presentations/pv-mp-07.presentation.html | presentation | matrix |
+| houses/matrix/piverse/micropython/presentations/pv-mp-08.presentation.html | presentation | matrix |
+| houses/matrix/piverse/micropython/presentations/pv-mp-09.presentation.html | presentation | matrix |
+| houses/matrix/piverse/micropython/presentations/pv-mp-10.presentation.html | presentation | matrix |
+| houses/matrix/piverse/micropython/presentations/pv-mp-11.presentation.html | presentation | matrix |
+| houses/matrix/piverse/micropython/presentations/pv-mp-12.presentation.html | presentation | matrix |
+| houses/matrix/piverse/micropython/quizzes/pv-mp-01.quiz.html | quiz | matrix |
+| houses/matrix/piverse/micropython/quizzes/pv-mp-02.quiz.html | quiz | matrix |
+| houses/matrix/piverse/micropython/quizzes/pv-mp-03.quiz.html | quiz | matrix |
+| houses/matrix/piverse/micropython/quizzes/pv-mp-04.quiz.html | quiz | matrix |
+| houses/matrix/piverse/micropython/quizzes/pv-mp-05.quiz.html | quiz | matrix |
+| houses/matrix/piverse/micropython/quizzes/pv-mp-06.quiz.html | quiz | matrix |
+| houses/matrix/piverse/micropython/quizzes/pv-mp-07.quiz.html | quiz | matrix |
+| houses/matrix/piverse/micropython/quizzes/pv-mp-08.quiz.html | quiz | matrix |
+| houses/matrix/piverse/micropython/quizzes/pv-mp-09.quiz.html | quiz | matrix |
+| houses/matrix/piverse/micropython/quizzes/pv-mp-10.quiz.html | quiz | matrix |
+| houses/matrix/piverse/micropython/quizzes/pv-mp-11.quiz.html | quiz | matrix |
+| houses/matrix/piverse/micropython/quizzes/pv-mp-12.quiz.html | quiz | matrix |
+| houses/matrix/protocore/arduino/labs/pc-ard-01.lab.html | lab | matrix |
+| houses/matrix/protocore/arduino/labs/pc-ard-02.lab.html | lab | matrix |
+| houses/matrix/protocore/arduino/labs/pc-ard-03.lab.html | lab | matrix |
+| houses/matrix/protocore/arduino/labs/pc-ard-04.lab.html | lab | matrix |
+| houses/matrix/protocore/arduino/labs/pc-ard-05.lab.html | lab | matrix |
+| houses/matrix/protocore/arduino/labs/pc-ard-06.lab.html | presentation | matrix |
+| houses/matrix/protocore/arduino/labs/pc-ard-07.lab.html | presentation | matrix |
+| houses/matrix/protocore/arduino/labs/pc-ard-08.lab.html | presentation | matrix |
+| houses/matrix/protocore/arduino/labs/pc-ard-09.lab.html | lab | matrix |
+| houses/matrix/protocore/arduino/labs/pc-ard-10.lab.html | lab | matrix |
+| houses/matrix/protocore/arduino/labs/pc-ard-11.lab.html | presentation | matrix |
+| houses/matrix/protocore/arduino/labs/pc-ard-12.lab.html | lab | matrix |
+| houses/matrix/protocore/arduino/labs/pc-ard-13.lab.html | lab | matrix |
+| houses/matrix/protocore/arduino/labs/pc-ard-14.lab.html | lab | matrix |
+| houses/matrix/protocore/arduino/labs/pc-ard-15.lab.html | presentation | matrix |
+| houses/matrix/protocore/arduino/labs/pc-ard-16.lab.html | lab | matrix |
+| houses/matrix/protocore/arduino/labs/pc-ard-17.lab.html | lab | matrix |
+| houses/matrix/protocore/arduino/labs/pc-ard-18.lab.html | lab | matrix |
+| houses/matrix/protocore/arduino/labs/pc-ard-19.lab.html | lab | matrix |
+| houses/matrix/protocore/arduino/presentations/pc-ard-01.presentation.html | presentation | matrix |
+| houses/matrix/protocore/arduino/presentations/pc-ard-02.presentation.html | presentation | matrix |
+| houses/matrix/protocore/arduino/presentations/pc-ard-03.presentation.html | presentation | matrix |
+| houses/matrix/protocore/arduino/presentations/pc-ard-04.presentation.html | presentation | matrix |
+| houses/matrix/protocore/arduino/presentations/pc-ard-05.presentation.html | presentation | matrix |
+| houses/matrix/protocore/arduino/presentations/pc-ard-06.presentation.html | presentation | matrix |
+| houses/matrix/protocore/arduino/presentations/pc-ard-07.presentation.html | presentation | matrix |
+| houses/matrix/protocore/arduino/presentations/pc-ard-08.presentation.html | presentation | matrix |
+| houses/matrix/protocore/arduino/presentations/pc-ard-09.presentation.html | presentation | matrix |
+| houses/matrix/protocore/arduino/presentations/pc-ard-10.presentation.html | presentation | matrix |
+| houses/matrix/protocore/arduino/presentations/pc-ard-11.presentation.html | presentation | matrix |
+| houses/matrix/protocore/arduino/presentations/pc-ard-12.presentation.html | presentation | matrix |
+| houses/matrix/protocore/arduino/presentations/pc-ard-13.presentation.html | presentation | matrix |
+| houses/matrix/protocore/arduino/presentations/pc-ard-14.presentation.html | presentation | matrix |
+| houses/matrix/protocore/arduino/presentations/pc-ard-15.presentation.html | presentation | matrix |
+| houses/matrix/protocore/arduino/presentations/pc-ard-16.presentation.html | presentation | matrix |
+| houses/matrix/protocore/arduino/presentations/pc-ard-17.presentation.html | presentation | matrix |
+| houses/matrix/protocore/arduino/presentations/pc-ard-18.presentation.html | presentation | matrix |
+| houses/matrix/protocore/arduino/presentations/pc-ard-19.presentation.html | presentation | matrix |
+| houses/matrix/protocore/arduino/quizzes/pc-ard-01.quiz.html | quiz | matrix |
+| houses/matrix/protocore/arduino/quizzes/pc-ard-02.quiz.html | quiz | matrix |
+| houses/matrix/protocore/arduino/quizzes/pc-ard-03.quiz.html | quiz | matrix |
+| houses/matrix/protocore/arduino/quizzes/pc-ard-04.quiz.html | quiz | matrix |
+| houses/matrix/protocore/arduino/quizzes/pc-ard-05.quiz.html | quiz | matrix |
+| houses/matrix/protocore/arduino/quizzes/pc-ard-06.quiz.html | quiz | matrix |
+| houses/matrix/protocore/arduino/quizzes/pc-ard-07.quiz.html | quiz | matrix |
+| houses/matrix/protocore/arduino/quizzes/pc-ard-08.quiz.html | quiz | matrix |
+| houses/matrix/protocore/arduino/quizzes/pc-ard-09.quiz.html | quiz | matrix |
+| houses/matrix/protocore/arduino/quizzes/pc-ard-10.quiz.html | quiz | matrix |
+| houses/matrix/protocore/arduino/quizzes/pc-ard-11.quiz.html | quiz | matrix |
+| houses/matrix/protocore/arduino/quizzes/pc-ard-12.quiz.html | quiz | matrix |
+| houses/matrix/protocore/arduino/quizzes/pc-ard-13.quiz.html | quiz | matrix |
+| houses/matrix/protocore/arduino/quizzes/pc-ard-14.quiz.html | quiz | matrix |
+| houses/matrix/protocore/arduino/quizzes/pc-ard-15.quiz.html | quiz | matrix |
+| houses/matrix/protocore/arduino/quizzes/pc-ard-16.quiz.html | quiz | matrix |
+| houses/matrix/protocore/arduino/quizzes/pc-ard-17.quiz.html | quiz | matrix |
+| houses/matrix/protocore/arduino/quizzes/pc-ard-18.quiz.html | quiz | matrix |
+| houses/matrix/protocore/arduino/quizzes/pc-ard-19.quiz.html | quiz | matrix |
+| houses/matrix/protocore/esp32/labs/pc-esp-01.lab.html | lab | matrix |
+| houses/matrix/protocore/esp32/labs/pc-esp-02.lab.html | lab | matrix |
+| houses/matrix/protocore/esp32/labs/pc-esp-03.lab.html | lab | matrix |
+| houses/matrix/protocore/esp32/labs/pc-esp-04.lab.html | lab | matrix |
+| houses/matrix/protocore/esp32/labs/pc-esp-05.lab.html | lab | matrix |
+| houses/matrix/protocore/esp32/labs/pc-esp-06.lab.html | presentation | matrix |
+| houses/matrix/protocore/esp32/labs/pc-esp-07.lab.html | lab | matrix |
+| houses/matrix/protocore/esp32/labs/pc-esp-08.lab.html | lab | matrix |
+| houses/matrix/protocore/esp32/labs/pc-esp-09.lab.html | lab | matrix |
+| houses/matrix/protocore/esp32/labs/pc-esp-10.lab.html | lab | matrix |
+| houses/matrix/protocore/esp32/labs/pc-esp-11.lab.html | lab | matrix |
+| houses/matrix/protocore/esp32/labs/pc-esp-12.lab.html | lab | matrix |
+| houses/matrix/protocore/esp32/labs/pc-esp-13.lab.html | presentation | matrix |
+| houses/matrix/protocore/esp32/labs/pc-esp-14.lab.html | lab | matrix |
+| houses/matrix/protocore/esp32/labs/pc-esp-15.lab.html | lab | matrix |
+| houses/matrix/protocore/esp32/presentations/pc-esp-01.presentation.html | presentation | matrix |
+| houses/matrix/protocore/esp32/presentations/pc-esp-02.presentation.html | presentation | matrix |
+| houses/matrix/protocore/esp32/presentations/pc-esp-03.presentation.html | presentation | matrix |
+| houses/matrix/protocore/esp32/presentations/pc-esp-04.presentation.html | presentation | matrix |
+| houses/matrix/protocore/esp32/presentations/pc-esp-05.presentation.html | presentation | matrix |
+| houses/matrix/protocore/esp32/presentations/pc-esp-06.presentation.html | presentation | matrix |
+| houses/matrix/protocore/esp32/presentations/pc-esp-07.presentation.html | presentation | matrix |
+| houses/matrix/protocore/esp32/presentations/pc-esp-08.presentation.html | presentation | matrix |
+| houses/matrix/protocore/esp32/presentations/pc-esp-09.presentation.html | presentation | matrix |
+| houses/matrix/protocore/esp32/presentations/pc-esp-10.presentation.html | presentation | matrix |
+| houses/matrix/protocore/esp32/presentations/pc-esp-11.presentation.html | presentation | matrix |
+| houses/matrix/protocore/esp32/presentations/pc-esp-12.presentation.html | presentation | matrix |
+| houses/matrix/protocore/esp32/presentations/pc-esp-13.presentation.html | presentation | matrix |
+| houses/matrix/protocore/esp32/presentations/pc-esp-14.presentation.html | presentation | matrix |
+| houses/matrix/protocore/esp32/presentations/pc-esp-15.presentation.html | presentation | matrix |
+| houses/matrix/protocore/esp32/quizzes/pc-esp-01.quiz.html | quiz | matrix |
+| houses/matrix/protocore/esp32/quizzes/pc-esp-02.quiz.html | quiz | matrix |
+| houses/matrix/protocore/esp32/quizzes/pc-esp-03.quiz.html | quiz | matrix |
+| houses/matrix/protocore/esp32/quizzes/pc-esp-04.quiz.html | quiz | matrix |
+| houses/matrix/protocore/esp32/quizzes/pc-esp-05.quiz.html | quiz | matrix |
+| houses/matrix/protocore/esp32/quizzes/pc-esp-06.quiz.html | quiz | matrix |
+| houses/matrix/protocore/esp32/quizzes/pc-esp-07.quiz.html | quiz | matrix |
+| houses/matrix/protocore/esp32/quizzes/pc-esp-08.quiz.html | quiz | matrix |
+| houses/matrix/protocore/esp32/quizzes/pc-esp-09.quiz.html | quiz | matrix |
+| houses/matrix/protocore/esp32/quizzes/pc-esp-10.quiz.html | quiz | matrix |
+| houses/matrix/protocore/esp32/quizzes/pc-esp-11.quiz.html | quiz | matrix |
+| houses/matrix/protocore/esp32/quizzes/pc-esp-12.quiz.html | quiz | matrix |
+| houses/matrix/protocore/esp32/quizzes/pc-esp-13.quiz.html | quiz | matrix |
+| houses/matrix/protocore/esp32/quizzes/pc-esp-14.quiz.html | quiz | matrix |
+| houses/matrix/protocore/esp32/quizzes/pc-esp-15.quiz.html | quiz | matrix |
 | houses/script/clh/script-clh-001.lab.html | lab | script |
 | houses/script/clh/script-clh-031-intro.applet.html | presentation | script |
 | houses/script/courses/clh/modules/clh-001/script-intro.module.html | presentation | script |
@@ -21257,6 +21674,45 @@
 | houses/shield/ms-security/ms-sec-08.html | presentation | shield |
 | houses/shield/ms-security/ms-sec-09.html | presentation | shield |
 | houses/shield/ms-security/ms-sec-10.html | presentation | shield |
+| houses/shield/sc-200/labs/sc200-ch01-defender-xdr.lab.html | lab | shield |
+| houses/shield/sc-200/labs/sc200-ch02-defender-endpoint.lab.html | lab | shield |
+| houses/shield/sc-200/labs/sc200-ch03-defender-office.lab.html | lab | shield |
+| houses/shield/sc-200/labs/sc200-ch04-defender-identity.lab.html | lab | shield |
+| houses/shield/sc-200/labs/sc200-ch05-defender-cloud-apps.lab.html | lab | shield |
+| houses/shield/sc-200/labs/sc200-ch06-sentinel-setup.lab.html | lab | shield |
+| houses/shield/sc-200/labs/sc200-ch07-sentinel-detection.lab.html | lab | shield |
+| houses/shield/sc-200/labs/sc200-ch08-sentinel-response.lab.html | presentation | shield |
+| houses/shield/sc-200/labs/sc200-ch09-sentinel-hunting.lab.html | lab | shield |
+| houses/shield/sc-200/presentations/sc200-ch01-defender-xdr.presentation.html | presentation | shield |
+| houses/shield/sc-200/presentations/sc200-ch02-defender-endpoint.presentation.html | presentation | shield |
+| houses/shield/sc-200/presentations/sc200-ch03-defender-office.presentation.html | presentation | shield |
+| houses/shield/sc-200/presentations/sc200-ch04-defender-identity.presentation.html | presentation | shield |
+| houses/shield/sc-200/presentations/sc200-ch05-defender-cloud-apps.presentation.html | presentation | shield |
+| houses/shield/sc-200/presentations/sc200-ch06-sentinel-setup.presentation.html | presentation | shield |
+| houses/shield/sc-200/presentations/sc200-ch07-sentinel-detection.presentation.html | presentation | shield |
+| houses/shield/sc-200/presentations/sc200-ch08-sentinel-response.presentation.html | presentation | shield |
+| houses/shield/sc-200/presentations/sc200-ch09-sentinel-hunting.presentation.html | presentation | shield |
+| houses/shield/sc-200/quizzes/sc200-ch01.quiz.html | quiz | shield |
+| houses/shield/sc-200/quizzes/sc200-ch02.quiz.html | quiz | shield |
+| houses/shield/sc-200/quizzes/sc200-ch03.quiz.html | quiz | shield |
+| houses/shield/sc-200/quizzes/sc200-ch04.quiz.html | quiz | shield |
+| houses/shield/sc-200/quizzes/sc200-ch05.quiz.html | quiz | shield |
+| houses/shield/sc-200/quizzes/sc200-ch06.quiz.html | quiz | shield |
+| houses/shield/sc-200/quizzes/sc200-ch07.quiz.html | quiz | shield |
+| houses/shield/sc-200/quizzes/sc200-ch08.quiz.html | quiz | shield |
+| houses/shield/sc-200/quizzes/sc200-ch09.quiz.html | quiz | shield |
+| houses/shield/sc-900/labs/sc900-ch01-concepts.lab.html | lab | shield |
+| houses/shield/sc-900/labs/sc900-ch02-entra-id.lab.html | lab | shield |
+| houses/shield/sc-900/labs/sc900-ch03-security-solutions.lab.html | presentation | shield |
+| houses/shield/sc-900/labs/sc900-ch04-compliance.lab.html | presentation | shield |
+| houses/shield/sc-900/presentations/sc900-ch01-concepts.presentation.html | presentation | shield |
+| houses/shield/sc-900/presentations/sc900-ch02-entra-id.presentation.html | presentation | shield |
+| houses/shield/sc-900/presentations/sc900-ch03-security-solutions.presentation.html | presentation | shield |
+| houses/shield/sc-900/presentations/sc900-ch04-compliance.presentation.html | presentation | shield |
+| houses/shield/sc-900/quizzes/sc900-ch01.quiz.html | quiz | shield |
+| houses/shield/sc-900/quizzes/sc900-ch02.quiz.html | quiz | shield |
+| houses/shield/sc-900/quizzes/sc900-ch03.quiz.html | quiz | shield |
+| houses/shield/sc-900/quizzes/sc900-ch04.quiz.html | quiz | shield |
 | houses/web/backbone/bgp/bb-bgp-01.html | presentation | web |
 | houses/web/backbone/bgp/bb-bgp-02.html | presentation | web |
 | houses/web/backbone/bgp/bb-bgp-03.html | presentation | web |
@@ -21468,6 +21924,8 @@
 | houses/web/network-plus/exams/midterm.exam.html | presentation | web |
 | houses/web/network-plus/labs/dns-troubleshooting.lab.html | lab | web |
 | houses/web/network-plus/labs/firewall-rules.lab.html | lab | web |
+| houses/web/network-plus/labs/n10009-ch01-security.lab.html | lab | web |
+| houses/web/network-plus/labs/n10009-ch02-troubleshooting.lab.html | lab | web |
 | houses/web/network-plus/labs/ne01-osi-scenario.lab.html | lab | web |
 | houses/web/network-plus/labs/ne02-tcpip-scenario.lab.html | lab | web |
 | houses/web/network-plus/labs/ne03-subnet-scenario.lab.html | lab | web |
@@ -21510,6 +21968,8 @@
 | houses/web/network-plus/presentations/icmp.presentation.html | presentation | web |
 | houses/web/network-plus/presentations/ipsec-gre.presentation.html | presentation | web |
 | houses/web/network-plus/presentations/ipv6.presentation.html | presentation | web |
+| houses/web/network-plus/presentations/n10009-ch01-security.presentation.html | presentation | web |
+| houses/web/network-plus/presentations/n10009-ch02-troubleshooting.presentation.html | presentation | web |
 | houses/web/network-plus/presentations/nat.presentation.html | presentation | web |
 | houses/web/network-plus/presentations/network-access-methods.presentation.html | presentation | web |
 | houses/web/network-plus/presentations/network-essentials.presentation.html | presentation | web |
@@ -21536,17 +21996,18 @@
 | houses/web/network-plus/presentations/wireless-architecture.presentation.html | presentation | web |
 | houses/web/network-plus/presentations/wireless.presentation.html | presentation | web |
 | houses/web/network-plus/quizzes/ch7-20.quiz.html | presentation | web |
-| houses/web/network-plus/quizzes/dns-dhcp.quiz.html | presentation | web |
-| houses/web/network-plus/quizzes/infrastructure.quiz.html | presentation | web |
-| houses/web/network-plus/quizzes/operations.quiz.html | presentation | web |
-| houses/web/network-plus/quizzes/osi.quiz.html | presentation | web |
-| houses/web/network-plus/quizzes/routing.quiz.html | presentation | web |
-| houses/web/network-plus/quizzes/security.quiz.html | presentation | web |
-| houses/web/network-plus/quizzes/switching.quiz.html | presentation | web |
-| houses/web/network-plus/quizzes/tcpip.quiz.html | presentation | web |
-| houses/web/network-plus/quizzes/troubleshooting.quiz.html | presentation | web |
-| houses/web/network-plus/quizzes/wan-cloud.quiz.html | presentation | web |
-| houses/web/network-plus/quizzes/wireless.quiz.html | presentation | web |
+| houses/web/network-plus/quizzes/dns-dhcp.quiz.html | quiz | web |
+| houses/web/network-plus/quizzes/infrastructure.quiz.html | quiz | web |
+| houses/web/network-plus/quizzes/n10009-ch01.quiz.html | quiz | web |
+| houses/web/network-plus/quizzes/n10009-ch02.quiz.html | quiz | web |
+| houses/web/network-plus/quizzes/operations.quiz.html | quiz | web |
+| houses/web/network-plus/quizzes/routing.quiz.html | quiz | web |
+| houses/web/network-plus/quizzes/security.quiz.html | quiz | web |
+| houses/web/network-plus/quizzes/switching.quiz.html | quiz | web |
+| houses/web/network-plus/quizzes/tcpip.quiz.html | quiz | web |
+| houses/web/network-plus/quizzes/troubleshooting.quiz.html | quiz | web |
+| houses/web/network-plus/quizzes/wan-cloud.quiz.html | quiz | web |
+| houses/web/network-plus/quizzes/wireless.quiz.html | quiz | web |
 | houses/web/network-plus/tools/acl.tool.html | presentation | web |
 | houses/web/network-plus/tools/cable.tool.html | presentation | web |
 | houses/web/network-plus/tools/devices.tool.html | presentation | web |
