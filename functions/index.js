@@ -514,8 +514,20 @@ exports.validateActivationCode = onCall(cfOptions, async (request) => {
 
     if (!codesSnap.empty) {
         const codeDoc = codesSnap.docs[0];
-        if (codeDoc.data().usedBy) {
+        const codeData = codeDoc.data();
+        if (codeData.usedBy) {
             return { role: null }; // already used
+        }
+
+        // Check expiration — added 2026-04-26 to enforce code TTL server-side
+        // Without this, expiresAt was cosmetic-only (set in admin console but never checked)
+        if (codeData.expiresAt) {
+            const expiresDate = codeData.expiresAt.toDate ? codeData.expiresAt.toDate() : new Date(codeData.expiresAt);
+            if (expiresDate < new Date()) {
+                // Auto-expire the code
+                await codeDoc.ref.update({ expired: true });
+                return { role: null };
+            }
         }
 
         // Mark code as used
@@ -2096,9 +2108,12 @@ exports.adminUpdateUser = onCall(cfOptions, async (request) => {
 /**
  * adminGenerateHandlerCode — Generate a new handler activation code.
  * Stores the hash in Firestore, returns the plaintext once.
+ * @param {number} [request.data.expiresInHours] - Optional expiration in hours (24, 168, 720, or null for permanent)
  */
 exports.adminGenerateHandlerCode = onCall(cfOptions, async (request) => {
     requireAdmin(request);
+
+    const { expiresInHours } = request.data || {};
 
     // Generate a random 8-character alphanumeric code
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no I/O/0/1 to avoid confusion
@@ -2114,6 +2129,12 @@ exports.adminGenerateHandlerCode = onCall(cfOptions, async (request) => {
     // Hash for storage
     const codeHash = crypto.createHash('sha256').update(formatted).digest('hex');
 
+    // Compute expiration timestamp if provided
+    let expiresAt = null;
+    if (expiresInHours && typeof expiresInHours === 'number' && expiresInHours > 0) {
+        expiresAt = new Date(Date.now() + expiresInHours * 3600000);
+    }
+
     // Store in handler_codes collection
     await db.collection('handler_codes').add({
         hash: codeHash,
@@ -2121,10 +2142,45 @@ exports.adminGenerateHandlerCode = onCall(cfOptions, async (request) => {
         createdBy: request.auth.uid,
         usedBy: null,
         expired: false,
-        expiresAt: null // permanent by default
+        expiresAt: expiresAt
     });
 
-    return { code: formatted };
+    return { code: formatted, expiresAt: expiresAt ? expiresAt.toISOString() : null };
+});
+
+/**
+ * adminRevokeHandlerCode — Expire an active handler code so it can no longer be used.
+ * @param {string} request.data.codeDocId - The Firestore document ID of the handler_codes entry
+ */
+exports.adminRevokeHandlerCode = onCall(cfOptions, async (request) => {
+    requireAdmin(request);
+
+    const { codeDocId } = request.data || {};
+    if (!codeDocId || typeof codeDocId !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing codeDocId.');
+    }
+
+    const codeRef = db.collection('handler_codes').doc(codeDocId);
+    const codeSnap = await codeRef.get();
+    if (!codeSnap.exists) {
+        throw new HttpsError('not-found', 'Handler code not found.');
+    }
+
+    const codeData = codeSnap.data();
+    if (codeData.usedBy) {
+        throw new HttpsError('failed-precondition', 'Cannot revoke a code that has already been used.');
+    }
+    if (codeData.expired) {
+        throw new HttpsError('failed-precondition', 'Code is already expired.');
+    }
+
+    await codeRef.update({
+        expired: true,
+        revokedAt: FieldValue.serverTimestamp(),
+        revokedBy: request.auth.uid
+    });
+
+    return { success: true, codeDocId };
 });
 
 /**

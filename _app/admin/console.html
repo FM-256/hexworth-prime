@@ -2576,14 +2576,38 @@
             <div class="ac-panel" data-panel="handlers">
                 <div class="ac-panel-title">Handler Management</div>
 
+                <!-- Handler Stats Summary -->
+                <div class="ac-stats-grid" id="handlerStatsGrid">
+                    <div class="ac-loading"><div class="ac-spinner"></div>Loading...</div>
+                </div>
+
+                <!-- Legacy Code Warning -->
+                <div class="ac-card" id="legacyCodeWarning" style="display:none; border-left:3px solid var(--ac-warning);">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span style="font-size:1.2rem;">!</span>
+                        <div>
+                            <div style="font-size:0.82rem; font-weight:600; color:var(--ac-warning);">Legacy Hardcoded Code Active</div>
+                            <div style="font-size:0.78rem; color:var(--ac-text-muted);">A permanent handler code is hardcoded in the Cloud Function. It cannot be rotated or expired from this console. To disable it, the hash must be removed from <code>functions/index.js</code> and redeployed.</div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Generate Code -->
                 <div class="ac-card">
                     <div class="ac-card-title">Generate Handler Code</div>
                     <p style="font-size:0.82rem; color:var(--ac-text-muted); margin-bottom:14px;">
                         Generate a new handler activation code. The plaintext is shown once -- save it before closing.
                     </p>
-                    <button class="ac-btn ac-btn-primary" id="generateCodeBtn" onclick="generateHandlerCode()">Generate New Code</button>
-                    <div id="generatedCodeDisplay" style="display:none">
+                    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                        <select class="ac-form-select" id="codeExpiration" style="width:auto; min-width:140px;">
+                            <option value="">Never expires</option>
+                            <option value="24">Expires in 24 hours</option>
+                            <option value="168">Expires in 7 days</option>
+                            <option value="720">Expires in 30 days</option>
+                        </select>
+                        <button class="ac-btn ac-btn-primary" id="generateCodeBtn" onclick="generateHandlerCode()">Generate New Code</button>
+                    </div>
+                    <div id="generatedCodeDisplay" style="display:none; margin-top:14px;">
                         <div class="ac-code-display" id="generatedCodeText"></div>
                         <div class="ac-code-warning">This code is shown only once. Copy it now.</div>
                     </div>
@@ -2591,7 +2615,10 @@
 
                 <!-- Active Handlers -->
                 <div class="ac-card">
-                    <div class="ac-card-title">Active Handlers</div>
+                    <div class="ac-card-title" style="display:flex; justify-content:space-between; align-items:center;">
+                        <span>Active Handlers</span>
+                        <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="_handlersLoaded=false; loadHandlerData();">Refresh</button>
+                    </div>
                     <div id="handlerList">
                         <div class="ac-loading"><div class="ac-spinner"></div>Loading handlers...</div>
                     </div>
@@ -2599,7 +2626,10 @@
 
                 <!-- Handler Code History -->
                 <div class="ac-card">
-                    <div class="ac-card-title">Handler Code History</div>
+                    <div class="ac-card-title" style="display:flex; justify-content:space-between; align-items:center;">
+                        <span>Handler Code History</span>
+                        <span id="codeHistoryCount" style="font-size:0.75rem; color:var(--ac-text-muted);"></span>
+                    </div>
                     <div id="codeHistory">
                         <div class="ac-loading"><div class="ac-spinner"></div>Loading history...</div>
                     </div>
@@ -2633,7 +2663,7 @@
                     <div class="ac-card-title">Quick Actions</div>
                     <div style="display:flex; gap:10px; flex-wrap:wrap;">
                         <button class="ac-btn ac-btn-danger" onclick="confirmMassClearIntegrity()">Mass Clear All Lockouts</button>
-                        <button class="ac-btn ac-btn-warning" onclick="confirmRotateHandlerCode()">Rotate Handler Code</button>
+                        <button class="ac-btn ac-btn-ghost" onclick="switchPanel('handlers')">Manage Handler Codes</button>
                         <button class="ac-btn ac-btn-ghost" onclick="refreshHealthData()">Refresh All Stats</button>
                     </div>
                 </div>
@@ -5319,6 +5349,19 @@
         };
 
         // --- View a user's TripWire events ---
+        // TripWire events are in a top-level collection with uid_hash (not subcollection).
+        // We hash the UID the same way TripWire.js does and filter by uid_hash.
+        function _hashUIDForLookup(uid) {
+            // Matches TripWire.js _hashUID: _simpleHash('uid:' + uid + ':tripwire')
+            const str = 'uid:' + uid + ':tripwire';
+            let hash = 5381;
+            for (let i = 0; i < str.length; i++) {
+                hash = ((hash << 5) + hash) + str.charCodeAt(i);
+                hash = hash & hash; // 32-bit int
+            }
+            return hash.toString(36);
+        }
+
         window.viewUserTripWireLog = async function(uid, name) {
             if (!db) return;
             const overlay = document.createElement('div');
@@ -5328,8 +5371,10 @@
             overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
 
             try {
-                const { collection, query, orderBy, getDocs, limit } = _firestoreModule;
-                const q = query(collection(db, 'users/' + uid + '/tripwire_events'), orderBy('timestamp', 'desc'), limit(100));
+                const { collection, query, where, orderBy, getDocs, limit } = _firestoreModule;
+                // Query top-level collection filtered by uid_hash
+                const uidHash = _hashUIDForLookup(uid);
+                const q = query(collection(db, 'tripwire_events'), where('uid_hash', '==', uidHash), orderBy('timestamp', 'desc'), limit(100));
                 const snap = await getDocs(q);
 
                 // Count by sensor type
@@ -5337,7 +5382,7 @@
                 const rows = [];
                 snap.forEach(docSnap => {
                     const d = docSnap.data();
-                    const sensor = d.sensor || d.type || 'unknown';
+                    const sensor = d.method || d.sensor || d.type || 'unknown';
                     sensorCounts[sensor] = (sensorCounts[sensor] || 0) + 1;
                     const ts = d.timestamp ? (d.timestamp.toDate ? d.timestamp.toDate() : new Date(d.timestamp)) : null;
                     rows.push({ sensor, ts, detail: d.detail || d.message || d.key || '' });
@@ -5516,8 +5561,9 @@
             const container = document.getElementById('tripwireSensorBreakdown');
 
             try {
-                const { collectionGroup, query, orderBy, getDocs, limit } = _firestoreModule;
-                const q = query(collectionGroup(db, 'tripwire_events'), orderBy('timestamp', 'desc'), limit(500));
+                const { collection, query, orderBy, getDocs, limit } = _firestoreModule;
+                // TripWire events are in a top-level collection, field is "method" not "sensor"
+                const q = query(collection(db, 'tripwire_events'), orderBy('timestamp', 'desc'), limit(500));
                 const snap = await getDocs(q);
 
                 if (snap.empty) {
@@ -5534,11 +5580,10 @@
 
                 snap.forEach(docSnap => {
                     const d = docSnap.data();
-                    const sensor = d.sensor || d.type || 'unknown';
+                    const sensor = d.method || d.sensor || d.type || 'unknown';
                     sensorCounts[sensor] = (sensorCounts[sensor] || 0) + 1;
 
-                    const pathParts = docSnap.ref.path.split('/');
-                    if (pathParts.length >= 2) uniqueUsers.add(pathParts[1]);
+                    if (d.uid_hash) uniqueUsers.add(d.uid_hash);
 
                     const ts = d.timestamp ? (d.timestamp.toDate ? d.timestamp.toDate().getTime() : new Date(d.timestamp).getTime()) : 0;
                     if (now - ts < DAY_MS) last24h++;
@@ -5582,16 +5627,16 @@
             container.innerHTML = '<div class="ac-loading"><div class="ac-spinner"></div>Loading...</div>';
 
             try {
-                const { collectionGroup, query, orderBy, getDocs, limit, where } = _firestoreModule;
-                let q;
+                const { collection, query, orderBy, getDocs, limit, where } = _firestoreModule;
+                // Top-level collection, field is "method" not "type"
                 const constraints = [orderBy('timestamp', 'desc'), limit(100)];
 
                 const typeFilter = document.getElementById('tripwireTypeFilter').value;
                 if (typeFilter) {
-                    constraints.push(where('type', '==', typeFilter));
+                    constraints.push(where('method', '==', typeFilter));
                 }
 
-                q = query(collectionGroup(db, 'tripwire_events'), ...constraints);
+                const q = query(collection(db, 'tripwire_events'), ...constraints);
                 const snap = await getDocs(q);
 
                 if (snap.empty) {
@@ -5599,19 +5644,18 @@
                     return;
                 }
 
-                let html = '<div class="ac-table-wrap"><table class="ac-table"><thead><tr><th>Time</th><th>User</th><th>Type</th><th>Detail</th></tr></thead><tbody>';
+                let html = '<div class="ac-table-wrap"><table class="ac-table"><thead><tr><th>Time</th><th>User Hash</th><th>Sensor</th><th>Category</th><th>Detail</th></tr></thead><tbody>';
                 snap.forEach(docSnap => {
                     const d = docSnap.data();
                     const ts = d.timestamp ? (d.timestamp.toDate ? d.timestamp.toDate() : new Date(d.timestamp)) : null;
-                    // Extract uid from path: users/{uid}/tripwire_events/{docId}
-                    const pathParts = docSnap.ref.path.split('/');
-                    const userUid = pathParts.length >= 2 ? pathParts[1] : '?';
+                    const userHash = d.uid_hash || '?';
 
                     html += `<tr>
                         <td style="white-space:nowrap">${ts ? ts.toLocaleString() : '--'}</td>
-                        <td><span style="font-size:0.72rem; cursor:pointer; color:var(--ac-accent)" onclick="viewUserProfile('${escHtml(userUid)}')">${escHtml(userUid.substring(0, 12))}...</span></td>
-                        <td>${escHtml(d.type || d.sensor || '--')}</td>
-                        <td style="max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${escHtml(String(d.detail || d.message || '').substring(0, 150))}</td>
+                        <td style="font-size:0.72rem; font-family:monospace; color:var(--ac-text-muted);">${escHtml(String(userHash).substring(0, 12))}...</td>
+                        <td>${escHtml(d.method || d.sensor || '--')}</td>
+                        <td>${escHtml(d.category || '--')}</td>
+                        <td style="max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${escHtml(String(d.detail || '').substring(0, 150))}</td>
                     </tr>`;
                 });
                 html += '</tbody></table></div>';
@@ -5659,13 +5703,55 @@
         //  TAB 3: HANDLER MANAGEMENT
         // =============================================================
         let _handlersLoaded = false;
+        let _handlerCount = 0;
 
         async function loadHandlerData() {
             if (_handlersLoaded) return;
             _handlersLoaded = true;
 
+            // Show legacy code warning
+            document.getElementById('legacyCodeWarning').style.display = 'block';
+
+            loadHandlerStats();
             loadHandlerList();
             loadCodeHistory();
+        }
+
+        async function loadHandlerStats() {
+            const grid = document.getElementById('handlerStatsGrid');
+            try {
+                const { collection, query, where, getDocs } = _firestoreModule;
+
+                // Count handlers
+                const handlersSnap = await getDocs(query(collection(db, 'users'), where('accountType', '==', 'handler')));
+                _handlerCount = handlersSnap.size;
+
+                // Count codes by status
+                const codesSnap = await getDocs(collection(db, 'handler_codes'));
+                let activeCodes = 0, usedCodes = 0, expiredCodes = 0;
+                codesSnap.forEach(doc => {
+                    const d = doc.data();
+                    if (d.usedBy) usedCodes++;
+                    else if (d.expired) expiredCodes++;
+                    else {
+                        // Check runtime expiration
+                        if (d.expiresAt) {
+                            const exp = d.expiresAt.toDate ? d.expiresAt.toDate() : new Date(d.expiresAt);
+                            if (exp < new Date()) { expiredCodes++; return; }
+                        }
+                        activeCodes++;
+                    }
+                });
+
+                grid.innerHTML = `
+                    <div class="ac-stat-card"><div class="ac-stat-value">${_handlerCount}</div><div class="ac-stat-label">Active Handlers</div></div>
+                    <div class="ac-stat-card"><div class="ac-stat-value" style="color:var(--ac-success)">${activeCodes}</div><div class="ac-stat-label">Active Codes</div></div>
+                    <div class="ac-stat-card"><div class="ac-stat-value" style="color:var(--ac-text-muted)">${usedCodes}</div><div class="ac-stat-label">Used Codes</div></div>
+                    <div class="ac-stat-card"><div class="ac-stat-value" style="color:var(--ac-danger)">${expiredCodes}</div><div class="ac-stat-label">Expired / Revoked</div></div>
+                `;
+            } catch (e) {
+                grid.innerHTML = '<div class="ac-empty" style="color:var(--ac-danger)">Stats failed: ' + escHtml(e.message) + '</div>';
+            }
         }
 
         window.generateHandlerCode = async function() {
@@ -5674,15 +5760,26 @@
             btn.textContent = 'Generating...';
 
             try {
-                const result = await FirebaseAuth.callFunction('adminGenerateHandlerCode');
-                const code = result.data.code;
+                const expiresSelect = document.getElementById('codeExpiration');
+                const expiresInHours = expiresSelect.value ? parseInt(expiresSelect.value) : null;
 
-                document.getElementById('generatedCodeText').textContent = code;
+                const result = await FirebaseAuth.callFunction('adminGenerateHandlerCode', {
+                    expiresInHours: expiresInHours
+                });
+                const code = result.data.code;
+                const expiresAt = result.data.expiresAt;
+
+                let displayText = code;
+                if (expiresAt) {
+                    displayText += '\nExpires: ' + new Date(expiresAt).toLocaleString();
+                }
+
+                document.getElementById('generatedCodeText').textContent = displayText;
                 document.getElementById('generatedCodeDisplay').style.display = 'block';
 
                 showToast('Handler code generated', 'success');
                 _handlersLoaded = false;
-                loadCodeHistory();
+                loadHandlerData();
             } catch (e) {
                 showToast('Generation failed: ' + e.message, 'error');
             } finally {
@@ -5704,17 +5801,22 @@
                     return;
                 }
 
-                let html = '<div class="ac-table-wrap"><table class="ac-table"><thead><tr><th>Name</th><th>Email</th><th>Activated</th><th>Actions</th></tr></thead><tbody>';
+                let html = '<div class="ac-table-wrap"><table class="ac-table"><thead><tr><th>Name</th><th>Email</th><th>House</th><th>Activated</th><th>Last Active</th><th>Actions</th></tr></thead><tbody>';
                 snap.forEach(docSnap => {
                     const d = docSnap.data();
                     const activated = d.activatedAt ? (d.activatedAt.toDate ? d.activatedAt.toDate().toLocaleDateString() : new Date(d.activatedAt).toLocaleDateString()) : '--';
+                    const lastActive = d.updatedAt ? (d.updatedAt.toDate ? d.updatedAt.toDate().toLocaleDateString() : new Date(d.updatedAt).toLocaleDateString()) : (d.lastActivity ? new Date(d.lastActivity).toLocaleDateString() : '--');
+                    const house = d.house ? d.house.charAt(0).toUpperCase() + d.house.slice(1) : '--';
 
                     html += `<tr>
                         <td>${escHtml(d.displayName || d.callsign || docSnap.id)}</td>
                         <td>${escHtml(d.email || '--')}</td>
+                        <td>${escHtml(house)}</td>
                         <td>${activated}</td>
+                        <td>${lastActive}</td>
                         <td>
                             <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="viewUserProfile('${docSnap.id}')">View</button>
+                            <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="editUserModal('${docSnap.id}')">Edit</button>
                             <button class="ac-btn ac-btn-warning ac-btn-sm" onclick="demoteHandler('${docSnap.id}', '${escHtml(d.displayName || '')}')">Demote</button>
                         </td>
                     </tr>`;
@@ -5727,7 +5829,7 @@
         }
 
         window.demoteHandler = function(uid, name) {
-            showConfirm('Demote Handler', 'Demote "' + escHtml(name || uid) + '" from handler to operative?', async () => {
+            showConfirm('Demote Handler', 'Demote "' + escHtml(name || uid) + '" from handler to operative? This removes their handler custom claim and downgrades their account type.', async () => {
                 try {
                     await FirebaseAuth.callFunction('adminUpdateUser', {
                         uid: uid,
@@ -5742,31 +5844,71 @@
             }, true);
         };
 
+        window.revokeHandlerCode = function(codeDocId) {
+            showConfirm('Revoke Code', 'Expire this handler code? It will no longer be usable for activation.', async () => {
+                try {
+                    await FirebaseAuth.callFunction('adminRevokeHandlerCode', { codeDocId: codeDocId });
+                    showToast('Handler code revoked', 'success');
+                    _handlersLoaded = false;
+                    loadHandlerData();
+                } catch (e) {
+                    showToast('Revoke failed: ' + e.message, 'error');
+                }
+            }, true);
+        };
+
         async function loadCodeHistory() {
             if (!db) return;
             const container = document.getElementById('codeHistory');
             try {
                 const { collection, query, orderBy, getDocs, limit } = _firestoreModule;
-                const q = query(collection(db, 'handler_codes'), orderBy('createdAt', 'desc'), limit(20));
+                const q = query(collection(db, 'handler_codes'), orderBy('createdAt', 'desc'), limit(50));
                 const snap = await getDocs(q);
 
                 if (snap.empty) {
                     container.innerHTML = '<div class="ac-empty">No handler codes generated yet.</div>';
+                    document.getElementById('codeHistoryCount').textContent = '';
                     return;
                 }
 
-                let html = '<div class="ac-table-wrap"><table class="ac-table"><thead><tr><th>Created</th><th>Status</th><th>Used By</th><th>Expires</th></tr></thead><tbody>';
+                document.getElementById('codeHistoryCount').textContent = snap.size + ' codes';
+
+                let html = '<div class="ac-table-wrap"><table class="ac-table"><thead><tr><th>Created</th><th>Status</th><th>Used By</th><th>Expires</th><th>Actions</th></tr></thead><tbody>';
                 snap.forEach(docSnap => {
                     const d = docSnap.data();
                     const created = d.createdAt ? (d.createdAt.toDate ? d.createdAt.toDate().toLocaleString() : new Date(d.createdAt).toLocaleString()) : '--';
-                    const status = d.usedBy ? 'Used' : (d.expired ? 'Expired' : 'Active');
-                    const statusColor = d.usedBy ? 'var(--ac-text-muted)' : (d.expired ? 'var(--ac-danger)' : 'var(--ac-success)');
+
+                    // Determine status with runtime expiration check
+                    let status, statusColor;
+                    if (d.usedBy) {
+                        status = 'Used';
+                        statusColor = 'var(--ac-text-muted)';
+                    } else if (d.expired) {
+                        status = d.revokedBy ? 'Revoked' : 'Expired';
+                        statusColor = 'var(--ac-danger)';
+                    } else if (d.expiresAt) {
+                        const exp = d.expiresAt.toDate ? d.expiresAt.toDate() : new Date(d.expiresAt);
+                        if (exp < new Date()) {
+                            status = 'Expired';
+                            statusColor = 'var(--ac-danger)';
+                        } else {
+                            status = 'Active';
+                            statusColor = 'var(--ac-success)';
+                        }
+                    } else {
+                        status = 'Active';
+                        statusColor = 'var(--ac-success)';
+                    }
+
+                    const expiresText = d.expiresAt ? (d.expiresAt.toDate ? d.expiresAt.toDate().toLocaleString() : new Date(d.expiresAt).toLocaleString()) : 'Never';
+                    const canRevoke = status === 'Active';
 
                     html += `<tr>
                         <td>${created}</td>
-                        <td style="color:${statusColor}">${status}</td>
+                        <td style="color:${statusColor}; font-weight:600;">${status}</td>
                         <td>${escHtml(d.usedBy || '--')}</td>
-                        <td>${d.expiresAt ? (d.expiresAt.toDate ? d.expiresAt.toDate().toLocaleString() : '--') : 'Never'}</td>
+                        <td>${expiresText}</td>
+                        <td>${canRevoke ? '<button class="ac-btn ac-btn-danger ac-btn-sm" onclick="revokeHandlerCode(\'' + docSnap.id + '\')">Revoke</button>' : '<span style="color:var(--ac-text-muted); font-size:0.78rem;">--</span>'}</td>
                     </tr>`;
                 });
                 html += '</tbody></table></div>';
@@ -5868,15 +6010,10 @@
             }, true);
         };
 
+        // Legacy: confirmRotateHandlerCode redirects to Handler panel
         window.confirmRotateHandlerCode = function() {
-            showConfirm('Rotate Handler Code', 'Generate a new handler activation code. The old code will stop working. Continue?', async () => {
-                try {
-                    const result = await FirebaseAuth.callFunction('adminGenerateHandlerCode');
-                    showToast('Handler code rotated. New code: ' + result.data.code, 'success');
-                } catch (e) {
-                    showToast('Rotation failed: ' + e.message, 'error');
-                }
-            }, true);
+            switchPanel('handlers');
+            showToast('Use the Handler Management panel to generate and manage codes.', 'info');
         };
 
         // =============================================================
