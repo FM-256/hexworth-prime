@@ -6849,3 +6849,269 @@ exports.announceAchievement = onCall(cfOptions, async (request) => {
         return { announced: false };
     }
 });
+
+// ─── PFI Auto-Grading System ─────────────────────────────────────────
+
+/**
+ * gradePFIProject — Server-side auto-grading for Python for IT projects.
+ *
+ * Flow:
+ *   1. Authenticate and validate payload
+ *   2. Rate limit (5 submissions/hour per project)
+ *   3. Fetch test spec from Firestore (pfi_test_specs/{projectId})
+ *   4. Call Cloud Run grader service with code + tests
+ *   5. Compute weighted score mapped to rubric categories
+ *   6. Store submission in Firestore (pfi_submissions/{projectId}_{uid})
+ *   7. Return results to client
+ */
+exports.gradePFIProject = onCall({ ...cfOptions, timeoutSeconds: 60 }, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const uid = request.auth.uid;
+    const email = request.auth.token.email || '';
+    const { projectId, code } = request.data || {};
+
+    // ── Validate payload ──
+    if (!projectId || typeof projectId !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing projectId.');
+    }
+    if (!code || typeof code !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing code.');
+    }
+    if (code.length > 51200) {
+        throw new HttpsError('invalid-argument', 'Code exceeds 50KB limit.');
+    }
+
+    const validProjects = ['pfi-w1', 'pfi-w2', 'pfi-w3', 'pfi-w4'];
+    if (!validProjects.includes(projectId)) {
+        throw new HttpsError('invalid-argument', 'Invalid projectId.');
+    }
+
+    // ── Rate limiting: 5 submissions per project per hour ──
+    const attemptsRef = db.collection(`users/${uid}/pfi_attempts`);
+    const oneHourAgo = new Date(Date.now() - 3600000);
+    try {
+        const recentAttempts = await attemptsRef
+            .where('projectId', '==', projectId)
+            .where('timestamp', '>', oneHourAgo)
+            .get();
+
+        if (recentAttempts.size >= 5) {
+            throw new HttpsError('resource-exhausted',
+                'Rate limit: 5 submissions per project per hour. Try again later.');
+        }
+    } catch (e) {
+        if (e instanceof HttpsError) throw e;
+        // Index may not exist yet — allow the submission
+        console.warn('[PFI] Rate limit query failed (index building?):', e.message);
+    }
+
+    // ── Fetch test spec ──
+    const specDoc = await db.doc(`pfi_test_specs/${projectId}`).get();
+    if (!specDoc.exists) {
+        throw new HttpsError('not-found', 'Test spec not found for this project.');
+    }
+    const spec = specDoc.data();
+
+    // ── Log the attempt ──
+    attemptsRef.add({
+        projectId,
+        timestamp: FieldValue.serverTimestamp()
+    }).catch(e => console.warn('[PFI] Attempt log failed:', e.message));
+
+    // ── Call Cloud Run grader ──
+    const GRADER_URL = process.env.PFI_GRADER_URL || '';
+    let gradeResult;
+
+    if (GRADER_URL) {
+        // Production: call Cloud Run service
+        try {
+            const { GoogleAuth } = require('google-auth-library');
+            const auth = new GoogleAuth();
+            const client = await auth.getIdTokenClient(GRADER_URL);
+            const response = await client.request({
+                url: GRADER_URL + '/grade',
+                method: 'POST',
+                data: {
+                    code: code,
+                    files: spec.files || {},
+                    tests: spec.tests
+                }
+            });
+            gradeResult = response.data;
+        } catch (e) {
+            console.error('[PFI] Cloud Run grader call failed:', e.message);
+            throw new HttpsError('internal', 'Grading service unavailable. Please try again.');
+        }
+    } else {
+        // Fallback: static-only grading (no code execution, just code structure checks)
+        // This allows the system to work before Cloud Run is deployed
+        gradeResult = _staticOnlyGrade(code, spec.tests);
+    }
+
+    if (!gradeResult || !gradeResult.success) {
+        throw new HttpsError('internal', gradeResult?.error || 'Grading failed.');
+    }
+
+    // ── Compute score from results ──
+    const categoryScores = {};
+    for (const cat of spec.rubricCategories) {
+        categoryScores[cat.id] = { earned: 0, max: cat.maxPoints };
+    }
+
+    const testResults = [];
+    let totalWeight = 0;
+    let earnedWeight = 0;
+
+    for (const test of spec.tests) {
+        const result = gradeResult.results.find(r => r.testId === test.id);
+        const passed = result ? result.passed : false;
+        const weight = test.weight || 1;
+        totalWeight += weight;
+        if (passed) earnedWeight += weight;
+
+        testResults.push({
+            testId: test.id,
+            name: test.name,
+            passed: passed,
+            category: test.category
+        });
+    }
+
+    // Distribute earned weight proportionally across categories
+    for (const test of spec.tests) {
+        const result = testResults.find(r => r.testId === test.id);
+        if (!result || !result.passed) continue;
+
+        const cat = categoryScores[test.category];
+        if (!cat) continue;
+
+        // Each test contributes its weight as a fraction of the category max
+        const catTests = spec.tests.filter(t => t.category === test.category);
+        const catTotalWeight = catTests.reduce((sum, t) => sum + (t.weight || 1), 0);
+        const contribution = Math.round((test.weight / catTotalWeight) * cat.max);
+        cat.earned = Math.min(cat.max, cat.earned + contribution);
+    }
+
+    const autoScore = Object.values(categoryScores).reduce((sum, c) => sum + c.earned, 0);
+    const maxScore = spec.maxScore || 100;
+    const passed = autoScore >= (spec.passingScore || 70);
+
+    // ── Get student callsign ──
+    let callsign = '';
+    try {
+        const userDoc = await db.doc(`users/${uid}`).get();
+        if (userDoc.exists) {
+            const userData = userDoc.data();
+            callsign = userData.callsign || userData.displayName || '';
+        }
+    } catch (e) { /* silent */ }
+
+    // ── Count previous attempts ──
+    let attemptNumber = 1;
+    const existingDoc = await db.doc(`pfi_submissions/${projectId}_${uid}`).get();
+    if (existingDoc.exists) {
+        attemptNumber = (existingDoc.data().attemptNumber || 0) + 1;
+    }
+
+    // ── Get first execution output for display ──
+    let executionOutput = '';
+    let executionError = null;
+    const firstExecResult = gradeResult.results.find(r => {
+        const test = spec.tests.find(t => t.id === r.testId);
+        return test && test.type === 'execution';
+    });
+    if (firstExecResult) {
+        executionOutput = firstExecResult.output || '';
+    }
+
+    // ── Store submission ──
+    const submission = {
+        projectId,
+        uid,
+        callsign,
+        code,
+        submittedAt: FieldValue.serverTimestamp(),
+        attemptNumber,
+        autoScore,
+        maxScore,
+        passed,
+        categoryScores,
+        testResults,
+        executionOutput: executionOutput.substring(0, 10000), // Cap at 10KB
+        executionError,
+        executionTime: gradeResult.executionTime || 0,
+        needsInstructorReview: autoScore >= 50 && autoScore < 70, // Borderline
+        instructorScore: null,
+        instructorFeedback: null
+    };
+
+    await db.doc(`pfi_submissions/${projectId}_${uid}`).set(submission);
+
+    // ── Return to client ──
+    return {
+        autoScore,
+        maxScore,
+        passed,
+        categoryScores,
+        testResults,
+        executionOutput: executionOutput.substring(0, 5000),
+        attemptNumber,
+        executionTime: gradeResult.executionTime || 0
+    };
+});
+
+/**
+ * Fallback grading when Cloud Run is not available.
+ * Only runs static checks (code structure) — no execution tests.
+ */
+function _staticOnlyGrade(code, tests) {
+    const results = [];
+    for (const test of tests) {
+        if (test.type === 'execution') {
+            // Skip execution tests — mark as failed with explanation
+            results.push({
+                testId: test.id,
+                name: test.name,
+                passed: false,
+                output: '',
+                checks: [{ checkType: 'execution', passed: false, detail: 'Code execution not available (grader service offline)' }]
+            });
+        } else if (test.type === 'static') {
+            // Run static checks locally
+            const checks = test.checks || [];
+            const checkResults = checks.map(check => {
+                let passed = false;
+                try {
+                    switch (check.type) {
+                        case 'code_contains':
+                            passed = code.includes(check.value);
+                            break;
+                        case 'code_not_contains':
+                            passed = !code.includes(check.value);
+                            break;
+                        case 'code_regex':
+                            passed = new RegExp(check.pattern, check.flags || '').test(code);
+                            break;
+                        case 'code_regex_count': {
+                            const matches = code.match(new RegExp(check.pattern, (check.flags || '') + 'g')) || [];
+                            passed = matches.length >= (check.minCount || 1);
+                            break;
+                        }
+                    }
+                } catch (e) { /* silent */ }
+                return { checkType: check.type, passed, detail: '' };
+            });
+            results.push({
+                testId: test.id,
+                name: test.name,
+                passed: checkResults.every(c => c.passed),
+                output: '',
+                checks: checkResults
+            });
+        }
+    }
+    return { success: true, results, executionTime: 0, error: null };
+}
