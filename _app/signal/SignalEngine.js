@@ -31,6 +31,7 @@ const SignalEngine = (() => {
     // Progress helpers
     // -------------------------------------------------------------------------
 
+    /** Load project completion state from localStorage */
     function _loadProgress() {
         try {
             _progress = JSON.parse(localStorage.getItem('hexworth_signal_progress') || '{}');
@@ -39,14 +40,17 @@ const SignalEngine = (() => {
         }
     }
 
+    /** Persist project completion state to localStorage */
     function _saveProgress() {
         localStorage.setItem('hexworth_signal_progress', JSON.stringify(_progress));
     }
 
+    /** @returns {boolean} Whether the given project has been marked complete */
     function _isComplete(projectId) {
         return !!_progress[projectId];
     }
 
+    /** Toggle project completion status and update UI + localStorage */
     function _toggleComplete(projectId) {
         if (_progress[projectId]) {
             delete _progress[projectId];
@@ -60,6 +64,7 @@ const SignalEngine = (() => {
     // Style injection
     // -------------------------------------------------------------------------
 
+    /** Inject component CSS into document head */
     function _injectStyles(extraCss) {
         const style = document.createElement('style');
         style.textContent = _getBaseCSS() + (extraCss || '');
@@ -70,6 +75,7 @@ const SignalEngine = (() => {
     // Shared builders
     // -------------------------------------------------------------------------
 
+    /** Build the top navigation header with back button and title */
     function _buildHeader(title, subtitle, backLabel, backHref) {
         const header = document.createElement('div');
         header.className = 'se-header';
@@ -88,6 +94,7 @@ const SignalEngine = (() => {
         return header;
     }
 
+    /** Add animated particle effects to a container element */
     function _buildParticles(container) {
         const COUNT = 25;
         for (let i = 0; i < COUNT; i++) {
@@ -103,10 +110,12 @@ const SignalEngine = (() => {
     }
 
     /** Resolve an icon path from SignalData to current page depth. */
+    /** @returns {string} HTML img tag for an icon at the given path */
     function _icon(path) {
         return _basePath === '../../' ? path : path.replace('../../', _basePath);
     }
 
+    /** @returns {string} HTML badge with color-coded difficulty level */
     function _diffBadge(difficulty) {
         const d = SignalData.difficulties[difficulty];
         if (!d) return '';
@@ -123,6 +132,7 @@ const SignalEngine = (() => {
     // HUB RENDERER
     // =========================================================================
 
+    /** Render the full Signal hub page: hero, progress bar, platform overview, track sections */
     function renderHub() {
         _loadProgress();
         document.title = 'The Signal \u2014 Hardware Projects \u2014 Hexworth Prime';
@@ -173,6 +183,7 @@ const SignalEngine = (() => {
         _activateTrack('foundations');
     }
 
+    /** Build the hero section with title, description, and overall stats */
     function _buildHero() {
         const total = SignalData.getTotalProjects();
         const platforms = Object.keys(SignalData.platforms).length;
@@ -202,6 +213,7 @@ const SignalEngine = (() => {
         return hero;
     }
 
+    /** Build the overall completion progress bar across all tracks */
     function _buildOverallProgress() {
         const total = SignalData.getTotalProjects();
         const completed = SignalData.getCompletedCount(_progress);
@@ -220,6 +232,7 @@ const SignalEngine = (() => {
         return wrap;
     }
 
+    /** Build the platform filter bar and "Build Your Kit" cost summary */
     function _buildPlatformOverview() {
         const wrap = document.createElement('div');
         wrap.className = 'se-platform-overview';
@@ -292,6 +305,7 @@ const SignalEngine = (() => {
         return wrap;
     }
 
+    /** Build the track navigation section with expandable panels */
     function _buildTrackSection() {
         const section = document.createElement('div');
         section.className = 'se-track-section';
@@ -335,6 +349,7 @@ const SignalEngine = (() => {
         return section;
     }
 
+    /** Build a single track panel with section cards */
     function _buildTrackPanel(track) {
         const panel = document.createElement('div');
         panel.className = 'se-track-panel';
@@ -364,6 +379,7 @@ const SignalEngine = (() => {
         return panel;
     }
 
+    /** Build a card for one section within a track */
     function _buildSectionCard(sec) {
         const stats = SignalData.getSectionStats(sec.id, _progress);
 
@@ -423,6 +439,7 @@ const SignalEngine = (() => {
         return card;
     }
 
+    /** Expand a track panel and collapse others */
     function _activateTrack(trackId) {
         document.querySelectorAll('.se-track-tab').forEach(t => {
             var isActive = t.getAttribute('data-track') === trackId;
@@ -442,6 +459,7 @@ const SignalEngine = (() => {
     // SECTION RENDERER
     // =========================================================================
 
+    /** Render a single section page with project cards and guides */
     function renderSection(sectionId) {
         _basePath = '../../../../'; // from sections/{id}/ to _app/
         _loadProgress();
