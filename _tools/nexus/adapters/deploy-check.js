@@ -180,7 +180,73 @@ module.exports = function createDeployCheckAdapter({ name, dataPath, projectRoot
         };
     }
 
-    // ── Check 5: Secrets — no API keys or tokens in changed files ──
+    // ── Check 5: Broken Links — verify href targets exist in changed files ──
+    function checkBrokenLinks(changedFiles) {
+        const htmlFiles = changedFiles.filter(f =>
+            f.endsWith('.html') && f.startsWith('_app/') &&
+            !f.includes('_archive/') && !f.includes('mockups/')
+        );
+        if (htmlFiles.length === 0) {
+            return { name: 'Links', pass: true, count: 0, details: ['No HTML files changed'], severity: 'info' };
+        }
+
+        const issues = [];
+        const checked = 0;
+
+        htmlFiles.slice(0, 50).forEach(f => { // Cap at 50 files for speed
+            const fullPath = path.join(projectRoot, f);
+            if (!fs.existsSync(fullPath)) return;
+            const content = fs.readFileSync(fullPath, 'utf8');
+            const dir = path.dirname(fullPath);
+
+            // Find href="..." links to local HTML files (not http, not #, not javascript:, not examples)
+            const linkRegex = /href=["']([^"'#][^"']*\.html)["']/g;
+            let match;
+            while ((match = linkRegex.exec(content)) !== null) {
+                const href = match[1];
+                if (href.startsWith('http') || href.startsWith('//') || href.startsWith('javascript:')) continue;
+                if (href.startsWith('...') || href.includes('example') || href === 'index.html') continue;
+
+                // Resolve the path
+                let target;
+                if (href.startsWith('/')) {
+                    target = path.join(appDir, href);
+                } else {
+                    target = path.resolve(dir, href);
+                }
+
+                if (!fs.existsSync(target)) {
+                    issues.push(`${f}: broken link → ${href}`);
+                }
+            }
+
+            // Find script src="..." references
+            const scriptRegex = /src=["']([^"']*(?:components|ModuleProgress|QuizEngine|AccessGuard|FirebaseAuth|AchievementManager)[^"']*)["']/g;
+            while ((match = scriptRegex.exec(content)) !== null) {
+                const src = match[1];
+                if (src.startsWith('http')) continue;
+                let target;
+                if (src.startsWith('/')) {
+                    target = path.join(appDir, src);
+                } else {
+                    target = path.resolve(dir, src);
+                }
+                if (!fs.existsSync(target)) {
+                    issues.push(`${f}: broken script → ${src}`);
+                }
+            }
+        });
+
+        return {
+            name: 'Links',
+            pass: issues.length === 0,
+            count: issues.length,
+            details: issues.length ? issues.slice(0, 20) : [`${Math.min(htmlFiles.length, 50)} files checked — all links valid`],
+            severity: issues.length ? 'high' : 'info'
+        };
+    }
+
+    // ── Check 6: Secrets — no API keys or tokens in changed files ──
     function checkSecrets(changedFiles) {
         const issues = [];
         const secretPatterns = [
@@ -238,6 +304,7 @@ module.exports = function createDeployCheckAdapter({ name, dataPath, projectRoot
         if (!quick) {
             checks.push(checkQuizKeys(changedFiles));
             checks.push(checkPaths(changedFiles));
+            checks.push(checkBrokenLinks(changedFiles));
         }
 
         // Overall verdict
