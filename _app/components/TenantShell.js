@@ -60,8 +60,9 @@
     // The user toggled the shell off. Enrollment is intact but the
     // visual shell, link overrides, and branding are all suppressed.
     // A small floating pill lets them re-enter the tenant experience.
+    // Uses localStorage (not sessionStorage) so the state persists across tabs.
     var shellHidden = false;
-    try { shellHidden = sessionStorage.getItem(SHELL_HIDDEN_KEY) === 'true'; } catch (e) {}
+    try { shellHidden = localStorage.getItem(SHELL_HIDDEN_KEY) === 'true'; } catch (e) {}
 
     if (shellHidden) {
         var tenantName = (tenantPeek && tenantPeek.branding && tenantPeek.branding.platformName)
@@ -98,8 +99,8 @@
             pill.addEventListener('mouseover', function() { this.style.opacity = '1'; this.style.transform = 'scale(1.05)'; });
             pill.addEventListener('mouseout', function() { this.style.opacity = '0.85'; this.style.transform = 'scale(1)'; });
             pill.addEventListener('click', function() {
-                // Re-engage: clear the hidden flag, reload into full shell
-                try { sessionStorage.removeItem(SHELL_HIDDEN_KEY); } catch (e) {}
+                // Re-engage: clear the hidden flag from localStorage, reload into full shell
+                try { localStorage.removeItem(SHELL_HIDDEN_KEY); } catch (e) {}
                 window.location.reload();
             });
             document.body.appendChild(pill);
@@ -110,7 +111,7 @@
         window.TenantShellToggle = {
             isHidden: function() { return true; },
             show: function() {
-                try { sessionStorage.removeItem(SHELL_HIDDEN_KEY); } catch (e) {}
+                try { localStorage.removeItem(SHELL_HIDDEN_KEY); } catch (e) {}
                 window.location.reload();
             }
         };
@@ -260,8 +261,12 @@
         this.style.color = '#64748b';
     });
     toggleBtn.addEventListener('click', function() {
-        // Hide the shell — enrollment stays, only visual wrapper goes away
-        try { sessionStorage.setItem(SHELL_HIDDEN_KEY, 'true'); } catch (e) {}
+        // Hide the shell — enrollment stays, only visual wrapper goes away.
+        // Uses localStorage so the hidden state persists across all tabs.
+        try { localStorage.setItem(SHELL_HIDDEN_KEY, 'true'); } catch (e) {}
+        // Open Hexworth Prime dashboard in a new tab so user has a clean starting point
+        window.open('/dashboard.html', '_blank');
+        // Reload current tab to drop the shell from this page too
         window.location.reload();
     });
     rightSide.appendChild(toggleBtn);
@@ -370,7 +375,8 @@
     window.TenantShellToggle = {
         isHidden: function() { return false; },
         hide: function() {
-            try { sessionStorage.setItem(SHELL_HIDDEN_KEY, 'true'); } catch (e) {}
+            try { localStorage.setItem(SHELL_HIDDEN_KEY, 'true'); } catch (e) {}
+            window.open('/dashboard.html', '_blank');
             window.location.reload();
         },
         show: function() { /* already showing */ }
