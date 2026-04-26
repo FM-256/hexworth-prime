@@ -1858,6 +1858,12 @@ class HeuristicsValidator {
         if (!content.includes('tenantConfig') && !content.includes('tenant-config') &&
             !content.includes('TenantConfig') && !content.includes('tenant_config')) return issues;
 
+        // Skip if config is fetched dynamically from Firestore/API (not hardcoded in HTML)
+        if (content.includes('Fetch tenant config') || content.includes('sessionStorage') ||
+            content.includes('fetchTenantConfig') || content.includes('/api/tenant')) {
+            return issues;
+        }
+
         const requiredFields = ['slug', 'branding', 'licensing', 'adminUids'];
         const missingFields = requiredFields.filter(field => !content.includes(field));
 
@@ -2091,9 +2097,17 @@ class HeuristicsValidator {
             // Skip absolute URLs and protocol-relative
             if (href.startsWith('http') || href.startsWith('//')) continue;
 
-            // Resolve relative to the file's directory
-            const fileDir = path.dirname(file.path);
-            const resolved = path.resolve(fileDir, href);
+            // Resolve the path: site-root-absolute (starts with /) uses rootPath as base,
+            // relative paths resolve against the file's absolute directory
+            let resolved;
+            if (href.startsWith('/')) {
+                // Site-root-relative — resolve against rootPath (Firebase serves _app/ as /)
+                resolved = path.resolve(this.rootPath, href.substring(1));
+            } else {
+                const absoluteFilePath = path.resolve(this.rootPath, file.path);
+                const fileDir = path.dirname(absoluteFilePath);
+                resolved = path.resolve(fileDir, href);
+            }
 
             if (!fs.existsSync(resolved)) {
                 const line = this.getLineNumber(content, match.index);

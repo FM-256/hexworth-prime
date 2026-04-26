@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-04-26 11:09:09 AM
+                    Scanned: 2026-04-26 2:45:22 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -13,26 +13,26 @@
 | Files Scanned | 4745 |
 | Directories | 1142 |
 | Content Files | 4745 |
-| Scan Duration | 603ms |
+| Scan Duration | 476ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| presentation | 2110 |
-| html | 1458 |
+| presentation | 2114 |
+| html | 1455 |
 | lab | 526 |
 | quiz | 459 |
-| applet | 192 |
+| applet | 191 |
 
 ### ContentCatalog Validation
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 1894 |
-| Available | 1889 |
+| Total Modules | 2691 |
+| Available | 2686 |
 | Missing Hrefs (CAT-001) | 0 |
-| Undeclared Files (CAT-002) | 807 |
+| Undeclared Files (CAT-002) | 10 |
 | Empty Hrefs (CAT-003) | 0 |
 
 
@@ -41,18 +41,18 @@
 | Severity | Count |
 |----------|-------|
 | Critical | 0 |
-| Suspect | 61 |
-| Warning | 2194 |
-| Info | 477 |
-| **Total** | **16246** |
+| Suspect | 59 |
+| Warning | 2188 |
+| Info | 448 |
+| **Total** | **10498** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 3272 |
-| Not Ready | 15 |
-| Unknown | 1458 |
+| Ready | 3278 |
+| Not Ready | 12 |
+| Unknown | 1455 |
 
 
 ## FILE HIERARCHY
@@ -5990,7 +5990,7 @@
 | ai900-ch02-quiz | quiz | ✓ | 0 |
 | ai900-ch03-quiz | quiz | ✓ | 0 |
 | ai900-ch04-quiz | quiz | ✓ | 0 |
-| ai900-ch05-quiz | quiz | ✓ | 1 |
+| ai900-ch05-quiz | quiz | ✓ | 0 |
 | ai900-ch06-quiz | quiz | ✓ | 0 |
 | ai15-01-n8n-fundamentals | presentation | ✓ | 0 |
 | ai15-02-ai-workflows | presentation | ✓ | 0 |
@@ -6308,12 +6308,12 @@
 | az104-ch04-compute.presentation | presentation | ✓ | 0 |
 | az104-ch05-networking.presentation | presentation | ✓ | 0 |
 | az104-ch06-monitor-backup.presentation | presentation | ✓ | 0 |
-| az104-ch01-quiz | quiz | ✓ | 1 |
+| az104-ch01-quiz | quiz | ✓ | 0 |
 | az104-ch02-quiz | quiz | ✓ | 0 |
 | az104-ch03-quiz | quiz | ✓ | 0 |
-| az104-ch04-quiz | quiz | ✓ | 1 |
-| az104-ch05-quiz | quiz | ✓ | 1 |
-| az104-ch06-quiz | quiz | ✓ | 1 |
+| az104-ch04-quiz | quiz | ✓ | 0 |
+| az104-ch05-quiz | quiz | ✓ | 0 |
+| az104-ch06-quiz | quiz | ✓ | 0 |
 | index | applet | ✓ | 1 |
 | az900-ch01-cloud-concepts.lab | lab | ✓ | 0 |
 | az900-ch02-azure-architecture.lab | lab | ✓ | 0 |
@@ -6323,7 +6323,7 @@
 | az900-ch03-management-governance.presentation | presentation | ✓ | 0 |
 | az900-ch01-quiz | quiz | ✓ | 0 |
 | az900-ch02-quiz | quiz | ✓ | 0 |
-| az900-ch03-quiz | quiz | ✓ | 1 |
+| az900-ch03-quiz | quiz | ✓ | 0 |
 | cloud-cse-comprehensive-review | presentation | ✓ | 0 |
 | cloud-ad-attack-path.applet | presentation | ✓ | 0 |
 | cloud-api-foundations-lab.applet | applet | ✓ | 1 |
@@ -6425,7 +6425,7 @@
 | ms102-ch04-quiz | quiz | ✓ | 0 |
 | ms102-ch05-quiz | quiz | ✓ | 0 |
 | ms102-ch06-quiz | quiz | ✓ | 0 |
-| ms102-ch07-quiz | quiz | ✓ | 1 |
+| ms102-ch07-quiz | quiz | ✓ | 0 |
 | ms102-ch08-quiz | quiz | ✓ | 0 |
 | ms900-ch01-cloud-m365.lab | presentation | ✓ | 0 |
 | ms900-ch02-security-compliance.lab | lab | ✓ | 0 |
@@ -6460,8 +6460,8 @@
 | pl300-ch05-dax.presentation | presentation | ✓ | 0 |
 | pl300-ch01-quiz | quiz | ✓ | 0 |
 | pl300-ch02-quiz | quiz | ✓ | 0 |
-| pl300-ch03-quiz | quiz | ✓ | 1 |
-| pl300-ch04-quiz | quiz | ✓ | 1 |
+| pl300-ch03-quiz | quiz | ✓ | 0 |
+| pl300-ch04-quiz | quiz | ✓ | 0 |
 | pl300-ch05-quiz | quiz | ✓ | 0 |
 | cloud-aws-fundamentals.presentation | presentation | ✓ | 0 |
 | cloud-azure-fundamentals.presentation | presentation | ✓ | 0 |
@@ -6497,10 +6497,10 @@
 | cse-module02 | quiz | ✓ | 0 |
 | cse-module03 | quiz | ✓ | 0 |
 | cse-module04 | quiz | ✓ | 0 |
-| cse-module05 | quiz | ✓ | 1 |
+| cse-module05 | quiz | ✓ | 0 |
 | cse-module06 | quiz | ✓ | 0 |
 | cse-module07 | quiz | ✓ | 0 |
-| cse-module08 | quiz | ✓ | 1 |
+| cse-module08 | quiz | ✓ | 0 |
 | cloud-quiz | quiz | ✓ | 0 |
 | index | presentation | ✓ | 1 |
 | cloud-aws-service.tool | presentation | ✓ | 0 |
@@ -7345,7 +7345,7 @@
 | core2-ch18 | quiz | ✓ | 0 |
 | core2-ch19 | quiz | ✓ | 0 |
 | core2-ch20 | quiz | ✓ | 0 |
-| core2-ch21 | quiz | ✓ | 1 |
+| core2-ch21 | quiz | ✓ | 0 |
 | core2-ch22 | quiz | ✓ | 0 |
 | core2-ch23 | quiz | ✓ | 0 |
 | core2-ch24 | quiz | ✓ | 0 |
@@ -7413,10 +7413,10 @@
 | forge-md100-m09-support-environment.presentation | presentation | ✓ | 0 |
 | forge-md100-m10-troubleshoot-os-apps.presentation | presentation | ✓ | 0 |
 | forge-md100-m11-troubleshoot-hardware.presentation | presentation | ✓ | 0 |
-| md100-m01 | quiz | ✓ | 1 |
+| md100-m01 | quiz | ✓ | 0 |
 | md100-m02 | quiz | ✓ | 0 |
 | md100-m03 | quiz | ✓ | 0 |
-| md100-m04 | quiz | ✓ | 1 |
+| md100-m04 | quiz | ✓ | 0 |
 | md100-m05 | quiz | ✓ | 0 |
 | md100-m06 | quiz | ✓ | 0 |
 | md100-m07 | quiz | ✓ | 0 |
@@ -7442,9 +7442,9 @@
 | forge-md101-m04-application-management.presentation | presentation | ✓ | 0 |
 | forge-md101-m05-auth-compliance.presentation | presentation | ✓ | 0 |
 | forge-md101-m06-managing-security.presentation | presentation | ✓ | 0 |
-| forge-md101-m07-deployment-part1.presentation | presentation | ✓ | 1 |
-| forge-md101-m08-deployment-part2.presentation | presentation | ✓ | 1 |
-| forge-md101-m09-managing-updates.presentation | presentation | ✓ | 1 |
+| forge-md101-m07-deployment-part1.presentation | presentation | ✓ | 0 |
+| forge-md101-m08-deployment-part2.presentation | presentation | ✓ | 0 |
+| forge-md101-m09-managing-updates.presentation | presentation | ✓ | 0 |
 | md101-m01 | quiz | ✓ | 0 |
 | md101-m02 | quiz | ✓ | 0 |
 | md101-m03 | quiz | ✓ | 0 |
@@ -7514,7 +7514,7 @@
 | cryptanalysis | quiz | ✓ | 0 |
 | ecc | quiz | ✓ | 0 |
 | hsm | quiz | ✓ | 0 |
-| kdf | quiz | ✓ | 1 |
+| kdf | quiz | ✓ | 0 |
 | mac | quiz | ✓ | 0 |
 | pqc | quiz | ✓ | 0 |
 | symmetric | quiz | ✓ | 0 |
@@ -7656,9 +7656,9 @@
 | pv-f-02-quiz | quiz | ✓ | 0 |
 | pv-f-03-quiz | quiz | ✓ | 0 |
 | pv-f-04-quiz | quiz | ✓ | 0 |
-| pv-f-05-quiz | quiz | ✓ | 1 |
+| pv-f-05-quiz | quiz | ✓ | 0 |
 | pv-f-06-quiz | quiz | ✓ | 0 |
-| pv-f-07-quiz | quiz | ✓ | 1 |
+| pv-f-07-quiz | quiz | ✓ | 0 |
 | pv-f-08-quiz | quiz | ✓ | 0 |
 | pv-f-09-quiz | quiz | ✓ | 0 |
 | pv-f-10-quiz | quiz | ✓ | 0 |
@@ -7690,7 +7690,7 @@
 | pv-m-06-quiz | quiz | ✓ | 0 |
 | pv-m-07-quiz | quiz | ✓ | 0 |
 | pv-m-08-quiz | quiz | ✓ | 0 |
-| pv-m-09-quiz | quiz | ✓ | 1 |
+| pv-m-09-quiz | quiz | ✓ | 0 |
 | pv-m-10-quiz | quiz | ✓ | 0 |
 | pv-mp-01.lab | lab | ✓ | 0 |
 | pv-mp-02.lab | lab | ✓ | 0 |
@@ -7766,7 +7766,7 @@
 | pc-ard-17.presentation | presentation | ✓ | 0 |
 | pc-ard-18.presentation | presentation | ✓ | 0 |
 | pc-ard-19.presentation | presentation | ✓ | 0 |
-| pc-ard-01-quiz | quiz | ✓ | 1 |
+| pc-ard-01-quiz | quiz | ✓ | 0 |
 | pc-ard-02-quiz | quiz | ✓ | 0 |
 | pc-ard-03-quiz | quiz | ✓ | 0 |
 | pc-ard-04-quiz | quiz | ✓ | 0 |
@@ -7780,7 +7780,7 @@
 | pc-ard-12-quiz | quiz | ✓ | 0 |
 | pc-ard-13-quiz | quiz | ✓ | 0 |
 | pc-ard-14-quiz | quiz | ✓ | 0 |
-| pc-ard-15-quiz | quiz | ✓ | 1 |
+| pc-ard-15-quiz | quiz | ✓ | 0 |
 | pc-ard-16-quiz | quiz | ✓ | 0 |
 | pc-ard-17-quiz | quiz | ✓ | 0 |
 | pc-ard-18-quiz | quiz | ✓ | 0 |
@@ -7820,14 +7820,14 @@
 | pc-esp-03-quiz | quiz | ✓ | 0 |
 | pc-esp-04-quiz | quiz | ✓ | 0 |
 | pc-esp-05-quiz | quiz | ✓ | 0 |
-| pc-esp-06-quiz | quiz | ✓ | 1 |
+| pc-esp-06-quiz | quiz | ✓ | 0 |
 | pc-esp-07-quiz | quiz | ✓ | 0 |
 | pc-esp-08-quiz | quiz | ✓ | 0 |
 | pc-esp-09-quiz | quiz | ✓ | 0 |
-| pc-esp-10-quiz | quiz | ✓ | 1 |
+| pc-esp-10-quiz | quiz | ✓ | 0 |
 | pc-esp-11-quiz | quiz | ✓ | 0 |
 | pc-esp-12-quiz | quiz | ✓ | 0 |
-| pc-esp-13-quiz | quiz | ✓ | 1 |
+| pc-esp-13-quiz | quiz | ✓ | 0 |
 | pc-esp-14-quiz | quiz | ✓ | 0 |
 | pc-esp-15-quiz | quiz | ✓ | 0 |
 
@@ -7930,7 +7930,7 @@
 | clh-012 | quiz | ✓ | 0 |
 | script-clh-013-intro.applet | presentation | ✓ | 0 |
 | script-clh-013.lab | lab | ✓ | 0 |
-| clh-013 | quiz | ✓ | 1 |
+| clh-013 | quiz | ✓ | 0 |
 | script-clh-014-intro.applet | presentation | ✓ | 0 |
 | script-clh-014.lab | lab | ✓ | 0 |
 | clh-014 | quiz | ✓ | 0 |
@@ -8175,7 +8175,7 @@
 | la-ch01-quiz | quiz | ✓ | 0 |
 | la-ch02-quiz | quiz | ✓ | 0 |
 | la-ch03-quiz | quiz | ✓ | 0 |
-| la-ch04-quiz | quiz | ✓ | 1 |
+| la-ch04-quiz | quiz | ✓ | 0 |
 | la-ch05-quiz | quiz | ✓ | 0 |
 | la-ch06-quiz | quiz | ✓ | 0 |
 | la-ch07-quiz | quiz | ✓ | 0 |
@@ -8298,7 +8298,7 @@
 | script-automation.presentation | presentation | ✓ | 0 |
 | script-macos-linux-basics.presentation | presentation | ✓ | 0 |
 | script-scripting-basics.presentation | presentation | ✓ | 0 |
-| linux-bash | quiz | ✓ | 1 |
+| linux-bash | quiz | ✓ | 0 |
 | linux-basics | quiz | ✓ | 0 |
 | powershell | quiz | ✓ | 0 |
 | python | quiz | ✓ | 0 |
@@ -8373,7 +8373,7 @@
 | shield-debugger.applet | applet | ✓ | 1 |
 | shield-dr-malware.applet | applet | ✓ | 1 |
 | shield-life-force.applet | applet | ✓ | 1 |
-| shield-malware-zoo.lab | lab | ✓ | 1 |
+| shield-malware-zoo.lab | lab | ✓ | 0 |
 | shield-threat-runner.applet | applet | ✓ | 1 |
 | shield-threat-swarm.applet | applet | ✓ | 1 |
 | shield-threatdex.applet | applet | ✓ | 1 |
@@ -8452,7 +8452,7 @@
 | shield-ir-forensics.lab | presentation | ✓ | 0 |
 | shield-network-security.lab | presentation | ✓ | 0 |
 | shield-osint-google-dorking.lab | presentation | ✓ | 0 |
-| shield-security-fundamentals.lab | applet | ✓ | 0 |
+| shield-security-fundamentals.lab | presentation | ✓ | 0 |
 | shield-threats.lab | presentation | ✓ | 0 |
 | ms-sec-01 | presentation | ✓ | 0 |
 | ms-sec-02 | presentation | ✓ | 0 |
@@ -8504,8 +8504,8 @@
 | sc200-ch05-quiz | quiz | ✓ | 0 |
 | sc200-ch06-quiz | quiz | ✓ | 0 |
 | sc200-ch07-quiz | quiz | ✓ | 0 |
-| sc200-ch08-quiz | quiz | ✓ | 1 |
-| sc200-ch09-quiz | quiz | ✓ | 1 |
+| sc200-ch08-quiz | quiz | ✓ | 0 |
+| sc200-ch09-quiz | quiz | ✓ | 0 |
 | sc900-ch01-concepts.lab | lab | ✓ | 0 |
 | sc900-ch02-entra-id.lab | lab | ✓ | 0 |
 | sc900-ch03-security-solutions.lab | presentation | ✓ | 0 |
@@ -8642,6 +8642,7 @@
 | ceh-attack-reference | presentation | ✓ | 0 |
 | cloud-hacking-lab | lab | ✓ | 0 |
 | csrf-attack-lab | lab | ✓ | 0 |
+| cyber-kill-chain | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
 | dos-ddos-lab | presentation | ✓ | 0 |
 | index | applet | ✓ | 1 |
@@ -8793,11 +8794,11 @@
 | df-36 | applet | ✓ | 1 |
 | proposal-guide | applet | ✓ | 1 |
 | index | presentation | ✓ | 1 |
-| dark-ids-evasion-lab.applet | lab | ✓ | 1 |
+| dark-ids-evasion-lab.applet | lab | ✓ | 0 |
 | dark-m365-attack-lab.applet | applet | ✓ | 1 |
 | dark-malware-specimen-lab.applet | applet | ✓ | 1 |
 | dark-network-forensics-lab.applet | applet | ✓ | 1 |
-| dark-osint-recon-lab.applet | lab | ✓ | 1 |
+| dark-osint-recon-lab.applet | lab | ✓ | 0 |
 | dark-slowloris-dos-lab.applet | applet | ✓ | 1 |
 | dark-arts-feh-01.lab | presentation | ✓ | 0 |
 | dark-arts-feh-02.lab | lab | ✓ | 0 |
@@ -8823,7 +8824,7 @@
 | feh-02 | quiz | ✓ | 0 |
 | feh-03 | quiz | ✓ | 0 |
 | feh-04 | quiz | ✓ | 0 |
-| feh-05 | quiz | ✓ | 1 |
+| feh-05 | quiz | ✓ | 0 |
 | feh-06 | quiz | ✓ | 0 |
 | feh-07 | quiz | ✓ | 0 |
 | feh-08 | quiz | ✓ | 0 |
@@ -9097,6 +9098,7 @@
 | ccna-ospf-visualizer.tool | applet | ✓ | 1 |
 | ccna-subnet-calculator.tool | applet | ✓ | 1 |
 | web-network-plus-practice.exam | presentation | ✓ | 0 |
+| web-networking-exam-flashcards.exam | presentation | ✓ | 0 |
 | web-networking-midterm.exam | presentation | ✓ | 0 |
 | web-dns-resolver-race.applet | applet | ✓ | 1 |
 | web-network-architect.applet | applet | ✓ | 1 |
@@ -9112,7 +9114,7 @@
 | web-ne02-tcpip-scenario.lab | lab | ✓ | 0 |
 | web-ne03-subnet-scenario.lab | lab | ✓ | 0 |
 | web-ne07-nat-scenario.lab | lab | ✓ | 0 |
-| web-ne08-wireless-scenario.lab | lab | ✓ | 1 |
+| web-ne08-wireless-scenario.lab | lab | ✓ | 0 |
 | web-networking-fundamentals.lab | lab | ✓ | 0 |
 | web-packet-analysis.lab | lab | ✓ | 0 |
 | web-static-routes.lab | lab | ✓ | 0 |
@@ -9131,6 +9133,7 @@
 | ne-09 | presentation | ✓ | 0 |
 | ne-10 | presentation | ✓ | 0 |
 | final-practice.exam | presentation | ✓ | 0 |
+| flashcards.exam | presentation | ✓ | 0 |
 | jeopardy.review | presentation | ✓ | 0 |
 | midterm.exam | presentation | ✓ | 0 |
 | index | applet | ✓ | 1 |
@@ -9315,7 +9318,7 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### SUSPECT (61) — heuristic, needs review
+### SUSPECT (59) — heuristic, needs review
 
 **[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
   File: `components/IntegrityLockscreen.js`
@@ -9399,14 +9402,6 @@
 
 **[MATH-001]** Unguarded parseInt() in arithmetic — NaN will propagate if input is invalid
   File: `houses/cloud/az-104/labs/az104-ch05-networking.lab.html`
-  Fix: Add fallback: (parseInt(value, 10) || 0)
-
-**[MATH-001]** Unguarded parseInt() in arithmetic — NaN will propagate if input is invalid
-  File: `houses/cloud/ms-102/labs/ms102-ch05-exchange.lab.html`
-  Fix: Add fallback: (parseInt(value, 10) || 0)
-
-**[MATH-001]** Unguarded parseInt() in arithmetic — NaN will propagate if input is invalid
-  File: `houses/cloud/ms-102/labs/ms102-ch06-sharepoint.lab.html`
   Fix: Add fallback: (parseInt(value, 10) || 0)
 
 **[HEUR-004]** console.log() in inline script (production hygiene)
@@ -9561,7 +9556,7 @@
   File: `houses/web/simulators/web-interactive-network-simulatorv2.simulator.html`
   Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
 
-### WARNING (2194)
+### WARNING (2188)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `about.html`
@@ -13583,10 +13578,6 @@
   File: `houses/dark-arts/feh/index.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/dark-arts/games/dark-ids-evasion-lab.applet.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/dark-arts/games/dark-ids-evasion-lab.applet.html`
   Fix: Add entry to content-registry.js
@@ -13602,10 +13593,6 @@
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/dark-arts/games/dark-network-forensics-lab.applet.html`
   Fix: Add entry to content-registry.js
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/dark-arts/games/dark-osint-recon-lab.applet.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/dark-arts/games/dark-osint-recon-lab.applet.html`
@@ -13915,25 +13902,13 @@
   File: `houses/forge/md-101/presentations/forge-md101-m06-managing-security.presentation.html`
   Fix: Add entry to content-registry.js
 
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/forge/md-101/presentations/forge-md101-m07-deployment-part1.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/md-101/presentations/forge-md101-m07-deployment-part1.presentation.html`
   Fix: Add entry to content-registry.js
 
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/forge/md-101/presentations/forge-md101-m08-deployment-part2.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/md-101/presentations/forge-md101-m08-deployment-part2.presentation.html`
   Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/forge/md-101/presentations/forge-md101-m09-managing-updates.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/md-101/presentations/forge-md101-m09-managing-updates.presentation.html`
@@ -15579,10 +15554,6 @@
   File: `houses/shield/games/shield-debugger.applet.html`
   Fix: Add entry to content-registry.js
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/shield/games/shield-malware-zoo.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/games/shield-threatdex.applet.html`
   Fix: Add entry to content-registry.js
@@ -16763,10 +16734,6 @@
   File: `houses/web/labs/web-ne07-nat-scenario.lab.html`
   Fix: Add entry to content-registry.js
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/web/labs/web-ne08-wireless-scenario.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/web/labs/web-ne08-wireless-scenario.lab.html`
   Fix: Add entry to content-registry.js
@@ -16813,6 +16780,10 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/web/network-plus/exams/final-practice.exam.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/network-plus/exams/flashcards.exam.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -18207,7 +18178,7 @@
   File: `operator/missions/windows-cmd-02.mission.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
-### INFO (477)
+### INFO (448)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `about.html`
@@ -18370,10 +18341,6 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/ai/ai-900/quizzes/ai900-ch05.quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/ai/cortex/capstone/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -18414,27 +18381,7 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/az-104/quizzes/az104-ch01.quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/az-104/quizzes/az104-ch04.quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/az-104/quizzes/az104-ch05.quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/az-104/quizzes/az104-ch06.quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/cloud/az-900/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/az-900/quizzes/az900-ch03.quiz.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -18454,27 +18401,7 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/ms-102/quizzes/ms102-ch07.quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/cloud/pl-300/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/pl-300/quizzes/pl300-ch03.quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/pl-300/quizzes/pl300-ch04.quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/quizzes/cloud-cse-module05.quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/quizzes/cloud-cse-module08.quiz.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -18550,10 +18477,6 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/dark-arts/quizzes/dark-arts-feh-05.quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/eye/applets/cyberops/eye-artifact-elements.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -18614,10 +18537,6 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch21.quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/forge/games/forge-bit-dash.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -18646,14 +18565,6 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/md-100/quizzes/forge-md100-m01-quiz.quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/md-100/quizzes/forge-md100-m04-quiz.quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/key/games/key-cipher-bubbles.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -18666,51 +18577,11 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/quizzes/key-kdf.quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/matrix/adv-linux/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/matrix/piverse/fundamentals/quizzes/pv-f-05.quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/matrix/piverse/fundamentals/quizzes/pv-f-07.quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/matrix/piverse/maker/quizzes/pv-m-09.quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-01.quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-15.quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-06.quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-10.quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-13.quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/script/applets/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/script-clh-013.quiz.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -18723,14 +18594,6 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/script/games/script-shell-sprint.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/linux/quizzes/script-la-ch04-quiz.quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/quizzes/script-linux-bash.quiz.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -18779,14 +18642,6 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/shield/isc2-cc/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/sc-200/quizzes/sc200-ch08.quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/sc-200/quizzes/sc200-ch09.quiz.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -20113,7 +19968,7 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (1969)
+### Unregistered Content (1970)
 
 | Path | Type | House |
 |------|------|-------|
@@ -21916,6 +21771,7 @@
 | houses/web/network-essentials/ne-09.html | presentation | web |
 | houses/web/network-essentials/ne-10.html | presentation | web |
 | houses/web/network-plus/exams/final-practice.exam.html | presentation | web |
+| houses/web/network-plus/exams/flashcards.exam.html | presentation | web |
 | houses/web/network-plus/exams/jeopardy.review.html | presentation | web |
 | houses/web/network-plus/exams/midterm.exam.html | presentation | web |
 | houses/web/network-plus/labs/dns-troubleshooting.lab.html | lab | web |

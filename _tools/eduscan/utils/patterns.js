@@ -37,8 +37,8 @@ const PATTERNS = {
         // Detect ProgressManager usage
         detectProgressManager: /ProgressManager\.completeModule\s*\(/,
 
-        // Detect ModuleProgress usage (bridge system)
-        detectModuleProgress: /ModuleProgress\.complete\s*\(|ModuleProgress\.completeQuiz\s*\(/,
+        // Detect ModuleProgress usage (bridge system) — includes QuizEngine trackProgress and ProgressSystem
+        detectModuleProgress: /ModuleProgress\.complete\s*\(|ModuleProgress\.completeQuiz\s*\(|trackProgress\s*:\s*true|ProgressSystem\.js/,
 
         // Detect slide structure
         detectSlides: /class\s*=\s*["'][^"']*slide[^"']*["']/gi,

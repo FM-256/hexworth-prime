@@ -121,6 +121,16 @@ class NavigationValidator {
             return [];
         }
 
+        // Pattern 8: JS engines that render their own navigation (OperatorEngine, SignalEngine, BoxEngine)
+        if (/OperatorEngine\.js|SignalEngine\.renderProject|BoxEngine\.js/i.test(content)) {
+            return [];
+        }
+
+        // Pattern 9: bot-knowledge pages (backend KB, noindex)
+        if (/bot-knowledge/i.test(file.path)) {
+            return [];
+        }
+
         return [{
             code: 'NAV-001',
             severity: 'medium',
