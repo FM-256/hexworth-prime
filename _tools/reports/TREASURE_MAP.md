@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-04-26 6:03:56 AM
+                    Scanned: 2026-04-26 6:30:00 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -13,7 +13,7 @@
 | Files Scanned | 4745 |
 | Directories | 1142 |
 | Content Files | 4745 |
-| Scan Duration | 542ms |
+| Scan Duration | 2161ms |
 
 ### Content by Type
 
@@ -40,11 +40,11 @@
 
 | Severity | Count |
 |----------|-------|
-| Critical | 1 |
+| Critical | 0 |
 | Suspect | 61 |
 | Warning | 2194 |
 | Info | 477 |
-| **Total** | **16247** |
+| **Total** | **16246** |
 
 ### Sync Status
 
@@ -9314,12 +9314,6 @@
 
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
-
-### CRITICAL (1)
-
-**[QUIZ-005]** Q10 answer index 4 is out of range (only 4 options) for moduleId "pv-m-02-quiz"
-  File: `houses/matrix/piverse/maker/quizzes/pv-m-02.quiz.html`
-  Fix: Fix answer at index 10 in quiz_keys.json for "pv-m-02-quiz" — must be 0 to 3
 
 ### SUSPECT (61) — heuristic, needs review
 
