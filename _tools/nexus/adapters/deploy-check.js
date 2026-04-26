@@ -725,6 +725,165 @@ module.exports = function createDeployCheckAdapter({ name, dataPath, projectRoot
         };
     }
 
+    // ── Check 21: SBOM — inventory all external CDN scripts with versions ──
+    function checkSBOM(changedFiles) {
+        const htmlFiles = changedFiles.filter(f => f.endsWith('.html') && f.startsWith('_app/'));
+        if (htmlFiles.length === 0) return { name: 'SBOM', pass: true, count: 0, details: ['No HTML changed'], severity: 'info' };
+
+        const cdnRefs = new Map(); // url → count
+        htmlFiles.slice(0, 100).forEach(f => {
+            const fullPath = path.join(projectRoot, f);
+            if (!fs.existsSync(fullPath)) return;
+            const content = fs.readFileSync(fullPath, 'utf8');
+            const matches = content.match(/src=["'](https?:\/\/cdn[^"']+|https?:\/\/unpkg[^"']+|https?:\/\/cdnjs[^"']+|https?:\/\/fonts[^"']+)["']/gi);
+            if (matches) {
+                matches.forEach(m => {
+                    const url = m.match(/["']([^"']+)["']/)[1];
+                    cdnRefs.set(url, (cdnRefs.get(url) || 0) + 1);
+                });
+            }
+        });
+
+        const details = [];
+        if (cdnRefs.size > 0) {
+            details.push(`${cdnRefs.size} external CDN dependencies found:`);
+            [...cdnRefs.entries()].sort((a,b) => b[1]-a[1]).slice(0, 15).forEach(([url, count]) => {
+                // Extract library name and version
+                const verMatch = url.match(/@([0-9][^/]*)/);
+                const ver = verMatch ? verMatch[1] : 'unknown version';
+                const libMatch = url.match(/\/([^/@]+)@/);
+                const lib = libMatch ? libMatch[1] : url.split('/').pop().split('?')[0];
+                details.push(`  ${lib} ${ver} (${count} files)`);
+            });
+        } else {
+            details.push('No CDN dependencies in changed files');
+        }
+
+        return {
+            name: 'SBOM',
+            pass: true, // Advisory only — never blocks
+            count: cdnRefs.size,
+            details,
+            severity: 'info'
+        };
+    }
+
+    // ── Check 22: CSP Readiness — inline event handlers that break Content Security Policy ──
+    function checkCSPReadiness(changedFiles) {
+        const htmlFiles = changedFiles.filter(f => f.endsWith('.html') && f.startsWith('_app/houses/'));
+        if (htmlFiles.length === 0) return { name: 'CSP Readiness', pass: true, count: 0, details: ['No house HTML changed'], severity: 'info' };
+
+        const issues = [];
+        // Only check for the most dangerous patterns
+        const inlinePatterns = [
+            { pattern: /\bonclick\s*=\s*["'][^"']*eval\s*\(/gi, name: 'onclick with eval()' },
+            { pattern: /\bonload\s*=\s*["'][^"']*document\.write/gi, name: 'onload with document.write' },
+            { pattern: /javascript:\s*[^"']+/gi, name: 'javascript: protocol' },
+        ];
+
+        htmlFiles.slice(0, 50).forEach(f => {
+            const fullPath = path.join(projectRoot, f);
+            if (!fs.existsSync(fullPath)) return;
+            // Skip teaching content about XSS
+            if (f.includes('dark-arts/') || f.includes('vault/') || f.includes('bug-hunting/')) return;
+            const content = fs.readFileSync(fullPath, 'utf8');
+
+            inlinePatterns.forEach(({ pattern, name }) => {
+                if (pattern.test(content)) {
+                    issues.push(`${f}: ${name} — CSP-incompatible`);
+                }
+                pattern.lastIndex = 0; // Reset regex
+            });
+        });
+
+        return {
+            name: 'CSP Readiness',
+            pass: issues.length === 0,
+            count: issues.length,
+            details: issues.length ? issues.slice(0, 10) : ['No dangerous inline patterns found'],
+            severity: issues.length ? 'warning' : 'info' // Advisory — doesn't block
+        };
+    }
+
+    // ── Check 23: Change Documentation — verify commit messages are meaningful ──
+    function checkChangeDocs() {
+        let log;
+        try {
+            log = execSync('git log origin/master..HEAD --oneline --no-decorate', {
+                cwd: projectRoot, encoding: 'utf8', timeout: 5000
+            }).trim();
+        } catch(e) { return { name: 'Change Docs', pass: true, count: 0, details: ['No commits to check'], severity: 'info' }; }
+
+        if (!log) return { name: 'Change Docs', pass: true, count: 0, details: ['No new commits'], severity: 'info' };
+
+        const commits = log.split('\n');
+        const weak = commits.filter(c => {
+            const msg = c.replace(/^[a-f0-9]+\s+/, '');
+            return msg.length < 10 || /^(update|fix|change|edit|wip|test|tmp|asdf)$/i.test(msg);
+        });
+
+        return {
+            name: 'Change Docs',
+            pass: weak.length === 0,
+            count: weak.length,
+            details: weak.length
+                ? [`${weak.length}/${commits.length} commits have weak messages:`].concat(weak.slice(0, 5).map(c => `  ${c}`))
+                : [`All ${commits.length} commits have descriptive messages`],
+            severity: weak.length ? 'warning' : 'info' // Advisory — doesn't block
+        };
+    }
+
+    // ── Check 24: License Audit — CDN dependencies license compatibility ──
+    function checkLicenseAudit(changedFiles) {
+        // Known CDN libraries and their licenses
+        const knownLicenses = {
+            'chart.js': { license: 'MIT', ok: true },
+            'chartjs': { license: 'MIT', ok: true },
+            'firebase': { license: 'Apache-2.0', ok: true },
+            'fonts.googleapis.com': { license: 'Open Font License', ok: true },
+            'fonts.gstatic.com': { license: 'Open Font License', ok: true },
+            'highlight.js': { license: 'BSD-3', ok: true },
+            'marked': { license: 'MIT', ok: true },
+            'prismjs': { license: 'MIT', ok: true },
+            'katex': { license: 'MIT', ok: true },
+        };
+
+        const htmlFiles = changedFiles.filter(f => f.endsWith('.html') && f.startsWith('_app/'));
+        if (htmlFiles.length === 0) return { name: 'Licenses', pass: true, count: 0, details: ['No HTML changed'], severity: 'info' };
+
+        const unknown = new Set();
+        const verified = new Set();
+
+        htmlFiles.slice(0, 50).forEach(f => {
+            const fullPath = path.join(projectRoot, f);
+            if (!fs.existsSync(fullPath)) return;
+            const content = fs.readFileSync(fullPath, 'utf8');
+            const cdns = content.match(/src=["'](https?:\/\/cdn[^"']+|https?:\/\/unpkg[^"']+|https?:\/\/cdnjs[^"']+)["']/gi);
+            if (!cdns) return;
+            cdns.forEach(m => {
+                const url = m.match(/["']([^"']+)["']/)[1].toLowerCase();
+                let found = false;
+                Object.keys(knownLicenses).forEach(lib => {
+                    if (url.includes(lib)) { verified.add(lib); found = true; }
+                });
+                if (!found) unknown.add(url.split('/').slice(0,4).join('/'));
+            });
+        });
+
+        const details = [];
+        if (verified.size > 0) details.push(`${verified.size} verified: ` + [...verified].map(l => `${l} (${knownLicenses[l].license})`).join(', '));
+        if (unknown.size > 0) details.push(`${unknown.size} unverified: ` + [...unknown].slice(0,5).join(', '));
+        if (details.length === 0) details.push('No CDN dependencies to check');
+
+        return {
+            name: 'Licenses',
+            pass: true, // Advisory only — never blocks
+            count: unknown.size,
+            details,
+            severity: unknown.size > 0 ? 'info' : 'info' // Always advisory
+        };
+    }
+
     // ── Main: Run all checks ──
     function runFullCheck(quick = false) {
         const changedFiles = getChangedFiles();
@@ -758,6 +917,11 @@ module.exports = function createDeployCheckAdapter({ name, dataPath, projectRoot
             checks.push(checkAccessibility(changedFiles));
             checks.push(checkConsoleLog(changedFiles));
             checks.push(checkTodoFixme(changedFiles));
+            // Security framework (advisory — never block)
+            checks.push(checkSBOM(changedFiles));
+            checks.push(checkCSPReadiness(changedFiles));
+            checks.push(checkChangeDocs());
+            checks.push(checkLicenseAudit(changedFiles));
         }
 
         // Overall verdict
