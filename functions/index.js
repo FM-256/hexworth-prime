@@ -6871,16 +6871,36 @@ exports.gradePFIProject = onCall({ ...cfOptions, timeoutSeconds: 60 }, async (re
 
     const uid = request.auth.uid;
     const email = request.auth.token.email || '';
-    const { projectId, code } = request.data || {};
+    const { projectId, code, sourceFiles, entryPoint } = request.data || {};
 
     // ── Validate payload ──
     if (!projectId || typeof projectId !== 'string') {
         throw new HttpsError('invalid-argument', 'Missing projectId.');
     }
-    if (!code || typeof code !== 'string') {
-        throw new HttpsError('invalid-argument', 'Missing code.');
+
+    // Support two modes: single-file (code string) or multi-file (sourceFiles dict)
+    const isMultiFile = sourceFiles && typeof sourceFiles === 'object' && Object.keys(sourceFiles).length > 0;
+
+    if (!isMultiFile && (!code || typeof code !== 'string')) {
+        throw new HttpsError('invalid-argument', 'Missing code or sourceFiles.');
     }
-    if (code.length > 51200) {
+
+    if (isMultiFile) {
+        // Validate multi-file submission
+        const totalSize = Object.values(sourceFiles).reduce((sum, v) => sum + (typeof v === 'string' ? v.length : 0), 0);
+        if (totalSize > 500000) {
+            throw new HttpsError('invalid-argument', 'Total project size exceeds 500KB limit.');
+        }
+        const fileCount = Object.keys(sourceFiles).length;
+        if (fileCount > 20) {
+            throw new HttpsError('invalid-argument', 'Too many files (20 file limit).');
+        }
+        // Validate entry point exists
+        const ep = entryPoint || 'main.py';
+        if (!sourceFiles[ep]) {
+            throw new HttpsError('invalid-argument', `Entry point "${ep}" not found in uploaded files.`);
+        }
+    } else if (code.length > 51200) {
         throw new HttpsError('invalid-argument', 'Code exceeds 50KB limit.');
     }
 
@@ -6935,7 +6955,9 @@ exports.gradePFIProject = onCall({ ...cfOptions, timeoutSeconds: 60 }, async (re
                 url: GRADER_URL + '/grade',
                 method: 'POST',
                 data: {
-                    code: code,
+                    code: isMultiFile ? '' : code,
+                    sourceFiles: isMultiFile ? sourceFiles : {},
+                    entryPoint: isMultiFile ? (entryPoint || 'main.py') : 'student_code.py',
                     files: spec.files || {},
                     tests: spec.tests
                 }
@@ -6948,7 +6970,9 @@ exports.gradePFIProject = onCall({ ...cfOptions, timeoutSeconds: 60 }, async (re
     } else {
         // Fallback: static-only grading (no code execution, just code structure checks)
         // This allows the system to work before Cloud Run is deployed
-        gradeResult = _staticOnlyGrade(code, spec.tests);
+        // For multi-file: concatenate all source files for static analysis
+        const allCode = isMultiFile ? Object.values(sourceFiles).join('\n') : code;
+        gradeResult = _staticOnlyGrade(allCode, spec.tests);
     }
 
     if (!gradeResult || !gradeResult.success) {
@@ -7032,7 +7056,10 @@ exports.gradePFIProject = onCall({ ...cfOptions, timeoutSeconds: 60 }, async (re
         projectId,
         uid,
         callsign,
-        code,
+        code: isMultiFile ? '' : code,
+        sourceFiles: isMultiFile ? sourceFiles : null,
+        entryPoint: isMultiFile ? (entryPoint || 'main.py') : null,
+        isMultiFile,
         submittedAt: FieldValue.serverTimestamp(),
         attemptNumber,
         autoScore,
