@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-04-26 12:22:15 AM
+                    Scanned: 2026-04-26 12:35:26 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -13,7 +13,7 @@
 | Files Scanned | 4745 |
 | Directories | 1142 |
 | Content Files | 4745 |
-| Scan Duration | 495ms |
+| Scan Duration | 474ms |
 
 ### Content by Type
 
@@ -41,10 +41,10 @@
 | Severity | Count |
 |----------|-------|
 | Critical | 0 |
-| Suspect | 62 |
+| Suspect | 61 |
 | Warning | 2201 |
 | Info | 477 |
-| **Total** | **16895** |
+| **Total** | **16889** |
 
 ### Sync Status
 
@@ -9315,7 +9315,7 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### SUSPECT (62) — heuristic, needs review
+### SUSPECT (61) — heuristic, needs review
 
 **[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
   File: `components/IntegrityLockscreen.js`
@@ -9508,10 +9508,6 @@
 **[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
   File: `houses/script/exams/script-python-exam-chapter2.exam.html`
   Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-**[HEUR-005]** Duplicate script include: "../../../../components/ModuleProgress.js" loaded 2 times (lines 255, 536)
-  File: `houses/script/linux/labs/script-mission-permissions.lab.html`
-  Fix: Remove duplicate <script src="../../../../components/ModuleProgress.js"> tag
 
 **[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
   File: `houses/script/modules/python/script-python-immersive-chapter1.module.html`
