@@ -27,6 +27,14 @@ Every adapter exports a factory function that returns:
 | `todo.js` | ToDo | Personal task list |
 | `hexcontent.js` | HexContent | bc1 cold storage and workbench inventory |
 | `hexcontent-adapter.js` | HexContent Adapter | Content shuttle bridge: fetch, classify, stage, import pipeline |
+| `functions.js` | Functions | Cloud Functions deploy gate: test, diff, deploy (targeted) |
+| `scan-history.js` | History | Scan snapshot tracking and comparison |
+| `deploy-check.js` | Deploy Check | 20-check pre-deploy safety gate (`nexus dc`) |
+| `quiz-report.js` | Quiz Report | Quiz coverage: keys, engines, placeholders (`nexus qr`) |
+| `dead-code.js` | Dead Code | Finds unused JS components and orphaned files |
+| `auto-fix.js` | Auto-Fix | Safe mechanical fixes for known patterns (`nexus fix`) |
+| `changelog.js` | Changelog | Git changelog grouped by category (`nexus cl`) |
+| `smoke-test.js` | Smoke Test | Post-deploy production health check (`nexus smoke`) |
 
 ## hexcontent-adapter.js (NXS-1)
 
