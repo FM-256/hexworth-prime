@@ -121,6 +121,7 @@ class HeuristicsValidator {
         issues.push(...this.checkCustomQuizMissingKey(file));
         issues.push(...this.checkQuizKeyDrift(file));
         issues.push(...this.checkAnswerDistribution(file));
+        issues.push(...this.checkBrokenQuizCorrect(file));
         issues.push(...this.checkLazyLoadedComponents(file));
         issues.push(...this.checkScrollTriggeredCompletion(file));
         issues.push(...this.checkTenantConfigFields(file));
@@ -1627,6 +1628,40 @@ class HeuristicsValidator {
                 message: `Answer key for "${keyId}" has skewed distribution: index ${maxIndex} appears ${maxCount}/${total} times (${maxPct}%). Distribution: ${distStr}. Students can pattern-exploit.`,
                 file: file.path,
                 fix: `Reorder options in quiz HTML so correct answers are evenly distributed across indices 0-3, then update quiz_keys.json to match`
+            });
+        }
+
+        return issues;
+    }
+
+    /**
+     * QUIZ-009: Broken quiz grading — q.correct referenced but field missing
+     *
+     * Detects custom inline quizzes that reference q.correct (or question.correct)
+     * in JavaScript grading logic but where the question data objects do not
+     * contain a `correct:` field. This causes every answer to be graded wrong
+     * because `undefined !== selectedIndex` is always true.
+     *
+     * Does NOT flag q.correctHash (hash-based verification in dark-arts labs).
+     */
+    checkBrokenQuizCorrect(file) {
+        const issues = [];
+        const content = file.content;
+
+        // Only check files with inline quiz grading
+        const usesQCorrect = /===?\s*q\.correct\b/.test(content) && !/q\.correctHash/.test(content);
+        if (!usesQCorrect) return issues;
+
+        // Check if questions data has correct: N field
+        const hasCorrectField = /correct:\s*\d+/.test(content);
+        if (!hasCorrectField) {
+            issues.push({
+                code: 'QUIZ-009',
+                severity: 'high',
+                category: 'quiz',
+                message: 'Quiz grading references q.correct but question objects have no correct: field — every answer is graded wrong',
+                file: file.path,
+                fix: 'Add correct: N (0-indexed) to each question object, or migrate to QuizEngine with serverGrading'
             });
         }
 
