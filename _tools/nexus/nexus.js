@@ -853,6 +853,22 @@ ${C.bold}DATA${C.reset}
 `);
 }
 
+// --- Generic Spoke Runner ---
+
+function cmdSpoke(spokeName, args, flags) {
+    const config = hub.loadConfig();
+    const projectRoot = hub.getProjectRoot();
+    const spokeConfig = config.spokes[spokeName];
+    if (!spokeConfig || !spokeConfig.enabled) {
+        console.error(`  ${C.red}${spokeName} spoke not enabled${C.reset}`);
+        return;
+    }
+    const createAdapter = require(require('path').resolve(__dirname, spokeConfig.adapter));
+    const adapter = createAdapter({ name: spokeName, dataPath: spokeConfig.dataPath, projectRoot });
+    const result = adapter.commands[''](args, flags);
+    return result;
+}
+
 // --- Deploy Check ---
 
 function cmdDeployCheck(args, flags) {
@@ -950,6 +966,23 @@ switch (command) {
     case 'deploy-check':
     case 'dc':
         cmdDeployCheck(positional, flags);
+        break;
+    case 'quiz-report':
+    case 'qr':
+        cmdSpoke('quiz-report', positional, flags);
+        break;
+    case 'dead-code':
+        cmdSpoke('dead-code', positional, flags);
+        break;
+    case 'fix':
+        cmdSpoke('auto-fix', positional, flags);
+        break;
+    case 'changelog':
+    case 'cl':
+        cmdSpoke('changelog', positional, flags);
+        break;
+    case 'smoke':
+        cmdSpoke('smoke-test', positional, flags);
         break;
     default:
         console.error(`  ${C.red}Unknown command: ${command}${C.reset}`);
