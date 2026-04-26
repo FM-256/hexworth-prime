@@ -493,6 +493,11 @@
     // UTILITY FUNCTIONS
     // ═══════════════════════════════════════════════════════════════
 
+    /**
+     * Detect which house the user is currently viewing based on URL path.
+     * Handles dark-arts (separate directory), matrix terminal, and standard house paths.
+     * @returns {string|null} House ID (e.g., 'web', 'shield', 'dark-arts') or null if not in a house
+     */
     function detectCurrentHouse() {
         const path = window.location.pathname;
 
@@ -511,6 +516,12 @@
         return houseMatch ? houseMatch[1] : null;
     }
 
+    /**
+     * Calculate the relative path from the current page back to the _app root.
+     * Counts directory depth from the URL and returns the correct number of '../' segments.
+     * Used to build absolute-style links to house hubs from any content page depth.
+     * @returns {string} Relative path prefix (e.g., '../../', '../', './')
+     */
     function calculateBasePath() {
         const path = window.location.pathname;
 
@@ -546,14 +557,17 @@
         return '../../';
     }
 
+    /** @returns {string|null} The user's assigned house ID from localStorage */
     function getUserHouse() {
         return localStorage.getItem('hexworth_house');
     }
 
+    /** @returns {boolean} Whether the Dark Arts house has been unlocked for this user */
     function isDarkArtsUnlocked() {
         return localStorage.getItem('dark_arts_unlocked') === 'true';
     }
 
+    /** @returns {boolean} Whether the user has the house-hopper privilege (access to all houses) */
     function isHouseHopper() {
         return localStorage.getItem('hexworth_house_hopper') === 'true';
     }
@@ -562,6 +576,23 @@
     // COMPONENT
     // ═══════════════════════════════════════════════════════════════
 
+    /**
+     * FluxCapacitor — Floating house navigation system.
+     * Creates a radioactive-green button in the bottom-right that opens a modal
+     * showing all 12 houses with their emblems. Includes warp animation on navigation.
+     *
+     * Also bootstraps 6 sub-components via script injection:
+     * - HED.js (Host Error Detector)
+     * - GlobalSearch.js (Ctrl+K search overlay)
+     * - TripWire.js (Honeypot defense system)
+     * - TripWireEffects.js (Visual consequences engine)
+     * - HoneypotMaze.js (Anti-cheat maze)
+     * - IntegrityLockscreen.js (Full-screen lock for integrity violations)
+     *
+     * Keyboard shortcut: ~ (tilde) toggles the navigation modal.
+     * Position: Uses position:absolute + scroll offset (not position:fixed)
+     * because body.style.filter breaks fixed positioning.
+     */
     class FluxCapacitor {
         constructor() {
             this.isOpen = false;
@@ -572,6 +603,7 @@
             this.init();
         }
 
+        /** Initialize the component: inject styles, create button and modal, bind events */
         init() {
             this.hasTerminal = !!document.querySelector('.terminal-panel, .terminal-container, #terminal');
             this.injectStyles();
@@ -588,6 +620,7 @@
             document.head.appendChild(style);
         }
 
+        /** Create the floating navigation button. Skipped if page has a terminal panel. */
         createButton() {
             this.button = document.createElement('button');
             this.button.className = 'flux-btn';
@@ -614,6 +647,7 @@
             window.addEventListener('resize', pinFlux, { passive: true });
         }
 
+        /** Build the house navigation modal with 12 house cards, emblems, and warp links */
         createModal() {
             this.overlay = document.createElement('div');
             this.overlay.className = 'flux-overlay';
@@ -742,6 +776,7 @@
             return card;
         }
 
+        /** Create the full-screen warp animation overlay (green vortex on navigation) */
         createWarpEffect() {
             this.warp = document.createElement('div');
             this.warp.className = 'flux-warp';
@@ -764,6 +799,7 @@
             }, 150);
         }
 
+        /** Toggle the navigation modal open/closed. Updates ARIA states. */
         toggle() {
             this.isOpen = !this.isOpen;
             this.overlay.classList.toggle('active', this.isOpen);
@@ -785,6 +821,7 @@
             }
         }
 
+        /** Close the navigation modal and restore button state */
         close() {
             if (this.isOpen) {
                 this.isOpen = false;
@@ -800,6 +837,7 @@
             }
         }
 
+        /** Bind keyboard (~ key, Escape) and click events for navigation */
         bindEvents() {
             // Button click
             if (this.button) this.button.addEventListener('click', () => this.toggle());
