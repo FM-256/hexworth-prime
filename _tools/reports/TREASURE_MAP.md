@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-04-26 2:45:22 PM
+                    Scanned: 2026-04-26 6:30:28 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -13,7 +13,7 @@
 | Files Scanned | 4745 |
 | Directories | 1142 |
 | Content Files | 4745 |
-| Scan Duration | 476ms |
+| Scan Duration | 2102ms |
 
 ### Content by Type
 
@@ -29,8 +29,8 @@
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 2691 |
-| Available | 2686 |
+| Total Modules | 2700 |
+| Available | 2695 |
 | Missing Hrefs (CAT-001) | 0 |
 | Undeclared Files (CAT-002) | 10 |
 | Empty Hrefs (CAT-003) | 0 |
@@ -41,10 +41,10 @@
 | Severity | Count |
 |----------|-------|
 | Critical | 0 |
-| Suspect | 59 |
+| Suspect | 60 |
 | Warning | 2188 |
 | Info | 448 |
-| **Total** | **10498** |
+| **Total** | **10489** |
 
 ### Sync Status
 
@@ -9318,7 +9318,7 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### SUSPECT (59) — heuristic, needs review
+### SUSPECT (60) — heuristic, needs review
 
 **[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
   File: `components/IntegrityLockscreen.js`
@@ -9334,6 +9334,10 @@
 
 **[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
   File: `components/ModuleProgress.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/TenantShell.js`
   Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
 
 **[HEUR-004]** console.log() in inline script (production hygiene)

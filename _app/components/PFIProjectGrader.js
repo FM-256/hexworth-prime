@@ -31,6 +31,8 @@
     var _textarea = null;    // Raw textarea fallback
     var _submitting = false;
     var _previousResult = null;
+    var _uploadedFiles = {}; // Multi-file: {filename: content}
+    var _mode = 'single';    // 'single' or 'multi'
 
     // ── Styles ──────────────────────────────────────────────────────
     var CSS = `
@@ -180,6 +182,81 @@
             font-size: 0.85rem;
             background: #0d1117;
         }
+
+        /* Mode toggle */
+        .pfig-mode-toggle {
+            display: flex;
+            gap: 0;
+            margin-bottom: 16px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+            width: fit-content;
+        }
+        .pfig-mode-btn {
+            padding: 8px 20px;
+            background: transparent;
+            border: none;
+            color: #6b7280;
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .pfig-mode-btn.active {
+            background: rgba(59, 130, 246, 0.15);
+            color: #3b82f6;
+            font-weight: 600;
+        }
+
+        /* Multi-file upload area */
+        .pfig-dropzone {
+            border: 2px dashed rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 16px;
+        }
+        .pfig-dropzone:hover, .pfig-dropzone.dragover {
+            border-color: rgba(59,130,246,0.4);
+            background: rgba(59,130,246,0.05);
+        }
+        .pfig-dropzone-text { color: #6b7280; font-size: 0.85rem; }
+        .pfig-dropzone-hint { color: #4b5563; font-size: 0.75rem; margin-top: 8px; }
+
+        /* File list */
+        .pfig-file-list { margin-bottom: 16px; }
+        .pfig-file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 6px;
+            margin-bottom: 4px;
+            font-size: 0.82rem;
+        }
+        .pfig-file-name { color: #c9d1d9; font-family: monospace; }
+        .pfig-file-size { color: #6b7280; font-size: 0.72rem; }
+        .pfig-file-remove {
+            color: #ef4444;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.75rem;
+            padding: 2px 6px;
+        }
+        .pfig-entry-select {
+            background: #0d1117;
+            color: #c9d1d9;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 0.82rem;
+            margin-bottom: 16px;
+        }
     `;
 
     // ── Public API ──────────────────────────────────────────────────
@@ -204,6 +281,19 @@
         document.getElementById('pfig-btn-submit').addEventListener('click', _handleSubmit);
         document.getElementById('pfig-btn-upload').addEventListener('click', _handleUpload);
 
+        // Multi-file: dropzone and file input
+        var dropzone = document.getElementById('pfig-dropzone');
+        var multiInput = document.getElementById('pfig-multi-input');
+        dropzone.addEventListener('click', function() { multiInput.click(); });
+        dropzone.addEventListener('dragover', function(e) { e.preventDefault(); dropzone.classList.add('dragover'); });
+        dropzone.addEventListener('dragleave', function() { dropzone.classList.remove('dragover'); });
+        dropzone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            dropzone.classList.remove('dragover');
+            _handleMultiFiles(e.dataTransfer.files);
+        });
+        multiInput.addEventListener('change', function() { _handleMultiFiles(multiInput.files); });
+
         // Load CodeMirror for syntax highlighting
         _loadCodeMirror();
 
@@ -211,11 +301,82 @@
         _loadPreviousSubmission();
     }
 
-    function _buildHTML() {
-        var catHeaders = (_config.rubricCategories || []).map(function(c) {
-            return '<th>' + _esc(c.label) + '</th>';
-        }).join('');
+    // ── Mode Switching ──────────────────────────────────────────────
+    function _switchMode(mode) {
+        _mode = mode;
+        document.getElementById('pfig-single-mode').style.display = mode === 'single' ? '' : 'none';
+        document.getElementById('pfig-multi-mode').style.display = mode === 'multi' ? '' : 'none';
+        document.getElementById('pfig-mode-single').className = 'pfig-mode-btn' + (mode === 'single' ? ' active' : '');
+        document.getElementById('pfig-mode-multi').className = 'pfig-mode-btn' + (mode === 'multi' ? ' active' : '');
+        // Update upload button text
+        var uploadBtn = document.getElementById('pfig-btn-upload');
+        uploadBtn.style.display = mode === 'single' ? '' : 'none';
+    }
 
+    // ── Multi-File Handling ─────────────────────────────────────────
+    function _handleMultiFiles(fileList) {
+        for (var i = 0; i < fileList.length; i++) {
+            var file = fileList[i];
+            if (file.size > 51200) {
+                _setStatus('File "' + file.name + '" exceeds 50KB limit', 'error');
+                continue;
+            }
+            (function(f) {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    _uploadedFiles[f.name] = e.target.result;
+                    _renderFileList();
+                };
+                reader.readAsText(f);
+            })(file);
+        }
+    }
+
+    function _renderFileList() {
+        var container = document.getElementById('pfig-file-list');
+        var files = Object.keys(_uploadedFiles);
+        if (files.length === 0) {
+            container.innerHTML = '';
+            document.getElementById('pfig-entry-wrap').style.display = 'none';
+            return;
+        }
+
+        var html = '';
+        files.sort().forEach(function(name) {
+            var size = _uploadedFiles[name].length;
+            var sizeStr = size > 1024 ? Math.round(size / 1024) + ' KB' : size + ' B';
+            var icon = name.endsWith('.py') ? '&#128220;' : '&#128196;';
+            html += '<div class="pfig-file-item">' +
+                '<span><span style="margin-right:6px;">' + icon + '</span><span class="pfig-file-name">' + _esc(name) + '</span></span>' +
+                '<span><span class="pfig-file-size">' + sizeStr + '</span>' +
+                '<button class="pfig-file-remove" onclick="PFIProjectGrader._removeFile(\'' + _esc(name).replace(/'/g, "\\'") + '\')">&times;</button></span>' +
+            '</div>';
+        });
+        container.innerHTML = html;
+
+        // Entry point selector — show only .py files
+        var pyFiles = files.filter(function(f) { return f.endsWith('.py'); });
+        var entryWrap = document.getElementById('pfig-entry-wrap');
+        if (pyFiles.length > 0) {
+            var select = document.getElementById('pfig-entry-select');
+            select.innerHTML = pyFiles.map(function(f) {
+                var selected = f === 'main.py' ? ' selected' : '';
+                return '<option value="' + _esc(f) + '"' + selected + '>' + _esc(f) + '</option>';
+            }).join('');
+            entryWrap.style.display = '';
+        } else {
+            entryWrap.style.display = 'none';
+        }
+
+        _setStatus(files.length + ' file(s) loaded (' + pyFiles.length + ' Python)', 'success');
+    }
+
+    function _removeFile(name) {
+        delete _uploadedFiles[name];
+        _renderFileList();
+    }
+
+    function _buildHTML() {
         return '' +
             '<div class="pfig-root">' +
                 '<div class="pfig-card">' +
@@ -223,16 +384,38 @@
                         '<img src="/assets/images/icons/icon-flask.webp" alt="" style="width:1.2em;height:1.2em;"> ' +
                         'Auto-Grade: ' + _esc(_config.title || 'Project') +
                     '</div>' +
-                    '<div class="pfig-subtitle">Paste your Python code below or upload a .py file, then click Submit to auto-grade against the rubric.</div>' +
+                    '<div class="pfig-subtitle">Submit your Python project for automated grading against the rubric.</div>' +
 
-                    '<div class="pfig-editor-wrap">' +
-                        '<textarea id="pfig-code" class="pfig-textarea" placeholder="# Paste your Python code here..." spellcheck="false"></textarea>' +
+                    '<!-- Mode toggle -->' +
+                    '<div class="pfig-mode-toggle">' +
+                        '<button class="pfig-mode-btn active" id="pfig-mode-single" onclick="PFIProjectGrader._switchMode(\'single\')">Single File</button>' +
+                        '<button class="pfig-mode-btn" id="pfig-mode-multi" onclick="PFIProjectGrader._switchMode(\'multi\')">Multi-File Project</button>' +
+                    '</div>' +
+
+                    '<!-- Single file mode -->' +
+                    '<div id="pfig-single-mode">' +
+                        '<div class="pfig-editor-wrap">' +
+                            '<textarea id="pfig-code" class="pfig-textarea" placeholder="# Paste your Python code here..." spellcheck="false"></textarea>' +
+                        '</div>' +
+                    '</div>' +
+
+                    '<!-- Multi-file mode -->' +
+                    '<div id="pfig-multi-mode" style="display:none;">' +
+                        '<div class="pfig-dropzone" id="pfig-dropzone">' +
+                            '<div class="pfig-dropzone-text">Drop .py files here or click to select</div>' +
+                            '<div class="pfig-dropzone-hint">Upload all your project files (main.py, utils.py, etc.)</div>' +
+                        '</div>' +
+                        '<input type="file" id="pfig-multi-input" accept=".py,.txt,.csv,.log,.json,.ini" multiple style="display:none">' +
+                        '<div id="pfig-file-list" class="pfig-file-list"></div>' +
+                        '<div id="pfig-entry-wrap" style="display:none;">' +
+                            '<label style="font-size:0.82rem;color:#6b7280;">Entry point: </label>' +
+                            '<select class="pfig-entry-select" id="pfig-entry-select"></select>' +
+                        '</div>' +
                     '</div>' +
 
                     '<div class="pfig-actions">' +
                         '<button class="pfig-btn pfig-btn-submit" id="pfig-btn-submit">Submit for Grading</button>' +
                         '<button class="pfig-btn pfig-btn-upload" id="pfig-btn-upload">Upload .py File</button>' +
-                        '<input type="file" id="pfig-file-input" accept=".py,.txt" style="display:none">' +
                         '<span class="pfig-status" id="pfig-status"></span>' +
                     '</div>' +
                 '</div>' +
@@ -311,10 +494,24 @@
     async function _handleSubmit() {
         if (_submitting) return;
 
-        var code = _editor ? _editor.getValue() : (_textarea ? _textarea.value : '');
-        if (!code.trim()) {
-            _setStatus('No code to submit.', 'error');
-            return;
+        // Build payload based on mode
+        var payload = { projectId: _config.projectId };
+
+        if (_mode === 'multi') {
+            if (Object.keys(_uploadedFiles).length === 0) {
+                _setStatus('No files uploaded. Drop your .py files above.', 'error');
+                return;
+            }
+            var entrySelect = document.getElementById('pfig-entry-select');
+            payload.sourceFiles = _uploadedFiles;
+            payload.entryPoint = entrySelect ? entrySelect.value : 'main.py';
+        } else {
+            var code = _editor ? _editor.getValue() : (_textarea ? _textarea.value : '');
+            if (!code.trim()) {
+                _setStatus('No code to submit.', 'error');
+                return;
+            }
+            payload.code = code;
         }
 
         if (typeof FirebaseAuth === 'undefined' || !FirebaseAuth.isSignedIn()) {
@@ -326,13 +523,10 @@
         var btn = document.getElementById('pfig-btn-submit');
         btn.disabled = true;
         btn.innerHTML = '<span class="pfig-spinner"></span> Grading...';
-        _setStatus('Submitting code to grading server...', '');
+        _setStatus('Submitting ' + (_mode === 'multi' ? Object.keys(_uploadedFiles).length + ' files' : 'code') + ' to grading server...', '');
 
         try {
-            var result = await FirebaseAuth.callFunction('gradePFIProject', {
-                projectId: _config.projectId,
-                code: code
-            });
+            var result = await FirebaseAuth.callFunction('gradePFIProject', payload);
 
             _previousResult = result.data;
             _renderResults(result.data);
@@ -455,6 +649,10 @@
     }
 
     // ── Export ──────────────────────────────────────────────────────
-    window.PFIProjectGrader = { init: init };
+    window.PFIProjectGrader = {
+        init: init,
+        _switchMode: _switchMode,
+        _removeFile: _removeFile
+    };
 
 })();
