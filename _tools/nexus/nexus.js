@@ -853,6 +853,28 @@ ${C.bold}DATA${C.reset}
 `);
 }
 
+// --- Deploy Check ---
+
+function cmdDeployCheck(args, flags) {
+    const config = hub.loadConfig();
+    const projectRoot = hub.getProjectRoot();
+    const spokeConfig = config.spokes['deploy-check'];
+    if (!spokeConfig || !spokeConfig.enabled) {
+        console.error(`  ${C.red}deploy-check spoke not enabled${C.reset}`);
+        return;
+    }
+
+    const createAdapter = require(require('path').resolve(__dirname, spokeConfig.adapter));
+    const adapter = createAdapter({ name: 'deploy-check', dataPath: spokeConfig.dataPath, projectRoot });
+
+    const result = adapter.commands[''](args, flags);
+    adapter.render(result);
+
+    if (result.verdict === 'BLOCKED' || result.verdict === 'FAIL') {
+        process.exit(1);
+    }
+}
+
 // --- CLI Router ---
 
 const argv = process.argv.slice(2);
@@ -924,6 +946,10 @@ switch (command) {
         break;
     case 'pull':
         cmdPull(positional, flags);
+        break;
+    case 'deploy-check':
+    case 'dc':
+        cmdDeployCheck(positional, flags);
         break;
     default:
         console.error(`  ${C.red}Unknown command: ${command}${C.reset}`);
