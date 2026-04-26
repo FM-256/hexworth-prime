@@ -27,6 +27,9 @@
  * - QUIZ-003: Quiz uses QuizEngine WITHOUT serverGrading and has NO correct: fields (quiz grades 0% — broken, no answers anywhere)
  * - QUIZ-004: Quiz REGRESSION — file was server-graded in baseline but serverGrading is now missing (an edit reverted the fix)
  * - QUIZ-005: Quiz KEY MISMATCH — answer key count doesn't match question count, or answer index is out of range for a question's options
+ * - QUIZ-006: Custom inline quiz calls gradeQuiz Cloud Function but has no matching key in quiz_keys.json — server grading will return "Quiz key not found"
+ * - QUIZ-007: quiz_keys.json questionCount field disagrees with actual question count in HTML — keys are stale or drifted after question add/remove
+ * - QUIZ-008: Answer key has skewed distribution — one index exceeds 35% in 10+ question quiz or >2 of same index in 5-question quiz. Students can pattern-exploit without reading questions.
  * - HEUR-017: Dynamic lazy-loading of platform component via createElement('script') (should be static <script src>; lazy loads bypass dependency checks and cause race conditions)
  * - HEUR-018: Scroll-triggered auto-completion — fires ModuleProgress.complete() inside a scroll listener (student has no deliberate action; should use a "Mark Complete" button instead)
  * - HEUR-019: Tenant config missing required fields — dashboard file lacks slug, branding, licensing, or adminUids references
@@ -115,6 +118,9 @@ class HeuristicsValidator {
         issues.push(...this.checkQuizConfiguration(file));
         issues.push(...this.checkQuizRegression(file));
         issues.push(...this.checkQuizKeyAlignment(file));
+        issues.push(...this.checkCustomQuizMissingKey(file));
+        issues.push(...this.checkQuizKeyDrift(file));
+        issues.push(...this.checkAnswerDistribution(file));
         issues.push(...this.checkLazyLoadedComponents(file));
         issues.push(...this.checkScrollTriggeredCompletion(file));
         issues.push(...this.checkTenantConfigFields(file));
@@ -859,15 +865,35 @@ class HeuristicsValidator {
         const issues = [];
         const content = file.content;
 
+        // Skip files that contain JS teaching content — code examples in
+        // <script> tags are parsed as executable but are actually examples.
+        // backbone/ is the JS teaching series; labs and quizzes often embed
+        // code samples that trigger false positive syntax errors.
+        if (file.path.includes('/backbone/') ||
+            file.path.includes('/network-plus/quizzes/') ||
+            file.path.includes('/network-plus/labs/') ||
+            file.path.includes('/piverse/electronics/quizzes/') ||
+            file.path.includes('/ai-900/labs/') ||
+            file.path.includes('/sc-900/labs/') ||
+            file.path.includes('/ow-04-burned-source/') ||
+            file.path.includes('/ip-addressing/')) {
+            return issues;
+        }
+
         // Extract inline script blocks
-        const scriptPattern = /<script(?![^>]*\bsrc\b)[^>]*>([\s\S]*?)<\/script>/gi;
+        const scriptPattern = /<script(?![^>]*\bsrc\b)([^>]*)>([\s\S]*?)<\/script>/gi;
         let match;
 
         while ((match = scriptPattern.exec(content)) !== null) {
-            const code = match[1];
+            const attrs = match[1];
+            const code = match[2];
 
             // Skip trivial scripts
             if (!code.trim() || code.trim().length < 50) continue;
+
+            // Skip module scripts — import/export are valid ES module syntax
+            // but new Function() parses as classic scripts (no module support)
+            if (/type\s*=\s*["']module["']/i.test(attrs)) continue;
 
             try {
                 // new Function() parses the code without executing it
@@ -1373,6 +1399,236 @@ class HeuristicsValidator {
                 });
             }
         });
+
+        return issues;
+    }
+
+    /**
+     * QUIZ-006: Custom inline quiz calls gradeQuiz but has no key
+     *
+     * Catches custom quiz implementations (Engine 2) that call
+     * FirebaseAuth.callFunction('gradeQuiz', { quizId: X }) but
+     * where X has no matching entry in quiz_keys.json. At runtime,
+     * the Cloud Function returns "Quiz key not found" and the
+     * student gets 0% despite answering correctly.
+     *
+     * Skips files that use the standard QuizEngine (those are
+     * covered by QUIZ-005).
+     */
+    checkCustomQuizMissingKey(file) {
+        const issues = [];
+        const content = file.content;
+
+        // Only check custom quiz files that call gradeQuiz but do NOT use QuizEngine
+        if (content.includes('QuizEngine')) return issues;
+        if (!content.includes('gradeQuiz')) return issues;
+
+        // Load quiz keys (cached after first load)
+        if (!this._quizKeys) {
+            try {
+                const keysPath = require('path').resolve(__dirname, '../../../../functions/quiz_keys.json');
+                this._quizKeys = JSON.parse(require('fs').readFileSync(keysPath, 'utf8'));
+            } catch (e) {
+                this._quizKeys = {};
+            }
+        }
+
+        // Extract the quizId from the gradeQuiz call
+        // Pattern 1: callFunction('gradeQuiz', { quizId: 'eth-01-quiz', ... })
+        // Pattern 2: callFunction('gradeQuiz', { quizId: QUIZ_ID, ... })
+        let quizId = null;
+
+        // Try string literal first
+        const literalMatch = content.match(/gradeQuiz['"],\s*\{\s*quizId\s*:\s*['"]([^'"]+)['"]/);
+        if (literalMatch) {
+            quizId = literalMatch[1];
+        } else {
+            // Try variable reference: quizId: QUIZ_ID → resolve from var/const QUIZ_ID = '...'
+            const varRefMatch = content.match(/gradeQuiz['"],\s*\{\s*quizId\s*:\s*([A-Z_]+)/);
+            if (varRefMatch) {
+                const varName = varRefMatch[1];
+                const varDefMatch = content.match(new RegExp(varName + "\\s*=\\s*['\"]([^'\"]+)['\"]"));
+                if (varDefMatch) quizId = varDefMatch[1];
+            }
+        }
+
+        if (!quizId) return issues; // Could not determine quizId — skip
+
+        // Check if key exists
+        if (!this._quizKeys[quizId] || !Array.isArray(this._quizKeys[quizId].answers)) {
+            issues.push({
+                code: 'QUIZ-006',
+                severity: 'high',
+                category: 'quiz',
+                message: 'Custom quiz calls gradeQuiz with quizId "' + quizId + '" but no key exists in quiz_keys.json — server grading returns "Quiz key not found"',
+                file: file.path,
+                line: this.getLineNumber(content, content.indexOf('gradeQuiz')),
+                fix: 'Add answer key to functions/quiz_keys.json for "' + quizId + '" and push to Firestore with push-quiz-keys.js'
+            });
+        }
+
+        return issues;
+    }
+
+    /**
+     * QUIZ-007: Quiz key drift detector
+     *
+     * Checks for staleness in quiz_keys.json by comparing the
+     * questionCount metadata field against the actual number of
+     * questions detected in the HTML file. If they disagree,
+     * the keys are stale — questions were added or removed
+     * without updating the answer key.
+     *
+     * Covers BOTH standard QuizEngine and custom inline quizzes
+     * that have entries in quiz_keys.json.
+     */
+    checkQuizKeyDrift(file) {
+        const issues = [];
+        const content = file.content;
+
+        // Must be a quiz file (skip non-quizzes)
+        if (file.path.endsWith('index.html')) return issues;
+
+        // Load quiz keys (cached)
+        if (!this._quizKeys) {
+            try {
+                const keysPath = require('path').resolve(__dirname, '../../../../functions/quiz_keys.json');
+                this._quizKeys = JSON.parse(require('fs').readFileSync(keysPath, 'utf8'));
+            } catch (e) {
+                this._quizKeys = {};
+            }
+        }
+
+        // Extract moduleId or quizId — try multiple patterns
+        let keyId = null;
+
+        // Pattern 1: QuizEngine moduleId
+        const qeMatch = content.match(/moduleId\s*:\s*['"]([^'"]+)['"]/);
+        if (qeMatch) keyId = qeMatch[1];
+
+        // Pattern 2: QUIZ_ID variable
+        if (!keyId) {
+            const qidMatch = content.match(/QUIZ_ID\s*=\s*['"]([^'"]+)['"]/);
+            if (qidMatch) keyId = qidMatch[1];
+        }
+
+        if (!keyId) return issues;
+
+        const key = this._quizKeys[keyId];
+        if (!key || !key.questionCount) return issues; // No key or no questionCount metadata — skip
+
+        // Count actual questions in the HTML
+        // Standard pattern: question: '...' or question: "..."
+        const standardCount = (content.match(/question\s*:\s*['"]/g) || []).length;
+        // Custom pattern: <p class="ne-question-text"> or <span class="ne-question-num">
+        const customCount = (content.match(/ne-question-text|ne-question-num/g) || []).length / 2; // each question has both elements
+        // Radio group pattern: name="q0", name="q1", etc.
+        const radioGroups = new Set((content.match(/name=["']q(\d+)["']/g) || []).map(m => m.match(/q(\d+)/)[1]));
+
+        // Use the best count we can find
+        let actualCount = standardCount;
+        if (actualCount < 2 && radioGroups.size >= 2) actualCount = radioGroups.size;
+        if (actualCount < 2 && customCount >= 2) actualCount = Math.round(customCount);
+
+        if (actualCount < 2) return issues; // Can't determine question count — skip
+
+        // Compare
+        if (key.questionCount !== actualCount) {
+            issues.push({
+                code: 'QUIZ-007',
+                severity: 'high',
+                category: 'quiz',
+                message: 'quiz_keys.json says "' + keyId + '" has ' + key.questionCount + ' questions but HTML has ' + actualCount + ' — keys are stale (questions added/removed without updating key)',
+                file: file.path,
+                fix: 'Update quiz_keys.json: set questionCount to ' + actualCount + ' for "' + keyId + '" and verify answers array length matches. Then push to Firestore.'
+            });
+        }
+
+        return issues;
+    }
+
+    /**
+     * QUIZ-008: Answer key distribution check
+     *
+     * Detects when answer keys are skewed — one index appears
+     * disproportionately, allowing students to exploit the pattern
+     * without reading the questions. These quizzes do NOT shuffle
+     * options at render time, so the key index IS the visual position.
+     *
+     * Thresholds:
+     *   5-question quiz:  no index may appear more than 2 times
+     *   10+ question quiz: no index may exceed 35% of total
+     */
+    checkAnswerDistribution(file) {
+        const issues = [];
+
+        if (file.path.endsWith('index.html')) return issues;
+
+        // Load quiz keys (cached)
+        if (!this._quizKeys) {
+            try {
+                const keysPath = require('path').resolve(__dirname, '../../../../functions/quiz_keys.json');
+                this._quizKeys = JSON.parse(require('fs').readFileSync(keysPath, 'utf8'));
+            } catch (e) {
+                this._quizKeys = {};
+            }
+        }
+
+        // Find the key ID for this file
+        const content = file.content;
+        let keyId = null;
+
+        const qeMatch = content.match(/moduleId\s*:\s*['"]([^'"]+)['"]/);
+        if (qeMatch) keyId = qeMatch[1];
+
+        if (!keyId) {
+            const qidMatch = content.match(/QUIZ_ID\s*=\s*['"]([^'"]+)['"]/);
+            if (qidMatch) keyId = qidMatch[1];
+        }
+
+        if (!keyId) return issues;
+
+        const key = this._quizKeys[keyId];
+        if (!key || !Array.isArray(key.answers)) return issues;
+
+        // Only check integer answers (MC) — skip object-wrapped MS/ORDER
+        const mcAnswers = key.answers.filter(a => typeof a === 'number');
+        if (mcAnswers.length < 4) return issues; // Too few to evaluate
+
+        // Count distribution
+        const dist = {};
+        mcAnswers.forEach(a => { dist[a] = (dist[a] || 0) + 1; });
+
+        const total = mcAnswers.length;
+        const maxCount = Math.max(...Object.values(dist));
+        const maxIndex = Object.entries(dist).sort((a, b) => b[1] - a[1])[0][0];
+        const maxPct = Math.round((maxCount / total) * 100);
+
+        let skewed = false;
+
+        if (total <= 7) {
+            // Short quiz: no index more than 2 times
+            skewed = maxCount > 2;
+        } else {
+            // Longer quiz: no index more than 35%
+            skewed = maxPct > 35;
+        }
+
+        if (skewed) {
+            const distStr = Object.entries(dist)
+                .sort((a, b) => a[0] - b[0])
+                .map(([idx, count]) => `[${idx}]=${count}`)
+                .join(', ');
+
+            issues.push({
+                code: 'QUIZ-008',
+                severity: 'medium',
+                category: 'quiz',
+                message: `Answer key for "${keyId}" has skewed distribution: index ${maxIndex} appears ${maxCount}/${total} times (${maxPct}%). Distribution: ${distStr}. Students can pattern-exploit.`,
+                file: file.path,
+                fix: `Reorder options in quiz HTML so correct answers are evenly distributed across indices 0-3, then update quiz_keys.json to match`
+            });
+        }
 
         return issues;
     }

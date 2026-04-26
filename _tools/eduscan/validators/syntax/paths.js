@@ -1340,6 +1340,11 @@ class PathValidator {
             return true;
         }
 
+        // Firebase Hosting reserved URLs — injected at serve time, not on disk
+        if (url.startsWith('/__/')) {
+            return true;
+        }
+
         return false;
     }
 

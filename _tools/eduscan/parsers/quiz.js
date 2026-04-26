@@ -60,11 +60,26 @@ function parse(content, filePath) {
         // ModuleProgress-based quiz — extract from ModuleProgress.completeQuiz('house', 'id', ...)
         const mpPattern = /ModuleProgress\.completeQuiz\s*\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]+)['"]/;
         const mpMatch = content.match(mpPattern);
+
+        // Fallback: resolve variable-based calls like completeQuiz(MODULE_HOUSE, MODULE_ID, score)
+        // These files declare var/const MODULE_HOUSE = '...' and MODULE_ID = '...' then pass the variables.
+        let mpHouse = mpMatch ? mpMatch[1] : null;
+        let mpModuleId = mpMatch ? mpMatch[2] : null;
+
+        if (!mpMatch) {
+            // Match both standalone declarations (var MODULE_HOUSE = '...';)
+            // and comma-separated (var MODULE_HOUSE = '...', MODULE_ID = '...';)
+            const varHouseMatch = content.match(/MODULE_HOUSE\s*=\s*['"]([^'"]+)['"]/);
+            const varIdMatch = content.match(/MODULE_ID\s*=\s*['"]([^'"]+)['"]/);
+            if (varHouseMatch) mpHouse = varHouseMatch[1];
+            if (varIdMatch) mpModuleId = varIdMatch[1];
+        }
+
         result.config = {
             type: 'quiz',
             engine: 'ModuleProgress',
-            moduleId: mpMatch ? mpMatch[2] : null,
-            houseId: mpMatch ? mpMatch[1] : extractHouseFromPath(filePath),
+            moduleId: mpModuleId || null,
+            houseId: mpHouse || extractHouseFromPath(filePath),
             trackProgress: true,
             passingScore: extractNumber(content, PATTERNS.quiz.passingScore) || 70,
             title: extractFirst(content, PATTERNS.quiz.title) || extractFirst(content, /\<title\>([^<]+)/i),

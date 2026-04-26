@@ -279,6 +279,9 @@ Runs 8 targeted tests against core platform systems in a real browser.
 | QUIZ-003 | high | Quiz has no `serverGrading` and no `correct:` fields (grades 0% — broken) |
 | QUIZ-004 | critical | Quiz REGRESSION — was server-graded in baseline but `serverGrading` is now missing |
 | QUIZ-005 | critical | Quiz KEY MISMATCH — answer key count doesn't match question count, or answer index out of range |
+| QUIZ-006 | high | Custom inline quiz calls `gradeQuiz` Cloud Function but no matching key in `quiz_keys.json` — server returns "Quiz key not found" |
+| QUIZ-007 | high | `quiz_keys.json` `questionCount` disagrees with actual question count in HTML — keys are stale after question add/remove |
+| QUIZ-008 | medium | Answer key has skewed distribution — one index exceeds 35% in 10+ question quiz or >2 same index in short quiz. Students can pattern-exploit without reading. |
 | MATH-001 | suspect | Unguarded `parseInt()` in arithmetic — NaN will propagate if input is invalid |
 | DATA-001 | suspect | `localStorage.getItem()` in `+=` or arithmetic without `Number()` coercion |
 
