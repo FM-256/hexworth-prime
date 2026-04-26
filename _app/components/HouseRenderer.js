@@ -76,6 +76,12 @@ const HouseRenderer = (function() {
     // INIT
     // ========================================
 
+    /**
+     * Initialize a house index page from a config object.
+     * Sets up emblem/mascot paths, loads CSS dependencies (mascot effects, holo-foil, skip-nav),
+     * injects styles, renders the full page layout, initializes tabs, and updates progress stats.
+     * @param {Object} cfg - House configuration (houseId, title, paths, modules, categories, etc.)
+     */
     function init(cfg) {
         config = cfg;
         if (!config.emblem && config.houseId) {
@@ -125,6 +131,7 @@ const HouseRenderer = (function() {
     // CSS INJECTION
     // ========================================
 
+    /** Inject all component CSS as a <style> element (house-header, tabs, cards, hero section) */
     function injectCSS() {
         const style = document.createElement('style');
         style.textContent = `
@@ -1117,6 +1124,7 @@ const HouseRenderer = (function() {
     // PAGE RENDER
     // ========================================
 
+    /** Generate and inject the complete page DOM: header, hero section, 5-tab content area */
     function renderPage() {
         // Header
         const header = document.createElement('header');
@@ -1276,6 +1284,7 @@ const HouseRenderer = (function() {
     // TAB SYSTEM
     // ========================================
 
+    /** Initialize the 5-tab navigation (Paths, Content, Explore, Profile, Instructor) */
     function initTabs() {
         const stored = localStorage.getItem('hexworth_house_tab_' + config.houseId);
         activeTab = stored || 'paths';
@@ -1331,6 +1340,7 @@ const HouseRenderer = (function() {
         }
     }
 
+    /** Create the search bar that filters across paths and modules */
     function topLevelSearch() {
         const topInput = document.getElementById('hrTopSearchInput');
         const query = (topInput ? topInput.value : '').toLowerCase().trim();
@@ -1413,6 +1423,7 @@ const HouseRenderer = (function() {
         if (noResults) noResults.style.display = visible === 0 ? 'block' : 'none';
     }
 
+    /** Switch to a tab by ID, lazy-loading content panels on first view */
     function switchTab(tabId) {
         activeTab = tabId;
         localStorage.setItem('hexworth_house_tab_' + config.houseId, tabId);
@@ -1445,6 +1456,7 @@ const HouseRenderer = (function() {
     // PATHS PANEL
     // ========================================
 
+    /** Render the Learning Paths tab with certification path cards */
     function renderPathsPanel() {
         const panel = document.getElementById('hr-panel-paths');
         if (!config.paths || config.paths.length === 0) {
@@ -1507,6 +1519,7 @@ const HouseRenderer = (function() {
     // CONTENT PANEL
     // ========================================
 
+    /** Render the House Content tab with filterable module cards */
     function renderContentPanel() {
         const panel = document.getElementById('hr-panel-content');
         const modules = config.modules || [];
@@ -1627,6 +1640,7 @@ const HouseRenderer = (function() {
         }
     }
 
+    /** Filter module cards by search text and category dropdown */
     function filterModules() {
         const query = document.getElementById('hrFilterInput').value.toLowerCase().trim();
         const modules = config.modules || [];
@@ -1687,6 +1701,7 @@ const HouseRenderer = (function() {
         }
     }
 
+    /** @returns {string} HTML badge showing module type (quiz, lab, presentation, applet) */
     function getTypeBadge(mod) {
         if (!mod.components) return '';
         if (mod.type === 'review' || mod.components.includes('review')) return '<span class="module-type-badge type-review">Review</span>';
@@ -1710,6 +1725,7 @@ const HouseRenderer = (function() {
         return labels[component] || component;
     }
 
+    /** Navigate to a module, resolving the path relative to the house hub */
     function openModule(mod) {
         if (mod.status === 'available' && mod.href) {
             window.location.href = mod.href;
@@ -1741,6 +1757,7 @@ const HouseRenderer = (function() {
      * with descriptions, while Platform Hubs provides quick-access navigation.
      * They complement each other; do not remove one thinking it duplicates the other.
      */
+    /** Render the Explore All tab with ContentDiscovery anchor */
     function renderExplorePanel() {
         const panel = document.getElementById('hr-panel-explore');
         panel.innerHTML = `
@@ -1838,6 +1855,7 @@ const HouseRenderer = (function() {
     // PROFILE PANEL (lazy)
     // ========================================
 
+    /** Render the Profile tab with XP, level, progress stats (lazy-loaded) */
     function renderProfilePanel() {
         const panel = document.getElementById('hr-panel-profile');
 
@@ -1903,6 +1921,7 @@ const HouseRenderer = (function() {
     // INSTRUCTOR PANEL (lazy)
     // ========================================
 
+    /** Render the Instructor tab (lazy-loads InstructorDashboard.js) */
     function renderInstructorPanel() {
         const panel = document.getElementById('hr-panel-instructor');
         panel.innerHTML = `
@@ -1933,6 +1952,7 @@ const HouseRenderer = (function() {
     // STATS
     // ========================================
 
+    /** Update the header progress bar and stats counters from ModuleProgress */
     function updateStats() {
         const modules = config.modules || [];
         const total = modules.length;
