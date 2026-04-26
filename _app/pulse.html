@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pulse — Platform Health Dashboard</title>
+    <link rel="icon" type="image/webp" href="/assets/images/icons/icon-heartbeat.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --pulse-cyan: #06b6d4;
+            --pulse-cyan-dim: rgba(6, 182, 212, 0.15);
+            --pulse-cyan-glow: rgba(6, 182, 212, 0.3);
+            --pulse-green: #22c55e;
+            --pulse-yellow: #eab308;
+            --pulse-red: #ef4444;
+            --pulse-orange: #f97316;
+            --bg-main: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-card-hover: #1a1a25;
+            --border: rgba(6, 182, 212, 0.12);
+            --border-hover: rgba(6, 182, 212, 0.3);
+            --text-primary: #e8e8ef;
+            --text-secondary: #8888a0;
+            --text-muted: #55556a;
+        }
+        body {
+            min-height: 100vh;
+            background: var(--bg-main);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            color: var(--text-primary);
+        }
+
+        /* ── Top bar ── */
+        .top-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 14px 24px; border-bottom: 1px solid var(--border);
+            background: rgba(0,0,0,0.4);
+        }
+        .top-bar-left { display: flex; align-items: center; gap: 12px; }
+        .pulse-logo {
+            font-family: 'Courier New', monospace; font-size: 0.9rem;
+            font-weight: 700; color: var(--pulse-cyan); letter-spacing: 0.2em;
+        }
+        .pulse-sub { font-size: 0.65rem; color: var(--text-muted); letter-spacing: 0.1em; }
+        .back-btn {
+            text-decoration: none; color: var(--pulse-cyan); font-size: 0.75rem;
+            padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px;
+            transition: all 0.2s; letter-spacing: 0.05em;
+        }
+        .back-btn:hover { background: var(--pulse-cyan-dim); border-color: var(--pulse-cyan); }
+
+        /* ── Grid layout ── */
+        .pulse-grid {
+            display: grid; max-width: 1400px; margin: 24px auto; padding: 0 20px; gap: 16px;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto;
+        }
+        .panel-full { grid-column: 1 / -1; }
+
+        /* ── Panels ── */
+        .panel {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 20px; transition: border-color 0.3s;
+        }
+        .panel:hover { border-color: var(--border-hover); }
+        .panel-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 16px;
+        }
+        .panel-title {
+            font-size: 0.75rem; font-weight: 600; letter-spacing: 0.15em;
+            text-transform: uppercase; color: var(--pulse-cyan);
+        }
+        .panel-badge {
+            font-size: 0.6rem; padding: 3px 10px; border-radius: 20px;
+            letter-spacing: 0.1em; font-weight: 600;
+        }
+        .badge-live { background: rgba(34,197,94,0.15); color: var(--pulse-green); }
+        .badge-stale { background: rgba(234,179,8,0.15); color: var(--pulse-yellow); }
+
+        /* ── Health Score ── */
+        .health-hero {
+            display: flex; align-items: center; gap: 40px;
+            padding: 30px; background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 12px; grid-column: 1 / -1;
+        }
+        .health-ring {
+            width: 140px; height: 140px; position: relative; flex-shrink: 0;
+        }
+        .health-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+        .health-ring-bg { fill: none; stroke: rgba(255,255,255,0.05); stroke-width: 8; }
+        .health-ring-fill { fill: none; stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset 1s ease, stroke 0.5s; }
+        .health-score-text {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 2.2rem; font-weight: 700; font-family: 'Courier New', monospace;
+        }
+        .health-score-label {
+            position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%);
+            font-size: 0.55rem; color: var(--text-muted); letter-spacing: 0.15em; text-transform: uppercase;
+        }
+        .health-details { flex: 1; }
+        .health-details h2 { font-size: 1.3rem; margin-bottom: 6px; }
+        .health-details p { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.6; }
+        .health-metrics {
+            display: flex; gap: 16px; margin-top: 16px; flex-wrap: wrap;
+        }
+        .health-metric {
+            padding: 8px 14px; background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border); border-radius: 8px;
+            font-size: 0.7rem; color: var(--text-secondary);
+        }
+        .health-metric strong { color: var(--text-primary); font-size: 0.85rem; display: block; margin-bottom: 2px; }
+
+        /* ── EduScan Summary ── */
+        .scan-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 14px; }
+        .scan-stat {
+            text-align: center; padding: 10px 6px; border-radius: 8px;
+            background: rgba(255,255,255,0.02); border: 1px solid var(--border);
+        }
+        .scan-stat-value { font-size: 1.1rem; font-weight: 700; font-family: 'Courier New', monospace; }
+        .scan-stat-label { font-size: 0.55rem; color: var(--text-muted); letter-spacing: 0.08em; margin-top: 4px; }
+        .scan-finding {
+            display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 0.72rem;
+        }
+        .scan-finding:last-child { border-bottom: none; }
+        .finding-code { font-family: 'Courier New', monospace; font-weight: 600; min-width: 70px; }
+        .finding-file { color: var(--text-secondary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sev-critical { color: var(--pulse-red); }
+        .sev-high { color: var(--pulse-orange); }
+        .sev-medium { color: var(--pulse-yellow); }
+
+        /* ── Cert Gap Analyzer ── */
+        .cert-selector {
+            width: 100%; padding: 10px 14px; background: var(--bg-main);
+            border: 1px solid var(--border); border-radius: 8px;
+            color: var(--text-primary); font-size: 0.8rem; margin-bottom: 16px;
+            cursor: pointer; appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2306b6d4' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 14px center;
+        }
+        .cert-selector:focus { outline: none; border-color: var(--pulse-cyan); }
+        .cert-selector option { background: var(--bg-main); color: var(--text-primary); }
+
+        .cert-domain {
+            display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 0.75rem;
+        }
+        .cert-domain:last-child { border-bottom: none; }
+        .domain-status {
+            width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+        }
+        .status-covered { background: var(--pulse-green); }
+        .status-partial { background: var(--pulse-yellow); }
+        .status-gap { background: var(--pulse-red); }
+        .domain-name { flex: 1; }
+        .domain-house { font-size: 0.6rem; color: var(--text-muted); padding: 2px 8px; background: rgba(255,255,255,0.04); border-radius: 4px; }
+        .domain-action {
+            font-size: 0.6rem; padding: 3px 8px; border-radius: 4px; cursor: pointer;
+            background: none; border: 1px solid var(--border); color: var(--pulse-cyan);
+            transition: all 0.2s;
+        }
+        .domain-action:hover { background: var(--pulse-cyan-dim); }
+
+        /* ── Content Coverage ── */
+        .coverage-row {
+            display: flex; align-items: center; gap: 12px; padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+        }
+        .coverage-row:last-child { border-bottom: none; }
+        .coverage-label { font-size: 0.72rem; min-width: 100px; color: var(--text-secondary); }
+        .coverage-bar-track {
+            flex: 1; height: 6px; background: rgba(255,255,255,0.05);
+            border-radius: 3px; overflow: hidden;
+        }
+        .coverage-bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+        .coverage-pct { font-size: 0.7rem; font-family: 'Courier New', monospace; min-width: 40px; text-align: right; }
+
+        /* ── Triage Queue ── */
+        .triage-item {
+            display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 0.72rem;
+        }
+        .triage-item:last-child { border-bottom: none; }
+        .triage-priority {
+            width: 24px; height: 24px; border-radius: 4px; display: flex;
+            align-items: center; justify-content: center; font-size: 0.6rem;
+            font-weight: 700; flex-shrink: 0;
+        }
+        .priority-critical { background: rgba(239,68,68,0.2); color: var(--pulse-red); }
+        .priority-high { background: rgba(249,115,22,0.2); color: var(--pulse-orange); }
+        .priority-medium { background: rgba(234,179,8,0.2); color: var(--pulse-yellow); }
+        .triage-desc { flex: 1; }
+        .triage-source { font-size: 0.6rem; color: var(--text-muted); }
+        .triage-action {
+            font-size: 0.6rem; padding: 4px 10px; border-radius: 4px; cursor: pointer;
+            background: var(--pulse-cyan-dim); border: 1px solid var(--border);
+            color: var(--pulse-cyan); transition: all 0.2s;
+        }
+        .triage-action:hover { background: rgba(6,182,212,0.25); }
+
+        /* ── Student Signals ── */
+        .signal-row {
+            display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 0.72rem;
+        }
+        .signal-row:last-child { border-bottom: none; }
+        .signal-icon { font-size: 0.9rem; flex-shrink: 0; }
+        .signal-desc { flex: 1; color: var(--text-secondary); }
+        .signal-value { font-family: 'Courier New', monospace; font-weight: 600; }
+
+        /* ── Footer ── */
+        .pulse-footer {
+            text-align: center; padding: 20px; margin-top: 20px;
+            font-size: 0.6rem; color: var(--text-muted); letter-spacing: 0.1em;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 900px) {
+            .pulse-grid { grid-template-columns: 1fr; }
+            .health-hero { flex-direction: column; text-align: center; }
+            .health-metrics { justify-content: center; }
+            .scan-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top bar -->
+    <div class="top-bar">
+        <div class="top-bar-left">
+            <span class="pulse-logo">PULSE</span>
+            <span class="pulse-sub">Platform Health and Intelligence</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+            <a href="handler-dashboard.html" class="back-btn">Handler Dashboard</a>
+            <a href="https://hexworth.atlassian.net/wiki/spaces/KBA" target="_blank" class="back-btn">Knowledge Base</a>
+            <a href="dashboard.html" class="back-btn">Student View</a>
+        </div>
+    </div>
+    <!-- Admin Navigation Strip -->
+    <div style="display:flex;gap:12px;align-items:center;padding:6px 24px;background:rgba(6,182,212,0.03);border-bottom:1px solid var(--border);font-size:0.6rem;letter-spacing:0.08em;flex-wrap:wrap;">
+        <span style="color:var(--text-muted);">NAVIGATE</span>
+        <a href="houses/shield/index.html" style="color:#00bfff;text-decoration:none;">Shield</a>
+        <a href="houses/dark-arts/index.html" style="color:#ff0044;text-decoration:none;">Dark Arts</a>
+        <a href="houses/eye/index.html" style="color:#ffd700;text-decoration:none;">Eye</a>
+        <a href="houses/cloud/index.html" style="color:#4fc3f7;text-decoration:none;">Cloud</a>
+        <a href="houses/forge/index.html" style="color:#fb923c;text-decoration:none;">Forge</a>
+        <a href="houses/web/index.html" style="color:#00e5ff;text-decoration:none;">Web</a>
+        <a href="houses/code/index.html" style="color:#76ff03;text-decoration:none;">Code</a>
+        <a href="houses/key/index.html" style="color:#e040fb;text-decoration:none;">Key</a>
+        <a href="houses/script/index.html" style="color:#69f0ae;text-decoration:none;">Script</a>
+        <a href="houses/matrix/index.html" style="color:#00ff41;text-decoration:none;">Matrix</a>
+        <a href="houses/divergent/index.html" style="color:#ff00ff;text-decoration:none;">Divergent</a>
+        <span style="color:var(--text-muted);margin-left:8px;">|</span>
+        <a href="dispatch/index.html" style="color:var(--pulse-cyan);text-decoration:none;">Dispatch</a>
+        <a href="arena/index.html" style="color:var(--pulse-cyan);text-decoration:none;">Arena</a>
+        <a href="signal/index.html" style="color:var(--pulse-cyan);text-decoration:none;">Signal</a>
+        <a href="forensics/index.html" style="color:var(--pulse-cyan);text-decoration:none;">Forensics</a>
+    </div>
+
+    <div class="pulse-grid">
+
+        <!-- ════════════════════════════════════════════════ -->
+        <!-- HEALTH SCORE -->
+        <!-- ════════════════════════════════════════════════ -->
+        <div class="health-hero">
+            <div class="health-ring">
+                <svg viewBox="0 0 140 140">
+                    <circle class="health-ring-bg" cx="70" cy="70" r="58"></circle>
+                    <circle class="health-ring-fill" cx="70" cy="70" r="58"
+                        stroke-dasharray="364.4" stroke-dashoffset="364.4"
+                        id="healthRing"></circle>
+                </svg>
+                <div class="health-score-text" id="healthScore">--</div>
+                <div class="health-score-label">Health</div>
+            </div>
+            <div class="health-details">
+                <h1>Platform Health</h1>
+                <p id="healthSummary">Loading platform health data...</p>
+                <div class="health-metrics">
+                    <div class="health-metric"><strong id="metricFiles">--</strong>Files scanned</div>
+                    <div class="health-metric"><strong id="metricModules">--</strong>Modules registered</div>
+                    <div class="health-metric"><strong id="metricKeys">--</strong>Quiz keys</div>
+                    <div class="health-metric"><strong id="metricGate">--</strong>Gate status</div>
+                    <div class="health-metric"><strong id="metricLastScan">--</strong>Last scan</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ════════════════════════════════════════════════ -->
+        <!-- EDUSCAN SUMMARY -->
+        <!-- ════════════════════════════════════════════════ -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">EduScan Results</span>
+                <span class="panel-badge badge-stale" id="scanBadge">Loading</span>
+            </div>
+            <div class="scan-grid">
+                <div class="scan-stat"><div class="scan-stat-value sev-critical" id="scanCritical">--</div><div class="scan-stat-label">Critical</div></div>
+                <div class="scan-stat"><div class="scan-stat-value sev-high" id="scanHigh">--</div><div class="scan-stat-label">High</div></div>
+                <div class="scan-stat"><div class="scan-stat-value sev-medium" id="scanMedium">--</div><div class="scan-stat-label">Medium</div></div>
+                <div class="scan-stat"><div class="scan-stat-value" id="scanLow">--</div><div class="scan-stat-label">Low</div></div>
+                <div class="scan-stat"><div class="scan-stat-value" id="scanAutofix">--</div><div class="scan-stat-label">Auto-fixable</div></div>
+            </div>
+            <div id="topFindings">
+                <div class="scan-finding"><span class="finding-code" style="color:var(--text-muted)">Loading findings...</span></div>
+            </div>
+        </div>
+
+        <!-- ════════════════════════════════════════════════ -->
+        <!-- CONTENT COVERAGE -->
+        <!-- ════════════════════════════════════════════════ -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Content Coverage</span>
+            </div>
+            <div id="coverageBars">
+                <div class="coverage-row">
+                    <span class="coverage-label" style="color:var(--text-muted)">Loading...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ════════════════════════════════════════════════ -->
+        <!-- CERT GAP ANALYZER -->
+        <!-- ════════════════════════════════════════════════ -->
+        <div class="panel panel-full">
+            <div class="panel-header">
+                <span class="panel-title">Certification Gap Analyzer</span>
+            </div>
+            <select class="cert-selector" id="certSelector" onchange="renderCertDomains()">
+                <option value="">Select a certification...</option>
+                <option value="security-plus">CompTIA Security+ SY0-701</option>
+                <option value="network-plus">CompTIA Network+ N10-009</option>
+                <option value="aplus-core1">CompTIA A+ Core 1 (220-1101)</option>
+                <option value="aplus-core2">CompTIA A+ Core 2 (220-1102)</option>
+                <option value="cysa-plus">CompTIA CySA+ CS0-003</option>
+                <option value="linux-plus">CompTIA Linux+ XK0-005</option>
+                <option value="cloud-plus">CompTIA Cloud+ CV0-004</option>
+                <option value="pentest-plus">CompTIA PenTest+ PT0-003</option>
+                <option value="az-900">Microsoft AZ-900</option>
+                <option value="az-104">Microsoft AZ-104</option>
+                <option value="ai-900">Microsoft AI-900</option>
+                <option value="ms-900">Microsoft MS-900</option>
+                <option value="sc-900">Microsoft SC-900</option>
+                <option value="sc-200">Microsoft SC-200</option>
+                <option value="ms-102">Microsoft MS-102</option>
+                <option value="pl-300">Microsoft PL-300</option>
+                <option value="ccna">Cisco CCNA 200-301</option>
+                <option value="ceh">EC-Council CEH</option>
+                <option value="cissp">ISC2 CISSP</option>
+                <option value="cc">ISC2 CC</option>
+                <option value="aws-ccp">AWS Cloud Practitioner CLF-C02</option>
+            </select>
+            <div id="certDomains">
+                <div class="cert-domain" style="color:var(--text-muted); justify-content:center;">
+                    Select a certification to view domain coverage
+                </div>
+            </div>
+        </div>
+
+        <!-- ════════════════════════════════════════════════ -->
+        <!-- TRIAGE QUEUE -->
+        <!-- ════════════════════════════════════════════════ -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Triage Queue</span>
+                <span class="panel-badge badge-live" id="triageBadge">0 items</span>
+            </div>
+            <div id="triageItems">
+                <div class="triage-item" style="color:var(--text-muted); justify-content:center;">
+                    No triage items — platform is healthy
+                </div>
+            </div>
+        </div>
+
+        <!-- ════════════════════════════════════════════════ -->
+        <!-- STUDENT SIGNALS -->
+        <!-- ════════════════════════════════════════════════ -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Student Signals</span>
+                <span class="panel-badge badge-stale">v2 — Aggregation Pending</span>
+            </div>
+            <div id="studentSignals">
+                <div class="signal-row">
+                    <span class="signal-icon"><img src="/assets/images/icons/icon-warning.webp" style="width:16px;height:16px" alt=""></span>
+                    <span class="signal-desc">Quiz pass rate analytics require aggregation Cloud Function (planned for v2)</span>
+                    <span class="signal-value" style="color:var(--text-muted)">--</span>
+                </div>
+                <div class="signal-row">
+                    <span class="signal-icon"><img src="/assets/images/icons/icon-warning.webp" style="width:16px;height:16px" alt=""></span>
+                    <span class="signal-desc">Lab completion rate analytics require aggregation Cloud Function (planned for v2)</span>
+                    <span class="signal-value" style="color:var(--text-muted)">--</span>
+                </div>
+                <div class="signal-row">
+                    <span class="signal-icon"><img src="/assets/images/icons/icon-info.webp" style="width:16px;height:16px" alt=""></span>
+                    <span class="signal-desc">Student behavior intelligence will feed back into triage queue automatically</span>
+                    <span class="signal-value" style="color:var(--pulse-cyan)">v2</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="pulse-footer">
+        <div style="margin-bottom:8px;">
+            <a href="handler-dashboard.html" style="color:var(--pulse-cyan);text-decoration:none;margin:0 8px;">Handler Dashboard</a>
+            <span style="color:var(--text-muted);">&middot;</span>
+            <a href="https://hexworth.atlassian.net/wiki/spaces/KBA" target="_blank" style="color:var(--pulse-cyan);text-decoration:none;margin:0 8px;">Knowledge Base</a>
+            <span style="color:var(--text-muted);">&middot;</span>
+            <a href="dashboard.html" style="color:var(--pulse-cyan);text-decoration:none;margin:0 8px;">Student Dashboard</a>
+            <span style="color:var(--text-muted);">&middot;</span>
+            <a href="faq.html" style="color:var(--pulse-cyan);text-decoration:none;margin:0 8px;">FAQ</a>
+            <span style="color:var(--text-muted);">&middot;</span>
+            <a href="about.html" style="color:var(--pulse-cyan);text-decoration:none;margin:0 8px;">About</a>
+        </div>
+        PULSE v1.0 // Hexworth Prime Platform Intelligence // Self-Healing Ecosystem
+    </div>
+
+    <!-- ════════════════════════════════════════════════════ -->
+    <!-- PULSE ENGINE -->
+    <!-- ════════════════════════════════════════════════════ -->
+    <script>
+    (function() {
+        'use strict';
+
+        // ── Cert Domain Data ────────────────────────────
+        // Each cert has domains with coverage status
+        // Status: 'covered' = content exists, 'partial' = some content, 'gap' = no content
+        var CERT_DATA = {
+            'security-plus': {
+                name: 'CompTIA Security+ SY0-701',
+                house: 'Shield',
+                domains: [
+                    { id: '1.0', name: 'General Security Concepts', weight: '12%', status: 'covered', house: 'Shield', content: 'Security fundamentals module' },
+                    { id: '2.0', name: 'Threats, Vulnerabilities, and Mitigations', weight: '22%', status: 'covered', house: 'Shield', content: 'Threats module + CIA triad' },
+                    { id: '3.0', name: 'Security Architecture', weight: '18%', status: 'partial', house: 'Shield', content: 'Network security module (partial)' },
+                    { id: '4.0', name: 'Security Operations', weight: '28%', status: 'partial', house: 'Shield/Eye', content: 'Some SOC content in Eye house' },
+                    { id: '5.0', name: 'Security Program Management and Oversight', weight: '20%', status: 'partial', house: 'Shield/Divergent', content: 'Compliance module + CIS2208' }
+                ]
+            },
+            'network-plus': {
+                name: 'CompTIA Network+ N10-009',
+                house: 'Web',
+                domains: [
+                    { id: '1.0', name: 'Networking Fundamentals', weight: '24%', status: 'covered', house: 'Web', content: 'OSI, TCP/IP, subnetting modules' },
+                    { id: '2.0', name: 'Network Implementation', weight: '19%', status: 'covered', house: 'Web', content: 'Switching, routing, wireless modules' },
+                    { id: '3.0', name: 'Network Operations', weight: '16%', status: 'partial', house: 'Web', content: 'DNS/DHCP module, some monitoring' },
+                    { id: '4.0', name: 'Network Security', weight: '19%', status: 'covered', house: 'Web/Shield', content: 'Security module + firewall content' },
+                    { id: '5.0', name: 'Network Troubleshooting', weight: '22%', status: 'covered', house: 'Web', content: 'Troubleshooting module + dispatch labs' }
+                ]
+            },
+            'aplus-core1': {
+                name: 'CompTIA A+ Core 1 (220-1101)',
+                house: 'Forge',
+                domains: [
+                    { id: '1.0', name: 'Mobile Devices', weight: '15%', status: 'partial', house: 'Forge', content: 'Some mobile content' },
+                    { id: '2.0', name: 'Networking', weight: '20%', status: 'covered', house: 'Forge/Web', content: 'Network fundamentals + ports' },
+                    { id: '3.0', name: 'Hardware', weight: '25%', status: 'covered', house: 'Forge', content: 'Full hardware modules + dispatch HW labs' },
+                    { id: '4.0', name: 'Virtualization and Cloud', weight: '11%', status: 'partial', house: 'Forge/Cloud', content: 'Some cloud content' },
+                    { id: '5.0', name: 'Hardware and Network Troubleshooting', weight: '29%', status: 'covered', house: 'Forge', content: 'Dispatch labs (HW, PR, NT series)' }
+                ]
+            },
+            'cysa-plus': {
+                name: 'CompTIA CySA+ CS0-003',
+                house: 'Eye',
+                domains: [
+                    { id: '1.0', name: 'Security Operations', weight: '33%', status: 'covered', house: 'Eye', content: '16 chapters built' },
+                    { id: '2.0', name: 'Vulnerability Management', weight: '30%', status: 'covered', house: 'Eye', content: 'Vulnerability + threat modules' },
+                    { id: '3.0', name: 'Incident Response', weight: '20%', status: 'partial', house: 'Eye', content: 'Some IR content' },
+                    { id: '4.0', name: 'Reporting and Communication', weight: '17%', status: 'gap', house: 'Eye', content: 'No dedicated reporting module' }
+                ]
+            },
+            'az-900': {
+                name: 'Microsoft Azure Fundamentals AZ-900',
+                house: 'Cloud',
+                domains: [
+                    { id: '1', name: 'Describe Cloud Concepts', weight: '25-30%', status: 'covered', house: 'Cloud', content: 'AZ-900 Ch 1-3 built' },
+                    { id: '2', name: 'Describe Azure Architecture and Services', weight: '35-40%', status: 'covered', house: 'Cloud', content: 'AZ-900 Ch 1-3 built' },
+                    { id: '3', name: 'Describe Azure Management and Governance', weight: '30-35%', status: 'covered', house: 'Cloud', content: 'AZ-900 Ch 1-3 built' }
+                ]
+            },
+            'ccna': {
+                name: 'Cisco CCNA 200-301',
+                house: 'Web',
+                domains: [
+                    { id: '1.0', name: 'Network Fundamentals', weight: '20%', status: 'covered', house: 'Web', content: 'Domain 1 quiz + comprehensive' },
+                    { id: '2.0', name: 'Network Access', weight: '20%', status: 'covered', house: 'Web', content: 'Domain 2 quiz' },
+                    { id: '3.0', name: 'IP Connectivity', weight: '25%', status: 'covered', house: 'Web', content: 'Domain 3 quiz' },
+                    { id: '4.0', name: 'IP Services', weight: '10%', status: 'partial', house: 'Web', content: 'Domain 456 combined quiz' },
+                    { id: '5.0', name: 'Security Fundamentals', weight: '15%', status: 'partial', house: 'Web/Shield', content: 'Domain 456 combined quiz' },
+                    { id: '6.0', name: 'Automation and Programmability', weight: '10%', status: 'gap', house: 'Web/Code', content: 'No dedicated automation module' }
+                ]
+            },
+            'cissp': {
+                name: 'ISC2 CISSP',
+                house: 'Shield',
+                domains: [
+                    { id: '1', name: 'Security and Risk Management', weight: '15%', status: 'partial', house: 'Shield/Divergent', content: 'CIS2208 covers governance + risk foundations' },
+                    { id: '2', name: 'Asset Security', weight: '10%', status: 'gap', house: 'Shield', content: 'No dedicated module' },
+                    { id: '3', name: 'Security Architecture and Engineering', weight: '13%', status: 'gap', house: 'Shield', content: 'No dedicated module' },
+                    { id: '4', name: 'Communication and Network Security', weight: '13%', status: 'partial', house: 'Web/Shield', content: 'Network security content exists' },
+                    { id: '5', name: 'Identity and Access Management', weight: '13%', status: 'partial', house: 'Shield', content: 'Access control module exists' },
+                    { id: '6', name: 'Security Assessment and Testing', weight: '12%', status: 'gap', house: 'Eye/Shield', content: 'Some assessment content in Eye' },
+                    { id: '7', name: 'Security Operations', weight: '13%', status: 'partial', house: 'Eye', content: 'CySA+ SOC content' },
+                    { id: '8', name: 'Software Development Security', weight: '11%', status: 'gap', house: 'Code/Shield', content: 'No dedicated module' }
+                ]
+            }
+        };
+
+        // ── Render cert domains ─────────────────────────
+        window.renderCertDomains = function() {
+            var sel = document.getElementById('certSelector').value;
+            var container = document.getElementById('certDomains');
+            if (!sel || !CERT_DATA[sel]) {
+                container.innerHTML = '<div class="cert-domain" style="color:var(--text-muted);justify-content:center;">Select a certification to view domain coverage</div>';
+                return;
+            }
+            var cert = CERT_DATA[sel];
+            var html = '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">'
+                + '<a href="https://hexworth.atlassian.net/wiki/spaces/KBA" target="_blank" style="font-size:0.62rem;color:var(--pulse-cyan);text-decoration:none;padding:3px 10px;border:1px solid var(--border);border-radius:4px;">View Full Mapping in KBA</a>'
+                + '<a href="https://hexworth.atlassian.net/wiki/spaces/KBA/pages/1638409" target="_blank" style="font-size:0.62rem;color:var(--pulse-cyan);text-decoration:none;padding:3px 10px;border:1px solid var(--border);border-radius:4px;">Certification Roadmap</a>'
+                + '</div>';
+            var gaps = 0;
+            cert.domains.forEach(function(d) {
+                var statusClass = d.status === 'covered' ? 'status-covered' : d.status === 'partial' ? 'status-partial' : 'status-gap';
+                var statusLabel = d.status === 'covered' ? 'Covered' : d.status === 'partial' ? 'Partial' : 'GAP';
+                if (d.status === 'gap') gaps++;
+                html += '<div class="cert-domain">'
+                    + '<div class="domain-status ' + statusClass + '"></div>'
+                    + '<span class="domain-name"><strong>' + d.id + '</strong> ' + d.name + ' <span style="color:var(--text-muted);font-size:0.6rem;">(' + d.weight + ')</span></span>'
+                    + '<span class="domain-house">' + d.house + '</span>'
+                    + (d.status !== 'covered' ? '<button class="domain-action" onclick="alert(\'Sprint item: ' + cert.name + ' Domain ' + d.id + ' — ' + statusLabel + '\')">' + (d.status === 'gap' ? 'Create Item' : 'Expand') + '</button>' : '<span style="font-size:0.6rem;color:var(--pulse-green);">' + statusLabel + '</span>')
+                    + '</div>';
+            });
+            if (gaps > 0) {
+                html = '<div style="padding:8px 12px;margin-bottom:8px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;font-size:0.72rem;color:var(--pulse-red);">'
+                    + cert.name + ' has <strong>' + gaps + ' domain gap' + (gaps > 1 ? 's' : '') + '</strong> requiring content creation.'
+                    + '</div>' + html;
+            }
+            container.innerHTML = html;
+        };
+
+        // ── Coverage data (static for v1) ───────────────
+        var HOUSE_COVERAGE = [
+            { name: 'Shield', modules: 85, estimated: 120, color: '#00bfff', href: 'houses/shield/index.html' },
+            { name: 'Dark Arts', modules: 45, estimated: 80, color: '#ff0044', href: 'houses/dark-arts/index.html' },
+            { name: 'Eye', modules: 95, estimated: 130, color: '#ffd700', href: 'houses/eye/index.html' },
+            { name: 'Cloud', modules: 180, estimated: 200, color: '#4fc3f7', href: 'houses/cloud/index.html' },
+            { name: 'Forge', modules: 210, estimated: 250, color: '#fb923c', href: 'houses/forge/index.html' },
+            { name: 'Web', modules: 165, estimated: 190, color: '#00e5ff', href: 'houses/web/index.html' },
+            { name: 'Code', modules: 120, estimated: 160, color: '#76ff03', href: 'houses/code/index.html' },
+            { name: 'Key', modules: 55, estimated: 70, color: '#e040fb', href: 'houses/key/index.html' },
+            { name: 'Script', modules: 90, estimated: 110, color: '#69f0ae', href: 'houses/script/index.html' },
+            { name: 'Matrix', modules: 320, estimated: 350, color: '#00ff41', href: 'houses/matrix/index.html' },
+            { name: 'Divergent', modules: 25, estimated: 80, color: '#ff00ff', href: 'houses/divergent/index.html' }
+        ];
+
+        function renderCoverage() {
+            var html = '';
+            HOUSE_COVERAGE.forEach(function(h) {
+                var pct = Math.round((h.modules / h.estimated) * 100);
+                var color = pct >= 80 ? 'var(--pulse-green)' : pct >= 50 ? 'var(--pulse-yellow)' : 'var(--pulse-red)';
+                html += '<div class="coverage-row">'
+                    + '<a href="' + h.href + '" class="coverage-label" style="color:' + h.color + ';text-decoration:none;">' + h.name + '</a>'
+                    + '<div class="coverage-bar-track"><div class="coverage-bar-fill" style="width:' + pct + '%;background:' + h.color + ';"></div></div>'
+                    + '<span class="coverage-pct" style="color:' + color + ';">' + pct + '%</span>'
+                    + '</div>';
+            });
+            document.getElementById('coverageBars').innerHTML = html;
+        }
+
+        // ── Triage items (static for v1) ────────────────
+        var TRIAGE_ITEMS = [
+            { priority: 'critical', desc: 'Progress protection: Firestore writes silent-fail', source: 'Platform Improvement Tier 0', action: 'Plan' },
+            { priority: 'high', desc: '67 dispatch walkthroughs remaining', source: 'Marathon Queue', action: 'Resume' },
+            { priority: 'high', desc: 'Divergent house not in ContentCatalog HOUSES', source: 'EduScan', action: 'Fix' },
+            { priority: 'high', desc: 'CISSP: 4 domain gaps (Asset, Architecture, Assessment, AppSec)', source: 'Cert Analyzer', action: 'Plan' },
+            { priority: 'medium', desc: '793 undeclared files not in ContentCatalog', source: 'EduScan CAT-002', action: 'Register' },
+            { priority: 'medium', desc: 'Presentation width audit pending (narrow strip issue)', source: 'Platform Improvement Tier 2', action: 'Audit' },
+            { priority: 'medium', desc: 'CIS2208 content build on hold (waiting for textbook)', source: 'Marathon Queue', action: 'Blocked' }
+        ];
+
+        function renderTriage() {
+            var html = '';
+            TRIAGE_ITEMS.forEach(function(item) {
+                var pClass = item.priority === 'critical' ? 'priority-critical' : item.priority === 'high' ? 'priority-high' : 'priority-medium';
+                var pLabel = item.priority === 'critical' ? 'C' : item.priority === 'high' ? 'H' : 'M';
+                html += '<div class="triage-item">'
+                    + '<div class="triage-priority ' + pClass + '">' + pLabel + '</div>'
+                    + '<div class="triage-desc">' + item.desc + '<br><span class="triage-source">' + item.source + '</span></div>'
+                    + '<button class="triage-action">' + item.action + '</button>'
+                    + '</div>';
+            });
+            document.getElementById('triageItems').innerHTML = html;
+            document.getElementById('triageBadge').textContent = TRIAGE_ITEMS.length + ' items';
+        }
+
+        // ── Health score calculation ────────────────────
+        function calculateHealth() {
+            // v1: static calculation based on known metrics
+            var criticals = 0;          // 0 criticals = +30 points
+            var highCount = 524;        // 524 highs (penalty scales)
+            var quizKeysPct = 95;       // 351/~370 keys = 95% coverage
+            var catalogPct = 70;        // 1894/~2700 registered = 70%
+            var gatePass = true;        // gate passed = +10
+
+            var score = 30;                                        // base: no criticals
+            score += gatePass ? 10 : 0;                           // gate bonus
+            score += Math.round(quizKeysPct * 0.3);               // quiz key coverage (max 30)
+            score += Math.round(catalogPct * 0.2);                // catalog coverage (max 20)
+            score -= Math.min(20, Math.round(highCount / 50));    // high penalty (max -20)
+
+            score = Math.max(0, Math.min(100, score));
+
+            // Render
+            var ring = document.getElementById('healthRing');
+            var circumference = 2 * Math.PI * 58; // r=58
+            var offset = circumference - (score / 100) * circumference;
+            var color = score >= 80 ? 'var(--pulse-green)' : score >= 50 ? 'var(--pulse-yellow)' : 'var(--pulse-red)';
+
+            ring.style.strokeDasharray = circumference;
+            ring.style.strokeDashoffset = offset;
+            ring.style.stroke = color;
+
+            document.getElementById('healthScore').textContent = score;
+            document.getElementById('healthScore').style.color = color;
+
+            document.getElementById('healthSummary').textContent = score >= 80
+                ? 'Platform is healthy. All critical findings resolved. Gate passing.'
+                : score >= 50
+                ? 'Platform has issues requiring attention. ' + highCount + ' high-severity findings pending.'
+                : 'Platform health is degraded. Immediate attention required.';
+
+            // Metrics
+            document.getElementById('metricFiles').textContent = '4,743';
+            document.getElementById('metricModules').textContent = '1,894';
+            document.getElementById('metricKeys').textContent = '351';
+            document.getElementById('metricGate').textContent = gatePass ? 'PASS' : 'FAIL';
+            document.getElementById('metricGate').style.color = gatePass ? 'var(--pulse-green)' : 'var(--pulse-red)';
+            document.getElementById('metricLastScan').textContent = '2026-04-23';
+
+            // Scan stats
+            document.getElementById('scanCritical').textContent = '0';
+            document.getElementById('scanHigh').textContent = '524';
+            document.getElementById('scanMedium').textContent = '1,632';
+            document.getElementById('scanLow').textContent = '6,859';
+            document.getElementById('scanAutofix').textContent = '2,200';
+            document.getElementById('scanBadge').textContent = 'Last: 2026-04-23';
+            document.getElementById('scanBadge').className = 'panel-badge badge-live';
+
+            // Top findings
+            document.getElementById('topFindings').innerHTML = ''
+                + '<div class="scan-finding"><span class="finding-code sev-high">CFG-001</span><span class="finding-file">10 ethics-it quizzes missing moduleId</span></div>'
+                + '<div class="scan-finding"><span class="finding-code sev-high">CAT-002</span><span class="finding-file">793 files not registered in ContentCatalog</span></div>'
+                + '<div class="scan-finding"><span class="finding-code sev-medium">LP-007</span><span class="finding-file">Modules not in any learning path</span></div>'
+                + '<div class="scan-finding"><span class="finding-code sev-medium">HEUR-006</span><span class="finding-file">Back links using relative paths</span></div>'
+                + '<div class="scan-finding"><span class="finding-code" style="color:var(--text-muted)">+ 2,200 auto-fixable issues</span><span class="finding-file" style="color:var(--pulse-cyan)">Ready for automated repair</span></div>';
+        }
+
+        // ── Initialize ──────────────────────────────────
+        document.addEventListener('DOMContentLoaded', function() {
+            calculateHealth();
+            renderCoverage();
+            renderTriage();
+        });
+    })();
+    </script>
+</body>
+</html>

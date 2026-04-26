@@ -1,11 +1,39 @@
-/* ============================================================
-   CTF ARENA — Terminal.js
-   Terminal emulator with virtual filesystem + custom commands
-   ============================================================ */
+/**
+ * CTF ARENA — Terminal.js
+ * Terminal emulator with virtual filesystem and custom commands.
+ *
+ * Provides a browser-based terminal for CTF arena boxes. Each box config
+ * defines a virtual filesystem, available commands, and custom command
+ * handlers. Students interact with the terminal to investigate scenarios,
+ * run diagnostic commands, and capture flags.
+ *
+ * Architecture:
+ *   ArenaTerminal.init(container, config, engine) → TerminalInstance
+ *   - container: DOM element to render the terminal into
+ *   - config: Box config with filesystem, terminal settings, custom commands
+ *   - engine: BoxEngine instance for flag validation and state management
+ *
+ * Built-in commands: ls, cd, cat, pwd, whoami, clear, help, history
+ * Custom commands: defined per-box in config.commands[]
+ *
+ * Virtual filesystem: config.filesystem defines directory tree as nested objects.
+ * Files are strings (content), directories are objects (children).
+ *
+ * @module ArenaTerminal
+ * @version 1.0.0
+ */
 
 const ArenaTerminal = {
+    /** @type {TerminalInstance[]} Active terminal instances */
     _instances: [],
 
+    /**
+     * Create and initialize a new terminal instance.
+     * @param {HTMLElement} container - DOM element for the terminal
+     * @param {Object} config - Box configuration with filesystem and commands
+     * @param {Object} engine - BoxEngine instance for state and flag validation
+     * @returns {TerminalInstance} The initialized terminal
+     */
     init(container, config, engine) {
         const term = new TerminalInstance(container, config, engine);
         this._instances.push(term);

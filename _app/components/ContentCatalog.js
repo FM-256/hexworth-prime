@@ -95,6 +95,14 @@ const ContentCatalog = (function() {
             description: 'AI & Intelligent Automation',
             basePath: 'houses/ai/'
         },
+        divergent: {
+            id: 'divergent',
+            name: 'The Warehouse',
+            icon: '/assets/images/icons/icon-folder.webp',
+            color: '#94a3b8',
+            description: 'Policy, Ethics & Cross-Domain Operations',
+            basePath: 'houses/divergent/'
+        },
         matrix: {
             id: 'matrix',
             name: 'The Operator',
