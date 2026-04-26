@@ -1535,13 +1535,48 @@ exports.gradeQuiz = onCall(cfOptions, async (request) => {
     }
 
     const total = answerKey.length;
+    const types = keyData.types || []; // Optional per-question type array: 'mc', 'ms', 'order'
     let score = 0;
     const results = [];
 
-    // Compare each submitted answer against the key
+    // Compare each submitted answer against the key.
+    // Supports three answer formats:
+    //   MC:    integer === integer
+    //   MS:    array vs array, order-insensitive (sort both, compare elementwise)
+    //   ORDER: array vs array, order-sensitive (compare elementwise without sorting)
     for (let i = 0; i < total; i++) {
         const submitted = answers[String(i)];
-        const isCorrect = submitted !== undefined && submitted === answerKey[i];
+        let expected = answerKey[i];
+        let qType = types[i] || null;
+        let isCorrect = false;
+
+        // Unwrap object-wrapped answers: {ms: [0,1]} or {order: [0,1,2,3]}
+        // Firestore does not allow nested arrays, so MS/ORDER answers are
+        // stored as objects with the type as the key.
+        if (expected && typeof expected === 'object' && !Array.isArray(expected)) {
+            if (expected.ms) { qType = 'ms'; expected = expected.ms; }
+            else if (expected.order) { qType = 'order'; expected = expected.order; }
+        }
+
+        if (submitted === undefined) {
+            isCorrect = false;
+        } else if (Array.isArray(expected) && Array.isArray(submitted)) {
+            if (submitted.length !== expected.length) {
+                isCorrect = false;
+            } else if (qType === 'order') {
+                // ORDER: exact sequence match
+                isCorrect = submitted.every((v, j) => v === expected[j]);
+            } else {
+                // MS (or untyped array): sort both, compare elementwise
+                const sortedSub = [...submitted].sort((a, b) => a - b);
+                const sortedExp = [...expected].sort((a, b) => a - b);
+                isCorrect = sortedSub.every((v, j) => v === sortedExp[j]);
+            }
+        } else {
+            // MC: direct equality
+            isCorrect = submitted === expected;
+        }
+
         if (isCorrect) score++;
         results.push({ correct: isCorrect });
     }
