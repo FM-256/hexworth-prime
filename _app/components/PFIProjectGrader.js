@@ -301,6 +301,14 @@
         _loadPreviousSubmission();
     }
 
+    // ── Week Switching ────────────────────────────────────────────
+    function _switchWeek(projectId) {
+        _config.projectId = projectId;
+        // Clear previous results
+        document.getElementById('pfig-results').innerHTML = '';
+        _setStatus('Grading against: ' + projectId.replace('pfi-', 'Week ').replace('w', ''), 'success');
+    }
+
     // ── Mode Switching ──────────────────────────────────────────────
     function _switchMode(mode) {
         _mode = mode;
@@ -386,10 +394,21 @@
                     '</div>' +
                     '<div class="pfig-subtitle">Submit your Python project for automated grading against the rubric.</div>' +
 
-                    '<!-- Mode toggle -->' +
-                    '<div class="pfig-mode-toggle">' +
-                        '<button class="pfig-mode-btn active" id="pfig-mode-single" onclick="PFIProjectGrader._switchMode(\'single\')">Single File</button>' +
-                        '<button class="pfig-mode-btn" id="pfig-mode-multi" onclick="PFIProjectGrader._switchMode(\'multi\')">Multi-File Project</button>' +
+                    '<!-- Week selector + Mode toggle -->' +
+                    '<div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:16px;">' +
+                        '<div>' +
+                            '<label style="font-size:0.78rem;color:#6b7280;margin-right:8px;">Grading Week:</label>' +
+                            '<select class="pfig-entry-select" id="pfig-week-select" onchange="PFIProjectGrader._switchWeek(this.value)">' +
+                                '<option value="pfi-w1"' + (_config.projectId === 'pfi-w1' ? ' selected' : '') + '>Week 1 — Report Generator</option>' +
+                                '<option value="pfi-w2"' + (_config.projectId === 'pfi-w2' ? ' selected' : '') + '>Week 2 — Log Analyzer</option>' +
+                                '<option value="pfi-w3"' + (_config.projectId === 'pfi-w3' ? ' selected' : '') + '>Week 3 — Device Manager</option>' +
+                                '<option value="pfi-w4"' + (_config.projectId === 'pfi-w4' ? ' selected' : '') + '>Week 4 — Final Project</option>' +
+                            '</select>' +
+                        '</div>' +
+                        '<div class="pfig-mode-toggle">' +
+                            '<button class="pfig-mode-btn active" id="pfig-mode-single" onclick="PFIProjectGrader._switchMode(\'single\')">Single File</button>' +
+                            '<button class="pfig-mode-btn" id="pfig-mode-multi" onclick="PFIProjectGrader._switchMode(\'multi\')">Multi-File Project</button>' +
+                        '</div>' +
                     '</div>' +
 
                     '<!-- Single file mode -->' +
@@ -652,6 +671,7 @@
     window.PFIProjectGrader = {
         init: init,
         _switchMode: _switchMode,
+        _switchWeek: _switchWeek,
         _removeFile: _removeFile
     };
 
