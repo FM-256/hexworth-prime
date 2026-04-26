@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-04-26 5:20:29 AM
+                    Scanned: 2026-04-26 5:32:03 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -13,7 +13,7 @@
 | Files Scanned | 4745 |
 | Directories | 1142 |
 | Content Files | 4745 |
-| Scan Duration | 477ms |
+| Scan Duration | 453ms |
 
 ### Content by Type
 
@@ -40,11 +40,11 @@
 
 | Severity | Count |
 |----------|-------|
-| Critical | 3 |
+| Critical | 1 |
 | Suspect | 61 |
 | Warning | 2194 |
 | Info | 477 |
-| **Total** | **16249** |
+| **Total** | **16247** |
 
 ### Sync Status
 
@@ -9315,19 +9315,11 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### CRITICAL (3)
+### CRITICAL (1)
 
 **[QUIZ-005]** Q10 answer index 4 is out of range (only 4 options) for moduleId "pv-m-02-quiz"
   File: `houses/matrix/piverse/maker/quizzes/pv-m-02.quiz.html`
   Fix: Fix answer at index 10 in quiz_keys.json for "pv-m-02-quiz" — must be 0 to 3
-
-**[QUIZ-005]** Answer key has 45 answers but quiz has 50 questions for moduleId "ccna-comprehensive-quiz" — grading will be wrong
-  File: `houses/web/ccna/quizzes/ccna-comprehensive.quiz.html`
-  Fix: Update quiz_keys.json to have exactly 50 answers for "ccna-comprehensive-quiz"
-
-**[QUIZ-005]** Answer key has 28 answers but quiz has 30 questions for moduleId "ccna-domain456-quiz" — grading will be wrong
-  File: `houses/web/ccna/quizzes/ccna-domain4-5-6.quiz.html`
-  Fix: Update quiz_keys.json to have exactly 30 answers for "ccna-domain456-quiz"
 
 ### SUSPECT (61) — heuristic, needs review
 
