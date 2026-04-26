@@ -52,6 +52,7 @@ const AccessGuard = (function() {
     };
 
     // Calculate base path from current location
+    /** Calculate relative path from current page to _app root based on URL depth */
     function getBasePath() {
         const path = window.location.pathname;
         const appIndex = path.indexOf('/_app/');
@@ -68,11 +69,13 @@ const AccessGuard = (function() {
 
     // Check if user has God Mode (bypasses all checks)
     // NOTE: God Mode uses sessionStorage - it resets when browser/tab closes
+    /** @returns {boolean} Whether god mode (all access) is active */
     function hasGodMode() {
         return sessionStorage.getItem(config.storageKeys.godMode) === 'true';
     }
 
     // Toggle God Mode (session-only, never persisted)
+    /** Toggle god mode on/off and reload the page */
     function toggleGodMode() {
         const current = hasGodMode();
         if (current) {
@@ -91,11 +94,13 @@ const AccessGuard = (function() {
     // ─────────────────────────────────────────────────────────────
 
     // Sync check: reads localStorage (fast, may be forged)
+    /** @returns {boolean} Whether the current Firebase user has admin privileges */
     function isFirebaseAdmin() {
         return localStorage.getItem('hexworth_firebase_admin') === 'true';
     }
 
     // Get Firebase user info
+    /** @returns {Object|null} The current Firebase Auth user object */
     function getFirebaseUser() {
         try {
             const user = localStorage.getItem('hexworth_firebase_user');
@@ -231,6 +236,7 @@ const AccessGuard = (function() {
     // ─────────────────────────────────────────────────────────────
 
     // Check if Master Key is active and not expired
+    /** @returns {boolean} Whether a valid, non-expired master key is active */
     function hasMasterKey() {
         const expiry = sessionStorage.getItem(config.storageKeys.masterKeyExpiry);
         if (!expiry) return false;
@@ -248,6 +254,7 @@ const AccessGuard = (function() {
     }
 
     // Get remaining time in milliseconds
+    /** @returns {number} Seconds remaining on the master key timer */
     function getMasterKeyRemaining() {
         const expiry = sessionStorage.getItem(config.storageKeys.masterKeyExpiry);
         if (!expiry) return 0;
@@ -257,6 +264,7 @@ const AccessGuard = (function() {
     }
 
     // Activate Master Key for 5 minutes
+    /** Activate the master key with a 60-minute countdown timer */
     function activateMasterKey() {
         const expiry = Date.now() + config.masterKeyDuration;
         sessionStorage.setItem(config.storageKeys.masterKey, 'true');
@@ -277,6 +285,7 @@ const AccessGuard = (function() {
     }
 
     // Deactivate Master Key
+    /** Deactivate the master key and remove the visual indicator */
     function deactivateMasterKey() {
         sessionStorage.removeItem(config.storageKeys.masterKey);
         sessionStorage.removeItem(config.storageKeys.masterKeyExpiry);
@@ -386,6 +395,7 @@ const AccessGuard = (function() {
     }
 
     // Check if temporary gate access is granted by Master Key
+    /** @returns {boolean} Whether master key grants access to the specified gate */
     function hasMasterKeyGateAccess(gateNumber) {
         if (!hasMasterKey()) return false;
         return sessionStorage.getItem(`master_gate${gateNumber}_complete`) === 'true';
@@ -394,6 +404,7 @@ const AccessGuard = (function() {
     // Check if user is a tourist (browsing without sorting)
     // Uses direct localStorage check as fallback since TouristVisa.js
     // may not have loaded yet when require() runs at parse time.
+    /** @returns {boolean} Whether user is in tourist mode (unsorted, no house) */
     function isTourist() {
         if (typeof TouristVisa !== 'undefined') {
             return TouristVisa.isActive();
@@ -403,31 +414,37 @@ const AccessGuard = (function() {
     }
 
     // Check if user has been sorted
+    /** @returns {boolean} Whether user has been sorted into a house */
     function isSorted() {
         return localStorage.getItem(config.storageKeys.house) !== null;
     }
 
     // Get user's house
+    /** @returns {string|null} The user's assigned house ID */
     function getUserHouse() {
         return localStorage.getItem(config.storageKeys.house);
     }
 
     // Check if user is Divergent (Factionless)
+    /** @returns {boolean} Whether user is sorted into the Divergent house */
     function isDivergent() {
         return localStorage.getItem(config.storageKeys.divergent) === 'true';
     }
 
     // Check if user is a House Hopper (can access all house content)
+    /** @returns {boolean} Whether user has the house-hopper privilege */
     function isHouseHopper() {
         return localStorage.getItem(config.storageKeys.houseHopper) === 'true';
     }
 
     // Check if user skipped sorting and is browsing as Explorer
+    /** @returns {boolean} Whether user has explorer status (admin-granted) */
     function isExplorer() {
         return localStorage.getItem(config.storageKeys.house) === 'explorer';
     }
 
     // Check if user has passed a specific Dark Arts gate
+    /** @returns {boolean} Whether user has passed the specified access gate */
     function hasPassedGate(gateNumber) {
         // Master Key grants temporary access to all gates
         if (hasMasterKeyGateAccess(gateNumber)) return true;
