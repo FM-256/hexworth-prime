@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-04-26 12:07:17 AM
+                    Scanned: 2026-04-26 12:14:13 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -13,7 +13,7 @@
 | Files Scanned | 4745 |
 | Directories | 1142 |
 | Content Files | 4745 |
-| Scan Duration | 493ms |
+| Scan Duration | 458ms |
 
 ### Content by Type
 
@@ -42,9 +42,9 @@
 |----------|-------|
 | Critical | 0 |
 | Suspect | 62 |
-| Warning | 2194 |
+| Warning | 2201 |
 | Info | 477 |
-| **Total** | **16882** |
+| **Total** | **16889** |
 
 ### Sync Status
 
@@ -9565,7 +9565,7 @@
   File: `houses/web/simulators/web-interactive-network-simulatorv2.simulator.html`
   Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
 
-### WARNING (2194)
+### WARNING (2201)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `about.html`
@@ -17933,6 +17933,34 @@
 
 **[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
   File: `funding/index.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/cloud/applets/architecture/cloud-architecture-designer.applet.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/cloud/applets/fundamentals/cloud-provider-comparison.applet.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/cloud/tools/cloud-aws-service.tool.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/shield/applets/crypto/shield-checksum-verifier.applet.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/shield/applets/fundamentals/shield-security-best-practices.applet.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/shield/applets/risk/shield-change-management.applet.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/shield/tools/shield-incident-response.tool.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
 **[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
