@@ -2281,6 +2281,7 @@ const ContentCatalog = (function() {
      * @param {Object} options - Search options
      * @returns {Array} Matching modules with house info
      */
+    /** Search modules by text query with optional house and type filters. Returns ranked results. */
     function search(query, options = {}) {
         const {
             house = null,           // Filter to specific house
