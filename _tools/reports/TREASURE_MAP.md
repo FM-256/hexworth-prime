@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-04-26 12:35:26 AM
+                    Scanned: 2026-04-26 3:25:24 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -13,7 +13,7 @@
 | Files Scanned | 4745 |
 | Directories | 1142 |
 | Content Files | 4745 |
-| Scan Duration | 474ms |
+| Scan Duration | 493ms |
 
 ### Content by Type
 
@@ -40,11 +40,11 @@
 
 | Severity | Count |
 |----------|-------|
-| Critical | 0 |
+| Critical | 2 |
 | Suspect | 61 |
 | Warning | 2201 |
 | Info | 477 |
-| **Total** | **16889** |
+| **Total** | **16941** |
 
 ### Sync Status
 
@@ -9314,6 +9314,16 @@
 
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
+
+### CRITICAL (2)
+
+**[QUIZ-005]** Answer key has 45 answers but quiz has 50 questions for moduleId "ccna-comprehensive-quiz" — grading will be wrong
+  File: `houses/web/ccna/quizzes/ccna-comprehensive.quiz.html`
+  Fix: Update quiz_keys.json to have exactly 50 answers for "ccna-comprehensive-quiz"
+
+**[QUIZ-005]** Answer key has 28 answers but quiz has 30 questions for moduleId "ccna-domain456-quiz" — grading will be wrong
+  File: `houses/web/ccna/quizzes/ccna-domain4-5-6.quiz.html`
+  Fix: Update quiz_keys.json to have exactly 30 answers for "ccna-domain456-quiz"
 
 ### SUSPECT (61) — heuristic, needs review
 
