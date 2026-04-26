@@ -189,8 +189,8 @@ async function cmdScan(args, flags) {
         spokes.history.save();
     }
 
-    // Step 3: Publish to Firestore if --publish flag
-    if (publish) {
+    // Step 3: Publish to Firestore (always — keeps dashboard fresh)
+    {
         const duration = Date.now() - scanStart;
         const gateResult = hub.runGate(config, spokes, { strict: false });
         const { buildSummary, publishToFirestore } = require('./publish');
@@ -777,8 +777,8 @@ async function cmdFull(args, flags) {
     console.log(`  ${C.dim}${connectedSpokes} spoke${connectedSpokes !== 1 ? 's' : ''} connected · ${store.findings.length} findings synced · gate: ${gateResult.passed ? `${C.green}PASS${C.dim}` : `${C.red}FAIL${C.dim}`}${C.reset}`);
     console.log('');
 
-    // Publish to Firestore if --publish flag is set
-    if (publish) {
+    // Publish to Firestore (always — keeps dashboard fresh)
+    {
         console.log(`  ${C.cyan}Publishing to Firestore...${C.reset}`);
         try {
             const duration = Date.now() - scanStart;
