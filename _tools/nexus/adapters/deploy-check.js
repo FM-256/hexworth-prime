@@ -292,19 +292,259 @@ module.exports = function createDeployCheckAdapter({ name, dataPath, projectRoot
         };
     }
 
+    // ── Check 7: HTML Syntax — unclosed script/style tags kill pages ──
+    function checkHtmlSyntax(changedFiles) {
+        const htmlFiles = changedFiles.filter(f =>
+            f.endsWith('.html') && f.startsWith('_app/') &&
+            !f.includes('_archive/') && !f.includes('vault/') && !f.includes('dojo/')
+        );
+        if (htmlFiles.length === 0) return { name: 'HTML Syntax', pass: true, count: 0, details: ['No HTML changed'], severity: 'info' };
+
+        const issues = [];
+        htmlFiles.slice(0, 100).forEach(f => {
+            const fullPath = path.join(projectRoot, f);
+            if (!fs.existsSync(fullPath)) return;
+            const content = fs.readFileSync(fullPath, 'utf8');
+
+            // Count script/style opens vs closes
+            ['script', 'style'].forEach(tag => {
+                const opens = (content.match(new RegExp('<' + tag + '(?:\\s[^>]*)?' + '>', 'gi')) || []).length;
+                const closes = (content.match(new RegExp('</' + tag + '\\s*>', 'gi')) || []).length;
+                if (opens > closes) {
+                    issues.push(`${f}: unclosed <${tag}> tag (${opens} opens, ${closes} closes)`);
+                }
+            });
+        });
+
+        return {
+            name: 'HTML Syntax',
+            pass: issues.length === 0,
+            count: issues.length,
+            details: issues.length ? issues.slice(0, 10) : [`${Math.min(htmlFiles.length, 100)} files checked — syntax OK`],
+            severity: issues.length ? 'high' : 'info'
+        };
+    }
+
+    // ── Check 8: ModuleProgress Dependency — MP calls without script loaded ──
+    function checkModuleProgressDep(changedFiles) {
+        const htmlFiles = changedFiles.filter(f => f.endsWith('.html') && f.startsWith('_app/houses/'));
+        if (htmlFiles.length === 0) return { name: 'ModuleProgress', pass: true, count: 0, details: ['No house HTML changed'], severity: 'info' };
+
+        const issues = [];
+        htmlFiles.slice(0, 100).forEach(f => {
+            const fullPath = path.join(projectRoot, f);
+            if (!fs.existsSync(fullPath)) return;
+            const content = fs.readFileSync(fullPath, 'utf8');
+
+            const usesMP = /ModuleProgress\.complete|ModuleProgress\.completeQuiz|ModuleProgress\.isCompleted/.test(content);
+            const loadsMP = /ModuleProgress\.js/.test(content);
+
+            if (usesMP && !loadsMP) {
+                issues.push(`${f}: calls ModuleProgress but doesn't load ModuleProgress.js`);
+            }
+        });
+
+        return {
+            name: 'ModuleProgress',
+            pass: issues.length === 0,
+            count: issues.length,
+            details: issues.length ? issues.slice(0, 10) : ['All MP dependencies satisfied'],
+            severity: issues.length ? 'high' : 'info'
+        };
+    }
+
+    // ── Check 9: Quiz Answer Verification — verify changed keys match explanations ──
+    function checkQuizAnswerVerification(changedFiles) {
+        const keysChanged = changedFiles.includes('functions/quiz_keys.json');
+        const quizFilesChanged = changedFiles.filter(f => f.includes('.quiz.html'));
+
+        if (!keysChanged && quizFilesChanged.length === 0) {
+            return { name: 'Answer Verify', pass: true, count: 0, details: ['No quiz files or keys changed'], severity: 'info' };
+        }
+
+        const keysPath = path.join(projectRoot, 'functions/quiz_keys.json');
+        if (!fs.existsSync(keysPath)) return { name: 'Answer Verify', pass: true, count: 0, details: ['No keys file'], severity: 'info' };
+
+        const keys = JSON.parse(fs.readFileSync(keysPath, 'utf8'));
+        const issues = [];
+
+        // Check changed quiz files against their keys
+        quizFilesChanged.slice(0, 20).forEach(f => {
+            const fullPath = path.join(projectRoot, f);
+            if (!fs.existsSync(fullPath)) return;
+            const html = fs.readFileSync(fullPath, 'utf8');
+            const midMatch = html.match(/moduleId['"]\s*:\s*['"]([^'"]+)/);
+            if (!midMatch) return;
+            const mid = midMatch[1];
+            const key = keys[mid] || keys[mid + '-quiz'];
+            if (!key) return;
+
+            // Quick verification: check each answer against explanation keywords
+            const rawQ = html.match(/questions:\s*\[([\s\S]*?)\]\s*\}\);/);
+            if (!rawQ) return;
+            const blocks = rawQ[1].split(/\}\s*,\s*\{/);
+
+            blocks.forEach((block, idx) => {
+                if (idx >= key.answers.length) return;
+                const optMatch = block.match(/options['"]\s*:\s*\[([\s\S]*?)\]/);
+                const explMatch = block.match(/explanation['"]\s*:\s*['"]([^'"]*)/);
+                const opts = [];
+                if (optMatch) optMatch[1].replace(/['"]([^'"]*?)['"]/g, (_, o) => { if (o.trim()) opts.push(o); });
+                const cur = key.answers[idx];
+                const expl = (explMatch ? explMatch[1] : '').toLowerCase().substring(0, 200);
+                const curWords = (opts[cur] || '').toLowerCase().split(/[\s,()]+/).filter(w => w.length > 4);
+                const curScore = curWords.filter(w => expl.includes(w)).length;
+                let bestOtherScore = 0;
+                opts.forEach((o, i) => {
+                    if (i === cur) return;
+                    const w = o.toLowerCase().split(/[\s,()]+/).filter(w => w.length > 4);
+                    const s = w.filter(w => expl.includes(w)).length;
+                    if (s > bestOtherScore) bestOtherScore = s;
+                });
+                if (bestOtherScore > curScore + 2 && curWords.length > 2) {
+                    issues.push(`${mid} Q${idx + 1}: answer may be wrong (key=${cur}, better match found)`);
+                }
+            });
+        });
+
+        return {
+            name: 'Answer Verify',
+            pass: issues.length === 0,
+            count: issues.length,
+            details: issues.length ? issues : ['Quiz answers verified against explanations'],
+            severity: issues.length ? 'high' : 'info'
+        };
+    }
+
+    // ── Check 10: Firebase Config — prevent accidental hosting config changes ──
+    function checkFirebaseConfig(changedFiles) {
+        const configFiles = changedFiles.filter(f =>
+            f === 'firebase.json' || f === '.firebaserc' || f === 'firestore.rules'
+        );
+
+        if (configFiles.length === 0) {
+            return { name: 'Firebase Config', pass: true, count: 0, details: ['No Firebase config changed'], severity: 'info' };
+        }
+
+        return {
+            name: 'Firebase Config',
+            pass: false,
+            count: configFiles.length,
+            details: configFiles.map(f => `CHANGED: ${f} — review carefully before deploying`),
+            severity: 'warning'
+        };
+    }
+
+    // ── Check 11: File Size — flag bloated files that hurt performance ──
+    function checkFileSize(changedFiles) {
+        const htmlFiles = changedFiles.filter(f => f.endsWith('.html') && f.startsWith('_app/'));
+        if (htmlFiles.length === 0) return { name: 'File Size', pass: true, count: 0, details: ['No HTML changed'], severity: 'info' };
+
+        const issues = [];
+        const LIMIT = 500 * 1024; // 500KB
+
+        htmlFiles.forEach(f => {
+            const fullPath = path.join(projectRoot, f);
+            if (!fs.existsSync(fullPath)) return;
+            const stat = fs.statSync(fullPath);
+            if (stat.size > LIMIT) {
+                const kb = Math.round(stat.size / 1024);
+                issues.push(`${f}: ${kb}KB (limit: 500KB) — may hurt mobile performance`);
+            }
+        });
+
+        return {
+            name: 'File Size',
+            pass: issues.length === 0,
+            count: issues.length,
+            details: issues.length ? issues : ['All files within size limits'],
+            severity: issues.length ? 'warning' : 'info'
+        };
+    }
+
+    // ── Check 12: Duplicate Module IDs — catch catalog conflicts ──
+    function checkDuplicateIds(changedFiles) {
+        const catalogChanged = changedFiles.some(f => f.includes('ContentCatalog.js') || f.includes('LearningPaths.js'));
+        if (!catalogChanged) return { name: 'Duplicate IDs', pass: true, count: 0, details: ['Catalog not changed'], severity: 'info' };
+
+        const catalogPath = path.join(appDir, 'components/ContentCatalog.js');
+        if (!fs.existsSync(catalogPath)) return { name: 'Duplicate IDs', pass: true, count: 0, details: ['No catalog file'], severity: 'info' };
+
+        const content = fs.readFileSync(catalogPath, 'utf8');
+        const idRegex = /id:\s*['"]([^'"]+)['"]/g;
+        const ids = {};
+        let match;
+        while ((match = idRegex.exec(content)) !== null) {
+            const id = match[1];
+            ids[id] = (ids[id] || 0) + 1;
+        }
+
+        const dupes = Object.entries(ids).filter(([_, count]) => count > 1);
+        return {
+            name: 'Duplicate IDs',
+            pass: dupes.length === 0,
+            count: dupes.length,
+            details: dupes.length ? dupes.slice(0, 10).map(([id, c]) => `${id}: ${c} occurrences`) : ['No duplicate module IDs'],
+            severity: dupes.length ? 'medium' : 'info'
+        };
+    }
+
+    // ── Check 13: Emoji — platform uses webp icons, not emoji ──
+    function checkEmoji(changedFiles) {
+        const htmlFiles = changedFiles.filter(f => f.endsWith('.html') && f.startsWith('_app/houses/'));
+        if (htmlFiles.length === 0) return { name: 'Emoji', pass: true, count: 0, details: ['No house HTML changed'], severity: 'info' };
+
+        const issues = [];
+        // Common emoji ranges (subset — covers most used ones)
+        const emojiRegex = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u;
+
+        htmlFiles.slice(0, 50).forEach(f => {
+            const fullPath = path.join(projectRoot, f);
+            if (!fs.existsSync(fullPath)) return;
+            const content = fs.readFileSync(fullPath, 'utf8');
+
+            // Only check visible content, not script blocks or data attributes
+            const bodyMatch = content.match(/<body[\s\S]*?>([\s\S]*)<\/body>/i);
+            if (!bodyMatch) return;
+            const body = bodyMatch[1].replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '');
+
+            if (emojiRegex.test(body)) {
+                issues.push(`${f}: emoji detected in page body — use webp icons instead`);
+            }
+        });
+
+        return {
+            name: 'Emoji',
+            pass: issues.length === 0,
+            count: issues.length,
+            details: issues.length ? issues.slice(0, 10) : ['No emoji in changed files'],
+            severity: issues.length ? 'low' : 'info'
+        };
+    }
+
     // ── Main: Run all checks ──
     function runFullCheck(quick = false) {
         const changedFiles = getChangedFiles();
         const checks = [];
 
+        // Quick checks (always run)
         checks.push(checkBlocklist(changedFiles));
         checks.push(checkRegression());
         checks.push(checkSecrets(changedFiles));
 
         if (!quick) {
+            // Structural checks
             checks.push(checkQuizKeys(changedFiles));
             checks.push(checkPaths(changedFiles));
             checks.push(checkBrokenLinks(changedFiles));
+            checks.push(checkHtmlSyntax(changedFiles));
+            checks.push(checkModuleProgressDep(changedFiles));
+            // Content checks
+            checks.push(checkQuizAnswerVerification(changedFiles));
+            checks.push(checkFirebaseConfig(changedFiles));
+            checks.push(checkFileSize(changedFiles));
+            checks.push(checkDuplicateIds(changedFiles));
+            checks.push(checkEmoji(changedFiles));
         }
 
         // Overall verdict
