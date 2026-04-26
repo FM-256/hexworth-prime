@@ -60,6 +60,7 @@ class TerminalInstance {
     // BUILD UI
     // ────────────────────────────────────────────────
 
+    /** Build the terminal DOM: output area, input line, and event listeners */
     _build(container) {
         container.setAttribute('role', 'application');
         container.setAttribute('aria-label', 'Terminal emulator');
@@ -131,11 +132,13 @@ class TerminalInstance {
     // FILESYSTEM
     // ────────────────────────────────────────────────
 
+    /** Convert the flat filesystem config into a navigable directory tree */
     _buildFS(fsConfig) {
         // Deep clone the filesystem config
         return JSON.parse(JSON.stringify(fsConfig));
     }
 
+    /** Resolve a relative or absolute path against the current working directory */
     _resolvePath(path) {
         if (!path.startsWith('/')) {
             path = this.cwd + '/' + path;
@@ -151,6 +154,7 @@ class TerminalInstance {
         return '/' + resolved.join('/');
     }
 
+    /** Traverse the filesystem tree and return the node at the given path */
     _getNode(path) {
         const resolved = this._resolvePath(path);
         if (resolved === '/') return this.fs['/'];
@@ -177,6 +181,7 @@ class TerminalInstance {
     // COMMAND EXECUTION
     // ────────────────────────────────────────────────
 
+    /** Parse and execute a command line, dispatching to built-in or custom handlers */
     _execute(line) {
         const trimmed = line.trim();
         // Print the command line
@@ -260,6 +265,7 @@ class TerminalInstance {
         this._scrollToBottom();
     }
 
+    /** Parse a command line into tokens, respecting quoted strings */
     _parseLine(line) {
         // Simple argument parsing (handles basic quoting)
         const parts = [];
@@ -287,6 +293,7 @@ class TerminalInstance {
     // BUILT-IN COMMANDS
     // ────────────────────────────────────────────────
 
+    /** List directory contents with optional -l (long) and -a (hidden) flags */
     _cmdLs(args) {
         let path = this.cwd;
         let showAll = false;
@@ -331,6 +338,7 @@ class TerminalInstance {
         }
     }
 
+    /** Change the current working directory */
     _cmdCd(args) {
         let target = args[0] || '/home/' + this.user;
 
@@ -351,6 +359,7 @@ class TerminalInstance {
         this._appendOutput(this.cwd);
     }
 
+    /** Display file contents to the terminal output */
     _cmdCat(args) {
         if (!args.length) { this._appendError('cat: missing operand'); return; }
 
@@ -401,6 +410,7 @@ class TerminalInstance {
         }
     }
 
+    /** Search the filesystem tree for files matching a name pattern */
     _cmdFind(args) {
         let startPath = '.';
         let namePattern = null;
@@ -499,6 +509,7 @@ class TerminalInstance {
     // TAB COMPLETION
     // ────────────────────────────────────────────────
 
+    /** Handle Tab key: auto-complete commands and file/directory names */
     _tabComplete() {
         const line = this.inputEl.value;
         const parts = line.split(' ');
@@ -577,6 +588,7 @@ class TerminalInstance {
         this.outputEl.appendChild(line);
     }
 
+    /** Append text to the terminal output area (supports HTML via innerHTML) */
     _appendOutput(text) {
         if (!text && text !== '') return;
         // SEC-2: Resolve {{FLAG:id}} tokens via engine
@@ -589,6 +601,7 @@ class TerminalInstance {
         this.outputEl.appendChild(line);
     }
 
+    /** Append an error message (red text) to the terminal output */
     _appendError(text) {
         const line = document.createElement('div');
         line.className = 'term-error';
