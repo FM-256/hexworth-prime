@@ -12,9 +12,16 @@
  *      to point back to the tenant hub (not Hexworth Prime dashboard)
  *   4. Applies tenant branding (CSS variables, page title)
  *   5. Adds a persistent "Return to Hub" button
+ *   6. Provides a toggle to hide/show the shell without unenrolling
  *
  * If no tenant context exists (direct Hexworth Prime users), this
  * script is a complete no-op — zero DOM changes, zero visual impact.
+ *
+ * SHELL TOGGLE (v1.1):
+ * Users enrolled in a tenant can hide the shell to browse Hexworth Prime
+ * without the tenant encapsulation. The enrollment stays intact — only
+ * the visual shell and link overrides are suppressed. A floating pill
+ * lets them re-engage at any time.
  *
  * LOADING:
  * This script should be loaded on EVERY content page, ideally in
@@ -27,12 +34,14 @@
  * Or add to pages that already load components:
  *   Listed alongside AccessGuard.js, ModuleProgress.js, etc.
  *
- * @version 1.0.0
- * @feature WL-2
+ * @version 1.1.0
+ * @feature WL-2, WL-TOGGLE
  */
 
 (function() {
     'use strict';
+
+    var SHELL_HIDDEN_KEY = 'hexworth_tenant_shell_hidden';
 
     // ── Check for tenant context ─────────────────────────
     var raw = null;
@@ -42,6 +51,73 @@
 
     // No tenant = no-op. Direct Hexworth Prime users see nothing.
     if (!raw) return;
+
+    // Parse tenant for name (needed even when hidden, for the re-engage pill)
+    var tenantPeek = null;
+    try { tenantPeek = JSON.parse(raw); } catch (e) {}
+
+    // ── Shell hidden? Show re-engage pill instead ────────
+    // The user toggled the shell off. Enrollment is intact but the
+    // visual shell, link overrides, and branding are all suppressed.
+    // A small floating pill lets them re-enter the tenant experience.
+    var shellHidden = false;
+    try { shellHidden = sessionStorage.getItem(SHELL_HIDDEN_KEY) === 'true'; } catch (e) {}
+
+    if (shellHidden) {
+        var tenantName = (tenantPeek && tenantPeek.branding && tenantPeek.branding.platformName)
+            || (tenantPeek && tenantPeek.name) || 'Tenant';
+        var pillColor = (tenantPeek && tenantPeek.branding && tenantPeek.branding.primaryColor) || '#06b6d4';
+
+        function injectPill() {
+            if (!document.body) {
+                document.addEventListener('DOMContentLoaded', injectPill);
+                return;
+            }
+            var pill = document.createElement('button');
+            pill.id = 'tenant-reenter-pill';
+            pill.title = 'Re-enter ' + tenantName + ' tenant view';
+            pill.textContent = tenantName;
+            pill.style.cssText = [
+                'position: fixed',
+                'bottom: 20px',
+                'right: 20px',
+                'z-index: 99999',
+                'background: ' + pillColor,
+                'color: #fff',
+                'border: none',
+                'padding: 8px 16px',
+                'border-radius: 20px',
+                'font-size: 0.72rem',
+                'font-weight: 600',
+                'letter-spacing: 0.04em',
+                'cursor: pointer',
+                'box-shadow: 0 2px 12px rgba(0,0,0,0.3)',
+                'transition: all 0.2s',
+                'opacity: 0.85'
+            ].join(';');
+            pill.addEventListener('mouseover', function() { this.style.opacity = '1'; this.style.transform = 'scale(1.05)'; });
+            pill.addEventListener('mouseout', function() { this.style.opacity = '0.85'; this.style.transform = 'scale(1)'; });
+            pill.addEventListener('click', function() {
+                // Re-engage: clear the hidden flag, reload into full shell
+                try { sessionStorage.removeItem(SHELL_HIDDEN_KEY); } catch (e) {}
+                window.location.reload();
+            });
+            document.body.appendChild(pill);
+        }
+        injectPill();
+
+        // Expose toggle API for external use
+        window.TenantShellToggle = {
+            isHidden: function() { return true; },
+            show: function() {
+                try { sessionStorage.removeItem(SHELL_HIDDEN_KEY); } catch (e) {}
+                window.location.reload();
+            }
+        };
+
+        console.log('%c[TENANT] Shell hidden — pill active for: ' + tenantName, 'color: #94a3b8');
+        return; // ← Skip all shell injection
+    }
 
     // Prevent duplicate injection. The auto-loaders in AccessGuard/ModuleProgress/
     // FirebaseAuth use __tenantShellRequested to ensure only one <script> is created.
@@ -161,6 +237,35 @@
     });
     rightSide.appendChild(hubBtn);
 
+    // Toggle button: hide the tenant shell without unenrolling
+    var toggleBtn = document.createElement('button');
+    toggleBtn.textContent = 'Exit Shell';
+    toggleBtn.title = 'Browse Hexworth Prime without the tenant wrapper. Your enrollment stays intact.';
+    toggleBtn.style.cssText = [
+        'background: transparent',
+        'border: 1px solid rgba(255,255,255,0.08)',
+        'color: #64748b',
+        'padding: 4px 12px',
+        'border-radius: 4px',
+        'font-size: 0.72rem',
+        'cursor: pointer',
+        'transition: all 0.2s'
+    ].join(';');
+    toggleBtn.addEventListener('mouseover', function() {
+        this.style.borderColor = 'rgba(255,255,255,0.2)';
+        this.style.color = '#94a3b8';
+    });
+    toggleBtn.addEventListener('mouseout', function() {
+        this.style.borderColor = 'rgba(255,255,255,0.08)';
+        this.style.color = '#64748b';
+    });
+    toggleBtn.addEventListener('click', function() {
+        // Hide the shell — enrollment stays, only visual wrapper goes away
+        try { sessionStorage.setItem(SHELL_HIDDEN_KEY, 'true'); } catch (e) {}
+        window.location.reload();
+    });
+    rightSide.appendChild(toggleBtn);
+
     headerBar.appendChild(leftSide);
     headerBar.appendChild(rightSide);
 
@@ -259,6 +364,17 @@
             }
         });
     }
+
+    // ── Public toggle API ─────────────────────────────────
+    // Allows other components to check shell state or toggle it
+    window.TenantShellToggle = {
+        isHidden: function() { return false; },
+        hide: function() {
+            try { sessionStorage.setItem(SHELL_HIDDEN_KEY, 'true'); } catch (e) {}
+            window.location.reload();
+        },
+        show: function() { /* already showing */ }
+    };
 
     // ── Console log ──────────────────────────────────────
     console.log('%c[TENANT] Shell active: ' + (b.platformName || tenant.name), 'color: ' + (b.primaryColor || '#06b6d4'));
