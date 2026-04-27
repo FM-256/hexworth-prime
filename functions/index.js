@@ -6918,9 +6918,9 @@ exports.gradePFIProject = onCall({ ...cfOptions, timeoutSeconds: 60 }, async (re
             .where('timestamp', '>', oneHourAgo)
             .get();
 
-        if (recentAttempts.size >= 5) {
+        if (recentAttempts.size >= 20) {
             throw new HttpsError('resource-exhausted',
-                'Rate limit: 5 submissions per project per hour. Try again later.');
+                'Rate limit: 20 submissions per project per hour. Try again later.');
         }
     } catch (e) {
         if (e instanceof HttpsError) throw e;
@@ -6942,8 +6942,10 @@ exports.gradePFIProject = onCall({ ...cfOptions, timeoutSeconds: 60 }, async (re
     }).catch(e => console.warn('[PFI] Attempt log failed:', e.message));
 
     // ── Call Cloud Run grader ──
-    const GRADER_URL = process.env.PFI_GRADER_URL || '';
+    const GRADER_URL = process.env.PFI_GRADER_URL || 'https://pfi-grader-fgafgj7uoa-uc.a.run.app';
     let gradeResult;
+
+    console.log(`[PFI] Mode: ${isMultiFile ? 'multi' : 'single'}, Code length: ${(code || '').length}, GRADER_URL: ${GRADER_URL ? 'SET' : 'EMPTY'}`);
 
     if (GRADER_URL) {
         // Production: call Cloud Run service
@@ -6963,6 +6965,7 @@ exports.gradePFIProject = onCall({ ...cfOptions, timeoutSeconds: 60 }, async (re
                 }
             });
             gradeResult = response.data;
+            console.log(`[PFI] Cloud Run returned: success=${gradeResult?.success}, results=${gradeResult?.results?.length}, time=${gradeResult?.executionTime}`);
         } catch (e) {
             console.error('[PFI] Cloud Run grader call failed:', e.message);
             throw new HttpsError('internal', 'Grading service unavailable. Please try again.');
