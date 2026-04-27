@@ -6999,11 +6999,22 @@ exports.gradePFIProject = onCall({ ...cfOptions, timeoutSeconds: 60 }, async (re
         totalWeight += weight;
         if (passed) earnedWeight += weight;
 
+        // Collect evidence from Cloud Run check results
+        const evidence = [];
+        if (result && result.checks) {
+            for (const check of result.checks) {
+                if (check.evidence && check.evidence.length > 0) {
+                    evidence.push(...check.evidence);
+                }
+            }
+        }
+
         testResults.push({
             testId: test.id,
             name: test.name,
             passed: passed,
-            category: test.category
+            category: test.category,
+            evidence: evidence.slice(0, 5) // Cap at 5 per test
         });
     }
 

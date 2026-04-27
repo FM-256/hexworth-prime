@@ -642,6 +642,16 @@
             html += '<div class="pfig-test">';
             html += '<span class="pfig-test-icon ' + (t.passed ? 'pass' : 'fail') + '">' + (t.passed ? '\u2713' : '\u2717') + '</span>';
             html += '<span style="color:' + (t.passed ? '#c9d1d9' : '#94a3b8') + '">' + _esc(t.name) + '</span>';
+            // Show evidence for passed tests
+            if (t.passed && t.evidence && t.evidence.length > 0) {
+                html += '<div style="margin-left:26px;margin-top:4px;margin-bottom:6px;">';
+                t.evidence.forEach(function(ev) {
+                    var lineLabel = ev.line > 0 ? '<span style="color:#6b7280;font-size:0.7rem;min-width:45px;display:inline-block;">Line ' + ev.line + '</span>' : '';
+                    html += '<div style="font-family:monospace;font-size:0.72rem;color:#22c55e;background:rgba(34,197,94,0.06);padding:3px 8px;border-radius:4px;margin-bottom:2px;border-left:2px solid rgba(34,197,94,0.3);">' +
+                        lineLabel + '<code style="color:#a7f3d0;">' + _esc(ev.text).substring(0, 120) + '</code></div>';
+                });
+                html += '</div>';
+            }
             html += '</div>';
         });
 
