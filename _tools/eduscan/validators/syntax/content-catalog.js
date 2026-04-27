@@ -249,6 +249,9 @@ class ContentCatalogValidator {
             const htmlFiles = this._findHtmlFiles(houseDir);
 
             for (const filePath of htmlFiles) {
+                // Skip archived content
+                if (filePath.includes('_archive')) continue;
+
                 // Only check files matching content patterns
                 if (!CONTENT_PATTERNS.some(p => p.test(filePath))) continue;
 
