@@ -435,6 +435,7 @@
                     '<div class="pfig-actions">' +
                         '<button class="pfig-btn pfig-btn-submit" id="pfig-btn-submit">Submit for Grading</button>' +
                         '<button class="pfig-btn pfig-btn-upload" id="pfig-btn-upload">Upload .py File</button>' +
+                        '<input type="file" id="pfig-file-input" accept=".py,.txt" style="display:none">' +
                         '<span class="pfig-status" id="pfig-status"></span>' +
                     '</div>' +
                 '</div>' +
