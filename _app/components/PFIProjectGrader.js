@@ -571,13 +571,28 @@
             payload.code = code;
         }
 
-        // Wait for auth to resolve before checking — tenant users may still be initializing
+        // Wait for auth to resolve — tenant users may still be initializing
         if (typeof FirebaseAuth !== 'undefined' && typeof FirebaseAuth.waitForAuth === 'function') {
-            await FirebaseAuth.waitForAuth();
+            _setStatus('Waiting for authentication...', '');
+            // Timeout after 8 seconds — don't hang forever if SDK fails to load
+            var authTimeout = new Promise(function(resolve) { setTimeout(resolve, 8000); });
+            await Promise.race([FirebaseAuth.waitForAuth(), authTimeout]);
         }
         if (typeof FirebaseAuth === 'undefined' || !FirebaseAuth.isSignedIn()) {
-            _setStatus('You must be signed in to submit.', 'error');
-            return;
+            // Try anonymous sign-in as fallback for tenant users who have no Firebase session
+            if (typeof FirebaseAuth !== 'undefined' && typeof FirebaseAuth.signInAnonymously === 'function') {
+                _setStatus('Creating session...', '');
+                try {
+                    await FirebaseAuth.signInAnonymously();
+                    // Wait for auth state to update
+                    await new Promise(function(resolve) { setTimeout(resolve, 1500); });
+                } catch (e) { /* silent */ }
+            }
+            // Check again after anonymous sign-in attempt
+            if (typeof FirebaseAuth === 'undefined' || !FirebaseAuth.isSignedIn()) {
+                _setStatus('You must be signed in to submit. Try refreshing the page.', 'error');
+                return;
+            }
         }
 
         _submitting = true;
