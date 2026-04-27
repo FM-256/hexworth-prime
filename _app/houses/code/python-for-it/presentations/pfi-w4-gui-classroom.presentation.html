@@ -1,0 +1,1889 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control: require sorted house membership before content is visible -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress tracking and achievement unlocks -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GUI Programming with Tkinter | Python for IT</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Viewport-locked deck -- only the .active slide is displayed */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Max-width wrapper — classroom projection needs full width */
+        .slide-inner {
+            width: 100%; max-width: 1400px;
+            display: flex; flex-direction: column; gap: 18px;
+            padding: 0 20px;
+        }
+
+        /* Gold progress bar pinned to top of viewport */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c9a83a; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.15); color: #c9a83a; border-color: #c9a83a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button -- shown only on the last slide via JS */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography — sized for classroom projection */
+        .slide-meta { font-size: 0.9rem; color: #c9a83a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 2.2rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 1.15rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip for scenario context and instructor notes */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.08); border-left: 4px solid #c9a83a;
+            border-radius: 0 8px 8px 0; padding: 14px 20px;
+            font-size: 1.05rem; color: #fef3c7; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 10px; padding: 14px 20px; font-size: 1.0rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+        .title-hero .big-title { font-size: 3rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 32px; justify-content: center; margin-top: 8px;
+            font-size: 1rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 32px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids -- 3-column and 2-column layouts */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 10px;
+            padding: 16px 18px; border-left: 4px solid #c9a83a;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 1.1rem; font-weight: 700; color: #f1f5f9; margin-bottom: 6px; }
+        .card .card-desc  { font-size: 0.95rem; color: #94a3b8; line-height: 1.5; }
+        .card.c-green { border-left-color: #3ab577; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #c9a83a; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+
+        /* Section label -- small-caps divider text */
+        .section-label { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Numbered summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 10px; }
+        .fact-row { display: flex; gap: 14px; align-items: baseline; font-size: 1.05rem; }
+        .fact-num  { font-size: 0.95rem; font-weight: 700; color: #c9a83a; min-width: 26px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 2px 6px;
+            border-radius: 3px; font-size: 0.9em;
+        }
+
+        /* Python code block — sized for classroom projection */
+        .code-block {
+            background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px; padding: 14px 18px;
+            font-family: 'Courier New', monospace; font-size: 1.0rem;
+            color: #e2e8f0; line-height: 1.7; white-space: pre;
+        }
+        .code-block .kw { color: #c9a83a; }
+        .code-block .fn { color: #06b6d4; }
+        .code-block .st { color: #3ab577; }
+        .code-block .cm { color: #64748b; }   /* slightly brighter for projection */
+        .code-block .nb { color: #f472b6; }
+        .code-block .er { color: #ef4444; }
+
+        /* Inline code span — bigger for readability */
+        .ic {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 2px 7px;
+            border-radius: 4px; font-size: 0.92em;
+        }
+
+        /* Two-column layout for code + result side-by-side */
+        .code-result-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+        }
+
+        /* -- Window mockup styles -- */
+        .win-mock {
+            background: #1e1e2e; border-radius: 8px; overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .win-titlebar {
+            background: #2a2a3a; padding: 7px 12px; display: flex; align-items: center; gap: 8px;
+            font-size: 0.88rem; color: #94a3b8;
+        }
+        .win-dots { display: flex; gap: 5px; }
+        .win-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .win-dot.red { background: #ef4444; }
+        .win-dot.yellow { background: #eab308; }
+        .win-dot.green { background: #3ab577; }
+        .win-body { padding: 12px; }
+
+        /* -- Mockup widget styles (for Tkinter UI simulations) -- */
+        .mock-label { color: #e2e8f0; font-size: 0.82rem; padding: 3px 0; }
+        .mock-btn {
+            background: #e0e0e0; color: #111; border: 1px solid #aaabb0;
+            padding: 4px 16px; font-size: 0.95rem; border-radius: 2px;
+            cursor: default; display: inline-block; text-align: center;
+        }
+        .mock-entry {
+            background: #fff; border: 1px solid #aaabb0; padding: 3px 6px;
+            font-size: 0.95rem; color: #111; border-radius: 1px; min-width: 140px;
+        }
+        .mock-text {
+            background: #fff; border: 1px solid #aaabb0; padding: 4px 6px;
+            font-size: 0.88rem; color: #111; border-radius: 1px; min-height: 50px;
+            font-family: 'Courier New', monospace; line-height: 1.4;
+        }
+        .mock-check {
+            display: flex; align-items: center; gap: 5px; font-size: 0.95rem; color: #e2e8f0;
+        }
+        .mock-check-box {
+            width: 14px; height: 14px; border: 1px solid #aaabb0; background: #fff; border-radius: 1px;
+        }
+        .mock-listbox {
+            background: #fff; border: 1px solid #aaabb0; padding: 2px;
+            font-size: 0.88rem; color: #111; min-height: 48px; line-height: 1.5;
+        }
+        .mock-listbox .selected { background: #0078d4; color: #fff; padding: 0 4px; }
+        .mock-listbox div { padding: 0 4px; }
+        .mock-menubar {
+            background: #f0f0f0; border-bottom: 1px solid #ccc; padding: 2px 0;
+            display: flex; gap: 0; font-size: 0.88rem; color: #111;
+        }
+        .mock-menubar span { padding: 2px 10px; cursor: default; }
+        .mock-menubar span:hover { background: #0078d4; color: #fff; }
+        .mock-statusbar {
+            background: #e8e8e8; border-top: 1px solid #ccc; padding: 2px 8px;
+            font-size: 0.65rem; color: #555;
+        }
+
+        /* -- CSS Animations for visual slides -- */
+        @keyframes typeCursor { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        @keyframes termType {
+            0% { width: 0; } 40% { width: 100%; } 60% { width: 100%; } 100% { width: 100%; }
+        }
+        @keyframes guiPop {
+            0% { transform: scale(0.8); opacity: 0; }
+            60% { transform: scale(1.02); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes pulseCycle {
+            0%, 100% { opacity: 0.3; } 50% { opacity: 1; }
+        }
+        @keyframes flowStep1 { 0%, 16% { opacity: 1; fill: #c9a83a; } 17%, 100% { opacity: 0.3; fill: #475569; } }
+        @keyframes flowStep2 { 0%, 16% { opacity: 0.3; fill: #475569; } 17%, 33% { opacity: 1; fill: #06b6d4; } 34%, 100% { opacity: 0.3; fill: #475569; } }
+        @keyframes flowStep3 { 0%, 33% { opacity: 0.3; fill: #475569; } 34%, 50% { opacity: 1; fill: #3ab577; } 51%, 100% { opacity: 0.3; fill: #475569; } }
+        @keyframes flowStep4 { 0%, 50% { opacity: 0.3; fill: #475569; } 51%, 66% { opacity: 1; fill: #f472b6; } 67%, 100% { opacity: 0.3; fill: #475569; } }
+        @keyframes flowStep5 { 0%, 66% { opacity: 0.3; fill: #475569; } 67%, 83% { opacity: 1; fill: #c9a83a; } 84%, 100% { opacity: 0.3; fill: #475569; } }
+        @keyframes dataFlowPulse {
+            0% { stroke-dashoffset: 20; } 100% { stroke-dashoffset: 0; }
+        }
+        @keyframes entryTyping {
+            0% { width: 0; } 100% { width: 100%; }
+        }
+
+        /* Terminal mockup for CLI side */
+        .term-mock {
+            background: #0c0c14; border-radius: 8px; overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .term-titlebar {
+            background: #1a1a2e; padding: 7px 12px; display: flex; align-items: center; gap: 8px;
+            font-size: 0.88rem; color: #64748b;
+        }
+        .term-body {
+            padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.95rem; color: #3ab577; line-height: 1.5;
+        }
+        .term-prompt { color: #06b6d4; }
+        .term-typed {
+            display: inline-block; overflow: hidden; white-space: nowrap;
+            border-right: 2px solid #3ab577;
+            animation: termType 3s steps(25) infinite, typeCursor 0.6s step-end infinite;
+        }
+        .term-output { color: #94a3b8; }
+
+        /* Side-by-side comparison */
+        .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .compare-label {
+            text-align: center; font-size: 0.95rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px;
+        }
+        .compare-label.cli-label { color: #06b6d4; }
+        .compare-label.gui-label { color: #c9a83a; }
+
+        /* Widget gallery 3x2 grid */
+        .widget-gallery {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+        .widget-cell {
+            background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px; padding: 12px; display: flex; flex-direction: column;
+            align-items: center; gap: 8px;
+        }
+        .widget-cell .widget-name {
+            font-size: 0.88rem; font-weight: 700; color: #c9a83a;
+            text-transform: uppercase; letter-spacing: 0.06em;
+        }
+
+        /* Layout manager comparison */
+        .layout-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        .layout-col {
+            background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 8px;
+        }
+        .layout-col .layout-title {
+            font-size: 0.88rem; font-weight: 700; color: #f1f5f9; text-align: center;
+        }
+        .layout-demo {
+            background: rgba(0, 0, 0, 0.3); border-radius: 4px; padding: 8px;
+            min-height: 80px; display: flex;
+        }
+        .layout-box {
+            border-radius: 3px; font-size: 0.65rem; font-weight: 700; color: #000;
+            display: flex; align-items: center; justify-content: center;
+            padding: 4px 6px;
+        }
+
+        /* Calculator mockup */
+        .calc-display {
+            background: #1a1a2a; border: 1px solid #444; padding: 8px 12px;
+            text-align: right; font-family: 'Courier New', monospace;
+            font-size: 1.3rem; color: #3ab577; border-radius: 4px; margin-bottom: 6px;
+        }
+        .calc-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
+        }
+        .calc-btn {
+            background: #e0e0e0; border: 1px solid #aaa; padding: 8px 4px;
+            text-align: center; font-size: 0.82rem; font-weight: 700; color: #111;
+            border-radius: 3px; cursor: default;
+        }
+        .calc-btn.op { background: #c9a83a; color: #000; }
+        .calc-btn.eq { background: #3ab577; color: #000; }
+
+        /* Log viewer colors */
+        .log-info    { color: #06b6d4; }
+        .log-warning { color: #eab308; }
+        .log-error   { color: #ef4444; }
+        .log-debug   { color: #94a3b8; }
+        .mock-dropdown {
+            background: #fff; border: 1px solid #aaabb0; padding: 3px 16px 3px 6px;
+            font-size: 0.88rem; color: #111; border-radius: 1px;
+            appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23666'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 5px center;
+            padding-right: 18px;
+        }
+
+        /* Navigation links for final slide */
+        .nav-links { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        .nav-link {
+            display: flex; flex-direction: column; align-items: center; gap: 8px;
+            padding: 16px; border-radius: 8px;
+            background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08);
+            text-decoration: none; transition: background 0.2s, border-color 0.2s;
+        }
+        .nav-link:hover { background: rgba(201, 168, 58, 0.1); border-color: #c9a83a; }
+        .nav-link .nav-link-icon { font-size: 1.8rem; }
+        .nav-link .nav-link-title { color: #f1f5f9; font-weight: 700; font-size: 0.95rem; }
+        .nav-link .nav-link-desc { color: #94a3b8; font-size: 0.95rem; text-align: center; }
+
+        /* Color palette swatch row */
+        .color-palette { display: flex; gap: 6px; flex-wrap: wrap; }
+        .color-swatch {
+            width: 50px; height: 50px; border-radius: 6px; display: flex;
+            align-items: flex-end; justify-content: center; padding-bottom: 3px;
+            font-size: 0.55rem; font-weight: 700; border: 1px solid rgba(255,255,255,0.15);
+        }
+
+        /* Mistake row with X/check icons */
+        .mistake-row {
+            display: flex; gap: 10px; align-items: flex-start; font-size: 0.82rem;
+            padding: 8px 12px; border-radius: 6px;
+            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+        }
+        .mistake-icon {
+            flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.88rem; font-weight: 800;
+        }
+        .mistake-icon.bad  { background: rgba(239,68,68,0.2); color: #ef4444; }
+        .mistake-icon.good { background: rgba(58,181,119,0.2); color: #3ab577; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 12px; } .slide-title { font-size: 1.8rem; } .title-hero .big-title { font-size: 2.4rem; } }
+        @media (max-width: 768px)  {
+            .card-grid, .widget-gallery, .layout-grid, .nav-links { grid-template-columns: 1fr; }
+            .card-grid-2, .compare-grid, .code-result-grid { grid-template-columns: 1fr; }
+            .slide-title { font-size: 1.3rem; }
+            .calc-grid { grid-template-columns: repeat(4, 1fr); }
+            .color-palette { justify-content: center; }
+        }
+    </style>
+    <script src="../../../../components/TryItNow.js"></script>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">GUI Programming with Tkinter</h1>
+
+
+<!-- Gold progress bar -- width updated by goToSlide() on every navigation event -->
+<div id="progress-bar" style="width:5%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 20 &nbsp;|&nbsp; COP1034C Obj 7 &nbsp;|&nbsp; Week 4</div>
+        <div class="title-hero">
+            <div class="big-title">
+                <span class="accent">GUI Programming with Tkinter</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Python for IT &nbsp;&bull;&nbsp; Week 4
+            </div>
+        </div>
+        <div class="scenario-strip">
+            For three weeks you have built tools that live in a terminal. They work -- but you cannot hand a CLI to a non-technical user and expect results. This week changes that. You will learn to wrap Python logic in real graphical windows with buttons, text fields, menus, and forms. By slide 20 you will have every concept needed to build a professional IT dashboard.
+        </div>
+        <div class="title-meta-row">
+            <span>20 Slides</span>
+            <span>COP1034C Obj 7</span>
+            <span>Week 4</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- THE IMPORT ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 20</div>
+        <div class="slide-title">The Import: <span class="accent">import tkinter as tk</span></div>
+        <div class="slide-subtitle">One line gives you everything. No pip install. Ships with Python.</div>
+
+        <div class="code-result-grid">
+            <div>
+                <div class="section-label" style="margin-bottom:4px;">The Line</div>
+                <div class="code-block"><span class="kw">import</span> tkinter <span class="kw">as</span> tk</div>
+
+                <div class="card c-gold" style="margin-top:10px;">
+                    <div class="card-label">What is tkinter?</div>
+                    <div class="card-desc">Python's built-in GUI library. It wraps Tcl/Tk, a cross-platform toolkit that has shipped with Python since version 1.x. You do not need to install anything.</div>
+                </div>
+                <div class="card c-cyan" style="margin-top:6px;">
+                    <div class="card-label">Why "as tk"?</div>
+                    <div class="card-desc">The word <span class="ic">tkinter</span> is long. The alias <span class="ic">tk</span> saves typing: <span class="ic">tk.Label</span> instead of <span class="ic">tkinter.Label</span>. Every tutorial and doc uses this alias.</div>
+                </div>
+                <div class="card c-green" style="margin-top:6px;">
+                    <div class="card-label">What does it give you?</div>
+                    <div class="card-desc">Access to 15+ widget classes (Label, Button, Entry, Text, Frame, Menu...), layout managers, event binding, variable classes (StringVar, IntVar), and dialog boxes.</div>
+                </div>
+            </div>
+
+            <div>
+                <div class="section-label" style="margin-bottom:4px;">Visual Breakdown</div>
+                <svg width="100%" height="200" viewBox="0 0 440 200" style="max-width:100%;">
+                    <!-- Background -->
+                    <rect x="10" y="20" width="420" height="50" rx="8" fill="rgba(0,0,0,0.4)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+                    <!-- import -->
+                    <text x="30" y="52" fill="#c9a83a" font-size="18" font-weight="700" font-family="Courier New">import</text>
+                    <!-- tkinter -->
+                    <text x="118" y="52" fill="#e2e8f0" font-size="18" font-weight="700" font-family="Courier New">tkinter</text>
+                    <!-- as -->
+                    <text x="224" y="52" fill="#c9a83a" font-size="18" font-weight="700" font-family="Courier New">as</text>
+                    <!-- tk -->
+                    <text x="262" y="52" fill="#06b6d4" font-size="18" font-weight="700" font-family="Courier New">tk</text>
+
+                    <!-- Annotation arrows -->
+                    <line x1="60" y1="72" x2="60" y2="95" stroke="#c9a83a" stroke-width="1.5"/>
+                    <text x="60" y="110" text-anchor="middle" fill="#c9a83a" font-size="10" font-family="Segoe UI">Python keyword</text>
+                    <text x="60" y="122" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="Segoe UI">"load this module"</text>
+
+                    <line x1="150" y1="72" x2="150" y2="130" stroke="#e2e8f0" stroke-width="1.5"/>
+                    <text x="150" y="145" text-anchor="middle" fill="#e2e8f0" font-size="10" font-family="Segoe UI">The module name</text>
+                    <text x="150" y="157" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="Segoe UI">stdlib GUI library</text>
+
+                    <line x1="235" y1="72" x2="235" y2="95" stroke="#c9a83a" stroke-width="1.5"/>
+                    <text x="235" y="110" text-anchor="middle" fill="#c9a83a" font-size="10" font-family="Segoe UI">"rename it to"</text>
+
+                    <line x1="272" y1="72" x2="272" y2="130" stroke="#06b6d4" stroke-width="1.5"/>
+                    <text x="272" y="145" text-anchor="middle" fill="#06b6d4" font-size="10" font-family="Segoe UI">Your shortcut alias</text>
+                    <text x="272" y="157" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="Segoe UI">use tk.Widget everywhere</text>
+
+                    <!-- No pip badge -->
+                    <rect x="300" y="85" width="120" height="32" rx="6" fill="rgba(58,181,119,0.15)" stroke="#3ab577" stroke-width="1"/>
+                    <text x="360" y="106" text-anchor="middle" fill="#3ab577" font-size="11" font-weight="700" font-family="Segoe UI">No pip install</text>
+                </svg>
+
+                <div class="box box-green" style="font-size:0.95rem;">
+                    This is the ONLY import you need for basic GUI programming. It ships with every standard Python install. Verify it works: <span class="ic">python3 -m tkinter</span> opens a test window.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- YOUR FIRST WINDOW ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 20</div>
+        <div class="slide-title">Your First Window: <span class="accent">Three Lines</span></div>
+        <div class="slide-subtitle">The absolute minimum working GUI program. Three statements, one window.</div>
+
+        <div class="code-result-grid">
+            <div>
+                <div class="section-label" style="margin-bottom:4px;">The Code</div>
+                <div class="code-block"><span class="kw">import</span> tkinter <span class="kw">as</span> tk
+
+root = tk.<span class="fn">Tk</span>()              <span class="cm"># 1. Create the window</span>
+root.<span class="fn">title</span>(<span class="st">"My App"</span>)       <span class="cm"># 2. Set the title bar</span>
+root.<span class="fn">mainloop</span>()            <span class="cm"># 3. Start the event loop</span></div>
+
+                <div class="card c-gold" style="margin-top:8px;">
+                    <div class="card-label">What is root?</div>
+                    <div class="card-desc"><span class="ic">root</span> is the main window object. Every widget you create will live inside it. The name "root" is convention -- you could call it <span class="ic">window</span> or <span class="ic">app</span>.</div>
+                </div>
+                <div class="card c-cyan" style="margin-top:6px;">
+                    <div class="card-label">What is Tk()?</div>
+                    <div class="card-desc"><span class="ic">tk.Tk()</span> is the constructor for the main application window. It initializes the Tcl/Tk interpreter and creates a blank window on your screen.</div>
+                </div>
+                <div class="card c-green" style="margin-top:6px;">
+                    <div class="card-label">Why mainloop()?</div>
+                    <div class="card-desc">Without it, the window flashes and disappears. <span class="ic">mainloop()</span> is an infinite loop that listens for events (clicks, keys, resizes). Your program "freezes" here -- that is by design.</div>
+                </div>
+            </div>
+
+            <div>
+                <div class="section-label" style="margin-bottom:4px;">The Result</div>
+                <div class="win-mock" style="animation: guiPop 0.8s ease-out both;">
+                    <div class="win-titlebar">
+                        <div class="win-dots"><div class="win-dot red"></div><div class="win-dot yellow"></div><div class="win-dot green"></div></div>
+                        My App
+                    </div>
+                    <div class="win-body" style="min-height:120px; display:flex; align-items:center; justify-content:center;">
+                        <svg width="240" height="90" viewBox="0 0 240 90">
+                            <text x="120" y="24" text-anchor="middle" fill="#475569" font-size="11" font-family="Segoe UI">Empty window -- 200x200 default</text>
+                            <rect x="35" y="34" width="170" height="46" rx="3" fill="none" stroke="#475569" stroke-width="1" stroke-dasharray="4 3"/>
+                            <text x="120" y="62" text-anchor="middle" fill="#64748b" font-size="9" font-family="Segoe UI">Widgets will go here</text>
+                        </svg>
+                    </div>
+                </div>
+
+                <div class="box box-red" style="margin-top:10px; font-size:0.95rem;">
+                    <div class="box-label">Why does it "freeze"?</div>
+                    <span class="ic">mainloop()</span> does not freeze your app -- it IS your app. Any code you write AFTER mainloop() only runs when the user closes the window. All logic happens inside event handlers.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- WINDOW SIZE & POSITION ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 20</div>
+        <div class="slide-title">Window Size &amp; Position: <span class="accent">geometry()</span></div>
+        <div class="slide-subtitle">Control exactly how big your window is and where it appears on screen.</div>
+
+        <div class="code-result-grid">
+            <div>
+                <div class="section-label" style="margin-bottom:4px;">Complete Example</div>
+                <div class="code-block"><span class="kw">import</span> tkinter <span class="kw">as</span> tk
+
+root = tk.<span class="fn">Tk</span>()
+root.<span class="fn">title</span>(<span class="st">"My App"</span>)
+root.<span class="fn">geometry</span>(<span class="st">"400x300+100+50"</span>)
+<span class="cm">#            W x H + X  + Y</span>
+<span class="cm"># 400 = width in pixels</span>
+<span class="cm"># 300 = height in pixels</span>
+<span class="cm"># +100 = pixels from left edge of screen</span>
+<span class="cm"># +50  = pixels from top edge of screen</span>
+root.<span class="fn">resizable</span>(<span class="kw">False</span>, <span class="kw">False</span>)
+root.<span class="fn">configure</span>(bg=<span class="st">"#1a1a2e"</span>)
+root.<span class="fn">mainloop</span>()</div>
+
+                <div class="box box-green" style="margin-top:8px;">
+                    <div class="box-label">For This Course</div>
+                    Use <span class="ic">geometry()</span> to set size + <span class="ic">resizable(False, False)</span> to lock it. That covers 95% of projects.
+                </div>
+            </div>
+
+            <div>
+                <div class="section-label" style="margin-bottom:4px;">Coordinate Diagram</div>
+                <svg width="100%" height="260" viewBox="0 0 400 260" style="max-width:100%;">
+                    <!-- Screen outline -->
+                    <rect x="10" y="10" width="380" height="240" rx="8" fill="#0c0c14" stroke="#475569" stroke-width="1.5"/>
+                    <text x="200" y="30" text-anchor="middle" fill="#64748b" font-size="10" font-family="Segoe UI">Your Screen (monitor)</text>
+
+                    <!-- Origin marker -->
+                    <circle cx="20" cy="40" r="4" fill="#ef4444"/>
+                    <text x="28" y="44" fill="#ef4444" font-size="9" font-family="Segoe UI" font-weight="700">(0,0)</text>
+
+                    <!-- X arrow -->
+                    <line x1="20" y1="55" x2="120" y2="55" stroke="#c9a83a" stroke-width="2" marker-end="url(#geo-arrow)"/>
+                    <text x="70" y="50" text-anchor="middle" fill="#c9a83a" font-size="10" font-family="Segoe UI" font-weight="700">+100 (X)</text>
+
+                    <!-- Y arrow -->
+                    <line x1="120" y1="40" x2="120" y2="90" stroke="#06b6d4" stroke-width="2" marker-end="url(#geo-arrow)"/>
+                    <text x="143" y="70" fill="#06b6d4" font-size="10" font-family="Segoe UI" font-weight="700">+50 (Y)</text>
+
+                    <!-- Window rectangle -->
+                    <rect x="120" y="90" width="200" height="140" rx="6" fill="#1e1e2e" stroke="#c9a83a" stroke-width="2"/>
+                    <!-- Window title bar -->
+                    <rect x="120" y="90" width="200" height="20" rx="6" fill="#2a2a3a"/>
+                    <rect x="120" y="104" width="200" height="6" fill="#2a2a3a"/>
+                    <circle cx="133" cy="100" r="4" fill="#ef4444"/>
+                    <circle cx="145" cy="100" r="4" fill="#eab308"/>
+                    <circle cx="157" cy="100" r="4" fill="#3ab577"/>
+                    <text x="180" y="103" fill="#94a3b8" font-size="8" font-family="Segoe UI">My App</text>
+
+                    <!-- Width label -->
+                    <line x1="125" y1="235" x2="315" y2="235" stroke="#f472b6" stroke-width="1.5"/>
+                    <text x="220" y="248" text-anchor="middle" fill="#f472b6" font-size="10" font-family="Segoe UI" font-weight="700">400px wide</text>
+
+                    <!-- Height label -->
+                    <line x1="330" y1="95" x2="330" y2="225" stroke="#3ab577" stroke-width="1.5"/>
+                    <text x="358" y="165" fill="#3ab577" font-size="10" font-family="Segoe UI" font-weight="700">300px tall</text>
+
+                    <defs>
+                        <marker id="geo-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                            <polygon points="0 0, 8 3, 0 6" fill="#94a3b8"/>
+                        </marker>
+                    </defs>
+                </svg>
+
+                <div class="card c-gold" style="margin-top:8px;">
+                    <div class="card-label">resizable(False, False)</div>
+                    <div class="card-desc">Locks the window — users can't drag to resize. First arg = width, second = height. <strong>Use this.</strong> Your layout is designed for a fixed size.</div>
+                </div>
+                <div class="card c-cyan" style="margin-top:6px;">
+                    <div class="card-label">minsize() / maxsize()</div>
+                    <div class="card-desc">Sets boundaries for resizable windows. If you already locked with <span class="ic">resizable(False, False)</span>, these do nothing. Skip them for now.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- COLORS & FONTS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 20</div>
+        <div class="slide-title">Colors &amp; Fonts: <span class="accent">Styling Widgets</span></div>
+        <div class="slide-subtitle">How tkinter handles color values, font tuples, and visual properties.</div>
+
+        <div class="code-result-grid">
+            <div>
+                <div class="section-label" style="margin-bottom:4px;">Color Formats</div>
+                <div class="code-block" style="font-size:0.95rem;"><span class="cm"># Named colors (case-insensitive)</span>
+bg=<span class="st">"red"</span>, fg=<span class="st">"white"</span>, bg=<span class="st">"navy"</span>
+
+<span class="cm"># Hex codes (web-standard)</span>
+bg=<span class="st">"#c9a83a"</span>, fg=<span class="st">"#1a1a2e"</span>
+
+<span class="cm"># Font tuple: (family, size, style)</span>
+font=(<span class="st">"Arial"</span>, <span class="nb">14</span>, <span class="st">"bold"</span>)
+font=(<span class="st">"Courier New"</span>, <span class="nb">12</span>)
+font=(<span class="st">"Helvetica"</span>, <span class="nb">10</span>, <span class="st">"italic"</span>)</div>
+
+                <div class="card c-cyan" style="margin-top:8px;">
+                    <div class="card-label">Key Parameters</div>
+                    <div class="card-desc"><span class="ic">bg=</span> sets background color. <span class="ic">fg=</span> sets text/foreground color. <span class="ic">font=</span> accepts a tuple of (family, size) or (family, size, style). These work on Label, Button, Entry, and most widgets.</div>
+                </div>
+                <div class="card c-green" style="margin-top:6px;">
+                    <div class="card-label">Why Colors Matter</div>
+                    <div class="card-desc">Default tkinter looks dated. Applying consistent colors and fonts makes your IT tools look professional and usable. Users trust polished interfaces more.</div>
+                </div>
+            </div>
+
+            <div>
+                <div class="section-label" style="margin-bottom:4px;">Common Color Palette</div>
+                <div class="color-palette" style="margin-bottom:10px;">
+                    <div class="color-swatch" style="background:#ef4444; color:#fff;">red</div>
+                    <div class="color-swatch" style="background:#3ab577; color:#fff;">green</div>
+                    <div class="color-swatch" style="background:#06b6d4; color:#fff;">cyan</div>
+                    <div class="color-swatch" style="background:#c9a83a; color:#000;">gold</div>
+                    <div class="color-swatch" style="background:#1a1a2e; color:#fff;">#1a1a2e</div>
+                    <div class="color-swatch" style="background:#f1f5f9; color:#111;">#f1f5f9</div>
+                    <div class="color-swatch" style="background:#ffffff; color:#111;">white</div>
+                    <div class="color-swatch" style="background:#000000; color:#fff;">black</div>
+                    <div class="color-swatch" style="background:#f472b6; color:#000;">pink</div>
+                    <div class="color-swatch" style="background:#eab308; color:#000;">yellow</div>
+                    <div class="color-swatch" style="background:#8b5cf6; color:#fff;">purple</div>
+                    <div class="color-swatch" style="background:#475569; color:#fff;">slate</div>
+                </div>
+
+                <div class="section-label" style="margin-bottom:4px;">Styled Example</div>
+                <div class="win-mock">
+                    <div class="win-titlebar">
+                        <div class="win-dots"><div class="win-dot red"></div><div class="win-dot yellow"></div><div class="win-dot green"></div></div>
+                        Styled App
+                    </div>
+                    <div class="win-body" style="background:#1a1a2e; text-align:center; padding:14px;">
+                        <div style="color:#c9a83a; font-size:1.1rem; font-weight:700; font-family:Arial;">Welcome to IT Tools</div>
+                        <div style="color:#94a3b8; font-size:0.88rem; margin-top:4px; font-family:Courier New;">bg="#1a1a2e", fg="#c9a83a", font=("Arial", 18, "bold")</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- LABELS ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 20</div>
+        <div class="slide-title">Labels: <span class="accent">tk.Label</span></div>
+        <div class="slide-subtitle">Display text or images. The simplest widget -- and the one you will use most.</div>
+
+        <div class="code-result-grid">
+            <div>
+                <div class="section-label" style="margin-bottom:4px;">The Code — Every Line Explained</div>
+                <svg width="100%" height="460" viewBox="0 0 640 460" style="max-width:100%;">
+                    <!-- Code background -->
+                    <rect x="0" y="0" width="640" height="460" rx="10" fill="rgba(0,0,0,0.45)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+
+                    <!-- Line 1: label = tk.Label( -->
+                    <text x="20" y="38" fill="#e2e8f0" font-size="17" font-family="Courier New">label = tk.<tspan fill="#06b6d4">Label</tspan>(</text>
+                    <line x1="310" y1="33" x2="410" y2="33" stroke="#c9a83a" stroke-width="2"/>
+                    <text x="418" y="30" fill="#c9a83a" font-size="13" font-family="Segoe UI" font-weight="600">Create a Label widget</text>
+                    <text x="418" y="46" fill="#94a3b8" font-size="11" font-family="Segoe UI">Store it in variable "label"</text>
+
+                    <!-- Line 2: root, -->
+                    <text x="44" y="78" fill="#e2e8f0" font-size="17" font-family="Courier New">root,</text>
+                    <line x1="105" y1="73" x2="410" y2="73" stroke="#c9a83a" stroke-width="1.5" stroke-dasharray="5 4"/>
+                    <text x="418" y="70" fill="#c9a83a" font-size="13" font-family="Segoe UI" font-weight="600">Parent = the main window</text>
+                    <text x="418" y="86" fill="#94a3b8" font-size="11" font-family="Segoe UI">Every widget needs a parent</text>
+
+                    <!-- Line 3: text="Hello, World!", -->
+                    <text x="44" y="118" fill="#e2e8f0" font-size="17" font-family="Courier New">text=<tspan fill="#3ab577">"Hello, World!"</tspan>,</text>
+                    <line x1="340" y1="113" x2="410" y2="113" stroke="#3ab577" stroke-width="1.5" stroke-dasharray="5 4"/>
+                    <text x="418" y="110" fill="#3ab577" font-size="13" font-family="Segoe UI" font-weight="600">The text to display</text>
+                    <text x="418" y="126" fill="#94a3b8" font-size="11" font-family="Segoe UI">What the user sees on screen</text>
+
+                    <!-- Line 4: font=("Arial", 24), -->
+                    <text x="44" y="158" fill="#e2e8f0" font-size="17" font-family="Courier New">font=(<tspan fill="#3ab577">"Arial"</tspan>, <tspan fill="#f472b6">24</tspan>),</text>
+                    <line x1="290" y1="153" x2="410" y2="153" stroke="#f472b6" stroke-width="1.5" stroke-dasharray="5 4"/>
+                    <text x="418" y="150" fill="#f472b6" font-size="13" font-family="Segoe UI" font-weight="600">Font = (family, size)</text>
+                    <text x="418" y="166" fill="#94a3b8" font-size="11" font-family="Segoe UI">Add "bold": ("Arial", 24, "bold")</text>
+
+                    <!-- Line 5: fg="white", -->
+                    <text x="44" y="198" fill="#e2e8f0" font-size="17" font-family="Courier New">fg=<tspan fill="#3ab577">"white"</tspan>,</text>
+                    <line x1="195" y1="193" x2="410" y2="193" stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="5 4"/>
+                    <text x="418" y="190" fill="#06b6d4" font-size="13" font-family="Segoe UI" font-weight="600">fg = foreground (text color)</text>
+                    <text x="418" y="206" fill="#94a3b8" font-size="11" font-family="Segoe UI">Named colors or hex: "#ffffff"</text>
+
+                    <!-- Line 6: bg="#1a1a2e" -->
+                    <text x="44" y="238" fill="#e2e8f0" font-size="17" font-family="Courier New">bg=<tspan fill="#3ab577">"#1a1a2e"</tspan></text>
+                    <line x1="235" y1="233" x2="410" y2="233" stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="5 4"/>
+                    <text x="418" y="230" fill="#06b6d4" font-size="13" font-family="Segoe UI" font-weight="600">bg = background color</text>
+                    <text x="418" y="246" fill="#94a3b8" font-size="11" font-family="Segoe UI">Match the window bg or it looks wrong</text>
+
+                    <!-- Line 7: ) -->
+                    <text x="20" y="278" fill="#e2e8f0" font-size="17" font-family="Courier New">)</text>
+
+                    <!-- Blank line -->
+
+                    <!-- Line 8: label.pack() -->
+                    <text x="20" y="326" fill="#e2e8f0" font-size="17" font-family="Courier New">label.<tspan fill="#06b6d4">pack</tspan>()</text>
+                    <line x1="175" y1="321" x2="410" y2="321" stroke="#ef4444" stroke-width="2" stroke-dasharray="5 4"/>
+                    <text x="418" y="318" fill="#ef4444" font-size="13" font-family="Segoe UI" font-weight="700">REQUIRED — places it on screen</text>
+                    <text x="418" y="334" fill="#94a3b8" font-size="11" font-family="Segoe UI">Without this, the label is INVISIBLE</text>
+
+                    <!-- Summary box at bottom -->
+                    <rect x="16" y="370" width="608" height="72" rx="8" fill="rgba(201,168,58,0.08)" stroke="rgba(201,168,58,0.3)" stroke-width="1"/>
+                    <text x="30" y="396" fill="#c9a83a" font-size="14" font-weight="700" font-family="Segoe UI">Pattern for EVERY widget:</text>
+                    <text x="30" y="418" fill="#fef3c7" font-size="14" font-family="Courier New">widget = tk.WidgetType(parent, property=value, ...)</text>
+                    <text x="30" y="438" fill="#fef3c7" font-size="14" font-family="Courier New">widget.pack()  <tspan fill="#475569"># or .grid() or .place()</tspan></text>
+                </svg>
+                <div class="card c-red" style="margin-top:6px;">
+                    <div class="card-label">Why pack()?</div>
+                    <div class="card-desc">Creating a widget does NOT display it. You MUST call a layout method (<span class="ic">.pack()</span>, <span class="ic">.grid()</span>, or <span class="ic">.place()</span>) to make it visible. Without it, the widget exists in memory but is invisible.</div>
+                </div>
+            </div>
+
+            <div>
+                <div class="section-label" style="margin-bottom:4px;">The Result</div>
+                <div class="win-mock" style="animation: guiPop 0.6s ease-out both;">
+                    <div class="win-titlebar">
+                        <div class="win-dots"><div class="win-dot red"></div><div class="win-dot yellow"></div><div class="win-dot green"></div></div>
+                        My App
+                    </div>
+                    <div class="win-body" style="background:#1a1a2e; text-align:center; padding:20px;">
+                        <div style="color:#fff; font-size:1.5rem; font-weight:700; font-family:Arial;">Hello, World!</div>
+                    </div>
+                </div>
+
+                <div class="box box-cyan" style="margin-top:10px; font-size:0.95rem;">
+                    <div class="box-label">What happens without pack()?</div>
+                    The window opens but is completely empty. The label object exists -- you can print its properties -- but tkinter never placed it on screen. This is the number one beginner mistake.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- BUTTONS ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 20</div>
+        <div class="slide-title">Buttons: <span class="accent">tk.Button</span></div>
+        <div class="slide-subtitle">The widget that makes things happen. Click triggers a function call.</div>
+
+        <div class="code-result-grid">
+            <div>
+                <div class="section-label" style="margin-bottom:4px;">The Code</div>
+                <div class="code-block"><span class="kw">def</span> <span class="fn">say_hello</span>():
+    label.<span class="fn">config</span>(text=<span class="st">"Hello!"</span>)
+
+btn = tk.<span class="fn">Button</span>(
+    root,
+    text=<span class="st">"Click Me"</span>,
+    command=say_hello,   <span class="cm"># NO parentheses!</span>
+    width=<span class="nb">15</span>, height=<span class="nb">2</span>,
+    relief=<span class="st">"raised"</span>,
+    cursor=<span class="st">"hand2"</span>
+)
+btn.<span class="fn">pack</span>()</div>
+
+                <div class="card c-red" style="margin-top:8px;">
+                    <div class="card-label">Common Mistake</div>
+                    <div class="card-desc">
+                        <span class="ic">command=say_hello</span> -- passes the function reference. Called on click.<br>
+                        <span class="ic">command=say_hello()</span> -- CALLS the function immediately at build time. The button does nothing when clicked.
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="section-label" style="margin-bottom:4px;">The Result</div>
+                <div class="win-mock">
+                    <div class="win-titlebar">
+                        <div class="win-dots"><div class="win-dot red"></div><div class="win-dot yellow"></div><div class="win-dot green"></div></div>
+                        My App
+                    </div>
+                    <div class="win-body" style="text-align:center; padding:16px; display:flex; flex-direction:column; gap:10px; align-items:center;">
+                        <div class="mock-label" style="font-size:1rem;">Hello!</div>
+                        <div class="mock-btn" style="padding:8px 28px; font-size:0.88rem; cursor:pointer;">Click Me</div>
+                    </div>
+                </div>
+
+                <div class="card c-cyan" style="margin-top:8px;">
+                    <div class="card-label">Why These Properties Matter</div>
+                    <div class="card-desc">
+                        <span class="ic">width=15</span> — button width in CHARACTER units, not pixels. 15 means room for 15 characters of text.<br>
+                        <span class="ic">height=2</span> — 2 lines of text tall. Makes the button easier to click.<br>
+                        <span class="ic">relief="raised"</span> — gives the button a 3D raised look so users know it's clickable.<br>
+                        <span class="ic">cursor="hand2"</span> — changes the mouse to a pointing finger on hover. Standard UI pattern that says "this is interactive."
+                    </div>
+                </div>
+                <div class="card c-green" style="margin-top:6px;">
+                    <div class="card-label">.config() — Change Widgets After Creation</div>
+                    <div class="card-desc">
+                        <span class="ic">label.config(text="New text")</span> — updates the label's text without recreating it.<br>
+                        Works on any widget, any property: <span class="ic">.config(fg="red")</span>, <span class="ic">.config(state="disabled")</span>.<br>
+                        This is how your button's function updates the UI — it calls <span class="ic">.config()</span> on other widgets.
+                    </div>
+                </div>
+                <div class="box box-gold" style="margin-top:6px; font-size:0.95rem;">
+                    <div class="box-label">The Pattern</div>
+                    Always define the function BEFORE creating the button that uses it. Python reads top to bottom — if <span class="ic">say_hello</span> isn't defined yet when you write <span class="ic">command=say_hello</span>, you get a NameError.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- ENTRY & TEXT ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 20</div>
+        <div class="slide-title">Entry &amp; Text: <span class="accent">User Input</span></div>
+        <div class="slide-subtitle">Entry for single-line input. Text for multiline. Both are essential for forms.</div>
+
+        <div class="code-result-grid">
+            <div>
+                <div class="section-label" style="margin-bottom:4px;">Single Line: tk.Entry</div>
+                <div class="code-block" style="font-size:0.95rem;">entry = tk.<span class="fn">Entry</span>(root, width=<span class="nb">30</span>)
+entry.<span class="fn">pack</span>()
+
+<span class="cm"># Read the value:</span>
+value = entry.<span class="fn">get</span>()
+<span class="cm"># Clear the field:</span>
+entry.<span class="fn">delete</span>(<span class="nb">0</span>, tk.END)
+<span class="cm"># Set a value:</span>
+entry.<span class="fn">insert</span>(<span class="nb">0</span>, <span class="st">"default text"</span>)</div>
+
+                <div style="margin-top:8px;"></div>
+                <div class="section-label" style="margin-bottom:4px;">Multiline: tk.Text</div>
+                <div class="code-block" style="font-size:0.95rem;">text = tk.<span class="fn">Text</span>(root, width=<span class="nb">40</span>, height=<span class="nb">10</span>)
+text.<span class="fn">pack</span>()
+
+<span class="cm"># Read all content:</span>
+content = text.<span class="fn">get</span>(<span class="st">"1.0"</span>, tk.END)
+<span class="cm"># Clear:</span>
+text.<span class="fn">delete</span>(<span class="st">"1.0"</span>, tk.END)
+<span class="cm"># Insert:</span>
+text.<span class="fn">insert</span>(tk.END, <span class="st">"log line\n"</span>)</div>
+
+                <div class="box box-gold" style="margin-top:8px;">
+                    <strong>Index gotcha:</strong> Entry uses integers (<span class="ic">0</span> = start). Text uses strings (<span class="ic">"1.0"</span> = line 1, char 0). Text is multiline — needs row.column. Entry is single-line — simple number.
+                </div>
+            </div>
+
+            <div>
+                <!-- Entry mockup — matches the tk.Entry code on the left -->
+                <div style="margin-bottom:14px;">
+                    <div class="section-label" style="margin-bottom:4px;">tk.Entry Result</div>
+                    <div class="win-mock" style="max-width:380px;">
+                        <div class="win-titlebar">
+                            <div class="win-dots"><div class="win-dot red"></div><div class="win-dot yellow"></div><div class="win-dot green"></div></div>
+                            My App
+                        </div>
+                        <div class="win-body" style="padding:16px;">
+                            <div class="mock-entry" style="font-size:0.95rem;">default text<span style="animation:blink 1s step-end infinite;color:#06b6d4;">|</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Text mockup — matches the tk.Text code on the left -->
+                <div style="margin-bottom:14px;">
+                    <div class="section-label" style="margin-bottom:4px;">tk.Text Result</div>
+                    <div class="win-mock" style="max-width:380px;">
+                        <div class="win-titlebar">
+                            <div class="win-dots"><div class="win-dot red"></div><div class="win-dot yellow"></div><div class="win-dot green"></div></div>
+                            My App
+                        </div>
+                        <div class="win-body" style="padding:12px;">
+                            <div class="mock-text" style="min-height:70px; font-size:0.88rem; line-height:1.5;">log line<br>log line<br>log line<br><span style="animation:blink 1s step-end infinite;color:#06b6d4;">|</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card c-green">
+                    <div class="card-label">The 3 Methods</div>
+                    <div class="card-desc">
+                        <span class="ic">.get()</span> — read what was typed<br>
+                        <span class="ic">.delete()</span> — clear the field<br>
+                        <span class="ic">.insert()</span> — put text in
+                    </div>
+                </div>
+                <div class="card c-gold" style="margin-top:6px;">
+                    <div class="card-label">tk.END</div>
+                    <div class="card-desc">Constant = "end of text." Use in <span class="ic">.delete(0, tk.END)</span> and <span class="ic">.insert(tk.END, "text")</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- LAYOUT: PACK ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 20</div>
+        <div class="slide-title">Layout: <span class="accent">pack()</span></div>
+        <div class="slide-subtitle">The simplest layout manager. Stacks widgets along an edge.</div>
+
+        <div class="code-result-grid">
+            <div>
+                <div class="section-label" style="margin-bottom:4px;">How pack() Works</div>
+                <div class="code-block"><span class="cm"># Stack top-to-bottom (default)</span>
+label.<span class="fn">pack</span>()
+entry.<span class="fn">pack</span>()
+button.<span class="fn">pack</span>()
+
+<span class="cm"># Stack left-to-right</span>
+btn1.<span class="fn">pack</span>(side=tk.LEFT)
+btn2.<span class="fn">pack</span>(side=tk.LEFT)
+
+<span class="cm"># Add spacing</span>
+label.<span class="fn">pack</span>(padx=<span class="nb">10</span>, pady=<span class="nb">5</span>)
+
+<span class="cm"># Fill available width</span>
+entry.<span class="fn">pack</span>(fill=tk.X, expand=<span class="kw">True</span>)</div>
+
+                <div class="box box-red" style="margin-top:8px;">
+                    <div class="box-label">Mistake #1</div>
+                    Forgetting <span class="ic">.pack()</span>. Widget exists but is invisible. The window appears empty.
+                </div>
+            </div>
+
+            <div>
+                <div class="section-label" style="margin-bottom:4px;">Visual: How Pack Stacks</div>
+                <svg width="100%" height="220" viewBox="0 0 420 220" style="max-width:100%;">
+                    <!-- TOP example -->
+                    <rect x="10" y="10" width="180" height="200" rx="6" fill="#0c0c14" stroke="#475569" stroke-width="1.5"/>
+                    <text x="100" y="28" text-anchor="middle" fill="#64748b" font-size="11" font-family="Segoe UI">side=TOP (default)</text>
+                    <rect x="22" y="38" width="156" height="34" rx="4" fill="#06b6d4" opacity="0.8"/>
+                    <text x="100" y="60" text-anchor="middle" fill="#000" font-size="12" font-weight="700" font-family="Segoe UI">Label</text>
+                    <rect x="22" y="78" width="156" height="34" rx="4" fill="#3ab577" opacity="0.8"/>
+                    <text x="100" y="100" text-anchor="middle" fill="#000" font-size="12" font-weight="700" font-family="Segoe UI">Entry</text>
+                    <rect x="22" y="118" width="156" height="34" rx="4" fill="#c9a83a" opacity="0.8"/>
+                    <text x="100" y="140" text-anchor="middle" fill="#000" font-size="12" font-weight="700" font-family="Segoe UI">Button</text>
+
+                    <!-- LEFT example -->
+                    <rect x="220" y="10" width="190" height="200" rx="6" fill="#0c0c14" stroke="#475569" stroke-width="1.5"/>
+                    <text x="315" y="28" text-anchor="middle" fill="#64748b" font-size="11" font-family="Segoe UI">side=LEFT</text>
+                    <rect x="230" y="42" width="52" height="90" rx="4" fill="#06b6d4" opacity="0.8"/>
+                    <text x="256" y="92" text-anchor="middle" fill="#000" font-size="11" font-weight="700" font-family="Segoe UI">A</text>
+                    <rect x="286" y="42" width="52" height="90" rx="4" fill="#3ab577" opacity="0.8"/>
+                    <text x="312" y="92" text-anchor="middle" fill="#000" font-size="11" font-weight="700" font-family="Segoe UI">B</text>
+                    <rect x="342" y="42" width="52" height="90" rx="4" fill="#c9a83a" opacity="0.8"/>
+                    <text x="368" y="92" text-anchor="middle" fill="#000" font-size="11" font-weight="700" font-family="Segoe UI">C</text>
+                </svg>
+
+                <div class="card c-gold" style="margin-top:8px;">
+                    <div class="card-label">Parameters</div>
+                    <div class="card-desc">
+                        <span class="ic">side=</span> TOP, BOTTOM, LEFT, RIGHT<br>
+                        <span class="ic">padx/pady=</span> spacing in pixels<br>
+                        <span class="ic">fill=tk.X</span> stretch full width<br>
+                        <span class="ic">anchor="w"</span> left-align (compass: n/s/e/w)
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- LAYOUT: GRID ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 20</div>
+        <div class="slide-title">Layout: <span class="accent">grid()</span></div>
+        <div class="slide-subtitle">Row/column positioning. The best layout manager for forms and structured UIs.</div>
+
+        <div class="code-result-grid">
+            <div>
+                <div class="section-label" style="margin-bottom:4px;">The Code</div>
+                <div class="code-block"><span class="cm"># Row 0: label right-aligned, entry left-aligned</span>
+lbl.<span class="fn">grid</span>(row=<span class="nb">0</span>, column=<span class="nb">0</span>, sticky=<span class="st">"e"</span>)
+ent.<span class="fn">grid</span>(row=<span class="nb">0</span>, column=<span class="nb">1</span>, sticky=<span class="st">"w"</span>)
+
+<span class="cm"># Row 1: same pattern</span>
+lbl2.<span class="fn">grid</span>(row=<span class="nb">1</span>, column=<span class="nb">0</span>, sticky=<span class="st">"e"</span>)
+ent2.<span class="fn">grid</span>(row=<span class="nb">1</span>, column=<span class="nb">1</span>, sticky=<span class="st">"w"</span>)
+
+<span class="cm"># Row 2: button spans both columns</span>
+btn.<span class="fn">grid</span>(row=<span class="nb">2</span>, columnspan=<span class="nb">2</span>)</div>
+
+                <div class="card c-cyan" style="margin-top:8px;">
+                    <div class="card-label">Parameters</div>
+                    <div class="card-desc">
+                        <span class="ic">row=, column=</span> — position (0-indexed)<br>
+                        <span class="ic">sticky="e"</span> — push right. <span class="ic">"w"</span> — push left<br>
+                        <span class="ic">columnspan=2</span> — merge across columns
+                    </div>
+                </div>
+
+                <div class="box box-gold" style="margin-top:6px;">
+                    <strong>grid() vs pack():</strong> Use <span class="ic">grid()</span> for forms and tables. Use <span class="ic">pack()</span> for simple stacking. Never mix them in the same parent.
+                </div>
+            </div>
+
+            <div>
+                <div class="section-label" style="margin-bottom:6px;">Grid Overlay — What the Code Produces</div>
+                <svg width="100%" height="380" viewBox="0 0 520 380" style="max-width:100%;">
+                    <!-- Background -->
+                    <rect x="5" y="5" width="510" height="370" rx="10" fill="#0c0c14" stroke="#475569" stroke-width="1.5"/>
+
+                    <!-- Column headers -->
+                    <text x="175" y="35" text-anchor="middle" fill="#c9a83a" font-size="16" font-weight="700" font-family="Segoe UI">column 0</text>
+                    <text x="385" y="35" text-anchor="middle" fill="#c9a83a" font-size="16" font-weight="700" font-family="Segoe UI">column 1</text>
+
+                    <!-- Row headers -->
+                    <text x="42" y="90" fill="#06b6d4" font-size="15" font-weight="700" font-family="Segoe UI">row 0</text>
+                    <text x="42" y="170" fill="#06b6d4" font-size="15" font-weight="700" font-family="Segoe UI">row 1</text>
+                    <text x="42" y="275" fill="#06b6d4" font-size="15" font-weight="700" font-family="Segoe UI">row 2</text>
+
+                    <!-- Horizontal grid lines -->
+                    <line x1="75" y1="50" x2="500" y2="50" stroke="#475569" stroke-width="1" stroke-dasharray="5 4"/>
+                    <line x1="75" y1="120" x2="500" y2="120" stroke="#475569" stroke-width="1" stroke-dasharray="5 4"/>
+                    <line x1="75" y1="200" x2="500" y2="200" stroke="#475569" stroke-width="1" stroke-dasharray="5 4"/>
+                    <line x1="75" y1="310" x2="500" y2="310" stroke="#475569" stroke-width="1" stroke-dasharray="5 4"/>
+                    <!-- Vertical divider (col 0 | col 1) -->
+                    <line x1="275" y1="50" x2="275" y2="200" stroke="#475569" stroke-width="1" stroke-dasharray="5 4"/>
+
+                    <!-- Row 0: Username label + entry -->
+                    <rect x="85" y="60" width="180" height="45" rx="6" fill="rgba(201,168,58,0.2)" stroke="#c9a83a" stroke-width="2"/>
+                    <text x="175" y="89" text-anchor="middle" fill="#c9a83a" font-size="16" font-family="Segoe UI" font-weight="600">Username:</text>
+
+                    <rect x="285" y="60" width="200" height="45" rx="6" fill="rgba(255,255,255,0.1)" stroke="#94a3b8" stroke-width="2"/>
+                    <text x="385" y="89" text-anchor="middle" fill="#e2e8f0" font-size="16" font-family="Courier New">admin</text>
+
+                    <!-- sticky annotations for row 0 — placed below cells, clear of everything -->
+                    <text x="175" y="118" text-anchor="middle" fill="#f472b6" font-size="12" font-family="Segoe UI" font-weight="600">sticky="e" (push right)</text>
+                    <text x="385" y="118" text-anchor="middle" fill="#f472b6" font-size="12" font-family="Segoe UI" font-weight="600">sticky="w" (push left)</text>
+
+                    <!-- Row 1: Password label + entry -->
+                    <rect x="85" y="135" width="180" height="45" rx="6" fill="rgba(201,168,58,0.2)" stroke="#c9a83a" stroke-width="2"/>
+                    <text x="175" y="164" text-anchor="middle" fill="#c9a83a" font-size="16" font-family="Segoe UI" font-weight="600">Password:</text>
+
+                    <rect x="285" y="135" width="200" height="45" rx="6" fill="rgba(255,255,255,0.1)" stroke="#94a3b8" stroke-width="2"/>
+                    <text x="385" y="164" text-anchor="middle" fill="#e2e8f0" font-size="16" font-family="Courier New">********</text>
+
+                    <!-- Row 2: Login button spanning both columns -->
+                    <rect x="85" y="220" width="400" height="55" rx="6" fill="rgba(58,181,119,0.2)" stroke="#3ab577" stroke-width="2.5"/>
+                    <text x="285" y="254" text-anchor="middle" fill="#3ab577" font-size="18" font-weight="700" font-family="Segoe UI">Login</text>
+
+                    <!-- columnspan annotation — below the button, outside the cell -->
+                    <text x="285" y="295" text-anchor="middle" fill="#3ab577" font-size="13" font-family="Segoe UI" font-weight="600">columnspan=2 (spans both columns)</text>
+
+                    <!-- Arrow showing span width -->
+                    <line x1="95" y1="285" x2="475" y2="285" stroke="#3ab577" stroke-width="1.5" stroke-dasharray="4 3"/>
+                </svg>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- EVENT HANDLING ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 20</div>
+        <div class="slide-title">Event Handling: <span class="accent">The Event Loop</span></div>
+        <div class="slide-subtitle">How your GUI responds to every click, keypress, and window action.</div>
+
+        <!-- SVG event loop diagram with animated highlights -->
+        <div style="display:flex; justify-content:center;">
+            <svg width="680" height="180" viewBox="0 0 680 180" style="max-width:100%;">
+                <!-- Step 1: User Action -->
+                <rect x="10" y="55" width="110" height="50" rx="8" fill="#1e293b" stroke="#c9a83a" stroke-width="2" style="animation: flowStep1 5s ease infinite;"/>
+                <text x="65" y="77" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700" font-family="Segoe UI">User Action</text>
+                <text x="65" y="93" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="Segoe UI">click / keypress</text>
+
+                <line x1="120" y1="80" x2="148" y2="80" stroke="#475569" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+                <!-- Step 2: Event Queue -->
+                <rect x="150" y="55" width="110" height="50" rx="8" fill="#1e293b" stroke="#06b6d4" stroke-width="2" style="animation: flowStep2 5s ease infinite;"/>
+                <text x="205" y="77" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700" font-family="Segoe UI">Event Queue</text>
+                <text x="205" y="93" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="Segoe UI">FIFO buffer</text>
+
+                <line x1="260" y1="80" x2="288" y2="80" stroke="#475569" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+                <!-- Step 3: mainloop() -->
+                <rect x="290" y="55" width="110" height="50" rx="8" fill="#1e293b" stroke="#3ab577" stroke-width="2" style="animation: flowStep3 5s ease infinite;"/>
+                <text x="345" y="77" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700" font-family="Segoe UI">mainloop()</text>
+                <text x="345" y="93" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="Segoe UI">dispatches events</text>
+
+                <line x1="400" y1="80" x2="428" y2="80" stroke="#475569" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+                <!-- Step 4: Handler Function -->
+                <rect x="430" y="55" width="110" height="50" rx="8" fill="#1e293b" stroke="#f472b6" stroke-width="2" style="animation: flowStep4 5s ease infinite;"/>
+                <text x="485" y="77" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700" font-family="Segoe UI">Your Function</text>
+                <text x="485" y="93" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="Segoe UI">your callback</text>
+
+                <line x1="540" y1="80" x2="568" y2="80" stroke="#475569" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+                <!-- Step 5: Update Widget -->
+                <rect x="570" y="55" width="100" height="50" rx="8" fill="#1e293b" stroke="#c9a83a" stroke-width="2" style="animation: flowStep5 5s ease infinite;"/>
+                <text x="620" y="77" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700" font-family="Segoe UI">Update UI</text>
+                <text x="620" y="93" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="Segoe UI">widget changes</text>
+
+                <!-- Return arrow -->
+                <path d="M 620 105 Q 620 155, 345 155 Q 65 155, 65 105" fill="none" stroke="#475569" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arrowhead)"/>
+                <text x="345" y="148" text-anchor="middle" fill="#64748b" font-size="9" font-family="Segoe UI" font-style="italic">loop repeats until window closes</text>
+
+                <defs>
+                    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                        <polygon points="0 0, 8 3, 0 6" fill="#94a3b8"/>
+                    </marker>
+                </defs>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">command= for Buttons</div>
+                <div class="card-desc"><span class="ic">command=my_function</span> -- the simplest way. Tkinter calls your function when the button is clicked. No arguments passed. No event object.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">bind() for Everything Else</div>
+                <div class="card-desc"><span class="ic">widget.bind("&lt;Return&gt;", handler)</span> -- fires on Enter key. The handler receives an <span class="ic">event</span> object with details like which key, mouse position, etc.</div>
+            </div>
+        </div>
+
+        <div class="box box-green" style="font-size:0.95rem;">
+            <strong>The flow:</strong> User clicks a button. Tkinter detects the click event. <span class="ic">mainloop()</span> dispatches it to your function. Your function updates widgets. The UI refreshes. The loop continues waiting for the next event.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- FUNCTIONS IN GUI ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 20</div>
+        <div class="slide-title">Functions in GUI: <span class="accent">Every Button Needs One</span></div>
+        <div class="slide-subtitle">GUI programming requires functions. Each action gets its own handler.</div>
+
+        <div class="code-result-grid">
+            <div>
+                <div class="section-label" style="margin-bottom:4px;">The Pattern</div>
+                <div class="code-block" style="font-size:0.95rem;"><span class="cm"># 1. Define functions FIRST</span>
+<span class="kw">def</span> <span class="fn">start_scan</span>():
+    result.<span class="fn">config</span>(text=<span class="st">"Scanning..."</span>)
+
+<span class="kw">def</span> <span class="fn">stop_scan</span>():
+    result.<span class="fn">config</span>(text=<span class="st">"Stopped."</span>)
+
+<span class="kw">def</span> <span class="fn">clear_log</span>():
+    result.<span class="fn">config</span>(text=<span class="st">""</span>)
+
+<span class="cm"># 2. THEN create buttons that call them</span>
+tk.<span class="fn">Button</span>(root, text=<span class="st">"Start"</span>,
+    command=start_scan).<span class="fn">pack</span>()
+tk.<span class="fn">Button</span>(root, text=<span class="st">"Stop"</span>,
+    command=stop_scan).<span class="fn">pack</span>()
+tk.<span class="fn">Button</span>(root, text=<span class="st">"Clear"</span>,
+    command=clear_log).<span class="fn">pack</span>()</div>
+            </div>
+
+            <div>
+                <div class="section-label" style="margin-bottom:4px;">3 Buttons, 3 Functions</div>
+                <div class="win-mock">
+                    <div class="win-titlebar">
+                        <div class="win-dots"><div class="win-dot red"></div><div class="win-dot yellow"></div><div class="win-dot green"></div></div>
+                        Network Scanner
+                    </div>
+                    <div class="win-body" style="padding:12px; display:flex; flex-direction:column; gap:8px; align-items:center;">
+                        <div class="mock-label" style="font-size:0.88rem; color:#3ab577;">Scanning...</div>
+                        <div style="display:flex; gap:6px;">
+                            <div class="mock-btn" style="background:#3ab577; color:#000;">Start</div>
+                            <div class="mock-btn" style="background:#ef4444; color:#fff;">Stop</div>
+                            <div class="mock-btn">Clear</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Connection diagram -->
+                <svg width="100%" height="100" viewBox="0 0 380 100" style="max-width:100%;">
+                    <!-- Functions -->
+                    <rect x="10" y="10" width="100" height="28" rx="4" fill="rgba(58,181,119,0.15)" stroke="#3ab577" stroke-width="1"/>
+                    <text x="60" y="29" text-anchor="middle" fill="#3ab577" font-size="9" font-weight="700" font-family="Courier New">start_scan()</text>
+
+                    <rect x="140" y="10" width="100" height="28" rx="4" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="1"/>
+                    <text x="190" y="29" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700" font-family="Courier New">stop_scan()</text>
+
+                    <rect x="270" y="10" width="100" height="28" rx="4" fill="rgba(201,168,58,0.15)" stroke="#c9a83a" stroke-width="1"/>
+                    <text x="320" y="29" text-anchor="middle" fill="#c9a83a" font-size="9" font-weight="700" font-family="Courier New">clear_log()</text>
+
+                    <!-- Arrows -->
+                    <line x1="60" y1="38" x2="60" y2="58" stroke="#3ab577" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+                    <line x1="190" y1="38" x2="190" y2="58" stroke="#ef4444" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+                    <line x1="320" y1="38" x2="320" y2="58" stroke="#c9a83a" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <!-- Buttons -->
+                    <rect x="25" y="60" width="70" height="24" rx="3" fill="#3ab577"/>
+                    <text x="60" y="76" text-anchor="middle" fill="#000" font-size="9" font-weight="700" font-family="Segoe UI">Start</text>
+
+                    <rect x="155" y="60" width="70" height="24" rx="3" fill="#ef4444"/>
+                    <text x="190" y="76" text-anchor="middle" fill="#fff" font-size="9" font-weight="700" font-family="Segoe UI">Stop</text>
+
+                    <rect x="285" y="60" width="70" height="24" rx="3" fill="#e0e0e0"/>
+                    <text x="320" y="76" text-anchor="middle" fill="#111" font-size="9" font-weight="700" font-family="Segoe UI">Clear</text>
+                </svg>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.95rem;">
+            <strong>Rule:</strong> Define functions BEFORE creating the buttons that reference them. Python reads top to bottom. If the function does not exist yet when you use <span class="ic">command=</span>, you get a NameError.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- STRINGVAR & INTVAR ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 20</div>
+        <div class="slide-title">StringVar &amp; IntVar: <span class="accent">Live Data Binding</span></div>
+        <div class="slide-subtitle">Tkinter variables let widgets watch for changes and update automatically.</div>
+
+        <div class="code-result-grid">
+            <div>
+                <div class="section-label" style="margin-bottom:4px;">The Code</div>
+                <div class="code-block" style="font-size:0.95rem;">name_var = tk.<span class="fn">StringVar</span>()
+
+<span class="cm"># Both widgets share name_var</span>
+entry = tk.<span class="fn">Entry</span>(root,
+    textvariable=name_var)
+label = tk.<span class="fn">Label</span>(root,
+    textvariable=name_var)
+
+<span class="cm"># Read/write programmatically:</span>
+name_var.<span class="fn">set</span>(<span class="st">"Hello"</span>)
+value = name_var.<span class="fn">get</span>()</div>
+
+                <div class="card c-cyan" style="margin-top:8px;">
+                    <div class="card-label">Variable Types</div>
+                    <div class="card-desc">
+                        <span class="ic">StringVar()</span> -- for text strings.<br>
+                        <span class="ic">IntVar()</span> -- for integer values.<br>
+                        <span class="ic">DoubleVar()</span> -- for floats.<br>
+                        <span class="ic">BooleanVar()</span> -- for True/False (checkboxes).
+                    </div>
+                </div>
+                <div class="card c-gold" style="margin-top:6px;">
+                    <div class="card-label">Why not regular variables?</div>
+                    <div class="card-desc">A regular Python variable like <span class="ic">name = "Hello"</span> has no way to notify widgets when it changes. Tkinter variables have built-in change notification so all bound widgets update automatically.</div>
+                </div>
+            </div>
+
+            <div>
+                <div class="section-label" style="margin-bottom:4px;">Live Sync Visualization</div>
+                <div class="win-mock">
+                    <div class="win-titlebar">
+                        <div class="win-dots"><div class="win-dot red"></div><div class="win-dot yellow"></div><div class="win-dot green"></div></div>
+                        StringVar Demo
+                    </div>
+                    <div class="win-body" style="text-align:center; padding:12px;">
+                        <div style="margin-bottom:6px;">
+                            <span class="mock-label" style="font-size:0.88rem; color:#94a3b8;">Entry widget:</span>
+                            <div class="mock-entry" style="display:inline-block;">
+                                <span style="color:#111; font-size:0.95rem;">Hello</span>
+                                <span style="border-right:2px solid #111; animation:typeCursor 0.6s step-end infinite;">&nbsp;</span>
+                            </div>
+                        </div>
+
+                        <svg width="40" height="30" viewBox="0 0 40 30" style="display:block; margin:0 auto;">
+                            <line x1="20" y1="2" x2="20" y2="22" stroke="#c9a83a" stroke-width="2" stroke-dasharray="4 3" style="animation: dataFlowPulse 0.8s linear infinite;"/>
+                            <polygon points="14 20, 20 28, 26 20" fill="#c9a83a"/>
+                            <text x="34" y="16" fill="#c9a83a" font-size="8" font-family="Segoe UI" font-weight="700">sync</text>
+                        </svg>
+
+                        <div>
+                            <span class="mock-label" style="font-size:0.88rem; color:#94a3b8;">Label widget:</span>
+                            <div style="background:rgba(58,181,119,0.15); border:1px solid rgba(58,181,119,0.3); border-radius:4px; padding:4px 12px; display:inline-block;">
+                                <span style="color:#3ab577; font-size:0.82rem; font-weight:700;">Hello</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="text-align:center; margin-top:6px; font-size:0.88rem; color:#c9a83a; font-style:italic;">Type in the entry -- the label updates live. Both read from the same StringVar.</div>
+
+                <div class="box box-green" style="margin-top:8px; font-size:0.95rem;">
+                    <span class="ic">.get()</span> reads the current value. <span class="ic">.set()</span> writes a new value. Every widget bound via <span class="ic">textvariable=</span> refreshes instantly when the value changes.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- FRAMES ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 20</div>
+        <div class="slide-title">Frames: <span class="accent">Organizing Your Layout</span></div>
+        <div class="slide-subtitle">A Frame is a container for other widgets. Think of it as a box inside a box.</div>
+
+        <div class="code-result-grid">
+            <div>
+                <div class="section-label" style="margin-bottom:4px;">The Code</div>
+                <div class="code-block" style="font-size:0.95rem;"><span class="cm"># Header section</span>
+header = tk.<span class="fn">Frame</span>(root,
+    bg=<span class="st">"#1a1a2e"</span>, padx=<span class="nb">10</span>, pady=<span class="nb">10</span>)
+header.<span class="fn">pack</span>(fill=tk.X)
+
+<span class="cm"># Content section</span>
+content = tk.<span class="fn">Frame</span>(root,
+    bg=<span class="st">"#0f0f1a"</span>, padx=<span class="nb">10</span>, pady=<span class="nb">10</span>)
+content.<span class="fn">pack</span>(fill=tk.BOTH, expand=<span class="kw">True</span>)
+
+<span class="cm"># Footer section</span>
+footer = tk.<span class="fn">Frame</span>(root,
+    bg=<span class="st">"#1a1a2e"</span>, padx=<span class="nb">10</span>, pady=<span class="nb">5</span>)
+footer.<span class="fn">pack</span>(fill=tk.X)
+
+<span class="cm"># Widgets go INSIDE frames:</span>
+tk.<span class="fn">Label</span>(header, text=<span class="st">"Dashboard"</span>)
+tk.<span class="fn">Label</span>(content, text=<span class="st">"Data"</span>)</div>
+            </div>
+
+            <div>
+                <div class="section-label" style="margin-bottom:6px;">The "Russian Dolls" Pattern</div>
+                <svg width="100%" height="380" viewBox="0 0 500 380" style="max-width:100%;">
+                    <!-- Root window -->
+                    <rect x="8" y="8" width="484" height="364" rx="10" fill="#0c0c14" stroke="#94a3b8" stroke-width="2"/>
+                    <text x="24" y="30" fill="#94a3b8" font-size="14" font-family="Segoe UI" font-weight="700">root (Tk window)</text>
+
+                    <!-- Header frame -->
+                    <rect x="20" y="42" width="460" height="65" rx="8" fill="#1a1a2e" stroke="#c9a83a" stroke-width="2"/>
+                    <text x="34" y="66" fill="#c9a83a" font-size="14" font-weight="700" font-family="Segoe UI">header Frame</text>
+                    <rect x="220" y="52" width="160" height="38" rx="5" fill="rgba(201,168,58,0.2)" stroke="rgba(201,168,58,0.4)" stroke-width="1"/>
+                    <text x="300" y="76" text-anchor="middle" fill="#c9a83a" font-size="14" font-family="Segoe UI">Label: "Dashboard"</text>
+
+                    <!-- Content frame -->
+                    <rect x="20" y="116" width="460" height="150" rx="8" fill="#0f0f1a" stroke="#06b6d4" stroke-width="2"/>
+                    <text x="34" y="140" fill="#06b6d4" font-size="14" font-weight="700" font-family="Segoe UI">content Frame</text>
+                    <rect x="34" y="152" width="150" height="36" rx="5" fill="rgba(6,182,212,0.15)" stroke="rgba(6,182,212,0.3)" stroke-width="1"/>
+                    <text x="109" y="175" text-anchor="middle" fill="#06b6d4" font-size="14" font-family="Segoe UI">Entry</text>
+                    <rect x="196" y="152" width="150" height="36" rx="5" fill="rgba(6,182,212,0.15)" stroke="rgba(6,182,212,0.3)" stroke-width="1"/>
+                    <text x="271" y="175" text-anchor="middle" fill="#06b6d4" font-size="14" font-family="Segoe UI">Text</text>
+                    <rect x="34" y="200" width="312" height="36" rx="5" fill="rgba(6,182,212,0.15)" stroke="rgba(6,182,212,0.3)" stroke-width="1"/>
+                    <text x="190" y="223" text-anchor="middle" fill="#06b6d4" font-size="14" font-family="Segoe UI">Button</text>
+
+                    <!-- Footer frame -->
+                    <rect x="20" y="276" width="460" height="50" rx="8" fill="#1a1a2e" stroke="#3ab577" stroke-width="2"/>
+                    <text x="34" y="306" fill="#3ab577" font-size="14" font-weight="700" font-family="Segoe UI">footer Frame</text>
+                    <text x="260" y="306" fill="#94a3b8" font-size="14" font-family="Segoe UI">Label: "Status: Ready"</text>
+
+                    <!-- Annotations outside the diagram -->
+                    <text x="405" y="78" fill="#c9a83a" font-size="11" font-family="Segoe UI" font-style="italic">pack(fill=X)</text>
+                    <text x="405" y="195" fill="#06b6d4" font-size="11" font-family="Segoe UI" font-style="italic">pack(fill=BOTH,</text>
+                    <text x="405" y="209" fill="#06b6d4" font-size="11" font-family="Segoe UI" font-style="italic">expand=True)</text>
+                    <text x="405" y="306" fill="#3ab577" font-size="11" font-family="Segoe UI" font-style="italic">pack(fill=X)</text>
+
+                    <!-- Key insight at bottom -->
+                    <rect x="20" y="338" width="460" height="28" rx="5" fill="rgba(201,168,58,0.08)" stroke="rgba(201,168,58,0.3)" stroke-width="1"/>
+                    <text x="250" y="357" text-anchor="middle" fill="#fef3c7" font-size="13" font-family="Segoe UI">Each Frame is its own layout world — mix pack() and grid() freely</text>
+                </svg>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 -- MESSAGEBOX & DIALOGS ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 20</div>
+        <div class="slide-title">Messagebox &amp; Dialogs: <span class="accent">Pop-up Feedback</span></div>
+        <div class="slide-subtitle">Built-in dialog boxes for info, questions, warnings, and errors.</div>
+
+        <div class="code-block" style="font-size:0.82rem; margin-bottom:8px;"><span class="kw">from</span> tkinter <span class="kw">import</span> messagebox</div>
+
+        <div class="card-grid">
+            <!-- showinfo -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <div class="win-mock">
+                    <div class="win-titlebar" style="padding:5px 10px;">
+                        <div class="win-dots"><div class="win-dot red"></div><div class="win-dot yellow"></div><div class="win-dot green"></div></div>
+                        Info
+                    </div>
+                    <div class="win-body" style="padding:10px; display:flex; gap:10px; align-items:center;">
+                        <svg width="28" height="28" viewBox="0 0 28 28"><circle cx="14" cy="14" r="12" fill="#06b6d4"/><text x="14" y="19" text-anchor="middle" fill="#fff" font-size="14" font-weight="700" font-family="Segoe UI">i</text></svg>
+                        <div style="font-size:0.88rem; color:#e2e8f0;">Scan complete!<br>3 devices found.</div>
+                    </div>
+                    <div style="text-align:right; padding:4px 10px 8px;"><div class="mock-btn" style="font-size:0.85rem; padding:3px 14px;">OK</div></div>
+                </div>
+                <div class="code-block" style="font-size:0.7rem; padding:6px 8px;">messagebox.<span class="fn">showinfo</span>(
+  <span class="st">"Info"</span>, <span class="st">"Scan complete!"</span>)</div>
+            </div>
+
+            <!-- askquestion -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <div class="win-mock">
+                    <div class="win-titlebar" style="padding:5px 10px;">
+                        <div class="win-dots"><div class="win-dot red"></div><div class="win-dot yellow"></div><div class="win-dot green"></div></div>
+                        Confirm
+                    </div>
+                    <div class="win-body" style="padding:10px; display:flex; gap:10px; align-items:center;">
+                        <svg width="28" height="28" viewBox="0 0 28 28"><circle cx="14" cy="14" r="12" fill="#c9a83a"/><text x="14" y="19" text-anchor="middle" fill="#000" font-size="14" font-weight="700" font-family="Segoe UI">?</text></svg>
+                        <div style="font-size:0.88rem; color:#e2e8f0;">Delete this file?</div>
+                    </div>
+                    <div style="text-align:right; padding:4px 10px 8px; display:flex; gap:4px; justify-content:flex-end;">
+                        <div class="mock-btn" style="font-size:0.85rem; padding:3px 14px;">Yes</div>
+                        <div class="mock-btn" style="font-size:0.85rem; padding:3px 14px;">No</div>
+                    </div>
+                </div>
+                <div class="code-block" style="font-size:0.7rem; padding:6px 8px;">messagebox.<span class="fn">askquestion</span>(
+  <span class="st">"Confirm"</span>, <span class="st">"Delete?"</span>)</div>
+            </div>
+
+            <!-- showerror -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <div class="win-mock">
+                    <div class="win-titlebar" style="padding:5px 10px;">
+                        <div class="win-dots"><div class="win-dot red"></div><div class="win-dot yellow"></div><div class="win-dot green"></div></div>
+                        Error
+                    </div>
+                    <div class="win-body" style="padding:10px; display:flex; gap:10px; align-items:center;">
+                        <svg width="28" height="28" viewBox="0 0 28 28"><circle cx="14" cy="14" r="12" fill="#ef4444"/><text x="14" y="19" text-anchor="middle" fill="#fff" font-size="14" font-weight="700" font-family="Segoe UI">X</text></svg>
+                        <div style="font-size:0.88rem; color:#e2e8f0;">Connection failed.<br>Check credentials.</div>
+                    </div>
+                    <div style="text-align:right; padding:4px 10px 8px;"><div class="mock-btn" style="font-size:0.85rem; padding:3px 14px;">OK</div></div>
+                </div>
+                <div class="code-block" style="font-size:0.7rem; padding:6px 8px;">messagebox.<span class="fn">showerror</span>(
+  <span class="st">"Error"</span>, <span class="st">"Failed!"</span>)</div>
+            </div>
+        </div>
+
+        <div class="box box-green" style="font-size:0.95rem;">
+            <strong>When to use:</strong> <span class="ic">showinfo()</span> for success messages. <span class="ic">askquestion()</span> returns "yes" or "no" for confirmations. <span class="ic">showerror()</span> for validation failures or connection errors. Also available: <span class="ic">showwarning()</span>, <span class="ic">askyesno()</span>, <span class="ic">askokcancel()</span>.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 -- MENU BAR ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 20</div>
+        <div class="slide-title">Menu Bar: <span class="accent">tk.Menu</span></div>
+        <div class="slide-subtitle">Professional apps have menus. File, Edit, Help -- built with nested Menu widgets.</div>
+
+        <div class="code-result-grid">
+            <div>
+                <div class="section-label" style="margin-bottom:4px;">The Code</div>
+                <div class="code-block" style="font-size:0.95rem;"><span class="cm"># Create the menu bar</span>
+menubar = tk.<span class="fn">Menu</span>(root)
+
+<span class="cm"># Create File menu</span>
+file_menu = tk.<span class="fn">Menu</span>(menubar, tearoff=<span class="nb">0</span>)
+file_menu.<span class="fn">add_command</span>(
+    label=<span class="st">"Open"</span>, command=open_file)
+file_menu.<span class="fn">add_command</span>(
+    label=<span class="st">"Save"</span>, command=save_file)
+file_menu.<span class="fn">add_separator</span>()
+file_menu.<span class="fn">add_command</span>(
+    label=<span class="st">"Exit"</span>, command=root.quit)
+
+<span class="cm"># Add to menu bar</span>
+menubar.<span class="fn">add_cascade</span>(
+    label=<span class="st">"File"</span>, menu=file_menu)
+
+<span class="cm"># Attach to window</span>
+root.<span class="fn">config</span>(menu=menubar)</div>
+            </div>
+
+            <div>
+                <div class="section-label" style="margin-bottom:4px;">The Result</div>
+                <div class="win-mock">
+                    <div class="win-titlebar">
+                        <div class="win-dots"><div class="win-dot red"></div><div class="win-dot yellow"></div><div class="win-dot green"></div></div>
+                        IT Log Viewer
+                    </div>
+                    <div class="mock-menubar">
+                        <span style="background:#0078d4; color:#fff;">File</span><span>Edit</span><span>View</span><span>Help</span>
+                    </div>
+                    <!-- Dropdown simulation -->
+                    <div style="position:relative;">
+                        <div style="position:absolute; top:0; left:0; background:#f0f0f0; border:1px solid #ccc; min-width:120px; z-index:10; box-shadow:2px 2px 6px rgba(0,0,0,0.3);">
+                            <div style="padding:4px 16px; font-size:0.88rem; color:#111; cursor:default;">Open</div>
+                            <div style="padding:4px 16px; font-size:0.88rem; color:#111; cursor:default;">Save</div>
+                            <div style="border-top:1px solid #ccc; margin:2px 0;"></div>
+                            <div style="padding:4px 16px; font-size:0.88rem; color:#111; cursor:default;">Exit</div>
+                        </div>
+                    </div>
+                    <div class="win-body" style="min-height:80px; padding:40px 12px 12px;">
+                        <div class="mock-text" style="min-height:50px; font-size:0.65rem;">[2026-04-26] INFO Service started
+[2026-04-26] WARNING Disk at 87%</div>
+                    </div>
+                </div>
+
+                <div class="card c-gold" style="margin-top:8px;">
+                    <div class="card-label">Key Details</div>
+                    <div class="card-desc">
+                        <span class="ic">tearoff=0</span> prevents the old-style "tear off" dashed line.<br>
+                        <span class="ic">add_cascade()</span> nests a submenu under a label.<br>
+                        <span class="ic">root.config(menu=menubar)</span> attaches it to the window.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 -- BUILDING A COMPLETE FORM ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 20</div>
+        <div class="slide-title">Building a Complete Form: <span class="accent">Login App</span></div>
+        <div class="slide-subtitle">Pull everything together. Frames, labels, entries, button, validation, and feedback.</div>
+
+        <div class="code-result-grid">
+            <div>
+                <div class="section-label" style="margin-bottom:4px;">Full Code (annotated)</div>
+                <div class="code-block" style="font-size:0.85rem; line-height:1.55;"><span class="kw">import</span> tkinter <span class="kw">as</span> tk
+<span class="kw">from</span> tkinter <span class="kw">import</span> messagebox
+
+<span class="kw">def</span> <span class="fn">login</span>():                              <span class="cm"># handler</span>
+    user = user_var.<span class="fn">get</span>()
+    pwd  = pwd_var.<span class="fn">get</span>()
+    <span class="kw">if</span> user == <span class="st">"admin"</span> <span class="kw">and</span> pwd == <span class="st">"pass"</span>:
+        messagebox.<span class="fn">showinfo</span>(<span class="st">"OK"</span>, <span class="st">"Welcome!"</span>)
+    <span class="kw">else</span>:
+        messagebox.<span class="fn">showerror</span>(<span class="st">"Fail"</span>, <span class="st">"Bad creds"</span>)
+
+root = tk.<span class="fn">Tk</span>()
+root.<span class="fn">title</span>(<span class="st">"Login"</span>)
+frame = tk.<span class="fn">Frame</span>(root, padx=<span class="nb">20</span>, pady=<span class="nb">20</span>)
+frame.<span class="fn">pack</span>()
+user_var = tk.<span class="fn">StringVar</span>()                  <span class="cm"># data binding</span>
+pwd_var  = tk.<span class="fn">StringVar</span>()
+
+tk.<span class="fn">Label</span>(frame, text=<span class="st">"User:"</span>).<span class="fn">grid</span>(row=<span class="nb">0</span>, column=<span class="nb">0</span>, sticky=<span class="st">"e"</span>)
+tk.<span class="fn">Entry</span>(frame, textvariable=user_var).<span class="fn">grid</span>(row=<span class="nb">0</span>, column=<span class="nb">1</span>)
+tk.<span class="fn">Label</span>(frame, text=<span class="st">"Pass:"</span>).<span class="fn">grid</span>(row=<span class="nb">1</span>, column=<span class="nb">0</span>, sticky=<span class="st">"e"</span>)
+tk.<span class="fn">Entry</span>(frame, textvariable=pwd_var, show=<span class="st">"*"</span>).<span class="fn">grid</span>(row=<span class="nb">1</span>, column=<span class="nb">1</span>)
+tk.<span class="fn">Button</span>(frame, text=<span class="st">"Login"</span>, command=login).<span class="fn">grid</span>(row=<span class="nb">2</span>, columnspan=<span class="nb">2</span>)
+root.<span class="fn">mainloop</span>()</div>
+            </div>
+
+            <div>
+                <div class="section-label" style="margin-bottom:4px;">The Result</div>
+                <div class="win-mock">
+                    <div class="win-titlebar">
+                        <div class="win-dots"><div class="win-dot red"></div><div class="win-dot yellow"></div><div class="win-dot green"></div></div>
+                        Login
+                    </div>
+                    <div class="win-body" style="padding:16px;">
+                        <div style="display:grid; grid-template-columns:auto 1fr; gap:8px 10px; align-items:center;">
+                            <span class="mock-label" style="text-align:right; font-size:0.75rem;">User:</span>
+                            <div class="mock-entry" style="width:100%;">admin</div>
+                            <span class="mock-label" style="text-align:right; font-size:0.75rem;">Pass:</span>
+                            <div class="mock-entry" style="width:100%;">********</div>
+                            <div style="grid-column:1/3; text-align:center; margin-top:6px;">
+                                <div class="mock-btn" style="padding:6px 30px;">Login</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-grid-2" style="margin-top:8px;">
+                    <div class="card c-cyan">
+                        <div class="card-label">Concepts Used</div>
+                        <div class="card-desc" style="font-size:0.88rem;">Frame for layout, grid() for alignment, StringVar for data, Entry with show="*", messagebox for feedback, command= for handler.</div>
+                    </div>
+                    <div class="card c-green">
+                        <div class="card-label">Every Line Matters</div>
+                        <div class="card-desc" style="font-size:0.88rem;">Remove <span class="ic">show="*"</span> and passwords display in plain text. Remove <span class="ic">sticky="e"</span> and labels float to the center. Details matter.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 -- IT TOOL: SYSTEM DASHBOARD ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 20</div>
+        <div class="slide-title">IT Tool: <span class="accent">System Dashboard</span></div>
+        <div class="slide-subtitle">This is what you are building for your final project. A real IT utility.</div>
+
+        <div class="win-mock" style="max-width:900px; margin:0 auto;">
+            <div class="win-titlebar">
+                <div class="win-dots"><div class="win-dot red"></div><div class="win-dot yellow"></div><div class="win-dot green"></div></div>
+                IT System Dashboard v1.0
+            </div>
+            <div class="mock-menubar">
+                <span>File</span><span>Tools</span><span>View</span><span>Help</span>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0; border-bottom:1px solid #ccc;">
+                <!-- System Info Panel -->
+                <div style="padding:8px; border-right:1px solid rgba(255,255,255,0.1); background:#0f0f1a;">
+                    <div style="font-size:0.85rem; font-weight:700; color:#c9a83a; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.05em;">System Info</div>
+                    <div style="font-size:0.65rem; color:#94a3b8; line-height:1.7; font-family:'Courier New',monospace;">
+                        <div>Hostname: <span style="color:#e2e8f0;">IT-LAB-PC01</span></div>
+                        <div>OS: <span style="color:#e2e8f0;">Windows 11 Pro</span></div>
+                        <div>CPU: <span style="color:#e2e8f0;">i7-13700K</span></div>
+                        <div>RAM: <span style="color:#3ab577;">16.0 GB (42% used)</span></div>
+                        <div>Uptime: <span style="color:#e2e8f0;">3d 14h 22m</span></div>
+                    </div>
+                </div>
+
+                <!-- Disk Monitor Panel -->
+                <div style="padding:8px; border-right:1px solid rgba(255,255,255,0.1); background:#0f0f1a;">
+                    <div style="font-size:0.85rem; font-weight:700; color:#06b6d4; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.05em;">Disk Monitor</div>
+                    <div style="font-size:0.65rem; color:#94a3b8; line-height:1.6;">
+                        <div style="margin-bottom:4px;">
+                            <span style="color:#e2e8f0;">C:\ (System)</span>
+                            <div style="background:#1e293b; border-radius:3px; height:10px; margin-top:2px;">
+                                <div style="background:#3ab577; height:100%; width:62%; border-radius:3px;"></div>
+                            </div>
+                            <span style="font-size:0.6rem;">148 GB / 238 GB (62%)</span>
+                        </div>
+                        <div>
+                            <span style="color:#e2e8f0;">D:\ (Data)</span>
+                            <div style="background:#1e293b; border-radius:3px; height:10px; margin-top:2px;">
+                                <div style="background:#eab308; height:100%; width:87%; border-radius:3px;"></div>
+                            </div>
+                            <span style="font-size:0.6rem; color:#eab308;">870 GB / 1000 GB (87%)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Network Status Panel -->
+                <div style="padding:8px; background:#0f0f1a;">
+                    <div style="font-size:0.85rem; font-weight:700; color:#3ab577; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.05em;">Network Status</div>
+                    <div style="font-size:0.65rem; color:#94a3b8; line-height:1.7; font-family:'Courier New',monospace;">
+                        <div>IP: <span style="color:#e2e8f0;">192.168.1.105</span></div>
+                        <div>Gateway: <span style="color:#e2e8f0;">192.168.1.1</span></div>
+                        <div>DNS: <span style="color:#3ab577;">8.8.8.8 (OK)</span></div>
+                        <div>Ping: <span style="color:#3ab577;">4ms</span></div>
+                        <div>Status: <span style="color:#3ab577; font-weight:700;">Connected</span></div>
+                    </div>
+                </div>
+            </div>
+            <div class="mock-statusbar">
+                Last refresh: 2026-04-26 10:15:33 &nbsp;|&nbsp; Auto-refresh: 30s &nbsp;|&nbsp; All systems nominal
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.95rem; margin-top:6px;">
+            <strong>This uses everything from today:</strong> Frames for the 3-panel layout, Labels for data display, grid() for alignment, StringVar for live updates, Menu bar for File/Tools, and a status bar Label at the bottom. You have all the tools to build this.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 -- COMMON MISTAKES ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 20</div>
+        <div class="slide-title">Top 5 Mistakes: <span class="accent">Avoid These</span></div>
+        <div class="slide-subtitle">Every semester, students hit these same bugs. Learn them now, save hours later.</div>
+
+        <div style="display:flex; flex-direction:column; gap:8px;">
+            <!-- Mistake 1 -->
+            <div class="mistake-row">
+                <div class="mistake-icon bad">X</div>
+                <div style="flex:1;">
+                    <div style="font-weight:700; color:#f1f5f9; margin-bottom:2px;">Forgetting pack() or grid()</div>
+                    <div style="color:#94a3b8; font-size:0.95rem;">Widget is created but never placed on screen. Window appears empty. Fix: every widget needs <span class="ic">.pack()</span>, <span class="ic">.grid()</span>, or <span class="ic">.place()</span> after creation.</div>
+                </div>
+                <div class="code-block" style="font-size:0.7rem; padding:6px 8px; min-width:200px;">tk.<span class="fn">Label</span>(root, text=<span class="st">"Hi"</span>)  <span class="cm"># invisible!</span>
+tk.<span class="fn">Label</span>(root, text=<span class="st">"Hi"</span>).<span class="fn">pack</span>()  <span class="cm"># visible</span></div>
+            </div>
+
+            <!-- Mistake 2 -->
+            <div class="mistake-row">
+                <div class="mistake-icon bad">X</div>
+                <div style="flex:1;">
+                    <div style="font-weight:700; color:#f1f5f9; margin-bottom:2px;">command=func() with parentheses</div>
+                    <div style="color:#94a3b8; font-size:0.95rem;">Calls the function immediately during widget creation. Button does nothing when clicked. Fix: remove the parentheses.</div>
+                </div>
+                <div class="code-block" style="font-size:0.7rem; padding:6px 8px; min-width:200px;"><span class="er">command=say_hi()</span>  <span class="cm"># WRONG</span>
+command=say_hi     <span class="cm"># RIGHT</span></div>
+            </div>
+
+            <!-- Mistake 3 -->
+            <div class="mistake-row">
+                <div class="mistake-icon bad">X</div>
+                <div style="flex:1;">
+                    <div style="font-weight:700; color:#f1f5f9; margin-bottom:2px;">mainloop() not at the end</div>
+                    <div style="color:#94a3b8; font-size:0.95rem;">Code after mainloop() only runs after the window closes. All widget setup must come before the mainloop() call.</div>
+                </div>
+                <div class="code-block" style="font-size:0.7rem; padding:6px 8px; min-width:200px;">root.<span class="fn">mainloop</span>()
+<span class="er">tk.Label(root)  </span><span class="cm"># never runs!</span></div>
+            </div>
+
+            <!-- Mistake 4 -->
+            <div class="mistake-row">
+                <div class="mistake-icon bad">X</div>
+                <div style="flex:1;">
+                    <div style="font-weight:700; color:#f1f5f9; margin-bottom:2px;">Widgets created but variable not saved</div>
+                    <div style="color:#94a3b8; font-size:0.95rem;">If you need to update a widget later, you must store it in a variable. Chaining <span class="ic">.pack()</span> returns <span class="ic">None</span>.</div>
+                </div>
+                <div class="code-block" style="font-size:0.7rem; padding:6px 8px; min-width:200px;"><span class="er">lbl = tk.Label().pack()</span> <span class="cm"># None!</span>
+lbl = tk.<span class="fn">Label</span>()     <span class="cm"># save it</span>
+lbl.<span class="fn">pack</span>()              <span class="cm"># then pack</span></div>
+            </div>
+
+            <!-- Mistake 5 -->
+            <div class="mistake-row">
+                <div class="mistake-icon bad">X</div>
+                <div style="flex:1;">
+                    <div style="font-weight:700; color:#f1f5f9; margin-bottom:2px;">Not using StringVar for dynamic text</div>
+                    <div style="color:#94a3b8; font-size:0.95rem;">Regular variables do not notify widgets. Use <span class="ic">StringVar</span> with <span class="ic">textvariable=</span> so labels update when the value changes.</div>
+                </div>
+                <div class="code-block" style="font-size:0.7rem; padding:6px 8px; min-width:200px;"><span class="er">text = "Hello"</span>        <span class="cm"># no sync</span>
+sv = tk.<span class="fn">StringVar</span>()  <span class="cm"># auto-sync</span></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 -- SUMMARY & NEXT STEPS ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 20 &nbsp;|&nbsp; COP1034C Obj 7</div>
+        <div class="slide-title">Summary &amp; <span class="accent">Next Steps</span></div>
+
+        <div class="scenario-strip">
+            You now have every building block needed to create professional GUI applications in Python. From importing tkinter to handling events, building forms, and organizing layouts with frames -- you are ready for the final project.
+        </div>
+
+        <div class="section-label">Key Takeaways</div>
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text"><code>import tkinter as tk</code> -- one import, no install. Ships with Python.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Three lines for a window: <code>Tk()</code>, <code>title()</code>, <code>mainloop()</code>. Everything else builds on this.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Core widgets: <code>Label</code>, <code>Button</code>, <code>Entry</code>, <code>Text</code>, <code>Frame</code>, <code>Menu</code>. Every app is combinations of these.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text"><code>pack()</code> for stacking, <code>grid()</code> for forms. Use Frames to isolate layout contexts.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text"><code>command=func</code> (no parentheses). Use <code>StringVar</code> for live data binding between widgets.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text"><code>messagebox</code> for user feedback. Menus for professional navigation. Colors and fonts for polish.</span>
+            </div>
+        </div>
+
+        <div class="nav-links">
+            <a class="nav-link" href="../labs/pfi-w4-final-project.lab.html">
+                <svg width="36" height="36" viewBox="0 0 36 36"><rect x="4" y="4" width="28" height="28" rx="4" fill="none" stroke="#06b6d4" stroke-width="2"/><path d="M12 18h12M18 12v12" stroke="#06b6d4" stroke-width="2" stroke-linecap="round"/></svg>
+                <div class="nav-link-title">Final Project Lab</div>
+                <div class="nav-link-desc">Build a complete GUI application with menus, forms, and file I/O.</div>
+            </a>
+            <a class="nav-link" href="../quizzes/pfi-w4-gui.quiz.html">
+                <svg width="36" height="36" viewBox="0 0 36 36"><rect x="4" y="4" width="28" height="28" rx="4" fill="none" stroke="#c9a83a" stroke-width="2"/><text x="18" y="24" text-anchor="middle" fill="#c9a83a" font-size="16" font-weight="700" font-family="Segoe UI">?</text></svg>
+                <div class="nav-link-title">GUI Quiz</div>
+                <div class="nav-link-desc">Test your knowledge of Tkinter widgets, layouts, and events.</div>
+            </a>
+            <a class="nav-link" href="../index.html">
+                <svg width="36" height="36" viewBox="0 0 36 36"><path d="M18 6L4 18h4v12h8v-8h4v8h8V18h4L18 6z" fill="none" stroke="#3ab577" stroke-width="2" stroke-linejoin="round"/></svg>
+                <div class="nav-link-title">Course Hub</div>
+                <div class="nav-link-desc">Return to the Python for IT main page.</div>
+            </a>
+        </div>
+
+        <div style="text-align:center; margin-top:12px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Fixed bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Python for IT</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 20</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* -- Slide navigation state -- */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 20;
+
+    function goToSlide(n) {
+        /* Boundary check */
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        /* Deactivate the currently visible slide */
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        /* Activate the target slide */
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        /* Update the gold progress bar at the top */
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        /* Update the slide counter label in the nav bar */
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        /* Disable Prev on slide 1, Next on last slide */
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        /* Show Mark Complete button only on the final slide */
+        var completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard arrow key navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    /* Initialize to slide 1 on page load */
+    goToSlide(1);
+</script>
+
+<script>
+    /* -- Module completion via ModuleProgress component -- */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('code', 'pfi-w4-gui', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<!-- Accessibility enhancements: focus management and ARIA live regions -->
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>
