@@ -277,7 +277,21 @@ const PFI_W2 = {
     title: 'Server Log Analyzer',
     maxScore: 100,
     passingScore: 70,
-    files: {},
+    files: {
+        'data/server.log': '2024-01-15 08:00:01 [INFO] System startup sequence initiated\n' +
+            '2024-01-15 08:00:05 [INFO] Web server listening on port 8080\n' +
+            '2024-01-15 09:12:33 [WARNING] Disk usage on /dev/sda1 at 78%\n' +
+            '2024-01-15 09:15:42 [WARNING] 3 packages have available security updates\n' +
+            '2024-01-15 09:30:11 [WARNING] CPU temperature 72C\n' +
+            '2024-01-15 10:02:18 [ERROR] Authentication failure for user jsmith from 192.168.1.105\n' +
+            '2024-01-15 10:02:19 [ERROR] Authentication failure for user jsmith from 192.168.1.105\n' +
+            '2024-01-15 10:30:44 [ERROR] Connection to DNS server 8.8.8.8 timed out\n' +
+            '2024-01-15 11:45:33 [ERROR] Failed to write to /var/log/audit.log\n' +
+            '2024-01-15 13:05:47 [CRITICAL] Firewall rule misconfiguration detected on port 3389\n' +
+            '2024-01-15 13:05:48 [CRITICAL] Emergency block applied to port 3389\n' +
+            '2024-01-15 15:30:00 [ERROR] RAID array degraded -- disk 3 reporting errors\n' +
+            '2024-01-15 16:30:00 [INFO] System entering low-power mode\n'
+    },
     rubricCategories: [
         { id: 'fileio',      label: 'File I/O (with open)',          maxPoints: 15 },
         { id: 'strings',     label: 'String Methods & Slicing',     maxPoints: 20 },
