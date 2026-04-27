@@ -302,8 +302,45 @@
     }
 
     // ── Week Switching ────────────────────────────────────────────
+    var WEEK_RUBRICS = {
+        'pfi-w1': [
+            { id: 'variables', label: 'Variables & Data Types', maxPoints: 15 },
+            { id: 'input', label: 'User Input & Type Casting', maxPoints: 10 },
+            { id: 'conditionals', label: 'Conditionals', maxPoints: 15 },
+            { id: 'loops', label: 'Loops', maxPoints: 15 },
+            { id: 'formatting', label: 'Output Formatting', maxPoints: 15 },
+            { id: 'comments', label: 'Code Organization & Comments', maxPoints: 15 },
+            { id: 'execution', label: 'Error-Free Execution', maxPoints: 15 }
+        ],
+        'pfi-w2': [
+            { id: 'fileio', label: 'File I/O (with open)', maxPoints: 15 },
+            { id: 'strings', label: 'String Methods & Slicing', maxPoints: 20 },
+            { id: 'dicts', label: 'Dictionaries & Sets', maxPoints: 20 },
+            { id: 'lists', label: 'Lists & Data Storage', maxPoints: 15 },
+            { id: 'output', label: 'Report Output & File Write', maxPoints: 15 },
+            { id: 'comments', label: 'Code Organization & Comments', maxPoints: 15 }
+        ],
+        'pfi-w3': [
+            { id: 'classes', label: 'Classes & __init__/__str__', maxPoints: 20 },
+            { id: 'inheritance', label: 'Inheritance & Override', maxPoints: 20 },
+            { id: 'methods', label: 'Methods & Functionality', maxPoints: 20 },
+            { id: 'manager', label: 'DeviceManager Class', maxPoints: 15 },
+            { id: 'menu', label: 'Menu & Functions', maxPoints: 10 },
+            { id: 'comments', label: 'Code Organization & Comments', maxPoints: 15 }
+        ],
+        'pfi-w4': [
+            { id: 'functions', label: 'Functions & Docstrings', maxPoints: 20 },
+            { id: 'structure', label: 'Control Flow & Logic', maxPoints: 15 },
+            { id: 'errors', label: 'Error Handling', maxPoints: 15 },
+            { id: 'documentation', label: 'Documentation & Comments', maxPoints: 15 },
+            { id: 'validation', label: 'Input Validation', maxPoints: 15 },
+            { id: 'execution', label: 'Error-Free Execution', maxPoints: 20 }
+        ]
+    };
+
     function _switchWeek(projectId) {
         _config.projectId = projectId;
+        _config.rubricCategories = WEEK_RUBRICS[projectId] || WEEK_RUBRICS['pfi-w1'];
         // Clear previous results
         document.getElementById('pfig-results').innerHTML = '';
         _setStatus('Grading against: ' + projectId.replace('pfi-', 'Week ').replace('w', ''), 'success');
