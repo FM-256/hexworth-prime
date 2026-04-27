@@ -571,6 +571,10 @@
             payload.code = code;
         }
 
+        // Wait for auth to resolve before checking — tenant users may still be initializing
+        if (typeof FirebaseAuth !== 'undefined' && typeof FirebaseAuth.waitForAuth === 'function') {
+            await FirebaseAuth.waitForAuth();
+        }
         if (typeof FirebaseAuth === 'undefined' || !FirebaseAuth.isSignedIn()) {
             _setStatus('You must be signed in to submit.', 'error');
             return;
