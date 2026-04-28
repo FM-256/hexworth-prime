@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../components/PresentationA11y.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automation &amp; Orchestration | Cloud Base</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #060a14 0%, #0a1628 50%, #0c1a30 100%); color: #e2e8f0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow-y: auto; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #38bdf8; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(6,10,20,0.95); border-top: 1px solid rgba(255,255,255,0.07); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.07); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(56,189,248,0.15); color: #38bdf8; border-color: #38bdf8; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #0ea5e9; color: #fff; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s; }
+        #complete-btn:hover { background: #38bdf8; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #38bdf8; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #38bdf8; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip { background: rgba(56,189,248,0.08); border-left: 3px solid #38bdf8; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #bae6fd; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-blue { background: rgba(56,189,248,0.08); border: 1px solid rgba(56,189,248,0.3); color: #bae6fd; }
+        .box-green { background: rgba(58,181,119,0.08); border: 1px solid rgba(58,181,119,0.35); color: #d1fae5; }
+        .box-gold { background: rgba(201,168,58,0.08); border: 1px solid rgba(201,168,58,0.3); color: #fef3c7; }
+        .box-red { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); color: #fee2e2; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #38bdf8; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #38bdf8; }
+        .card:hover { background: rgba(255,255,255,0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-red { border-left-color: #ef4444; }
+        .card.c-gold { border-left-color: #c9a83a; } .card.c-sky { border-left-color: #38bdf8; }
+        .card.c-cyan { border-left-color: #06b6d4; } .card.c-purple { border-left-color: #a78bfa; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #38bdf8; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Automation and Orchestration</h1>
+<div id="progress-bar" style="width:7.7%"></div>
+
+<section class="slide active" id="slide-1"><div class="slide-inner">
+    <div class="slide-meta">Slide 1 of 13 &nbsp;|&nbsp; CTS2145C &nbsp;|&nbsp; Week 2</div>
+    <div class="title-hero">
+        <svg width="110" height="90" viewBox="0 0 110 90" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect x="10" y="15" width="30" height="25" rx="4" fill="rgba(56,189,248,0.1)" stroke="#38bdf8" stroke-width="1.2"/>
+            <rect x="50" y="15" width="30" height="25" rx="4" fill="rgba(14,165,233,0.1)" stroke="#0ea5e9" stroke-width="1.2"/>
+            <rect x="30" y="50" width="30" height="25" rx="4" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.2"/>
+            <rect x="70" y="50" width="30" height="25" rx="4" fill="rgba(201,168,58,0.1)" stroke="#c9a83a" stroke-width="1.2"/>
+            <line x1="40" y1="40" x2="45" y2="50" stroke="#38bdf8" stroke-width="1" stroke-dasharray="3,2"/>
+            <line x1="65" y1="40" x2="60" y2="50" stroke="#0ea5e9" stroke-width="1" stroke-dasharray="3,2"/>
+            <line x1="65" y1="40" x2="85" y2="50" stroke="#c9a83a" stroke-width="1" stroke-dasharray="3,2"/>
+            <circle cx="55" cy="10" r="6" fill="rgba(56,189,248,0.15)" stroke="#38bdf8" stroke-width="1"/>
+        </svg>
+        <div class="big-title">Automation <br><span class="accent"> Orchestration</span></div>
+        <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">IaC &bull; Terraform &bull; CI/CD &bull; Auto-Scaling &bull; Containers &bull; Serverless</div>
+    </div>
+    <div class="scenario-strip">Your team manually configures servers through the console. Every deployment is slightly different, and nobody can reproduce the staging environment. Infrastructure as Code changes everything -- your infrastructure is versioned, tested, and repeatable.</div>
+    <div class="title-meta-row"><span>13 Slides</span><span>CTS2145C</span><span>Week 2</span><span>Cloud+ Aligned</span></div>
+</div></section>
+
+<section class="slide" id="slide-2"><div class="slide-inner">
+    <div class="slide-meta">Slide 2 of 13</div>
+    <div class="slide-title">Infrastructure as <span class="accent">Code</span></div>
+    <div class="slide-subtitle">Define infrastructure in code files. Version it in Git. Deploy it automatically. Never click through a console again.</div>
+    <div class="card-grid">
+        <div class="card c-sky"><div class="card-label">What Is IaC</div><div class="card-desc">Infrastructure defined in declarative configuration files. Terraform (HCL), CloudFormation (YAML/JSON), Bicep (Azure). The code IS the infrastructure -- if it is not in the template, it does not exist.</div></div>
+        <div class="card c-green"><div class="card-label">Declarative vs. Imperative</div><div class="card-desc">Declarative: describe the desired end state. Terraform figures out what to create/modify/destroy. Imperative: write step-by-step scripts (Bash, Python). Declarative is preferred for infrastructure.</div></div>
+        <div class="card c-gold"><div class="card-label">Why IaC Matters</div><div class="card-desc">Reproducibility: deploy identical environments. Version control: track every change in Git. Speed: create 50 servers in 2 minutes. Safety: review infrastructure changes in pull requests before applying.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-3"><div class="slide-inner">
+    <div class="slide-meta">Slide 3 of 13</div>
+    <div class="slide-title"><span class="accent">Terraform</span> &amp; CloudFormation</div>
+    <div class="slide-subtitle">The two dominant IaC tools. Terraform is multi-cloud. CloudFormation is AWS-native.</div>
+    <div class="card-grid">
+        <div class="card c-sky"><div class="card-label">Terraform</div><div class="card-desc">HashiCorp product. HCL syntax. Works with AWS, Azure, GCP, and 1000+ providers. State file tracks what exists. Plan before apply: see exactly what will change before it happens.</div></div>
+        <div class="card c-green"><div class="card-label">CloudFormation</div><div class="card-desc">AWS-native IaC. YAML or JSON templates. Deep AWS integration -- supports every AWS service on launch day. Stack-based: create, update, delete entire environments as a unit.</div></div>
+        <div class="card c-gold"><div class="card-label">Azure Bicep / ARM</div><div class="card-desc">Bicep is Azure's domain-specific IaC language. Compiles to ARM JSON templates. Simpler syntax than raw ARM. First-class Azure resource support. Azure-only -- no multi-cloud.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-4"><div class="slide-inner">
+    <div class="slide-meta">Slide 4 of 13</div>
+    <div class="slide-title">Configuration <span class="accent">Management</span></div>
+    <div class="slide-subtitle">IaC creates infrastructure. Config management configures what runs on it: packages, files, services, users.</div>
+    <div class="card-grid">
+        <div class="card c-sky"><div class="card-label">Ansible</div><div class="card-desc">Agentless. Uses SSH to push configurations. YAML playbooks. Idempotent: run it 10 times, get the same result. The most popular CM tool for cloud environments.</div></div>
+        <div class="card c-green"><div class="card-label">Puppet &amp; Chef</div><div class="card-desc">Agent-based. Puppet uses its own DSL. Chef uses Ruby. Both manage state: define desired configuration, the agent enforces it continuously. Better for large, complex fleets.</div></div>
+        <div class="card c-gold"><div class="card-label">IaC + CM Together</div><div class="card-desc">Terraform creates the VM. Ansible configures it: installs packages, deploys app code, sets up monitoring agents. The two tools are complementary, not competing.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-5"><div class="slide-inner">
+    <div class="slide-meta">Slide 5 of 13</div>
+    <div class="slide-title"><span class="accent">CI/CD</span> Pipelines</div>
+    <div class="slide-subtitle">Continuous Integration builds and tests code. Continuous Deployment pushes it to production. Automation end-to-end.</div>
+    <div class="card-grid">
+        <div class="card c-sky"><div class="card-label">Continuous Integration</div><div class="card-desc">Every code commit triggers: build the application, run unit tests, run linting, scan for vulnerabilities. If any step fails, the commit is blocked. GitHub Actions, GitLab CI, Jenkins.</div></div>
+        <div class="card c-green"><div class="card-label">Continuous Deployment</div><div class="card-desc">After CI passes: deploy to staging, run integration tests, deploy to production. Blue/green or canary deployments minimize risk. Rollback automatically on failure.</div></div>
+        <div class="card c-gold"><div class="card-label">GitOps</div><div class="card-desc">Git is the single source of truth for both application code AND infrastructure. Push to Git triggers automated deployment. ArgoCD and Flux watch Git repos and sync cluster state automatically.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-6"><div class="slide-inner">
+    <div class="slide-meta">Slide 6 of 13</div>
+    <div class="slide-title"><span class="accent">Auto-Scaling</span></div>
+    <div class="slide-subtitle">Automatically add or remove compute resources based on demand. The cloud killer feature.</div>
+    <div class="card-grid">
+        <div class="card c-sky"><div class="card-label">Horizontal Scaling</div><div class="card-desc">Add more instances. A web farm goes from 3 to 30 instances during peak traffic. AWS Auto Scaling Groups, Azure VM Scale Sets, GCP Instance Groups. Preferred for stateless workloads.</div></div>
+        <div class="card c-green"><div class="card-label">Vertical Scaling</div><div class="card-desc">Make instances bigger. Upgrade from 4 vCPU to 16 vCPU. Requires a restart in most cases. Limited by the largest instance type available. Used for databases and stateful workloads.</div></div>
+        <div class="card c-gold"><div class="card-label">Scaling Policies</div><div class="card-desc">Target tracking: maintain 70% CPU. Step scaling: add 2 instances above 80% CPU. Scheduled: scale up at 8 AM, down at 6 PM. Predictive: ML-based forecasting (AWS).</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-7"><div class="slide-inner">
+    <div class="slide-meta">Slide 7 of 13</div>
+    <div class="slide-title"><span class="accent">Containers</span> &amp; Docker</div>
+    <div class="slide-subtitle">Package an application with all its dependencies into a portable, lightweight unit.</div>
+    <div class="card-grid">
+        <div class="card c-sky"><div class="card-label">What Is a Container</div><div class="card-desc">A container bundles application code, runtime, libraries, and config into a single image. It runs in isolation but shares the host OS kernel. Lighter than VMs -- starts in seconds, not minutes.</div></div>
+        <div class="card c-green"><div class="card-label">Docker</div><div class="card-desc">The de facto container runtime. Dockerfile defines the image. Docker Hub hosts public images. Build locally, push to a registry, pull and run anywhere. Works identically on laptop, CI, and production.</div></div>
+        <div class="card c-gold"><div class="card-label">Container Registries</div><div class="card-desc">Docker Hub, Amazon ECR, Azure Container Registry, Google Artifact Registry. Store and distribute container images. Scan images for vulnerabilities before deployment. Version with tags.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-8"><div class="slide-inner">
+    <div class="slide-meta">Slide 8 of 13</div>
+    <div class="slide-title"><span class="accent">Kubernetes</span> Orchestration</div>
+    <div class="slide-subtitle">Kubernetes manages thousands of containers across a cluster: scheduling, scaling, networking, and self-healing.</div>
+    <div class="card-grid">
+        <div class="card c-sky"><div class="card-label">What K8s Does</div><div class="card-desc">Deploys containers across nodes. Auto-scales based on CPU/memory. Self-heals: restarts crashed containers. Rolling updates: zero-downtime deployments. Service discovery: containers find each other.</div></div>
+        <div class="card c-green"><div class="card-label">Managed Kubernetes</div><div class="card-desc">Amazon EKS, Azure AKS, Google GKE. The provider manages the control plane (API server, etcd, scheduler). You manage worker nodes and workloads. Reduces operational overhead significantly.</div></div>
+        <div class="card c-gold"><div class="card-label">When to Use K8s</div><div class="card-desc">Microservices architectures with many independent services. Workloads needing auto-scaling and self-healing. Teams already using containers. NOT for simple applications -- the complexity cost is real.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-9"><div class="slide-inner">
+    <div class="slide-meta">Slide 9 of 13</div>
+    <div class="slide-title"><span class="accent">Serverless</span> Computing</div>
+    <div class="slide-subtitle">No servers to provision, patch, or scale. Write code, define triggers, and let the platform handle everything else.</div>
+    <div class="card-grid">
+        <div class="card c-sky"><div class="card-label">Functions as a Service</div><div class="card-desc">AWS Lambda, Azure Functions, Google Cloud Functions. Upload a function, define a trigger (HTTP, queue, timer, file upload). The platform provisions compute, runs the function, and bills per invocation.</div></div>
+        <div class="card c-green"><div class="card-label">Event-Driven Architecture</div><div class="card-desc">Serverless shines with event-driven patterns: image uploaded triggers resize function, API request triggers processing function, database change triggers notification function. Each function is independent.</div></div>
+        <div class="card c-gold"><div class="card-label">Serverless Trade-Offs</div><div class="card-desc">Cold starts: first invocation after idle has latency (100ms-2s). Execution limits: 15 min max (Lambda). Debugging is harder. Vendor lock-in: Lambda code does not run on Azure Functions without changes.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-10"><div class="slide-inner">
+    <div class="slide-meta">Slide 10 of 13</div>
+    <div class="slide-title"><span class="accent">Orchestration</span> Patterns</div>
+    <div class="slide-subtitle">Coordinate multiple automation tools and services into a cohesive deployment workflow.</div>
+    <div class="card-grid">
+        <div class="card c-sky"><div class="card-label">Pipeline Orchestration</div><div class="card-desc">CI/CD pipelines orchestrate build, test, and deploy stages. Each stage can use different tools: Terraform for infra, Docker for containers, Ansible for config, Selenium for testing.</div></div>
+        <div class="card c-green"><div class="card-label">Workflow Engines</div><div class="card-desc">AWS Step Functions, Azure Logic Apps, Google Workflows. Define multi-step workflows with branching, error handling, and parallel execution. Coordinate Lambda functions, APIs, and services visually.</div></div>
+        <div class="card c-gold"><div class="card-label">Infrastructure Pipelines</div><div class="card-desc">Treat infrastructure changes like code changes: PR review, automated testing (terraform plan), staged rollout (dev then staging then prod), automated rollback on failure.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-13"><div class="slide-inner">
+    <div class="slide-meta">Slide 13 of 13</div>
+    <div class="slide-title">Key <span class="accent">Takeaways</span></div>
+    <div class="summary-facts">
+        <div class="fact-row"><span class="fact-num">1</span><span class="fact-text">IaC (Terraform, CloudFormation, Bicep) makes infrastructure reproducible, versioned, and reviewable in Git.</span></div>
+        <div class="fact-row"><span class="fact-num">2</span><span class="fact-text">Configuration management (Ansible, Puppet) configures what runs ON the infrastructure. Use IaC + CM together.</span></div>
+        <div class="fact-row"><span class="fact-num">3</span><span class="fact-text">CI/CD automates build, test, and deploy. GitOps uses Git as the single source of truth for infrastructure and code.</span></div>
+        <div class="fact-row"><span class="fact-num">4</span><span class="fact-text">Auto-scaling (horizontal and vertical) matches resources to demand. Target tracking and scheduled policies are most common.</span></div>
+        <div class="fact-row"><span class="fact-num">5</span><span class="fact-text">Containers (Docker) package apps portably. Kubernetes orchestrates containers at scale. Managed K8s reduces complexity.</span></div>
+        <div class="fact-row"><span class="fact-num">6</span><span class="fact-text">Serverless (Lambda, Functions) eliminates server management but introduces cold starts and vendor lock-in trade-offs.</span></div>
+    </div>
+    <div class="box box-blue" style="margin-top:8px;"><div class="box-label">Next Up</div>Midterm Exam covering Weeks 1-2: Cloud Concepts, Deployment, Security, and Automation.</div>
+    <div style="text-align:center; margin-top:6px;"><button id="complete-btn" onclick="completeModule()">Mark Complete</button></div>
+</div></section>
+
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; Cloud Base</button></a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 13</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+<script>
+    var currentSlide = 1, TOTAL_SLIDES = 13;
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        var p = document.getElementById('slide-' + currentSlide); if (p) p.classList.remove('active');
+        currentSlide = n;
+        var x = document.getElementById('slide-' + currentSlide); if (x) x.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        var cb = document.getElementById('complete-btn'); if (cb) cb.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+    goToSlide(1);
+</script>
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('cloud', 'cb-w2-automation-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+</body>
+</html>

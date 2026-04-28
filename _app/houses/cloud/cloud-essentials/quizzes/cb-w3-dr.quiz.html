@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz 6: Disaster Recovery | Cloud Base</title>
+    <style>
+        :root { --bg: #060a14; --bg-card: #0c1424; --bg-option: #101c30; --sky: #38bdf8; --sky-dim: rgba(56,189,248,0.15); --text: #e2e8f0; --text-muted: #8892a8; --success: #22c55e; --danger: #ef4444; --border: rgba(255,255,255,0.08); }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, var(--bg) 0%, #081420 50%, #0a1828 100%); color: var(--text); min-height: 100vh; line-height: 1.6; }
+        .quiz-container { max-width: 800px; margin: 0 auto; padding: 2rem; }
+        .nav-links { display: flex; gap: 1.5rem; margin-bottom: 1.5rem; }
+        .back-link { color: var(--sky); text-decoration: none; font-size: 0.9rem; transition: all 0.3s; }
+        .back-link:hover { color: #7dd3fc; }
+        .quiz-header { text-align: center; margin-bottom: 2rem; padding: 2rem; background: var(--bg-card); border-radius: 14px; border: 1px solid var(--sky-dim); }
+        .quiz-header h1 { font-size: 1.6rem; color: var(--sky); margin-bottom: 0.5rem; }
+        .quiz-header .subtitle { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.75rem; }
+        .quiz-header .meta { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; font-size: 0.8rem; }
+        .quiz-header .meta span { background: var(--bg); padding: 4px 12px; border-radius: 6px; border: 1px solid var(--border); color: var(--text-muted); }
+        .progress-bar-wrap { background: var(--bg-card); border-radius: 10px; padding: 14px 18px; margin-bottom: 1.5rem; border: 1px solid var(--border); display: flex; align-items: center; gap: 14px; }
+        .progress-label { font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; }
+        .progress-track { flex: 1; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--sky), var(--success)); border-radius: 4px; transition: width 0.4s ease; width: 0%; }
+        .score-label { font-size: 0.85rem; color: var(--sky); font-weight: 600; white-space: nowrap; }
+        .question-card { background: var(--bg-card); border-radius: 14px; padding: 2rem; border: 1px solid var(--border); margin-bottom: 1.5rem; }
+        .question-num { font-size: 0.8rem; color: var(--sky); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 0.75rem; }
+        .question-text { font-size: 1.15rem; font-weight: 600; margin-bottom: 1.5rem; line-height: 1.5; }
+        .question-text code { background: rgba(56,189,248,0.1); color: #7dd3fc; padding: 2px 6px; border-radius: 4px; font-family: 'Consolas', monospace; font-size: 1rem; }
+        .options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 1rem; }
+        .option { display: flex; align-items: center; gap: 12px; padding: 14px 18px; background: var(--bg-option); border: 1px solid var(--border); border-radius: 10px; cursor: pointer; transition: all 0.2s; font-size: 0.95rem; }
+        .option:hover { border-color: rgba(56,189,248,0.4); background: rgba(56,189,248,0.05); }
+        .option.selected { border-color: var(--sky); background: rgba(56,189,248,0.08); }
+        .option.correct { border-color: var(--success); background: rgba(34,197,94,0.1); }
+        .option.incorrect { border-color: var(--danger); background: rgba(239,68,68,0.08); }
+        .option.disabled { pointer-events: none; opacity: 0.7; }
+        .option.correct.disabled { opacity: 1; } .option.incorrect.disabled { opacity: 1; }
+        .option-letter { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: var(--bg); border: 1px solid var(--border); font-weight: 700; font-size: 0.85rem; color: var(--sky); flex-shrink: 0; }
+        .option.correct .option-letter { background: var(--success); color: #fff; border-color: var(--success); }
+        .option.incorrect .option-letter { background: var(--danger); color: #fff; border-color: var(--danger); }
+        .feedback { padding: 14px 18px; border-radius: 10px; margin-bottom: 1rem; font-size: 0.9rem; line-height: 1.6; display: none; }
+        .feedback.correct { display: block; background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.3); color: #86efac; }
+        .feedback.incorrect { display: block; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; }
+        .quiz-nav { display: flex; justify-content: flex-end; }
+        .next-btn { padding: 10px 24px; background: rgba(56,189,248,0.15); border: 1px solid rgba(56,189,248,0.4); color: var(--sky); border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .next-btn:hover { background: var(--sky); color: #fff; }
+        .next-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .results-card { display: none; text-align: center; background: var(--bg-card); border-radius: 14px; padding: 3rem 2rem; border: 1px solid var(--border); }
+        .results-card h2 { color: var(--sky); font-size: 1.4rem; margin-bottom: 1rem; }
+        .score-big { font-size: 3.5rem; font-weight: 700; color: var(--success); margin-bottom: 0.5rem; }
+        .score-big.low { color: var(--danger); } .score-big.mid { color: #fbbf24; }
+        .score-msg { color: var(--text-muted); font-size: 1rem; margin-bottom: 2rem; }
+        .results-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        .results-btns a, .results-btns button { padding: 10px 24px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: all 0.2s; border: none; }
+        .btn-retry { background: rgba(56,189,248,0.15); border: 1px solid rgba(56,189,248,0.4) !important; color: var(--sky); }
+        .btn-retry:hover { background: var(--sky); color: #fff; }
+        .btn-hub { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.4) !important; color: var(--success); }
+        .btn-hub:hover { background: var(--success); color: #fff; }
+        @media (max-width: 640px) { .quiz-container { padding: 1rem; } .question-card { padding: 1.25rem; } .quiz-header h1 { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+    <div class="quiz-container">
+        <div class="nav-links"><a href="../index.html" class="back-link">&#8592; Cloud Base Hub</a></div>
+        <div class="quiz-header">
+            <h1>Quiz 6: Disaster Recovery</h1>
+            <p class="subtitle">DR strategies, failover, pilot light, warm standby, active-active, chaos engineering</p>
+            <div class="meta"><span>Week 3</span><span>15 Questions</span><span>Pass: 70%</span><span>CTS2145C</span></div>
+        </div>
+        <div class="progress-bar-wrap">
+            <span class="progress-label" id="progressLabel">Question 1 of 15</span>
+            <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+            <span class="score-label" id="scoreLabel">Score: 0</span>
+        </div>
+        <div class="question-card" id="questionCard">
+            <div class="question-num" id="questionNum">QUESTION 1</div>
+            <div class="question-text" id="questionText"></div>
+            <div class="options" id="optionsEl"></div>
+            <div class="feedback" id="feedback"></div>
+            <div class="quiz-nav"><button class="next-btn" id="nextBtn" onclick="nextQuestion()" disabled>Next Question</button></div>
+        </div>
+        <div class="results-card" id="resultsCard">
+            <h2>Quiz Complete</h2>
+            <div class="score-big" id="finalScore"></div>
+            <p class="score-msg" id="scoreMsg"></p>
+            <div class="results-btns">
+                <button class="btn-retry" onclick="restartQuiz()">Try Again</button>
+                <a href="../index.html" class="btn-hub">Back to Cloud Base Hub</a>
+            </div>
+        </div>
+    </div>
+    <script>
+var questions = [{"q":"Which DR strategy has the LOWEST cost during normal operations?","opts":["Active-Active","Warm Standby","Pilot Light","Backup and Restore"],"ans":3,"exp":"Backup and Restore only pays for backup storage during normal operations. No running compute in the DR region. Cheapest but slowest recovery."},{"q":"Active-active DR provides:","opts":["RPO of 24 hours","RPO near-zero and RTO near-zero","Only backup copies","Single-region protection"],"ans":1,"exp":"Active-active runs full production in both regions simultaneously. Automatic traffic redistribution on failure. Highest cost but best RPO/RTO."},{"q":"Pilot light DR keeps which components running in the DR region?","opts":["Full production environment","Nothing -- only backups","Core infrastructure at minimum capacity","Read-only database replicas only"],"ans":2,"exp":"Pilot light maintains core infrastructure (DB replicas, minimal compute) at the smallest possible size. Scale up and start additional services on failover."},{"q":"DNS-based failover has a limitation related to:","opts":["Encryption","TTL caching delays","Cost","Storage capacity"],"ans":1,"exp":"DNS records are cached by resolvers based on TTL. Even after updating DNS, clients may use cached records until TTL expires. This delays failover."},{"q":"Chaos engineering intentionally:","opts":["Breaks production systems to test resilience","Creates documentation","Writes backup policies","Builds new features"],"ans":0,"exp":"Chaos engineering (pioneered by Netflix Chaos Monkey) injects failures into production to validate that systems handle failures gracefully."},{"q":"A warm standby DR environment runs at approximately what percentage of production capacity?","opts":["0% (nothing running)","10-30% of production","100% of production","200% of production"],"ans":1,"exp":"Warm standby typically runs at 20-30% of production capacity. Fully functional but scaled down. Scale to full capacity during failover."},{"q":"Which failover mechanism is faster than DNS failover?","opts":["Email notification","Global load balancer","Manual IP update","Server reboot"],"ans":1,"exp":"Global load balancers (AWS Global Accelerator, Azure Front Door) route traffic based on health checks without DNS TTL delays. Faster failover."},{"q":"Business Impact Analysis (BIA) identifies:","opts":["Server hardware specifications","Critical systems and their RPO/RTO requirements","Cloud provider pricing","Developer productivity metrics"],"ans":1,"exp":"BIA identifies which systems are business-critical and defines their RPO and RTO requirements. This drives the choice of DR strategy for each system."},{"q":"An automated runbook for DR should include:","opts":["Step-by-step procedures and automation scripts","Marketing materials","Employee birthdays","Vacation schedules"],"ans":0,"exp":"Runbooks contain step-by-step failover procedures, responsible team members, automation scripts, expected timelines, and rollback instructions."},{"q":"Post-mortem after a DR event should be:","opts":["Punitive -- identify who made the mistake","Blameless -- focus on process improvement","Confidential -- never shared","Optional -- only for major events"],"ans":1,"exp":"Blameless post-mortems focus on systemic improvements, not individual blame. What happened, why, and how to prevent it. Update runbooks based on findings."},{"q":"Which DR strategy is most appropriate for a marketing website with 24-hour RTO?","opts":["Active-Active","Warm Standby","Backup and Restore","Pilot Light"],"ans":2,"exp":"A marketing website with 24-hour RTO is non-critical. Backup and Restore is the cheapest option that meets the requirement."},{"q":"Multi-region deployment protects against:","opts":["Application bugs","Regional outages","User input errors","Slow queries"],"ans":1,"exp":"Multi-region deployment protects against region-level failures: data center outages, natural disasters, network infrastructure failures."},{"q":"How often should DR tabletop exercises be conducted?","opts":["Never","Annually","Quarterly","Only after a disaster"],"ans":2,"exp":"Quarterly tabletop exercises review the DR plan on paper, identify gaps, and ensure team members know their roles. Low cost, high value."},{"q":"Which AWS service provides health-based DNS routing for failover?","opts":["CloudFront","Route 53","CloudWatch","S3"],"ans":1,"exp":"Route 53 health checks monitor endpoints and automatically update DNS routing to failover targets when the primary endpoint becomes unhealthy."},{"q":"The key difference between HA and DR is:","opts":["HA prevents downtime within a region; DR recovers from regional failures","HA is more expensive","DR is faster","They are the same thing"],"ans":0,"exp":"HA (High Availability) uses redundancy within a region (multi-AZ) to prevent downtime. DR recovers from regional or catastrophic failures."}];
+var current = 0, score = 0, answered = false, TOTAL = questions.length;
+function loadQuestion() {
+    var q = questions[current];
+    document.getElementById('questionNum').textContent = 'QUESTION ' + (current + 1);
+    document.getElementById('progressLabel').textContent = 'Question ' + (current + 1) + ' of ' + TOTAL;
+    document.getElementById('progressFill').style.width = ((current + 1) / TOTAL * 100) + '%';
+    document.getElementById('questionText').innerHTML = q.q;
+    var html = '', letters = ['A','B','C','D'];
+    for (var i = 0; i < q.opts.length; i++) {
+        html += '<div class="option" onclick="selectAnswer(' + i + ')"><span class="option-letter">' + letters[i] + '</span><span>' + q.opts[i] + '</span></div>';
+    }
+    document.getElementById('optionsEl').innerHTML = html;
+    document.getElementById('feedback').className = 'feedback';
+    document.getElementById('feedback').textContent = '';
+    document.getElementById('nextBtn').disabled = true;
+    answered = false;
+}
+function selectAnswer(idx) {
+    if (answered) return; answered = true;
+    var q = questions[current], opts = document.querySelectorAll('.option');
+    for (var i = 0; i < opts.length; i++) { opts[i].classList.add('disabled'); if (i === q.ans) opts[i].classList.add('correct'); else if (i === idx) opts[i].classList.add('incorrect'); }
+    var fb = document.getElementById('feedback');
+    if (idx === q.ans) { score++; fb.className = 'feedback correct'; fb.textContent = 'Correct! ' + q.exp; }
+    else { fb.className = 'feedback incorrect'; fb.textContent = 'Incorrect. ' + q.exp; }
+    document.getElementById('scoreLabel').textContent = 'Score: ' + score;
+    document.getElementById('nextBtn').disabled = false;
+    if (current === TOTAL - 1) document.getElementById('nextBtn').textContent = 'See Results';
+}
+function nextQuestion() { current++; if (current >= TOTAL) { showResults(); return; } loadQuestion(); }
+function showResults() {
+    document.getElementById('questionCard').style.display = 'none';
+    document.querySelector('.progress-bar-wrap').style.display = 'none';
+    document.getElementById('resultsCard').style.display = 'block';
+    var pct = Math.round((score / TOTAL) * 100);
+    var sb = document.getElementById('finalScore');
+    sb.textContent = score + '/' + TOTAL + ' (' + pct + '%)';
+    sb.className = pct >= 80 ? 'score-big' : pct >= 70 ? 'score-big mid' : 'score-big low';
+    var msg = pct >= 90 ? 'Excellent! Strong grasp of the material.' : pct >= 70 ? 'Good work -- you passed. Review missed questions.' : pct >= 50 ? 'Close but not passing. Review the presentations and try again.' : 'More study needed. Return to the course materials.';
+    document.getElementById('scoreMsg').textContent = msg;
+    if (pct >= 70 && typeof ModuleProgress !== 'undefined') { ModuleProgress.complete('cloud', 'cb-w3-dr-quiz', { returnUrl: '../index.html' }); }
+}
+function restartQuiz() {
+    current = 0; score = 0; answered = false;
+    document.getElementById('scoreLabel').textContent = 'Score: 0';
+    document.getElementById('questionCard').style.display = '';
+    document.querySelector('.progress-bar-wrap').style.display = '';
+    document.getElementById('resultsCard').style.display = 'none';
+    document.getElementById('nextBtn').textContent = 'Next Question';
+    loadQuestion();
+}
+loadQuestion();
+    </script>
+</body>
+</html>

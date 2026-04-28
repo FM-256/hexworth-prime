@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../components/PresentationA11y.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Concepts &amp; Models | Cloud Base</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #060a14 0%, #0a1628 50%, #0c1a30 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow-y: auto;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #38bdf8; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(6, 10, 20, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(56, 189, 248, 0.15); color: #38bdf8; border-color: #38bdf8;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #0ea5e9; color: #fff; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #38bdf8; transform: translateY(-1px); }
+
+        .slide-meta     { font-size: 0.78rem; color: #38bdf8; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title    { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #38bdf8; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(56, 189, 248, 0.08); border-left: 3px solid #38bdf8;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bae6fd; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-blue  { background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.3); color: #bae6fd; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #38bdf8; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #38bdf8;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card .card-desc code { font-family: 'Courier New', monospace; color: #38bdf8; background: rgba(56, 189, 248, 0.1); padding: 1px 4px; border-radius: 3px; font-size: 0.85em; }
+        .card.c-green { border-left-color: #3ab577; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #c9a83a; }
+        .card.c-sky   { border-left-color: #38bdf8; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #38bdf8; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .diagram-row { display: flex; gap: 16px; align-items: center; justify-content: center; }
+
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        @keyframes flowRight { from { stroke-dashoffset: 18; } to { stroke-dashoffset: 0; } }
+
+        @media (max-height: 700px) {
+            .slide-inner { gap: 9px; }
+            .slide-title { font-size: 1.4rem; }
+            .title-hero .big-title { font-size: 1.9rem; }
+        }
+        @media (max-width: 768px) {
+            .card-grid { grid-template-columns: 1fr; }
+            .card-grid-2 { grid-template-columns: 1fr; }
+            .card-grid-4 { grid-template-columns: repeat(2, 1fr); }
+            .slide-title { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Cloud Concepts and Models</h1>
+
+<div id="progress-bar" style="width:7.14%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 14 &nbsp;|&nbsp; CTS2145C &nbsp;|&nbsp; Week 1</div>
+        <div class="title-hero">
+            <svg width="120" height="100" viewBox="0 0 120 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <ellipse cx="60" cy="42" rx="50" ry="28" fill="rgba(56,189,248,0.08)" stroke="#38bdf8" stroke-width="1.4"/>
+                <ellipse cx="60" cy="42" rx="34" ry="18" fill="rgba(14,165,233,0.06)" stroke="#0ea5e9" stroke-width="1" stroke-dasharray="3,3"/>
+                <circle cx="42" cy="40" r="5" fill="rgba(56,189,248,0.2)" stroke="#38bdf8" stroke-width="1"/>
+                <circle cx="60" cy="35" r="5" fill="rgba(56,189,248,0.2)" stroke="#38bdf8" stroke-width="1"/>
+                <circle cx="78" cy="40" r="5" fill="rgba(56,189,248,0.2)" stroke="#38bdf8" stroke-width="1"/>
+                <line x1="42" y1="45" x2="42" y2="72" stroke="rgba(56,189,248,0.4)" stroke-width="1" stroke-dasharray="3,2"/>
+                <line x1="60" y1="40" x2="60" y2="72" stroke="rgba(56,189,248,0.4)" stroke-width="1" stroke-dasharray="3,2"/>
+                <line x1="78" y1="45" x2="78" y2="72" stroke="rgba(56,189,248,0.4)" stroke-width="1" stroke-dasharray="3,2"/>
+                <rect x="32" y="72" width="20" height="14" rx="3" fill="rgba(56,189,248,0.1)" stroke="#38bdf8" stroke-width="1"/>
+                <rect x="50" y="72" width="20" height="14" rx="3" fill="rgba(56,189,248,0.1)" stroke="#38bdf8" stroke-width="1"/>
+                <rect x="68" y="72" width="20" height="14" rx="3" fill="rgba(56,189,248,0.1)" stroke="#38bdf8" stroke-width="1"/>
+            </svg>
+            <div class="big-title">
+                Cloud Concepts<br><span class="accent">&amp; Service Models</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                IaaS &bull; PaaS &bull; SaaS &bull; Public &bull; Private &bull; Hybrid &bull; Community
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Your company just announced a cloud migration. The CTO asks: should we go IaaS, PaaS, or SaaS? Public or private? Before you can answer, you need to understand what each model offers and what you are responsible for in each one.
+        </div>
+        <div class="title-meta-row">
+            <span>14 Slides</span>
+            <span>CTS2145C</span>
+            <span>Week 1</span>
+            <span>Cloud+ Aligned</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- WHAT IS CLOUD COMPUTING ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 14</div>
+        <div class="slide-title">What Is <span class="accent">Cloud Computing?</span></div>
+        <div class="slide-subtitle">The delivery of computing services over the internet -- on-demand, pay-as-you-go, managed by a provider.</div>
+
+        <div class="card-grid">
+            <div class="card c-sky">
+                <div class="card-label">On-Demand Self-Service</div>
+                <div class="card-desc">Provision servers, storage, and networks without waiting for human approval. Spin up a VM in minutes, not weeks. The cloud console or API is your IT department.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Broad Network Access</div>
+                <div class="card-desc">Accessible from any device with an internet connection -- laptops, phones, tablets. No VPN required for most SaaS applications. Geography becomes irrelevant.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Resource Pooling</div>
+                <div class="card-desc">The provider serves multiple tenants from the same physical hardware using virtualization. You get isolated resources without owning the servers.</div>
+            </div>
+        </div>
+
+        <div class="card-grid" style="margin-top:8px;">
+            <div class="card c-cyan">
+                <div class="card-label">Rapid Elasticity</div>
+                <div class="card-desc">Scale up during Black Friday traffic, scale down at midnight. Resources expand and contract automatically based on demand. You only pay for what you use.</div>
+            </div>
+            <div class="card c-sky">
+                <div class="card-label">Measured Service</div>
+                <div class="card-desc">Every CPU cycle, GB stored, and API call is metered. The provider bills precisely for consumption. Transparency and cost control are built in.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">NIST Definition</div>
+                <div class="card-desc">These five characteristics come from NIST SP 800-145, the formal definition of cloud computing used by CompTIA Cloud+ and every major certification exam.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- SERVICE MODELS OVERVIEW ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 14</div>
+        <div class="slide-title">The Three <span class="accent">Service Models</span></div>
+        <div class="slide-subtitle">IaaS, PaaS, and SaaS represent different levels of abstraction. The higher you go, the less you manage.</div>
+
+        <div class="diagram-center">
+            <svg width="580" height="160" viewBox="0 0 580 160" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- IaaS box -->
+                <rect x="10" y="20" width="170" height="120" rx="8" fill="rgba(56,189,248,0.06)" stroke="#38bdf8" stroke-width="1.2"/>
+                <text x="95" y="48" text-anchor="middle" font-size="14" fill="#38bdf8" font-weight="700" font-family="Segoe UI,sans-serif">IaaS</text>
+                <text x="95" y="68" text-anchor="middle" font-size="10" fill="#94a3b8" font-family="Segoe UI,sans-serif">You manage: OS, apps, data</text>
+                <text x="95" y="82" text-anchor="middle" font-size="10" fill="#94a3b8" font-family="Segoe UI,sans-serif">Provider: hardware, network</text>
+                <rect x="40" y="95" width="110" height="28" rx="4" fill="rgba(56,189,248,0.1)" stroke="#38bdf8" stroke-width="0.8"/>
+                <text x="95" y="113" text-anchor="middle" font-size="9" fill="#bae6fd" font-family="Segoe UI,sans-serif">AWS EC2, Azure VMs</text>
+
+                <!-- PaaS box -->
+                <rect x="205" y="20" width="170" height="120" rx="8" fill="rgba(14,165,233,0.06)" stroke="#0ea5e9" stroke-width="1.2"/>
+                <text x="290" y="48" text-anchor="middle" font-size="14" fill="#0ea5e9" font-weight="700" font-family="Segoe UI,sans-serif">PaaS</text>
+                <text x="290" y="68" text-anchor="middle" font-size="10" fill="#94a3b8" font-family="Segoe UI,sans-serif">You manage: apps, data</text>
+                <text x="290" y="82" text-anchor="middle" font-size="10" fill="#94a3b8" font-family="Segoe UI,sans-serif">Provider: OS, runtime, infra</text>
+                <rect x="235" y="95" width="110" height="28" rx="4" fill="rgba(14,165,233,0.1)" stroke="#0ea5e9" stroke-width="0.8"/>
+                <text x="290" y="113" text-anchor="middle" font-size="9" fill="#bae6fd" font-family="Segoe UI,sans-serif">Azure App Service, Heroku</text>
+
+                <!-- SaaS box -->
+                <rect x="400" y="20" width="170" height="120" rx="8" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="1.2"/>
+                <text x="485" y="48" text-anchor="middle" font-size="14" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">SaaS</text>
+                <text x="485" y="68" text-anchor="middle" font-size="10" fill="#94a3b8" font-family="Segoe UI,sans-serif">You manage: data, access</text>
+                <text x="485" y="82" text-anchor="middle" font-size="10" fill="#94a3b8" font-family="Segoe UI,sans-serif">Provider: everything else</text>
+                <rect x="430" y="95" width="110" height="28" rx="4" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="0.8"/>
+                <text x="485" y="113" text-anchor="middle" font-size="9" fill="#d1fae5" font-family="Segoe UI,sans-serif">Microsoft 365, Salesforce</text>
+
+                <!-- Arrows between -->
+                <line x1="180" y1="80" x2="205" y2="80" stroke="rgba(56,189,248,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.2s" repeatCount="indefinite"/>
+                </line>
+                <line x1="375" y1="80" x2="400" y2="80" stroke="rgba(58,181,119,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.2s" repeatCount="indefinite"/>
+                </line>
+            </svg>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Think of It Like Pizza</div>
+            IaaS is buying ingredients and cooking at home. PaaS is a take-and-bake pizza -- you just add toppings and bake. SaaS is ordering delivery -- you just eat. Each model trades control for convenience.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- IaaS DEEP DIVE ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 14</div>
+        <div class="slide-title"><span class="accent">IaaS</span>: Infrastructure as a Service</div>
+        <div class="slide-subtitle">Maximum control, maximum responsibility. You rent virtual hardware and manage everything above it.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-sky">
+                <div class="card-label">What You Get</div>
+                <div class="card-desc">Virtual machines, storage volumes, virtual networks, load balancers, firewalls. The provider manages the physical data center, power, cooling, and hardware failures.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">What You Manage</div>
+                <div class="card-desc">Operating system patches, middleware, runtime, application code, data security. If the OS is unpatched and gets exploited, that is on you -- not the provider.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">AWS EC2</div>
+                <div class="card-desc">Choose instance types (t3.micro to p4d.24xlarge), attach EBS storage, configure security groups. Full root access to the OS.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Azure Virtual Machines</div>
+                <div class="card-desc">Windows or Linux VMs with managed disks, NSGs for firewall rules, availability sets for redundancy. Integrated with Azure AD for identity.</div>
+            </div>
+            <div class="card c-sky">
+                <div class="card-label">Google Compute Engine</div>
+                <div class="card-desc">Custom machine types, preemptible VMs for cost savings, live migration during maintenance. Tight integration with GCP networking.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Use case: a financial services company needs to run a legacy Windows Server 2019 application that cannot be refactored. IaaS lets them lift-and-shift the VM to the cloud while keeping full control of the OS and application layer.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- PaaS DEEP DIVE ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 14</div>
+        <div class="slide-title"><span class="accent">PaaS</span>: Platform as a Service</div>
+        <div class="slide-subtitle">Focus on your code. The provider handles the OS, runtime, scaling, and patching underneath.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-sky">
+                <div class="card-label">What You Get</div>
+                <div class="card-desc">A managed platform for deploying applications. Push your code, the platform builds, deploys, and scales it. No server provisioning, no OS patching, no load balancer configuration.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">What You Manage</div>
+                <div class="card-desc">Application code, data, and access control. The platform handles everything below your code. You decide what the app does -- the provider decides how it runs.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Azure App Service</div>
+                <div class="card-desc">Deploy web apps in .NET, Node.js, Python, Java. Built-in CI/CD, custom domains, SSL certificates, auto-scaling rules. Zero server management.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">AWS Elastic Beanstalk</div>
+                <div class="card-desc">Upload your code and Beanstalk provisions EC2 instances, load balancers, and auto-scaling groups automatically. Still gives access to underlying resources if needed.</div>
+            </div>
+            <div class="card c-sky">
+                <div class="card-label">Google App Engine</div>
+                <div class="card-desc">Fully managed, zero-config deployment. Standard environment auto-scales to zero. Flexible environment supports Docker containers.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">When to Choose PaaS</div>
+            When your team wants to ship features, not manage servers. PaaS is ideal for web applications, APIs, and microservices where the development team should focus on business logic, not infrastructure.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- SaaS DEEP DIVE ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 14</div>
+        <div class="slide-title"><span class="accent">SaaS</span>: Software as a Service</div>
+        <div class="slide-subtitle">Use the software. The provider manages literally everything else. You are a consumer, not an operator.</div>
+
+        <div class="card-grid">
+            <div class="card c-sky">
+                <div class="card-label">Microsoft 365</div>
+                <div class="card-desc">Email, Word, Excel, Teams, SharePoint -- all browser-based. Microsoft handles servers, updates, backups, and availability. You manage users, licenses, and data.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Salesforce</div>
+                <div class="card-desc">CRM platform fully managed by Salesforce. Customers configure workflows and dashboards but never touch the underlying infrastructure.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Google Workspace</div>
+                <div class="card-desc">Gmail, Docs, Drive, Calendar. Google runs the servers across multiple data centers. Your only responsibility is managing user accounts and organizational policies.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            When your CEO says "we use the cloud" they almost always mean SaaS. Microsoft 365, Zoom, Slack, Dropbox -- these are all SaaS products. The company pays a subscription fee and gets a fully managed application.</div>
+
+        <div class="box box-gold">
+            <div class="box-label">SaaS Risk</div>
+            You depend entirely on the provider for uptime, security patching, and data sovereignty. If the provider has an outage, you wait. If they change pricing, you pay. Vendor lock-in is the primary risk.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- DEPLOYMENT MODELS ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 14</div>
+        <div class="slide-title"><span class="accent">Deployment</span> Models</div>
+        <div class="slide-subtitle">Where the cloud infrastructure physically lives and who has access to it.</div>
+
+        <div class="diagram-center">
+            <svg width="560" height="130" viewBox="0 0 560 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Public -->
+                <rect x="5" y="10" width="125" height="110" rx="8" fill="rgba(56,189,248,0.06)" stroke="#38bdf8" stroke-width="1.2"/>
+                <text x="68" y="38" text-anchor="middle" font-size="13" fill="#38bdf8" font-weight="700" font-family="Segoe UI,sans-serif">Public</text>
+                <text x="68" y="56" text-anchor="middle" font-size="9" fill="#94a3b8" font-family="Segoe UI,sans-serif">Shared infra</text>
+                <text x="68" y="70" text-anchor="middle" font-size="9" fill="#94a3b8" font-family="Segoe UI,sans-serif">Multi-tenant</text>
+                <text x="68" y="84" text-anchor="middle" font-size="9" fill="#94a3b8" font-family="Segoe UI,sans-serif">Pay-as-you-go</text>
+                <text x="68" y="108" text-anchor="middle" font-size="8" fill="#bae6fd" font-family="Segoe UI,sans-serif">AWS, Azure, GCP</text>
+                <!-- Private -->
+                <rect x="145" y="10" width="125" height="110" rx="8" fill="rgba(201,168,58,0.06)" stroke="#c9a83a" stroke-width="1.2"/>
+                <text x="208" y="38" text-anchor="middle" font-size="13" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Private</text>
+                <text x="208" y="56" text-anchor="middle" font-size="9" fill="#94a3b8" font-family="Segoe UI,sans-serif">Dedicated infra</text>
+                <text x="208" y="70" text-anchor="middle" font-size="9" fill="#94a3b8" font-family="Segoe UI,sans-serif">Single-tenant</text>
+                <text x="208" y="84" text-anchor="middle" font-size="9" fill="#94a3b8" font-family="Segoe UI,sans-serif">On-prem or hosted</text>
+                <text x="208" y="108" text-anchor="middle" font-size="8" fill="#fef3c7" font-family="Segoe UI,sans-serif">VMware, OpenStack</text>
+                <!-- Hybrid -->
+                <rect x="285" y="10" width="125" height="110" rx="8" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="1.2"/>
+                <text x="348" y="38" text-anchor="middle" font-size="13" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Hybrid</text>
+                <text x="348" y="56" text-anchor="middle" font-size="9" fill="#94a3b8" font-family="Segoe UI,sans-serif">Public + Private</text>
+                <text x="348" y="70" text-anchor="middle" font-size="9" fill="#94a3b8" font-family="Segoe UI,sans-serif">Data orchestration</text>
+                <text x="348" y="84" text-anchor="middle" font-size="9" fill="#94a3b8" font-family="Segoe UI,sans-serif">Compliance flex</text>
+                <text x="348" y="108" text-anchor="middle" font-size="8" fill="#d1fae5" font-family="Segoe UI,sans-serif">Azure Arc, AWS Outposts</text>
+                <!-- Community -->
+                <rect x="425" y="10" width="125" height="110" rx="8" fill="rgba(167,139,250,0.06)" stroke="#a78bfa" stroke-width="1.2"/>
+                <text x="488" y="38" text-anchor="middle" font-size="13" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Community</text>
+                <text x="488" y="56" text-anchor="middle" font-size="9" fill="#94a3b8" font-family="Segoe UI,sans-serif">Shared by orgs</text>
+                <text x="488" y="70" text-anchor="middle" font-size="9" fill="#94a3b8" font-family="Segoe UI,sans-serif">Common mission</text>
+                <text x="488" y="84" text-anchor="middle" font-size="9" fill="#94a3b8" font-family="Segoe UI,sans-serif">Shared compliance</text>
+                <text x="488" y="108" text-anchor="middle" font-size="8" fill="#c4b5fd" font-family="Segoe UI,sans-serif">GovCloud, Healthcare</text>
+            </svg>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Exam Tip</div>
+            CompTIA Cloud+ expects you to know all four deployment models and when each is appropriate. Public for cost and scale. Private for compliance and control. Hybrid for the best of both. Community for shared regulatory requirements.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- SHARED RESPONSIBILITY MODEL ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 14</div>
+        <div class="slide-title"><span class="accent">Shared Responsibility</span> Model</div>
+        <div class="slide-subtitle">Security IN the cloud is yours. Security OF the cloud is the provider's. The line depends on the service model.</div>
+
+        <div class="diagram-center">
+            <svg width="520" height="180" viewBox="0 0 520 180" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Header -->
+                <text x="80" y="16" text-anchor="middle" font-size="10" fill="#64748b" font-family="Segoe UI,sans-serif">On-Prem</text>
+                <text x="200" y="16" text-anchor="middle" font-size="10" fill="#38bdf8" font-family="Segoe UI,sans-serif">IaaS</text>
+                <text x="320" y="16" text-anchor="middle" font-size="10" fill="#0ea5e9" font-family="Segoe UI,sans-serif">PaaS</text>
+                <text x="440" y="16" text-anchor="middle" font-size="10" fill="#3ab577" font-family="Segoe UI,sans-serif">SaaS</text>
+                <!-- Layers (bottom to top): Physical, Network, OS, Runtime, App, Data -->
+                <!-- Physical row -->
+                <rect x="20" y="145" width="120" height="22" rx="3" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="0.8"/>
+                <rect x="140" y="145" width="120" height="22" rx="3" fill="rgba(56,189,248,0.15)" stroke="#38bdf8" stroke-width="0.8"/>
+                <rect x="260" y="145" width="120" height="22" rx="3" fill="rgba(56,189,248,0.15)" stroke="#38bdf8" stroke-width="0.8"/>
+                <rect x="380" y="145" width="120" height="22" rx="3" fill="rgba(56,189,248,0.15)" stroke="#38bdf8" stroke-width="0.8"/>
+                <text x="80" y="160" text-anchor="middle" font-size="8" fill="#fca5a5" font-family="Segoe UI,sans-serif">Physical</text>
+                <text x="200" y="160" text-anchor="middle" font-size="8" fill="#bae6fd" font-family="Segoe UI,sans-serif">Physical</text>
+                <text x="320" y="160" text-anchor="middle" font-size="8" fill="#bae6fd" font-family="Segoe UI,sans-serif">Physical</text>
+                <text x="440" y="160" text-anchor="middle" font-size="8" fill="#bae6fd" font-family="Segoe UI,sans-serif">Physical</text>
+                <!-- Network row -->
+                <rect x="20" y="121" width="120" height="22" rx="3" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="0.8"/>
+                <rect x="140" y="121" width="120" height="22" rx="3" fill="rgba(56,189,248,0.15)" stroke="#38bdf8" stroke-width="0.8"/>
+                <rect x="260" y="121" width="120" height="22" rx="3" fill="rgba(56,189,248,0.15)" stroke="#38bdf8" stroke-width="0.8"/>
+                <rect x="380" y="121" width="120" height="22" rx="3" fill="rgba(56,189,248,0.15)" stroke="#38bdf8" stroke-width="0.8"/>
+                <text x="80" y="136" text-anchor="middle" font-size="8" fill="#fca5a5" font-family="Segoe UI,sans-serif">Network</text>
+                <text x="200" y="136" text-anchor="middle" font-size="8" fill="#bae6fd" font-family="Segoe UI,sans-serif">Network</text>
+                <text x="320" y="136" text-anchor="middle" font-size="8" fill="#bae6fd" font-family="Segoe UI,sans-serif">Network</text>
+                <text x="440" y="136" text-anchor="middle" font-size="8" fill="#bae6fd" font-family="Segoe UI,sans-serif">Network</text>
+                <!-- OS row -->
+                <rect x="20" y="97" width="120" height="22" rx="3" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="0.8"/>
+                <rect x="140" y="97" width="120" height="22" rx="3" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="0.8"/>
+                <rect x="260" y="97" width="120" height="22" rx="3" fill="rgba(56,189,248,0.15)" stroke="#38bdf8" stroke-width="0.8"/>
+                <rect x="380" y="97" width="120" height="22" rx="3" fill="rgba(56,189,248,0.15)" stroke="#38bdf8" stroke-width="0.8"/>
+                <text x="80" y="112" text-anchor="middle" font-size="8" fill="#fca5a5" font-family="Segoe UI,sans-serif">OS</text>
+                <text x="200" y="112" text-anchor="middle" font-size="8" fill="#fca5a5" font-family="Segoe UI,sans-serif">OS</text>
+                <text x="320" y="112" text-anchor="middle" font-size="8" fill="#bae6fd" font-family="Segoe UI,sans-serif">OS</text>
+                <text x="440" y="112" text-anchor="middle" font-size="8" fill="#bae6fd" font-family="Segoe UI,sans-serif">OS</text>
+                <!-- App row -->
+                <rect x="20" y="49" width="120" height="22" rx="3" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="0.8"/>
+                <rect x="140" y="49" width="120" height="22" rx="3" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="0.8"/>
+                <rect x="260" y="49" width="120" height="22" rx="3" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="0.8"/>
+                <rect x="380" y="49" width="120" height="22" rx="3" fill="rgba(56,189,248,0.15)" stroke="#38bdf8" stroke-width="0.8"/>
+                <text x="80" y="64" text-anchor="middle" font-size="8" fill="#fca5a5" font-family="Segoe UI,sans-serif">Application</text>
+                <text x="200" y="64" text-anchor="middle" font-size="8" fill="#fca5a5" font-family="Segoe UI,sans-serif">Application</text>
+                <text x="320" y="64" text-anchor="middle" font-size="8" fill="#fca5a5" font-family="Segoe UI,sans-serif">Application</text>
+                <text x="440" y="64" text-anchor="middle" font-size="8" fill="#bae6fd" font-family="Segoe UI,sans-serif">Application</text>
+                <!-- Data row -->
+                <rect x="20" y="25" width="120" height="22" rx="3" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="0.8"/>
+                <rect x="140" y="25" width="120" height="22" rx="3" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="0.8"/>
+                <rect x="260" y="25" width="120" height="22" rx="3" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="0.8"/>
+                <rect x="380" y="25" width="120" height="22" rx="3" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="0.8"/>
+                <text x="80" y="40" text-anchor="middle" font-size="8" fill="#fca5a5" font-family="Segoe UI,sans-serif">Data</text>
+                <text x="200" y="40" text-anchor="middle" font-size="8" fill="#fca5a5" font-family="Segoe UI,sans-serif">Data</text>
+                <text x="320" y="40" text-anchor="middle" font-size="8" fill="#fca5a5" font-family="Segoe UI,sans-serif">Data</text>
+                <text x="440" y="40" text-anchor="middle" font-size="8" fill="#fca5a5" font-family="Segoe UI,sans-serif">Data</text>
+                <!-- Runtime row -->
+                <rect x="20" y="73" width="120" height="22" rx="3" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="0.8"/>
+                <rect x="140" y="73" width="120" height="22" rx="3" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="0.8"/>
+                <rect x="260" y="73" width="120" height="22" rx="3" fill="rgba(56,189,248,0.15)" stroke="#38bdf8" stroke-width="0.8"/>
+                <rect x="380" y="73" width="120" height="22" rx="3" fill="rgba(56,189,248,0.15)" stroke="#38bdf8" stroke-width="0.8"/>
+                <text x="80" y="88" text-anchor="middle" font-size="8" fill="#fca5a5" font-family="Segoe UI,sans-serif">Runtime</text>
+                <text x="200" y="88" text-anchor="middle" font-size="8" fill="#fca5a5" font-family="Segoe UI,sans-serif">Runtime</text>
+                <text x="320" y="88" text-anchor="middle" font-size="8" fill="#bae6fd" font-family="Segoe UI,sans-serif">Runtime</text>
+                <text x="440" y="88" text-anchor="middle" font-size="8" fill="#bae6fd" font-family="Segoe UI,sans-serif">Runtime</text>
+            </svg>
+        </div>
+        <div class="card-grid-2" style="margin-top:4px;">
+            <div class="card c-red">
+                <div class="card-label" style="color:#ef4444;">Customer Responsibility</div>
+                <div class="card-desc">Red = you own it. Data is ALWAYS your responsibility regardless of service model. The higher the stack, the more the provider takes over.</div>
+            </div>
+            <div class="card c-sky">
+                <div class="card-label" style="color:#38bdf8;">Provider Responsibility</div>
+                <div class="card-desc">Blue = provider owns it. Physical infrastructure is ALWAYS the provider's responsibility. SaaS shifts almost everything to the provider.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- CLOUD PROVIDERS ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 14</div>
+        <div class="slide-title">Major Cloud <span class="accent">Providers</span></div>
+        <div class="slide-subtitle">AWS leads in market share. Azure dominates enterprise. GCP leads in AI/ML. All three offer IaaS, PaaS, and SaaS.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Amazon Web Services</div>
+                <div class="card-desc">Launched 2006. 200+ services. Largest market share (~31%). Strongest in compute (EC2), storage (S3), and serverless (Lambda). Default choice for startups and tech companies.</div>
+            </div>
+            <div class="card c-sky">
+                <div class="card-label">Microsoft Azure</div>
+                <div class="card-desc">Launched 2010. Tight integration with Windows Server, Active Directory, and Microsoft 365. Dominates enterprise and government. Hybrid cloud leader with Azure Arc.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Google Cloud Platform</div>
+                <div class="card-desc">Launched 2008. Leads in data analytics (BigQuery), AI/ML (Vertex AI), and Kubernetes (GKE -- Google created K8s). Strong in developer tooling and open-source.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue" style="margin-top:4px;">
+            <div class="box-label">Other Providers</div>
+            IBM Cloud, Oracle Cloud, Alibaba Cloud, DigitalOcean, Linode. The CompTIA Cloud+ exam is vendor-neutral -- it tests concepts, not specific provider consoles. But knowing the big three gives you context for every question.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- CLOUD ECONOMICS ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 14</div>
+        <div class="slide-title">Cloud <span class="accent">Economics</span></div>
+        <div class="slide-subtitle">Why cloud? Because CapEx becomes OpEx, and unused capacity becomes someone else's problem.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-sky">
+                <div class="card-label">CapEx (Capital Expenditure)</div>
+                <div class="card-desc">Traditional model: buy servers, racks, cooling, UPS upfront. Large initial investment. Hardware depreciates over 3-5 years. Over-provision to handle peak load that may never come.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">OpEx (Operational Expenditure)</div>
+                <div class="card-desc">Cloud model: pay monthly for what you use. No upfront hardware cost. Scale up and down as needed. Convert a large capital purchase into a predictable monthly bill.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Economies of Scale</div>
+                <div class="card-desc">AWS buys millions of servers at a discount you could never get. That savings passes to you as lower per-unit costs. The bigger the provider, the cheaper the resources.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Elasticity = Cost Savings</div>
+                <div class="card-desc">On-prem: pay for peak capacity 24/7. Cloud: scale to 100 servers during a sale, back to 5 at night. You only pay for the hours you use.</div>
+            </div>
+            <div class="card c-sky">
+                <div class="card-label">Reserved vs. On-Demand</div>
+                <div class="card-desc">On-demand: pay full price per hour. Reserved (1-3 year commit): 30-72% discount. Spot/preemptible: up to 90% off but can be interrupted. Match the pricing model to the workload.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- CLOUD BENEFITS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 14</div>
+        <div class="slide-title">Benefits of <span class="accent">Cloud Computing</span></div>
+        <div class="slide-subtitle">Speed, scale, global reach, and reduced operational burden. These are the business drivers.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-sky">
+                <div class="card-label">Agility</div>
+                <div class="card-desc">Provision infrastructure in minutes instead of weeks. Test new ideas quickly. Fail fast and cheaply. DevOps teams can iterate without waiting for procurement.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Global Reach</div>
+                <div class="card-desc">Deploy to any region in the world with a few clicks. Serve users in Tokyo, London, and New York from local data centers. Latency drops dramatically.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">High Availability</div>
+                <div class="card-desc">Multi-AZ deployments, auto-failover, SLAs of 99.95%+. The provider handles redundant power, cooling, and networking. Your uptime depends on architecture, not hardware.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Disaster Recovery</div>
+                <div class="card-desc">Replicate data across regions. Spin up standby environments on demand. DR in the cloud costs a fraction of maintaining a secondary physical data center.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            A hospital needs to launch a patient portal in 3 weeks. On-prem: order servers (4-6 weeks lead time), rack them, install OS, configure networking. Cloud: deploy to Azure App Service today, scale tomorrow, go live next week.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- CLOUD RISKS ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 14</div>
+        <div class="slide-title">Cloud <span class="accent">Risks &amp; Challenges</span></div>
+        <div class="slide-subtitle">Cloud is not magic. It introduces new risks that traditional on-prem did not have.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Vendor Lock-In</div>
+                <div class="card-desc">Proprietary services (Lambda, DynamoDB, Cosmos DB) make migration expensive. Data egress fees discourage leaving. Multi-cloud strategy reduces risk but increases complexity.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Data Sovereignty</div>
+                <div class="card-desc">GDPR, HIPAA, and other regulations may require data to stay in specific countries. Misconfigured regions can violate compliance. Know where your data lives at all times.</div>
+            </div>
+            <div class="card c-sky">
+                <div class="card-label">Cost Overruns</div>
+                <div class="card-desc">Pay-as-you-go means costs can spiral if not monitored. Forgotten VMs, over-provisioned storage, untagged resources -- cloud billing surprises are common without governance.</div>
+            </div>
+        </div>
+
+        <div class="card-grid" style="margin-top:8px;">
+            <div class="card c-cyan">
+                <div class="card-label">Network Dependency</div>
+                <div class="card-desc">Cloud requires reliable internet. If your ISP goes down, your cloud infrastructure is unreachable. On-prem survives local network issues; cloud does not.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Shared Tenancy</div>
+                <div class="card-desc">Public cloud is multi-tenant. While providers isolate workloads, side-channel attacks and noisy neighbors are real (though rare) concerns for high-security workloads.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Compliance Complexity</div>
+                <div class="card-desc">Cloud does not automatically make you compliant. You still own your security controls, audit trails, and access management. The provider gives you tools -- you must use them correctly.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- XaaS AND EMERGING MODELS ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 14</div>
+        <div class="slide-title">Beyond the Big Three: <span class="accent">XaaS</span></div>
+        <div class="slide-subtitle">Everything as a Service. The "as a Service" model extends to databases, functions, containers, desktops, and more.</div>
+
+        <div class="card-grid">
+            <div class="card c-sky">
+                <div class="card-label">FaaS (Functions)</div>
+                <div class="card-desc">Serverless compute. Write a function, trigger it with an event. No servers to manage. AWS Lambda, Azure Functions, Google Cloud Functions. Pay per invocation.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">DBaaS (Database)</div>
+                <div class="card-desc">Managed databases. AWS RDS, Azure SQL Database, Google Cloud SQL. Provider handles backups, patching, replication, scaling. You write queries.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">DaaS (Desktop)</div>
+                <div class="card-desc">Virtual desktops in the cloud. Azure Virtual Desktop, Amazon WorkSpaces. Users get a full Windows desktop from any device. IT manages images, not hardware.</div>
+            </div>
+        </div>
+
+        <div class="card-grid" style="margin-top:8px;">
+            <div class="card c-cyan">
+                <div class="card-label">CaaS (Containers)</div>
+                <div class="card-desc">Managed container orchestration. Amazon ECS, Azure Container Instances, Google Cloud Run. Run Docker containers without managing Kubernetes clusters.</div>
+            </div>
+            <div class="card c-sky">
+                <div class="card-label">SECaaS (Security)</div>
+                <div class="card-desc">Cloud-delivered security services. Web application firewalls, DDoS protection, identity providers. Cloudflare, Okta, CrowdStrike Falcon -- security without on-prem appliances.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">AIaaS (AI/ML)</div>
+                <div class="card-desc">Pre-trained AI models via API. Azure OpenAI Service, AWS Bedrock, Google Vertex AI. No GPU clusters needed -- just API calls. Pay per token or prediction.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- SUMMARY ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 14</div>
+        <div class="slide-title">Key <span class="accent">Takeaways</span></div>
+        <div class="slide-subtitle">Cloud Concepts and Service Models -- everything you need for the exam and the real world.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text">Cloud computing delivers on-demand resources over the internet with five NIST characteristics: on-demand, broad access, pooling, elasticity, metering.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text">IaaS gives you virtual hardware (VMs, storage). You manage OS and up. PaaS manages OS and runtime. SaaS manages everything.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text">Four deployment models: Public (shared, multi-tenant), Private (dedicated), Hybrid (both), Community (shared mission).</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text">Shared responsibility: data is ALWAYS yours. Physical infrastructure is ALWAYS the provider's. Everything in between depends on the service model.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text">Cloud converts CapEx to OpEx, enables global reach, and provides elasticity -- but introduces vendor lock-in, compliance complexity, and cost management challenges.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text">XaaS extends the model: FaaS (serverless), DBaaS (managed databases), DaaS (virtual desktops), CaaS (containers), SECaaS (security), AIaaS (AI/ML).</span></div>
+        </div>
+
+        <div class="box box-blue" style="margin-top:8px;">
+            <div class="box-label">Next Up</div>
+            System Requirements and Deployment -- how to analyze workloads, plan capacity, size resources, and choose the right migration strategy for moving to the cloud.
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Cloud Base</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 14</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    var currentSlide = 1;
+    var TOTAL_SLIDES = 14;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        var prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        var next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        var cb = document.getElementById('complete-btn');
+        if (cb) cb.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('cloud', 'cb-w1-concepts-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+</body>
+</html>

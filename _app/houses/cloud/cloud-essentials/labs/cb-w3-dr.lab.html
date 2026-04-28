@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DR Architecture Selector | Cloud Base</title>
+    <style>
+        :root {
+            --sky: #38bdf8; --sky-dim: rgba(56,189,248,0.15); --accent: #0ea5e9;
+            --bg: #060a14; --bg-card: #0c1424; --bg-option: #101c30;
+            --text: #e2e8f0; --text-muted: #8892a8; --success: #22c55e; --danger: #ef4444;
+            --border: rgba(255,255,255,0.08);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, var(--bg) 0%, #081420 50%, #0a1828 100%); color: var(--text); min-height: 100vh; line-height: 1.6; }
+        .lab-container { max-width: 860px; margin: 0 auto; padding: 2rem; }
+        .back-link { color: var(--sky); text-decoration: none; font-size: 0.9rem; display: inline-block; margin-bottom: 1.5rem; }
+        .back-link:hover { color: #7dd3fc; }
+        .lab-header { text-align: center; margin-bottom: 2rem; padding: 2rem; background: var(--bg-card); border-radius: 14px; border: 1px solid var(--sky-dim); }
+        .lab-header h1 { font-size: 1.5rem; color: var(--sky); margin-bottom: 0.5rem; }
+        .lab-header .subtitle { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.75rem; }
+        .lab-header .meta { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; font-size: 0.8rem; }
+        .lab-header .meta span { background: var(--bg); padding: 4px 12px; border-radius: 6px; border: 1px solid var(--border); color: var(--text-muted); }
+        .progress-bar-wrap { background: var(--bg-card); border-radius: 10px; padding: 14px 18px; margin-bottom: 1.5rem; border: 1px solid var(--border); display: flex; align-items: center; gap: 14px; }
+        .progress-label { font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; }
+        .progress-track { flex: 1; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--sky), var(--success)); border-radius: 4px; transition: width 0.4s ease; width: 0%; }
+        .score-label { font-size: 0.85rem; color: var(--sky); font-weight: 600; white-space: nowrap; }
+        .scenario-card { background: var(--bg-card); border-radius: 14px; padding: 2rem; border: 1px solid var(--border); margin-bottom: 1.5rem; }
+        .scenario-num { font-size: 0.8rem; color: var(--sky); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 0.5rem; }
+        .scenario-text { font-size: 1.05rem; font-weight: 600; margin-bottom: 0.75rem; line-height: 1.5; }
+        .scenario-desc { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.25rem; line-height: 1.6; }
+        .options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 1rem; }
+        .option { display: flex; align-items: center; gap: 12px; padding: 14px 18px; background: var(--bg-option); border: 1px solid var(--border); border-radius: 10px; cursor: pointer; transition: all 0.2s; font-size: 0.95rem; }
+        .option:hover { border-color: rgba(56,189,248,0.4); background: rgba(56,189,248,0.05); }
+        .option.selected { border-color: var(--sky); background: rgba(56,189,248,0.08); }
+        .option.correct { border-color: var(--success); background: rgba(34,197,94,0.1); }
+        .option.incorrect { border-color: var(--danger); background: rgba(239,68,68,0.08); }
+        .option.disabled { pointer-events: none; opacity: 0.7; }
+        .option.correct.disabled { opacity: 1; } .option.incorrect.disabled { opacity: 1; }
+        .option-letter { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: var(--bg); border: 1px solid var(--border); font-weight: 700; font-size: 0.85rem; color: var(--sky); flex-shrink: 0; }
+        .option.correct .option-letter { background: var(--success); color: #fff; border-color: var(--success); }
+        .option.incorrect .option-letter { background: var(--danger); color: #fff; border-color: var(--danger); }
+        .feedback { padding: 14px 18px; border-radius: 10px; margin-bottom: 1rem; font-size: 0.9rem; line-height: 1.6; display: none; }
+        .feedback.correct { display: block; background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.3); color: #86efac; }
+        .feedback.incorrect { display: block; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; }
+        .lab-nav { display: flex; justify-content: flex-end; }
+        .next-btn { padding: 10px 24px; background: rgba(56,189,248,0.15); border: 1px solid rgba(56,189,248,0.4); color: var(--sky); border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .next-btn:hover { background: var(--sky); color: #fff; }
+        .next-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .next-btn:disabled:hover { background: rgba(56,189,248,0.15); color: var(--sky); }
+        .results-card { display: none; text-align: center; background: var(--bg-card); border-radius: 14px; padding: 3rem 2rem; border: 1px solid var(--border); }
+        .results-card h2 { color: var(--sky); font-size: 1.4rem; margin-bottom: 1rem; }
+        .score-big { font-size: 3.5rem; font-weight: 700; color: var(--success); margin-bottom: 0.5rem; }
+        .score-big.low { color: var(--danger); } .score-big.mid { color: #fbbf24; }
+        .score-msg { color: var(--text-muted); font-size: 1rem; margin-bottom: 2rem; }
+        .results-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        .results-btns a, .results-btns button { padding: 10px 24px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: all 0.2s; border: none; }
+        .btn-retry { background: rgba(56,189,248,0.15); border: 1px solid rgba(56,189,248,0.4) !important; color: var(--sky); }
+        .btn-retry:hover { background: var(--sky); color: #fff; }
+        .btn-hub { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.4) !important; color: var(--success); }
+        .btn-hub:hover { background: var(--success); color: #fff; }
+        @media (max-width: 640px) { .lab-container { padding: 1rem; } .scenario-card { padding: 1.25rem; } .lab-header h1 { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">DR Architecture Selector Lab</h1>
+    <div class="lab-container">
+        <a href="../index.html" class="back-link">&#8592; Cloud Base Hub</a>
+        <div class="lab-header">
+            <h1>DR Architecture Selector</h1>
+            <p class="subtitle">For each scenario, select the appropriate disaster recovery strategy.</p>
+            <div class="meta"><span>CTS2145C</span><span>Interactive Lab</span><span>Pass: 70%</span></div>
+        </div>
+        <div class="progress-bar-wrap">
+            <span class="progress-label" id="progressLabel">Scenario 1</span>
+            <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+            <span class="score-label" id="scoreLabel">Score: 0</span>
+        </div>
+        <div class="scenario-card" id="scenarioCard">
+            <div class="scenario-num" id="scenarioNum">SCENARIO 1</div>
+            <div class="scenario-text" id="scenarioText"></div>
+            <div class="scenario-desc" id="scenarioDesc"></div>
+            <div class="options" id="optionsEl"></div>
+            <div class="feedback" id="feedback"></div>
+            <div class="lab-nav"><button class="next-btn" id="nextBtn" onclick="nextScenario()" disabled>Next Scenario</button></div>
+        </div>
+        <div class="results-card" id="resultsCard">
+            <h2>Lab Complete</h2>
+            <div class="score-big" id="finalScore"></div>
+            <p class="score-msg" id="scoreMsg"></p>
+            <div class="results-btns">
+                <button class="btn-retry" onclick="restartLab()">Try Again</button>
+                <a href="../index.html" class="btn-hub">Back to Cloud Base Hub</a>
+            </div>
+        </div>
+    </div>
+    <script>
+var scenarios = [{"title":"Internal wiki with RPO of 24 hours and RTO of 48 hours. Budget: minimal.","desc":"Used by 50 employees. Content changes slowly. Extended downtime is acceptable.","opts":["Backup and Restore","Pilot Light","Warm Standby","Active-Active"],"ans":0,"exp":"Low criticality + long RPO/RTO + minimal budget = Backup and Restore. Cross-region backups, provision infrastructure only during a disaster."},{"title":"Customer-facing SaaS application. RPO: 5 minutes. RTO: 30 minutes. Revenue impact: $10K/hour.","desc":"Moderate criticality. Cannot afford hours of downtime but does not need instant failover.","opts":["Backup and Restore","Pilot Light","Warm Standby","Active-Active"],"ans":2,"exp":"Warm standby runs a scaled-down but functional copy in the DR region. Failover in minutes by scaling up and switching DNS. Good cost/recovery balance."},{"title":"Payment processing system. RPO: 0. RTO: under 60 seconds. Revenue impact: $100K/minute.","desc":"Mission-critical. Any data loss is unacceptable. Downtime causes regulatory violations.","opts":["Backup and Restore","Pilot Light","Warm Standby","Active-Active"],"ans":3,"exp":"Active-active is the only strategy with RPO of 0 and near-zero RTO. Both regions serve traffic simultaneously. If one fails, the other absorbs all traffic instantly."},{"title":"Data analytics platform. RPO: 1 hour. RTO: 4 hours. Budget: moderate.","desc":"Reports can be regenerated. Some data loss is acceptable. But the platform must recover within half a day.","opts":["Backup and Restore","Pilot Light","Warm Standby","Active-Active"],"ans":1,"exp":"Pilot light keeps core data replicated with minimal compute in the DR region. Scale up on failover. Moderate cost, faster than backup/restore, fits the RPO/RTO."},{"title":"Healthcare patient portal. HIPAA-regulated. RPO: 15 minutes. RTO: 1 hour.","desc":"Patient records must be available for clinical decisions. Regulatory requirements mandate documented DR.","opts":["Backup and Restore","Pilot Light","Warm Standby","Active-Active"],"ans":2,"exp":"HIPAA-regulated with 1-hour RTO needs warm standby. The DR environment is always running and can serve traffic within minutes of failover."},{"title":"Static marketing website. RPO: 24 hours. RTO: 2 hours. All content is in Git.","desc":"The website is rebuilt from Git and a CDN. No dynamic data to replicate.","opts":["Backup and Restore","Pilot Light","Multi-region CDN","Active-Active"],"ans":2,"exp":"Static content served via multi-region CDN (CloudFront, Akamai) is inherently resilient. Content is cached globally. Rebuild from Git if origin fails."},{"title":"A company wants to validate their DR plan without impacting production.","desc":"They need to test that failover actually works and measure actual RTO.","opts":["Tabletop exercise only","Simulation test in DR region","Chaos engineering in production","Skip testing -- trust the plan"],"ans":1,"exp":"Simulation testing actually fails over to the DR region in a controlled manner. It validates real RTO and identifies issues that tabletop exercises miss."},{"title":"An e-commerce company experiences regional failures twice per year during peak sales events.","desc":"They need automatic traffic rerouting when their primary region degrades.","opts":["Manual DNS update","Global load balancer with health checks","Email the ops team","Scheduled failover"],"ans":1,"exp":"Global load balancers (AWS Global Accelerator, Azure Front Door) automatically reroute traffic based on health checks. No manual intervention needed."}];
+var current = 0, score = 0, answered = false, TOTAL = scenarios.length;
+function loadScenario() {
+    var s = scenarios[current];
+    document.getElementById('scenarioNum').textContent = 'SCENARIO ' + (current + 1);
+    document.getElementById('progressLabel').textContent = 'Scenario ' + (current + 1) + ' of ' + TOTAL;
+    document.getElementById('progressFill').style.width = ((current + 1) / TOTAL * 100) + '%';
+    document.getElementById('scenarioText').innerHTML = s.title;
+    document.getElementById('scenarioDesc').innerHTML = s.desc;
+    var html = '', letters = ['A','B','C','D'];
+    for (var i = 0; i < s.opts.length; i++) {
+        html += '<div class="option" onclick="selectAnswer(' + i + ')"><span class="option-letter">' + letters[i] + '</span><span>' + s.opts[i] + '</span></div>';
+    }
+    document.getElementById('optionsEl').innerHTML = html;
+    document.getElementById('feedback').className = 'feedback';
+    document.getElementById('feedback').textContent = '';
+    document.getElementById('nextBtn').disabled = true;
+    answered = false;
+}
+function selectAnswer(idx) {
+    if (answered) return;
+    answered = true;
+    var s = scenarios[current], opts = document.querySelectorAll('.option');
+    for (var i = 0; i < opts.length; i++) {
+        opts[i].classList.add('disabled');
+        if (i === s.ans) opts[i].classList.add('correct');
+        else if (i === idx) opts[i].classList.add('incorrect');
+    }
+    var fb = document.getElementById('feedback');
+    if (idx === s.ans) { score++; fb.className = 'feedback correct'; fb.textContent = 'Correct! ' + s.exp; }
+    else { fb.className = 'feedback incorrect'; fb.textContent = 'Incorrect. ' + s.exp; }
+    document.getElementById('scoreLabel').textContent = 'Score: ' + score;
+    document.getElementById('nextBtn').disabled = false;
+    if (current === TOTAL - 1) document.getElementById('nextBtn').textContent = 'See Results';
+}
+function nextScenario() {
+    current++;
+    if (current >= TOTAL) { showResults(); return; }
+    loadScenario();
+}
+function showResults() {
+    document.getElementById('scenarioCard').style.display = 'none';
+    document.querySelector('.progress-bar-wrap').style.display = 'none';
+    document.getElementById('resultsCard').style.display = 'block';
+    var pct = Math.round((score / TOTAL) * 100);
+    var sb = document.getElementById('finalScore');
+    sb.textContent = score + '/' + TOTAL + ' (' + pct + '%)';
+    sb.className = pct >= 80 ? 'score-big' : pct >= 70 ? 'score-big mid' : 'score-big low';
+    var msg = pct >= 90 ? 'Excellent work! You demonstrated strong understanding.' : pct >= 70 ? 'Good job -- you passed. Review any missed scenarios.' : pct >= 50 ? 'Close, but not quite passing. Review the material and try again.' : 'More practice needed. Return to the presentations and retry.';
+    document.getElementById('scoreMsg').textContent = msg;
+    if (pct >= 70 && typeof ModuleProgress !== 'undefined') {
+        ModuleProgress.complete('cloud', 'cb-w3-dr-lab', { returnUrl: '../index.html' });
+    }
+}
+function restartLab() {
+    current = 0; score = 0; answered = false;
+    document.getElementById('scoreLabel').textContent = 'Score: 0';
+    document.getElementById('scenarioCard').style.display = '';
+    document.querySelector('.progress-bar-wrap').style.display = '';
+    document.getElementById('resultsCard').style.display = 'none';
+    document.getElementById('nextBtn').textContent = 'Next Scenario';
+    loadScenario();
+}
+loadScenario();
+    </script>
+</body>
+</html>

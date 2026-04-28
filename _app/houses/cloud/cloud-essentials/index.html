@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <script src="../../../components/FirebaseAuth.js"></script>
+    <script src="../../../components/TenantRouter.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Base &mdash; CTS2145C</title>
+    <style>
+        :root {
+            --cloud-primary:   #38bdf8;
+            --cloud-secondary: #7dd3fc;
+            --cloud-accent:    #bae6fd;
+            --cloud-dark:      #075985;
+            --cloud-darker:    #0c4a6e;
+            --bg-main:         #060a14;
+            --bg-deep:         #081420;
+            --bg-card:         #0c1424;
+            --bg-card-hover:   #101c30;
+            --text-primary:    #e2e8f0;
+            --text-secondary:  #94a3b8;
+            --text-muted:      #64748b;
+            --border-color:    rgba(56, 189, 248, 0.15);
+            --border-hover:    rgba(56, 189, 248, 0.40);
+            --success:         #22c55e;
+            --shadow-md:       0 4px 6px -1px rgba(0, 0, 0, 0.35);
+            --shadow-lg:       0 10px 15px -3px rgba(0, 0, 0, 0.45);
+            --shadow-glow:     0 0 24px rgba(56, 189, 248, 0.12);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(160deg, var(--bg-main) 0%, var(--bg-deep) 100%); color: var(--text-primary); line-height: 1.6; min-height: 100vh; padding: 20px; }
+        .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+        .container { max-width: 1100px; margin: 0 auto; }
+        .top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding: 10px 0; }
+        .course-label { font-size: 0.8rem; color: var(--text-muted); letter-spacing: 0.5px; text-transform: uppercase; }
+        .dashboard-btn { display: inline-flex; align-items: center; gap: 8px; color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; font-weight: 500; padding: 7px 16px; border-radius: 6px; border: 1px solid var(--border-color); background: rgba(56,189,248,0.05); transition: all 0.2s ease; }
+        .dashboard-btn:hover { color: var(--cloud-secondary); border-color: var(--border-hover); background: rgba(56,189,248,0.10); }
+        .dashboard-btn-icon { width: 14px; height: 14px; opacity: 0.7; }
+        .header { text-align: center; margin-bottom: 28px; padding: 40px 20px 32px; background: linear-gradient(135deg, var(--cloud-darker) 0%, #0369a1 50%, var(--cloud-darker) 100%); border-radius: 16px; box-shadow: var(--shadow-lg), var(--shadow-glow); border: 1px solid var(--border-color); position: relative; overflow: hidden; }
+        .header::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: repeating-linear-gradient(-45deg, transparent, transparent 20px, rgba(56,189,248,0.025) 20px, rgba(56,189,248,0.025) 40px); pointer-events: none; }
+        .course-badge { display: inline-block; background: rgba(56,189,248,0.20); border: 1px solid rgba(56,189,248,0.40); color: var(--cloud-secondary); font-size: 0.72rem; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; padding: 4px 16px; border-radius: 20px; margin-bottom: 12px; position: relative; }
+        .header h2 { font-size: 2.1rem; color: #fff; margin-bottom: 6px; position: relative; }
+        .header .subtitle { font-size: 1.05rem; color: var(--cloud-accent); opacity: 0.9; position: relative; }
+        .course-stats { display: flex; justify-content: center; gap: 18px; margin-top: 24px; flex-wrap: wrap; position: relative; }
+        .course-stat { background: rgba(56,189,248,0.12); border: 1px solid rgba(56,189,248,0.25); padding: 10px 22px; border-radius: 10px; text-align: center; }
+        .course-stat .value { font-size: 1.4rem; font-weight: 700; color: #fff; }
+        .course-stat .label { font-size: 0.72rem; color: var(--cloud-accent); text-transform: uppercase; letter-spacing: 0.5px; }
+        .progress-section { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 18px 20px; margin-bottom: 28px; box-shadow: var(--shadow-md); }
+        .progress-section h3 { color: var(--cloud-secondary); font-size: 0.9rem; font-weight: 600; margin-bottom: 10px; }
+        .progress-bar-container { background: rgba(56,189,248,0.10); border-radius: 10px; height: 16px; overflow: hidden; }
+        .progress-bar { height: 100%; background: linear-gradient(90deg, var(--cloud-dark), var(--cloud-primary), var(--cloud-secondary)); width: 0%; transition: width 0.6s ease; border-radius: 10px; }
+        .progress-text { text-align: right; font-size: 0.78rem; color: var(--text-muted); margin-top: 6px; }
+        .section-heading { font-size: 0.7rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px; padding-left: 4px; }
+        .week-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; margin-bottom: 12px; box-shadow: var(--shadow-md); overflow: hidden; transition: border-color 0.2s ease; }
+        .week-card:hover { border-color: var(--border-hover); }
+        .week-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; cursor: pointer; user-select: none; transition: background 0.2s ease; }
+        .week-header:hover { background: rgba(56,189,248,0.04); }
+        .week-header-left { display: flex; align-items: center; gap: 14px; }
+        .week-num { background: linear-gradient(135deg, var(--cloud-dark), var(--cloud-primary)); color: #fff; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem; flex-shrink: 0; }
+        .week-title-group .week-title { font-size: 1.05rem; font-weight: 600; color: var(--cloud-accent); line-height: 1.25; }
+        .week-title-group .week-sub { font-size: 0.88rem; color: var(--text-secondary); margin-top: 1px; }
+        .week-meta { display: flex; align-items: center; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
+        .item-count-tag { font-size: 0.72rem; color: var(--text-muted); background: rgba(56,189,248,0.08); border: 1px solid rgba(56,189,248,0.18); padding: 2px 8px; border-radius: 4px; }
+        .week-toggle { color: var(--text-muted); font-size: 1.1rem; transition: transform 0.3s ease; flex-shrink: 0; }
+        .week-card.open .week-toggle { transform: rotate(180deg); }
+        .week-body { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; }
+        .week-card.open .week-body { max-height: 3600px; }
+        .week-inner { padding: 4px 22px 22px; border-top: 1px solid rgba(56,189,248,0.08); }
+        .week-progress { margin: 14px 0 6px; }
+        .week-progress-label { display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--text-muted); margin-bottom: 5px; }
+        .week-progress-bar-container { background: rgba(56,189,248,0.08); border-radius: 6px; height: 6px; overflow: hidden; }
+        .week-progress-bar { height: 100%; background: linear-gradient(90deg, var(--cloud-dark), var(--cloud-primary)); width: 0%; transition: width 0.5s ease; border-radius: 6px; }
+        .subsection { margin-top: 18px; }
+        .subsection-label { display: flex; align-items: center; gap: 8px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 8px; padding-bottom: 5px; border-bottom: 1px solid rgba(100,116,139,0.15); }
+        .subsection-label::before { content: ''; display: inline-block; width: 3px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+        .subsection-label.label-presentation::before { background: #60a5fa; }
+        .subsection-label.label-lab::before { background: #22c55e; }
+        .subsection-label.label-assessment::before { background: #fbbf24; }
+        .content-grid { display: grid; grid-template-columns: 1fr; gap: 6px; }
+        .content-card { display: flex; align-items: center; gap: 12px; padding: 11px 14px; background: rgba(56,189,248,0.03); border: 1px solid rgba(56,189,248,0.08); border-radius: 8px; text-decoration: none; color: var(--text-primary); transition: all 0.2s ease; }
+        .content-card:hover { background: rgba(56,189,248,0.08); border-color: rgba(56,189,248,0.25); transform: translateX(3px); }
+        .content-card.is-complete { border-color: rgba(34,197,94,0.35); background: rgba(34,197,94,0.05); }
+        .card-type-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .dot-present { background: #60a5fa; } .dot-lab { background: #22c55e; }
+        .dot-quiz { background: #fbbf24; } .dot-exam { background: #f87171; }
+        .card-info { flex: 1; min-width: 0; }
+        .card-info .card-title { font-size: 0.88rem; font-weight: 500; color: var(--text-primary); }
+        .card-info .card-sub { font-size: 0.73rem; color: var(--text-muted); }
+        .card-check { width: 18px; height: 18px; opacity: 0; flex-shrink: 0; transition: opacity 0.2s ease; }
+        .content-card.is-complete .card-check { opacity: 1; }
+        .content-badge { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; flex-shrink: 0; }
+        .badge-presentation { background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.30); }
+        .badge-lab { background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.30); }
+        .badge-quiz { background: rgba(250,204,21,0.15); color: #fbbf24; border: 1px solid rgba(250,204,21,0.30); }
+        .badge-exam { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.30); }
+        .page-footer { text-align: center; padding: 28px 0 10px; color: var(--text-muted); font-size: 0.78rem; }
+        @media (max-width: 768px) { body { padding: 12px; } .header { padding: 28px 16px 24px; } .header h2 { font-size: 1.6rem; } .week-header { padding: 14px 16px; } .week-inner { padding: 4px 16px 18px; } }
+        @media (max-width: 480px) { .header h2 { font-size: 1.35rem; } .course-stat { padding: 6px 10px; } .course-stat .value { font-size: 1rem; } .week-num { width: 34px; height: 34px; font-size: 0.85rem; } .week-title-group .week-title { font-size: 0.95rem; } }
+    </style>
+</head>
+<body>
+    <h1 class="visually-hidden">Cloud Base &mdash; CTS2145C Course Hub</h1>
+    <div class="container">
+        <div class="top-bar">
+            <span class="course-label">Cloud Base &mdash; CTS2145C</span>
+            <a href="../index.html" class="dashboard-btn" id="dashboardBtn">
+                <img src="../../../assets/images/icons/icon-arrow-left.webp" alt="" class="dashboard-btn-icon" aria-hidden="true">
+                Dashboard
+            </a>
+        </div>
+        <div class="header">
+            <span class="course-badge">CTS2145C</span>
+            <h2>Cloud Base</h2>
+            <p class="subtitle">Cloud Essentials &mdash; 4-Week Intensive</p>
+            <div class="course-stats">
+                <div class="course-stat"><div class="value">4</div><div class="label">Weeks</div></div>
+                <div class="course-stat"><div class="value">8</div><div class="label">Presentations</div></div>
+                <div class="course-stat"><div class="value">8</div><div class="label">Labs</div></div>
+                <div class="course-stat"><div class="value">10</div><div class="label">Assessments</div></div>
+            </div>
+        </div>
+        <div class="progress-section">
+            <h3>Course Progress</h3>
+            <div class="progress-bar-container"><div class="progress-bar" id="progressBar"></div></div>
+            <div class="progress-text" id="progressText">Loading...</div>
+        </div>
+        <div class="section-heading">Learning Path</div>
+
+        <!-- WEEK 1 -->
+        <div class="week-card" id="wk1">
+            <div class="week-header" onclick="toggleWeek('wk1')">
+                <div class="week-header-left">
+                    <div class="week-num">1</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Cloud Concepts &amp; System Requirements</div>
+                        <div class="week-sub">Service models, deployment models, capacity planning, migration strategies</div>
+                        <div class="week-meta"><span class="item-count-tag">2 presentations &bull; 2 labs &bull; 2 quizzes</span></div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+            <div class="week-body"><div class="week-inner">
+                <div class="week-progress"><div class="week-progress-label"><span>Week 1 Progress</span><span id="wk1-progress-text">0 / 6</span></div><div class="week-progress-bar-container"><div class="week-progress-bar" id="wk1-progress-bar"></div></div></div>
+                <div class="subsection"><div class="subsection-label label-presentation">Presentations</div><div class="content-grid">
+                    <a href="presentations/cb-w1-concepts.presentation.html" class="content-card" data-module="cb-w1-concepts-pres"><span class="card-type-dot dot-present"></span><div class="card-info"><div class="card-title">Cloud Concepts &amp; Service Models</div><div class="card-sub">IaaS, PaaS, SaaS, deployment models, shared responsibility, NIST characteristics</div></div><img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true"><span class="content-badge badge-presentation">Slides</span></a>
+                    <a href="presentations/cb-w1-deployment.presentation.html" class="content-card" data-module="cb-w1-deployment-pres"><span class="card-type-dot dot-present"></span><div class="card-info"><div class="card-title">System Requirements &amp; Deployment</div><div class="card-sub">Capacity planning, VM sizing, storage tiers, the 6 R's of migration</div></div><img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true"><span class="content-badge badge-presentation">Slides</span></a>
+                </div></div>
+                <div class="subsection"><div class="subsection-label label-lab">Hands-On Labs</div><div class="content-grid">
+                    <a href="labs/cb-w1-concepts.lab.html" class="content-card" data-module="cb-w1-concepts-lab"><span class="card-type-dot dot-lab"></span><div class="card-info"><div class="card-title">Service Model Classifier</div><div class="card-sub">12 scenarios -- classify as IaaS/PaaS/SaaS and deployment model</div></div><img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true"><span class="content-badge badge-lab">Lab</span></a>
+                    <a href="labs/cb-w1-deployment.lab.html" class="content-card" data-module="cb-w1-deployment-lab"><span class="card-type-dot dot-lab"></span><div class="card-info"><div class="card-title">Migration Strategy Selector</div><div class="card-sub">8 app profiles -- pick correct migration strategy and resource sizing</div></div><img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true"><span class="content-badge badge-lab">Lab</span></a>
+                </div></div>
+                <div class="subsection"><div class="subsection-label label-assessment">Assessment</div><div class="content-grid">
+                    <a href="quizzes/cb-w1-concepts.quiz.html" class="content-card" data-module="cb-w1-concepts-quiz"><span class="card-type-dot dot-quiz"></span><div class="card-info"><div class="card-title">Quiz 1: Cloud Concepts &amp; Models</div><div class="card-sub">15 questions -- service models, deployment, NIST, shared responsibility</div></div><img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true"><span class="content-badge badge-quiz">Quiz</span></a>
+                    <a href="quizzes/cb-w1-deployment.quiz.html" class="content-card" data-module="cb-w1-deployment-quiz"><span class="card-type-dot dot-quiz"></span><div class="card-info"><div class="card-title">Quiz 2: Requirements &amp; Deployment</div><div class="card-sub">15 questions -- capacity planning, VM sizing, storage, migration</div></div><img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true"><span class="content-badge badge-quiz">Quiz</span></a>
+                </div></div>
+            </div></div>
+        </div>
+
+        <!-- WEEK 2 -->
+        <div class="week-card" id="wk2">
+            <div class="week-header" onclick="toggleWeek('wk2')">
+                <div class="week-header-left">
+                    <div class="week-num">2</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Cloud Security &amp; Automation</div>
+                        <div class="week-sub">IAM, encryption, IaC, CI/CD, containers, Kubernetes</div>
+                        <div class="week-meta"><span class="item-count-tag">2 presentations &bull; 2 labs &bull; 2 quizzes &bull; midterm</span></div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+            <div class="week-body"><div class="week-inner">
+                <div class="week-progress"><div class="week-progress-label"><span>Week 2 Progress</span><span id="wk2-progress-text">0 / 7</span></div><div class="week-progress-bar-container"><div class="week-progress-bar" id="wk2-progress-bar"></div></div></div>
+                <div class="subsection"><div class="subsection-label label-presentation">Presentations</div><div class="content-grid">
+                    <a href="presentations/cb-w2-security.presentation.html" class="content-card" data-module="cb-w2-security-pres"><span class="card-type-dot dot-present"></span><div class="card-info"><div class="card-title">Cloud Security</div><div class="card-sub">IAM, encryption, network security, compliance, zero trust</div></div><img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true"><span class="content-badge badge-presentation">Slides</span></a>
+                    <a href="presentations/cb-w2-automation.presentation.html" class="content-card" data-module="cb-w2-automation-pres"><span class="card-type-dot dot-present"></span><div class="card-info"><div class="card-title">Automation &amp; Orchestration</div><div class="card-sub">Terraform, Ansible, CI/CD, auto-scaling, Docker, Kubernetes, serverless</div></div><img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true"><span class="content-badge badge-presentation">Slides</span></a>
+                </div></div>
+                <div class="subsection"><div class="subsection-label label-lab">Hands-On Labs</div><div class="content-grid">
+                    <a href="labs/cb-w2-security.lab.html" class="content-card" data-module="cb-w2-security-lab"><span class="card-type-dot dot-lab"></span><div class="card-info"><div class="card-title">Shared Responsibility Mapper</div><div class="card-sub">10 security tasks -- assign to provider or customer</div></div><img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true"><span class="content-badge badge-lab">Lab</span></a>
+                    <a href="labs/cb-w2-automation.lab.html" class="content-card" data-module="cb-w2-automation-lab"><span class="card-type-dot dot-lab"></span><div class="card-info"><div class="card-title">IaC Tool Matcher</div><div class="card-sub">10 infrastructure tasks -- select correct tool</div></div><img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true"><span class="content-badge badge-lab">Lab</span></a>
+                </div></div>
+                <div class="subsection"><div class="subsection-label label-assessment">Assessment</div><div class="content-grid">
+                    <a href="quizzes/cb-w2-security.quiz.html" class="content-card" data-module="cb-w2-security-quiz"><span class="card-type-dot dot-quiz"></span><div class="card-info"><div class="card-title">Quiz 3: Cloud Security</div><div class="card-sub">15 questions -- IAM, encryption, compliance, shared responsibility</div></div><img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true"><span class="content-badge badge-quiz">Quiz</span></a>
+                    <a href="quizzes/cb-w2-automation.quiz.html" class="content-card" data-module="cb-w2-automation-quiz"><span class="card-type-dot dot-quiz"></span><div class="card-info"><div class="card-title">Quiz 4: Automation &amp; Orchestration</div><div class="card-sub">15 questions -- IaC, CI/CD, containers, serverless</div></div><img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true"><span class="content-badge badge-quiz">Quiz</span></a>
+                    <a href="exams/cb-midterm.exam.html" class="content-card" data-module="cb-midterm"><span class="card-type-dot dot-exam"></span><div class="card-info"><div class="card-title">Midterm Exam</div><div class="card-sub">25 questions &bull; 45 minutes &bull; Covers Weeks 1-2</div></div><img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true"><span class="content-badge badge-exam">Exam</span></a>
+                </div></div>
+            </div></div>
+        </div>
+
+        <!-- WEEK 3 -->
+        <div class="week-card" id="wk3">
+            <div class="week-header" onclick="toggleWeek('wk3')">
+                <div class="week-header-left">
+                    <div class="week-num">3</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Backup &amp; Disaster Recovery</div>
+                        <div class="week-sub">Backup strategies, RPO/RTO, snapshots, DR architectures, chaos engineering</div>
+                        <div class="week-meta"><span class="item-count-tag">2 presentations &bull; 2 labs &bull; 2 quizzes</span></div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+            <div class="week-body"><div class="week-inner">
+                <div class="week-progress"><div class="week-progress-label"><span>Week 3 Progress</span><span id="wk3-progress-text">0 / 6</span></div><div class="week-progress-bar-container"><div class="week-progress-bar" id="wk3-progress-bar"></div></div></div>
+                <div class="subsection"><div class="subsection-label label-presentation">Presentations</div><div class="content-grid">
+                    <a href="presentations/cb-w3-backup.presentation.html" class="content-card" data-module="cb-w3-backup-pres"><span class="card-type-dot dot-present"></span><div class="card-info"><div class="card-title">Backup &amp; Restore</div><div class="card-sub">Full/incremental/differential, RPO/RTO, snapshots, 3-2-1 rule</div></div><img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true"><span class="content-badge badge-presentation">Slides</span></a>
+                    <a href="presentations/cb-w3-dr.presentation.html" class="content-card" data-module="cb-w3-dr-pres"><span class="card-type-dot dot-present"></span><div class="card-info"><div class="card-title">Disaster Recovery</div><div class="card-sub">Pilot light, warm standby, active-active, failover, chaos engineering</div></div><img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true"><span class="content-badge badge-presentation">Slides</span></a>
+                </div></div>
+                <div class="subsection"><div class="subsection-label label-lab">Hands-On Labs</div><div class="content-grid">
+                    <a href="labs/cb-w3-backup.lab.html" class="content-card" data-module="cb-w3-backup-lab"><span class="card-type-dot dot-lab"></span><div class="card-info"><div class="card-title">Backup Strategy Planner</div><div class="card-sub">8 scenarios -- select backup type and schedule based on RPO/RTO</div></div><img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true"><span class="content-badge badge-lab">Lab</span></a>
+                    <a href="labs/cb-w3-dr.lab.html" class="content-card" data-module="cb-w3-dr-lab"><span class="card-type-dot dot-lab"></span><div class="card-info"><div class="card-title">DR Architecture Selector</div><div class="card-sub">8 scenarios -- select correct DR strategy</div></div><img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true"><span class="content-badge badge-lab">Lab</span></a>
+                </div></div>
+                <div class="subsection"><div class="subsection-label label-assessment">Assessment</div><div class="content-grid">
+                    <a href="quizzes/cb-w3-backup.quiz.html" class="content-card" data-module="cb-w3-backup-quiz"><span class="card-type-dot dot-quiz"></span><div class="card-info"><div class="card-title">Quiz 5: Backup &amp; Restore</div><div class="card-sub">15 questions -- backup types, RPO/RTO, snapshots, 3-2-1 rule</div></div><img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true"><span class="content-badge badge-quiz">Quiz</span></a>
+                    <a href="quizzes/cb-w3-dr.quiz.html" class="content-card" data-module="cb-w3-dr-quiz"><span class="card-type-dot dot-quiz"></span><div class="card-info"><div class="card-title">Quiz 6: Disaster Recovery</div><div class="card-sub">15 questions -- DR strategies, failover, chaos engineering</div></div><img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true"><span class="content-badge badge-quiz">Quiz</span></a>
+                </div></div>
+            </div></div>
+        </div>
+
+        <!-- WEEK 4 -->
+        <div class="week-card" id="wk4">
+            <div class="week-header" onclick="toggleWeek('wk4')">
+                <div class="week-header-left">
+                    <div class="week-num">4</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Monitoring &amp; Troubleshooting</div>
+                        <div class="week-sub">Observability, alerting, APM, cost monitoring, troubleshooting methodology</div>
+                        <div class="week-meta"><span class="item-count-tag">2 presentations &bull; 2 labs &bull; 2 quizzes &bull; final</span></div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+            <div class="week-body"><div class="week-inner">
+                <div class="week-progress"><div class="week-progress-label"><span>Week 4 Progress</span><span id="wk4-progress-text">0 / 7</span></div><div class="week-progress-bar-container"><div class="week-progress-bar" id="wk4-progress-bar"></div></div></div>
+                <div class="subsection"><div class="subsection-label label-presentation">Presentations</div><div class="content-grid">
+                    <a href="presentations/cb-w4-monitoring.presentation.html" class="content-card" data-module="cb-w4-monitoring-pres"><span class="card-type-dot dot-present"></span><div class="card-info"><div class="card-title">Cloud Monitoring &amp; Metrics</div><div class="card-sub">Observability, alerting, dashboards, log aggregation, APM, cost monitoring</div></div><img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true"><span class="content-badge badge-presentation">Slides</span></a>
+                    <a href="presentations/cb-w4-troubleshoot.presentation.html" class="content-card" data-module="cb-w4-troubleshoot-pres"><span class="card-type-dot dot-present"></span><div class="card-info"><div class="card-title">Troubleshooting Cloud Deployments</div><div class="card-sub">Deployment failures, connectivity, performance, DNS, certificates, costs</div></div><img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true"><span class="content-badge badge-presentation">Slides</span></a>
+                </div></div>
+                <div class="subsection"><div class="subsection-label label-lab">Hands-On Labs</div><div class="content-grid">
+                    <a href="labs/cb-w4-monitoring.lab.html" class="content-card" data-module="cb-w4-monitoring-lab"><span class="card-type-dot dot-lab"></span><div class="card-info"><div class="card-title">Alert Threshold Configurator</div><div class="card-sub">8 metrics -- set alert thresholds based on baseline data</div></div><img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true"><span class="content-badge badge-lab">Lab</span></a>
+                    <a href="labs/cb-w4-troubleshoot.lab.html" class="content-card" data-module="cb-w4-troubleshoot-lab"><span class="card-type-dot dot-lab"></span><div class="card-info"><div class="card-title">Cloud Troubleshooting Simulator</div><div class="card-sub">8 problem scenarios -- select diagnostic step and root cause</div></div><img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true"><span class="content-badge badge-lab">Lab</span></a>
+                </div></div>
+                <div class="subsection"><div class="subsection-label label-assessment">Assessment</div><div class="content-grid">
+                    <a href="quizzes/cb-w4-monitoring.quiz.html" class="content-card" data-module="cb-w4-monitoring-quiz"><span class="card-type-dot dot-quiz"></span><div class="card-info"><div class="card-title">Quiz 7: Monitoring &amp; Metrics</div><div class="card-sub">15 questions -- observability, alerting, APM, cost monitoring</div></div><img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true"><span class="content-badge badge-quiz">Quiz</span></a>
+                    <a href="quizzes/cb-w4-troubleshoot.quiz.html" class="content-card" data-module="cb-w4-troubleshoot-quiz"><span class="card-type-dot dot-quiz"></span><div class="card-info"><div class="card-title">Quiz 8: Troubleshooting</div><div class="card-sub">15 questions -- deployment failures, connectivity, DNS, certificates</div></div><img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true"><span class="content-badge badge-quiz">Quiz</span></a>
+                    <a href="exams/cb-final.exam.html" class="content-card" data-module="cb-final"><span class="card-type-dot dot-exam"></span><div class="card-info"><div class="card-title">Final Exam</div><div class="card-sub">40 questions &bull; 75 minutes &bull; Comprehensive (Weeks 1-4)</div></div><img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true"><span class="content-badge badge-exam">Exam</span></a>
+                </div></div>
+            </div></div>
+        </div>
+
+        <div class="page-footer">Cloud Base &mdash; CTS2145C &bull; Cloud Essentials &bull; CompTIA Cloud+ Aligned</div>
+    </div>
+
+    <script>
+    function toggleWeek(id) {
+        var card = document.getElementById(id);
+        if (card) card.classList.toggle('open');
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        if (!window.ModuleProgress) {
+            document.getElementById('progressText').textContent = 'Progress unavailable';
+            return;
+        }
+        var weeks = {
+            wk1: ['cb-w1-concepts-pres','cb-w1-deployment-pres','cb-w1-concepts-lab','cb-w1-deployment-lab','cb-w1-concepts-quiz','cb-w1-deployment-quiz'],
+            wk2: ['cb-w2-security-pres','cb-w2-automation-pres','cb-w2-security-lab','cb-w2-automation-lab','cb-w2-security-quiz','cb-w2-automation-quiz','cb-midterm'],
+            wk3: ['cb-w3-backup-pres','cb-w3-dr-pres','cb-w3-backup-lab','cb-w3-dr-lab','cb-w3-backup-quiz','cb-w3-dr-quiz'],
+            wk4: ['cb-w4-monitoring-pres','cb-w4-troubleshoot-pres','cb-w4-monitoring-lab','cb-w4-troubleshoot-lab','cb-w4-monitoring-quiz','cb-w4-troubleshoot-quiz','cb-final']
+        };
+        var totalItems = 0, totalCompleted = 0;
+        Object.keys(weeks).forEach(function (weekId) {
+            var ids = weeks[weekId], completed = 0;
+            ids.forEach(function (moduleId) {
+                if (ModuleProgress.isCompleted('cloud', moduleId)) {
+                    completed++;
+                    var el = document.querySelector('[data-module="' + moduleId + '"]');
+                    if (el) el.classList.add('is-complete');
+                }
+            });
+            var weekPct = ids.length > 0 ? Math.round((completed / ids.length) * 100) : 0;
+            var weekBar = document.getElementById(weekId + '-progress-bar');
+            var weekText = document.getElementById(weekId + '-progress-text');
+            if (weekBar) weekBar.style.width = weekPct + '%';
+            if (weekText) weekText.textContent = completed + ' / ' + ids.length;
+            totalItems += ids.length;
+            totalCompleted += completed;
+        });
+        var overallPct = totalItems > 0 ? Math.round((totalCompleted / totalItems) * 100) : 0;
+        var overallBar = document.getElementById('progressBar');
+        var overallText = document.getElementById('progressText');
+        if (overallBar) overallBar.style.width = overallPct + '%';
+        if (overallText) overallText.textContent = totalCompleted + ' of ' + totalItems + ' items completed (' + overallPct + '%)';
+    });
+    </script>
+</body>
+</html>

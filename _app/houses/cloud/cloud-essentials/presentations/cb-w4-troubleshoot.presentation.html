@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../components/PresentationA11y.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Troubleshooting Cloud Deployments | Cloud Base</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #060a14 0%, #0a1628 50%, #0c1a30 100%); color: #e2e8f0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow-y: auto; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #38bdf8; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(6,10,20,0.95); border-top: 1px solid rgba(255,255,255,0.07); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.07); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(56,189,248,0.15); color: #38bdf8; border-color: #38bdf8; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #0ea5e9; color: #fff; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s; }
+        #complete-btn:hover { background: #38bdf8; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #38bdf8; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #38bdf8; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip { background: rgba(56,189,248,0.08); border-left: 3px solid #38bdf8; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #bae6fd; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-blue { background: rgba(56,189,248,0.08); border: 1px solid rgba(56,189,248,0.3); color: #bae6fd; }
+        .box-green { background: rgba(58,181,119,0.08); border: 1px solid rgba(58,181,119,0.35); color: #d1fae5; }
+        .box-gold { background: rgba(201,168,58,0.08); border: 1px solid rgba(201,168,58,0.3); color: #fef3c7; }
+        .box-red { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); color: #fee2e2; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #38bdf8; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #38bdf8; }
+        .card:hover { background: rgba(255,255,255,0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-red { border-left-color: #ef4444; }
+        .card.c-gold { border-left-color: #c9a83a; } .card.c-sky { border-left-color: #38bdf8; }
+        .card.c-cyan { border-left-color: #06b6d4; } .card.c-purple { border-left-color: #a78bfa; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #38bdf8; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Troubleshooting Cloud Deployments</h1>
+<div id="progress-bar" style="width:7.7%"></div>
+
+<section class="slide active" id="slide-1"><div class="slide-inner">
+    <div class="slide-meta">Slide 1 of 13 &nbsp;|&nbsp; CTS2145C &nbsp;|&nbsp; Week 4</div>
+    <div class="title-hero">
+        <svg width="100" height="80" viewBox="0 0 100 80" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <circle cx="50" cy="35" r="25" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.2"/>
+            <circle cx="50" cy="35" r="16" fill="rgba(56,189,248,0.06)" stroke="#38bdf8" stroke-width="1" stroke-dasharray="3,3"/>
+            <line x1="50" y1="19" x2="50" y2="51" stroke="#38bdf8" stroke-width="1.5"/>
+            <line x1="34" y1="35" x2="66" y2="35" stroke="#38bdf8" stroke-width="1.5"/>
+            <text x="50" y="72" text-anchor="middle" font-size="9" fill="#ef4444" font-family="Segoe UI,sans-serif">Diagnose</text>
+        </svg>
+        <div class="big-title">Troubleshooting Cloud Deployments</span></div>
+        <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">Deployment Failures &bull; Connectivity &bull; Performance &bull; DNS &bull; Certificates &bull; Cost Overruns</div>
+    </div>
+    <div class="scenario-strip">It is 2 AM. PagerDuty fires. The production API is returning 503 errors. Users cannot log in. You have 15 minutes before the SLA is breached. Your troubleshooting methodology determines whether this is a 5-minute fix or a 3-hour nightmare.</div>
+    <div class="title-meta-row"><span>13 Slides</span><span>CTS2145C</span><span>Week 4</span><span>Cloud+ Aligned</span></div>
+</div></section>
+
+<section class="slide" id="slide-2"><div class="slide-inner">
+    <div class="slide-meta">Slide 2 of 13</div>
+    <div class="slide-title">Troubleshooting <span class="accent">Methodology</span></div>
+    <div class="slide-subtitle">Systematic approach beats random guessing. Follow the OSI model, check logs, and narrow the scope.</div>
+    <div class="card-grid">
+        <div class="card c-sky"><div class="card-label">Identify Symptoms</div><div class="card-desc">What is the user experiencing? 503 errors? Timeouts? Slow responses? Data inconsistency? Start with the user impact, not the infrastructure. Symptoms guide the investigation.</div></div>
+        <div class="card c-green"><div class="card-label">Check Recent Changes</div><div class="card-desc">What changed in the last 24 hours? Deployments, config changes, scaling events, provider incidents. 80% of production issues are caused by recent changes. Check deployment logs first.</div></div>
+        <div class="card c-gold"><div class="card-label">Isolate the Layer</div><div class="card-desc">Is it DNS? Network? Load balancer? Application? Database? Use the OSI model bottom-up or top-down. Ping, traceroute, curl, and log analysis narrow the scope quickly.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-3"><div class="slide-inner">
+    <div class="slide-meta">Slide 3 of 13</div>
+    <div class="slide-title"><span class="accent">Deployment</span> Failures</div>
+    <div class="slide-subtitle">Code that works in staging but fails in production. The most common category of cloud issues.</div>
+    <div class="card-grid">
+        <div class="card c-sky"><div class="card-label">Permission Errors</div><div class="card-desc">The deployment service account lacks permissions to create/update resources. IAM policies in production are stricter than staging. Check CloudTrail/Activity Log for Access Denied errors.</div></div>
+        <div class="card c-green"><div class="card-label">Configuration Drift</div><div class="card-desc">Production config differs from what was tested. Environment variables, secrets, database connection strings, feature flags. Use IaC and config management to prevent drift.</div></div>
+        <div class="card c-gold"><div class="card-label">Resource Limits</div><div class="card-desc">Hit a quota: max VMs, max IPs, max security groups. Hit a service limit: Lambda concurrent executions, API Gateway rate limits. Request limit increases before they block deployments.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-4"><div class="slide-inner">
+    <div class="slide-meta">Slide 4 of 13</div>
+    <div class="slide-title"><span class="accent">Connectivity</span> Issues</div>
+    <div class="slide-subtitle">The application cannot reach the database. The load balancer returns 502. Users get connection timeouts.</div>
+    <div class="card-grid">
+        <div class="card c-sky"><div class="card-label">Security Group Rules</div><div class="card-desc">Inbound rules block the required port. Most common: database port (3306/5432) not open to the application subnet. Check security groups on BOTH the source and destination.</div></div>
+        <div class="card c-green"><div class="card-label">Route Table Misconfiguration</div><div class="card-desc">Subnet has no route to the internet gateway (no outbound access). Or no route to a NAT gateway for private subnets. Check route tables when instances cannot reach external services.</div></div>
+        <div class="card c-gold"><div class="card-label">VPN/Peering Issues</div><div class="card-desc">Site-to-site VPN tunnel is down. VPC peering route not propagated. Transit Gateway attachment missing. Check tunnel status, BGP sessions, and route propagation.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-5"><div class="slide-inner">
+    <div class="slide-meta">Slide 5 of 13</div>
+    <div class="slide-title"><span class="accent">Performance</span> Bottlenecks</div>
+    <div class="slide-subtitle">The system is running but slowly. Identify which resource is saturated.</div>
+    <div class="card-grid">
+        <div class="card c-sky"><div class="card-label">CPU Saturation</div><div class="card-desc">Instance type is too small. Unoptimized code (infinite loops, blocking calls). Solution: scale up (bigger instance) or scale out (more instances). Profile the application to find hot paths.</div></div>
+        <div class="card c-green"><div class="card-label">Memory Pressure</div><div class="card-desc">Memory leaks in application code. JVM heap too small. Container memory limit too low. OOM kills crash the process. Monitor memory trends and set memory alerts.</div></div>
+        <div class="card c-gold"><div class="card-label">I/O Throttling</div><div class="card-desc">EBS volume hitting IOPS or throughput limits. Storage tier is too slow for the workload. Solution: upgrade to io2 or gp3 with provisioned IOPS. Check CloudWatch EBS metrics.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-6"><div class="slide-inner">
+    <div class="slide-meta">Slide 6 of 13</div>
+    <div class="slide-title"><span class="accent">DNS</span> Resolution</div>
+    <div class="slide-subtitle">DNS issues cause intermittent failures that are maddening to debug. The symptoms look like network problems.</div>
+    <div class="card-grid">
+        <div class="card c-sky"><div class="card-label">DNS Propagation Delay</div><div class="card-desc">Changed a DNS record but clients still resolve the old IP. TTL caching. Solution: wait for TTL to expire or lower TTL before making changes. Pre-flight: lower TTL 24h before cutover.</div></div>
+        <div class="card c-green"><div class="card-label">Split-Horizon DNS</div><div class="card-desc">Internal and external DNS resolve the same hostname to different IPs. Internal resolves to private IP, external to public IP. Misconfiguration causes connectivity failures from unexpected locations.</div></div>
+        <div class="card c-gold"><div class="card-label">DNS Health Checks</div><div class="card-desc">Route 53, Azure Traffic Manager health checks fail if the endpoint is unhealthy. DNS stops routing to the unhealthy endpoint. If health checks are misconfigured, healthy endpoints get removed.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-7"><div class="slide-inner">
+    <div class="slide-meta">Slide 7 of 13</div>
+    <div class="slide-title"><span class="accent">Certificate</span> Errors</div>
+    <div class="slide-subtitle">TLS certificate problems cause browser warnings, API failures, and broken integrations.</div>
+    <div class="card-grid">
+        <div class="card c-sky"><div class="card-label">Expired Certificates</div><div class="card-desc">Certificate not renewed before expiration. Automated renewal (ACM, Let's Encrypt) prevents this. Monitor certificate expiration dates. Alert 30 days before expiry.</div></div>
+        <div class="card c-green"><div class="card-label">Name Mismatch</div><div class="card-desc">Certificate issued for app.example.com but the request hits api.example.com. Wildcard certs (*.example.com) or SAN certs (multiple domains) prevent this.</div></div>
+        <div class="card c-gold"><div class="card-label">Chain of Trust</div><div class="card-desc">Intermediate certificate missing from the server configuration. The browser cannot verify the chain from the server cert to the root CA. SSL Labs test identifies chain issues.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-8"><div class="slide-inner">
+    <div class="slide-meta">Slide 8 of 13</div>
+    <div class="slide-title"><span class="accent">Quota</span> &amp; Limit Issues</div>
+    <div class="slide-subtitle">Every cloud account has default limits. Hitting them causes cryptic failures.</div>
+    <div class="card-grid">
+        <div class="card c-sky"><div class="card-label">Service Quotas</div><div class="card-desc">Max 20 VMs per region (default). Max 5 Elastic IPs. Max 200 S3 buckets. Limits vary by service and region. AWS Service Quotas console shows current usage vs. limits.</div></div>
+        <div class="card c-green"><div class="card-label">API Rate Limits</div><div class="card-desc">AWS API calls are rate-limited (typically 10-100 requests/second per API). Terraform deploying 500 resources can hit throttling. Implement exponential backoff and retry logic.</div></div>
+        <div class="card c-gold"><div class="card-label">Proactive Management</div><div class="card-desc">Request limit increases BEFORE you need them. Monitor quota utilization. Include quota checks in migration planning. A quota hit during a production deployment is a preventable outage.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-9"><div class="slide-inner">
+    <div class="slide-meta">Slide 9 of 13</div>
+    <div class="slide-title"><span class="accent">Cost</span> Overruns</div>
+    <div class="slide-subtitle">Unexpected cloud costs are a troubleshooting scenario. Diagnose the cause and implement controls.</div>
+    <div class="card-grid">
+        <div class="card c-sky"><div class="card-label">Identify the Spike</div><div class="card-desc">Cost Explorer by service, by tag, by linked account. Identify which service caused the increase. Common culprits: forgotten dev environments, unattached EBS volumes, over-provisioned databases.</div></div>
+        <div class="card c-green"><div class="card-label">Data Transfer Costs</div><div class="card-desc">Egress charges surprise teams. Cross-AZ traffic costs in AWS ($0.01/GB). Cross-region costs more. NAT Gateway data processing charges add up. Use VPC endpoints to eliminate NAT costs for AWS services.</div></div>
+        <div class="card c-gold"><div class="card-label">Prevention</div><div class="card-desc">Budget alerts, auto-shutdown for dev environments, reserved instances for steady workloads, spot instances for batch jobs. Tag everything. Review costs weekly. Assign cost ownership to teams.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-10"><div class="slide-inner">
+    <div class="slide-meta">Slide 10 of 13</div>
+    <div class="slide-title">Troubleshooting <span class="accent">Toolkit</span></div>
+    <div class="slide-subtitle">Essential commands and tools every cloud engineer should have ready.</div>
+    <div class="card-grid">
+        <div class="card c-sky"><div class="card-label">Network Diagnostics</div><div class="card-desc">ping (reachability), traceroute (path), nslookup/dig (DNS), curl (HTTP), telnet/nc (port connectivity). These basic tools solve 90% of connectivity issues.</div></div>
+        <div class="card c-green"><div class="card-label">Cloud-Native Tools</div><div class="card-desc">VPC Flow Logs (packet captures), CloudTrail (API audit), CloudWatch Insights (log queries), Azure Network Watcher, GCP Network Intelligence Center. Provider tools show what OS tools cannot.</div></div>
+        <div class="card c-gold"><div class="card-label">Runbook Approach</div><div class="card-desc">Document common issues and their solutions. "503 from ALB: check target group health, check security groups, check application logs." Runbooks reduce MTTR and enable junior engineers to resolve issues.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-13"><div class="slide-inner">
+    <div class="slide-meta">Slide 13 of 13</div>
+    <div class="slide-title">Key <span class="accent">Takeaways</span></div>
+    <div class="summary-facts">
+        <div class="fact-row"><span class="fact-num">1</span><span class="fact-text">Troubleshooting methodology: identify symptoms, check recent changes, isolate the layer, verify with logs.</span></div>
+        <div class="fact-row"><span class="fact-num">2</span><span class="fact-text">Deployment failures: check IAM permissions, environment configuration, and resource quotas before investigating code.</span></div>
+        <div class="fact-row"><span class="fact-num">3</span><span class="fact-text">Connectivity issues: security groups (both sides), route tables, NAT gateways, VPN tunnel status.</span></div>
+        <div class="fact-row"><span class="fact-num">4</span><span class="fact-text">Performance bottlenecks: CPU (scale out), memory (leaks/limits), I/O (storage tier), network (bandwidth).</span></div>
+        <div class="fact-row"><span class="fact-num">5</span><span class="fact-text">DNS and certificate issues cause intermittent, confusing failures. Lower TTL before changes. Automate certificate renewal.</span></div>
+        <div class="fact-row"><span class="fact-num">6</span><span class="fact-text">Cost overruns are a troubleshooting scenario. Use Cost Explorer, budget alerts, and tagging to diagnose and prevent.</span></div>
+    </div>
+    
+    <div style="text-align:center; margin-top:6px;"><button id="complete-btn" onclick="completeModule()">Mark Complete</button></div>
+</div></section>
+
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; Cloud Base</button></a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 13</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+<script>
+    var currentSlide = 1, TOTAL_SLIDES = 13;
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        var p = document.getElementById('slide-' + currentSlide); if (p) p.classList.remove('active');
+        currentSlide = n;
+        var x = document.getElementById('slide-' + currentSlide); if (x) x.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        var cb = document.getElementById('complete-btn'); if (cb) cb.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+    goToSlide(1);
+</script>
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('cloud', 'cb-w4-troubleshoot-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+</body>
+</html>
