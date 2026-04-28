@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Final Exam: Hardware Support | Bare Metal</title>
+    <style>
+        :root {
+            --bg:          #0a0e1a;
+            --bg-card:     #0f1625;
+            --bg-option:   #141d2e;
+            --primary:     #fbbf24;
+            --accent:      #f59e0b;
+            --primary-dim: rgba(251, 191, 36, 0.15);
+            --text:        #e2e8f0;
+            --text-muted:  #8892a8;
+            --success:     #22c55e;
+            --danger:      #ef4444;
+            --warning:     #fbbf24;
+            --border:      rgba(255,255,255,0.08);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, var(--bg) 0%, #0c1220 50%, #0e1828 100%); color: var(--text); min-height: 100vh; line-height: 1.6; }
+        .quiz-container { max-width: 820px; margin: 0 auto; padding: 2rem; }
+        .nav-links { display: flex; gap: 1.5rem; margin-bottom: 1.5rem; }
+        .back-link { color: var(--primary); text-decoration: none; font-size: 0.9rem; transition: all 0.3s; }
+        .back-link:hover { color: #fcd34d; transform: translateX(-5px); display: inline-block; }
+        .quiz-header { text-align: center; margin-bottom: 2rem; padding: 2rem; background: var(--bg-card); border-radius: 14px; border: 1px solid var(--primary-dim); }
+        .quiz-header h1 { font-size: 1.7rem; color: var(--primary); margin-bottom: 0.5rem; }
+        .quiz-header .subtitle { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.75rem; }
+        .quiz-header .meta { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; font-size: 0.8rem; }
+        .quiz-header .meta span { background: var(--bg); padding: 4px 12px; border-radius: 6px; border: 1px solid var(--border); color: var(--text-muted); }
+        .status-bar { background: var(--bg-card); border-radius: 10px; padding: 14px 18px; margin-bottom: 1.5rem; border: 1px solid var(--border); display: flex; align-items: center; gap: 14px; }
+        .progress-label { font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; }
+        .progress-track { flex: 1; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent)); border-radius: 4px; transition: width 0.4s ease; width: 0%; }
+        .timer-display { font-size: 0.9rem; font-weight: 700; color: var(--primary); white-space: nowrap; font-family: 'Consolas','Courier New',monospace; letter-spacing: 1px; min-width: 72px; text-align: right; }
+        .timer-display.warning { color: var(--warning); }
+        .timer-display.danger { color: var(--danger); animation: pulse 1s infinite; }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .question-card { background: var(--bg-card); border-radius: 14px; padding: 2rem; border: 1px solid var(--border); margin-bottom: 1.5rem; }
+        .topic-badge { display: inline-block; font-size: 0.72rem; color: var(--primary); background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.25); padding: 2px 10px; border-radius: 20px; margin-bottom: 0.6rem; letter-spacing: 0.4px; font-weight: 600; }
+        .question-num { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 0.4rem; }
+        .question-text { font-size: 1.1rem; font-weight: 600; margin-bottom: 1.5rem; line-height: 1.5; }
+        .options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 1rem; }
+        .option { display: flex; align-items: center; gap: 12px; padding: 14px 18px; background: var(--bg-option); border: 1px solid var(--border); border-radius: 10px; cursor: pointer; transition: all 0.2s; font-size: 0.95rem; }
+        .option:hover { border-color: rgba(251,191,36,0.4); background: rgba(251,191,36,0.05); }
+        .option.correct { border-color: var(--success); background: rgba(34,197,94,0.1); }
+        .option.incorrect { border-color: var(--danger); background: rgba(239,68,68,0.08); }
+        .option.disabled { pointer-events: none; opacity: 0.7; }
+        .option.correct.disabled { opacity: 1; }
+        .option.incorrect.disabled { opacity: 1; }
+        .option-letter { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: var(--bg); border: 1px solid var(--border); font-weight: 700; font-size: 0.85rem; color: var(--primary); flex-shrink: 0; }
+        .option.correct .option-letter { background: var(--success); color: #fff; border-color: var(--success); }
+        .option.incorrect .option-letter { background: var(--danger); color: #fff; border-color: var(--danger); }
+        .feedback { padding: 14px 18px; border-radius: 10px; margin-bottom: 1rem; font-size: 0.9rem; line-height: 1.6; display: none; }
+        .feedback.correct { display: block; background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.3); color: #86efac; }
+        .feedback.incorrect { display: block; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; }
+        .quiz-nav { display: flex; justify-content: flex-end; }
+        .next-btn { padding: 10px 24px; background: rgba(251,191,36,0.15); border: 1px solid rgba(251,191,36,0.4); color: var(--primary); border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .next-btn:hover { background: var(--primary); color: #1a1a2e; }
+        .next-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .next-btn:disabled:hover { background: rgba(251,191,36,0.15); color: var(--primary); }
+        .results-card { display: none; background: var(--bg-card); border-radius: 14px; padding: 3rem 2rem; border: 1px solid var(--border); }
+        .results-card h2 { color: var(--primary); font-size: 1.5rem; margin-bottom: 1rem; text-align: center; }
+        .score-big { font-size: 3.5rem; font-weight: 700; color: var(--success); margin-bottom: 0.5rem; text-align: center; }
+        .score-big.low { color: var(--danger); }
+        .score-big.mid { color: var(--warning); }
+        .score-msg { color: var(--text-muted); font-size: 1rem; margin-bottom: 2rem; text-align: center; }
+        .breakdown-title { font-size: 0.9rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 1rem; }
+        .breakdown-grid { display: grid; gap: 10px; margin-bottom: 2rem; }
+        .breakdown-row { display: flex; align-items: center; gap: 12px; background: var(--bg-option); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; }
+        .breakdown-label { flex: 1; font-size: 0.9rem; color: var(--text); }
+        .breakdown-score { font-size: 0.9rem; font-weight: 700; color: var(--primary); min-width: 60px; text-align: right; }
+        .breakdown-bar-wrap { width: 100px; height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; }
+        .breakdown-bar-fill { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
+        .breakdown-bar-fill.pass { background: var(--success); }
+        .breakdown-bar-fill.mid { background: var(--warning); }
+        .breakdown-bar-fill.fail { background: var(--danger); }
+        .results-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        .results-btns a, .results-btns button { padding: 10px 24px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: all 0.2s; border: none; }
+        .btn-retry { background: rgba(251,191,36,0.15); border: 1px solid rgba(251,191,36,0.4) !important; color: var(--primary); }
+        .btn-retry:hover { background: var(--primary); color: #1a1a2e; }
+        .btn-hub { background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.4) !important; color: var(--accent); }
+        .btn-hub:hover { background: var(--accent); color: #1a1a2e; }
+        .time-expired-banner { display: none; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.4); border-radius: 10px; padding: 14px 18px; color: #fca5a5; font-size: 0.9rem; font-weight: 600; text-align: center; margin-bottom: 1.5rem; }
+        @media (max-width: 640px) { .quiz-container { padding: 1rem; } .question-card { padding: 1.25rem; } .quiz-header h1 { font-size: 1.3rem; } .breakdown-bar-wrap { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="quiz-container">
+        <div class="nav-links"><a href="../index.html" class="back-link">&#8592; Bare Metal Hub</a></div>
+        <div class="quiz-header">
+            <h1>Final Exam: Hardware Support</h1>
+            <p class="subtitle">Comprehensive assessment covering Weeks 1-4: All hardware topics</p>
+            <div class="meta"><span>40 Questions</span><span>75 Minutes</span><span>Pass: 70%</span><span>CTS1150C</span></div>
+        </div>
+        <div class="time-expired-banner" id="timeExpiredBanner">Time expired. Your answers have been submitted automatically.</div>
+        <div class="status-bar">
+            <span class="progress-label" id="progressLabel">Question 1 of 40</span>
+            <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+            <span class="timer-display" id="timerDisplay">75:00</span>
+        </div>
+        <div class="question-card" id="questionCard">
+            <div class="topic-badge" id="topicBadge"></div>
+            <div class="question-num" id="questionNum">QUESTION 1</div>
+            <div class="question-text" id="questionText"></div>
+            <div class="options" id="optionsEl"></div>
+            <div class="feedback" id="feedback"></div>
+            <div class="quiz-nav"><button class="next-btn" id="nextBtn" onclick="nextQuestion()" disabled>Next Question</button></div>
+        </div>
+        <div class="results-card" id="resultsCard">
+            <h2>Final Exam Results</h2>
+            <div class="score-big" id="finalScore"></div>
+            <p class="score-msg" id="scoreMsg"></p>
+            <div class="breakdown-title">Score by Topic</div>
+            <div class="breakdown-grid" id="breakdownGrid"></div>
+            <div class="results-btns">
+                <button class="btn-retry" onclick="restartExam()">Retake Exam</button>
+                <a href="../index.html" class="btn-hub">Back to Bare Metal Hub</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        var questions = [
+            /* ── Topic A: Cables & Connectors (6 questions) ── */
+            { topic: 'A', q: "A Thunderbolt 3 port uses which physical connector?", opts: ["USB Type-A", "USB Type-C", "Mini DisplayPort", "Lightning"], ans: 1, exp: "Thunderbolt 3 (and Thunderbolt 4) use the USB Type-C connector, supporting up to 40 Gbps data, DisplayPort video, and 100W power delivery on a single cable." },
+            { topic: 'A', q: "Which cable type is immune to electromagnetic interference?", opts: ["Cat 6 UTP", "Fiber optic", "Coaxial RG-6", "Cat 5e STP"], ans: 1, exp: "Fiber optic cables transmit data as light pulses through glass or plastic strands. Since they use light rather than electrical signals, they are completely immune to EMI." },
+            { topic: 'A', q: "USB 2.0 Hi-Speed has a maximum theoretical data rate of:", opts: ["480 Mbps", "12 Mbps", "5 Gbps", "10 Gbps"], ans: 0, exp: "USB 2.0 Hi-Speed operates at 480 Mbps. USB 1.1 Full Speed is 12 Mbps, USB 3.0 SuperSpeed is 5 Gbps, USB 3.1 Gen 2 is 10 Gbps." },
+            { topic: 'A', q: "The F-type connector is used with which cable type?", opts: ["Coaxial (cable TV/modem)", "Fiber optic (LC)", "Cat 6 UTP", "USB printer cable"], ans: 0, exp: "F-type connectors are threaded coaxial connectors used for cable TV (CATV), cable modems, and satellite connections." },
+            { topic: 'A', q: "HDMI 2.1 supports which maximum resolution and refresh rate?", opts: ["8K at 60 Hz and 4K at 120 Hz", "4K at 60 Hz", "1080p at 60 Hz", "4K at 30 Hz"], ans: 0, exp: "HDMI 2.1 supports up to 10K resolution, with practical support for 8K at 60 Hz and 4K at 120 Hz. It also adds Variable Refresh Rate (VRR) and eARC." },
+            { topic: 'A', q: "A crossover Ethernet cable uses which wiring configuration?", opts: ["T-568B on both ends", "T-568A on one end and T-568B on the other", "T-568A on both ends", "Only 4 of the 8 wires connected"], ans: 1, exp: "A crossover cable uses T-568A on one end and T-568B on the other, swapping transmit and receive pairs for direct device-to-device connections." },
+
+            /* ── Topic B: Motherboards & CPUs (6 questions) ── */
+            { topic: 'B', q: "Which component stores BIOS/UEFI firmware on the motherboard?", opts: ["EEPROM/flash ROM chip", "CMOS battery", "Northbridge", "CPU L3 cache"], ans: 0, exp: "BIOS/UEFI firmware is stored in an EEPROM or flash ROM chip. The CMOS battery only maintains volatile settings (date, boot order) when power is off." },
+            { topic: 'B', q: "The 24-pin ATX connector provides:", opts: ["Primary power to the motherboard (+3.3V, +5V, +12V)", "Power exclusively to the CPU", "Power to SATA drives only", "Front panel connections"], ans: 0, exp: "The 24-pin ATX connector is the main power delivery from the PSU to the motherboard, supplying multiple voltage rails to power the board, RAM, chipset, and slots." },
+            { topic: 'B', q: "ATX motherboards measure:", opts: ["12 x 9.6 inches", "9.6 x 9.6 inches", "6.7 x 6.7 inches", "13 x 12 inches"], ans: 0, exp: "Standard ATX is 12 x 9.6 inches (305 x 244 mm). Mini-ITX is 6.7 x 6.7, Micro-ATX is 9.6 x 9.6, and E-ATX is 12 x 13 inches." },
+            { topic: 'B', q: "A POST failure with no video output and continuous beeps most likely indicates:", opts: ["RAM not detected or seated incorrectly", "Network card error", "Hard drive failure", "SATA cable disconnected"], ans: 0, exp: "Continuous beeps during POST (on most AMI/Award BIOS) indicate a memory problem. The system cannot initialize RAM and falls back to beep codes since it cannot display an error." },
+            { topic: 'B', q: "Intel's hybrid architecture with P-cores and E-cores was introduced in which generation?", opts: ["12th Gen Alder Lake", "10th Gen Comet Lake", "8th Gen Coffee Lake", "14th Gen Meteor Lake"], ans: 0, exp: "Intel Alder Lake (12th Gen) introduced the hybrid P-core/E-core architecture, managed by the Thread Director to optimize performance and efficiency workloads." },
+            { topic: 'B', q: "Clearing the CMOS via the motherboard jumper will:", opts: ["Reset BIOS/UEFI settings to factory defaults", "Erase the hard drive", "Update the BIOS to the latest version", "Disable Secure Boot permanently"], ans: 0, exp: "The Clear CMOS jumper (or removing the battery) resets all BIOS settings to defaults. This is used when a bad BIOS setting prevents booting." },
+
+            /* ── Topic C: RAM & Expansion (5 questions) ── */
+            { topic: 'C', q: "DDR5 modules start at what base speed?", opts: ["4800 MT/s", "3200 MT/s", "2133 MT/s", "6000 MT/s"], ans: 0, exp: "DDR5 JEDEC base specification starts at 4800 MT/s. DDR5 also features on-die ECC, doubled bank groups, and on-DIMM voltage regulation." },
+            { topic: 'C', q: "ECC RAM is used primarily in:", opts: ["Gaming desktops for higher FPS", "Servers and workstations for data integrity", "Laptops for power savings", "Smartphones for app performance"], ans: 1, exp: "ECC (Error-Correcting Code) RAM detects and corrects single-bit memory errors. It is standard in servers, workstations, and any system where data corruption is unacceptable." },
+            { topic: 'C', q: "PCIe Gen 5 x16 provides approximately what unidirectional bandwidth?", opts: ["16 GB/s", "64 GB/s", "32 GB/s", "128 GB/s"], ans: 1, exp: "Each PCIe Gen 5 lane provides ~4 GB/s. With 16 lanes: 16 x 4 = 64 GB/s unidirectional. This doubles Gen 4 x16 (32 GB/s)." },
+            { topic: 'C', q: "A riser card in a server changes the orientation of:", opts: ["RAM modules", "PCIe expansion cards (from vertical to horizontal)", "SATA drives", "The CPU cooler"], ans: 1, exp: "Riser cards redirect PCIe slots so expansion cards mount parallel to the motherboard. This is essential in 1U/2U rack servers and SFF cases with limited height." },
+            { topic: 'C', q: "Dual-channel memory doubles bandwidth by:", opts: ["Running each DIMM at twice its rated speed", "Using two memory channels simultaneously to access two DIMMs in parallel", "Compressing data in RAM", "Overclocking the memory controller"], ans: 1, exp: "Dual-channel interleaves memory access across two independent channels, effectively doubling the theoretical bandwidth compared to single-channel configuration." },
+
+            /* ── Topic D: Storage & RAID (5 questions) ── */
+            { topic: 'D', q: "An M.2 NVMe SSD connects to the motherboard via which interface?", opts: ["SATA III", "PCIe via the NVMe protocol", "USB 3.0", "Thunderbolt only"], ans: 1, exp: "NVMe SSDs use the PCIe bus through the M.2 slot (M key). This provides dramatically higher bandwidth than SATA III, with Gen 4 x4 reaching ~7,000 MB/s." },
+            { topic: 'D', q: "RAID 10 requires a minimum of how many drives?", opts: ["2", "4", "3", "6"], ans: 1, exp: "RAID 10 (1+0) creates mirrored pairs (RAID 1) then stripes them (RAID 0). Two mirrored pairs = 4 drives minimum." },
+            { topic: 'D', q: "The SATA data connector has how many pins?", opts: ["4 pins", "15 pins", "7 pins", "40 pins"], ans: 2, exp: "The SATA data connector is a thin 7-pin L-shaped connector. The 15-pin SATA connector is for power. The 40-pin connector was legacy IDE/PATA." },
+            { topic: 'D', q: "RAID 6 can tolerate the simultaneous failure of:", opts: ["Zero drives", "One drive", "Two drives", "Three drives"], ans: 2, exp: "RAID 6 uses dual distributed parity, allowing any two drives to fail simultaneously without data loss. It requires a minimum of 4 drives." },
+            { topic: 'D', q: "S.M.A.R.T. stands for:", opts: ["System Management And Recovery Technology", "Storage Maintenance And Repair Tool", "Self-Monitoring, Analysis and Reporting Technology", "Solid-state Memory Access Routing Technology"], ans: 2, exp: "S.M.A.R.T. monitors drive health metrics (temperature, reallocated sectors, read errors) and provides early warning of potential drive failure." },
+
+            /* ── Topic E: Power & Custom Builds (6 questions) ── */
+            { topic: 'E', q: "80 Plus Gold certification means the PSU operates at what minimum efficiency?", opts: ["80% at all loads", "92% at all loads", "87% at 20% load, 90% at 50% load, 87% at 100% load", "95% at 50% load"], ans: 2, exp: "80 Plus Gold requires at least 87% efficiency at 20% load, 90% at 50% load, and 87% at 100% load. Higher tiers (Platinum: 90/92/89, Titanium: 90/92/89 at 10% too)." },
+            { topic: 'E', q: "The 4+4 pin EPS connector powers:", opts: ["The GPU", "SATA drives", "The CPU via the motherboard's CPU power header", "Case fans"], ans: 2, exp: "The 4+4 pin (8-pin) EPS12V connector provides dedicated +12V power to the CPU's voltage regulator module (VRM) on the motherboard." },
+            { topic: 'E', q: "An online (double-conversion) UPS provides:", opts: ["No battery backup, only surge protection", "Battery backup with a 5-12ms transfer time", "Continuous power conditioning with zero transfer time", "Power only to USB devices"], ans: 2, exp: "Online UPS continuously converts AC to DC to AC, completely isolating equipment from power anomalies. There is zero transfer time because the load always runs from the inverter." },
+            { topic: 'E', q: "Thermal paste between the CPU and heatsink:", opts: ["Glues the heatsink permanently", "Provides electrical insulation", "Fills microscopic air gaps to improve thermal conductivity", "Increases CPU clock speed"], ans: 2, exp: "Thermal paste fills the microscopic imperfections between the CPU heat spreader and cooler base plate, replacing insulating air with a thermally conductive compound." },
+            { topic: 'E', q: "A NAS build should prioritize:", opts: ["High-end GPU and overclockable CPU", "Maximum PCIe slots", "Multiple drive bays, ECC RAM, and low-power CPU", "Liquid cooling system"], ans: 2, exp: "NAS builds need storage capacity (many bays), data integrity (ECC RAM), reliability (low-power CPU for 24/7 operation), and RAID controller support." },
+            { topic: 'E', q: "Positive case pressure reduces dust by:", opts: ["Creating a vacuum inside the case", "Heating air to sterilize it", "Pushing more filtered air in than out, forcing excess air through case gaps", "Using an electrostatic filter on the exhaust"], ans: 2, exp: "Positive pressure means intake fans (with filters) move more air in than exhaust fans remove. Excess air exits through gaps, preventing unfiltered dusty air from entering." },
+
+            /* ── Topic F: Printers (6 questions) ── */
+            { topic: 'F', q: "The correct order of the laser printing process is:", opts: ["Exposing, Charging, Processing, Developing, Fusing, Transferring, Cleaning", "Charging, Processing, Developing, Exposing, Transferring, Cleaning, Fusing", "Processing, Charging, Exposing, Developing, Transferring, Fusing, Cleaning", "Processing, Exposing, Charging, Developing, Cleaning, Transferring, Fusing"], ans: 2, exp: "The seven steps: Processing (RIP the image), Charging (uniform charge on drum), Exposing (laser writes), Developing (toner to drum), Transferring (toner to paper), Fusing (heat bonds), Cleaning (drum wiped)." },
+            { topic: 'F', q: "A thermal printer produces output without:", opts: ["Paper", "Electricity", "A print head", "Ink, toner, or ribbon -- it uses heat-sensitive paper"], ans: 3, exp: "Direct thermal printers use a heated print head to activate chemicals on special thermal paper. No ink, toner, or ribbon is needed, making them ideal for receipts and labels." },
+            { topic: 'F', q: "Which printer type can produce multi-part carbon copy forms?", opts: ["Laser", "Inkjet", "Thermal", "Impact (dot matrix)"], ans: 3, exp: "Impact printers physically strike an ink ribbon against paper. The force transfers through carbon copy layers, making them the only type that can produce multi-part forms." },
+            { topic: 'F', q: "The fuser assembly in a laser printer uses:", opts: ["UV light to cure toner", "Static electricity only", "Compressed air to press toner into fibers", "Heat and pressure to bond toner to paper permanently"], ans: 3, exp: "The fuser uses a heated roller (~200C) and a pressure roller. Paper passes between them, melting the toner powder and pressing it into the paper fibers." },
+            { topic: 'F', q: "Horizontal white streaks on an inkjet printout suggest:", opts: ["Low paper in the tray", "Network connectivity issue", "Incorrect paper size setting", "Clogged print head nozzles"], ans: 3, exp: "White streaks indicate clogged nozzles that are not depositing ink. Running the printer's built-in cleaning utility or manually cleaning the print head resolves this." },
+            { topic: 'F', q: "The Windows print spooler service:", opts: ["Converts all print jobs to PostScript", "Only works with USB-connected printers", "Encrypts print data in transit", "Queues and manages print jobs so applications can release jobs quickly"], ans: 3, exp: "The spooler buffers print jobs in a queue, allowing applications to hand off printing and continue working. It manages job priority, order, and delivery to the printer." },
+
+            /* ── Topic G: Troubleshooting (6 questions) ── */
+            { topic: 'G', q: "The FIRST step in the CompTIA troubleshooting methodology is:", opts: ["Establish a theory", "Test the theory", "Document findings", "Identify the problem"], ans: 3, exp: "Step 1: Identify the problem -- gather information, question the user, identify changes, reproduce the issue if possible. Theories come in Step 2." },
+            { topic: 'G', q: "A computer powers on (fans spin, LEDs light) but the screen is blank. The first thing to check is:", opts: ["Replace the motherboard", "Flash the BIOS", "Reinstall Windows", "Verify the monitor is on, connected, and set to the correct input"], ans: 3, exp: "Start simple: verify the monitor is powered on, the cable is connected to the GPU (not the motherboard if a discrete GPU is installed), and the correct input source is selected." },
+            { topic: 'G', q: "A clicking sound from an HDD indicates:", opts: ["Normal defragmentation activity", "The SATA cable is too long", "The drive is running a S.M.A.R.T. self-test", "The read/write heads are failing -- imminent mechanical failure"], ans: 3, exp: "The 'click of death' means the drive heads are repeatedly failing to locate data and resetting. This is a mechanical failure. Back up data immediately and replace the drive." },
+            { topic: 'G', q: "Windows Memory Diagnostic (mdsched.exe) is used to:", opts: ["Check hard drive for bad sectors", "Scan for malware", "Verify network connectivity", "Test RAM for errors by running multiple passes of memory tests"], ans: 3, exp: "mdsched.exe reboots the system and performs multi-pass memory testing, checking for RAM errors. For more thorough testing, MemTest86 from a bootable USB is recommended." },
+            { topic: 'G', q: "A laptop battery shows 100% charge but dies immediately when unplugged. This indicates:", opts: ["The AC adapter is faulty", "A virus is draining the battery", "The display brightness is too high", "The battery is degraded and no longer holds actual capacity despite the reported percentage"], ans: 3, exp: "Li-ion batteries degrade over time. A worn battery may report 100% to the OS but have negligible real capacity. Use 'powercfg /batteryreport' or battery health tools to confirm." },
+            { topic: 'G', q: "The LAST step in the CompTIA troubleshooting methodology is:", opts: ["Implement the solution", "Document findings, actions, and outcomes", "Verify full functionality and implement preventive measures", "Establish a plan of action"], ans: 1, exp: "Step 6: Document findings, actions taken, and outcomes. This creates an audit trail, helps future troubleshooting, and provides accountability for changes made." }
+        ];
+
+        var TOPICS = {
+            A: { label: 'Cables & Connectors',     total: 0, correct: 0 },
+            B: { label: 'Motherboards & CPUs',      total: 0, correct: 0 },
+            C: { label: 'RAM & Expansion',          total: 0, correct: 0 },
+            D: { label: 'Storage & RAID',           total: 0, correct: 0 },
+            E: { label: 'Power & Custom Builds',    total: 0, correct: 0 },
+            F: { label: 'Printers',                 total: 0, correct: 0 },
+            G: { label: 'Troubleshooting',          total: 0, correct: 0 }
+        };
+        questions.forEach(function(q) { TOPICS[q.topic].total++; });
+
+        var current = 0, score = 0, answered = false, timerActive = false, timerSeconds = 75 * 60, timerInterval = null, TOTAL = questions.length;
+
+        function startTimer() {
+            timerActive = true;
+            timerInterval = setInterval(function() {
+                timerSeconds--;
+                updateTimerDisplay();
+                if (timerSeconds <= 0) {
+                    clearInterval(timerInterval);
+                    timerActive = false;
+                    document.getElementById('timeExpiredBanner').style.display = 'block';
+                    current = TOTAL;
+                    showResults();
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            var mins = Math.floor(timerSeconds / 60);
+            var secs = timerSeconds % 60;
+            var display = (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
+            var el = document.getElementById('timerDisplay');
+            el.textContent = display;
+            if (timerSeconds <= 60) el.className = 'timer-display danger';
+            else if (timerSeconds <= 300) el.className = 'timer-display warning';
+            else el.className = 'timer-display';
+        }
+
+        function loadQuestion() {
+            var q = questions[current];
+            document.getElementById('topicBadge').textContent = TOPICS[q.topic].label;
+            document.getElementById('questionNum').textContent = 'QUESTION ' + (current + 1) + ' OF ' + TOTAL;
+            document.getElementById('questionText').innerHTML = q.q;
+            document.getElementById('progressLabel').textContent = 'Question ' + (current + 1) + ' of ' + TOTAL;
+            document.getElementById('progressFill').style.width = ((current + 1) / TOTAL * 100) + '%';
+            var html = '', letters = ['A','B','C','D'];
+            for (var i = 0; i < q.opts.length; i++) {
+                html += '<div class="option" onclick="selectAnswer(' + i + ')"><span class="option-letter">' + letters[i] + '</span><span>' + q.opts[i] + '</span></div>';
+            }
+            document.getElementById('optionsEl').innerHTML = html;
+            document.getElementById('feedback').className = 'feedback';
+            document.getElementById('feedback').textContent = '';
+            document.getElementById('nextBtn').disabled = true;
+            answered = false;
+        }
+
+        function selectAnswer(idx) {
+            if (answered) return;
+            answered = true;
+            var q = questions[current], opts = document.querySelectorAll('.option');
+            for (var i = 0; i < opts.length; i++) {
+                opts[i].classList.add('disabled');
+                if (i === q.ans) opts[i].classList.add('correct');
+                else if (i === idx) opts[i].classList.add('incorrect');
+            }
+            if (idx === q.ans) { score++; TOPICS[q.topic].correct++; }
+            var fb = document.getElementById('feedback');
+            if (idx === q.ans) { fb.className = 'feedback correct'; fb.textContent = 'Correct! ' + q.exp; }
+            else { fb.className = 'feedback incorrect'; fb.textContent = 'Incorrect. ' + q.exp; }
+            document.getElementById('nextBtn').disabled = false;
+            if (current === TOTAL - 1) document.getElementById('nextBtn').textContent = 'Submit Exam';
+        }
+
+        function nextQuestion() {
+            current++;
+            if (current >= TOTAL) { if (timerInterval) clearInterval(timerInterval); showResults(); return; }
+            loadQuestion();
+        }
+
+        function buildBreakdown() {
+            var html = '';
+            Object.keys(TOPICS).forEach(function(key) {
+                var t = TOPICS[key];
+                var pct = t.total > 0 ? Math.round((t.correct / t.total) * 100) : 0;
+                var barClass = pct >= 70 ? 'pass' : (pct >= 50 ? 'mid' : 'fail');
+                html += '<div class="breakdown-row"><span class="breakdown-label">' + t.label + '</span><div class="breakdown-bar-wrap"><div class="breakdown-bar-fill ' + barClass + '" style="width:' + pct + '%"></div></div><span class="breakdown-score">' + t.correct + '/' + t.total + ' (' + pct + '%)</span></div>';
+            });
+            document.getElementById('breakdownGrid').innerHTML = html;
+        }
+
+        function showResults() {
+            document.getElementById('questionCard').style.display = 'none';
+            document.querySelector('.status-bar').style.display = 'none';
+            var resultsCard = document.getElementById('resultsCard');
+            resultsCard.style.display = 'block';
+            var pct = Math.round((score / TOTAL) * 100);
+            var scoreBig = document.getElementById('finalScore');
+            scoreBig.textContent = score + '/' + TOTAL + ' (' + pct + '%)';
+            if (pct >= 80) scoreBig.className = 'score-big';
+            else if (pct >= 70) scoreBig.className = 'score-big mid';
+            else scoreBig.className = 'score-big low';
+            var msg = '';
+            if (pct >= 90) msg = 'Outstanding. You have demonstrated comprehensive mastery of hardware support fundamentals.';
+            else if (pct >= 80) msg = 'Excellent work. Strong understanding across all course topics.';
+            else if (pct >= 70) msg = 'You passed. Review the topic breakdown below to identify areas for continued study.';
+            else if (pct >= 60) msg = 'Just below passing. Focus on your weakest topics and retake the exam.';
+            else msg = 'More study needed. Review all four weeks of material and use the topic breakdown to prioritize.';
+            document.getElementById('scoreMsg').textContent = msg;
+            buildBreakdown();
+            if (pct >= 70 && typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.completeQuiz('forge', 'bm-final', score);
+            }
+        }
+
+        function restartExam() {
+            current = 0; score = 0; answered = false; timerSeconds = 75 * 60;
+            Object.keys(TOPICS).forEach(function(key) { TOPICS[key].correct = 0; });
+            if (timerInterval) clearInterval(timerInterval);
+            document.getElementById('questionCard').style.display = '';
+            document.querySelector('.status-bar').style.display = '';
+            document.getElementById('resultsCard').style.display = 'none';
+            document.getElementById('timeExpiredBanner').style.display = 'none';
+            document.getElementById('nextBtn').textContent = 'Next Question';
+            document.getElementById('timerDisplay').className = 'timer-display';
+            updateTimerDisplay();
+            loadQuestion();
+            startTimer();
+        }
+
+        updateTimerDisplay();
+        loadQuestion();
+        startTimer();
+    </script>
+</body>
+</html>
