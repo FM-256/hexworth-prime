@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAM &amp; Expansion | Bare Metal | The Forge</title>
+    <style>
+        *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+        html, body { height:100%; overflow:hidden; }
+        body { font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; background:linear-gradient(135deg,#090910 0%,#0f0f1a 50%,#111128 100%); color:#e2e8f0; font-size:15px; line-height:1.5; }
+        .slide { display:none; position:absolute; inset:0; padding:20px 28px 72px; overflow:hidden; animation:slideIn 0.35s ease-out; }
+        .slide.active { display:flex; flex-direction:column; align-items:center; justify-content:center; }
+        @keyframes slideIn { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+        .slide-inner { width:100%; max-width:1100px; display:flex; flex-direction:column; gap:14px; }
+        #progress-bar { position:absolute; top:0; left:0; height:3px; background:#fbbf24; transition:width 0.4s ease; z-index:200; }
+        #nav-bar { position:absolute; bottom:0; left:0; right:0; height:58px; background:rgba(9,9,16,0.95); border-top:1px solid rgba(255,255,255,0.07); display:flex; align-items:center; justify-content:center; gap:14px; z-index:200; padding:0 20px; }
+        .nav-btn { background:rgba(255,255,255,0.07); color:#94a3b8; border:1px solid rgba(255,255,255,0.1); padding:8px 22px; border-radius:6px; font-size:0.88rem; cursor:pointer; transition:background 0.2s,color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background:rgba(251,191,36,0.15); color:#fbbf24; border-color:#fbbf24; }
+        .nav-btn:disabled { opacity:0.3; cursor:not-allowed; }
+        .nav-btn.back-btn { font-size:0.82rem; padding:8px 16px; }
+        #slide-counter { color:#64748b; font-size:0.82rem; min-width:90px; text-align:center; }
+        #complete-btn { display:none; background:#3ab577; color:#000; border:none; padding:9px 26px; border-radius:6px; font-size:0.9rem; font-weight:700; cursor:pointer; }
+        #complete-btn:hover { background:#4fcf8a; }
+        .slide-meta { font-size:0.78rem; color:#fbbf24; letter-spacing:0.08em; text-transform:uppercase; text-align:center; }
+        .slide-title { font-size:1.75rem; font-weight:700; color:#f1f5f9; text-align:center; line-height:1.25; }
+        .slide-title .accent { color:#fbbf24; }
+        .slide-subtitle { font-size:0.95rem; color:#94a3b8; text-align:center; }
+        .scenario-strip { background:rgba(251,191,36,0.08); border-left:3px solid #fbbf24; border-radius:0 8px 8px 0; padding:10px 16px; font-size:0.88rem; color:#fde68a; font-style:italic; }
+        .box { border-radius:8px; padding:12px 16px; font-size:0.875rem; }
+        .box-gold { background:rgba(251,191,36,0.08); border:1px solid rgba(251,191,36,0.3); color:#fef3c7; }
+        .box-green { background:rgba(58,181,119,0.08); border:1px solid rgba(58,181,119,0.35); color:#d1fae5; }
+        .box-red { background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.3); color:#fee2e2; }
+        .title-hero { text-align:center; display:flex; flex-direction:column; align-items:center; gap:10px; }
+        .title-hero .big-title { font-size:2.4rem; font-weight:800; color:#f1f5f9; line-height:1.2; }
+        .title-hero .big-title .accent { color:#fbbf24; }
+        .title-meta-row { display:flex; gap:28px; justify-content:center; margin-top:6px; font-size:0.82rem; color:#475569; }
+        .title-meta-row span { border-left:2px solid #1e293b; padding-left:28px; }
+        .title-meta-row span:first-child { border-left:none; padding-left:0; }
+        .card-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+        .card-grid-2 { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+        .card-grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+        .card { background:rgba(255,255,255,0.04); border-radius:8px; padding:12px 14px; border-left:3px solid #fbbf24; }
+        .card:hover { background:rgba(255,255,255,0.07); }
+        .card .card-label { font-size:0.95rem; font-weight:700; color:#f1f5f9; margin-bottom:4px; }
+        .card .card-desc { font-size:0.82rem; color:#94a3b8; line-height:1.4; }
+        .card.c-green { border-left-color:#3ab577; } .card.c-red { border-left-color:#ef4444; }
+        .card.c-gold { border-left-color:#fbbf24; } .card.c-cyan { border-left-color:#06b6d4; }
+        .card.c-purple { border-left-color:#a855f7; } .card.c-orange { border-left-color:#f97316; }
+        .card.c-blue { border-left-color:#3b82f6; }
+        .summary-facts { display:flex; flex-direction:column; gap:6px; }
+        .fact-row { display:flex; gap:12px; align-items:baseline; font-size:0.875rem; }
+        .fact-num { font-size:0.78rem; font-weight:700; color:#fbbf24; min-width:22px; text-align:right; flex-shrink:0; }
+        .fact-text { color:#cbd5e1; }
+        .diagram-center { display:flex; justify-content:center; align-items:center; }
+        .step-list { display:flex; flex-direction:column; gap:6px; }
+        .step-row { display:flex; gap:12px; align-items:flex-start; font-size:0.85rem; }
+        .step-num { background:rgba(251,191,36,0.12); border:1px solid rgba(251,191,36,0.4); color:#fbbf24; font-weight:700; font-size:0.78rem; border-radius:4px; padding:2px 7px; flex-shrink:0; }
+        .step-text { color:#cbd5e1; line-height:1.4; } .step-text strong { color:#f1f5f9; }
+        @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes boxGrow { from{opacity:0;transform:scale(0.7)} to{opacity:1;transform:scale(1)} }
+        @keyframes entityPop { from{opacity:0;transform:scale(0.6) translateY(6px)} to{opacity:1;transform:scale(1) translateY(0)} }
+        @media (max-height:700px) { .slide-inner{gap:9px} .slide-title{font-size:1.4rem} .title-hero .big-title{font-size:1.9rem} }
+        @media (max-width:768px) { .card-grid{grid-template-columns:1fr} .card-grid-2{grid-template-columns:1fr} .card-grid-4{grid-template-columns:1fr 1fr} }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">RAM and Expansion Cards -- Bare Metal -- The Forge</h1>
+<div id="progress-bar" style="width:7.69%"></div>
+
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 13 | CTS1150C Bare Metal | RAM &amp; Expansion</div>
+        <div class="title-hero">
+            <svg width="460" height="100" viewBox="0 0 460 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="100" y="25" width="260" height="30" rx="4" fill="rgba(251,191,36,0.08)" stroke="#fbbf24" stroke-width="1.3" style="animation:boxGrow 0.4s ease forwards 0.05s;opacity:0;"/>
+                <rect x="110" y="30" width="14" height="20" rx="1" fill="rgba(58,181,119,0.3)" style="animation:entityPop 0.3s ease forwards 0.15s;opacity:0;"/>
+                <rect x="130" y="30" width="14" height="20" rx="1" fill="rgba(58,181,119,0.3)" style="animation:entityPop 0.3s ease forwards 0.2s;opacity:0;"/>
+                <rect x="150" y="30" width="14" height="20" rx="1" fill="rgba(58,181,119,0.3)" style="animation:entityPop 0.3s ease forwards 0.25s;opacity:0;"/>
+                <rect x="170" y="30" width="14" height="20" rx="1" fill="rgba(58,181,119,0.3)" style="animation:entityPop 0.3s ease forwards 0.3s;opacity:0;"/>
+                <rect x="200" y="30" width="14" height="20" rx="1" fill="rgba(59,130,246,0.3)" style="animation:entityPop 0.3s ease forwards 0.35s;opacity:0;"/>
+                <rect x="220" y="30" width="14" height="20" rx="1" fill="rgba(59,130,246,0.3)" style="animation:entityPop 0.3s ease forwards 0.4s;opacity:0;"/>
+                <rect x="240" y="30" width="14" height="20" rx="1" fill="rgba(59,130,246,0.3)" style="animation:entityPop 0.3s ease forwards 0.45s;opacity:0;"/>
+                <rect x="260" y="30" width="14" height="20" rx="1" fill="rgba(59,130,246,0.3)" style="animation:entityPop 0.3s ease forwards 0.5s;opacity:0;"/>
+                <line x1="100" y1="58" x2="360" y2="58" stroke="rgba(251,191,36,0.3)" stroke-width="1"/>
+                <text x="230" y="75" text-anchor="middle" font-size="8" fill="#64748b" font-family="Segoe UI,sans-serif">DIMM Module -- 8 chips = 1 module</text>
+                <text x="230" y="90" text-anchor="middle" font-size="7" fill="#fbbf24" font-family="Segoe UI,sans-serif">DDR5 -- 288 pins -- 64-bit bus</text>
+            </svg>
+            <div class="big-title">RAM &amp; <span class="accent">Expansion Cards</span></div>
+            <div class="slide-subtitle" style="font-size:1.05rem;">DDR3/4/5 -- DIMM vs SO-DIMM -- Channels -- ECC -- PCIe Cards -- GPU -- M.2</div>
+        </div>
+        <div class="scenario-strip">RAM is the system's short-term memory. This deck covers DDR generations, form factors, channel configurations, ECC, and expansion cards including GPUs and M.2 NVMe -- all A+ exam objectives.</div>
+        <div class="title-meta-row"><span>13 Slides</span><span>CTS1150C Bare Metal</span><span>Hardware Support</span><span>The Forge</span></div>
+    </div>
+</section>
+
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 13</div>
+        <div class="slide-title">DDR <span class="accent">Generations</span></div>
+        <div class="slide-subtitle">Double Data Rate -- transfers data on both the rising and falling edges of the clock signal.</div>
+        <div class="diagram-center">
+            <svg width="560" height="80" viewBox="0 0 560 80" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="10" y="10" width="160" height="55" rx="8" fill="rgba(168,85,247,0.06)" stroke="#a855f7" stroke-width="1.2" style="animation:fadeUp 0.35s ease forwards 0.1s;opacity:0;"/>
+                <text x="90" y="30" text-anchor="middle" font-size="10" fill="#a855f7" font-weight="700" font-family="Segoe UI,sans-serif">DDR3</text>
+                <text x="90" y="44" text-anchor="middle" font-size="8" fill="#d8b4fe" font-family="Segoe UI,sans-serif">1066-1866 MHz / 1.5V</text>
+                <text x="90" y="56" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">240 pins DIMM</text>
+                <rect x="195" y="10" width="160" height="55" rx="8" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1.2" style="animation:fadeUp 0.35s ease forwards 0.2s;opacity:0;"/>
+                <text x="275" y="30" text-anchor="middle" font-size="10" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">DDR4</text>
+                <text x="275" y="44" text-anchor="middle" font-size="8" fill="#93c5fd" font-family="Segoe UI,sans-serif">2133-3200 MHz / 1.2V</text>
+                <text x="275" y="56" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">288 pins DIMM</text>
+                <rect x="380" y="10" width="160" height="55" rx="8" fill="rgba(251,191,36,0.06)" stroke="#fbbf24" stroke-width="1.3" style="animation:fadeUp 0.35s ease forwards 0.3s;opacity:0;"/>
+                <text x="460" y="30" text-anchor="middle" font-size="10" fill="#fbbf24" font-weight="700" font-family="Segoe UI,sans-serif">DDR5</text>
+                <text x="460" y="44" text-anchor="middle" font-size="8" fill="#fde68a" font-family="Segoe UI,sans-serif">4800-8000+ MHz / 1.1V</text>
+                <text x="460" y="56" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">288 pins (diff notch)</text>
+            </svg>
+        </div>
+        <div class="card-grid">
+            <div class="card c-purple"><div class="card-label">DDR3</div><div class="card-desc">Legacy. 240-pin DIMM. 1.5V (DDR3L: 1.35V). Max practical: 16 GB per stick. Found on pre-2014 systems. Not compatible with DDR4 slots (different notch position).</div></div>
+            <div class="card c-blue"><div class="card-label">DDR4</div><div class="card-desc">Current mainstream. 288-pin DIMM. 1.2V. Max: 64 GB per stick. JEDEC base: 2133-3200 MHz. XMP profiles push to 4800+ MHz. Most installed base today.</div></div>
+            <div class="card c-gold"><div class="card-label">DDR5</div><div class="card-desc">Latest generation. 288 pins but different notch (not backward compatible). 1.1V. On-die ECC. PMIC on the module. Two 32-bit channels per stick. JEDEC: 4800-6400 MHz.</div></div>
+        </div>
+        <div class="box box-red"><strong>Not interchangeable!</strong> DDR3, DDR4, and DDR5 have different notch positions. They will not physically fit in the wrong slot. A DDR4 board only takes DDR4. Check the motherboard spec sheet.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 13</div>
+        <div class="slide-title">DIMM vs. <span class="accent">SO-DIMM</span></div>
+        <div class="slide-subtitle">Full-size DIMMs for desktops, compact SO-DIMMs for laptops and small form factor systems.</div>
+        <div class="diagram-center">
+            <svg width="500" height="80" viewBox="0 0 500 80" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="30" y="15" width="200" height="25" rx="4" fill="rgba(251,191,36,0.1)" stroke="#fbbf24" stroke-width="1.2" style="animation:fadeUp 0.35s ease forwards 0.1s;opacity:0;"/>
+                <text x="130" y="32" text-anchor="middle" font-size="9" fill="#fbbf24" font-weight="700" font-family="Segoe UI,sans-serif">DIMM -- Full Size (133.35mm)</text>
+                <rect x="30" y="50" width="120" height="20" rx="4" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.2" style="animation:fadeUp 0.35s ease forwards 0.2s;opacity:0;"/>
+                <text x="90" y="64" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">SO-DIMM (67.6mm)</text>
+                <text x="350" y="30" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">Desktops, servers, workstations</text>
+                <text x="350" y="64" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">Laptops, NUCs, Mini-ITX</text>
+            </svg>
+        </div>
+        <div class="card-grid-2">
+            <div class="card c-gold"><div class="card-label">DIMM</div><div class="card-desc">Full-size Dual Inline Memory Module. DDR4: 288 pins. DDR5: 288 pins (different notch). DDR3: 240 pins. Used in desktop/tower PCs and servers. Latching clips on each end.</div></div>
+            <div class="card c-green"><div class="card-label">SO-DIMM</div><div class="card-desc">Small Outline DIMM. Roughly half the length. DDR4 SO-DIMM: 260 pins. DDR5 SO-DIMM: 262 pins. Used in laptops, NUCs, all-in-ones. Inserts at angle, presses flat.</div></div>
+        </div>
+        <div class="box box-gold"><strong>Exam tip:</strong> DIMM and SO-DIMM are <em>not</em> interchangeable without an adapter. If a question says "laptop RAM" it means SO-DIMM. Desktop = DIMM. Some Mini-ITX boards use SO-DIMM.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 13</div>
+        <div class="slide-title">Memory <span class="accent">Channels</span></div>
+        <div class="slide-subtitle">Multi-channel configurations multiply memory bandwidth. Dual-channel is standard; quad-channel for HEDT and servers.</div>
+        <div class="diagram-center">
+            <svg width="440" height="90" viewBox="0 0 440 90" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="160" y="10" width="120" height="35" rx="8" fill="rgba(251,191,36,0.1)" stroke="#fbbf24" stroke-width="1.3" style="animation:boxGrow 0.35s ease forwards 0.1s;opacity:0;"/>
+                <text x="220" y="32" text-anchor="middle" font-size="10" fill="#fbbf24" font-weight="700" font-family="Segoe UI,sans-serif">CPU (IMC)</text>
+                <line x1="180" y1="45" x2="100" y2="65" stroke="rgba(58,181,119,0.4)" stroke-width="1.5"><animate attributeName="stroke-dashoffset" values="10;0" dur="1s" repeatCount="indefinite"/></line>
+                <line x1="260" y1="45" x2="340" y2="65" stroke="rgba(59,130,246,0.4)" stroke-width="1.5"><animate attributeName="stroke-dashoffset" values="10;0" dur="1s" repeatCount="indefinite"/></line>
+                <rect x="40" y="60" width="120" height="25" rx="4" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1" style="animation:fadeUp 0.3s ease forwards 0.2s;opacity:0;"/>
+                <text x="100" y="76" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Channel A (Slot 1, 3)</text>
+                <rect x="280" y="60" width="120" height="25" rx="4" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1" style="animation:fadeUp 0.3s ease forwards 0.25s;opacity:0;"/>
+                <text x="340" y="76" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Channel B (Slot 2, 4)</text>
+            </svg>
+        </div>
+        <div class="card-grid">
+            <div class="card c-green"><div class="card-label">Single Channel</div><div class="card-desc">One stick, one channel. 64-bit bus. Half the bandwidth of dual channel. Acceptable only for basic office tasks.</div></div>
+            <div class="card c-blue"><div class="card-label">Dual Channel</div><div class="card-desc">Two matching sticks in correct slots. 128-bit effective bus. Doubles bandwidth. For 2 sticks on a 4-slot board: use slots 2 and 4 (A2/B2) -- check manual.</div></div>
+            <div class="card c-gold"><div class="card-label">Quad Channel</div><div class="card-desc">Four matching sticks, four channels. 256-bit effective bus. Requires HEDT platform (X299, TRX40, Xeon). Diminishing returns for most workloads.</div></div>
+        </div>
+        <div class="box box-gold"><strong>Matching rule:</strong> For dual channel, use identical capacity and speed sticks. Mismatched sticks may still work (flex mode) but at the slower module's speed. Always install in the correct color-coded slots.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 13</div>
+        <div class="slide-title"><span class="accent">ECC</span> Memory</div>
+        <div class="slide-subtitle">Error-Correcting Code RAM detects and corrects single-bit errors in real time. Critical for servers.</div>
+        <div class="card-grid-2">
+            <div class="card c-gold"><div class="card-label">ECC (Unbuffered)</div><div class="card-desc">Extra chip per rank (9 chips instead of 8). Detects and corrects single-bit errors, detects double-bit errors. Used in workstations and entry servers. Requires ECC-compatible motherboard and CPU.</div></div>
+            <div class="card c-cyan"><div class="card-label">Registered/Buffered (RDIMM)</div><div class="card-desc">Has a register chip between memory controller and DRAM chips. Reduces electrical load, allows more DIMMs per channel. Server/data center only. Higher latency, higher capacity.</div></div>
+        </div>
+        <div class="box box-green"><strong>DDR5 has on-die ECC</strong> built into every module, but this only corrects errors within the DRAM chip itself. It is not the same as system-level ECC (which requires ECC DIMMs + compatible platform). The exam distinguishes these.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 13</div>
+        <div class="slide-title">RAM <span class="accent">Specifications</span></div>
+        <div class="slide-subtitle">Reading a RAM spec: DDR4-3200 PC4-25600 CL16 1.35V 16GB 2Rx8 -- here is what each part means.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">DDR4</span><span class="step-text"><strong>Generation.</strong> DDR4 = 288 pins, 1.2V standard. Determines which motherboard slot it fits.</span></div>
+            <div class="step-row"><span class="step-num">3200</span><span class="step-text"><strong>Speed (MT/s).</strong> 3200 megatransfers per second. Effective clock: 1600 MHz x 2 (double data rate).</span></div>
+            <div class="step-row"><span class="step-num">PC4-25600</span><span class="step-text"><strong>Bandwidth.</strong> 25,600 MB/s peak transfer rate. Calculated: 3200 MT/s x 8 bytes = 25,600 MB/s.</span></div>
+            <div class="step-row"><span class="step-num">CL16</span><span class="step-text"><strong>CAS Latency.</strong> 16 clock cycles to access data. Lower = faster. CL14 at 3200 is faster than CL18 at 3200.</span></div>
+            <div class="step-row"><span class="step-num">1.35V</span><span class="step-text"><strong>Voltage.</strong> 1.2V is JEDEC standard for DDR4. 1.35V indicates XMP overclock profile. Higher voltage = more heat.</span></div>
+            <div class="step-row"><span class="step-num">2Rx8</span><span class="step-text"><strong>Rank and chip density.</strong> 2R = dual rank (two 64-bit addressable areas). x8 = 8-bit wide chips. Affects compatibility with some platforms.</span></div>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 13</div>
+        <div class="slide-title">Installing <span class="accent">RAM</span></div>
+        <div class="slide-subtitle">Physical installation steps and common mistakes to avoid.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>ESD precautions.</strong> Ground yourself with a wrist strap or touch the case chassis. Handle DIMMs by the edges only.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Open retention clips.</strong> Push outward on both latches (some boards have one fixed latch). Slot should be clear.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Align the notch.</strong> The notch on the DIMM matches the key in the slot. Only one orientation works. Do not force it.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Press firmly and evenly.</strong> Apply pressure on both ends simultaneously. The retention clips should click closed automatically.</span></div>
+            <div class="step-row"><span class="step-num">5</span><span class="step-text"><strong>Verify in BIOS.</strong> Boot into UEFI and check that the full capacity and speed are recognized. Enable XMP/EXPO if needed.</span></div>
+        </div>
+        <div class="box box-red"><strong>Dual channel slot order:</strong> On a 4-DIMM board, slots are typically A1, B1, A2, B2. For 2 sticks, populate A2 and B2 first (slots 2 and 4). Installing in A1 and B1 may not enable dual channel on all boards. Always check the manual.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 13</div>
+        <div class="slide-title"><span class="accent">GPU</span> -- Graphics Cards</div>
+        <div class="slide-subtitle">The most power-hungry and bandwidth-demanding expansion card. Lives in the PCIe x16 slot.</div>
+        <div class="card-grid-2">
+            <div class="card c-gold"><div class="card-label">Dedicated GPU</div><div class="card-desc">Separate card with its own VRAM (GDDR6/GDDR6X), cooling, and power connectors. PCIe x16 slot. Requires 6-pin, 8-pin, or 12VHPWR power. Used for gaming, CAD, ML, video editing.</div></div>
+            <div class="card c-green"><div class="card-label">Integrated Graphics (iGPU)</div><div class="card-desc">Built into the CPU (Intel UHD/Iris, AMD Radeon). Shares system RAM. No extra power needed. Fine for office work, web, video playback. Not for gaming or 3D work.</div></div>
+        </div>
+        <div class="card-grid">
+            <div class="card c-blue"><div class="card-label">VRAM</div><div class="card-desc">Video RAM dedicated to the GPU. GDDR6: 14-18 Gbps. GDDR6X: 21-24 Gbps. More VRAM = higher resolutions and textures. 8 GB minimum for 1440p gaming.</div></div>
+            <div class="card c-red"><div class="card-label">Power Requirements</div><div class="card-desc">Mid-range: 150-200W (1x 8-pin). High-end: 300-450W (2x 8-pin or 12VHPWR). GPU is the biggest power consumer in most systems.</div></div>
+            <div class="card c-purple"><div class="card-label">Display Outputs</div><div class="card-desc">HDMI 2.1, DisplayPort 1.4/2.0, sometimes USB-C (DP Alt Mode). Multiple outputs for multi-monitor. Always connect monitor to GPU -- not motherboard -- when using a dedicated card.</div></div>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 13</div>
+        <div class="slide-title"><span class="accent">M.2</span> Form Factor</div>
+        <div class="slide-subtitle">A compact slot on the motherboard for SSDs and Wi-Fi cards. Replaces 2.5-inch SATA drives and mSATA.</div>
+        <div class="diagram-center">
+            <svg width="460" height="80" viewBox="0 0 460 80" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="30" y="20" width="180" height="15" rx="3" fill="rgba(251,191,36,0.15)" stroke="#fbbf24" stroke-width="1" style="animation:fadeUp 0.3s ease forwards 0.1s;opacity:0;"/>
+                <text x="120" y="30" text-anchor="middle" font-size="7" fill="#fbbf24" font-weight="700" font-family="Segoe UI,sans-serif">2280 (22mm x 80mm) -- Most Common</text>
+                <rect x="30" y="42" width="120" height="13" rx="3" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="1" style="animation:fadeUp 0.3s ease forwards 0.2s;opacity:0;"/>
+                <text x="90" y="52" text-anchor="middle" font-size="7" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">2260 (22mm x 60mm)</text>
+                <rect x="30" y="60" width="80" height="12" rx="3" fill="rgba(58,181,119,0.12)" stroke="#3ab577" stroke-width="1" style="animation:fadeUp 0.3s ease forwards 0.3s;opacity:0;"/>
+                <text x="70" y="69" text-anchor="middle" font-size="7" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">2242 (22x42)</text>
+                <text x="350" y="35" text-anchor="middle" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">Key M = NVMe (PCIe)</text>
+                <text x="350" y="52" text-anchor="middle" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">Key B+M = SATA or NVMe</text>
+                <text x="350" y="69" text-anchor="middle" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">Key A+E = Wi-Fi cards</text>
+            </svg>
+        </div>
+        <div class="card-grid">
+            <div class="card c-gold"><div class="card-label">M.2 NVMe (Key M)</div><div class="card-desc">Uses PCIe lanes (x4). Gen 3: 3,500 MB/s. Gen 4: 7,000 MB/s. Gen 5: 14,000 MB/s. The fastest consumer storage. Single notch on the right side of the connector.</div></div>
+            <div class="card c-blue"><div class="card-label">M.2 SATA (Key B+M)</div><div class="card-desc">Uses SATA protocol through M.2 slot. Max 600 MB/s (SATA III limit). Two notches on connector. Check board support -- not all M.2 slots accept SATA.</div></div>
+            <div class="card c-green"><div class="card-label">M.2 Wi-Fi (Key A+E)</div><div class="card-desc">Smaller slot for Wi-Fi/Bluetooth combo cards (Intel AX210, etc.). Uses PCIe x1 + USB. Key notches on left side. Usually pre-populated on boards with built-in Wi-Fi.</div></div>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 13</div>
+        <div class="slide-title">Other <span class="accent">Expansion Cards</span></div>
+        <div class="slide-subtitle">Beyond GPUs -- NICs, sound cards, RAID controllers, capture cards, and USB expansion.</div>
+        <div class="card-grid">
+            <div class="card c-cyan"><div class="card-label">Network Interface Card</div><div class="card-desc">PCIe x1 or x4. Adds 10 GbE, Wi-Fi 6E, or specialized network connectivity. Server NICs support SR-IOV, teaming, and hardware offload.</div></div>
+            <div class="card c-purple"><div class="card-label">Sound Card</div><div class="card-desc">PCIe x1. Dedicated DAC and amplifier for high-quality audio. Reduces CPU load for audio processing. Used by audiophiles and studios.</div></div>
+            <div class="card c-red"><div class="card-label">RAID Controller</div><div class="card-desc">PCIe x4 or x8. Hardware RAID with dedicated processor and cache (BBU). RAID 0/1/5/6/10. Enterprise storage arrays. Battery-backed write cache.</div></div>
+        </div>
+        <div class="card-grid">
+            <div class="card c-orange"><div class="card-label">Capture Card</div><div class="card-desc">PCIe x4. Captures HDMI/SDI video input for streaming or recording. Elgato, AVerMedia, Blackmagic. Hardware encoding reduces CPU load.</div></div>
+            <div class="card c-blue"><div class="card-label">USB Expansion</div><div class="card-desc">PCIe x1. Adds USB 3.2 or USB-C ports. Common when the motherboard lacks enough USB ports or needs USB-C headers.</div></div>
+            <div class="card c-green"><div class="card-label">Riser Cards</div><div class="card-desc">Redirect PCIe slots for different orientations. Used in SFF cases, mining rigs, and 1U servers. Does not add functionality, just redirects the connection.</div></div>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 13</div>
+        <div class="slide-title">RAM <span class="accent">Troubleshooting</span></div>
+        <div class="slide-subtitle">Common RAM failures and how to diagnose them.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>No POST, continuous beeps:</strong> RAM not detected. Reseat the DIMMs. Try one stick at a time. Clean contacts with isopropyl alcohol.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Blue screen (BSOD) / kernel panic:</strong> Possible bad memory cell. Run Windows Memory Diagnostic or MemTest86 overnight.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Only half the RAM showing:</strong> Sticks not in dual-channel slots, or one DIMM failed. Check BIOS -- it shows per-slot detection.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>System unstable after XMP:</strong> RAM overclock is too aggressive. Reset to JEDEC defaults and re-enable XMP. Try the next lower profile.</span></div>
+            <div class="step-row"><span class="step-num">5</span><span class="step-text"><strong>Mixing RAM:</strong> Different speeds/timings may cause instability. System runs at the slowest module's speed. Match sticks whenever possible.</span></div>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 13</div>
+        <div class="slide-title">Installation <span class="accent">Best Practices</span></div>
+        <div class="slide-subtitle">Guidelines for installing expansion cards and RAM in any system.</div>
+        <div class="card-grid-2">
+            <div class="card c-gold"><div class="card-label">ESD Protection</div><div class="card-desc">Always ground yourself. Use an anti-static wrist strap connected to the case chassis. Never touch gold contacts. Work on a non-conductive surface. Do not build on carpet.</div></div>
+            <div class="card c-green"><div class="card-label">Slot Selection</div><div class="card-desc">GPU goes in the top PCIe x16 slot (CPU-direct lanes). If two x16 slots exist, the top one is always full bandwidth. Secondary slots may run at x8 or x4.</div></div>
+        </div>
+        <div class="card-grid-2">
+            <div class="card c-blue"><div class="card-label">Driver Installation</div><div class="card-desc">GPU: install manufacturer drivers (NVIDIA/AMD/Intel). NIC: Windows usually auto-detects. Sound card: install manufacturer software. Always get drivers from the vendor site.</div></div>
+            <div class="card c-red"><div class="card-label">Thermal Management</div><div class="card-desc">M.2 NVMe SSDs need heatsinks (often included with the board). GPUs need adequate case airflow. Do not block intake/exhaust. Thermal throttling degrades performance.</div></div>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 13</div>
+        <div class="slide-title">RAM &amp; Expansion <span class="accent">Summary</span></div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>DDR3/4/5</strong> are not interchangeable -- different notch positions, pin counts, and voltages.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>DIMM</strong> for desktops (full-size), <strong>SO-DIMM</strong> for laptops (half-size). Same DDR generation required.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Dual channel</strong> doubles bandwidth. Install matching sticks in correct color-coded slots (typically A2 + B2 first).</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>ECC</strong> corrects single-bit errors. Required for servers. DDR5 on-die ECC is different from system-level ECC.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>GPU</strong> = PCIe x16, dedicated VRAM, separate power connectors. Always connect monitors to the GPU, not the motherboard.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>M.2 NVMe</strong> (Key M) uses PCIe lanes for maximum speed. M.2 SATA (Key B+M) is limited to 600 MB/s. Different keying prevents wrong insertion.</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text"><strong>XMP/EXPO</strong> enables RAM speeds above JEDEC defaults. Must be enabled in BIOS. Not stable on all systems.</span></div>
+        </div>
+        <div class="box box-gold" style="font-size:0.85rem;text-align:center;"><strong>Next: Storage Devices</strong> -- HDD/SSD, NVMe, M.2 form factors, RAID levels, optical, external</div>
+        <div style="text-align:center;margin-top:6px;"><button id="complete-btn" onclick="completeModule()">Mark Complete</button></div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; Bare Metal</button></a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide-1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 13</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide+1)">Next</button>
+</nav>
+<script>
+    let currentSlide=1;const TOTAL_SLIDES=13;
+    function goToSlide(n){if(n<1||n>TOTAL_SLIDES)return;document.getElementById('slide-'+currentSlide).classList.remove('active');currentSlide=n;document.getElementById('slide-'+currentSlide).classList.add('active');document.getElementById('progress-bar').style.width=(currentSlide/TOTAL_SLIDES)*100+'%';document.getElementById('slide-counter').textContent='Slide '+currentSlide+' of '+TOTAL_SLIDES;document.getElementById('prev-btn').disabled=(currentSlide===1);document.getElementById('next-btn').disabled=(currentSlide===TOTAL_SLIDES);var cb=document.getElementById('complete-btn');if(cb)cb.style.display=(currentSlide===TOTAL_SLIDES)?'inline-block':'none';}
+    document.addEventListener('keydown',function(e){if(e.key==='ArrowRight'){e.preventDefault();goToSlide(currentSlide+1);}else if(e.key==='ArrowLeft'){e.preventDefault();goToSlide(currentSlide-1);}});
+    goToSlide(1);
+</script>
+<script>function completeModule(){if(typeof ModuleProgress!=='undefined'){ModuleProgress.complete('forge','bm-w2-ram-pres',{returnUrl:'../index.html'});}}</script>
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

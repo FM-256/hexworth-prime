@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Motherboard Mapper Lab | Bare Metal | The Forge</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(135deg,#0a0a0f 0%,#1a1510 50%,#0d0d15 100%);color:#e0e0e0;min-height:100vh}
+        .lab-container{max-width:1000px;margin:0 auto;padding:1.5rem}
+        .lab-header{text-align:center;margin-bottom:1.5rem;padding:1.2rem;background:linear-gradient(135deg,rgba(251,191,36,0.1) 0%,rgba(245,158,11,0.05) 100%);border-radius:16px;border:1px solid rgba(251,191,36,0.3)}
+        .lab-title{font-size:1.8rem;font-weight:700;background:linear-gradient(135deg,#fbbf24,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .lab-subtitle{color:#9ca3af;font-size:.9rem;margin-top:.3rem}
+        .score-bar{display:flex;align-items:center;justify-content:center;gap:1.5rem;margin-top:.8rem;font-size:.85rem;color:#fbbf24}
+        .score-num{font-weight:700;font-size:1.2rem}
+        .progress-track{width:180px;height:5px;background:rgba(251,191,36,0.15);border-radius:3px;overflow:hidden}
+        .progress-fill{height:100%;width:0%;background:#fbbf24;transition:width .4s ease}
+        .board-area{display:grid;grid-template-columns:1fr 320px;gap:1.5rem;margin-bottom:1.5rem}
+        @media(max-width:768px){.board-area{grid-template-columns:1fr}}
+        .board-svg{background:rgba(20,20,30,0.8);border:1px solid rgba(251,191,36,0.2);border-radius:12px;padding:1rem;display:flex;justify-content:center;align-items:center}
+        .board-svg svg{max-width:100%;height:auto}
+        .board-svg svg .hotspot{cursor:pointer;transition:opacity .2s}
+        .board-svg svg .hotspot:hover{opacity:.8}
+        .board-svg svg .hotspot.found{opacity:.4;pointer-events:none}
+        .task-panel{display:flex;flex-direction:column;gap:.6rem}
+        .task-item{padding:.7rem 1rem;background:rgba(30,30,40,0.6);border:1px solid rgba(251,191,36,0.15);border-radius:8px;font-size:.88rem;color:#94a3b8;transition:all .3s}
+        .task-item.active{border-color:#fbbf24;color:#fbbf24;background:rgba(251,191,36,0.08)}
+        .task-item.done{border-color:#22c55e;color:#22c55e;background:rgba(34,197,94,0.06)}
+        .task-item .task-name{font-weight:600}
+        .task-item .task-hint{font-size:.78rem;color:#64748b;margin-top:.2rem}
+        .feedback-msg{text-align:center;padding:.8rem;border-radius:8px;font-size:.9rem;margin-bottom:1rem;display:none}
+        .feedback-msg.show{display:block}
+        .feedback-msg.correct{background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);color:#86efac}
+        .feedback-msg.wrong{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#fca5a5}
+        .nav-buttons{display:flex;justify-content:space-between;margin-top:1.5rem;padding-top:1rem;border-top:1px solid rgba(251,191,36,0.15)}
+        .nav-btn{padding:.6rem 1.2rem;border-radius:8px;text-decoration:none;font-size:.88rem;font-weight:500;border:1px solid rgba(251,191,36,0.3);color:#fbbf24;background:rgba(251,191,36,0.08);transition:all .2s}
+        .nav-btn:hover{background:rgba(251,191,36,0.15)}
+        .reset-btn{padding:.4rem .8rem;border-radius:6px;border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.08);color:#ef4444;cursor:pointer;font-size:.78rem}
+        #complete-btn{display:none;padding:.7rem 1.5rem;border-radius:8px;border:none;background:#22c55e;color:#000;font-weight:700;font-size:.9rem;cursor:pointer;margin:1rem auto}
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Motherboard Mapper Lab -- Bare Metal</h1>
+<div class="lab-container">
+    <div class="lab-header">
+        <div class="lab-title">Motherboard Mapper</div>
+        <div class="lab-subtitle">Click each component on the board diagram. Identify all 10 components.</div>
+        <div class="score-bar">
+            <span>Found: <span class="score-num" id="score">0</span> / 10</span>
+            <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+            <button class="reset-btn" onclick="resetLab()">Reset</button>
+        </div>
+    </div>
+    <div class="feedback-msg" id="feedback"></div>
+    <div class="board-area">
+        <div class="board-svg">
+            <svg viewBox="0 0 440 500" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Motherboard diagram with clickable components">
+                <!-- Board outline -->
+                <rect x="10" y="10" width="420" height="480" rx="8" fill="#111827" stroke="rgba(251,191,36,0.3)" stroke-width="1.5"/>
+                <!-- CPU Socket -->
+                <rect class="hotspot" data-id="cpu" x="60" y="60" width="100" height="100" rx="6" fill="rgba(251,191,36,0.12)" stroke="#fbbf24" stroke-width="1.5" onclick="pick('cpu')"/>
+                <text x="110" y="115" text-anchor="middle" font-size="10" fill="#fbbf24" font-family="Segoe UI,sans-serif" pointer-events="none">CPU Socket</text>
+                <!-- RAM Slots -->
+                <rect class="hotspot" data-id="ram" x="200" y="50" width="20" height="130" rx="3" fill="rgba(58,181,119,0.15)" stroke="#3ab577" stroke-width="1" onclick="pick('ram')"/>
+                <rect x="230" y="50" width="20" height="130" rx="3" fill="rgba(58,181,119,0.15)" stroke="#3ab577" stroke-width="1" onclick="pick('ram')"/>
+                <text x="225" y="45" text-anchor="middle" font-size="8" fill="#3ab577" font-family="Segoe UI,sans-serif" pointer-events="none">DIMM</text>
+                <!-- PCIe x16 -->
+                <rect class="hotspot" data-id="pciex16" x="50" y="230" width="300" height="18" rx="3" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="1" onclick="pick('pciex16')"/>
+                <text x="200" y="225" text-anchor="middle" font-size="8" fill="#3b82f6" font-family="Segoe UI,sans-serif" pointer-events="none">PCIe x16</text>
+                <!-- PCIe x1 -->
+                <rect class="hotspot" data-id="pciex1" x="50" y="270" width="80" height="12" rx="3" fill="rgba(168,85,247,0.15)" stroke="#a855f7" stroke-width="1" onclick="pick('pciex1')"/>
+                <text x="90" y="265" text-anchor="middle" font-size="7" fill="#a855f7" font-family="Segoe UI,sans-serif" pointer-events="none">PCIe x1</text>
+                <!-- Chipset/PCH -->
+                <rect class="hotspot" data-id="chipset" x="240" y="300" width="70" height="50" rx="6" fill="rgba(6,182,212,0.12)" stroke="#06b6d4" stroke-width="1.2" onclick="pick('chipset')"/>
+                <text x="275" y="330" text-anchor="middle" font-size="8" fill="#06b6d4" font-family="Segoe UI,sans-serif" pointer-events="none">PCH</text>
+                <!-- M.2 Slot -->
+                <rect class="hotspot" data-id="m2" x="50" y="300" width="120" height="14" rx="3" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" stroke-width="1" onclick="pick('m2')"/>
+                <text x="110" y="296" text-anchor="middle" font-size="7" fill="#f59e0b" font-family="Segoe UI,sans-serif" pointer-events="none">M.2</text>
+                <!-- SATA Ports -->
+                <rect class="hotspot" data-id="sata" x="360" y="200" width="50" height="60" rx="4" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1" onclick="pick('sata')"/>
+                <text x="385" y="235" text-anchor="middle" font-size="7" fill="#ef4444" font-family="Segoe UI,sans-serif" pointer-events="none">SATA</text>
+                <!-- 24-pin ATX -->
+                <rect class="hotspot" data-id="atx24" x="310" y="50" width="30" height="120" rx="4" fill="rgba(251,191,36,0.12)" stroke="#fbbf24" stroke-width="1.2" onclick="pick('atx24')"/>
+                <text x="325" y="45" text-anchor="middle" font-size="7" fill="#fbbf24" font-family="Segoe UI,sans-serif" pointer-events="none">24-pin</text>
+                <!-- 8-pin CPU Power -->
+                <rect class="hotspot" data-id="cpu8pin" x="50" y="20" width="60" height="20" rx="3" fill="rgba(249,115,22,0.12)" stroke="#f97316" stroke-width="1" onclick="pick('cpu8pin')"/>
+                <text x="80" y="15" text-anchor="middle" font-size="7" fill="#f97316" font-family="Segoe UI,sans-serif" pointer-events="none">8-pin EPS</text>
+                <!-- CMOS Battery -->
+                <circle class="hotspot" data-id="cmos" cx="340" cy="400" r="18" fill="rgba(251,191,36,0.08)" stroke="#fbbf24" stroke-width="1" onclick="pick('cmos')"/>
+                <text x="340" y="404" text-anchor="middle" font-size="7" fill="#fbbf24" font-family="Segoe UI,sans-serif" pointer-events="none">CMOS</text>
+                <!-- Front Panel Header -->
+                <rect class="hotspot" data-id="frontpanel" x="60" y="430" width="80" height="20" rx="3" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="1" onclick="pick('frontpanel')"/>
+                <text x="100" y="460" text-anchor="middle" font-size="7" fill="#a855f7" font-family="Segoe UI,sans-serif" pointer-events="none">Front Panel</text>
+                <!-- I/O Shield area -->
+                <rect x="370" y="10" width="50" height="180" rx="4" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+                <text x="395" y="100" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif" transform="rotate(90,395,100)">Rear I/O</text>
+            </svg>
+        </div>
+        <div class="task-panel" id="taskPanel"></div>
+    </div>
+    <div style="text-align:center"><button id="complete-btn" onclick="completeModule()">Mark Complete</button></div>
+    <nav class="nav-buttons"><a href="../index.html" class="nav-btn">Back to Bare Metal</a></nav>
+</div>
+<script>
+const COMPONENTS=[
+    {id:'cpu',name:'CPU Socket',hint:'Where the processor installs. Square, center-left of board.'},
+    {id:'ram',name:'DIMM Slots (RAM)',hint:'Long vertical slots near the CPU. Usually 2-4.'},
+    {id:'pciex16',name:'PCIe x16 Slot',hint:'Longest expansion slot. For GPUs.'},
+    {id:'pciex1',name:'PCIe x1 Slot',hint:'Short expansion slot. For NICs, sound cards.'},
+    {id:'chipset',name:'Chipset (PCH)',hint:'Small chip below the PCIe slots. Controls USB, SATA, etc.'},
+    {id:'m2',name:'M.2 Slot',hint:'Narrow horizontal slot for NVMe SSDs.'},
+    {id:'sata',name:'SATA Ports',hint:'L-shaped ports on the right edge. For drives.'},
+    {id:'atx24',name:'24-pin ATX Power',hint:'Large vertical connector on the right. Main board power.'},
+    {id:'cpu8pin',name:'8-pin EPS (CPU Power)',hint:'Near the top-left, close to the CPU socket.'},
+    {id:'cmos',name:'CMOS Battery',hint:'Round coin cell battery. Keeps BIOS settings alive.'}
+];
+let found=new Set(), currentIdx=0;
+function buildTasks(){
+    const panel=document.getElementById('taskPanel');
+    panel.innerHTML='';
+    COMPONENTS.forEach((c,i)=>{
+        const item=document.createElement('div');
+        item.className='task-item'+(found.has(c.id)?' done':(i===currentIdx?' active':''));
+        item.id='task-'+c.id;
+        item.innerHTML=`<div class="task-name">${found.has(c.id)?'&#10003; ':''} ${c.name}</div><div class="task-hint">${c.hint}</div>`;
+        panel.appendChild(item);
+    });
+}
+function pick(id){
+    if(found.has(id))return;
+    const target=COMPONENTS[currentIdx];
+    const fb=document.getElementById('feedback');
+    if(id===target.id){
+        found.add(id);
+        document.querySelector(`[data-id="${id}"]`).classList.add('found');
+        fb.className='feedback-msg show correct';
+        fb.textContent='Correct! That is the '+target.name+'.';
+        currentIdx++;
+    } else {
+        fb.className='feedback-msg show wrong';
+        fb.textContent='Not quite. You need to find: '+target.name+'. '+target.hint;
+    }
+    document.getElementById('score').textContent=found.size;
+    document.getElementById('progressFill').style.width=(found.size/10*100)+'%';
+    buildTasks();
+    if(found.size===10){
+        fb.className='feedback-msg show correct';
+        fb.textContent='All 10 components identified! Lab complete.';
+        document.getElementById('complete-btn').style.display='block';
+    }
+}
+function resetLab(){found=new Set();currentIdx=0;document.getElementById('score').textContent='0';document.getElementById('progressFill').style.width='0%';document.getElementById('feedback').className='feedback-msg';document.getElementById('complete-btn').style.display='none';document.querySelectorAll('.hotspot').forEach(h=>h.classList.remove('found'));buildTasks();}
+function completeModule(){if(typeof ModuleProgress!=='undefined'){ModuleProgress.complete('forge','bm-w1-mobo-lab',{returnUrl:'../index.html'});}}
+buildTasks();
+</script>
+</body>
+</html>
