@@ -1,0 +1,1819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- Security / Auth: must run first; blocks unauthorized users immediately -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <script src="../../../components/FirebaseAuth.js"></script>
+    <script src="../../../components/TenantRouter.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>First Watch // CTS1120C</title>
+
+    <style>
+        /* -- CSS Custom Properties: Shield House palette (red/orange) -- */
+        :root {
+            --shield-primary:   #f87171;
+            --shield-secondary: #fca5a5;
+            --shield-accent:    #fecaca;
+            --shield-glow:      rgba(248, 113, 113, 0.3);
+            --shield-bg:        rgba(248, 113, 113, 0.05);
+            --shield-border:    rgba(248, 113, 113, 0.25);
+            --shield-dark:      #7f1d1d;
+            --shield-darker:    #450a0a;
+            --bg-main:          #060810;
+            --bg-deep:          #04060c;
+            --bg-card:          #090d18;
+            --bg-card-hover:    #0d1422;
+            --text-primary:     #f8e4e4;
+            --text-secondary:   #cc7a7a;
+            --text-muted:       #7a3d3d;
+            --border-color:     rgba(248, 113, 113, 0.12);
+            --border-hover:     rgba(248, 113, 113, 0.35);
+            --success:          #f87171;
+            --danger:           #f97316;
+            --danger-border:    rgba(249, 115, 22, 0.30);
+            --danger-bg:        rgba(249, 115, 22, 0.06);
+            --danger-hover-bg:  rgba(249, 115, 22, 0.12);
+            --shadow-md:        0 4px 6px -1px rgba(0, 0, 0, 0.60);
+            --shadow-lg:        0 10px 18px -3px rgba(0, 0, 0, 0.70);
+            --shadow-glow:      0 0 28px rgba(248, 113, 113, 0.10);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background: linear-gradient(160deg, var(--bg-main) 0%, var(--bg-deep) 100%);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* Visually hidden: accessibility + SEO anchor */
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        /* -- Top navigation bar -- */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 10px 0;
+        }
+
+        .course-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* Single exit point back to Shield house hub */
+        .dashboard-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.82rem;
+            font-weight: 500;
+            font-family: 'Courier New', Courier, monospace;
+            padding: 7px 16px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background: var(--shield-bg);
+            transition: all 0.2s ease;
+            letter-spacing: 0.5px;
+        }
+
+        .dashboard-btn:hover {
+            color: var(--shield-accent);
+            border-color: var(--border-hover);
+            background: rgba(248, 113, 113, 0.10);
+        }
+
+        .dashboard-btn-icon {
+            width: 14px;
+            height: 14px;
+            opacity: 0.7;
+            filter: hue-rotate(0deg) saturate(2);
+        }
+
+        /* -- Hero Header -- */
+        .header {
+            text-align: center;
+            margin-bottom: 28px;
+            padding: 44px 24px 36px;
+            background: linear-gradient(135deg, var(--shield-darker) 0%, #1e0a0a 50%, var(--shield-darker) 100%);
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg), var(--shadow-glow);
+            border: 1px solid var(--shield-border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Containment grid pattern */
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                linear-gradient(rgba(248, 113, 113, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(248, 113, 113, 0.04) 1px, transparent 1px);
+            background-size: 32px 32px;
+            pointer-events: none;
+        }
+
+        /* Hazard stripe overlay */
+        .header::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 18px,
+                rgba(248, 113, 113, 0.018) 18px,
+                rgba(248, 113, 113, 0.018) 20px
+            );
+            pointer-events: none;
+        }
+
+        /* Course number pill */
+        .course-badge {
+            display: inline-block;
+            background: rgba(248, 113, 113, 0.15);
+            border: 1px solid rgba(248, 113, 113, 0.40);
+            color: var(--shield-primary);
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 4px 18px;
+            border-radius: 20px;
+            margin-bottom: 14px;
+            position: relative;
+            z-index: 1;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .header h2 {
+            font-size: 2.1rem;
+            color: #fff;
+            margin-bottom: 8px;
+            position: relative;
+            z-index: 1;
+            font-family: 'Courier New', Courier, monospace;
+            letter-spacing: 1px;
+        }
+
+        .header .subtitle {
+            font-size: 1rem;
+            color: var(--shield-accent);
+            opacity: 0.85;
+            position: relative;
+            z-index: 1;
+            letter-spacing: 0.5px;
+        }
+
+        /* Hex codename badge */
+        .codename {
+            display: inline-block;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--shield-secondary);
+            background: rgba(248, 113, 113, 0.08);
+            border: 1px solid rgba(248, 113, 113, 0.22);
+            padding: 4px 16px;
+            border-radius: 4px;
+            margin-top: 12px;
+            position: relative;
+            z-index: 1;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* Course stat chips */
+        .course-stats {
+            display: flex;
+            justify-content: center;
+            gap: 14px;
+            margin-top: 26px;
+            flex-wrap: wrap;
+            position: relative;
+            z-index: 1;
+        }
+
+        .course-stat {
+            background: rgba(248, 113, 113, 0.08);
+            border: 1px solid rgba(248, 113, 113, 0.22);
+            padding: 10px 22px;
+            border-radius: 10px;
+            text-align: center;
+            min-width: 80px;
+        }
+
+        .course-stat .value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--shield-primary);
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .course-stat .label {
+            font-size: 0.68rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-top: 2px;
+        }
+
+        /* -- Overall progress bar -- */
+        .progress-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 18px 22px;
+            margin-bottom: 28px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .progress-section h3 {
+            color: var(--shield-secondary);
+            font-size: 0.82rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .progress-bar-container {
+            background: rgba(248, 113, 113, 0.08);
+            border-radius: 10px;
+            height: 14px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--shield-dark), var(--shield-secondary), var(--shield-primary));
+            width: 0%;
+            transition: width 0.6s ease;
+            border-radius: 10px;
+            box-shadow: 0 0 8px rgba(248, 113, 113, 0.4);
+        }
+
+        .progress-text {
+            text-align: right;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 6px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* -- Section heading label -- */
+        .section-heading {
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            padding-left: 4px;
+        }
+
+        /* -- Week Cards (collapsible) -- */
+        .week-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            margin-bottom: 10px;
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+            transition: border-color 0.2s ease;
+        }
+
+        .week-card:hover {
+            border-color: var(--border-hover);
+        }
+
+        /* Always-visible clickable header */
+        .week-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 22px;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s ease;
+        }
+
+        .week-header:hover {
+            background: rgba(248, 113, 113, 0.04);
+        }
+
+        .week-header-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        /* Week number badge */
+        .week-num {
+            background: linear-gradient(135deg, var(--shield-dark), var(--shield-secondary));
+            color: #000;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.95rem;
+            flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .week-title-group .week-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--shield-accent);
+            line-height: 1.25;
+            font-family: 'Courier New', Courier, monospace;
+            letter-spacing: 0.5px;
+        }
+
+        .week-title-group .week-sub {
+            font-size: 0.83rem;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        /* Objective and item count tags */
+        .week-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 5px;
+            flex-wrap: wrap;
+        }
+
+        .obj-tag {
+            font-size: 0.68rem;
+            font-weight: 700;
+            color: var(--shield-secondary);
+            background: rgba(248, 113, 113, 0.08);
+            border: 1px solid rgba(248, 113, 113, 0.18);
+            padding: 2px 8px;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+        }
+
+        .item-count-tag {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            background: rgba(248, 113, 113, 0.04);
+            border: 1px solid rgba(248, 113, 113, 0.10);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        /* Chevron: rotates 180deg when week is open */
+        .week-toggle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            transition: transform 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .week-card.open .week-toggle {
+            transform: rotate(180deg);
+        }
+
+        /* Expand/collapse via max-height transition */
+        .week-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .week-card.open .week-body {
+            max-height: 4200px;
+        }
+
+        .week-inner {
+            padding: 4px 22px 24px;
+            border-top: 1px solid rgba(248, 113, 113, 0.06);
+        }
+
+        /* -- Per-week progress bar -- */
+        .week-progress {
+            margin: 14px 0 8px;
+        }
+
+        .week-progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.70rem;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .week-progress-bar-container {
+            background: rgba(248, 113, 113, 0.06);
+            border-radius: 6px;
+            height: 5px;
+            overflow: hidden;
+        }
+
+        .week-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--shield-dark), var(--shield-primary));
+            width: 0%;
+            transition: width 0.5s ease;
+            border-radius: 6px;
+        }
+
+        /* -- Week Overview Card -- */
+        .week-overview {
+            background: linear-gradient(135deg, rgba(248, 113, 113, 0.04), rgba(248, 113, 113, 0.01));
+            border: 1px solid rgba(248, 113, 113, 0.15);
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+            margin-top: 14px;
+        }
+
+        .week-overview-title {
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--shield-primary);
+            margin-bottom: 8px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .week-overview-desc {
+            font-size: 0.86rem;
+            color: var(--text-secondary);
+            line-height: 1.65;
+        }
+
+        /* -- Subsection labels inside a week -- */
+        .subsection {
+            margin-top: 20px;
+        }
+
+        .subsection-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(122, 61, 61, 0.20);
+        }
+
+        /* Colored accent bar before label text */
+        .subsection-label::before {
+            content: '';
+            display: inline-block;
+            width: 3px;
+            height: 12px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        .subsection-label.label-presentation::before { background: #f87171; }
+        .subsection-label.label-lab::before          { background: #f97316; }
+        .subsection-label.label-assessment::before   { background: #fbbf24; }
+        .subsection-label.label-exam::before         { background: #f97316; }
+
+        /* -- Content type badges (Slides / Quiz / Midterm / Final) -- */
+        .content-badge {
+            font-size: 0.58rem;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            padding: 3px 8px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .badge-presentation {
+            background: rgba(248, 113, 113, 0.12);
+            color: #f87171;
+            border: 1px solid rgba(248, 113, 113, 0.28);
+        }
+
+        .badge-quiz {
+            background: rgba(251, 191, 36, 0.12);
+            color: #fbbf24;
+            border: 1px solid rgba(251, 191, 36, 0.28);
+        }
+
+        .badge-exam {
+            background: rgba(249, 115, 22, 0.12);
+            color: #fb923c;
+            border: 1px solid rgba(249, 115, 22, 0.30);
+        }
+
+        /* Exam card: orange border accent to stand out */
+        .exam-card {
+            border-color: rgba(249, 115, 22, 0.35) !important;
+            background: rgba(249, 115, 22, 0.04) !important;
+        }
+
+        .exam-card:hover {
+            border-color: rgba(249, 115, 22, 0.60) !important;
+            background: rgba(249, 115, 22, 0.09) !important;
+        }
+
+        /* -- Content link cards -- */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 6px;
+        }
+
+        .content-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 14px;
+            background: rgba(248, 113, 113, 0.02);
+            border: 1px solid rgba(248, 113, 113, 0.07);
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+        }
+
+        .content-card:hover {
+            background: rgba(248, 113, 113, 0.07);
+            border-color: rgba(248, 113, 113, 0.22);
+            transform: translateX(3px);
+        }
+
+        /* Module card completed state */
+        .content-card.is-complete {
+            border-color: rgba(248, 113, 113, 0.30);
+            background: rgba(248, 113, 113, 0.04);
+        }
+
+        /* Module ID badge: left side */
+        .card-id-badge {
+            font-size: 0.60rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: var(--shield-secondary);
+            background: rgba(248, 113, 113, 0.08);
+            border: 1px solid rgba(248, 113, 113, 0.18);
+            padding: 2px 7px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: nowrap;
+        }
+
+        /* Module icon */
+        .card-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            opacity: 0.75;
+            filter: hue-rotate(0deg) saturate(2) brightness(1.2);
+        }
+
+        /* Card text block */
+        .card-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .card-info .card-title {
+            font-size: 0.86rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .card-info .card-sub {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-top: 1px;
+        }
+
+        /* Blue checkmark: hidden until is-complete class is applied */
+        .card-check {
+            width: 16px;
+            height: 16px;
+            opacity: 0;
+            flex-shrink: 0;
+            transition: opacity 0.2s ease;
+            filter: hue-rotate(0deg) saturate(3);
+        }
+
+        .content-card.is-complete .card-check {
+            opacity: 1;
+        }
+
+        /* -- Lab cards: distinct from presentation cards -- */
+        .lab-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 13px 16px;
+            background: var(--danger-bg);
+            border: 1px solid var(--danger-border);
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.25s ease;
+            position: relative;
+        }
+
+        .lab-card:hover {
+            background: var(--danger-hover-bg);
+            border-color: rgba(249, 115, 22, 0.55);
+            transform: translateX(3px);
+            box-shadow: 0 0 12px rgba(249, 115, 22, 0.15);
+        }
+
+        @keyframes pulse-border {
+            0%, 100% { box-shadow: 0 0 6px rgba(249, 115, 22, 0.15); }
+            50%       { box-shadow: 0 0 16px rgba(249, 115, 22, 0.35); }
+        }
+
+        .lab-card:hover {
+            animation: pulse-border 1.4s ease infinite;
+        }
+
+        .lab-card.is-complete {
+            border-color: rgba(248, 113, 113, 0.30);
+            background: rgba(248, 113, 113, 0.04);
+        }
+
+        /* Lab ID badge */
+        .lab-id-badge {
+            font-size: 0.60rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: #f97316;
+            background: rgba(249, 115, 22, 0.10);
+            border: 1px solid rgba(249, 115, 22, 0.28);
+            padding: 2px 7px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: nowrap;
+        }
+
+        .lab-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            opacity: 0.80;
+        }
+
+        /* Duration badge on lab cards */
+        .lab-stats {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .lab-stat-badge {
+            font-size: 0.62rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: #fdba74;
+            background: rgba(249, 115, 22, 0.08);
+            border: 1px solid rgba(249, 115, 22, 0.20);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: nowrap;
+        }
+
+        /* Checkmark for completed lab cards */
+        .lab-check {
+            width: 16px;
+            height: 16px;
+            opacity: 0;
+            flex-shrink: 0;
+            transition: opacity 0.2s ease;
+            filter: hue-rotate(0deg) saturate(3);
+        }
+
+        .lab-card.is-complete .lab-check {
+            opacity: 1;
+        }
+
+        /* -- Course info block (bottom) -- */
+        .course-info-block {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px 26px;
+            margin-top: 36px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .course-info-block h3 {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--shield-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 18px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .objectives-list {
+            list-style: none;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 10px;
+        }
+
+        .objectives-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 9px;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .objectives-list li::before {
+            content: '';
+            display: inline-block;
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--shield-primary);
+            flex-shrink: 0;
+            margin-top: 7px;
+            box-shadow: 0 0 6px rgba(248, 113, 113, 0.6);
+        }
+
+        /* -- Page footer -- */
+        .page-footer {
+            text-align: center;
+            padding: 28px 0 10px;
+            color: var(--text-muted);
+            font-size: 0.72rem;
+            font-family: 'Courier New', Courier, monospace;
+            letter-spacing: 0.5px;
+        }
+
+        .page-footer .footer-sub {
+            margin-top: 4px;
+            font-size: 0.65rem;
+            opacity: 0.7;
+        }
+
+        /* -- Mobile responsive -- */
+        @media (max-width: 768px) {
+            body { padding: 12px; }
+            .header { padding: 30px 16px 26px; }
+            .header h2 { font-size: 1.55rem; }
+            .header .subtitle { font-size: 0.9rem; }
+            .course-stats { gap: 10px; }
+            .course-stat { padding: 8px 14px; }
+            .course-stat .value { font-size: 1.15rem; }
+            .week-header { padding: 14px 16px; }
+            .week-inner { padding: 4px 16px 18px; }
+        }
+
+        @media (max-width: 480px) {
+            .header h2 { font-size: 1.3rem; }
+            .course-stat { padding: 6px 10px; }
+            .course-stat .value { font-size: 1rem; }
+            .course-stat .label { font-size: 0.60rem; }
+            .week-num { width: 34px; height: 34px; font-size: 0.82rem; }
+            .week-title-group .week-title { font-size: 0.92rem; }
+            .lab-stats { flex-direction: column; gap: 4px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Hidden H1 for screen readers and SEO -->
+    <h1 class="visually-hidden">Introduction to Security, CTS1120C Course Hub, Shield House</h1>
+
+    <div class="container">
+
+        <!-- -- Top Bar: course label + single exit point -- -->
+        <div class="top-bar">
+            <span class="course-label">CTS1120C // Shield House</span>
+            <a href="../index.html" class="dashboard-btn" id="dashboardBtn">
+                <img src="../../../assets/images/icons/icon-arrow-left.webp"
+                     alt="" class="dashboard-btn-icon" aria-hidden="true">
+                Shield Hub
+            </a>
+        </div>
+
+        <!-- -- Hero Header -- -->
+        <div class="header">
+            <span class="course-badge">CTS1120C</span>
+            <h2>Introduction to Security</h2>
+            <p class="subtitle">Before you run the network, you learn what hunts on it.</p>
+            <div class="codename">FIRST WATCH</div>
+
+            <!-- Course stat chips -->
+            <div class="course-stats">
+                <div class="course-stat">
+                    <div class="value">4</div>
+                    <div class="label">Weeks</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">10</div>
+                    <div class="label">Presentations</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">10</div>
+                    <div class="label">Labs</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">10</div>
+                    <div class="label">Quizzes</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">2</div>
+                    <div class="label">Exams</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- -- Overall Course Progress -- -->
+        <div class="progress-section">
+            <h3>Watch Status: Course Progress</h3>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <div class="progress-text" id="progressText">Loading...</div>
+        </div>
+
+        <!-- -- Learning Path -- -->
+        <div class="section-heading">Watch Path</div>
+
+
+        <!-- =====================================================
+             WEEK 1: Physical Security + Logical Security
+        ===================================================== -->
+        <div class="week-card" id="wk1">
+            <div class="week-header" onclick="toggleWeek('wk1')">
+                <div class="week-header-left">
+                    <div class="week-num">1</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Physical + Logical Security</div>
+                        <div class="week-sub">WEEK 1 // FOUNDATIONS</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Physical</span>
+                            <span class="obj-tag">Logical</span>
+                            <span class="item-count-tag">6 modules</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <!-- Per-week progress bar -->
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Week 1 Progress</span>
+                            <span id="wk1-progress-text">0 / 6</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="wk1-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Week overview -->
+                    <div class="week-overview">
+                        <div class="week-overview-title">Week 1 // Physical + Logical</div>
+                        <div class="week-overview-desc">
+                            Every system has a door. Physical security guards the ones you can touch. Logical security guards the ones you cannot see. This week covers both.
+                        </div>
+                    </div>
+
+                    <!-- Presentations -->
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentations</div>
+                        <div class="content-grid">
+
+                            <a href="presentations/fw-w1-physical.presentation.html"
+                               class="content-card" data-module="fw-w1-physical-pres">
+                                <img src="../../../assets/images/icons/icon-lock.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W1-P1</span>
+                                <div class="card-info">
+                                    <div class="card-title">Physical Security Measures</div>
+                                    <div class="card-sub">Locks, badges, biometrics, surveillance, environmental controls</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/fw-w1-logical.presentation.html"
+                               class="content-card" data-module="fw-w1-logical-pres">
+                                <img src="../../../assets/images/icons/icon-key.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W1-P2</span>
+                                <div class="card-info">
+                                    <div class="card-title">Logical Security Concepts</div>
+                                    <div class="card-sub">Authentication, authorization, encryption, firewalls, least privilege</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Labs -->
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Labs</div>
+                        <div class="content-grid">
+
+                            <a href="labs/fw-w1-physical.lab.html"
+                               class="lab-card" data-module="fw-w1-physical-lab">
+                                <img src="../../../assets/images/icons/icon-padlock.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">W1-L1</span>
+                                <div class="card-info">
+                                    <div class="card-title">Physical Security Lab</div>
+                                    <div class="card-sub">Evaluate physical controls, identify vulnerabilities in facility layouts</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">30 min</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                            <a href="labs/fw-w1-logical.lab.html"
+                               class="lab-card" data-module="fw-w1-logical-lab">
+                                <img src="../../../assets/images/icons/icon-firewall.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">W1-L2</span>
+                                <div class="card-info">
+                                    <div class="card-title">Logical Security Lab</div>
+                                    <div class="card-sub">Configure authentication, apply ACLs, test defense in depth</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">35 min</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Assessment -->
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+
+                            <a href="quizzes/fw-w1-physical.quiz.html"
+                               class="content-card" data-module="fw-w1-physical-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W1-Q1</span>
+                                <div class="card-info">
+                                    <div class="card-title">Physical Security Quiz</div>
+                                    <div class="card-sub">Locks, badges, CCTV, environmental controls, tailgating</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                            <a href="quizzes/fw-w1-logical.quiz.html"
+                               class="content-card" data-module="fw-w1-logical-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W1-Q2</span>
+                                <div class="card-info">
+                                    <div class="card-title">Logical Security Quiz</div>
+                                    <div class="card-sub">Authentication, authorization, encryption, CIA triad</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div><!-- /wk1 -->
+
+
+        <!-- =====================================================
+             WEEK 2: Wireless Security + Malware
+        ===================================================== -->
+        <div class="week-card" id="wk2">
+            <div class="week-header" onclick="toggleWeek('wk2')">
+                <div class="week-header-left">
+                    <div class="week-num">2</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Wireless Security + Malware</div>
+                        <div class="week-sub">WEEK 2 // THREATS</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Wireless</span>
+                            <span class="obj-tag">Malware</span>
+                            <span class="item-count-tag">6 modules</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <!-- Per-week progress bar -->
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Week 2 Progress</span>
+                            <span id="wk2-progress-text">0 / 7</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="wk2-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Week overview -->
+                    <div class="week-overview">
+                        <div class="week-overview-title">Week 2 // Wireless + Malware</div>
+                        <div class="week-overview-desc">
+                            Wireless signals travel beyond walls. Malware travels beyond intent. This week teaches you how to secure the airwaves and recognize what should never have been downloaded.
+                        </div>
+                    </div>
+
+                    <!-- Presentations -->
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentations</div>
+                        <div class="content-grid">
+
+                            <a href="presentations/fw-w2-wireless.presentation.html"
+                               class="content-card" data-module="fw-w2-wireless-pres">
+                                <img src="../../../assets/images/icons/icon-network.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W2-P1</span>
+                                <div class="card-info">
+                                    <div class="card-title">Wireless Security Protocols</div>
+                                    <div class="card-sub">WEP, WPA, WPA2, WPA3, RADIUS, evil twin, SSID management</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/fw-w2-malware.presentation.html"
+                               class="content-card" data-module="fw-w2-malware-pres">
+                                <img src="../../../assets/images/icons/icon-virus.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W2-P2</span>
+                                <div class="card-info">
+                                    <div class="card-title">Malware Detection & Prevention</div>
+                                    <div class="card-sub">Viruses, worms, trojans, ransomware, spyware, rootkits, EDR</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Labs -->
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Labs</div>
+                        <div class="content-grid">
+
+                            <a href="labs/fw-w2-wireless.lab.html"
+                               class="lab-card" data-module="fw-w2-wireless-lab">
+                                <img src="../../../assets/images/icons/icon-network.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">W2-L1</span>
+                                <div class="card-info">
+                                    <div class="card-title">Wireless Security Lab</div>
+                                    <div class="card-sub">Configure wireless encryption, detect rogue access points</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">35 min</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                            <a href="labs/fw-w2-malware.lab.html"
+                               class="lab-card" data-module="fw-w2-malware-lab">
+                                <img src="../../../assets/images/icons/icon-virus.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">W2-L2</span>
+                                <div class="card-info">
+                                    <div class="card-title">Malware Analysis Lab</div>
+                                    <div class="card-sub">Identify malware types, run scans, analyze removal procedures</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">35 min</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Assessment -->
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+
+                            <a href="quizzes/fw-w2-wireless.quiz.html"
+                               class="content-card" data-module="fw-w2-wireless-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W2-Q1</span>
+                                <div class="card-info">
+                                    <div class="card-title">Wireless Security Quiz</div>
+                                    <div class="card-sub">WPA protocols, wireless threats, SSID, MAC filtering</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                            <a href="quizzes/fw-w2-malware.quiz.html"
+                               class="content-card" data-module="fw-w2-malware-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W2-Q2</span>
+                                <div class="card-info">
+                                    <div class="card-title">Malware Quiz</div>
+                                    <div class="card-sub">Malware types, detection tools, prevention strategies</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Midterm Exam -->
+                    <div class="subsection">
+                        <div class="subsection-label label-exam">Midterm Exam</div>
+                        <div class="content-grid">
+
+                            <a href="exams/fw-midterm.exam.html"
+                               class="content-card exam-card" data-module="fw-midterm">
+                                <img src="../../../assets/images/icons/icon-shield.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">MIDTERM</span>
+                                <div class="card-info">
+                                    <div class="card-title">Midterm Exam</div>
+                                    <div class="card-sub">Covers Weeks 1 and 2: physical, logical, wireless, malware</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-exam">Midterm</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div><!-- /wk2 -->
+
+
+        <!-- =====================================================
+             WEEK 3: Social Engineering + OS Security + Hardening
+        ===================================================== -->
+        <div class="week-card" id="wk3">
+            <div class="week-header" onclick="toggleWeek('wk3')">
+                <div class="week-header-left">
+                    <div class="week-num">3</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Social Engineering + OS Security + Hardening</div>
+                        <div class="week-sub">WEEK 3 // DEFENSE</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Social Eng</span>
+                            <span class="obj-tag">OS Sec</span>
+                            <span class="obj-tag">Hardening</span>
+                            <span class="item-count-tag">9 modules</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <!-- Per-week progress bar -->
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Week 3 Progress</span>
+                            <span id="wk3-progress-text">0 / 9</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="wk3-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Week overview -->
+                    <div class="week-overview">
+                        <div class="week-overview-title">Week 3 // Social Eng + OS + Hardening</div>
+                        <div class="week-overview-desc">
+                            The human is always the weakest link. Once they get past the person, the OS is next. This week covers the attack surface from the inbox to the registry.
+                        </div>
+                    </div>
+
+                    <!-- Presentations -->
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentations</div>
+                        <div class="content-grid">
+
+                            <a href="presentations/fw-w3-social.presentation.html"
+                               class="content-card" data-module="fw-w3-social-pres">
+                                <img src="../../../assets/images/icons/icon-eye.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W3-P1</span>
+                                <div class="card-info">
+                                    <div class="card-title">Social Engineering & Threats</div>
+                                    <div class="card-sub">Phishing, pretexting, baiting, tailgating, shoulder surfing</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/fw-w3-os-security.presentation.html"
+                               class="content-card" data-module="fw-w3-os-security-pres">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W3-P2</span>
+                                <div class="card-info">
+                                    <div class="card-title">OS Security Settings</div>
+                                    <div class="card-sub">Windows/Linux security, patch management, local policies</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/fw-w3-hardening.presentation.html"
+                               class="content-card" data-module="fw-w3-hardening-pres">
+                                <img src="../../../assets/images/icons/icon-shield.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W3-P3</span>
+                                <div class="card-info">
+                                    <div class="card-title">Workstation Hardening</div>
+                                    <div class="card-sub">Disable services, host firewall, application whitelisting, baselines</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Labs -->
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Labs</div>
+                        <div class="content-grid">
+
+                            <a href="labs/fw-w3-social.lab.html"
+                               class="lab-card" data-module="fw-w3-social-lab">
+                                <img src="../../../assets/images/icons/icon-eye.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">W3-L1</span>
+                                <div class="card-info">
+                                    <div class="card-title">Social Engineering Lab</div>
+                                    <div class="card-sub">Identify phishing artifacts, analyze social engineering scenarios</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">30 min</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                            <a href="labs/fw-w3-os-security.lab.html"
+                               class="lab-card" data-module="fw-w3-os-security-lab">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">W3-L2</span>
+                                <div class="card-info">
+                                    <div class="card-title">OS Security Lab</div>
+                                    <div class="card-sub">Configure local security policies, audit user accounts, review logs</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">40 min</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                            <a href="labs/fw-w3-hardening.lab.html"
+                               class="lab-card" data-module="fw-w3-hardening-lab">
+                                <img src="../../../assets/images/icons/icon-shield.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">W3-L3</span>
+                                <div class="card-info">
+                                    <div class="card-title">Workstation Hardening Lab</div>
+                                    <div class="card-sub">Disable unnecessary services, configure host firewall rules</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">40 min</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Assessment -->
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+
+                            <a href="quizzes/fw-w3-social.quiz.html"
+                               class="content-card" data-module="fw-w3-social-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W3-Q1</span>
+                                <div class="card-info">
+                                    <div class="card-title">Social Engineering Quiz</div>
+                                    <div class="card-sub">Phishing types, pretexting, baiting, awareness training</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                            <a href="quizzes/fw-w3-os-security.quiz.html"
+                               class="content-card" data-module="fw-w3-os-security-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W3-Q2</span>
+                                <div class="card-info">
+                                    <div class="card-title">OS Security Quiz</div>
+                                    <div class="card-sub">Patch management, local policies, Windows/Linux security</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                            <a href="quizzes/fw-w3-hardening.quiz.html"
+                               class="content-card" data-module="fw-w3-hardening-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W3-Q3</span>
+                                <div class="card-info">
+                                    <div class="card-title">Hardening Quiz</div>
+                                    <div class="card-sub">Service disabling, application whitelisting, baselines</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div><!-- /wk3 -->
+
+
+        <!-- =====================================================
+             WEEK 4: Mobile + Data Destruction + SOHO Security
+        ===================================================== -->
+        <div class="week-card" id="wk4">
+            <div class="week-header" onclick="toggleWeek('wk4')">
+                <div class="week-header-left">
+                    <div class="week-num">4</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Mobile + Data Destruction + SOHO Security</div>
+                        <div class="week-sub">WEEK 4 // OPERATIONS</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Mobile</span>
+                            <span class="obj-tag">Data</span>
+                            <span class="obj-tag">SOHO</span>
+                            <span class="item-count-tag">10 modules</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <!-- Per-week progress bar -->
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Week 4 Progress</span>
+                            <span id="wk4-progress-text">0 / 10</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="wk4-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Week overview -->
+                    <div class="week-overview">
+                        <div class="week-overview-title">Week 4 // Mobile + Data + SOHO</div>
+                        <div class="week-overview-desc">
+                            Devices leave the building. Data must be destroyed when it is no longer needed. Small office networks need the same discipline as enterprise ones. This week closes the loop.
+                        </div>
+                    </div>
+
+                    <!-- Presentations -->
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentations</div>
+                        <div class="content-grid">
+
+                            <a href="presentations/fw-w4-mobile.presentation.html"
+                               class="content-card" data-module="fw-w4-mobile-pres">
+                                <img src="../../../assets/images/icons/icon-mobile.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W4-P1</span>
+                                <div class="card-info">
+                                    <div class="card-title">Mobile Device Security</div>
+                                    <div class="card-sub">MDM, BYOD, screen locks, remote wipe, app management</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/fw-w4-data-destruction.presentation.html"
+                               class="content-card" data-module="fw-w4-data-destruction-pres">
+                                <img src="../../../assets/images/icons/icon-fire.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W4-P2</span>
+                                <div class="card-info">
+                                    <div class="card-title">Data Destruction Methods</div>
+                                    <div class="card-sub">Degaussing, shredding, wiping, crypto-erase, compliance</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/fw-w4-soho.presentation.html"
+                               class="content-card" data-module="fw-w4-soho-pres">
+                                <img src="../../../assets/images/icons/icon-network.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W4-P3</span>
+                                <div class="card-info">
+                                    <div class="card-title">SOHO Network Security</div>
+                                    <div class="card-sub">Router hardening, DMZ, NAT, DHCP, port forwarding, firmware</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Labs -->
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Labs</div>
+                        <div class="content-grid">
+
+                            <a href="labs/fw-w4-mobile.lab.html"
+                               class="lab-card" data-module="fw-w4-mobile-lab">
+                                <img src="../../../assets/images/icons/icon-mobile.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">W4-L1</span>
+                                <div class="card-info">
+                                    <div class="card-title">Mobile Security Lab</div>
+                                    <div class="card-sub">Configure MDM policies, evaluate BYOD risks</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">30 min</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                            <a href="labs/fw-w4-data-destruction.lab.html"
+                               class="lab-card" data-module="fw-w4-data-destruction-lab">
+                                <img src="../../../assets/images/icons/icon-fire.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">W4-L2</span>
+                                <div class="card-info">
+                                    <div class="card-title">Data Destruction Lab</div>
+                                    <div class="card-sub">Select destruction methods, verify compliance, document chain of custody</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">30 min</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                            <a href="labs/fw-w4-soho.lab.html"
+                               class="lab-card" data-module="fw-w4-soho-lab">
+                                <img src="../../../assets/images/icons/icon-network.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">W4-L3</span>
+                                <div class="card-info">
+                                    <div class="card-title">SOHO Network Lab</div>
+                                    <div class="card-sub">Configure router security, set up DMZ, harden firmware</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">40 min</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Assessment -->
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+
+                            <a href="quizzes/fw-w4-mobile.quiz.html"
+                               class="content-card" data-module="fw-w4-mobile-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W4-Q1</span>
+                                <div class="card-info">
+                                    <div class="card-title">Mobile Security Quiz</div>
+                                    <div class="card-sub">MDM, BYOD, screen locks, remote wipe</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                            <a href="quizzes/fw-w4-data-destruction.quiz.html"
+                               class="content-card" data-module="fw-w4-data-destruction-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W4-Q2</span>
+                                <div class="card-info">
+                                    <div class="card-title">Data Destruction Quiz</div>
+                                    <div class="card-sub">Degaussing, shredding, wiping, compliance requirements</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                            <a href="quizzes/fw-w4-soho.quiz.html"
+                               class="content-card" data-module="fw-w4-soho-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W4-Q3</span>
+                                <div class="card-info">
+                                    <div class="card-title">SOHO Network Quiz</div>
+                                    <div class="card-sub">Router config, DMZ, NAT, port forwarding, firmware updates</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Final Exam -->
+                    <div class="subsection">
+                        <div class="subsection-label label-exam">Final Exam</div>
+                        <div class="content-grid">
+
+                            <a href="exams/fw-final.exam.html"
+                               class="content-card exam-card" data-module="fw-final">
+                                <img src="../../../assets/images/icons/icon-shield.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">FINAL</span>
+                                <div class="card-info">
+                                    <div class="card-title">Final Exam</div>
+                                    <div class="card-sub">Comprehensive: all weeks, all domains</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-exam">Final</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div><!-- /wk4 -->
+
+
+        <!-- -- Course Objectives Block -- -->
+        <div class="course-info-block">
+            <h3>Course Objectives</h3>
+            <ul class="objectives-list">
+                <li>Implement physical access controls including locks, badges, biometrics, and surveillance systems</li>
+                <li>Apply logical security concepts: authentication, authorization, encryption, and the CIA triad</li>
+                <li>Configure wireless security using WPA2/WPA3, RADIUS, and identify wireless attack vectors</li>
+                <li>Classify malware types and apply detection, removal, and prevention strategies</li>
+                <li>Recognize social engineering attacks including phishing, pretexting, and tailgating</li>
+                <li>Configure operating system security settings and apply patch management procedures</li>
+                <li>Harden workstations by disabling unnecessary services, configuring host firewalls, and applying baselines</li>
+                <li>Implement mobile device security using MDM, remote wipe, and BYOD policies</li>
+                <li>Apply data destruction methods that meet compliance and chain-of-custody requirements</li>
+                <li>Secure SOHO networks through router hardening, DMZ configuration, and firmware management</li>
+            </ul>
+        </div>
+
+        <!-- -- Page Footer -- -->
+        <div class="page-footer">
+            House of the Shield // Introduction to Security // CTS1120C
+            <div class="footer-sub">Before you run the network, you learn what hunts on it.</div>
+        </div>
+
+    </div><!-- /.container -->
+
+    <!-- -- JavaScript -- -->
+    <script>
+        /**
+         * toggleWeek(id)
+         * Adds/removes the 'open' class on a week card to expand or collapse it.
+         */
+        function toggleWeek(id) {
+            var card = document.getElementById(id);
+            if (card) {
+                card.classList.toggle('open');
+            }
+        }
+
+        // -- Auto-open from URL hash --
+        (function () {
+            var hash = window.location.hash;
+            if (hash && /^#wk[1-4]$/.test(hash)) {
+                var id   = hash.substring(1);
+                var card = document.getElementById(id);
+                if (card) {
+                    card.classList.add('open');
+                    setTimeout(function () {
+                        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 300);
+                }
+            }
+        })();
+
+        // -- Progress Tracking --
+        document.addEventListener('DOMContentLoaded', function () {
+            if (!window.ModuleProgress) {
+                document.getElementById('progressText').textContent = 'Progress unavailable';
+                return;
+            }
+
+            // All module IDs, grouped by week card ID.
+            // W1: 6, W2: 7 (incl midterm), W3: 9, W4: 10 (incl final) = 32 total
+            var weeks = {
+                wk1: [
+                    'fw-w1-physical-pres',
+                    'fw-w1-logical-pres',
+                    'fw-w1-physical-lab',
+                    'fw-w1-logical-lab',
+                    'fw-w1-physical-quiz',
+                    'fw-w1-logical-quiz'
+                ],
+                wk2: [
+                    'fw-w2-wireless-pres',
+                    'fw-w2-malware-pres',
+                    'fw-w2-wireless-lab',
+                    'fw-w2-malware-lab',
+                    'fw-w2-wireless-quiz',
+                    'fw-w2-malware-quiz',
+                    'fw-midterm'
+                ],
+                wk3: [
+                    'fw-w3-social-pres',
+                    'fw-w3-os-security-pres',
+                    'fw-w3-hardening-pres',
+                    'fw-w3-social-lab',
+                    'fw-w3-os-security-lab',
+                    'fw-w3-hardening-lab',
+                    'fw-w3-social-quiz',
+                    'fw-w3-os-security-quiz',
+                    'fw-w3-hardening-quiz'
+                ],
+                wk4: [
+                    'fw-w4-mobile-pres',
+                    'fw-w4-data-destruction-pres',
+                    'fw-w4-soho-pres',
+                    'fw-w4-mobile-lab',
+                    'fw-w4-data-destruction-lab',
+                    'fw-w4-soho-lab',
+                    'fw-w4-mobile-quiz',
+                    'fw-w4-data-destruction-quiz',
+                    'fw-w4-soho-quiz',
+                    'fw-final'
+                ]
+            };
+
+            var totalItems     = 0;
+            var totalCompleted = 0;
+
+            Object.keys(weeks).forEach(function (weekId) {
+                var ids       = weeks[weekId];
+                var completed = 0;
+
+                ids.forEach(function (moduleId) {
+                    if (ModuleProgress.isCompleted('shield', moduleId)) {
+                        completed++;
+
+                        var el = document.querySelector('[data-module="' + moduleId + '"]');
+                        if (el) {
+                            el.classList.add('is-complete');
+                        }
+                    }
+                });
+
+                var weekPct  = ids.length > 0 ? Math.round((completed / ids.length) * 100) : 0;
+                var weekBar  = document.getElementById(weekId + '-progress-bar');
+                var weekText = document.getElementById(weekId + '-progress-text');
+                if (weekBar)  { weekBar.style.width = weekPct + '%'; }
+                if (weekText) { weekText.textContent = completed + ' / ' + ids.length; }
+
+                totalItems     += ids.length;
+                totalCompleted += completed;
+            });
+
+            var overallPct  = totalItems > 0 ? Math.round((totalCompleted / totalItems) * 100) : 0;
+            var overallBar  = document.getElementById('progressBar');
+            var overallText = document.getElementById('progressText');
+            if (overallBar)  { overallBar.style.width = overallPct + '%'; }
+            if (overallText) {
+                overallText.textContent =
+                    totalCompleted + ' of ' + totalItems + ' modules completed (' + overallPct + '%)';
+            }
+        });
+    </script>
+
+    <!-- -- Shared Components -- -->
+    <script src="../../../components/TenantShell.js"></script>
+    <script src="../../../components/ContentDiscovery.js"></script>
+    <script src="../../../components/TrailHunter.js"></script>
+
+    <!-- Shield Bot (Aminos AI) -->
+    <script src="https://platform.aminos.ai/w/chat_plugin.js" data-bot-id="8115"></script>
+
+</body>
+</html>

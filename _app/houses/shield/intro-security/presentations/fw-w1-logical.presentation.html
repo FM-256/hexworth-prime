@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logical Security Concepts | Introduction to Security</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0406 0%, #120608 50%, #0e0508 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #f87171; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(10, 4, 6, 0.95);
+            border-top: 1px solid rgba(248, 113, 113, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(248, 113, 113, 0.12); color: #f87171; border-color: #f87171;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #f87171; color: #fff; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #fca5a5; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #f87171; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #f87171; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(248, 113, 113, 0.06); border-left: 3px solid #f87171;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fecaca; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-red    { background: rgba(248, 113, 113, 0.08); border: 1px solid rgba(248, 113, 113, 0.3); color: #fecaca; }
+        .box-orange { background: rgba(249, 115, 22, 0.08); border: 1px solid rgba(249, 115, 22, 0.3); color: #fed7aa; }
+        .box-cyan   { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green  { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-gold   { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-blue   { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-label  { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #f87171; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #f87171;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-red    { border-left-color: #f87171; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-gold   { border-left-color: #eab308; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-green  { border-left-color: #22c55e; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+        .card.c-purple { border-left-color: #a855f7; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #f87171; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #f87171;
+            background: rgba(248, 113, 113, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #f87171;
+            background: rgba(248, 113, 113, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .diagram { display: flex; justify-content: center; align-items: center; padding: 4px 0; }
+        .diagram svg { max-width: 100%; height: auto; }
+        @keyframes pulse { 0%, 100% { opacity: 0.5; r: 4; } 50% { opacity: 1; r: 6; } }
+        @keyframes flowRight { 0% { transform: translateX(-6px); opacity: 0.3; } 50% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(6px); opacity: 0.3; } }
+        @keyframes signalSend { 0% { stroke-dashoffset: 20; } 100% { stroke-dashoffset: 0; } }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .card-grid-4 { grid-template-columns: repeat(2, 1fr); } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Logical Security Concepts | Introduction to Security</h1>
+
+<div id="progress-bar" style="width:7.14%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 14 &nbsp;|&nbsp; FW-W1-P2 &nbsp;|&nbsp; Week 1 of 4 &nbsp;|&nbsp; CTS1120C</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Logical Security<br>
+                <span class="accent">Concepts</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Authentication &nbsp;&bull;&nbsp; Authorization &nbsp;&bull;&nbsp; Encryption &nbsp;&bull;&nbsp; Firewalls &nbsp;&bull;&nbsp; Defense in Depth
+            </div>
+        </div>
+        <div class="scenario-strip">
+            A user logs in with a valid password. They access a file they should not have permission to read. The file is not encrypted. No firewall blocked the access. Every logical control failed -- or was never configured. This presentation covers the controls that should have been there.
+        </div>
+        <div class="title-meta-row">
+            <span>14 Slides</span>
+            <span>First Watch</span>
+            <span>Week 1 of 4</span>
+            <span>CTS1120C</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- CIA TRIAD ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 14</div>
+        <div class="slide-title">The <span class="accent">CIA Triad</span></div>
+        <div class="slide-subtitle">Every security control maps to at least one of these three pillars.</div>
+
+        <div class="diagram"><svg viewBox="0 0 480 96" width="480" height="96" xmlns="http://www.w3.org/2000/svg">
+            <polygon points="240,8 140,88 340,88" fill="none" stroke="#f87171" stroke-width="2"/>
+            <text x="240" y="30" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="10" font-weight="bold">CONFIDENTIALITY</text>
+            <text x="155" y="84" text-anchor="middle" fill="#bbf7d0" font-family="Courier New" font-size="10" font-weight="bold">INTEGRITY</text>
+            <text x="325" y="84" text-anchor="middle" fill="#cffafe" font-family="Courier New" font-size="10" font-weight="bold">AVAILABILITY</text>
+            <circle cx="240" cy="8" r="4" fill="#f87171" style="animation: pulse 2s ease-in-out infinite"/>
+            <circle cx="140" cy="88" r="4" fill="#22c55e" style="animation: pulse 2s ease-in-out infinite 0.7s"/>
+            <circle cx="340" cy="88" r="4" fill="#06b6d4" style="animation: pulse 2s ease-in-out infinite 1.4s"/>
+            <text x="240" y="62" text-anchor="middle" fill="#64748b" font-family="Courier New" font-size="9">CIA TRIAD</text>
+        </svg></div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Confidentiality</div>
+                <div class="card-desc">Only authorized users can access the data. Encryption, access controls, and data classification enforce confidentiality. A data breach is a confidentiality failure.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Integrity</div>
+                <div class="card-desc">Data has not been altered without authorization. Hashing, digital signatures, and version control verify integrity. If someone modifies a record without permission, integrity is broken.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Availability</div>
+                <div class="card-desc">Systems are accessible when needed. Redundancy, backups, failover, and DDoS protection maintain availability. If the server is down, availability has failed.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">The Trade-Off</div>
+            Maximum confidentiality (encrypt everything, restrict all access) reduces availability. Maximum availability (everything open, no restrictions) destroys confidentiality. Security engineering is finding the right balance for each context.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- AUTHENTICATION ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 14</div>
+        <div class="slide-title"><span class="accent">Authentication</span></div>
+        <div class="slide-subtitle">Proving you are who you claim to be. The first gate in every logical access system.</div>
+
+        <div class="diagram"><svg viewBox="0 0 520 72" width="520" height="72" xmlns="http://www.w3.org/2000/svg">
+            <rect x="10" y="20" width="100" height="32" rx="4" fill="none" stroke="#f87171" stroke-width="1.5"/>
+            <text x="60" y="40" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="10">CLAIM</text>
+            <line x1="110" y1="36" x2="170" y2="36" stroke="#f97316" stroke-width="1.5" stroke-dasharray="6 3" style="animation: signalSend 1.2s linear infinite"/>
+            <rect x="170" y="20" width="100" height="32" rx="4" fill="none" stroke="#f97316" stroke-width="1.5"/>
+            <text x="220" y="40" text-anchor="middle" fill="#fed7aa" font-family="Courier New" font-size="10">VERIFY</text>
+            <line x1="270" y1="36" x2="330" y2="36" stroke="#f97316" stroke-width="1.5" stroke-dasharray="6 3" style="animation: signalSend 1.2s linear infinite"/>
+            <rect x="330" y="20" width="100" height="32" rx="4" fill="none" stroke="#22c55e" stroke-width="1.5"/>
+            <text x="380" y="40" text-anchor="middle" fill="#bbf7d0" font-family="Courier New" font-size="10">ACCESS</text>
+            <circle cx="145" cy="36" r="4" fill="#f97316" style="animation: pulse 2s ease-in-out infinite"/>
+            <circle cx="305" cy="36" r="4" fill="#f97316" style="animation: pulse 2s ease-in-out infinite 0.5s"/>
+        </svg></div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Passwords</div>
+                <div class="card-desc">Something you know. The most common authentication factor. Minimum 12 characters, complexity required. Vulnerable to brute force, dictionary attacks, and credential stuffing.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Multi-Factor Authentication</div>
+                <div class="card-desc">Combines two or more factors: knowledge (password), possession (token/phone), inherence (biometric). MFA reduces account compromise by over 99% according to Microsoft research.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Biometric Authentication</div>
+                <div class="card-desc">Fingerprint, face, iris, voice. Cannot be lost or forgotten. Can be spoofed on older systems. Biometric data is irrevocable -- once compromised, it cannot be changed like a password.</div>
+            </div>
+        </div>
+
+        <div class="box box-orange">
+            <div class="box-label">Single Sign-On (SSO)</div>
+            SSO allows one authentication event to grant access to multiple systems. Reduces password fatigue and help desk calls. Implemented via SAML, OAuth, or Kerberos. Risk: if the SSO credential is compromised, the attacker gets access to everything.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- AUTHORIZATION ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 14</div>
+        <div class="slide-title"><span class="accent">Authorization</span></div>
+        <div class="slide-subtitle">Authentication proves identity. Authorization determines what that identity is allowed to do.</div>
+
+        <div class="diagram"><svg viewBox="0 0 520 80" width="520" height="80" xmlns="http://www.w3.org/2000/svg">
+            <rect x="10" y="24" width="110" height="32" rx="4" fill="none" stroke="#f87171" stroke-width="1.5"/>
+            <text x="65" y="44" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="10">USER: ALICE</text>
+            <line x1="120" y1="40" x2="170" y2="20" stroke="#f97316" stroke-width="1" stroke-dasharray="5 3"/>
+            <line x1="120" y1="40" x2="170" y2="40" stroke="#22c55e" stroke-width="1.5"/>
+            <line x1="120" y1="40" x2="170" y2="60" stroke="#ef4444" stroke-width="1" stroke-dasharray="5 3"/>
+            <rect x="170" y="6" width="130" height="24" rx="4" fill="none" stroke="#f97316" stroke-width="1"/>
+            <text x="235" y="22" text-anchor="middle" fill="#fed7aa" font-family="Courier New" font-size="8">ADMIN PANEL -- DENIED</text>
+            <rect x="170" y="30" width="130" height="24" rx="4" fill="none" stroke="#22c55e" stroke-width="1.5"/>
+            <text x="235" y="46" text-anchor="middle" fill="#bbf7d0" font-family="Courier New" font-size="8">FILES -- ALLOWED</text>
+            <rect x="170" y="54" width="130" height="24" rx="4" fill="none" stroke="#ef4444" stroke-width="1"/>
+            <text x="235" y="70" text-anchor="middle" fill="#fee2e2" font-family="Courier New" font-size="8">DATABASE -- DENIED</text>
+        </svg></div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">ACLs (Access Control Lists)</div>
+                <div class="card-desc">Lists attached to resources that specify which users or groups have what permissions. File-level ACLs (read/write/execute) and network ACLs (allow/deny traffic).</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">RBAC (Role-Based Access Control)</div>
+                <div class="card-desc">Permissions assigned to roles, not individuals. Users inherit permissions by role assignment. Examples: Admin, Editor, Viewer. Simplifies management at scale.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">DAC vs MAC</div>
+                <div class="card-desc">Discretionary (DAC): resource owner sets permissions. Mandatory (MAC): system enforces classification labels. MAC is used in military/government. DAC is the default in Windows/Linux.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Principle of Least Privilege</div>
+            Every user, process, and service gets only the minimum permissions required to perform its function. No more. Least privilege limits blast radius when an account is compromised and reduces insider threat risk.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- ENCRYPTION BASICS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 14</div>
+        <div class="slide-title"><span class="accent">Encryption</span> Basics</div>
+        <div class="slide-subtitle">Converting readable data into unreadable form. Only the key holder can reverse the process.</div>
+
+        <div class="diagram"><svg viewBox="0 0 520 72" width="520" height="72" xmlns="http://www.w3.org/2000/svg">
+            <rect x="10" y="20" width="100" height="32" rx="4" fill="none" stroke="#22c55e" stroke-width="1.5"/>
+            <text x="60" y="40" text-anchor="middle" fill="#bbf7d0" font-family="Courier New" font-size="10">PLAINTEXT</text>
+            <line x1="110" y1="36" x2="170" y2="36" stroke="#f97316" stroke-width="1.5" stroke-dasharray="6 3" style="animation: signalSend 1.2s linear infinite"/>
+            <rect x="170" y="15" width="100" height="42" rx="4" fill="rgba(248, 113, 113, 0.08)" stroke="#f87171" stroke-width="1.5"/>
+            <text x="220" y="34" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="9" font-weight="bold">ENCRYPT</text>
+            <text x="220" y="48" text-anchor="middle" fill="#94a3b8" font-family="Courier New" font-size="8">+ KEY</text>
+            <line x1="270" y1="36" x2="330" y2="36" stroke="#f97316" stroke-width="1.5" stroke-dasharray="6 3" style="animation: signalSend 1.2s linear infinite"/>
+            <rect x="330" y="20" width="120" height="32" rx="4" fill="none" stroke="#f97316" stroke-width="1.5"/>
+            <text x="390" y="40" text-anchor="middle" fill="#fed7aa" font-family="Courier New" font-size="10">CIPHERTEXT</text>
+        </svg></div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Symmetric Encryption</div>
+                <div class="card-desc">One key encrypts and decrypts. Fast, efficient for bulk data. AES-256 is the standard. Challenge: securely distributing the shared key to both parties.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Asymmetric Encryption</div>
+                <div class="card-desc">Two keys: public key encrypts, private key decrypts. RSA and ECC are common. Slower than symmetric. Solves the key distribution problem. Used for digital signatures and key exchange.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Hashing</div>
+                <div class="card-desc">One-way function that produces a fixed-length fingerprint. SHA-256 is the standard. Used for password storage and integrity verification. Cannot be reversed -- only compared.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Encryption at Rest vs In Transit</div>
+                <div class="card-desc">At rest: BitLocker, FileVault, LUKS encrypt stored data. In transit: TLS/SSL encrypts data moving across networks. Both are required for compliance (PCI-DSS, HIPAA).</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- FIREWALLS ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 14</div>
+        <div class="slide-title"><span class="accent">Firewalls</span></div>
+        <div class="slide-subtitle">The gatekeeper between trusted and untrusted networks.</div>
+
+        <div class="diagram"><svg viewBox="0 0 500 80" width="500" height="80" xmlns="http://www.w3.org/2000/svg">
+            <rect x="20" y="20" width="120" height="40" rx="6" fill="none" stroke="#22c55e" stroke-width="1.5"/>
+            <text x="80" y="44" text-anchor="middle" fill="#bbf7d0" font-family="Courier New" font-size="10">INTERNAL NET</text>
+            <rect x="190" y="10" width="80" height="60" rx="4" fill="rgba(248, 113, 113, 0.1)" stroke="#f87171" stroke-width="2"/>
+            <text x="230" y="35" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="9" font-weight="bold">FIREWALL</text>
+            <text x="230" y="50" text-anchor="middle" fill="#94a3b8" font-family="Courier New" font-size="8">RULES</text>
+            <rect x="320" y="20" width="120" height="40" rx="6" fill="none" stroke="#ef4444" stroke-width="1.5"/>
+            <text x="380" y="44" text-anchor="middle" fill="#fee2e2" font-family="Courier New" font-size="10">INTERNET</text>
+            <line x1="140" y1="40" x2="190" y2="40" stroke="#22c55e" stroke-width="1.5"/>
+            <line x1="270" y1="40" x2="320" y2="40" stroke="#ef4444" stroke-width="1.5"/>
+        </svg></div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Packet Filtering</div>
+                <div class="card-desc">Examines source IP, destination IP, port, and protocol. Fast but no application awareness. Stateless -- each packet evaluated independently. First-generation firewall technology.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Stateful Inspection</div>
+                <div class="card-desc">Tracks connection state (SYN, SYN-ACK, ACK). Allows return traffic for established connections. Blocks unsolicited inbound. Second-generation -- the modern baseline.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Next-Gen Firewalls (NGFW)</div>
+                <div class="card-desc">Deep packet inspection, application awareness, intrusion prevention, SSL decryption, and user identity awareness all in one device. Palo Alto, Fortinet, and Cisco are major vendors.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Host-Based vs Network-Based</div>
+            Network firewalls protect the perimeter. Host firewalls (Windows Firewall, iptables) protect individual machines. Both are required. A compromised machine inside the network bypasses the perimeter firewall -- host firewalls are the last line.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- VPNs ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 14</div>
+        <div class="slide-title"><span class="accent">VPNs</span> -- Virtual Private Networks</div>
+        <div class="slide-subtitle">Creating a secure, encrypted tunnel across an untrusted network.</div>
+
+        <div class="diagram"><svg viewBox="0 0 520 80" width="520" height="80" xmlns="http://www.w3.org/2000/svg">
+            <rect x="10" y="24" width="100" height="32" rx="4" fill="none" stroke="#f87171" stroke-width="1.5"/>
+            <text x="60" y="44" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="9">REMOTE USER</text>
+            <!-- Encrypted tunnel -->
+            <rect x="130" y="18" width="240" height="44" rx="8" fill="none" stroke="#f97316" stroke-width="1.5" stroke-dasharray="8 4"/>
+            <text x="250" y="36" text-anchor="middle" fill="#fed7aa" font-family="Courier New" font-size="8" font-weight="bold">ENCRYPTED TUNNEL</text>
+            <text x="250" y="50" text-anchor="middle" fill="#94a3b8" font-family="Courier New" font-size="8">Internet (Untrusted)</text>
+            <rect x="390" y="24" width="110" height="32" rx="4" fill="none" stroke="#22c55e" stroke-width="1.5"/>
+            <text x="445" y="44" text-anchor="middle" fill="#bbf7d0" font-family="Courier New" font-size="9">CORP NETWORK</text>
+            <line x1="110" y1="40" x2="130" y2="40" stroke="#f87171" stroke-width="1.5"/>
+            <line x1="370" y1="40" x2="390" y2="40" stroke="#22c55e" stroke-width="1.5"/>
+        </svg></div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">IPSec VPN</div>
+                <div class="card-desc">Operates at Layer 3 (network layer). Two modes: transport (encrypts payload) and tunnel (encrypts entire packet). Used for site-to-site VPNs and remote access. Industry standard.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">SSL/TLS VPN</div>
+                <div class="card-desc">Operates at Layer 4-7. Uses the browser or a lightweight client. Easier to deploy than IPSec. No special client software needed for basic access. Common for remote workers.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Split Tunnel vs Full Tunnel</div>
+                <div class="card-desc">Full tunnel: all traffic routed through VPN. Maximum security, higher latency. Split tunnel: only corporate traffic goes through VPN. Faster but personal traffic is unprotected.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- LEAST PRIVILEGE ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 14</div>
+        <div class="slide-title">Principle of <span class="accent">Least Privilege</span></div>
+        <div class="slide-subtitle">Every subject gets only the access required to do its job. Nothing more.</div>
+
+        <div class="diagram"><svg viewBox="0 0 480 90" width="480" height="90" xmlns="http://www.w3.org/2000/svg">
+            <!-- Before / After comparison -->
+            <text x="120" y="14" text-anchor="middle" fill="#ef4444" font-family="Courier New" font-size="9" font-weight="bold">BEFORE</text>
+            <rect x="30" y="20" width="180" height="60" rx="4" fill="none" stroke="#ef4444" stroke-width="1"/>
+            <text x="120" y="40" text-anchor="middle" fill="#fee2e2" font-family="Courier New" font-size="9">User: ADMIN ACCESS</text>
+            <text x="120" y="55" text-anchor="middle" fill="#94a3b8" font-family="Courier New" font-size="8">Full access to everything</text>
+            <text x="120" y="70" text-anchor="middle" fill="#94a3b8" font-family="Courier New" font-size="8">Max blast radius</text>
+
+            <text x="360" y="14" text-anchor="middle" fill="#22c55e" font-family="Courier New" font-size="9" font-weight="bold">AFTER</text>
+            <rect x="270" y="20" width="180" height="60" rx="4" fill="none" stroke="#22c55e" stroke-width="1"/>
+            <text x="360" y="40" text-anchor="middle" fill="#bbf7d0" font-family="Courier New" font-size="9">User: READ-ONLY</text>
+            <text x="360" y="55" text-anchor="middle" fill="#94a3b8" font-family="Courier New" font-size="8">Only what they need</text>
+            <text x="360" y="70" text-anchor="middle" fill="#94a3b8" font-family="Courier New" font-size="8">Min blast radius</text>
+        </svg></div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">User Accounts</div>
+                <div class="card-desc">Standard users should never have admin rights. Admin access requires a separate privileged account used only for administrative tasks. Daily work uses the standard account.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Service Accounts</div>
+                <div class="card-desc">Applications and services run under dedicated accounts with only the permissions they need. A web server account should not have write access to the entire filesystem.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Privilege Escalation</div>
+                <div class="card-desc">When an attacker gains higher privileges than intended. Vertical: user -> admin. Horizontal: user A -> user B. Least privilege limits what an attacker can reach after initial compromise.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Periodic Access Reviews</div>
+                <div class="card-desc">Permissions drift over time. Quarterly access reviews ensure users still need the access they have. Remove stale permissions. Document exceptions. Automate where possible.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- DEFENSE IN DEPTH ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 14</div>
+        <div class="slide-title"><span class="accent">Defense in Depth</span></div>
+        <div class="slide-subtitle">No single control is sufficient. Multiple layers ensure that if one fails, others catch the attack.</div>
+
+        <div class="diagram"><svg viewBox="0 0 500 100" width="500" height="100" xmlns="http://www.w3.org/2000/svg">
+            <!-- Concentric defense layers -->
+            <rect x="10" y="5" width="480" height="90" rx="8" fill="none" stroke="#475569" stroke-width="1" stroke-dasharray="4 4"/>
+            <text x="50" y="18" fill="#64748b" font-family="Courier New" font-size="8">PERIMETER (Firewall / IPS)</text>
+            <rect x="50" y="22" width="400" height="68" rx="6" fill="none" stroke="#f87171" stroke-width="1.5"/>
+            <text x="90" y="34" fill="#fecaca" font-family="Courier New" font-size="8">NETWORK (Segmentation / VLAN)</text>
+            <rect x="100" y="38" width="300" height="46" rx="4" fill="none" stroke="#f97316" stroke-width="1.5"/>
+            <text x="140" y="50" fill="#fed7aa" font-family="Courier New" font-size="8">HOST (AV / HIDS / Patches)</text>
+            <rect x="160" y="54" width="180" height="24" rx="4" fill="rgba(248, 113, 113, 0.08)" stroke="#eab308" stroke-width="1.5"/>
+            <text x="250" y="70" text-anchor="middle" fill="#fef9c3" font-family="Courier New" font-size="9" font-weight="bold">DATA (Encryption / ACL)</text>
+        </svg></div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Perimeter Layer</div>
+                <div class="card-desc">Firewalls, IPS/IDS, DMZ, proxy servers. Stops attacks at the network edge. Necessary but not sufficient -- attackers bypass perimeters via phishing and VPN credentials.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Network Layer</div>
+                <div class="card-desc">VLANs, network segmentation, microsegmentation. Limits lateral movement after breach. A compromised workstation cannot reach the database server if they are on different segments.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Host Layer</div>
+                <div class="card-desc">Antivirus, endpoint detection and response (EDR), host firewall, patch management. Protects individual machines regardless of network position.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Data Layer</div>
+                <div class="card-desc">Encryption at rest and in transit, DLP (data loss prevention), access controls on files and databases. The last defense -- even if everything else fails, encrypted data is useless to the attacker.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- AAA FRAMEWORK ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 14</div>
+        <div class="slide-title">The <span class="accent">AAA</span> Framework</div>
+        <div class="slide-subtitle">Authentication, Authorization, and Accounting -- the three pillars of access management.</div>
+
+        <div class="diagram"><svg viewBox="0 0 520 72" width="520" height="72" xmlns="http://www.w3.org/2000/svg">
+            <rect x="10" y="20" width="140" height="32" rx="4" fill="none" stroke="#f87171" stroke-width="1.5"/>
+            <text x="80" y="40" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="10">AUTHENTICATION</text>
+            <line x1="150" y1="36" x2="190" y2="36" stroke="#f97316" stroke-width="1.5" stroke-dasharray="5 3" style="animation: signalSend 1s linear infinite"/>
+            <rect x="190" y="20" width="140" height="32" rx="4" fill="none" stroke="#f97316" stroke-width="1.5"/>
+            <text x="260" y="40" text-anchor="middle" fill="#fed7aa" font-family="Courier New" font-size="10">AUTHORIZATION</text>
+            <line x1="330" y1="36" x2="370" y2="36" stroke="#f97316" stroke-width="1.5" stroke-dasharray="5 3" style="animation: signalSend 1s linear infinite"/>
+            <rect x="370" y="20" width="130" height="32" rx="4" fill="none" stroke="#eab308" stroke-width="1.5"/>
+            <text x="435" y="40" text-anchor="middle" fill="#fef9c3" font-family="Courier New" font-size="10">ACCOUNTING</text>
+        </svg></div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Authentication (Who?)</div>
+                <div class="card-desc">Verify identity. Username/password, MFA, certificate, biometric. Without authentication, there is no way to know who is making a request.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Authorization (What?)</div>
+                <div class="card-desc">Determine permissions. ACLs, RBAC, group policies. After identity is confirmed, the system checks what that identity is allowed to do.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Accounting (When/Where?)</div>
+                <div class="card-desc">Log everything. Login times, resources accessed, actions taken, logout times. Accounting provides the audit trail for compliance and incident investigation.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">RADIUS and TACACS+</div>
+            RADIUS: UDP-based, encrypts only the password, widely used for network access (Wi-Fi, VPN). TACACS+: TCP-based, encrypts the entire session, separates authentication/authorization/accounting. Cisco environments prefer TACACS+.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- IDS / IPS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 14</div>
+        <div class="slide-title"><span class="accent">IDS</span> & <span class="accent">IPS</span></div>
+        <div class="slide-subtitle">Intrusion Detection System watches. Intrusion Prevention System acts.</div>
+
+        <div class="diagram"><svg viewBox="0 0 500 80" width="500" height="80" xmlns="http://www.w3.org/2000/svg">
+            <rect x="20" y="10" width="200" height="60" rx="6" fill="none" stroke="#f87171" stroke-width="1.5"/>
+            <text x="120" y="30" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="10" font-weight="bold">IDS</text>
+            <text x="120" y="45" text-anchor="middle" fill="#94a3b8" font-family="Courier New" font-size="9">Detect + Alert</text>
+            <text x="120" y="60" text-anchor="middle" fill="#94a3b8" font-family="Courier New" font-size="8">Passive / Out-of-band</text>
+
+            <rect x="260" y="10" width="200" height="60" rx="6" fill="none" stroke="#f97316" stroke-width="1.5"/>
+            <text x="360" y="30" text-anchor="middle" fill="#fed7aa" font-family="Courier New" font-size="10" font-weight="bold">IPS</text>
+            <text x="360" y="45" text-anchor="middle" fill="#94a3b8" font-family="Courier New" font-size="9">Detect + Block</text>
+            <text x="360" y="60" text-anchor="middle" fill="#94a3b8" font-family="Courier New" font-size="8">Active / Inline</text>
+        </svg></div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Signature-Based Detection</div>
+                <div class="card-desc">Compares traffic against a database of known attack patterns. Fast and accurate for known threats. Completely blind to zero-day attacks. Requires constant signature updates.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Anomaly-Based Detection</div>
+                <div class="card-desc">Establishes a baseline of normal behavior. Alerts when activity deviates from the baseline. Can detect zero-days. Higher false positive rate. Requires tuning.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Network vs Host-Based</div>
+                <div class="card-desc">NIDS/NIPS monitors network traffic at strategic points. HIDS/HIPS runs on individual hosts monitoring file changes, logs, and process activity. Both perspectives are needed.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">SIEM Integration</div>
+                <div class="card-desc">IDS/IPS alerts feed into a SIEM (Security Information and Event Management) system. Correlation of alerts from multiple sources reveals attack patterns invisible to any single sensor.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- NETWORK SEGMENTATION ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 14</div>
+        <div class="slide-title">Network <span class="accent">Segmentation</span></div>
+        <div class="slide-subtitle">Dividing a network into zones limits lateral movement and contains breaches.</div>
+
+        <div class="diagram"><svg viewBox="0 0 500 90" width="500" height="90" xmlns="http://www.w3.org/2000/svg">
+            <!-- Three VLANs with firewall between -->
+            <rect x="10" y="10" width="120" height="70" rx="6" fill="none" stroke="#22c55e" stroke-width="1.5"/>
+            <text x="70" y="30" text-anchor="middle" fill="#bbf7d0" font-family="Courier New" font-size="9" font-weight="bold">VLAN 10</text>
+            <text x="70" y="50" text-anchor="middle" fill="#94a3b8" font-family="Courier New" font-size="8">Workstations</text>
+
+            <rect x="180" y="10" width="120" height="70" rx="6" fill="none" stroke="#f87171" stroke-width="1.5"/>
+            <text x="240" y="30" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="9" font-weight="bold">VLAN 20</text>
+            <text x="240" y="50" text-anchor="middle" fill="#94a3b8" font-family="Courier New" font-size="8">Servers</text>
+
+            <rect x="350" y="10" width="120" height="70" rx="6" fill="none" stroke="#f97316" stroke-width="1.5"/>
+            <text x="410" y="30" text-anchor="middle" fill="#fed7aa" font-family="Courier New" font-size="9" font-weight="bold">DMZ</text>
+            <text x="410" y="50" text-anchor="middle" fill="#94a3b8" font-family="Courier New" font-size="8">Web Servers</text>
+
+            <!-- Firewalls between -->
+            <rect x="140" y="30" width="30" height="24" rx="3" fill="rgba(248, 113, 113, 0.15)" stroke="#f87171" stroke-width="1"/>
+            <text x="155" y="46" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="7">FW</text>
+            <rect x="310" y="30" width="30" height="24" rx="3" fill="rgba(248, 113, 113, 0.15)" stroke="#f87171" stroke-width="1"/>
+            <text x="325" y="46" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="7">FW</text>
+        </svg></div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">VLANs</div>
+                <div class="card-desc">Virtual LANs segment a physical network into logical zones. Traffic between VLANs must pass through a router or Layer 3 switch with ACLs. Broadcast domains are isolated.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">DMZ (Demilitarized Zone)</div>
+                <div class="card-desc">A screened subnet between the internal network and the internet. Public-facing services (web, email, DNS) live here. Compromising a DMZ server should not give access to internal resources.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Zero Trust Architecture</div>
+                <div class="card-desc">Never trust, always verify. No implicit trust based on network location. Every request authenticated and authorized regardless of origin. Microsegmentation is the implementation mechanism.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- SECURITY PRINCIPLES ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 14</div>
+        <div class="slide-title">Core Security <span class="accent">Principles</span></div>
+        <div class="slide-subtitle">Principles that apply to every system, every organization, every scenario.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Separation of Duties</div>
+                <div class="card-desc">No single person should control all phases of a critical process. The person who writes checks should not be the person who approves them. Prevents fraud and limits insider damage.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Need to Know</div>
+                <div class="card-desc">Access is granted based on job requirement, not rank or seniority. A network admin does not need access to HR salary data. Need-to-know reinforces least privilege at the data level.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Job Rotation</div>
+                <div class="card-desc">Moving employees between roles periodically. Detects fraud (a new person notices what the predecessor hid). Cross-trains staff. Reduces key-person dependency.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Mandatory Vacations</div>
+                <div class="card-desc">Require employees in sensitive roles to take consecutive days off. Fraud schemes often require constant presence to maintain. A substitute may discover irregularities.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Security Through Obscurity -- Not a Strategy</div>
+            Hiding a system's design does not make it secure. Kerckhoffs' principle: a cryptographic system should be secure even if everything about the system, except the key, is public knowledge. Obscurity can supplement real controls. It must never replace them.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- SUMMARY ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 14 &nbsp;|&nbsp; Summary</div>
+        <div class="slide-title"><span class="accent">Logical Security</span> -- Key Takeaways</div>
+        <div class="slide-subtitle">Authentication, authorization, and defense in depth are the foundations of every secure system.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">The CIA triad (Confidentiality, Integrity, Availability) is the foundational model. Every control maps to at least one pillar.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Authentication proves identity. <code>MFA</code> combines two or more factors and reduces account compromise by over 99%.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Authorization uses ACLs, RBAC, DAC, and MAC to control what authenticated users can do. Least privilege is mandatory.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Symmetric encryption (AES) is fast for bulk data. Asymmetric (RSA/ECC) solves key distribution. Hashing (SHA-256) verifies integrity.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Firewalls range from packet filtering to next-gen (NGFW). Both network and host-based firewalls are required.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">VPNs create encrypted tunnels over untrusted networks. <code>IPSec</code> for site-to-site, <code>SSL/TLS</code> VPN for remote access.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">Defense in depth layers controls at perimeter, network, host, and data levels. No single layer is sufficient.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">AAA framework: Authentication (who), Authorization (what), Accounting (when/where). RADIUS for network access, TACACS+ for device admin.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">9</span>
+                <span class="fact-text">Network segmentation (VLANs, DMZ, microsegmentation) limits lateral movement. Zero trust verifies every request regardless of origin.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; First Watch</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 14</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 14;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'fw-w1-logical-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>
