@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+
+    <!-- Achievement and progress tracking -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Port Matcher | First Link - Intro to Networks</title>
+
+    <style>
+        :root {
+            --primary: #60a5fa;
+            --accent: #3b82f6;
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-input: #1a1a24;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --glow: rgba(96, 165, 250, 0.3);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .lab-container {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .lab-header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 2rem;
+            background: linear-gradient(135deg, var(--bg-card), var(--bg-input));
+            border-radius: 16px;
+            border: 1px solid var(--primary);
+            box-shadow: 0 0 30px var(--glow);
+        }
+
+        .lab-header h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--primary), #93c5fd);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .lab-header .subtitle {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        .back-link {
+            display: inline-block;
+            color: var(--primary);
+            text-decoration: none;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+
+        .back-link:hover { color: #93c5fd; }
+
+        .score-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            background: var(--bg-card);
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(96, 165, 250, 0.15);
+        }
+
+        .score-display {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .submit-btn, .reset-btn {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .submit-btn {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .submit-btn:hover { background: #2563eb; }
+        .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .reset-btn {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid rgba(96, 165, 250, 0.2);
+            margin-left: 0.5rem;
+        }
+
+        .reset-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+        .port-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 8px;
+        }
+
+        .port-table th {
+            text-align: left;
+            padding: 12px 16px;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .port-row td {
+            padding: 14px 16px;
+            background: var(--bg-card);
+            border: 1px solid rgba(96, 165, 250, 0.1);
+        }
+
+        .port-row td:first-child {
+            border-radius: 10px 0 0 10px;
+            font-weight: 600;
+            color: var(--primary);
+            width: 40px;
+            text-align: center;
+        }
+
+        .port-row td:nth-child(2) {
+            font-weight: 500;
+        }
+
+        .port-row td:last-child {
+            border-radius: 0 10px 10px 0;
+            width: 180px;
+        }
+
+        .port-row.correct td { border-color: var(--success); background: rgba(34, 197, 94, 0.08); }
+        .port-row.incorrect td { border-color: var(--danger); background: rgba(239, 68, 68, 0.08); }
+
+        .port-select {
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--bg-input);
+            border: 1px solid rgba(96, 165, 250, 0.2);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
+        .port-select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .feedback {
+            margin-top: 0.25rem;
+            font-size: 0.8rem;
+            min-height: 1.2em;
+        }
+
+        .feedback.correct-fb { color: var(--success); }
+        .feedback.incorrect-fb { color: var(--danger); }
+
+        .complete-banner {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+            margin-top: 2rem;
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(96, 165, 250, 0.1));
+            border: 1px solid var(--success);
+            border-radius: 16px;
+        }
+
+        .complete-banner h2 { color: var(--success); margin-bottom: 0.5rem; }
+
+        .complete-btn {
+            margin-top: 1rem;
+            padding: 12px 32px;
+            background: var(--success);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .complete-btn:hover { background: #16a34a; }
+
+        /* Visually-hidden h1 for accessibility */
+        .sr-only {
+            position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+            overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+        }
+    </style>
+</head>
+<body>
+<h1 class="sr-only">Port Matcher Lab - First Link Week 1</h1>
+
+<div class="lab-container">
+    <a href="../index.html" class="back-link">Back to Course Home</a>
+
+    <div class="lab-header">
+        <h1>Port Matcher</h1>
+        <p class="subtitle">Match 15 common services to their well-known port numbers</p>
+    </div>
+
+    <div class="score-bar">
+        <span class="score-display" id="scoreDisplay">Score: 0 / 15</span>
+        <div>
+            <button class="submit-btn" id="submitBtn" onclick="gradeAll()">Submit Answers</button>
+            <button class="reset-btn" onclick="resetLab()">Reset</button>
+        </div>
+    </div>
+
+    <table class="port-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Service / Protocol</th>
+                <th>Port Number</th>
+            </tr>
+        </thead>
+        <tbody id="portTableBody"></tbody>
+    </table>
+
+    <div class="complete-banner" id="completeBanner">
+        <h2>Lab Complete</h2>
+        <p id="finalMsg"></p>
+        <button class="complete-btn" onclick="markComplete()">Mark Complete &amp; Return</button>
+    </div>
+</div>
+
+<script>
+    /* ================================================================
+       PORT MATCHER LAB
+       Course: CTS1090C First Link - Introduction to Networks
+       Module ID: fl-w1-ports-lab
+       15 services, dropdown matching, scored X/15
+       ================================================================ */
+
+    const MODULE_ID = 'fl-w1-ports-lab';
+    const HOUSE_ID  = 'web';
+
+    const SERVICES = [
+        { service: 'HTTP',           port: '80' },
+        { service: 'HTTPS',          port: '443' },
+        { service: 'FTP (Data)',     port: '20' },
+        { service: 'FTP (Control)',  port: '21' },
+        { service: 'SSH',            port: '22' },
+        { service: 'Telnet',         port: '23' },
+        { service: 'SMTP',           port: '25' },
+        { service: 'DNS',            port: '53' },
+        { service: 'DHCP (Server)',  port: '67' },
+        { service: 'TFTP',           port: '69' },
+        { service: 'POP3',           port: '110' },
+        { service: 'IMAP',           port: '143' },
+        { service: 'SNMP',           port: '161' },
+        { service: 'LDAP',           port: '389' },
+        { service: 'RDP',            port: '3389' }
+    ];
+
+    /* Build shuffled port options */
+    const PORT_OPTIONS = SERVICES.map(s => s.port).sort(function(a, b) {
+        return parseInt(a) - parseInt(b);
+    });
+
+    let graded = false;
+
+    function buildTable() {
+        const tbody = document.getElementById('portTableBody');
+        /* Shuffle presentation order */
+        const shuffled = SERVICES.slice().sort(function() { return Math.random() - 0.5; });
+
+        shuffled.forEach(function(item, idx) {
+            const tr = document.createElement('tr');
+            tr.className = 'port-row';
+            tr.dataset.answer = item.port;
+
+            let options = '<option value="">-- Select --</option>';
+            PORT_OPTIONS.forEach(function(p) {
+                options += '<option value="' + p + '">' + p + '</option>';
+            });
+
+            tr.innerHTML =
+                '<td>' + (idx + 1) + '</td>' +
+                '<td>' + item.service + '</td>' +
+                '<td>' +
+                    '<select class="port-select">' + options + '</select>' +
+                    '<div class="feedback" id="fb-' + idx + '"></div>' +
+                '</td>';
+
+            tbody.appendChild(tr);
+        });
+    }
+
+    function gradeAll() {
+        if (graded) return;
+        graded = true;
+
+        const rows = document.querySelectorAll('.port-row');
+        let score = 0;
+
+        rows.forEach(function(row, idx) {
+            const select = row.querySelector('.port-select');
+            const fb = document.getElementById('fb-' + idx);
+            const correct = row.dataset.answer;
+
+            select.disabled = true;
+
+            if (select.value === correct) {
+                score++;
+                row.classList.add('correct');
+                fb.textContent = 'Correct';
+                fb.className = 'feedback correct-fb';
+            } else {
+                row.classList.add('incorrect');
+                fb.textContent = 'Correct answer: ' + correct;
+                fb.className = 'feedback incorrect-fb';
+            }
+        });
+
+        document.getElementById('scoreDisplay').textContent = 'Score: ' + score + ' / 15';
+        document.getElementById('submitBtn').disabled = true;
+
+        if (score >= 12) {
+            const banner = document.getElementById('completeBanner');
+            document.getElementById('finalMsg').textContent =
+                'You scored ' + score + '/15. Well done!';
+            banner.style.display = 'block';
+        }
+    }
+
+    function resetLab() {
+        graded = false;
+        document.getElementById('portTableBody').innerHTML = '';
+        document.getElementById('scoreDisplay').textContent = 'Score: 0 / 15';
+        document.getElementById('submitBtn').disabled = false;
+        document.getElementById('completeBanner').style.display = 'none';
+        buildTable();
+    }
+
+    function markComplete() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete(HOUSE_ID, MODULE_ID, { returnUrl: '../index.html' });
+        }
+    }
+
+    buildTable();
+</script>
+</body>
+</html>

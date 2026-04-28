@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+
+    <!-- Achievement and progress tracking -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IP Address Calculator | First Link - Intro to Networks</title>
+
+    <style>
+        :root {
+            --primary: #60a5fa;
+            --accent: #3b82f6;
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-input: #1a1a24;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --glow: rgba(96, 165, 250, 0.3);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .lab-container { max-width: 900px; margin: 0 auto; padding: 2rem; }
+
+        .lab-header {
+            text-align: center; margin-bottom: 2rem; padding: 2rem;
+            background: linear-gradient(135deg, var(--bg-card), var(--bg-input));
+            border-radius: 16px; border: 1px solid var(--primary);
+            box-shadow: 0 0 30px var(--glow);
+        }
+
+        .lab-header h1 {
+            font-size: 2rem; margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--primary), #93c5fd);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .lab-header .subtitle { color: var(--text-secondary); font-size: 1rem; }
+
+        .back-link {
+            display: inline-block; color: var(--primary); text-decoration: none;
+            margin-bottom: 1rem; font-size: 0.9rem; transition: color 0.2s;
+        }
+        .back-link:hover { color: #93c5fd; }
+
+        .score-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 1rem 1.5rem; background: var(--bg-card); border-radius: 12px;
+            margin-bottom: 2rem; border: 1px solid rgba(96,165,250,0.15);
+        }
+
+        .score-display { font-size: 1.2rem; font-weight: 600; color: var(--primary); }
+
+        .btn {
+            padding: 10px 24px; border: none; border-radius: 8px;
+            font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .btn-ghost {
+            background: transparent; color: var(--text-secondary);
+            border: 1px solid rgba(96,165,250,0.2); margin-left: 0.5rem;
+        }
+        .btn-ghost:hover { border-color: var(--primary); color: var(--primary); }
+
+        /* Problem cards */
+        .problem-card {
+            padding: 1.5rem; background: var(--bg-card); border-radius: 12px;
+            margin-bottom: 1.5rem; border: 1px solid rgba(96,165,250,0.1);
+            transition: border-color 0.3s;
+        }
+
+        .problem-card.all-correct { border-color: var(--success); background: rgba(34,197,94,0.06); }
+        .problem-card.has-errors { border-color: var(--danger); background: rgba(239,68,68,0.06); }
+
+        .problem-header {
+            display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;
+        }
+
+        .p-num {
+            display: inline-block; width: 32px; height: 32px; line-height: 32px;
+            text-align: center; border-radius: 8px; font-weight: 700; font-size: 0.9rem;
+            background: rgba(96,165,250,0.15); color: var(--primary); flex-shrink: 0;
+        }
+
+        .problem-ip {
+            font-size: 1.1rem; font-weight: 600; font-family: 'Consolas', 'Courier New', monospace;
+            color: var(--primary);
+        }
+
+        .input-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+            margin-top: 0.75rem;
+        }
+
+        .field-group { display: flex; flex-direction: column; gap: 4px; }
+
+        .field-label {
+            font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;
+            color: var(--text-secondary);
+        }
+
+        .calc-input {
+            padding: 8px 12px; background: var(--bg-input);
+            border: 1px solid rgba(96,165,250,0.2); border-radius: 6px;
+            color: var(--text-primary); font-size: 0.9rem;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+
+        .calc-input:focus { outline: none; border-color: var(--primary); }
+        .calc-input.correct { border-color: var(--success); background: rgba(34,197,94,0.06); }
+        .calc-input.incorrect { border-color: var(--danger); background: rgba(239,68,68,0.06); }
+        .calc-input:disabled { opacity: 0.7; }
+
+        .field-feedback {
+            font-size: 0.75rem; min-height: 1em;
+        }
+        .fb-correct { color: var(--success); }
+        .fb-incorrect { color: var(--danger); }
+
+        .complete-banner {
+            display: none; text-align: center; padding: 2rem; margin-top: 2rem;
+            background: linear-gradient(135deg, rgba(34,197,94,0.1), rgba(96,165,250,0.1));
+            border: 1px solid var(--success); border-radius: 16px;
+        }
+        .complete-banner h2 { color: var(--success); margin-bottom: 0.5rem; }
+
+        .complete-btn {
+            margin-top: 1rem; padding: 12px 32px; background: var(--success); color: #fff;
+            border: none; border-radius: 8px; font-size: 1rem; font-weight: 600;
+            cursor: pointer; transition: background 0.2s;
+        }
+        .complete-btn:hover { background: #16a34a; }
+
+        .sr-only {
+            position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+            overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+        }
+
+        @media (max-width: 600px) {
+            .input-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<h1 class="sr-only">IP Address Calculator Lab - First Link Week 3</h1>
+
+<div class="lab-container">
+    <a href="../index.html" class="back-link">Back to Course Home</a>
+
+    <div class="lab-header">
+        <h1>IP Address Calculator</h1>
+        <p class="subtitle">Calculate network address, broadcast, host range, and usable hosts for 5 subnets</p>
+    </div>
+
+    <div class="score-bar">
+        <span class="score-display" id="scoreDisplay">Score: 0 / 5</span>
+        <div>
+            <button class="btn btn-primary" id="submitBtn" onclick="gradeAll()">Submit Answers</button>
+            <button class="btn btn-ghost" onclick="resetLab()">Reset</button>
+        </div>
+    </div>
+
+    <div id="problemList"></div>
+
+    <div class="complete-banner" id="completeBanner">
+        <h2>Lab Complete</h2>
+        <p id="finalMsg"></p>
+        <button class="complete-btn" onclick="markComplete()">Mark Complete &amp; Return</button>
+    </div>
+</div>
+
+<script>
+    /* ================================================================
+       IP ADDRESS CALCULATOR LAB
+       Course: CTS1090C First Link - Introduction to Networks
+       Module ID: fl-w3-config-lab
+       5 IP/subnet combos, calculate 4 fields each, scored X/5
+       ================================================================ */
+
+    const MODULE_ID = 'fl-w3-config-lab';
+    const HOUSE_ID  = 'web';
+
+    /* ── Subnet math utilities ────────────────────────────────── */
+
+    function ipToInt(ip) {
+        var parts = ip.split('.');
+        return ((parseInt(parts[0]) << 24) |
+                (parseInt(parts[1]) << 16) |
+                (parseInt(parts[2]) << 8) |
+                parseInt(parts[3])) >>> 0;
+    }
+
+    function intToIp(num) {
+        return [
+            (num >>> 24) & 255,
+            (num >>> 16) & 255,
+            (num >>> 8) & 255,
+            num & 255
+        ].join('.');
+    }
+
+    function cidrToMask(cidr) {
+        if (cidr === 0) return 0;
+        return (0xFFFFFFFF << (32 - cidr)) >>> 0;
+    }
+
+    function solve(ip, cidr) {
+        var ipInt = ipToInt(ip);
+        var mask = cidrToMask(cidr);
+        var network = (ipInt & mask) >>> 0;
+        var broadcast = (network | (~mask >>> 0)) >>> 0;
+        var hostBits = 32 - cidr;
+        var usable = Math.pow(2, hostBits) - 2;
+        if (usable < 0) usable = 0;
+
+        var firstHost = network + 1;
+        var lastHost = broadcast - 1;
+
+        return {
+            network:   intToIp(network),
+            broadcast: intToIp(broadcast),
+            firstHost: intToIp(firstHost),
+            lastHost:  intToIp(lastHost),
+            usable:    usable
+        };
+    }
+
+    /* ── Problem set ──────────────────────────────────────────── */
+
+    const PROBLEMS = [
+        { ip: '192.168.1.130',  cidr: 25 },
+        { ip: '10.0.50.200',    cidr: 24 },
+        { ip: '172.16.10.35',   cidr: 28 },
+        { ip: '192.168.100.67', cidr: 26 },
+        { ip: '10.10.5.100',    cidr: 22 }
+    ];
+
+    let graded = false;
+
+    function buildProblems() {
+        var container = document.getElementById('problemList');
+        container.innerHTML = '';
+
+        PROBLEMS.forEach(function(prob, idx) {
+            var card = document.createElement('div');
+            card.className = 'problem-card';
+            card.id = 'prob-' + idx;
+
+            card.innerHTML =
+                '<div class="problem-header">' +
+                    '<span class="p-num">' + (idx + 1) + '</span>' +
+                    '<span class="problem-ip">' + prob.ip + ' /' + prob.cidr + '</span>' +
+                '</div>' +
+                '<div class="input-grid">' +
+                    '<div class="field-group">' +
+                        '<span class="field-label">Network Address</span>' +
+                        '<input class="calc-input" id="net-' + idx + '" placeholder="e.g. 192.168.1.0">' +
+                        '<span class="field-feedback" id="netfb-' + idx + '"></span>' +
+                    '</div>' +
+                    '<div class="field-group">' +
+                        '<span class="field-label">Broadcast Address</span>' +
+                        '<input class="calc-input" id="bcast-' + idx + '" placeholder="e.g. 192.168.1.127">' +
+                        '<span class="field-feedback" id="bcastfb-' + idx + '"></span>' +
+                    '</div>' +
+                    '<div class="field-group">' +
+                        '<span class="field-label">Host Range (first - last)</span>' +
+                        '<input class="calc-input" id="range-' + idx + '" placeholder="e.g. 192.168.1.1 - 192.168.1.126">' +
+                        '<span class="field-feedback" id="rangefb-' + idx + '"></span>' +
+                    '</div>' +
+                    '<div class="field-group">' +
+                        '<span class="field-label">Usable Hosts</span>' +
+                        '<input class="calc-input" id="hosts-' + idx + '" placeholder="e.g. 126" type="number">' +
+                        '<span class="field-feedback" id="hostsfb-' + idx + '"></span>' +
+                    '</div>' +
+                '</div>';
+
+            container.appendChild(card);
+        });
+    }
+
+    function normalizeIp(str) {
+        /* Remove spaces and leading zeros from each octet */
+        return str.trim().split('.').map(function(oct) {
+            return parseInt(oct, 10);
+        }).join('.');
+    }
+
+    function gradeAll() {
+        if (graded) return;
+        graded = true;
+
+        var totalCorrect = 0;
+
+        PROBLEMS.forEach(function(prob, idx) {
+            var answer = solve(prob.ip, prob.cidr);
+            var fieldCorrect = 0;
+            var fieldTotal = 4;
+
+            /* Network address */
+            var netInput = document.getElementById('net-' + idx);
+            var netFb = document.getElementById('netfb-' + idx);
+            netInput.disabled = true;
+            try {
+                if (normalizeIp(netInput.value) === answer.network) {
+                    fieldCorrect++;
+                    netInput.classList.add('correct');
+                    netFb.textContent = 'Correct';
+                    netFb.className = 'field-feedback fb-correct';
+                } else { throw 0; }
+            } catch(e) {
+                netInput.classList.add('incorrect');
+                netFb.textContent = 'Answer: ' + answer.network;
+                netFb.className = 'field-feedback fb-incorrect';
+            }
+
+            /* Broadcast address */
+            var bcastInput = document.getElementById('bcast-' + idx);
+            var bcastFb = document.getElementById('bcastfb-' + idx);
+            bcastInput.disabled = true;
+            try {
+                if (normalizeIp(bcastInput.value) === answer.broadcast) {
+                    fieldCorrect++;
+                    bcastInput.classList.add('correct');
+                    bcastFb.textContent = 'Correct';
+                    bcastFb.className = 'field-feedback fb-correct';
+                } else { throw 0; }
+            } catch(e) {
+                bcastInput.classList.add('incorrect');
+                bcastFb.textContent = 'Answer: ' + answer.broadcast;
+                bcastFb.className = 'field-feedback fb-incorrect';
+            }
+
+            /* Host range */
+            var rangeInput = document.getElementById('range-' + idx);
+            var rangeFb = document.getElementById('rangefb-' + idx);
+            rangeInput.disabled = true;
+            var expectedRange = answer.firstHost + ' - ' + answer.lastHost;
+            try {
+                var userRange = rangeInput.value.trim().replace(/\s+/g, ' ');
+                /* Accept with or without spaces around dash */
+                var parts = userRange.split(/\s*[-]\s*/);
+                if (parts.length === 2 &&
+                    normalizeIp(parts[0]) === answer.firstHost &&
+                    normalizeIp(parts[1]) === answer.lastHost) {
+                    fieldCorrect++;
+                    rangeInput.classList.add('correct');
+                    rangeFb.textContent = 'Correct';
+                    rangeFb.className = 'field-feedback fb-correct';
+                } else { throw 0; }
+            } catch(e) {
+                rangeInput.classList.add('incorrect');
+                rangeFb.textContent = 'Answer: ' + expectedRange;
+                rangeFb.className = 'field-feedback fb-incorrect';
+            }
+
+            /* Usable hosts */
+            var hostsInput = document.getElementById('hosts-' + idx);
+            var hostsFb = document.getElementById('hostsfb-' + idx);
+            hostsInput.disabled = true;
+            if (parseInt(hostsInput.value, 10) === answer.usable) {
+                fieldCorrect++;
+                hostsInput.classList.add('correct');
+                hostsFb.textContent = 'Correct';
+                hostsFb.className = 'field-feedback fb-correct';
+            } else {
+                hostsInput.classList.add('incorrect');
+                hostsFb.textContent = 'Answer: ' + answer.usable;
+                hostsFb.className = 'field-feedback fb-incorrect';
+            }
+
+            /* Score the problem: all 4 fields must be correct to earn the point */
+            var card = document.getElementById('prob-' + idx);
+            if (fieldCorrect === fieldTotal) {
+                totalCorrect++;
+                card.classList.add('all-correct');
+            } else {
+                card.classList.add('has-errors');
+            }
+        });
+
+        document.getElementById('scoreDisplay').textContent = 'Score: ' + totalCorrect + ' / 5';
+        document.getElementById('submitBtn').disabled = true;
+
+        if (totalCorrect >= 4) {
+            var banner = document.getElementById('completeBanner');
+            document.getElementById('finalMsg').textContent =
+                'You scored ' + totalCorrect + '/5 subnets correct. Excellent work!';
+            banner.style.display = 'block';
+        }
+    }
+
+    function resetLab() {
+        graded = false;
+        document.getElementById('scoreDisplay').textContent = 'Score: 0 / 5';
+        document.getElementById('submitBtn').disabled = false;
+        document.getElementById('completeBanner').style.display = 'none';
+        buildProblems();
+    }
+
+    function markComplete() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete(HOUSE_ID, MODULE_ID, { returnUrl: '../index.html' });
+        }
+    }
+
+    buildProblems();
+</script>
+</body>
+</html>

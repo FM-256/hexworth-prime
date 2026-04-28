@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+
+    <!-- Achievement and progress tracking -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOHO Network Builder | First Link - Intro to Networks</title>
+
+    <style>
+        :root {
+            --primary: #60a5fa;
+            --accent: #3b82f6;
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-input: #1a1a24;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --glow: rgba(96, 165, 250, 0.3);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .lab-container { max-width: 960px; margin: 0 auto; padding: 2rem; }
+
+        .lab-header {
+            text-align: center; margin-bottom: 1.5rem; padding: 2rem;
+            background: linear-gradient(135deg, var(--bg-card), var(--bg-input));
+            border-radius: 16px; border: 1px solid var(--primary);
+            box-shadow: 0 0 30px var(--glow);
+        }
+
+        .lab-header h1 {
+            font-size: 2rem; margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--primary), #93c5fd);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .lab-header .subtitle { color: var(--text-secondary); font-size: 1rem; }
+
+        .back-link {
+            display: inline-block; color: var(--primary); text-decoration: none;
+            margin-bottom: 1rem; font-size: 0.9rem; transition: color 0.2s;
+        }
+        .back-link:hover { color: #93c5fd; }
+
+        /* Toolbar */
+        .toolbar {
+            display: flex; gap: 10px; flex-wrap: wrap;
+            padding: 1rem 1.5rem; background: var(--bg-card);
+            border-radius: 12px; margin-bottom: 1rem;
+            border: 1px solid rgba(96,165,250,0.15);
+            align-items: center;
+        }
+
+        .tool-item {
+            display: flex; align-items: center; gap: 6px;
+            padding: 8px 14px; background: var(--bg-input);
+            border: 1px solid rgba(96,165,250,0.2); border-radius: 8px;
+            cursor: grab; user-select: none; font-size: 0.85rem;
+            transition: all 0.2s; color: var(--text-primary);
+        }
+
+        .tool-item:hover { border-color: var(--primary); background: rgba(96,165,250,0.08); }
+        .tool-item.dragging { opacity: 0.5; }
+
+        .tool-icon {
+            width: 20px; height: 20px; border-radius: 4px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.7rem; font-weight: 700; color: #fff;
+        }
+
+        .icon-router { background: #3b82f6; }
+        .icon-switch { background: #8b5cf6; }
+        .icon-ap { background: #22c55e; }
+        .icon-pc { background: #f59e0b; }
+        .icon-printer { background: #ef4444; }
+        .icon-modem { background: #6b7280; }
+
+        .toolbar-info {
+            margin-left: auto; font-size: 0.8rem; color: var(--text-secondary);
+        }
+
+        /* Grid / Floor Plan */
+        .floor-plan {
+            display: grid; grid-template-columns: repeat(6, 1fr); grid-template-rows: repeat(4, 1fr);
+            gap: 4px; padding: 1rem; background: var(--bg-card);
+            border-radius: 12px; border: 1px solid rgba(96,165,250,0.15);
+            min-height: 320px; margin-bottom: 1rem;
+        }
+
+        .grid-cell {
+            background: var(--bg-input); border-radius: 6px;
+            min-height: 70px; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 4px;
+            border: 2px dashed rgba(96,165,250,0.1);
+            transition: all 0.2s; position: relative;
+        }
+
+        .grid-cell.drag-over {
+            border-color: var(--primary); background: rgba(96,165,250,0.08);
+        }
+
+        .grid-cell.occupied {
+            border-style: solid; border-color: rgba(96,165,250,0.3);
+        }
+
+        .placed-device {
+            display: flex; flex-direction: column; align-items: center;
+            gap: 2px; font-size: 0.75rem; text-align: center;
+        }
+
+        .placed-device .tool-icon { width: 28px; height: 28px; font-size: 0.8rem; }
+
+        .remove-device {
+            position: absolute; top: 2px; right: 4px;
+            background: var(--danger); color: #fff; border: none; border-radius: 4px;
+            width: 18px; height: 18px; font-size: 0.65rem; cursor: pointer;
+            display: none; align-items: center; justify-content: center;
+            line-height: 1;
+        }
+
+        .grid-cell.occupied:hover .remove-device { display: flex; }
+
+        /* Controls & feedback */
+        .controls {
+            display: flex; gap: 10px; flex-wrap: wrap;
+            align-items: center; margin-bottom: 1rem;
+        }
+
+        .btn {
+            padding: 10px 24px; border: none; border-radius: 8px;
+            font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+        }
+
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-primary:hover { background: #2563eb; }
+
+        .btn-ghost {
+            background: transparent; color: var(--text-secondary);
+            border: 1px solid rgba(96,165,250,0.2);
+        }
+        .btn-ghost:hover { border-color: var(--primary); color: var(--primary); }
+
+        .feedback-panel {
+            padding: 1rem 1.5rem; background: var(--bg-card);
+            border-radius: 12px; border: 1px solid rgba(96,165,250,0.15);
+            min-height: 80px; margin-bottom: 1rem;
+        }
+
+        .feedback-panel h3 {
+            font-size: 0.9rem; color: var(--primary); margin-bottom: 0.5rem;
+        }
+
+        .check-item {
+            font-size: 0.85rem; padding: 4px 0;
+        }
+
+        .check-pass { color: var(--success); }
+        .check-fail { color: var(--danger); }
+        .check-warn { color: var(--warning); }
+
+        .complete-banner {
+            display: none; text-align: center; padding: 2rem; margin-top: 1rem;
+            background: linear-gradient(135deg, rgba(34,197,94,0.1), rgba(96,165,250,0.1));
+            border: 1px solid var(--success); border-radius: 16px;
+        }
+        .complete-banner h2 { color: var(--success); margin-bottom: 0.5rem; }
+
+        .complete-btn {
+            margin-top: 1rem; padding: 12px 32px; background: var(--success); color: #fff;
+            border: none; border-radius: 8px; font-size: 1rem; font-weight: 600;
+            cursor: pointer; transition: background 0.2s;
+        }
+        .complete-btn:hover { background: #16a34a; }
+
+        .instructions {
+            padding: 1rem 1.5rem; background: var(--bg-card); border-radius: 12px;
+            border-left: 4px solid var(--primary); margin-bottom: 1.5rem; font-size: 0.9rem;
+        }
+
+        .instructions h3 { color: var(--primary); margin-bottom: 0.5rem; }
+        .instructions li { margin-left: 1.2rem; margin-bottom: 0.25rem; color: var(--text-secondary); }
+
+        .sr-only {
+            position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+            overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+        }
+    </style>
+</head>
+<body>
+<h1 class="sr-only">SOHO Network Builder Lab - First Link Week 2</h1>
+
+<div class="lab-container">
+    <a href="../index.html" class="back-link">Back to Course Home</a>
+
+    <div class="lab-header">
+        <h1>SOHO Network Builder</h1>
+        <p class="subtitle">Drag network components onto the floor plan to build a working SOHO network</p>
+    </div>
+
+    <div class="instructions">
+        <h3>Requirements</h3>
+        <ul>
+            <li>Place a <strong>Modem</strong> to provide internet connectivity</li>
+            <li>Place a <strong>Router</strong> connected to the modem for NAT and routing</li>
+            <li>Place a <strong>Switch</strong> to connect wired devices</li>
+            <li>Place a <strong>Wireless AP</strong> for Wi-Fi coverage</li>
+            <li>Place at least <strong>2 PCs</strong> and <strong>1 Printer</strong> as endpoints</li>
+            <li>The validator checks device presence and logical connectivity</li>
+        </ul>
+    </div>
+
+    <div class="toolbar" id="toolbar">
+        <div class="tool-item" draggable="true" data-device="Modem">
+            <span class="tool-icon icon-modem">M</span> Modem
+        </div>
+        <div class="tool-item" draggable="true" data-device="Router">
+            <span class="tool-icon icon-router">R</span> Router
+        </div>
+        <div class="tool-item" draggable="true" data-device="Switch">
+            <span class="tool-icon icon-switch">S</span> Switch
+        </div>
+        <div class="tool-item" draggable="true" data-device="AP">
+            <span class="tool-icon icon-ap">W</span> Wireless AP
+        </div>
+        <div class="tool-item" draggable="true" data-device="PC">
+            <span class="tool-icon icon-pc">P</span> PC
+        </div>
+        <div class="tool-item" draggable="true" data-device="Printer">
+            <span class="tool-icon icon-printer">Pr</span> Printer
+        </div>
+        <span class="toolbar-info">Drag devices onto the grid. Each can be placed multiple times.</span>
+    </div>
+
+    <div class="floor-plan" id="floorPlan"></div>
+
+    <div class="controls">
+        <button class="btn btn-primary" onclick="validateNetwork()">Validate Network</button>
+        <button class="btn btn-ghost" onclick="clearGrid()">Clear Grid</button>
+    </div>
+
+    <div class="feedback-panel" id="feedbackPanel">
+        <h3>Validation Results</h3>
+        <p style="color:var(--text-secondary); font-size:0.85rem;">Place your devices and click Validate to check connectivity.</p>
+    </div>
+
+    <div class="complete-banner" id="completeBanner">
+        <h2>Network Validated</h2>
+        <p>Your SOHO network design meets all requirements.</p>
+        <button class="complete-btn" onclick="markComplete()">Mark Complete &amp; Return</button>
+    </div>
+</div>
+
+<script>
+    /* ================================================================
+       SOHO NETWORK BUILDER LAB
+       Course: CTS1090C First Link - Introduction to Networks
+       Module ID: fl-w2-soho-lab
+       Drag-and-drop network design on 6x4 grid, validated
+       ================================================================ */
+
+    const MODULE_ID = 'fl-w2-soho-lab';
+    const HOUSE_ID  = 'web';
+    const COLS = 6;
+    const ROWS = 4;
+
+    var grid = []; /* grid[row][col] = null | deviceType */
+    var draggedDevice = null;
+
+    function initGrid() {
+        grid = [];
+        var plan = document.getElementById('floorPlan');
+        plan.innerHTML = '';
+
+        for (var r = 0; r < ROWS; r++) {
+            grid[r] = [];
+            for (var c = 0; c < COLS; c++) {
+                grid[r][c] = null;
+                var cell = document.createElement('div');
+                cell.className = 'grid-cell';
+                cell.dataset.row = r;
+                cell.dataset.col = c;
+
+                cell.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    this.classList.add('drag-over');
+                });
+
+                cell.addEventListener('dragleave', function() {
+                    this.classList.remove('drag-over');
+                });
+
+                cell.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    this.classList.remove('drag-over');
+                    if (draggedDevice) {
+                        placeDevice(parseInt(this.dataset.row), parseInt(this.dataset.col), draggedDevice);
+                    }
+                });
+
+                plan.appendChild(cell);
+            }
+        }
+    }
+
+    function getCell(r, c) {
+        return document.querySelector('.grid-cell[data-row="' + r + '"][data-col="' + c + '"]');
+    }
+
+    function placeDevice(row, col, device) {
+        if (grid[row][col]) return; /* already occupied */
+        grid[row][col] = device;
+
+        var cell = getCell(row, col);
+        cell.classList.add('occupied');
+
+        var iconClass = {
+            'Modem': 'icon-modem', 'Router': 'icon-router', 'Switch': 'icon-switch',
+            'AP': 'icon-ap', 'PC': 'icon-pc', 'Printer': 'icon-printer'
+        };
+
+        var iconLetter = {
+            'Modem': 'M', 'Router': 'R', 'Switch': 'S',
+            'AP': 'W', 'PC': 'P', 'Printer': 'Pr'
+        };
+
+        var labels = {
+            'Modem': 'Modem', 'Router': 'Router', 'Switch': 'Switch',
+            'AP': 'Wireless AP', 'PC': 'PC', 'Printer': 'Printer'
+        };
+
+        cell.innerHTML =
+            '<div class="placed-device">' +
+                '<span class="tool-icon ' + iconClass[device] + '">' + iconLetter[device] + '</span>' +
+                '<span>' + labels[device] + '</span>' +
+            '</div>' +
+            '<button class="remove-device" onclick="removeDevice(' + row + ',' + col + ')">X</button>';
+    }
+
+    function removeDevice(row, col) {
+        grid[row][col] = null;
+        var cell = getCell(row, col);
+        cell.classList.remove('occupied');
+        cell.innerHTML = '';
+    }
+
+    function clearGrid() {
+        document.getElementById('completeBanner').style.display = 'none';
+        document.getElementById('feedbackPanel').innerHTML =
+            '<h3>Validation Results</h3>' +
+            '<p style="color:var(--text-secondary); font-size:0.85rem;">Place your devices and click Validate to check connectivity.</p>';
+        initGrid();
+    }
+
+    function countDevices() {
+        var counts = { Modem: 0, Router: 0, Switch: 0, AP: 0, PC: 0, Printer: 0 };
+        for (var r = 0; r < ROWS; r++) {
+            for (var c = 0; c < COLS; c++) {
+                if (grid[r][c]) counts[grid[r][c]]++;
+            }
+        }
+        return counts;
+    }
+
+    function validateNetwork() {
+        var counts = countDevices();
+        var checks = [];
+        var allPass = true;
+
+        function addCheck(pass, msg) {
+            checks.push({ pass: pass, msg: msg });
+            if (!pass) allPass = false;
+        }
+
+        addCheck(counts.Modem >= 1, 'Modem present (ISP connection)');
+        addCheck(counts.Router >= 1, 'Router present (NAT/routing)');
+        addCheck(counts.Switch >= 1, 'Switch present (wired distribution)');
+        addCheck(counts.AP >= 1, 'Wireless AP present (Wi-Fi coverage)');
+        addCheck(counts.PC >= 2, 'At least 2 PCs placed');
+        addCheck(counts.Printer >= 1, 'At least 1 Printer placed');
+
+        /* Logical adjacency: infrastructure devices should be near each other */
+        var infraDevices = ['Modem', 'Router', 'Switch', 'AP'];
+        var infraPositions = [];
+        for (var r = 0; r < ROWS; r++) {
+            for (var c = 0; c < COLS; c++) {
+                if (grid[r][c] && infraDevices.indexOf(grid[r][c]) !== -1) {
+                    infraPositions.push({ type: grid[r][c], r: r, c: c });
+                }
+            }
+        }
+
+        /* Check that modem and router are within 2 cells of each other */
+        var modemPos = infraPositions.filter(function(p) { return p.type === 'Modem'; })[0];
+        var routerPos = infraPositions.filter(function(p) { return p.type === 'Router'; })[0];
+
+        if (modemPos && routerPos) {
+            var dist = Math.abs(modemPos.r - routerPos.r) + Math.abs(modemPos.c - routerPos.c);
+            addCheck(dist <= 3, 'Modem and Router are within cabling range (distance: ' + dist + ')');
+        }
+
+        /* Check total device count is reasonable */
+        var total = counts.Modem + counts.Router + counts.Switch + counts.AP + counts.PC + counts.Printer;
+        addCheck(total >= 7, 'Minimum 7 devices placed (have ' + total + ')');
+
+        /* Render results */
+        var html = '<h3>Validation Results</h3>';
+        checks.forEach(function(chk) {
+            var cls = chk.pass ? 'check-pass' : 'check-fail';
+            var symbol = chk.pass ? '[PASS]' : '[FAIL]';
+            html += '<div class="check-item ' + cls + '">' + symbol + ' ' + chk.msg + '</div>';
+        });
+
+        var passCount = checks.filter(function(c) { return c.pass; }).length;
+        html += '<div style="margin-top:0.75rem; font-weight:600; color:var(--primary);">' +
+                'Checks passed: ' + passCount + ' / ' + checks.length + '</div>';
+
+        document.getElementById('feedbackPanel').innerHTML = html;
+
+        if (allPass) {
+            document.getElementById('completeBanner').style.display = 'block';
+        }
+    }
+
+    function markComplete() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete(HOUSE_ID, MODULE_ID, { returnUrl: '../index.html' });
+        }
+    }
+
+    /* Drag events on toolbar items */
+    document.querySelectorAll('.tool-item').forEach(function(item) {
+        item.addEventListener('dragstart', function(e) {
+            draggedDevice = this.dataset.device;
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'copy';
+        });
+
+        item.addEventListener('dragend', function() {
+            this.classList.remove('dragging');
+            draggedDevice = null;
+        });
+    });
+
+    initGrid();
+</script>
+</body>
+</html>

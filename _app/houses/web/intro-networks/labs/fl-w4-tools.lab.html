@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+
+    <!-- Achievement and progress tracking -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tool Selector | First Link - Intro to Networks</title>
+
+    <style>
+        :root {
+            --primary: #60a5fa;
+            --accent: #3b82f6;
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-input: #1a1a24;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --glow: rgba(96, 165, 250, 0.3);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .lab-container { max-width: 860px; margin: 0 auto; padding: 2rem; }
+
+        .lab-header {
+            text-align: center; margin-bottom: 2rem; padding: 2rem;
+            background: linear-gradient(135deg, var(--bg-card), var(--bg-input));
+            border-radius: 16px; border: 1px solid var(--primary);
+            box-shadow: 0 0 30px var(--glow);
+        }
+
+        .lab-header h1 {
+            font-size: 2rem; margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--primary), #93c5fd);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .lab-header .subtitle { color: var(--text-secondary); font-size: 1rem; }
+
+        .back-link {
+            display: inline-block; color: var(--primary); text-decoration: none;
+            margin-bottom: 1rem; font-size: 0.9rem; transition: color 0.2s;
+        }
+        .back-link:hover { color: #93c5fd; }
+
+        .score-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 1rem 1.5rem; background: var(--bg-card); border-radius: 12px;
+            margin-bottom: 2rem; border: 1px solid rgba(96,165,250,0.15);
+        }
+
+        .score-display { font-size: 1.2rem; font-weight: 600; color: var(--primary); }
+
+        .btn {
+            padding: 10px 24px; border: none; border-radius: 8px;
+            font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .btn-ghost {
+            background: transparent; color: var(--text-secondary);
+            border: 1px solid rgba(96,165,250,0.2); margin-left: 0.5rem;
+        }
+        .btn-ghost:hover { border-color: var(--primary); color: var(--primary); }
+
+        /* Reference panel */
+        .ref-panel {
+            padding: 1rem 1.5rem; background: var(--bg-card); border-radius: 12px;
+            border-left: 4px solid var(--primary); margin-bottom: 2rem; font-size: 0.85rem;
+        }
+
+        .ref-panel h3 { color: var(--primary); margin-bottom: 0.5rem; font-size: 0.9rem; }
+
+        .ref-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 6px;
+        }
+
+        .ref-item { color: var(--text-secondary); }
+        .ref-item strong { color: var(--text-primary); font-weight: 600; }
+
+        .scenario-card {
+            padding: 1.5rem; background: var(--bg-card); border-radius: 12px;
+            margin-bottom: 1rem; border: 1px solid rgba(96,165,250,0.1);
+            transition: border-color 0.3s;
+        }
+
+        .scenario-card.correct { border-color: var(--success); background: rgba(34,197,94,0.06); }
+        .scenario-card.incorrect { border-color: var(--danger); background: rgba(239,68,68,0.06); }
+
+        .s-num {
+            display: inline-block; width: 28px; height: 28px; line-height: 28px;
+            text-align: center; border-radius: 6px; font-weight: 700; font-size: 0.8rem;
+            background: rgba(96,165,250,0.15); color: var(--primary); margin-right: 0.75rem;
+        }
+
+        .s-text { display: inline; font-size: 0.95rem; }
+
+        .tool-select {
+            margin-top: 0.75rem; width: 100%; max-width: 260px;
+            padding: 8px 12px; background: var(--bg-input);
+            border: 1px solid rgba(96,165,250,0.2); border-radius: 6px;
+            color: var(--text-primary); font-size: 0.9rem;
+        }
+        .tool-select:focus { outline: none; border-color: var(--primary); }
+
+        .feedback { margin-top: 0.4rem; font-size: 0.8rem; min-height: 1.2em; }
+        .fb-correct { color: var(--success); }
+        .fb-incorrect { color: var(--danger); }
+
+        .complete-banner {
+            display: none; text-align: center; padding: 2rem; margin-top: 2rem;
+            background: linear-gradient(135deg, rgba(34,197,94,0.1), rgba(96,165,250,0.1));
+            border: 1px solid var(--success); border-radius: 16px;
+        }
+        .complete-banner h2 { color: var(--success); margin-bottom: 0.5rem; }
+
+        .complete-btn {
+            margin-top: 1rem; padding: 12px 32px; background: var(--success); color: #fff;
+            border: none; border-radius: 8px; font-size: 1rem; font-weight: 600;
+            cursor: pointer; transition: background 0.2s;
+        }
+        .complete-btn:hover { background: #16a34a; }
+
+        .sr-only {
+            position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+            overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+        }
+    </style>
+</head>
+<body>
+<h1 class="sr-only">Tool Selector Lab - First Link Week 4</h1>
+
+<div class="lab-container">
+    <a href="../index.html" class="back-link">Back to Course Home</a>
+
+    <div class="lab-header">
+        <h1>Tool Selector</h1>
+        <p class="subtitle">Pick the correct networking tool for 12 troubleshooting scenarios</p>
+    </div>
+
+    <div class="ref-panel">
+        <h3>Available Tools</h3>
+        <div class="ref-grid">
+            <div class="ref-item"><strong>ping</strong> - test reachability</div>
+            <div class="ref-item"><strong>traceroute</strong> - map the path</div>
+            <div class="ref-item"><strong>nslookup</strong> - query DNS</div>
+            <div class="ref-item"><strong>netstat</strong> - show connections</div>
+            <div class="ref-item"><strong>nmap</strong> - scan ports</div>
+            <div class="ref-item"><strong>Cable Tester</strong> - verify cabling</div>
+            <div class="ref-item"><strong>Wi-Fi Analyzer</strong> - survey wireless</div>
+            <div class="ref-item"><strong>Wireshark</strong> - capture packets</div>
+        </div>
+    </div>
+
+    <div class="score-bar">
+        <span class="score-display" id="scoreDisplay">Score: 0 / 12</span>
+        <div>
+            <button class="btn btn-primary" id="submitBtn" onclick="gradeAll()">Submit Answers</button>
+            <button class="btn btn-ghost" onclick="resetLab()">Reset</button>
+        </div>
+    </div>
+
+    <div id="scenarioList"></div>
+
+    <div class="complete-banner" id="completeBanner">
+        <h2>Lab Complete</h2>
+        <p id="finalMsg"></p>
+        <button class="complete-btn" onclick="markComplete()">Mark Complete &amp; Return</button>
+    </div>
+</div>
+
+<script>
+    /* ================================================================
+       TOOL SELECTOR LAB
+       Course: CTS1090C First Link - Introduction to Networks
+       Module ID: fl-w4-tools-lab
+       12 troubleshooting scenarios, select correct tool, scored X/12
+       ================================================================ */
+
+    const MODULE_ID = 'fl-w4-tools-lab';
+    const HOUSE_ID  = 'web';
+
+    const TOOLS = [
+        'ping', 'traceroute', 'nslookup', 'netstat',
+        'nmap', 'Cable Tester', 'Wi-Fi Analyzer', 'Wireshark'
+    ];
+
+    const SCENARIOS = [
+        {
+            text: 'A user reports they cannot reach a web server. You need to quickly verify whether the server is responding to network requests at all.',
+            answer: 'ping'
+        },
+        {
+            text: 'Internet access is slow. You suspect a congested or failing router along the path. You need to identify every hop between your PC and the destination to find where the delay occurs.',
+            answer: 'traceroute'
+        },
+        {
+            text: 'Users report that "intranet.company.com" is unreachable, but the server responds when you use its IP address directly. You need to verify the DNS record.',
+            answer: 'nslookup'
+        },
+        {
+            text: 'A server is running slowly. You suspect a rogue process is making hundreds of outbound connections. You need to list all active TCP connections and listening ports.',
+            answer: 'netstat'
+        },
+        {
+            text: 'Before a security audit, you need to discover which ports are open on a production web server and identify the services running on those ports.',
+            answer: 'nmap'
+        },
+        {
+            text: 'A newly installed Ethernet cable between a patch panel and a wall jack is not working. You need to verify that all 8 wires are correctly terminated and there are no shorts.',
+            answer: 'Cable Tester'
+        },
+        {
+            text: 'Employees in the south wing of the building report intermittent Wi-Fi disconnections. You need to survey signal strength, channel overlap, and interference sources in that area.',
+            answer: 'Wi-Fi Analyzer'
+        },
+        {
+            text: 'An application is sending malformed data. You need to capture the raw packets on the network and inspect the actual bytes being transmitted at each protocol layer.',
+            answer: 'Wireshark'
+        },
+        {
+            text: 'After moving to a new office, several wall jacks are not providing network connectivity. You need to test each cable run from the jack to the patch panel for continuity.',
+            answer: 'Cable Tester'
+        },
+        {
+            text: 'You are setting up a new wireless access point and need to find the least congested channel in the 2.4 GHz band by checking what nearby networks are broadcasting.',
+            answer: 'Wi-Fi Analyzer'
+        },
+        {
+            text: 'Two hosts can communicate via IP but a custom application on port 8443 is failing. You need to capture the TCP handshake to see if the connection is being reset or timing out.',
+            answer: 'Wireshark'
+        },
+        {
+            text: 'You need to determine whether a remote host has SSH (port 22) and HTTPS (port 443) open before attempting to connect to it from across the WAN.',
+            answer: 'nmap'
+        }
+    ];
+
+    let graded = false;
+
+    function buildScenarios() {
+        var container = document.getElementById('scenarioList');
+        container.innerHTML = '';
+
+        var shuffled = SCENARIOS.map(function(s, i) { return { idx: i, data: s }; });
+        shuffled.sort(function() { return Math.random() - 0.5; });
+
+        shuffled.forEach(function(item, displayIdx) {
+            var card = document.createElement('div');
+            card.className = 'scenario-card';
+            card.dataset.answer = item.data.answer;
+
+            var opts = '<option value="">-- Select Tool --</option>';
+            TOOLS.forEach(function(t) {
+                opts += '<option value="' + t + '">' + t + '</option>';
+            });
+
+            card.innerHTML =
+                '<div>' +
+                    '<span class="s-num">' + (displayIdx + 1) + '</span>' +
+                    '<span class="s-text">' + item.data.text + '</span>' +
+                '</div>' +
+                '<select class="tool-select">' + opts + '</select>' +
+                '<div class="feedback" id="tfb-' + displayIdx + '"></div>';
+
+            container.appendChild(card);
+        });
+    }
+
+    function gradeAll() {
+        if (graded) return;
+        graded = true;
+
+        var cards = document.querySelectorAll('.scenario-card');
+        var score = 0;
+
+        cards.forEach(function(card, idx) {
+            var select = card.querySelector('.tool-select');
+            var fb = document.getElementById('tfb-' + idx);
+            var correct = card.dataset.answer;
+
+            select.disabled = true;
+
+            if (select.value === correct) {
+                score++;
+                card.classList.add('correct');
+                fb.textContent = 'Correct';
+                fb.className = 'feedback fb-correct';
+            } else {
+                card.classList.add('incorrect');
+                fb.textContent = 'Best tool: ' + correct;
+                fb.className = 'feedback fb-incorrect';
+            }
+        });
+
+        document.getElementById('scoreDisplay').textContent = 'Score: ' + score + ' / 12';
+        document.getElementById('submitBtn').disabled = true;
+
+        if (score >= 9) {
+            var banner = document.getElementById('completeBanner');
+            document.getElementById('finalMsg').textContent =
+                'You scored ' + score + '/12. Excellent!';
+            banner.style.display = 'block';
+        }
+    }
+
+    function resetLab() {
+        graded = false;
+        document.getElementById('scenarioList').innerHTML = '';
+        document.getElementById('scoreDisplay').textContent = 'Score: 0 / 12';
+        document.getElementById('submitBtn').disabled = false;
+        document.getElementById('completeBanner').style.display = 'none';
+        buildScenarios();
+    }
+
+    function markComplete() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete(HOUSE_ID, MODULE_ID, { returnUrl: '../index.html' });
+        }
+    }
+
+    buildScenarios();
+</script>
+</body>
+</html>
