@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- Security / Auth -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <script src="../../../components/FirebaseAuth.js"></script>
+    <script src="../../../components/TenantRouter.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Root Access // CTS2165C &mdash; Linux Essentials</title>
+
+    <style>
+        /* ── CSS Custom Properties -- Script house lavender palette ── */
+        :root {
+            --ra-primary:   #a78bfa;
+            --ra-secondary: #c4b5fd;
+            --ra-accent:    #8b5cf6;
+            --ra-dark:      #3b0764;
+            --ra-darker:    #1e0338;
+            --bg-main:      #0a0a14;
+            --bg-deep:      #0c0c1a;
+            --bg-card:      #111827;
+            --bg-card-hover:#1a1f35;
+            --text-primary: #e2e8f0;
+            --text-secondary:#94a3b8;
+            --text-muted:   #64748b;
+            --border-color: rgba(167, 139, 250, 0.15);
+            --border-hover: rgba(167, 139, 250, 0.40);
+            --success:      #22c55e;
+            --shadow-md:    0 4px 6px -1px rgba(0, 0, 0, 0.35);
+            --shadow-lg:    0 10px 15px -3px rgba(0, 0, 0, 0.45);
+            --shadow-glow:  0 0 24px rgba(167, 139, 250, 0.12);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(160deg, var(--bg-main) 0%, var(--bg-deep) 100%);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .visually-hidden {
+            position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+            overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+        }
+
+        .container { max-width: 1100px; margin: 0 auto; }
+
+        /* ── Top navigation bar ── */
+        .top-bar {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 20px; padding: 10px 0;
+        }
+        .course-label {
+            font-size: 0.8rem; color: var(--text-muted);
+            letter-spacing: 0.5px; text-transform: uppercase;
+        }
+        .dashboard-btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            color: var(--text-secondary); text-decoration: none;
+            font-size: 0.85rem; font-weight: 500; padding: 7px 16px;
+            border-radius: 6px; border: 1px solid var(--border-color);
+            background: rgba(167, 139, 250, 0.05); transition: all 0.2s ease;
+        }
+        .dashboard-btn:hover {
+            color: var(--ra-secondary); border-color: var(--border-hover);
+            background: rgba(167, 139, 250, 0.10);
+        }
+        .dashboard-btn-icon { width: 14px; height: 14px; opacity: 0.7; }
+
+        /* ── Hero header ── */
+        .header {
+            text-align: center; margin-bottom: 28px; padding: 40px 20px 32px;
+            background: linear-gradient(135deg, var(--ra-darker) 0%, #2e1065 50%, var(--ra-darker) 100%);
+            border-radius: 16px; box-shadow: var(--shadow-lg), var(--shadow-glow);
+            border: 1px solid var(--border-color); position: relative; overflow: hidden;
+        }
+        .header::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: repeating-linear-gradient(-45deg, transparent, transparent 20px,
+                rgba(167, 139, 250, 0.025) 20px, rgba(167, 139, 250, 0.025) 40px);
+            pointer-events: none;
+        }
+        .course-badge {
+            display: inline-block; background: rgba(167, 139, 250, 0.20);
+            border: 1px solid rgba(167, 139, 250, 0.40); color: var(--ra-secondary);
+            font-size: 0.72rem; font-weight: 600; letter-spacing: 1.5px;
+            text-transform: uppercase; padding: 4px 16px; border-radius: 20px;
+            margin-bottom: 12px; position: relative;
+        }
+        .header h2 { font-size: 2.1rem; color: #fff; margin-bottom: 6px; position: relative; }
+        .header .subtitle { font-size: 1.05rem; color: var(--ra-secondary); opacity: 0.9; position: relative; }
+
+        .course-stats {
+            display: flex; justify-content: center; gap: 18px;
+            margin-top: 24px; flex-wrap: wrap; position: relative;
+        }
+        .course-stat {
+            background: rgba(167, 139, 250, 0.12); border: 1px solid rgba(167, 139, 250, 0.25);
+            padding: 10px 22px; border-radius: 10px; text-align: center;
+        }
+        .course-stat .value { font-size: 1.4rem; font-weight: 700; color: #fff; }
+        .course-stat .label { font-size: 0.72rem; color: var(--ra-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+
+        /* ── Overall progress bar ── */
+        .progress-section {
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 18px 20px; margin-bottom: 28px;
+            box-shadow: var(--shadow-md);
+        }
+        .progress-section h3 { color: var(--ra-secondary); font-size: 0.9rem; font-weight: 600; margin-bottom: 10px; }
+        .progress-bar-container {
+            background: rgba(167, 139, 250, 0.10); border-radius: 10px; height: 16px; overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--ra-dark), var(--ra-primary), var(--ra-secondary));
+            width: 0%; transition: width 0.6s ease; border-radius: 10px;
+        }
+        .progress-text { text-align: right; font-size: 0.78rem; color: var(--text-muted); margin-top: 6px; }
+
+        /* ── Week Cards (collapsible) ── */
+        .week-card {
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 12px; margin-bottom: 12px; box-shadow: var(--shadow-md);
+            overflow: hidden; transition: border-color 0.2s ease;
+        }
+        .week-card:hover { border-color: var(--border-hover); }
+
+        .week-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 18px 22px; cursor: pointer; user-select: none; transition: background 0.2s ease;
+        }
+        .week-header:hover { background: rgba(167, 139, 250, 0.04); }
+
+        .week-header-left { display: flex; align-items: center; gap: 14px; }
+
+        .week-num {
+            background: linear-gradient(135deg, var(--ra-dark), var(--ra-accent));
+            color: #fff; width: 40px; height: 40px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 1rem; flex-shrink: 0;
+        }
+
+        .week-title-group .week-title {
+            font-size: 1.05rem; font-weight: 600; color: var(--ra-secondary); line-height: 1.25;
+        }
+        .week-title-group .week-sub { font-size: 0.88rem; color: var(--text-secondary); margin-top: 1px; }
+
+        .week-meta { display: flex; align-items: center; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
+        .obj-tag {
+            font-size: 0.72rem; font-weight: 600; color: var(--ra-primary);
+            background: rgba(167, 139, 250, 0.10); border: 1px solid rgba(167, 139, 250, 0.20);
+            padding: 2px 8px; border-radius: 4px;
+        }
+        .item-count-tag {
+            font-size: 0.72rem; color: var(--text-muted);
+            background: rgba(167, 139, 250, 0.08); border: 1px solid rgba(167, 139, 250, 0.18);
+            padding: 2px 8px; border-radius: 4px;
+        }
+
+        .week-toggle { color: var(--text-muted); font-size: 1.1rem; transition: transform 0.3s ease; flex-shrink: 0; }
+        .week-card.open .week-toggle { transform: rotate(180deg); }
+
+        .week-body { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; }
+        .week-card.open .week-body { max-height: 3600px; }
+
+        .week-inner { padding: 4px 22px 22px; border-top: 1px solid rgba(167, 139, 250, 0.08); }
+
+        /* ── Subsection labels ── */
+        .subsection { margin-top: 18px; }
+        .subsection-label {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1px; color: var(--text-muted); margin-bottom: 8px;
+            padding-bottom: 5px; border-bottom: 1px solid rgba(100, 116, 139, 0.15);
+        }
+        .subsection-label::before {
+            content: ''; display: inline-block; width: 3px; height: 12px;
+            border-radius: 2px; flex-shrink: 0;
+        }
+        .subsection-label.label-presentation::before { background: #60a5fa; }
+        .subsection-label.label-lab::before          { background: #22c55e; }
+        .subsection-label.label-assessment::before   { background: #fbbf24; }
+        .subsection-label.label-exam::before         { background: #f87171; }
+
+        /* ── Content link cards ── */
+        .content-grid { display: grid; grid-template-columns: 1fr; gap: 6px; }
+        .content-card {
+            display: flex; align-items: center; gap: 12px; padding: 11px 14px;
+            background: rgba(167, 139, 250, 0.03); border: 1px solid rgba(167, 139, 250, 0.08);
+            border-radius: 8px; text-decoration: none; color: var(--text-primary); transition: all 0.2s ease;
+        }
+        .content-card:hover {
+            background: rgba(167, 139, 250, 0.08); border-color: rgba(167, 139, 250, 0.25);
+            transform: translateX(3px);
+        }
+        .content-card.is-complete { border-color: rgba(34, 197, 94, 0.35); background: rgba(34, 197, 94, 0.05); }
+
+        .card-type-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .dot-present { background: #60a5fa; }
+        .dot-lab     { background: #22c55e; }
+        .dot-quiz    { background: #fbbf24; }
+        .dot-exam    { background: #f87171; }
+
+        .card-info { flex: 1; min-width: 0; }
+        .card-info .card-title { font-size: 0.88rem; font-weight: 500; color: var(--text-primary); }
+        .card-info .card-sub { font-size: 0.73rem; color: var(--text-muted); }
+
+        .card-check { width: 18px; height: 18px; opacity: 0; flex-shrink: 0; transition: opacity 0.2s ease; }
+        .content-card.is-complete .card-check { opacity: 1; }
+
+        .content-badge {
+            font-size: 0.58rem; font-weight: 700; letter-spacing: 0.8px;
+            text-transform: uppercase; padding: 3px 8px; border-radius: 4px; flex-shrink: 0;
+        }
+        .badge-presentation { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.30); }
+        .badge-lab { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.30); }
+        .badge-quiz { background: rgba(250, 204, 21, 0.15); color: #fbbf24; border: 1px solid rgba(250, 204, 21, 0.30); }
+        .badge-exam { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.30); }
+
+        /* ── Course Info block ── */
+        .course-info-block {
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 24px 26px; margin-top: 36px; margin-bottom: 16px;
+            box-shadow: var(--shadow-md);
+        }
+        .course-info-block h3 {
+            font-size: 0.9rem; font-weight: 700; color: var(--ra-secondary);
+            text-transform: uppercase; letter-spacing: 1px; margin-bottom: 18px;
+            padding-bottom: 10px; border-bottom: 1px solid var(--border-color);
+        }
+        .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+        .info-item { display: flex; flex-direction: column; gap: 3px; }
+        .info-item .info-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); }
+        .info-item .info-value { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.45; }
+
+        .objectives-list {
+            list-style: none; margin-top: 18px;
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px;
+        }
+        .objectives-list li {
+            display: flex; align-items: flex-start; gap: 8px;
+            font-size: 0.83rem; color: var(--text-secondary); line-height: 1.45;
+        }
+        .objectives-list li::before {
+            content: ''; display: inline-block; width: 6px; height: 6px;
+            border-radius: 50%; background: var(--ra-primary); flex-shrink: 0; margin-top: 6px;
+        }
+
+        .page-footer { text-align: center; padding: 28px 0 10px; color: var(--text-muted); font-size: 0.78rem; }
+
+        /* ── Mobile responsive ── */
+        @media (max-width: 768px) {
+            body { padding: 12px; }
+            .header { padding: 28px 16px 24px; }
+            .header h2 { font-size: 1.6rem; }
+            .header .subtitle { font-size: 0.95rem; }
+            .course-stats { gap: 10px; }
+            .course-stat { padding: 8px 14px; }
+            .course-stat .value { font-size: 1.1rem; }
+            .week-header { padding: 14px 16px; }
+            .week-inner { padding: 4px 16px 18px; }
+            .info-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 480px) {
+            .header h2 { font-size: 1.35rem; }
+            .course-stat { padding: 6px 10px; }
+            .course-stat .value { font-size: 1rem; }
+            .course-stat .label { font-size: 0.62rem; }
+            .week-num { width: 34px; height: 34px; font-size: 0.85rem; }
+            .week-title-group .week-title { font-size: 0.95rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1 class="visually-hidden">Root Access // CTS2165C &mdash; Linux Essentials Course Hub</h1>
+
+    <div class="container">
+
+        <!-- ── Top Bar ── -->
+        <div class="top-bar">
+            <span class="course-label">Root Access // CTS2165C</span>
+            <a href="../index.html" class="dashboard-btn" id="dashboardBtn">
+                <img src="../../../assets/images/icons/icon-arrow-left.webp"
+                     alt="" class="dashboard-btn-icon" aria-hidden="true">
+                Dashboard
+            </a>
+        </div>
+
+        <!-- ── Hero Header ── -->
+        <div class="header">
+            <span class="course-badge">CTS2165C</span>
+            <h2>Root Access</h2>
+            <p class="subtitle">Linux Essentials &mdash; 4-Week Intensive</p>
+
+            <div class="course-stats">
+                <div class="course-stat"><div class="value">4</div><div class="label">Weeks</div></div>
+                <div class="course-stat"><div class="value">27</div><div class="label">Activities</div></div>
+                <div class="course-stat"><div class="value">Linux+</div><div class="label">Track</div></div>
+                <div class="course-stat"><div class="value">8</div><div class="label">Topics</div></div>
+            </div>
+        </div>
+
+        <!-- ── Overall Course Progress ── -->
+        <div class="progress-section">
+            <h3>Course Progress</h3>
+            <div class="progress-bar-container"><div class="progress-bar" id="progressBar"></div></div>
+            <div class="progress-text" id="progressText">0 / 27 completed</div>
+        </div>
+
+        <!-- ══════════════════════ WEEK 1 ══════════════════════ -->
+        <div class="week-card open" id="week1">
+            <div class="week-header" onclick="toggleWeek('week1')">
+                <div class="week-header-left">
+                    <div class="week-num">W1</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Kernel, Networking, Storage &amp; Software</div>
+                        <div class="week-sub">Kernel modules, network config, storage management, package managers</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Linux+ Obj 1-2</span>
+                            <span class="item-count-tag">6 items</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+            <div class="week-body"><div class="week-inner">
+
+                <div class="subsection">
+                    <div class="subsection-label label-presentation">Presentations</div>
+                    <div class="content-grid">
+                        <a href="presentations/ra-w1-kernel.presentation.html" class="content-card" data-module-id="ra-w1-kernel-pres">
+                            <span class="card-type-dot dot-present"></span>
+                            <div class="card-info">
+                                <div class="card-title">Kernel Modules &amp; Network Configuration</div>
+                                <div class="card-sub">lsmod, modprobe, ip, nmcli, netplan, DNS, hostname, ss/netstat</div>
+                            </div>
+                            <span class="content-badge badge-presentation">Slides</span>
+                        </a>
+                        <a href="presentations/ra-w1-storage.presentation.html" class="content-card" data-module-id="ra-w1-storage-pres">
+                            <span class="card-type-dot dot-present"></span>
+                            <div class="card-info">
+                                <div class="card-title">Storage &amp; Software Management</div>
+                                <div class="card-sub">fdisk, gdisk, LVM, ext4/xfs/btrfs, mount/fstab, apt/yum/dnf</div>
+                            </div>
+                            <span class="content-badge badge-presentation">Slides</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="subsection">
+                    <div class="subsection-label label-lab">Labs</div>
+                    <div class="content-grid">
+                        <a href="labs/ra-w1-kernel.lab.html" class="content-card" data-module-id="ra-w1-kernel-lab">
+                            <span class="card-type-dot dot-lab"></span>
+                            <div class="card-info">
+                                <div class="card-title">Network Config Simulator</div>
+                                <div class="card-sub">Configure IP, subnet, gateway, DNS for network scenarios</div>
+                            </div>
+                            <span class="content-badge badge-lab">Lab</span>
+                        </a>
+                        <a href="labs/ra-w1-storage.lab.html" class="content-card" data-module-id="ra-w1-storage-lab">
+                            <span class="card-type-dot dot-lab"></span>
+                            <div class="card-info">
+                                <div class="card-title">Package Manager Matcher</div>
+                                <div class="card-sub">12 tasks &mdash; select the correct package management command</div>
+                            </div>
+                            <span class="content-badge badge-lab">Lab</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="subsection">
+                    <div class="subsection-label label-assessment">Quizzes</div>
+                    <div class="content-grid">
+                        <a href="quizzes/ra-w1-kernel.quiz.html" class="content-card" data-module-id="ra-w1-kernel-quiz">
+                            <span class="card-type-dot dot-quiz"></span>
+                            <div class="card-info">
+                                <div class="card-title">Quiz: Kernel Modules &amp; Networking</div>
+                                <div class="card-sub">15 questions &mdash; 70% to pass</div>
+                            </div>
+                            <span class="content-badge badge-quiz">Quiz</span>
+                        </a>
+                        <a href="quizzes/ra-w1-storage.quiz.html" class="content-card" data-module-id="ra-w1-storage-quiz">
+                            <span class="card-type-dot dot-quiz"></span>
+                            <div class="card-info">
+                                <div class="card-title">Quiz: Storage &amp; Package Management</div>
+                                <div class="card-sub">15 questions &mdash; 70% to pass</div>
+                            </div>
+                            <span class="content-badge badge-quiz">Quiz</span>
+                        </a>
+                    </div>
+                </div>
+
+            </div></div>
+        </div>
+
+        <!-- ══════════════════════ WEEK 2 ══════════════════════ -->
+        <div class="week-card" id="week2">
+            <div class="week-header" onclick="toggleWeek('week2')">
+                <div class="week-header-left">
+                    <div class="week-num">W2</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Files, Services, Servers &amp; Job Scheduling</div>
+                        <div class="week-sub">File operations, pipes, systemd, server roles, cron/at</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Linux+ Obj 3-4</span>
+                            <span class="item-count-tag">7 items</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+            <div class="week-body"><div class="week-inner">
+
+                <div class="subsection">
+                    <div class="subsection-label label-presentation">Presentations</div>
+                    <div class="content-grid">
+                        <a href="presentations/ra-w2-files.presentation.html" class="content-card" data-module-id="ra-w2-files-pres">
+                            <span class="card-type-dot dot-present"></span>
+                            <div class="card-info">
+                                <div class="card-title">File Management &amp; Services</div>
+                                <div class="card-sub">cp/mv/rm/find, redirection, pipes, grep/sed/awk, links, systemd</div>
+                            </div>
+                            <span class="content-badge badge-presentation">Slides</span>
+                        </a>
+                        <a href="presentations/ra-w2-servers.presentation.html" class="content-card" data-module-id="ra-w2-servers-pres">
+                            <span class="card-type-dot dot-present"></span>
+                            <div class="card-info">
+                                <div class="card-title">Server Roles &amp; Job Scheduling</div>
+                                <div class="card-sub">Web/DNS/DHCP/file servers, cron, at, anacron, systemd timers</div>
+                            </div>
+                            <span class="content-badge badge-presentation">Slides</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="subsection">
+                    <div class="subsection-label label-lab">Labs</div>
+                    <div class="content-grid">
+                        <a href="labs/ra-w2-files.lab.html" class="content-card" data-module-id="ra-w2-files-lab">
+                            <span class="card-type-dot dot-lab"></span>
+                            <div class="card-info">
+                                <div class="card-title">Command Builder</div>
+                                <div class="card-sub">10 file operation goals &mdash; construct the correct command from parts</div>
+                            </div>
+                            <span class="content-badge badge-lab">Lab</span>
+                        </a>
+                        <a href="labs/ra-w2-servers.lab.html" class="content-card" data-module-id="ra-w2-servers-lab">
+                            <span class="card-type-dot dot-lab"></span>
+                            <div class="card-info">
+                                <div class="card-title">Cron Schedule Builder</div>
+                                <div class="card-sub">Write cron expressions for 8 scheduling scenarios</div>
+                            </div>
+                            <span class="content-badge badge-lab">Lab</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="subsection">
+                    <div class="subsection-label label-assessment">Quizzes</div>
+                    <div class="content-grid">
+                        <a href="quizzes/ra-w2-files.quiz.html" class="content-card" data-module-id="ra-w2-files-quiz">
+                            <span class="card-type-dot dot-quiz"></span>
+                            <div class="card-info">
+                                <div class="card-title">Quiz: File Management &amp; Services</div>
+                                <div class="card-sub">15 questions &mdash; 70% to pass</div>
+                            </div>
+                            <span class="content-badge badge-quiz">Quiz</span>
+                        </a>
+                        <a href="quizzes/ra-w2-servers.quiz.html" class="content-card" data-module-id="ra-w2-servers-quiz">
+                            <span class="card-type-dot dot-quiz"></span>
+                            <div class="card-info">
+                                <div class="card-title">Quiz: Server Roles &amp; Scheduling</div>
+                                <div class="card-sub">15 questions &mdash; 70% to pass</div>
+                            </div>
+                            <span class="content-badge badge-quiz">Quiz</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="subsection">
+                    <div class="subsection-label label-exam">Midterm Exam</div>
+                    <div class="content-grid">
+                        <a href="exams/ra-midterm.exam.html" class="content-card" data-module-id="ra-midterm-exam">
+                            <span class="card-type-dot dot-exam"></span>
+                            <div class="card-info">
+                                <div class="card-title">Midterm Exam: Weeks 1-2</div>
+                                <div class="card-sub">25 questions &mdash; 45 minutes &mdash; 70% to pass</div>
+                            </div>
+                            <span class="content-badge badge-exam">Exam</span>
+                        </a>
+                    </div>
+                </div>
+
+            </div></div>
+        </div>
+
+        <!-- ══════════════════════ WEEK 3 ══════════════════════ -->
+        <div class="week-card" id="week3">
+            <div class="week-header" onclick="toggleWeek('week3')">
+                <div class="week-header-left">
+                    <div class="week-num">W3</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Users, Groups, Permissions &amp; Security</div>
+                        <div class="week-sub">User management, file permissions, SSH, SELinux, PAM, hardening</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Linux+ Obj 5-6</span>
+                            <span class="item-count-tag">6 items</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+            <div class="week-body"><div class="week-inner">
+
+                <div class="subsection">
+                    <div class="subsection-label label-presentation">Presentations</div>
+                    <div class="content-grid">
+                        <a href="presentations/ra-w3-users.presentation.html" class="content-card" data-module-id="ra-w3-users-pres">
+                            <span class="card-type-dot dot-present"></span>
+                            <div class="card-info">
+                                <div class="card-title">Users, Groups &amp; Permissions</div>
+                                <div class="card-sub">useradd/usermod, /etc/passwd, /etc/shadow, chmod, chown, umask, ACLs</div>
+                            </div>
+                            <span class="content-badge badge-presentation">Slides</span>
+                        </a>
+                        <a href="presentations/ra-w3-security.presentation.html" class="content-card" data-module-id="ra-w3-security-pres">
+                            <span class="card-type-dot dot-present"></span>
+                            <div class="card-info">
+                                <div class="card-title">Security Best Practices</div>
+                                <div class="card-sub">SSH hardening, PAM, SELinux/AppArmor, file integrity, scanning</div>
+                            </div>
+                            <span class="content-badge badge-presentation">Slides</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="subsection">
+                    <div class="subsection-label label-lab">Labs</div>
+                    <div class="content-grid">
+                        <a href="labs/ra-w3-users.lab.html" class="content-card" data-module-id="ra-w3-users-lab">
+                            <span class="card-type-dot dot-lab"></span>
+                            <div class="card-info">
+                                <div class="card-title">Permission Calculator</div>
+                                <div class="card-sub">Set correct chmod/chown values in numeric and symbolic notation</div>
+                            </div>
+                            <span class="content-badge badge-lab">Lab</span>
+                        </a>
+                        <a href="labs/ra-w3-security.lab.html" class="content-card" data-module-id="ra-w3-security-lab">
+                            <span class="card-type-dot dot-lab"></span>
+                            <div class="card-info">
+                                <div class="card-title">SSH Hardening Checklist</div>
+                                <div class="card-sub">10 config items &mdash; identify which are secure vs insecure</div>
+                            </div>
+                            <span class="content-badge badge-lab">Lab</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="subsection">
+                    <div class="subsection-label label-assessment">Quizzes</div>
+                    <div class="content-grid">
+                        <a href="quizzes/ra-w3-users.quiz.html" class="content-card" data-module-id="ra-w3-users-quiz">
+                            <span class="card-type-dot dot-quiz"></span>
+                            <div class="card-info">
+                                <div class="card-title">Quiz: Users, Groups &amp; Permissions</div>
+                                <div class="card-sub">15 questions &mdash; 70% to pass</div>
+                            </div>
+                            <span class="content-badge badge-quiz">Quiz</span>
+                        </a>
+                        <a href="quizzes/ra-w3-security.quiz.html" class="content-card" data-module-id="ra-w3-security-quiz">
+                            <span class="card-type-dot dot-quiz"></span>
+                            <div class="card-info">
+                                <div class="card-title">Quiz: Security Best Practices</div>
+                                <div class="card-sub">15 questions &mdash; 70% to pass</div>
+                            </div>
+                            <span class="content-badge badge-quiz">Quiz</span>
+                        </a>
+                    </div>
+                </div>
+
+            </div></div>
+        </div>
+
+        <!-- ══════════════════════ WEEK 4 ══════════════════════ -->
+        <div class="week-card" id="week4">
+            <div class="week-header" onclick="toggleWeek('week4')">
+                <div class="week-header-left">
+                    <div class="week-num">W4</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Logging, Firewalls, Backup &amp; Troubleshooting</div>
+                        <div class="week-sub">rsyslog, journalctl, iptables/nftables, tar/rsync, diagnostics</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Linux+ Obj 7-8</span>
+                            <span class="item-count-tag">8 items</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+            <div class="week-body"><div class="week-inner">
+
+                <div class="subsection">
+                    <div class="subsection-label label-presentation">Presentations</div>
+                    <div class="content-grid">
+                        <a href="presentations/ra-w4-logging.presentation.html" class="content-card" data-module-id="ra-w4-logging-pres">
+                            <span class="card-type-dot dot-present"></span>
+                            <div class="card-info">
+                                <div class="card-title">Logging, Firewalls &amp; Backup</div>
+                                <div class="card-sub">rsyslog, journalctl, iptables/nftables/ufw, tar, rsync, dd, compression</div>
+                            </div>
+                            <span class="content-badge badge-presentation">Slides</span>
+                        </a>
+                        <a href="presentations/ra-w4-troubleshoot.presentation.html" class="content-card" data-module-id="ra-w4-troubleshoot-pres">
+                            <span class="card-type-dot dot-present"></span>
+                            <div class="card-info">
+                                <div class="card-title">System Troubleshooting</div>
+                                <div class="card-sub">uname, lscpu, df, free, ps/top/htop, kill/nice, dmesg, journalctl</div>
+                            </div>
+                            <span class="content-badge badge-presentation">Slides</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="subsection">
+                    <div class="subsection-label label-lab">Labs</div>
+                    <div class="content-grid">
+                        <a href="labs/ra-w4-logging.lab.html" class="content-card" data-module-id="ra-w4-logging-lab">
+                            <span class="card-type-dot dot-lab"></span>
+                            <div class="card-info">
+                                <div class="card-title">Firewall Rule Builder</div>
+                                <div class="card-sub">Construct iptables/ufw rules for network requirements</div>
+                            </div>
+                            <span class="content-badge badge-lab">Lab</span>
+                        </a>
+                        <a href="labs/ra-w4-troubleshoot.lab.html" class="content-card" data-module-id="ra-w4-troubleshoot-lab">
+                            <span class="card-type-dot dot-lab"></span>
+                            <div class="card-info">
+                                <div class="card-title">Process Triage</div>
+                                <div class="card-sub">8 system scenarios &mdash; select correct diagnostic command and action</div>
+                            </div>
+                            <span class="content-badge badge-lab">Lab</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="subsection">
+                    <div class="subsection-label label-assessment">Quizzes</div>
+                    <div class="content-grid">
+                        <a href="quizzes/ra-w4-logging.quiz.html" class="content-card" data-module-id="ra-w4-logging-quiz">
+                            <span class="card-type-dot dot-quiz"></span>
+                            <div class="card-info">
+                                <div class="card-title">Quiz: Logging, Firewalls &amp; Backup</div>
+                                <div class="card-sub">15 questions &mdash; 70% to pass</div>
+                            </div>
+                            <span class="content-badge badge-quiz">Quiz</span>
+                        </a>
+                        <a href="quizzes/ra-w4-troubleshoot.quiz.html" class="content-card" data-module-id="ra-w4-troubleshoot-quiz">
+                            <span class="card-type-dot dot-quiz"></span>
+                            <div class="card-info">
+                                <div class="card-title">Quiz: System Troubleshooting</div>
+                                <div class="card-sub">15 questions &mdash; 70% to pass</div>
+                            </div>
+                            <span class="content-badge badge-quiz">Quiz</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="subsection">
+                    <div class="subsection-label label-exam">Final Exam</div>
+                    <div class="content-grid">
+                        <a href="exams/ra-final.exam.html" class="content-card" data-module-id="ra-final-exam">
+                            <span class="card-type-dot dot-exam"></span>
+                            <div class="card-info">
+                                <div class="card-title">Final Exam: Weeks 1-4</div>
+                                <div class="card-sub">40 questions &mdash; 75 minutes &mdash; 70% to pass</div>
+                            </div>
+                            <span class="content-badge badge-exam">Exam</span>
+                        </a>
+                    </div>
+                </div>
+
+            </div></div>
+        </div>
+
+        <!-- ── Course Info ── -->
+        <div class="course-info-block">
+            <h3>Course Information</h3>
+            <div class="info-grid">
+                <div class="info-item"><span class="info-label">Course</span><span class="info-value">CTS2165C &mdash; Linux Essentials</span></div>
+                <div class="info-item"><span class="info-label">House</span><span class="info-value">Script (The Automators)</span></div>
+                <div class="info-item"><span class="info-label">Duration</span><span class="info-value">4 Weeks</span></div>
+                <div class="info-item"><span class="info-label">Certification Track</span><span class="info-value">CompTIA Linux+ (XK0-005)</span></div>
+            </div>
+
+            <ul class="objectives-list">
+                <li>Configure kernel modules and manage network interfaces</li>
+                <li>Manage storage devices, filesystems, and package managers</li>
+                <li>Perform file operations using redirection, pipes, and text processing</li>
+                <li>Administer server roles and schedule automated tasks</li>
+                <li>Manage users, groups, and file permissions with ACLs</li>
+                <li>Implement security best practices including SSH, SELinux, and PAM</li>
+                <li>Configure logging, firewalls, and backup procedures</li>
+                <li>Troubleshoot system, process, application, and hardware issues</li>
+            </ul>
+        </div>
+
+        <div class="page-footer">
+            House of the Script &mdash; Root Access // CTS2165C
+        </div>
+
+    </div>
+
+    <!-- ── Week toggle logic ── -->
+    <script>
+        function toggleWeek(weekId) {
+            document.getElementById(weekId).classList.toggle('open');
+        }
+    </script>
+
+    <!-- ── Progress tracking ── -->
+    <script>
+        var MODULE_IDS = [
+            'ra-w1-kernel-pres', 'ra-w1-storage-pres',
+            'ra-w1-kernel-lab', 'ra-w1-storage-lab',
+            'ra-w1-kernel-quiz', 'ra-w1-storage-quiz',
+            'ra-w2-files-pres', 'ra-w2-servers-pres',
+            'ra-w2-files-lab', 'ra-w2-servers-lab',
+            'ra-w2-files-quiz', 'ra-w2-servers-quiz',
+            'ra-midterm-exam',
+            'ra-w3-users-pres', 'ra-w3-security-pres',
+            'ra-w3-users-lab', 'ra-w3-security-lab',
+            'ra-w3-users-quiz', 'ra-w3-security-quiz',
+            'ra-w4-logging-pres', 'ra-w4-troubleshoot-pres',
+            'ra-w4-logging-lab', 'ra-w4-troubleshoot-lab',
+            'ra-w4-logging-quiz', 'ra-w4-troubleshoot-quiz',
+            'ra-final-exam'
+        ];
+
+        var TOTAL_ACTIVITIES = MODULE_IDS.length;
+
+        function updateProgress() {
+            var hp = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            var scriptData = hp.script || {};
+            var completed = 0;
+
+            MODULE_IDS.forEach(function(id) {
+                var card = document.querySelector('[data-module-id="' + id + '"]');
+                if (scriptData[id] && scriptData[id].completed === true) {
+                    completed++;
+                    if (card) card.classList.add('is-complete');
+                }
+            });
+
+            var pct = Math.round((completed / TOTAL_ACTIVITIES) * 100);
+            document.getElementById('progressBar').style.width = pct + '%';
+            document.getElementById('progressText').textContent = completed + ' / ' + TOTAL_ACTIVITIES + ' completed';
+        }
+
+        updateProgress();
+    </script>
+
+    <script src="../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

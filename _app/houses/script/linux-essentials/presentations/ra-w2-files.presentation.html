@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Management &amp; Services | Root Access</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #1a0a2e 100%); color: #e2e8f0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; padding: 20px 28px 72px; overflow-y: auto; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: absolute; top: 0; left: 0; height: 3px; background: #a78bfa; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(9,9,16,0.95); border-top: 1px solid rgba(255,255,255,0.07); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.07); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(167,139,250,0.15); color: #a78bfa; border-color: #a78bfa; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #8b5cf6; color: #fff; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; }
+        #complete-btn:hover { background: #a78bfa; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #a78bfa; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #a78bfa; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip { background: rgba(167,139,250,0.08); border-left: 3px solid #a78bfa; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #e9e0ff; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-purple { background: rgba(167,139,250,0.08); border: 1px solid rgba(167,139,250,0.3); color: #e9e0ff; }
+        .box-green { background: rgba(58,181,119,0.08); border: 1px solid rgba(58,181,119,0.35); color: #d1fae5; }
+        .box-red { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); color: #fee2e2; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #a78bfa; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #a78bfa; }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-red { border-left-color: #ef4444; } .card.c-purple { border-left-color: #a78bfa; } .card.c-cyan { border-left-color: #06b6d4; }
+        .code-block { background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 0.82rem; color: #e2e8f0; line-height: 1.6; white-space: pre; overflow-x: auto; }
+        .code-block .kw { color: #a78bfa; } .code-block .fn { color: #06b6d4; } .code-block .st { color: #3ab577; } .code-block .cm { color: #475569; }
+        .ic { font-family: 'Courier New', monospace; color: #a78bfa; background: rgba(167,139,250,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .svg-diagram { display: flex; justify-content: center; margin: 6px 0; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #a78bfa; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid, .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">File Management &amp; Services</h1>
+<div id="progress-bar" style="width:7.69%"></div>
+
+<section class="slide active" id="slide-1"><div class="slide-inner">
+    <div class="slide-meta">Slide 1 of 13 | CTS2165C | Week 2</div>
+    <div class="title-hero"><div class="big-title">File Management &amp;<br><span class="accent">Services</span></div>
+    <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">cp / mv / rm / find / locate &bull; Redirection &amp; Pipes &bull; grep / sed / awk &bull; Links &bull; systemd</div></div>
+    <div class="scenario-strip">Your manager needs a report of all log files modified in the last 24 hours, filtered for error messages, with the output saved to a file. This requires chaining file operations, redirection, and text processing -- the core of this module.</div>
+    <div class="title-meta-row"><span>13 Slides</span><span>Week 2 Topic 1</span><span>Linux+ Aligned</span></div>
+</div></section>
+
+<section class="slide" id="slide-2"><div class="slide-inner">
+    <div class="slide-meta">Slide 2 of 13</div>
+    <div class="slide-title">File <span class="accent">Operations</span></div>
+    <div class="code-block"><span class="cm"># Copy files and directories</span>
+<span class="fn">cp</span> file.txt backup.txt       <span class="cm"># copy a file</span>
+<span class="fn">cp</span> -r /src /dst              <span class="cm"># copy directory recursively</span>
+<span class="fn">cp</span> -p file.txt backup.txt    <span class="cm"># preserve permissions and timestamps</span>
+
+<span class="cm"># Move / rename</span>
+<span class="fn">mv</span> old.txt new.txt           <span class="cm"># rename</span>
+<span class="fn">mv</span> file.txt /tmp/            <span class="cm"># move to another directory</span>
+
+<span class="cm"># Remove</span>
+<span class="fn">rm</span> file.txt                  <span class="cm"># delete a file</span>
+<span class="fn">rm</span> -r directory/             <span class="cm"># delete directory recursively</span>
+<span class="fn">rm</span> -rf directory/            <span class="cm"># force, no prompts (DANGEROUS)</span>
+
+<span class="cm"># Create directories</span>
+<span class="fn">mkdir</span> -p /path/to/nested/dir <span class="cm"># create parent dirs as needed</span></div>
+    <div class="box box-red"><div class="box-label">Warning</div><span class="ic">rm -rf</span> is irreversible. There is no recycle bin on the command line. Always double-check your path before running destructive commands. Consider using <span class="ic">rm -i</span> (interactive) for safety.</div>
+</div></section>
+
+<section class="slide" id="slide-3"><div class="slide-inner">
+    <div class="slide-meta">Slide 3 of 13</div>
+    <div class="slide-title"><span class="accent">find</span> and <span class="accent">locate</span></div>
+    <div class="code-block"><span class="cm"># find — real-time filesystem search</span>
+<span class="fn">find</span> /var/log -name <span class="st">"*.log"</span>              <span class="cm"># by name</span>
+<span class="fn">find</span> /home -type f -size +100M           <span class="cm"># files larger than 100MB</span>
+<span class="fn">find</span> /tmp -mtime -1                      <span class="cm"># modified in last 24 hours</span>
+<span class="fn">find</span> / -user www-data -type f            <span class="cm"># files owned by www-data</span>
+<span class="fn">find</span> / -perm -4000 -type f               <span class="cm"># SUID files (security audit)</span>
+<span class="fn">find</span> /var -name <span class="st">"*.log"</span> -exec <span class="fn">grep</span> -l <span class="st">"ERROR"</span> {} \;
+
+<span class="cm"># locate — index-based (faster, but stale)</span>
+<span class="fn">locate</span> nginx.conf
+<span class="kw">sudo</span> <span class="fn">updatedb</span>                            <span class="cm"># refresh the locate database</span></div>
+    <div class="card-grid-2">
+        <div class="card c-purple"><div class="card-label">find</div><div class="card-desc">Searches the filesystem in real time. Slower but always current. Supports complex filters: name, size, time, permissions, owner, type. The <span class="ic">-exec</span> flag runs commands on results.</div></div>
+        <div class="card c-cyan"><div class="card-label">locate</div><div class="card-desc">Searches a pre-built database (<span class="ic">mlocate.db</span>). Extremely fast but can return stale results. Run <span class="ic">updatedb</span> to refresh. Database updates nightly via cron by default.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-4"><div class="slide-inner">
+    <div class="slide-meta">Slide 4 of 13</div>
+    <div class="slide-title">I/O <span class="accent">Redirection</span></div>
+    <div class="slide-subtitle">Controlling where command input comes from and output goes.</div>
+    <div class="svg-diagram">
+        <svg viewBox="0 0 600 120" xmlns="http://www.w3.org/2000/svg">
+            <rect x="20" y="35" width="120" height="50" rx="8" fill="#2e1065" stroke="#a78bfa" stroke-width="1.5"/>
+            <text x="80" y="55" text-anchor="middle" fill="#c4b5fd" font-size="12" font-weight="700">stdin (0)</text>
+            <text x="80" y="72" text-anchor="middle" fill="#94a3b8" font-size="10">keyboard / file</text>
+            <rect x="240" y="35" width="120" height="50" rx="8" fill="#1e0338" stroke="#8b5cf6" stroke-width="1.5"/>
+            <text x="300" y="65" text-anchor="middle" fill="#c4b5fd" font-size="12" font-weight="700">command</text>
+            <rect x="460" y="10" width="120" height="40" rx="8" fill="#0f172a" stroke="#3ab577" stroke-width="1.5"/>
+            <text x="520" y="35" text-anchor="middle" fill="#3ab577" font-size="12" font-weight="700">stdout (1)</text>
+            <rect x="460" y="70" width="120" height="40" rx="8" fill="#0f172a" stroke="#ef4444" stroke-width="1.5"/>
+            <text x="520" y="95" text-anchor="middle" fill="#ef4444" font-size="12" font-weight="700">stderr (2)</text>
+            <line x1="140" y1="60" x2="240" y2="60" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrowR)"/>
+            <line x1="360" y1="50" x2="460" y2="30" stroke="#3ab577" stroke-width="1.5" marker-end="url(#arrowR)"/>
+            <line x1="360" y1="70" x2="460" y2="90" stroke="#ef4444" stroke-width="1.5" marker-end="url(#arrowR)"/>
+            <defs><marker id="arrowR" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#a78bfa"/></marker></defs>
+        </svg>
+    </div>
+    <div class="code-block"><span class="fn">echo</span> <span class="st">"hello"</span> > file.txt    <span class="cm"># stdout to file (overwrite)</span>
+<span class="fn">echo</span> <span class="st">"world"</span> >> file.txt   <span class="cm"># stdout to file (append)</span>
+<span class="fn">sort</span> < names.txt            <span class="cm"># stdin from file</span>
+<span class="fn">ls</span> /fake 2> errors.txt      <span class="cm"># stderr to file</span>
+<span class="fn">ls</span> /fake &> all.txt          <span class="cm"># both stdout and stderr to file</span>
+<span class="fn">ls</span> /fake 2>/dev/null        <span class="cm"># discard errors</span></div>
+</div></section>
+
+<section class="slide" id="slide-5"><div class="slide-inner">
+    <div class="slide-meta">Slide 5 of 13</div>
+    <div class="slide-title"><span class="accent">Pipes</span> &mdash; Chaining Commands</div>
+    <div class="code-block"><span class="cm"># The pipe (|) sends stdout of one command to stdin of the next</span>
+<span class="fn">ls</span> -la | <span class="fn">grep</span> <span class="st">".conf"</span>                     <span class="cm"># filter for config files</span>
+<span class="fn">cat</span> /var/log/syslog | <span class="fn">grep</span> <span class="st">"error"</span> | <span class="fn">wc</span> -l  <span class="cm"># count error lines</span>
+<span class="fn">ps</span> aux | <span class="fn">sort</span> -nrk 3 | <span class="fn">head</span> -10            <span class="cm"># top 10 CPU processes</span>
+<span class="fn">cat</span> access.log | <span class="fn">cut</span> -d' ' -f1 | <span class="fn">sort</span> | <span class="fn">uniq</span> -c | <span class="fn">sort</span> -rn  <span class="cm"># IP frequency</span>
+
+<span class="cm"># tee — write to file AND pass to next command</span>
+<span class="fn">df</span> -h | <span class="fn">tee</span> disk-report.txt | <span class="fn">grep</span> <span class="st">"/dev/sda"</span></div>
+    <div class="box box-purple"><div class="box-label">Philosophy</div>Each Unix tool does one thing well. Pipes let you compose complex operations from simple tools. This is the Unix philosophy: write programs that do one thing and do it well, and write programs to work together.</div>
+</div></section>
+
+<section class="slide" id="slide-6"><div class="slide-inner">
+    <div class="slide-meta">Slide 6 of 13</div>
+    <div class="slide-title"><span class="accent">grep</span> &mdash; Pattern Matching</div>
+    <div class="code-block"><span class="cm"># Basic grep</span>
+<span class="fn">grep</span> <span class="st">"error"</span> /var/log/syslog        <span class="cm"># find lines containing "error"</span>
+<span class="fn">grep</span> -i <span class="st">"error"</span> syslog              <span class="cm"># case-insensitive</span>
+<span class="fn">grep</span> -r <span class="st">"TODO"</span> /home/dev/          <span class="cm"># recursive search</span>
+<span class="fn">grep</span> -n <span class="st">"failed"</span> auth.log          <span class="cm"># show line numbers</span>
+<span class="fn">grep</span> -c <span class="st">"404"</span> access.log           <span class="cm"># count matching lines</span>
+<span class="fn">grep</span> -v <span class="st">"debug"</span> syslog             <span class="cm"># invert: show NON-matching lines</span>
+<span class="fn">grep</span> -l <span class="st">"password"</span> /etc/*.conf    <span class="cm"># list files that match</span>
+
+<span class="cm"># Extended regex with -E (or egrep)</span>
+<span class="fn">grep</span> -E <span class="st">"error|warning|critical"</span> syslog
+<span class="fn">grep</span> -E <span class="st">"^[0-9]{1,3}\."</span> access.log  <span class="cm"># lines starting with IP</span></div>
+</div></section>
+
+<section class="slide" id="slide-7"><div class="slide-inner">
+    <div class="slide-meta">Slide 7 of 13</div>
+    <div class="slide-title"><span class="accent">sed</span> and <span class="accent">awk</span></div>
+    <div class="code-block"><span class="cm"># sed — stream editor (find and replace)</span>
+<span class="fn">sed</span> <span class="st">'s/old/new/'</span> file.txt           <span class="cm"># replace first occurrence per line</span>
+<span class="fn">sed</span> <span class="st">'s/old/new/g'</span> file.txt          <span class="cm"># replace ALL occurrences (global)</span>
+<span class="fn">sed</span> -i <span class="st">'s/old/new/g'</span> file.txt       <span class="cm"># edit in place (modifies file)</span>
+<span class="fn">sed</span> <span class="st">'/^#/d'</span> config.txt              <span class="cm"># delete comment lines</span>
+<span class="fn">sed</span> -n <span class="st">'5,10p'</span> file.txt             <span class="cm"># print lines 5-10 only</span>
+
+<span class="cm"># awk — column-based text processing</span>
+<span class="fn">awk</span> <span class="st">'{print $1}'</span> access.log        <span class="cm"># print first column (space-delimited)</span>
+<span class="fn">awk</span> -F: <span class="st">'{print $1, $3}'</span> /etc/passwd  <span class="cm"># colon delimiter: username and UID</span>
+<span class="fn">awk</span> <span class="st">'$3 > 1000'</span> /etc/passwd        <span class="cm"># rows where column 3 > 1000</span>
+<span class="fn">df</span> -h | <span class="fn">awk</span> <span class="st">'$5+0 > 80 {print $6, $5}'</span>  <span class="cm"># filesystems over 80% full</span></div>
+</div></section>
+
+<section class="slide" id="slide-8"><div class="slide-inner">
+    <div class="slide-meta">Slide 8 of 13</div>
+    <div class="slide-title">Hard Links &amp; <span class="accent">Soft Links</span></div>
+    <div class="svg-diagram">
+        <svg viewBox="0 0 600 150" xmlns="http://www.w3.org/2000/svg">
+            <rect x="200" y="90" width="200" height="45" rx="8" fill="#0f172a" stroke="#475569" stroke-width="1.5"/>
+            <text x="300" y="117" text-anchor="middle" fill="#94a3b8" font-size="12" font-weight="700">Inode 12345 (data on disk)</text>
+            <rect x="30" y="10" width="160" height="45" rx="8" fill="#2e1065" stroke="#a78bfa" stroke-width="1.5"/>
+            <text x="110" y="37" text-anchor="middle" fill="#c4b5fd" font-size="12" font-weight="700">file.txt (hard link)</text>
+            <rect x="230" y="10" width="160" height="45" rx="8" fill="#2e1065" stroke="#a78bfa" stroke-width="1.5"/>
+            <text x="310" y="37" text-anchor="middle" fill="#c4b5fd" font-size="12" font-weight="700">backup.txt (hard link)</text>
+            <rect x="430" y="10" width="160" height="45" rx="8" fill="#1e0338" stroke="#8b5cf6" stroke-width="1.5"/>
+            <text x="510" y="37" text-anchor="middle" fill="#c4b5fd" font-size="12" font-weight="700">shortcut (symlink)</text>
+            <line x1="110" y1="55" x2="250" y2="90" stroke="#a78bfa" stroke-width="1.5"/>
+            <line x1="310" y1="55" x2="300" y2="90" stroke="#a78bfa" stroke-width="1.5"/>
+            <line x1="510" y1="55" x2="310" y2="33" stroke="#8b5cf6" stroke-width="1.5" stroke-dasharray="4"/>
+        </svg>
+    </div>
+    <div class="code-block"><span class="cm"># Hard link — second directory entry pointing to same inode</span>
+<span class="fn">ln</span> file.txt backup.txt
+
+<span class="cm"># Symbolic (soft) link — pointer to a file path</span>
+<span class="fn">ln</span> -s /etc/nginx/nginx.conf ~/nginx-config
+
+<span class="cm"># Check link count and inode</span>
+<span class="fn">ls</span> -li file.txt backup.txt
+<span class="fn">stat</span> file.txt</div>
+    <div class="card-grid-2">
+        <div class="card c-purple"><div class="card-label">Hard Links</div><div class="card-desc">Same inode, same data. Deleting the original does not break the link. Cannot cross filesystems. Cannot link to directories. Link count tracks references.</div></div>
+        <div class="card c-cyan"><div class="card-label">Soft (Symbolic) Links</div><div class="card-desc">Points to a path, not an inode. Can cross filesystems. Can link to directories. Breaks if the target is deleted (dangling symlink). <span class="ic">ls -l</span> shows the arrow notation.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-9"><div class="slide-inner">
+    <div class="slide-meta">Slide 9 of 13</div>
+    <div class="slide-title"><span class="accent">systemd</span> &amp; Service Management</div>
+    <div class="slide-subtitle">The init system that manages services, targets, and the boot process.</div>
+    <div class="code-block"><span class="cm"># Service lifecycle commands</span>
+<span class="kw">sudo</span> <span class="fn">systemctl</span> start nginx       <span class="cm"># start a service now</span>
+<span class="kw">sudo</span> <span class="fn">systemctl</span> stop nginx        <span class="cm"># stop a service</span>
+<span class="kw">sudo</span> <span class="fn">systemctl</span> restart nginx     <span class="cm"># stop then start</span>
+<span class="kw">sudo</span> <span class="fn">systemctl</span> reload nginx      <span class="cm"># reload config without restart</span>
+<span class="fn">systemctl</span> status nginx            <span class="cm"># show current state + recent logs</span>
+
+<span class="cm"># Boot persistence</span>
+<span class="kw">sudo</span> <span class="fn">systemctl</span> enable nginx      <span class="cm"># start on boot</span>
+<span class="kw">sudo</span> <span class="fn">systemctl</span> disable nginx     <span class="cm"># do not start on boot</span>
+<span class="fn">systemctl</span> is-enabled nginx        <span class="cm"># check boot status</span>
+
+<span class="cm"># List all services</span>
+<span class="fn">systemctl</span> list-units --type=service
+<span class="fn">systemctl</span> list-units --type=service --state=running</div>
+</div></section>
+
+<section class="slide" id="slide-10"><div class="slide-inner">
+    <div class="slide-meta">Slide 10 of 13</div>
+    <div class="slide-title">systemd <span class="accent">Unit Files</span></div>
+    <div class="code-block"><span class="cm"># Unit files live in /etc/systemd/system/ (custom) or /lib/systemd/system/ (vendor)</span>
+<span class="cm"># Example: /etc/systemd/system/myapp.service</span>
+
+[Unit]
+Description=My Custom Application
+After=network.target
+
+[Service]
+Type=simple
+User=appuser
+WorkingDirectory=/opt/myapp
+ExecStart=/opt/myapp/run.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target</div>
+    <div class="card-grid">
+        <div class="card c-purple"><div class="card-label">[Unit]</div><div class="card-desc">Metadata and dependencies. <span class="ic">After=</span> controls startup order. <span class="ic">Requires=</span> creates hard dependencies. <span class="ic">Wants=</span> creates soft dependencies.</div></div>
+        <div class="card c-cyan"><div class="card-label">[Service]</div><div class="card-desc">How to run the service. <span class="ic">ExecStart=</span> is the command. <span class="ic">Restart=on-failure</span> restarts automatically on crash. <span class="ic">Type=</span> can be simple, forking, oneshot, notify.</div></div>
+        <div class="card c-green"><div class="card-label">[Install]</div><div class="card-desc"><span class="ic">WantedBy=multi-user.target</span> means this service starts in normal multi-user mode (equivalent to old runlevel 3). Use <span class="ic">systemctl daemon-reload</span> after editing unit files.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-11"><div class="slide-inner">
+    <div class="slide-meta">Slide 11 of 13</div>
+    <div class="slide-title">Runlevels &amp; <span class="accent">Targets</span></div>
+    <div class="card-grid-2">
+        <div class="card c-purple"><div class="card-label">SysV Runlevels (Legacy)</div><div class="card-desc">0=poweroff, 1=single-user, 2=multi-user (no net), 3=multi-user (with net), 5=graphical, 6=reboot. Set with <span class="ic">init 3</span>. Still referenced in exams.</div></div>
+        <div class="card c-cyan"><div class="card-label">systemd Targets (Modern)</div><div class="card-desc"><span class="ic">poweroff.target</span>, <span class="ic">rescue.target</span>, <span class="ic">multi-user.target</span>, <span class="ic">graphical.target</span>, <span class="ic">reboot.target</span>. Targets can include other targets. More flexible than runlevels.</div></div>
+    </div>
+    <div class="code-block"><span class="cm"># View current default target</span>
+<span class="fn">systemctl</span> get-default
+
+<span class="cm"># Change the default boot target</span>
+<span class="kw">sudo</span> <span class="fn">systemctl</span> set-default multi-user.target   <span class="cm"># CLI only (no GUI)</span>
+<span class="kw">sudo</span> <span class="fn">systemctl</span> set-default graphical.target     <span class="cm"># GUI desktop</span>
+
+<span class="cm"># Switch target at runtime (like changing runlevel)</span>
+<span class="kw">sudo</span> <span class="fn">systemctl</span> isolate rescue.target             <span class="cm"># single-user mode</span></div>
+</div></section>
+
+<section class="slide" id="slide-12"><div class="slide-inner">
+    <div class="slide-meta">Slide 12 of 13</div>
+    <div class="slide-title">Viewing Logs with <span class="accent">journalctl</span></div>
+    <div class="code-block"><span class="cm"># View logs for a specific service</span>
+<span class="fn">journalctl</span> -u nginx.service
+
+<span class="cm"># Follow logs in real time</span>
+<span class="fn">journalctl</span> -u nginx -f
+
+<span class="cm"># Logs since last boot</span>
+<span class="fn">journalctl</span> -b
+
+<span class="cm"># Logs from a time range</span>
+<span class="fn">journalctl</span> --since <span class="st">"2024-01-01 08:00"</span> --until <span class="st">"2024-01-01 12:00"</span>
+
+<span class="cm"># Filter by priority (0=emerg to 7=debug)</span>
+<span class="fn">journalctl</span> -p err             <span class="cm"># errors and above</span></div>
+    <div class="box box-green"><div class="box-label">Key Advantage</div>journalctl provides structured, indexed access to all systemd logs. Unlike traditional flat log files in <span class="ic">/var/log/</span>, journal entries include metadata: timestamp, PID, unit name, priority, and boot ID.</div>
+</div></section>
+
+<section class="slide" id="slide-13"><div class="slide-inner">
+    <div class="slide-meta">Slide 13 of 13 | Summary</div>
+    <div class="slide-title">Week 2 Topic 1 <span class="accent">Summary</span></div>
+    <div class="summary-facts">
+        <div class="fact-row"><span class="fact-num">1</span><span class="fact-text">File operations: <span class="ic">cp</span>, <span class="ic">mv</span>, <span class="ic">rm</span>, <span class="ic">mkdir -p</span>. Search: <span class="ic">find</span> (real-time) vs <span class="ic">locate</span> (indexed).</span></div>
+        <div class="fact-row"><span class="fact-num">2</span><span class="fact-text">Redirection: <span class="ic">></span> overwrite, <span class="ic">>></span> append, <span class="ic">2></span> stderr, <span class="ic">&></span> both. Pipes chain commands with <span class="ic">|</span>.</span></div>
+        <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><span class="ic">grep</span> searches content. <span class="ic">sed</span> transforms text. <span class="ic">awk</span> processes columns.</span></div>
+        <div class="fact-row"><span class="fact-num">4</span><span class="fact-text">Hard links share an inode. Soft links point to a path and can cross filesystems.</span></div>
+        <div class="fact-row"><span class="fact-num">5</span><span class="fact-text">systemd manages services: <span class="ic">systemctl start/stop/enable/disable</span>. Unit files in <span class="ic">/etc/systemd/system/</span>.</span></div>
+        <div class="fact-row"><span class="fact-num">6</span><span class="fact-text">Targets replace runlevels: <span class="ic">multi-user.target</span> = runlevel 3, <span class="ic">graphical.target</span> = runlevel 5.</span></div>
+    </div>
+    <div class="box box-purple" style="margin-top:10px;"><div class="box-label">Next Up</div>Complete the Command Builder lab, then take the File Management quiz.</div>
+</div></section>
+
+<div id="nav-bar">
+    <a href="../index.html" class="nav-btn back-btn">Hub</a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide-1)" disabled>Prev</button>
+    <span id="slide-counter">Slide 1 of 13</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide+1)">Next</button>
+    <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+</div>
+<script>
+    var currentSlide = 1, TOTAL_SLIDES = 13;
+    function goToSlide(n) { if (n < 1 || n > TOTAL_SLIDES) return; var p = document.getElementById('slide-' + currentSlide); if (p) p.classList.remove('active'); currentSlide = n; var x = document.getElementById('slide-' + currentSlide); if (x) x.classList.add('active'); document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%'; document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES; document.getElementById('prev-btn').disabled = (currentSlide === 1); document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES); var cb = document.getElementById('complete-btn'); if (cb) cb.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none'; }
+    document.addEventListener('keydown', function(e) { if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); } else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); } });
+    goToSlide(1);
+</script>
+<script>function completeModule() { if (typeof ModuleProgress !== 'undefined') { ModuleProgress.complete('script', 'ra-w2-files-pres', { returnUrl: '../index.html' }); } }</script>
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

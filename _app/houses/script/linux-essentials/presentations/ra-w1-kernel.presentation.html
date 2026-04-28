@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kernel Modules &amp; Network Configuration | Root Access</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #1a0a2e 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+        .slide {
+            display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            padding: 20px 28px 72px; overflow-y: auto;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: absolute; top: 0; left: 0; height: 3px; background: #a78bfa; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar {
+            position: absolute; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95); border-top: 1px solid rgba(255,255,255,0.07);
+            display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255,255,255,0.07); color: #94a3b8;
+            border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px;
+            font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) { background: rgba(167,139,250,0.15); color: #a78bfa; border-color: #a78bfa; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #8b5cf6; color: #fff; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #a78bfa; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #a78bfa; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #a78bfa; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip {
+            background: rgba(167,139,250,0.08); border-left: 3px solid #a78bfa;
+            border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #e9e0ff; font-style: italic;
+        }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-purple { background: rgba(167,139,250,0.08); border: 1px solid rgba(167,139,250,0.3); color: #e9e0ff; }
+        .box-green  { background: rgba(58,181,119,0.08); border: 1px solid rgba(58,181,119,0.35); color: #d1fae5; }
+        .box-red    { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); color: #fee2e2; }
+        .box-cyan   { background: rgba(6,182,212,0.08); border: 1px solid rgba(6,182,212,0.3); color: #cffafe; }
+        .box-label  { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #a78bfa; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #a78bfa; }
+        .card:hover { background: rgba(255,255,255,0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255,255,255,0.07); }
+        .code-block {
+            background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.82rem; color: #e2e8f0; line-height: 1.6; white-space: pre; overflow-x: auto;
+        }
+        .code-block .kw { color: #a78bfa; }
+        .code-block .fn { color: #06b6d4; }
+        .code-block .st { color: #3ab577; }
+        .code-block .cm { color: #475569; }
+        .code-block .nb { color: #f472b6; }
+        .code-block .er { color: #ef4444; }
+        .ic { font-family: 'Courier New', monospace; color: #a78bfa; background: rgba(167,139,250,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .svg-diagram { display: flex; justify-content: center; margin: 6px 0; }
+        .svg-diagram svg { max-width: 100%; height: auto; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #a78bfa; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Kernel Modules &amp; Network Configuration</h1>
+
+<div id="progress-bar" style="width:7.14%"></div>
+
+<!-- SLIDE 1 — TITLE -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 14 | CTS2165C | Week 1</div>
+        <div class="title-hero">
+            <div class="big-title">Kernel Modules &amp;<br><span class="accent">Network Configuration</span></div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                lsmod / modprobe / insmod &bull; ip / nmcli / netplan &bull; DNS &bull; hostname &bull; ss / netstat
+            </div>
+        </div>
+        <div class="scenario-strip">
+            A new server arrives with no network connectivity. Before touching a cable, you need to verify the right kernel modules are loaded, then configure the interface. This presentation covers both halves of that workflow.
+        </div>
+        <div class="title-meta-row">
+            <span>14 Slides</span>
+            <span>Week 1 Topic 1</span>
+            <span>Linux+ Aligned</span>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 2 — THE LINUX KERNEL -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 14</div>
+        <div class="slide-title">The Linux <span class="accent">Kernel</span></div>
+        <div class="slide-subtitle">The kernel is the bridge between hardware and userspace.</div>
+        <div class="svg-diagram">
+            <svg viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg">
+                <rect x="10" y="10" width="580" height="50" rx="8" fill="#1e0338" stroke="#a78bfa" stroke-width="1.5"/>
+                <text x="300" y="42" text-anchor="middle" fill="#e2e8f0" font-size="14" font-weight="700">Userspace Applications (bash, apache, sshd)</text>
+                <rect x="10" y="80" width="580" height="50" rx="8" fill="#2e1065" stroke="#8b5cf6" stroke-width="1.5"/>
+                <text x="300" y="112" text-anchor="middle" fill="#c4b5fd" font-size="14" font-weight="700">Linux Kernel (System Calls, Scheduler, VFS, Network Stack)</text>
+                <rect x="10" y="150" width="580" height="50" rx="8" fill="#0f172a" stroke="#475569" stroke-width="1.5"/>
+                <text x="300" y="182" text-anchor="middle" fill="#94a3b8" font-size="14" font-weight="700">Hardware (CPU, RAM, NIC, Disk, USB)</text>
+                <line x1="300" y1="60" x2="300" y2="80" stroke="#a78bfa" stroke-width="2" marker-end="url(#arrowP)"/>
+                <line x1="300" y1="130" x2="300" y2="150" stroke="#a78bfa" stroke-width="2" marker-end="url(#arrowP)"/>
+                <defs><marker id="arrowP" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#a78bfa"/></marker></defs>
+            </svg>
+        </div>
+        <div class="card-grid">
+            <div class="card c-purple"><div class="card-label">Monolithic + Modular</div><div class="card-desc">The Linux kernel is monolithic (runs in a single address space) but supports loadable modules. Modules let you add/remove functionality without recompiling or rebooting.</div></div>
+            <div class="card c-cyan"><div class="card-label">Kernel Version</div><div class="card-desc">Run <span class="ic">uname -r</span> to see the running kernel version. Format: major.minor.patch. Modules must match the running kernel or they cannot load.</div></div>
+            <div class="card c-green"><div class="card-label">Module Directory</div><div class="card-desc">Kernel modules are stored in <span class="ic">/lib/modules/$(uname -r)/</span>. Each module is a <span class="ic">.ko</span> file. The directory tree organizes modules by subsystem: drivers, net, fs, crypto.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 3 — KERNEL MODULE COMMANDS -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 14</div>
+        <div class="slide-title">Kernel Module <span class="accent">Commands</span></div>
+        <div class="slide-subtitle">Four commands to inspect, load, and remove kernel modules.</div>
+        <div class="code-block"><span class="cm"># List all currently loaded modules</span>
+<span class="fn">lsmod</span>
+
+<span class="cm"># Show detailed info about a specific module</span>
+<span class="fn">modinfo</span> e1000
+
+<span class="cm"># Load a module (handles dependencies automatically)</span>
+<span class="kw">sudo</span> <span class="fn">modprobe</span> e1000
+
+<span class="cm"># Remove a module</span>
+<span class="kw">sudo</span> <span class="fn">modprobe</span> -r e1000
+
+<span class="cm"># Low-level insert (does NOT resolve dependencies)</span>
+<span class="kw">sudo</span> <span class="fn">insmod</span> /lib/modules/$(uname -r)/kernel/drivers/net/ethernet/intel/e1000/e1000.ko
+
+<span class="cm"># Low-level remove</span>
+<span class="kw">sudo</span> <span class="fn">rmmod</span> e1000</div>
+        <div class="box box-purple"><div class="box-label">Best Practice</div>Always use <span class="ic">modprobe</span> over <span class="ic">insmod</span>/<span class="ic">rmmod</span>. modprobe reads <span class="ic">/lib/modules/$(uname -r)/modules.dep</span> and automatically loads required dependencies. insmod does not.</div>
+    </div>
+</section>
+
+<!-- SLIDE 4 — PERSISTENT MODULES -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 14</div>
+        <div class="slide-title">Persistent Module <span class="accent">Configuration</span></div>
+        <div class="slide-subtitle">Making module changes survive a reboot.</div>
+        <div class="card-grid-2">
+            <div class="card c-purple"><div class="card-label">Auto-load on Boot</div><div class="card-desc">Create a file in <span class="ic">/etc/modules-load.d/</span> listing one module per line. systemd reads these files during boot and loads each module.</div></div>
+            <div class="card c-red"><div class="card-label">Blacklisting Modules</div><div class="card-desc">Create a file in <span class="ic">/etc/modprobe.d/</span> with <span class="ic">blacklist module_name</span>. This prevents a module from loading automatically. Useful for conflicting drivers or security hardening.</div></div>
+        </div>
+        <div class="code-block"><span class="cm"># Auto-load the bonding module on boot</span>
+<span class="kw">echo</span> <span class="st">"bonding"</span> | <span class="kw">sudo</span> tee /etc/modules-load.d/bonding.conf
+
+<span class="cm"># Blacklist the nouveau driver (common before installing NVIDIA)</span>
+<span class="kw">echo</span> <span class="st">"blacklist nouveau"</span> | <span class="kw">sudo</span> tee /etc/modprobe.d/blacklist-nouveau.conf
+
+<span class="cm"># Rebuild the initramfs after blacklisting</span>
+<span class="kw">sudo</span> <span class="fn">update-initramfs</span> -u   <span class="cm"># Debian/Ubuntu</span>
+<span class="kw">sudo</span> <span class="fn">dracut</span> --force         <span class="cm"># RHEL/Fedora</span></div>
+        <div class="box box-cyan"><div class="box-label">Why Rebuild initramfs?</div>The initial RAM filesystem (initramfs) loads before the root filesystem. If a blacklisted module is baked into the initramfs, it will still load on boot unless you regenerate the image.</div>
+    </div>
+</section>
+
+<!-- SLIDE 5 — NETWORK CONFIG OVERVIEW -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 14</div>
+        <div class="slide-title">Network Configuration <span class="accent">Overview</span></div>
+        <div class="slide-subtitle">Three methods to configure network interfaces on modern Linux.</div>
+        <div class="svg-diagram">
+            <svg viewBox="0 0 600 180" xmlns="http://www.w3.org/2000/svg">
+                <rect x="10" y="10" width="180" height="70" rx="10" fill="#2e1065" stroke="#a78bfa" stroke-width="1.5"/>
+                <text x="100" y="38" text-anchor="middle" fill="#c4b5fd" font-size="13" font-weight="700">ip / nmcli</text>
+                <text x="100" y="58" text-anchor="middle" fill="#94a3b8" font-size="11">Runtime (temporary)</text>
+                <rect x="210" y="10" width="180" height="70" rx="10" fill="#1e0338" stroke="#8b5cf6" stroke-width="1.5"/>
+                <text x="300" y="38" text-anchor="middle" fill="#c4b5fd" font-size="13" font-weight="700">Netplan / ifcfg</text>
+                <text x="300" y="58" text-anchor="middle" fill="#94a3b8" font-size="11">Persistent (config files)</text>
+                <rect x="410" y="10" width="180" height="70" rx="10" fill="#0f172a" stroke="#475569" stroke-width="1.5"/>
+                <text x="500" y="38" text-anchor="middle" fill="#94a3b8" font-size="13" font-weight="700">NetworkManager</text>
+                <text x="500" y="58" text-anchor="middle" fill="#64748b" font-size="11">Desktop / GUI</text>
+                <rect x="110" y="110" width="380" height="55" rx="10" fill="#0c0c1a" stroke="#a78bfa" stroke-width="1" stroke-dasharray="4"/>
+                <text x="300" y="143" text-anchor="middle" fill="#a78bfa" font-size="12">All methods configure the same kernel networking stack</text>
+            </svg>
+        </div>
+        <div class="card-grid">
+            <div class="card c-purple"><div class="card-label">ip command</div><div class="card-desc">The modern replacement for ifconfig. Part of the iproute2 suite. Configures addresses, routes, links. Changes are temporary -- lost on reboot.</div></div>
+            <div class="card c-cyan"><div class="card-label">Netplan (Ubuntu)</div><div class="card-desc">YAML config files in <span class="ic">/etc/netplan/</span>. Run <span class="ic">netplan apply</span> to activate. Netplan delegates to NetworkManager or systemd-networkd as a backend.</div></div>
+            <div class="card c-green"><div class="card-label">nmcli (RHEL/Fedora)</div><div class="card-desc">NetworkManager CLI tool. <span class="ic">nmcli con show</span> lists connections. Edits are persistent by default. Replaces the older <span class="ic">/etc/sysconfig/network-scripts/</span> files.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 6 — IP COMMAND -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 14</div>
+        <div class="slide-title">The <span class="accent">ip</span> Command</div>
+        <div class="slide-subtitle">Your primary tool for runtime network configuration.</div>
+        <div class="code-block"><span class="cm"># Show all interfaces and their addresses</span>
+<span class="fn">ip</span> addr show
+<span class="fn">ip</span> a                 <span class="cm"># shorthand</span>
+
+<span class="cm"># Show only link-layer info (MAC, state)</span>
+<span class="fn">ip</span> link show
+
+<span class="cm"># Assign an IP address</span>
+<span class="kw">sudo</span> <span class="fn">ip</span> addr add <span class="nb">192.168.1.50/24</span> dev enp0s3
+
+<span class="cm"># Bring interface up / down</span>
+<span class="kw">sudo</span> <span class="fn">ip</span> link set enp0s3 up
+<span class="kw">sudo</span> <span class="fn">ip</span> link set enp0s3 down
+
+<span class="cm"># Show routing table</span>
+<span class="fn">ip</span> route show
+
+<span class="cm"># Add a default gateway</span>
+<span class="kw">sudo</span> <span class="fn">ip</span> route add default via <span class="nb">192.168.1.1</span></div>
+        <div class="box box-red"><div class="box-label">Warning</div>All <span class="ic">ip</span> command changes are temporary. They are lost on reboot or network service restart. For persistent configuration, use netplan or nmcli.</div>
+    </div>
+</section>
+
+<!-- SLIDE 7 — NETPLAN -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 14</div>
+        <div class="slide-title"><span class="accent">Netplan</span> Configuration</div>
+        <div class="slide-subtitle">Ubuntu's declarative network configuration system.</div>
+        <div class="code-block"><span class="cm"># /etc/netplan/01-netcfg.yaml</span>
+<span class="kw">network</span>:
+  <span class="kw">version</span>: <span class="nb">2</span>
+  <span class="kw">renderer</span>: <span class="st">networkd</span>
+  <span class="kw">ethernets</span>:
+    <span class="kw">enp0s3</span>:
+      <span class="kw">dhcp4</span>: <span class="nb">false</span>
+      <span class="kw">addresses</span>:
+        - <span class="st">192.168.1.50/24</span>
+      <span class="kw">routes</span>:
+        - <span class="kw">to</span>: <span class="st">default</span>
+          <span class="kw">via</span>: <span class="st">192.168.1.1</span>
+      <span class="kw">nameservers</span>:
+        <span class="kw">addresses</span>:
+          - <span class="st">8.8.8.8</span>
+          - <span class="st">8.8.4.4</span></div>
+        <div class="card-grid-2">
+            <div class="card c-purple"><div class="card-label">Apply Changes</div><div class="card-desc">Run <span class="ic">sudo netplan apply</span> to activate the configuration. Use <span class="ic">sudo netplan try</span> to test changes with automatic rollback after 120 seconds if no confirmation.</div></div>
+            <div class="card c-red"><div class="card-label">YAML Syntax</div><div class="card-desc">Indentation must use spaces, never tabs. A single wrong indent will break the entire configuration. Use <span class="ic">netplan generate</span> to validate before applying.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 8 — NMCLI -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 14</div>
+        <div class="slide-title"><span class="accent">nmcli</span> &mdash; NetworkManager CLI</div>
+        <div class="slide-subtitle">Persistent network configuration on RHEL, Fedora, and CentOS.</div>
+        <div class="code-block"><span class="cm"># Show all connections</span>
+<span class="fn">nmcli</span> con show
+
+<span class="cm"># Show device status</span>
+<span class="fn">nmcli</span> dev status
+
+<span class="cm"># Create a new static connection</span>
+<span class="kw">sudo</span> <span class="fn">nmcli</span> con add type ethernet con-name <span class="st">"office"</span> ifname enp0s3 \
+    ipv4.addresses <span class="nb">192.168.1.50/24</span> \
+    ipv4.gateway <span class="nb">192.168.1.1</span> \
+    ipv4.dns <span class="st">"8.8.8.8 8.8.4.4"</span> \
+    ipv4.method manual
+
+<span class="cm"># Activate the connection</span>
+<span class="kw">sudo</span> <span class="fn">nmcli</span> con up <span class="st">"office"</span>
+
+<span class="cm"># Modify an existing connection</span>
+<span class="kw">sudo</span> <span class="fn">nmcli</span> con modify <span class="st">"office"</span> ipv4.dns <span class="st">"1.1.1.1"</span></div>
+        <div class="box box-green"><div class="box-label">Key Difference</div>nmcli changes are persistent by default. They are saved to connection profiles in <span class="ic">/etc/NetworkManager/system-connections/</span>. No extra step needed to survive a reboot.</div>
+    </div>
+</section>
+
+<!-- SLIDE 9 — DNS CONFIGURATION -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 14</div>
+        <div class="slide-title">DNS <span class="accent">Configuration</span></div>
+        <div class="slide-subtitle">How Linux resolves hostnames to IP addresses.</div>
+        <div class="svg-diagram">
+            <svg viewBox="0 0 600 140" xmlns="http://www.w3.org/2000/svg">
+                <rect x="10" y="40" width="130" height="55" rx="8" fill="#2e1065" stroke="#a78bfa" stroke-width="1.5"/>
+                <text x="75" y="62" text-anchor="middle" fill="#c4b5fd" font-size="11" font-weight="700">/etc/hosts</text>
+                <text x="75" y="80" text-anchor="middle" fill="#94a3b8" font-size="10">Local overrides</text>
+                <rect x="160" y="40" width="130" height="55" rx="8" fill="#2e1065" stroke="#a78bfa" stroke-width="1.5"/>
+                <text x="225" y="62" text-anchor="middle" fill="#c4b5fd" font-size="11" font-weight="700">/etc/nsswitch.conf</text>
+                <text x="225" y="80" text-anchor="middle" fill="#94a3b8" font-size="10">Resolution order</text>
+                <rect x="310" y="40" width="130" height="55" rx="8" fill="#2e1065" stroke="#a78bfa" stroke-width="1.5"/>
+                <text x="375" y="62" text-anchor="middle" fill="#c4b5fd" font-size="11" font-weight="700">/etc/resolv.conf</text>
+                <text x="375" y="80" text-anchor="middle" fill="#94a3b8" font-size="10">DNS servers</text>
+                <rect x="460" y="40" width="130" height="55" rx="8" fill="#0f172a" stroke="#475569" stroke-width="1.5"/>
+                <text x="525" y="62" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="700">systemd-resolved</text>
+                <text x="525" y="80" text-anchor="middle" fill="#64748b" font-size="10">Modern resolver</text>
+                <line x1="140" y1="67" x2="160" y2="67" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrowP)"/>
+                <line x1="290" y1="67" x2="310" y2="67" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrowP)"/>
+                <line x1="440" y1="67" x2="460" y2="67" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowP)"/>
+            </svg>
+        </div>
+        <div class="code-block"><span class="cm"># View current DNS servers</span>
+<span class="fn">cat</span> /etc/resolv.conf
+<span class="cm"># Or with systemd-resolved:</span>
+<span class="fn">resolvectl</span> status
+
+<span class="cm"># Test DNS resolution</span>
+<span class="fn">dig</span> google.com
+<span class="fn">nslookup</span> google.com
+<span class="fn">host</span> google.com
+
+<span class="cm"># Add a local hostname override</span>
+<span class="kw">echo</span> <span class="st">"192.168.1.100 myserver.local"</span> | <span class="kw">sudo</span> tee -a /etc/hosts</div>
+    </div>
+</section>
+
+<!-- SLIDE 10 — HOSTNAME -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 14</div>
+        <div class="slide-title">Hostname <span class="accent">Management</span></div>
+        <div class="slide-subtitle">Three types of hostnames in Linux.</div>
+        <div class="card-grid">
+            <div class="card c-purple"><div class="card-label">Static Hostname</div><div class="card-desc">Stored in <span class="ic">/etc/hostname</span>. Set with <span class="ic">hostnamectl set-hostname server01</span>. This is the persistent name used after reboot. Must follow RFC standards: lowercase, hyphens allowed, no underscores.</div></div>
+            <div class="card c-cyan"><div class="card-label">Pretty Hostname</div><div class="card-desc">A free-form name for display purposes. Set with <span class="ic">hostnamectl set-hostname "Web Server 01" --pretty</span>. Stored in <span class="ic">/etc/machine-info</span>. Can include spaces and special characters.</div></div>
+            <div class="card c-green"><div class="card-label">Transient Hostname</div><div class="card-desc">Assigned dynamically by DHCP. Overrides the static hostname until reboot. Check with <span class="ic">hostnamectl status</span> which shows all three hostname types.</div></div>
+        </div>
+        <div class="code-block"><span class="cm"># View all hostname details</span>
+<span class="fn">hostnamectl</span> status
+
+<span class="cm"># Set the static hostname (persists across reboots)</span>
+<span class="kw">sudo</span> <span class="fn">hostnamectl</span> set-hostname <span class="st">web-srv-01</span>
+
+<span class="cm"># Quick view with the hostname command</span>
+<span class="fn">hostname</span>             <span class="cm"># short hostname</span>
+<span class="fn">hostname</span> -f          <span class="cm"># FQDN</span>
+<span class="fn">hostname</span> -I          <span class="cm"># all assigned IP addresses</span></div>
+    </div>
+</section>
+
+<!-- SLIDE 11 — NETWORK MONITORING WITH SS -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 14</div>
+        <div class="slide-title">Network Monitoring: <span class="accent">ss</span> and <span class="accent">netstat</span></div>
+        <div class="slide-subtitle">Inspect active connections, listening ports, and socket statistics.</div>
+        <div class="code-block"><span class="cm"># ss — the modern replacement for netstat</span>
+<span class="fn">ss</span> -tuln            <span class="cm"># TCP/UDP listening sockets, numeric</span>
+<span class="fn">ss</span> -tunap           <span class="cm"># All sockets with process names</span>
+<span class="fn">ss</span> -s               <span class="cm"># Summary statistics</span>
+
+<span class="cm"># Filter by state</span>
+<span class="fn">ss</span> state established
+<span class="fn">ss</span> -t state time-wait
+
+<span class="cm"># Filter by port</span>
+<span class="fn">ss</span> -tuln sport = :443
+
+<span class="cm"># netstat (deprecated but still on exams)</span>
+<span class="fn">netstat</span> -tuln       <span class="cm"># Same as ss -tuln</span>
+<span class="fn">netstat</span> -rn         <span class="cm"># Routing table (same as ip route)</span></div>
+        <div class="card-grid-2">
+            <div class="card c-purple"><div class="card-label">ss Flag Reference</div><div class="card-desc"><span class="ic">-t</span> TCP, <span class="ic">-u</span> UDP, <span class="ic">-l</span> listening only, <span class="ic">-n</span> numeric (skip DNS), <span class="ic">-a</span> all sockets, <span class="ic">-p</span> process name/PID</div></div>
+            <div class="card c-red"><div class="card-label">netstat is Deprecated</div><div class="card-desc">netstat is part of the legacy net-tools package. Some distros no longer install it by default. Always prefer <span class="ic">ss</span> for new work, but know netstat for legacy systems and certification exams.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 12 — TROUBLESHOOTING NETWORK -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 14</div>
+        <div class="slide-title">Network <span class="accent">Troubleshooting</span> Workflow</div>
+        <div class="slide-subtitle">A systematic approach to diagnosing network issues.</div>
+        <div class="svg-diagram">
+            <svg viewBox="0 0 600 200" xmlns="http://www.w3.org/2000/svg">
+                <rect x="10" y="10" width="110" height="45" rx="6" fill="#2e1065" stroke="#a78bfa" stroke-width="1.5"/>
+                <text x="65" y="37" text-anchor="middle" fill="#c4b5fd" font-size="11" font-weight="600">1. ip link</text>
+                <rect x="135" y="10" width="110" height="45" rx="6" fill="#2e1065" stroke="#a78bfa" stroke-width="1.5"/>
+                <text x="190" y="37" text-anchor="middle" fill="#c4b5fd" font-size="11" font-weight="600">2. ip addr</text>
+                <rect x="260" y="10" width="110" height="45" rx="6" fill="#2e1065" stroke="#a78bfa" stroke-width="1.5"/>
+                <text x="315" y="37" text-anchor="middle" fill="#c4b5fd" font-size="11" font-weight="600">3. ip route</text>
+                <rect x="385" y="10" width="110" height="45" rx="6" fill="#2e1065" stroke="#a78bfa" stroke-width="1.5"/>
+                <text x="440" y="37" text-anchor="middle" fill="#c4b5fd" font-size="11" font-weight="600">4. ping gw</text>
+                <rect x="510" y="10" width="80" height="45" rx="6" fill="#2e1065" stroke="#a78bfa" stroke-width="1.5"/>
+                <text x="550" y="37" text-anchor="middle" fill="#c4b5fd" font-size="11" font-weight="600">5. DNS</text>
+                <line x1="120" y1="32" x2="135" y2="32" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrowP)"/>
+                <line x1="245" y1="32" x2="260" y2="32" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrowP)"/>
+                <line x1="370" y1="32" x2="385" y2="32" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrowP)"/>
+                <line x1="495" y1="32" x2="510" y2="32" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrowP)"/>
+                <text x="65" y="80" text-anchor="middle" fill="#94a3b8" font-size="10">Is NIC up?</text>
+                <text x="190" y="80" text-anchor="middle" fill="#94a3b8" font-size="10">Has an IP?</text>
+                <text x="315" y="80" text-anchor="middle" fill="#94a3b8" font-size="10">Route exists?</text>
+                <text x="440" y="80" text-anchor="middle" fill="#94a3b8" font-size="10">Gateway reachable?</text>
+                <text x="550" y="80" text-anchor="middle" fill="#94a3b8" font-size="10">Resolves?</text>
+            </svg>
+        </div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text">Check physical/link layer: <span class="ic">ip link show</span> -- is the interface UP?</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text">Check IP assignment: <span class="ic">ip addr show</span> -- does the NIC have an address?</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text">Check routing: <span class="ic">ip route show</span> -- is there a default route?</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text">Ping the gateway: <span class="ic">ping -c 4 192.168.1.1</span> -- can you reach your router?</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text">Test DNS: <span class="ic">dig google.com</span> -- if IP works but names don't, it's DNS.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 13 — ADDITIONAL TOOLS -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 14</div>
+        <div class="slide-title">Additional Network <span class="accent">Tools</span></div>
+        <div class="slide-subtitle">Essential utilities for deeper network analysis.</div>
+        <div class="card-grid">
+            <div class="card c-purple"><div class="card-label">traceroute / tracepath</div><div class="card-desc">Traces the path packets take to a destination. Each hop shows latency. Use <span class="ic">traceroute -n google.com</span> to skip DNS. tracepath does not require root.</div></div>
+            <div class="card c-cyan"><div class="card-label">nmap</div><div class="card-desc">Network scanner. <span class="ic">nmap -sn 192.168.1.0/24</span> discovers live hosts. <span class="ic">nmap -sV host</span> detects service versions. Essential for security assessment.</div></div>
+            <div class="card c-green"><div class="card-label">tcpdump / Wireshark</div><div class="card-desc"><span class="ic">tcpdump -i enp0s3 port 80</span> captures HTTP traffic. Use <span class="ic">-w capture.pcap</span> to save for analysis in Wireshark. Requires root or CAP_NET_RAW capability.</div></div>
+        </div>
+        <div class="card-grid-2">
+            <div class="card c-purple"><div class="card-label">ping</div><div class="card-desc">ICMP echo request. <span class="ic">ping -c 4 host</span> sends 4 packets. <span class="ic">ping -i 0.2 host</span> sets 200ms interval. Use <span class="ic">-W 2</span> to set timeout. Most basic connectivity test.</div></div>
+            <div class="card c-red"><div class="card-label">mtr</div><div class="card-desc">Combines ping + traceroute in a live updating display. <span class="ic">mtr --report google.com</span> generates a text report. Shows packet loss and latency at every hop.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 14 — SUMMARY -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 14 | Summary</div>
+        <div class="slide-title">Week 1 Topic 1 <span class="accent">Summary</span></div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text">Kernel modules (<span class="ic">.ko</span> files) extend the kernel without recompiling. Use <span class="ic">modprobe</span> to load/unload.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text">Persistent module loading: <span class="ic">/etc/modules-load.d/</span>. Blacklisting: <span class="ic">/etc/modprobe.d/</span>.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text">The <span class="ic">ip</span> command replaces ifconfig. Changes are temporary. Use netplan or nmcli for persistence.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text">Ubuntu uses Netplan (YAML). RHEL/Fedora uses nmcli (NetworkManager).</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text">DNS resolution: <span class="ic">/etc/resolv.conf</span> for servers, <span class="ic">/etc/hosts</span> for local overrides, <span class="ic">/etc/nsswitch.conf</span> for resolution order.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text">Use <span class="ic">ss</span> (not netstat) to inspect sockets and connections. <span class="ic">ss -tuln</span> shows listening ports.</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text">Troubleshooting order: link state, IP address, routing, gateway, DNS.</span></div>
+        </div>
+        <div class="box box-purple" style="margin-top:10px;">
+            <div class="box-label">Next Up</div>
+            Complete the Network Config Simulator lab, then take the Kernel &amp; Networking quiz.
+        </div>
+    </div>
+</section>
+
+<!-- NAV BAR -->
+<div id="nav-bar">
+    <a href="../index.html" class="nav-btn back-btn">Hub</a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide-1)" disabled>Prev</button>
+    <span id="slide-counter">Slide 1 of 14</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide+1)">Next</button>
+    <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+</div>
+
+<script>
+    var currentSlide = 1;
+    var TOTAL_SLIDES = 14;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        var prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        var next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        var cb = document.getElementById('complete-btn');
+        if (cb) cb.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('script', 'ra-w1-kernel-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>
