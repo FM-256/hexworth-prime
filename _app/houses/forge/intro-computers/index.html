@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- ── Security / Auth: must be first; blocks unauthorized users immediately ── -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <script src="../../../components/FirebaseAuth.js"></script>
+    <script src="../../../components/TenantRouter.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>First Boot &mdash; CGS1000C</title>
+
+    <style>
+        /* ── CSS Custom Properties -- Forge house palette (gold) ── */
+        :root {
+            --forge-primary:   #fbbf24;   /* amber-400 -- house accent */
+            --forge-secondary: #f59e0b;   /* amber-500 */
+            --forge-accent:    #fde68a;   /* amber-200 */
+            --forge-dark:      #92400e;   /* amber-900 */
+            --forge-darker:    #451a03;   /* deeper amber for gradients */
+            --bg-main:         #0a0e1a;   /* near-black with blue tint */
+            --bg-deep:         #0d1220;   /* slightly lighter deep */
+            --bg-card:         #111827;   /* dark card surface */
+            --bg-card-hover:   #1a2535;   /* card hover state */
+            --text-primary:    #e2e8f0;
+            --text-secondary:  #94a3b8;
+            --text-muted:      #64748b;
+            --border-color:    rgba(251, 191, 36, 0.15);
+            --border-hover:    rgba(251, 191, 36, 0.40);
+            --success:         #22c55e;
+            --shadow-md:       0 4px 6px -1px rgba(0, 0, 0, 0.35);
+            --shadow-lg:       0 10px 15px -3px rgba(0, 0, 0, 0.45);
+            --shadow-glow:     0 0 24px rgba(251, 191, 36, 0.12);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(160deg, var(--bg-main) 0%, var(--bg-deep) 100%);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* ── Visually hidden -- accessibility/SEO anchor ── */
+        .visually-hidden {
+            position: absolute;
+            width: 1px; height: 1px; padding: 0; margin: -1px;
+            overflow: hidden; clip: rect(0, 0, 0, 0);
+            white-space: nowrap; border: 0;
+        }
+
+        .container { max-width: 1100px; margin: 0 auto; }
+
+        /* ── Top navigation bar ── */
+        .top-bar {
+            display: flex; align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px; padding: 10px 0;
+        }
+
+        .course-label {
+            font-size: 0.8rem; color: var(--text-muted);
+            letter-spacing: 0.5px; text-transform: uppercase;
+        }
+
+        /* ── Dashboard return button ── */
+        .dashboard-btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            color: var(--text-secondary); text-decoration: none;
+            font-size: 0.85rem; font-weight: 500;
+            padding: 7px 16px; border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background: rgba(251, 191, 36, 0.05);
+            transition: all 0.2s ease;
+        }
+
+        .dashboard-btn:hover {
+            color: var(--forge-secondary);
+            border-color: var(--border-hover);
+            background: rgba(251, 191, 36, 0.10);
+        }
+
+        .dashboard-btn-icon { width: 14px; height: 14px; opacity: 0.7; }
+
+        /* ── Hero header ── */
+        .header {
+            text-align: center; margin-bottom: 28px;
+            padding: 40px 20px 32px;
+            background: linear-gradient(135deg, var(--forge-darker) 0%, #6b3410 50%, var(--forge-darker) 100%);
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg), var(--shadow-glow);
+            border: 1px solid var(--border-color);
+            position: relative; overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: repeating-linear-gradient(
+                -45deg, transparent, transparent 20px,
+                rgba(251, 191, 36, 0.025) 20px, rgba(251, 191, 36, 0.025) 40px
+            );
+            pointer-events: none;
+        }
+
+        .course-badge {
+            display: inline-block;
+            background: rgba(251, 191, 36, 0.20);
+            border: 1px solid rgba(251, 191, 36, 0.40);
+            color: var(--forge-secondary);
+            font-size: 0.72rem; font-weight: 600;
+            letter-spacing: 1.5px; text-transform: uppercase;
+            padding: 4px 16px; border-radius: 20px;
+            margin-bottom: 12px; position: relative;
+        }
+
+        .header h2 {
+            font-size: 2.1rem; color: #fff;
+            margin-bottom: 6px; position: relative;
+        }
+
+        .header .subtitle {
+            font-size: 1.05rem; color: var(--forge-accent);
+            opacity: 0.9; position: relative;
+        }
+
+        /* ── Course stat chips ── */
+        .course-stats {
+            display: flex; justify-content: center;
+            gap: 18px; margin-top: 24px;
+            flex-wrap: wrap; position: relative;
+        }
+
+        .course-stat {
+            background: rgba(251, 191, 36, 0.12);
+            border: 1px solid rgba(251, 191, 36, 0.25);
+            padding: 10px 22px; border-radius: 10px; text-align: center;
+        }
+
+        .course-stat .value { font-size: 1.4rem; font-weight: 700; color: #fff; }
+        .course-stat .label {
+            font-size: 0.72rem; color: var(--forge-accent);
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+
+        /* ── Overall progress bar ── */
+        .progress-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 18px 20px;
+            margin-bottom: 28px; box-shadow: var(--shadow-md);
+        }
+
+        .progress-section h3 {
+            color: var(--forge-secondary);
+            font-size: 0.9rem; font-weight: 600; margin-bottom: 10px;
+        }
+
+        .progress-bar-container {
+            background: rgba(251, 191, 36, 0.10);
+            border-radius: 10px; height: 16px; overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--forge-dark), var(--forge-primary), var(--forge-secondary));
+            width: 0%; transition: width 0.6s ease; border-radius: 10px;
+        }
+
+        .progress-text {
+            text-align: right; font-size: 0.78rem;
+            color: var(--text-muted); margin-top: 6px;
+        }
+
+        /* ── Section heading label ── */
+        .section-heading {
+            font-size: 0.7rem; font-weight: 700;
+            letter-spacing: 2px; text-transform: uppercase;
+            color: var(--text-muted); margin-bottom: 12px; padding-left: 4px;
+        }
+
+        /* ── Week Cards (collapsible) ── */
+        .week-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px; margin-bottom: 12px;
+            box-shadow: var(--shadow-md); overflow: hidden;
+            transition: border-color 0.2s ease;
+        }
+
+        .week-card:hover { border-color: var(--border-hover); }
+
+        .week-header {
+            display: flex; align-items: center;
+            justify-content: space-between;
+            padding: 18px 22px; cursor: pointer;
+            user-select: none; transition: background 0.2s ease;
+        }
+
+        .week-header:hover { background: rgba(251, 191, 36, 0.04); }
+
+        .week-header-left { display: flex; align-items: center; gap: 14px; }
+
+        .week-num {
+            background: linear-gradient(135deg, var(--forge-dark), var(--forge-primary));
+            color: #fff; width: 40px; height: 40px;
+            border-radius: 10px; display: flex;
+            align-items: center; justify-content: center;
+            font-weight: 700; font-size: 1rem; flex-shrink: 0;
+        }
+
+        .week-title-group .week-title {
+            font-size: 1.05rem; font-weight: 600;
+            color: var(--forge-accent); line-height: 1.25;
+        }
+
+        .week-title-group .week-sub {
+            font-size: 0.88rem; color: var(--text-secondary); margin-top: 1px;
+        }
+
+        .week-meta { display: flex; align-items: center; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
+
+        .obj-tag {
+            font-size: 0.72rem; font-weight: 600;
+            color: var(--forge-primary);
+            background: rgba(251, 191, 36, 0.10);
+            border: 1px solid rgba(251, 191, 36, 0.20);
+            padding: 2px 8px; border-radius: 4px;
+        }
+
+        .item-count-tag {
+            font-size: 0.72rem; color: var(--text-muted);
+            background: rgba(251, 191, 36, 0.08);
+            border: 1px solid rgba(251, 191, 36, 0.18);
+            padding: 2px 8px; border-radius: 4px;
+        }
+
+        .week-toggle {
+            color: var(--text-muted); font-size: 1.1rem;
+            transition: transform 0.3s ease; flex-shrink: 0;
+        }
+
+        .week-card.open .week-toggle { transform: rotate(180deg); }
+
+        .week-body {
+            max-height: 0; overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .week-card.open .week-body { max-height: 3600px; }
+
+        .week-inner {
+            padding: 4px 22px 22px;
+            border-top: 1px solid rgba(251, 191, 36, 0.08);
+        }
+
+        /* ── Per-week progress bar ── */
+        .week-progress { margin: 14px 0 6px; }
+
+        .week-progress-label {
+            display: flex; justify-content: space-between;
+            font-size: 0.72rem; color: var(--text-muted); margin-bottom: 5px;
+        }
+
+        .week-progress-bar-container {
+            background: rgba(251, 191, 36, 0.08);
+            border-radius: 6px; height: 6px; overflow: hidden;
+        }
+
+        .week-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--forge-dark), var(--forge-primary));
+            width: 0%; transition: width 0.5s ease; border-radius: 6px;
+        }
+
+        /* ── Week Overview Card ── */
+        .week-overview {
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.06), rgba(251, 191, 36, 0.02));
+            border: 1px solid rgba(251, 191, 36, 0.2);
+            border-radius: 10px; padding: 16px 20px; margin-bottom: 14px;
+        }
+
+        .week-overview-title {
+            font-size: 0.82rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.06em;
+            color: var(--forge-primary); margin-bottom: 8px;
+        }
+
+        .week-overview-desc {
+            font-size: 0.88rem; color: var(--text-secondary);
+            line-height: 1.6; margin-bottom: 10px;
+        }
+
+        .week-overview-features { display: flex; flex-wrap: wrap; gap: 6px; }
+
+        .week-feature-tag {
+            background: rgba(251, 191, 36, 0.08);
+            border: 1px solid rgba(251, 191, 36, 0.2);
+            color: var(--forge-secondary);
+            font-size: 0.75rem; font-weight: 600;
+            padding: 3px 10px; border-radius: 4px;
+        }
+
+        /* ── Subsection labels inside a week ── */
+        .subsection { margin-top: 18px; }
+
+        .subsection-label {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 0.72rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 1px;
+            color: var(--text-muted); margin-bottom: 8px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid rgba(100, 116, 139, 0.15);
+        }
+
+        .subsection-label::before {
+            content: ''; display: inline-block;
+            width: 3px; height: 12px; border-radius: 2px; flex-shrink: 0;
+        }
+
+        .subsection-label.label-presentation::before { background: #60a5fa; }
+        .subsection-label.label-lab::before          { background: #22c55e; }
+        .subsection-label.label-assessment::before   { background: #fbbf24; }
+
+        /* ── Content link cards ── */
+        .content-grid { display: grid; grid-template-columns: 1fr; gap: 6px; }
+
+        .content-card {
+            display: flex; align-items: center; gap: 12px;
+            padding: 11px 14px;
+            background: rgba(251, 191, 36, 0.03);
+            border: 1px solid rgba(251, 191, 36, 0.08);
+            border-radius: 8px; text-decoration: none;
+            color: var(--text-primary); transition: all 0.2s ease;
+        }
+
+        .content-card:hover {
+            background: rgba(251, 191, 36, 0.08);
+            border-color: rgba(251, 191, 36, 0.25);
+            transform: translateX(3px);
+        }
+
+        .content-card.is-complete {
+            border-color: rgba(34, 197, 94, 0.35);
+            background: rgba(34, 197, 94, 0.05);
+        }
+
+        /* Type dots */
+        .card-type-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .dot-present { background: #60a5fa; }
+        .dot-lab     { background: #22c55e; }
+        .dot-quiz    { background: #fbbf24; }
+        .dot-exam    { background: #f87171; }
+
+        .card-info { flex: 1; min-width: 0; }
+        .card-info .card-title { font-size: 0.88rem; font-weight: 500; color: var(--text-primary); }
+        .card-info .card-sub { font-size: 0.73rem; color: var(--text-muted); }
+
+        .card-check {
+            width: 18px; height: 18px; opacity: 0;
+            flex-shrink: 0; transition: opacity 0.2s ease;
+        }
+
+        .content-card.is-complete .card-check { opacity: 1; }
+
+        /* Badge pills */
+        .content-badge {
+            font-size: 0.58rem; font-weight: 700;
+            letter-spacing: 0.8px; text-transform: uppercase;
+            padding: 3px 8px; border-radius: 4px; flex-shrink: 0;
+        }
+
+        .badge-presentation {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.30);
+        }
+
+        .badge-lab {
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.30);
+        }
+
+        .badge-quiz {
+            background: rgba(250, 204, 21, 0.15);
+            color: #fbbf24; border: 1px solid rgba(250, 204, 21, 0.30);
+        }
+
+        .badge-exam {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171; border: 1px solid rgba(239, 68, 68, 0.30);
+        }
+
+        /* ── Course Info block (bottom) ── */
+        .course-info-block {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 24px 26px;
+            margin-top: 36px; margin-bottom: 16px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .course-info-block h3 {
+            font-size: 0.9rem; font-weight: 700;
+            color: var(--forge-secondary);
+            text-transform: uppercase; letter-spacing: 1px;
+            margin-bottom: 18px; padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 16px;
+        }
+
+        .info-item { display: flex; flex-direction: column; gap: 3px; }
+
+        .info-item .info-label {
+            font-size: 0.68rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 1px;
+            color: var(--text-muted);
+        }
+
+        .info-item .info-value {
+            font-size: 0.88rem; color: var(--text-secondary); line-height: 1.45;
+        }
+
+        .objectives-list {
+            list-style: none; margin-top: 18px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 8px;
+        }
+
+        .objectives-list li {
+            display: flex; align-items: flex-start; gap: 8px;
+            font-size: 0.83rem; color: var(--text-secondary); line-height: 1.45;
+        }
+
+        .objectives-list li::before {
+            content: ''; display: inline-block;
+            width: 6px; height: 6px; border-radius: 50%;
+            background: var(--forge-primary);
+            flex-shrink: 0; margin-top: 6px;
+        }
+
+        .page-footer {
+            text-align: center; padding: 28px 0 10px;
+            color: var(--text-muted); font-size: 0.78rem;
+        }
+
+        /* ── Locked week ── */
+        .week-card.locked { opacity: 0.5; pointer-events: none; }
+        .week-card.locked .week-header { pointer-events: auto; cursor: default; }
+
+        .lock-msg {
+            font-size: 0.78rem; color: #64748b;
+            padding: 8px 22px; font-style: italic;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+            body { padding: 12px; }
+            .header { padding: 28px 16px 24px; }
+            .header h2 { font-size: 1.6rem; }
+            .header .subtitle { font-size: 0.95rem; }
+            .course-stats { gap: 10px; }
+            .course-stat { padding: 8px 14px; }
+            .course-stat .value { font-size: 1.1rem; }
+            .week-header { padding: 14px 16px; }
+            .week-inner { padding: 4px 16px 18px; }
+            .info-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 480px) {
+            .header h2 { font-size: 1.35rem; }
+            .course-stat { padding: 6px 10px; }
+            .course-stat .value { font-size: 1rem; }
+            .course-stat .label { font-size: 0.62rem; }
+            .week-num { width: 34px; height: 34px; font-size: 0.85rem; }
+            .week-title-group .week-title { font-size: 0.95rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1 class="visually-hidden">First Boot &mdash; CGS1000C Course Hub</h1>
+
+    <div class="container">
+
+        <!-- ── Top Bar ── -->
+        <div class="top-bar">
+            <span class="course-label">First Boot &mdash; CGS1000C</span>
+            <a href="../index.html" class="dashboard-btn" id="dashboardBtn">
+                <img src="../../../assets/images/icons/icon-arrow-left.webp"
+                     alt="" class="dashboard-btn-icon" aria-hidden="true">
+                Dashboard
+            </a>
+        </div>
+
+        <!-- ── Hero Header ── -->
+        <div class="header">
+            <span class="course-badge">CGS1000C</span>
+            <h2>First Boot</h2>
+            <p class="subtitle">Introduction to Computers &mdash; 4-Week Intensive</p>
+
+            <div class="course-stats">
+                <div class="course-stat">
+                    <div class="value">4</div>
+                    <div class="label">Weeks</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">27</div>
+                    <div class="label">Modules</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">8</div>
+                    <div class="label">Labs</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">10</div>
+                    <div class="label">Assessments</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Overall Course Progress ── -->
+        <div class="progress-section">
+            <h3>Course Progress</h3>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <div class="progress-text" id="progressText">Loading...</div>
+        </div>
+
+        <!-- ── Weekly Learning Path ── -->
+        <div class="section-heading">Learning Path</div>
+
+        <!-- ════════════════════════════════════════════
+             WEEK 1: Computer Fundamentals + Word Processing Basics
+        ════════════════════════════════════════════ -->
+        <div class="week-card" id="wk1">
+            <div class="week-header" onclick="toggleWeek('wk1')">
+                <div class="week-header-left">
+                    <div class="week-num">1</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Computer Fundamentals &amp; Word Basics</div>
+                        <div class="week-sub">Hardware, software, OS concepts, Word formatting essentials</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Obj 1</span>
+                            <span class="obj-tag">Obj 2</span>
+                            <span class="item-count-tag">2 presentations &bull; 2 labs &bull; 2 quizzes</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Week 1 Progress</span>
+                            <span id="wk1-progress-text">0 / 6</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="wk1-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <div class="week-overview">
+                        <div class="week-overview-title">This Week: Foundations</div>
+                        <div class="week-overview-desc">
+                            Start from the ground up. Learn what makes a computer tick &mdash; CPU, RAM, storage, input/output devices, and operating system basics. Then jump into Microsoft Word to create, format, and save professional documents.
+                        </div>
+                        <div class="week-overview-features">
+                            <span class="week-feature-tag">Hardware Components</span>
+                            <span class="week-feature-tag">CPU &amp; RAM</span>
+                            <span class="week-feature-tag">File Management</span>
+                            <span class="week-feature-tag">Word Interface</span>
+                            <span class="week-feature-tag">Text Formatting</span>
+                            <span class="week-feature-tag">Page Layout</span>
+                        </div>
+                    </div>
+
+                    <!-- Presentations -->
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentations</div>
+                        <div class="content-grid">
+
+                            <a href="presentations/fb-w1-fundamentals.presentation.html"
+                               class="content-card"
+                               data-module="fb-w1-fundamentals-pres">
+                                <span class="card-type-dot dot-present"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Computer Fundamentals</div>
+                                    <div class="card-sub">Hardware, input/output, CPU, RAM, storage, OS, file management</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/fb-w1-word-basics.presentation.html"
+                               class="content-card"
+                               data-module="fb-w1-word-pres">
+                                <span class="card-type-dot dot-present"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Word Processing Basics</div>
+                                    <div class="card-sub">Creating documents, formatting text, paragraphs, headers/footers</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Labs -->
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Hands-On Labs</div>
+                        <div class="content-grid">
+
+                            <a href="labs/fb-w1-fundamentals.lab.html"
+                               class="content-card"
+                               data-module="fb-w1-fundamentals-lab">
+                                <span class="card-type-dot dot-lab"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Hardware Identifier</div>
+                                    <div class="card-sub">12 component descriptions &mdash; match to the correct part</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-lab">Lab</span>
+                            </a>
+
+                            <a href="labs/fb-w1-word.lab.html"
+                               class="content-card"
+                               data-module="fb-w1-word-lab">
+                                <span class="card-type-dot dot-lab"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Word Formatting Challenge</div>
+                                    <div class="card-sub">Fix a messy document by selecting correct formatting actions</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-lab">Lab</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Assessment -->
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+
+                            <a href="quizzes/fb-w1-fundamentals.quiz.html"
+                               class="content-card"
+                               data-module="fb-w1-fundamentals-quiz">
+                                <span class="card-type-dot dot-quiz"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Quiz 1: Computer Fundamentals</div>
+                                    <div class="card-sub">15 questions &mdash; hardware, software, OS basics</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                            <a href="quizzes/fb-w1-word.quiz.html"
+                               class="content-card"
+                               data-module="fb-w1-word-quiz">
+                                <span class="card-type-dot dot-quiz"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Quiz 2: Word Processing Basics</div>
+                                    <div class="card-sub">15 questions &mdash; formatting, page layout, spell check</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- ════════════════════════════════════════════
+             WEEK 2: Advanced Word + Excel Basics
+        ════════════════════════════════════════════ -->
+        <div class="week-card" id="wk2">
+            <div class="week-header" onclick="toggleWeek('wk2')">
+                <div class="week-header-left">
+                    <div class="week-num">2</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Advanced Word &amp; Spreadsheet Basics</div>
+                        <div class="week-sub">Styles, tables, citations, Excel formulas &amp; cell references</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Obj 3</span>
+                            <span class="obj-tag">Obj 4</span>
+                            <span class="item-count-tag">2 presentations &bull; 2 labs &bull; 2 quizzes &bull; midterm</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Week 2 Progress</span>
+                            <span id="wk2-progress-text">0 / 7</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="wk2-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <div class="week-overview">
+                        <div class="week-overview-title">This Week: Documents &amp; Data</div>
+                        <div class="week-overview-desc">
+                            Level up your Word skills with styles, tables, citations, and research paper formatting. Then begin your spreadsheet journey &mdash; learn Excel's interface, basic formulas, cell references, and data formatting. The midterm exam covers Weeks 1&ndash;2.
+                        </div>
+                        <div class="week-overview-features">
+                            <span class="week-feature-tag">Styles &amp; Templates</span>
+                            <span class="week-feature-tag">Tables &amp; Lists</span>
+                            <span class="week-feature-tag">MLA/APA Citations</span>
+                            <span class="week-feature-tag">Excel Interface</span>
+                            <span class="week-feature-tag">SUM/AVERAGE/COUNT</span>
+                            <span class="week-feature-tag">Cell References</span>
+                        </div>
+                    </div>
+
+                    <!-- Presentations -->
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentations</div>
+                        <div class="content-grid">
+
+                            <a href="presentations/fb-w2-word-advanced.presentation.html"
+                               class="content-card"
+                               data-module="fb-w2-word-adv-pres">
+                                <span class="card-type-dot dot-present"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Advanced Word Processing</div>
+                                    <div class="card-sub">Styles, tables, citations, mail merge, track changes</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/fb-w2-excel-basics.presentation.html"
+                               class="content-card"
+                               data-module="fb-w2-excel-pres">
+                                <span class="card-type-dot dot-present"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Spreadsheet Fundamentals</div>
+                                    <div class="card-sub">Workbooks, cells, formulas, cell references, formatting</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Labs -->
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Hands-On Labs</div>
+                        <div class="content-grid">
+
+                            <a href="labs/fb-w2-word-adv.lab.html"
+                               class="content-card"
+                               data-module="fb-w2-word-adv-lab">
+                                <span class="card-type-dot dot-lab"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Citation Builder</div>
+                                    <div class="card-sub">Given sources, select correct MLA/APA citation format</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-lab">Lab</span>
+                            </a>
+
+                            <a href="labs/fb-w2-excel.lab.html"
+                               class="content-card"
+                               data-module="fb-w2-excel-lab">
+                                <span class="card-type-dot dot-lab"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Formula Builder</div>
+                                    <div class="card-sub">10 scenarios &mdash; construct the correct Excel formula</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-lab">Lab</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Assessment -->
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+
+                            <a href="quizzes/fb-w2-word-adv.quiz.html"
+                               class="content-card"
+                               data-module="fb-w2-word-adv-quiz">
+                                <span class="card-type-dot dot-quiz"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Quiz 3: Advanced Word Processing</div>
+                                    <div class="card-sub">15 questions &mdash; styles, tables, citations, mail merge</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                            <a href="quizzes/fb-w2-excel.quiz.html"
+                               class="content-card"
+                               data-module="fb-w2-excel-quiz">
+                                <span class="card-type-dot dot-quiz"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Quiz 4: Spreadsheet Fundamentals</div>
+                                    <div class="card-sub">15 questions &mdash; formulas, cell references, formatting</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                            <a href="exams/fb-midterm.exam.html"
+                               class="content-card"
+                               data-module="fb-midterm-exam">
+                                <span class="card-type-dot dot-exam"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Midterm Exam</div>
+                                    <div class="card-sub">25 questions &bull; 45 minutes &mdash; Weeks 1&ndash;2 comprehensive</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-exam">Exam</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- ════════════════════════════════════════════
+             WEEK 3: Advanced Excel + Database Fundamentals
+        ════════════════════════════════════════════ -->
+        <div class="week-card" id="wk3">
+            <div class="week-header" onclick="toggleWeek('wk3')">
+                <div class="week-header-left">
+                    <div class="week-num">3</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Advanced Spreadsheets &amp; Databases</div>
+                        <div class="week-sub">Charts, IF/VLOOKUP, pivot tables, Access database fundamentals</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Obj 5</span>
+                            <span class="obj-tag">Obj 6</span>
+                            <span class="item-count-tag">2 presentations &bull; 2 labs &bull; 2 quizzes</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Week 3 Progress</span>
+                            <span id="wk3-progress-text">0 / 6</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="wk3-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <div class="week-overview">
+                        <div class="week-overview-title">This Week: Analysis &amp; Databases</div>
+                        <div class="week-overview-desc">
+                            Take your spreadsheet skills to the next level with charts, the IF function, VLOOKUP, conditional formatting, and pivot tables. Then discover databases with Microsoft Access &mdash; tables, data types, primary keys, relationships, queries, and reports.
+                        </div>
+                        <div class="week-overview-features">
+                            <span class="week-feature-tag">Charts (Bar/Line/Pie)</span>
+                            <span class="week-feature-tag">IF Function</span>
+                            <span class="week-feature-tag">VLOOKUP</span>
+                            <span class="week-feature-tag">Pivot Tables</span>
+                            <span class="week-feature-tag">Access Tables</span>
+                            <span class="week-feature-tag">Queries &amp; Reports</span>
+                        </div>
+                    </div>
+
+                    <!-- Presentations -->
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentations</div>
+                        <div class="content-grid">
+
+                            <a href="presentations/fb-w3-excel-advanced.presentation.html"
+                               class="content-card"
+                               data-module="fb-w3-excel-adv-pres">
+                                <span class="card-type-dot dot-present"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Advanced Spreadsheets</div>
+                                    <div class="card-sub">Charts, IF, VLOOKUP, conditional formatting, pivot tables</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/fb-w3-access.presentation.html"
+                               class="content-card"
+                               data-module="fb-w3-access-pres">
+                                <span class="card-type-dot dot-present"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Database Fundamentals</div>
+                                    <div class="card-sub">Tables, data types, primary keys, queries, forms, reports</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Labs -->
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Hands-On Labs</div>
+                        <div class="content-grid">
+
+                            <a href="labs/fb-w3-excel-adv.lab.html"
+                               class="content-card"
+                               data-module="fb-w3-excel-adv-lab">
+                                <span class="card-type-dot dot-lab"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Chart Type Selector</div>
+                                    <div class="card-sub">10 data scenarios &mdash; pick the correct chart type</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-lab">Lab</span>
+                            </a>
+
+                            <a href="labs/fb-w3-access.lab.html"
+                               class="content-card"
+                               data-module="fb-w3-access-lab">
+                                <span class="card-type-dot dot-lab"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Database Designer</div>
+                                    <div class="card-sub">Select data types, primary keys, and relationships</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-lab">Lab</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Assessment -->
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+
+                            <a href="quizzes/fb-w3-excel-adv.quiz.html"
+                               class="content-card"
+                               data-module="fb-w3-excel-adv-quiz">
+                                <span class="card-type-dot dot-quiz"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Quiz 5: Advanced Spreadsheets</div>
+                                    <div class="card-sub">15 questions &mdash; charts, functions, pivot tables</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                            <a href="quizzes/fb-w3-access.quiz.html"
+                               class="content-card"
+                               data-module="fb-w3-access-quiz">
+                                <span class="card-type-dot dot-quiz"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Quiz 6: Database Fundamentals</div>
+                                    <div class="card-sub">15 questions &mdash; tables, queries, relationships</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- ════════════════════════════════════════════
+             WEEK 4: Presentations + Integration & Digital Literacy
+        ════════════════════════════════════════════ -->
+        <div class="week-card" id="wk4">
+            <div class="week-header" onclick="toggleWeek('wk4')">
+                <div class="week-header-left">
+                    <div class="week-num">4</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Presentations &amp; Digital Literacy</div>
+                        <div class="week-sub">PowerPoint, app integration, cloud storage, cybersecurity awareness</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Obj 7</span>
+                            <span class="obj-tag">Obj 8</span>
+                            <span class="item-count-tag">2 presentations &bull; 2 labs &bull; 2 quizzes &bull; final</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Week 4 Progress</span>
+                            <span id="wk4-progress-text">0 / 7</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="wk4-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <div class="week-overview">
+                        <div class="week-overview-title">This Week: Present &amp; Integrate</div>
+                        <div class="week-overview-desc">
+                            Master PowerPoint &mdash; slide layouts, themes, animations, and presenting tips. Then learn to integrate Office applications: embedding Excel in Word, linking data, and collaborating in the cloud. The course wraps up with digital literacy, cybersecurity awareness, and career skills.
+                        </div>
+                        <div class="week-overview-features">
+                            <span class="week-feature-tag">Slide Layouts</span>
+                            <span class="week-feature-tag">Animations</span>
+                            <span class="week-feature-tag">Speaker Notes</span>
+                            <span class="week-feature-tag">App Integration</span>
+                            <span class="week-feature-tag">OneDrive</span>
+                            <span class="week-feature-tag">Cybersecurity Basics</span>
+                        </div>
+                    </div>
+
+                    <!-- Presentations -->
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentations</div>
+                        <div class="content-grid">
+
+                            <a href="presentations/fb-w4-powerpoint.presentation.html"
+                               class="content-card"
+                               data-module="fb-w4-ppt-pres">
+                                <span class="card-type-dot dot-present"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Presentation Graphics</div>
+                                    <div class="card-sub">Slide layouts, themes, transitions, animations, presenting</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/fb-w4-integration.presentation.html"
+                               class="content-card"
+                               data-module="fb-w4-integration-pres">
+                                <span class="card-type-dot dot-present"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Integration &amp; Digital Literacy</div>
+                                    <div class="card-sub">App integration, cloud storage, collaboration, cybersecurity</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Labs -->
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Hands-On Labs</div>
+                        <div class="content-grid">
+
+                            <a href="labs/fb-w4-ppt.lab.html"
+                               class="content-card"
+                               data-module="fb-w4-ppt-lab">
+                                <span class="card-type-dot dot-lab"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Presentation Planner</div>
+                                    <div class="card-sub">Select slide layouts, content order, and design principles</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-lab">Lab</span>
+                            </a>
+
+                            <a href="labs/fb-w4-integration.lab.html"
+                               class="content-card"
+                               data-module="fb-w4-integration-lab">
+                                <span class="card-type-dot dot-lab"></span>
+                                <div class="card-info">
+                                    <div class="card-title">App Selector</div>
+                                    <div class="card-sub">12 task descriptions &mdash; pick the correct Office application</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-lab">Lab</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Assessment -->
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+
+                            <a href="quizzes/fb-w4-ppt.quiz.html"
+                               class="content-card"
+                               data-module="fb-w4-ppt-quiz">
+                                <span class="card-type-dot dot-quiz"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Quiz 7: Presentation Graphics</div>
+                                    <div class="card-sub">15 questions &mdash; PowerPoint features, design principles</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                            <a href="quizzes/fb-w4-integration.quiz.html"
+                               class="content-card"
+                               data-module="fb-w4-integration-quiz">
+                                <span class="card-type-dot dot-quiz"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Quiz 8: Integration &amp; Digital Literacy</div>
+                                    <div class="card-sub">15 questions &mdash; app integration, cloud, cybersecurity</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                            <a href="exams/fb-final.exam.html"
+                               class="content-card"
+                               data-module="fb-final-exam">
+                                <span class="card-type-dot dot-exam"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Final Exam</div>
+                                    <div class="card-sub">40 questions &bull; 75 minutes &mdash; comprehensive all weeks</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-exam">Exam</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Course Info ── -->
+        <div class="course-info-block">
+            <h3>Course Information</h3>
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="info-label">Course Code</span>
+                    <span class="info-value">CGS1000C</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Title</span>
+                    <span class="info-value">Introduction to Computers</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Duration</span>
+                    <span class="info-value">4 Weeks</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">House</span>
+                    <span class="info-value">Forge (The Builders)</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Software</span>
+                    <span class="info-value">Microsoft Office 365 (Word, Excel, Access, PowerPoint)</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Assessments</span>
+                    <span class="info-value">8 Quizzes, 1 Midterm, 1 Final Exam</span>
+                </div>
+            </div>
+
+            <ul class="objectives-list">
+                <li>Identify hardware components and their functions</li>
+                <li>Create and format professional Word documents</li>
+                <li>Apply advanced Word features: styles, tables, citations</li>
+                <li>Build Excel workbooks with formulas and cell references</li>
+                <li>Create charts and use advanced Excel functions</li>
+                <li>Design Access databases with tables, queries, and reports</li>
+                <li>Build effective PowerPoint presentations</li>
+                <li>Integrate Office applications and work in the cloud</li>
+            </ul>
+        </div>
+
+        <div class="page-footer">
+            First Boot // CGS1000C &mdash; Forge House &mdash; Hexworth Prime
+        </div>
+
+    </div><!-- /.container -->
+
+    <script>
+        /* ── Collapsible Week Cards ── */
+        function toggleWeek(weekId) {
+            var card = document.getElementById(weekId);
+            if (!card || card.classList.contains('locked')) return;
+            card.classList.toggle('open');
+        }
+
+        /* Auto-expand Week 1 on load */
+        document.addEventListener('DOMContentLoaded', function() {
+            var wk1 = document.getElementById('wk1');
+            if (wk1) wk1.classList.add('open');
+        });
+
+        /* ── Progress Tracking ── */
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof ModuleProgress === 'undefined') return;
+
+            var weeks = {
+                wk1: [
+                    'fb-w1-fundamentals-pres',
+                    'fb-w1-word-pres',
+                    'fb-w1-fundamentals-lab',
+                    'fb-w1-word-lab',
+                    'fb-w1-fundamentals-quiz',
+                    'fb-w1-word-quiz'
+                ],
+                wk2: [
+                    'fb-w2-word-adv-pres',
+                    'fb-w2-excel-pres',
+                    'fb-w2-word-adv-lab',
+                    'fb-w2-excel-lab',
+                    'fb-w2-word-adv-quiz',
+                    'fb-w2-excel-quiz',
+                    'fb-midterm-exam'
+                ],
+                wk3: [
+                    'fb-w3-excel-adv-pres',
+                    'fb-w3-access-pres',
+                    'fb-w3-excel-adv-lab',
+                    'fb-w3-access-lab',
+                    'fb-w3-excel-adv-quiz',
+                    'fb-w3-access-quiz'
+                ],
+                wk4: [
+                    'fb-w4-ppt-pres',
+                    'fb-w4-integration-pres',
+                    'fb-w4-ppt-lab',
+                    'fb-w4-integration-lab',
+                    'fb-w4-ppt-quiz',
+                    'fb-w4-integration-quiz',
+                    'fb-final-exam'
+                ]
+            };
+
+            var totalItems     = 0;
+            var totalCompleted = 0;
+
+            Object.keys(weeks).forEach(function(weekId) {
+                var ids       = weeks[weekId];
+                var completed = 0;
+
+                ids.forEach(function(moduleId) {
+                    if (ModuleProgress.isCompleted('forge', moduleId)) {
+                        completed++;
+                        var el = document.querySelector('[data-module="' + moduleId + '"]');
+                        if (el) el.classList.add('is-complete');
+                    }
+                });
+
+                var weekPct  = ids.length > 0 ? Math.round((completed / ids.length) * 100) : 0;
+                var weekBar  = document.getElementById(weekId + '-progress-bar');
+                var weekText = document.getElementById(weekId + '-progress-text');
+                if (weekBar)  weekBar.style.width  = weekPct + '%';
+                if (weekText) weekText.textContent = completed + ' / ' + ids.length;
+
+                totalItems     += ids.length;
+                totalCompleted += completed;
+            });
+
+            var overallPct  = totalItems > 0 ? Math.round((totalCompleted / totalItems) * 100) : 0;
+            var overallBar  = document.getElementById('progressBar');
+            var overallText = document.getElementById('progressText');
+            if (overallBar)  overallBar.style.width = overallPct + '%';
+            if (overallText) {
+                overallText.textContent =
+                    totalCompleted + ' of ' + totalItems + ' items completed (' + overallPct + '%)';
+            }
+
+            /* ── Class Mode: Sequential Week Locking ── */
+            var classId = sessionStorage.getItem('hexworth_class') ||
+                          localStorage.getItem('hexworth_class_id');
+            if (classId) applyWeekLocking();
+        });
+
+        function applyWeekLocking() {
+            var weekGates = [
+                'fb-w1-word-quiz',
+                'fb-w2-excel-quiz',
+                'fb-w3-access-quiz'
+            ];
+
+            var unlockedWeeks = 1;
+            for (var i = 0; i < weekGates.length; i++) {
+                if (window.ModuleProgress && ModuleProgress.isCompleted('forge', weekGates[i])) {
+                    unlockedWeeks = i + 2;
+                } else {
+                    break;
+                }
+            }
+
+            for (var w = 1; w <= 4; w++) {
+                var card = document.getElementById('wk' + w);
+                if (!card) continue;
+
+                if (w > unlockedWeeks) {
+                    card.classList.add('locked');
+                    card.classList.remove('open');
+
+                    var header = card.querySelector('.week-header');
+                    if (header && !header.querySelector('.lock-msg')) {
+                        var msg       = document.createElement('div');
+                        msg.className = 'lock-msg';
+                        msg.textContent = 'Complete Week ' + (w - 1) + ' quiz to unlock';
+                        header.appendChild(msg);
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
