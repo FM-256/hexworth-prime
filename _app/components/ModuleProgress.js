@@ -1232,6 +1232,162 @@ if (typeof window !== 'undefined') {
     window.ModuleProgress = ModuleProgress;
 }
 
+// ── Reconcile drift between completion_stamps and hexworth_progress ──
+// Two stores accumulate completion data:
+//   - hexworth_completion_stamps: single writer (CompletionStamp._save), no race
+//   - hexworth_progress: 12 writers using read-mutate-write — races can drop updates
+// When drift happens stamps stays correct and progress lags. The progress UI
+// reads hexworth_progress, so the lag is visible to students. This unions the
+// two stores so the UI reflects what the user actually completed.
+//
+// Eager (not lazy) — runs on every page load. Idempotent: when there's no drift
+// the function early-returns without touching localStorage. When drift exists,
+// it patches both stores and fires a fire-and-forget cloud sync so the user
+// profile and class_progress doc reflect the merged state.
+(function reconcileProgressBootstrap() {
+    var STAMP_KEY = 'hexworth_completion_stamps';
+    var PROG_KEY  = 'hexworth_progress';
+
+    // Sorted longest-first so 'dark-arts' matches before any single-word house
+    // that happens to start with 'dark'. parseStampKey relies on this order.
+    var KNOWN_HOUSES = [
+        'dark-arts', 'divergent', 'matrix', 'script', 'shield',
+        'cloud', 'forge', 'code', 'web', 'key', 'eye'
+    ];
+
+    // Set when reconcile finds drift but auth/Firestore deps aren't ready yet.
+    // The auth-state listener clears it once the cloud push succeeds.
+    var pendingCloudSync = false;
+
+    function parseStampKey(key) {
+        for (var i = 0; i < KNOWN_HOUSES.length; i++) {
+            var h = KNOWN_HOUSES[i];
+            if (key.indexOf(h + '-') === 0) {
+                return { houseId: h, moduleId: key.slice(h.length + 1) };
+            }
+        }
+        return null;
+    }
+
+    function tryCloudPush() {
+        if (!pendingCloudSync) return;
+        try {
+            if (typeof FirebaseAuth === 'undefined' || typeof FirestoreManager === 'undefined') return;
+            var u = FirebaseAuth.getUser && FirebaseAuth.getUser();
+            if (!u || !u.uid || !FirestoreManager.syncBidirectional) return;
+            pendingCloudSync = false;
+            FirestoreManager.syncBidirectional(u.uid).catch(function () {
+                // On failure, re-arm so the next auth-state event retries
+                pendingCloudSync = true;
+            });
+        } catch (e) { /* silent */ }
+    }
+
+    function reconcile() {
+        var stamps, progress;
+        try {
+            stamps   = JSON.parse(localStorage.getItem(STAMP_KEY) || '{}');
+            progress = JSON.parse(localStorage.getItem(PROG_KEY)  || '{}');
+        } catch (e) { return; }
+        if (!stamps   || typeof stamps   !== 'object') return;
+        if (!progress || typeof progress !== 'object') return;
+
+        if (!progress.houses) progress.houses = {};
+        if (!Array.isArray(progress.completedModules)) progress.completedModules = [];
+
+        var patches = 0;
+
+        // Direction 1: stamps → progress (the common drift case)
+        for (var stampKey in stamps) {
+            if (!Object.prototype.hasOwnProperty.call(stamps, stampKey)) continue;
+            var record = stamps[stampKey];
+            if (!record || !record.completed) continue;
+            var parsed = parseStampKey(stampKey);
+            if (!parsed) continue;
+            var hid = parsed.houseId, mid = parsed.moduleId;
+
+            if (!progress.houses[hid]) {
+                progress.houses[hid] = {
+                    unlocked: true, modulesCompleted: [], quizzesPassed: [],
+                    labsCompleted: [], currentModule: null, progressPercent: 0,
+                    lastAccessed: null
+                };
+            }
+            var house = progress.houses[hid];
+            if (!Array.isArray(house.modulesCompleted)) house.modulesCompleted = [];
+
+            if (house.modulesCompleted.indexOf(mid) === -1) {
+                house.modulesCompleted.push(mid);
+                patches++;
+            }
+            if (progress.completedModules.indexOf(mid) === -1) {
+                progress.completedModules.push(mid);
+                patches++;
+            }
+            if (!progress[hid]) progress[hid] = {};
+            if (!progress[hid][mid] || !progress[hid][mid].completed) {
+                progress[hid][mid] = {
+                    completed: true,
+                    date: record.timestamp || new Date().toISOString(),
+                    completedAt: record.timestamp || new Date().toISOString(),
+                    score: typeof record.score === 'number' ? record.score : null,
+                    restoredFromStamps: true
+                };
+                patches++;
+            }
+        }
+
+        // Direction 2: progress → stamps (covers older clients that wrote
+        // progress without bridging to stamps, or any future code path that
+        // writes progress without going through ModuleProgress.complete).
+        for (var i = 0; i < KNOWN_HOUSES.length; i++) {
+            var hid2 = KNOWN_HOUSES[i];
+            var house2 = progress.houses[hid2];
+            if (!house2 || !Array.isArray(house2.modulesCompleted)) continue;
+            for (var j = 0; j < house2.modulesCompleted.length; j++) {
+                var mid2 = house2.modulesCompleted[j];
+                var stampKey2 = hid2 + '-' + mid2;
+                if (!stamps[stampKey2] || !stamps[stampKey2].completed) {
+                    var flat = (progress[hid2] || {})[mid2] || {};
+                    stamps[stampKey2] = {
+                        completed: true,
+                        timestamp: flat.date || flat.completedAt || new Date().toISOString(),
+                        score: typeof flat.score === 'number' ? flat.score : null,
+                        restoredFromProgress: true
+                    };
+                    patches++;
+                }
+            }
+        }
+
+        if (patches === 0) return;
+
+        try {
+            localStorage.setItem(STAMP_KEY, JSON.stringify(stamps));
+            localStorage.setItem(PROG_KEY,  JSON.stringify(progress));
+        } catch (e) {
+            console.warn('[ModuleProgress] Reconcile save failed:', e.message);
+            return;
+        }
+        console.log('[ModuleProgress] Reconciled ' + patches + ' drift entries between progress and stamps');
+
+        // Mark that a cloud push is needed and try to fire it now.
+        // If auth isn't ready, the auth-state listener will retry.
+        pendingCloudSync = true;
+        tryCloudPush();
+    }
+
+    // Run eagerly. Auth-state listener handles the deferred cloud push
+    // for cases where the eager run fires before auth resolves.
+    reconcile();
+    if (typeof window !== 'undefined' && window.addEventListener) {
+        window.addEventListener('firebaseAuthStateChanged', function () {
+            reconcile();      // catch any new drift
+            tryCloudPush();   // and push pending changes
+        });
+    }
+})();
+
 // ── Auto-Track Page Visit ───────────────────────────────────────
 // Automatically records the student's current location for "Continue Learning".
 // Fires on DOMContentLoaded so document.title is available. Detects the house
