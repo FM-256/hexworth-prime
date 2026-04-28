@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Core Concepts and Terminology | Cybersecurity Policy</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d0810 0%, #0a060d 50%, #100812 100%);
+            color: #ede0f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow-y: auto;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: linear-gradient(90deg, #ff00ff, #00ffff);
+            transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(13, 8, 16, 0.95);
+            border-top: 1px solid rgba(255, 0, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #9a82a0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(255, 0, 255, 0.12); color: #ff00ff; border-color: #ff00ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #5a4460; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: linear-gradient(135deg, #ff00ff, #ff44ff);
+            color: #0d0810; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: linear-gradient(135deg, #ff44ff, #ff88ff); transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #ff00ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #ede0f0; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ff00ff; }
+        .slide-title .cyan { color: #00ffff; }
+        .slide-subtitle { font-size: 0.95rem; color: #9a82a0; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(255, 0, 255, 0.06); border-left: 3px solid #ff00ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #f5b8f5; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-magenta { background: rgba(255, 0, 255, 0.08); border: 1px solid rgba(255, 0, 255, 0.3); color: #f5b8f5; }
+        .box-cyan    { background: rgba(0, 255, 255, 0.08); border: 1px solid rgba(0, 255, 255, 0.3); color: #b8f5f5; }
+        .box-red     { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold    { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-green   { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-label   { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #ede0f0; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ff00ff; }
+        .title-hero .big-title .cyan { color: #00ffff; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #5a4460;
+        }
+        .title-meta-row span { border-left: 2px solid rgba(255, 0, 255, 0.2); padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #ff00ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #ede0f0; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #9a82a0; line-height: 1.4; }
+        .card.c-magenta { border-left-color: #ff00ff; }
+        .card.c-cyan    { border-left-color: #00ffff; }
+        .card.c-red     { border-left-color: #ef4444; }
+        .card.c-gold    { border-left-color: #eab308; }
+        .card.c-green   { border-left-color: #22c55e; }
+        .card.c-purple  { border-left-color: #ff44ff; }
+        .card.c-blue    { border-left-color: #3b82f6; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #5a4460; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #ff00ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #ede0f0; }
+
+        /* SVG diagram containers */
+        .svg-container {
+            display: flex; justify-content: center; align-items: center;
+            margin: 10px 0; padding: 10px;
+        }
+        .svg-container svg { max-width: 100%; height: auto; }
+
+        /* Kill chain steps */
+        .kill-chain { display: flex; gap: 2px; margin: 10px 0; }
+        .kc-step {
+            flex: 1; padding: 10px 6px; text-align: center;
+            background: rgba(255, 0, 255, 0.06); border: 1px solid rgba(255, 0, 255, 0.15);
+            border-radius: 4px; transition: background 0.2s;
+        }
+        .kc-step:hover { background: rgba(255, 0, 255, 0.14); }
+        .kc-num { font-size: 0.68rem; font-weight: 700; color: #00ffff; letter-spacing: 0.08em; margin-bottom: 3px; }
+        .kc-name { font-size: 0.78rem; font-weight: 700; color: #ede0f0; margin-bottom: 3px; }
+        .kc-desc { font-size: 0.7rem; color: #9a82a0; line-height: 1.3; }
+
+        /* Glossary table */
+        .glossary-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+        .glossary-table th {
+            text-align: left; padding: 6px 10px; font-size: 0.72rem;
+            text-transform: uppercase; letter-spacing: 0.08em;
+            color: #ff00ff; border-bottom: 1px solid rgba(255, 0, 255, 0.3);
+        }
+        .glossary-table td {
+            padding: 6px 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            vertical-align: top;
+        }
+        .glossary-table td:first-child { color: #00ffff; font-weight: 600; white-space: nowrap; }
+        .glossary-table td:last-child { color: #9a82a0; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid, .card-grid-4 { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .kill-chain { flex-wrap: wrap; } .kc-step { min-width: 45%; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Core Concepts and Terminology | Cybersecurity Policy</h1>
+
+<div id="progress-bar" style="width:7.14%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 14 &nbsp;|&nbsp; CSP-W1-01 &nbsp;|&nbsp; Week 1</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Core Concepts and<br>
+                <span class="accent">Terminology</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                CIA Triad &nbsp;&bull;&nbsp; AAA &nbsp;&bull;&nbsp; Threat Modeling &nbsp;&bull;&nbsp; Defense in Depth &nbsp;&bull;&nbsp; Zero Trust &nbsp;&bull;&nbsp; Kill Chain
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Before you can write cybersecurity policy, you have to speak the language. Every framework, every regulation, every incident report uses a shared vocabulary. This deck establishes the foundational concepts that the rest of the course builds on. Master these terms and their relationships -- they are the grammar of the field.
+        </div>
+        <div class="title-meta-row">
+            <span>14 Slides</span>
+            <span>CSP-W1-01</span>
+            <span>Week 1</span>
+            <span>CIS2208 -- Cybersecurity Policy</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- CIA TRIAD ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 14</div>
+        <div class="slide-title">The <span class="accent">CIA Triad</span></div>
+        <div class="slide-subtitle">The foundational model of information security. Every control maps back to at least one of these three pillars.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 420 320" width="380" role="img" aria-label="CIA Triad triangle diagram showing Confidentiality at the top, Integrity at bottom-left, and Availability at bottom-right, connected by lines representing their interdependence.">
+                <!-- Triangle -->
+                <polygon points="210,30 50,280 370,280" fill="none" stroke="#ff00ff" stroke-width="2" opacity="0.6"/>
+                <!-- Center fill -->
+                <polygon points="210,60 80,260 340,260" fill="rgba(255,0,255,0.06)"/>
+                <!-- Nodes -->
+                <circle cx="210" cy="30" r="18" fill="#0d0810" stroke="#00ffff" stroke-width="2"/>
+                <text x="210" y="35" text-anchor="middle" fill="#00ffff" font-size="14" font-weight="700">C</text>
+                <circle cx="50" cy="280" r="18" fill="#0d0810" stroke="#ff00ff" stroke-width="2"/>
+                <text x="50" y="285" text-anchor="middle" fill="#ff00ff" font-size="14" font-weight="700">I</text>
+                <circle cx="370" cy="280" r="18" fill="#0d0810" stroke="#ff44ff" stroke-width="2"/>
+                <text x="370" y="285" text-anchor="middle" fill="#ff44ff" font-size="14" font-weight="700">A</text>
+                <!-- Labels -->
+                <text x="210" y="10" text-anchor="middle" fill="#00ffff" font-size="11" font-weight="600">CONFIDENTIALITY</text>
+                <text x="15" y="310" text-anchor="start" fill="#ff00ff" font-size="11" font-weight="600">INTEGRITY</text>
+                <text x="405" y="310" text-anchor="end" fill="#ff44ff" font-size="11" font-weight="600">AVAILABILITY</text>
+                <!-- Center label -->
+                <text x="210" y="175" text-anchor="middle" fill="#9a82a0" font-size="10" letter-spacing="0.12em">SECURITY</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">Confidentiality</div>
+                <div class="card-desc">Only authorized parties can access information. Enforced through encryption, access controls, and classification. Breached by data leaks, eavesdropping, and social engineering. If unauthorized eyes see the data, confidentiality has failed.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Integrity</div>
+                <div class="card-desc">Data remains accurate, complete, and unaltered except by authorized processes. Enforced through hashing, checksums, digital signatures, and version control. If an attacker modifies a record without detection, integrity has failed.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Availability</div>
+                <div class="card-desc">Systems and data are accessible when needed by authorized users. Enforced through redundancy, failover, backups, and DDoS mitigation. If a hospital cannot access patient records during an emergency, availability has failed.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">Why It Matters for Policy</div>
+            Every cybersecurity policy decision maps back to the CIA triad. When you write a password policy, you are protecting confidentiality. When you mandate audit logs, you are protecting integrity. When you require 99.9% uptime SLAs, you are protecting availability. The triad is not abstract -- it is the classification system for every control you will ever implement.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- AAA ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 14</div>
+        <div class="slide-title"><span class="accent">Authentication</span> vs <span class="cyan">Authorization</span> vs Accounting</div>
+        <div class="slide-subtitle">Three distinct functions that are frequently confused. Each answers a different question about access.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 520 120" width="500" role="img" aria-label="AAA pipeline showing Authentication flowing into Authorization flowing into Accounting, with descriptions for each.">
+                <!-- Boxes -->
+                <rect x="0" y="20" width="150" height="80" rx="8" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="1.5"/>
+                <rect x="185" y="20" width="150" height="80" rx="8" fill="rgba(0,255,255,0.1)" stroke="#00ffff" stroke-width="1.5"/>
+                <rect x="370" y="20" width="150" height="80" rx="8" fill="rgba(255,68,255,0.1)" stroke="#ff44ff" stroke-width="1.5"/>
+                <!-- Labels -->
+                <text x="75" y="50" text-anchor="middle" fill="#ff00ff" font-size="12" font-weight="700">AUTHENTICATION</text>
+                <text x="75" y="68" text-anchor="middle" fill="#9a82a0" font-size="9">Who are you?</text>
+                <text x="75" y="82" text-anchor="middle" fill="#5a4460" font-size="8">Identity verification</text>
+                <text x="260" y="50" text-anchor="middle" fill="#00ffff" font-size="12" font-weight="700">AUTHORIZATION</text>
+                <text x="260" y="68" text-anchor="middle" fill="#9a82a0" font-size="9">What can you do?</text>
+                <text x="260" y="82" text-anchor="middle" fill="#5a4460" font-size="8">Permission enforcement</text>
+                <text x="445" y="50" text-anchor="middle" fill="#ff44ff" font-size="12" font-weight="700">ACCOUNTING</text>
+                <text x="445" y="68" text-anchor="middle" fill="#9a82a0" font-size="9">What did you do?</text>
+                <text x="445" y="82" text-anchor="middle" fill="#5a4460" font-size="8">Audit trail</text>
+                <!-- Arrows -->
+                <line x1="152" y1="60" x2="183" y2="60" stroke="#ff00ff" stroke-width="1.5" marker-end="url(#arrowM)"/>
+                <line x1="337" y1="60" x2="368" y2="60" stroke="#00ffff" stroke-width="1.5" marker-end="url(#arrowC)"/>
+                <defs>
+                    <marker id="arrowM" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                        <path d="M0,0 L8,3 L0,6" fill="#ff00ff"/>
+                    </marker>
+                    <marker id="arrowC" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                        <path d="M0,0 L8,3 L0,6" fill="#00ffff"/>
+                    </marker>
+                </defs>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Authentication (AuthN)</div>
+                <div class="card-desc">Proving identity. Methods range from passwords (something you know) to biometrics (something you are) to hardware tokens (something you have). Multi-factor authentication combines two or more categories. AuthN answers: "Are you who you claim to be?"</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Authorization (AuthZ)</div>
+                <div class="card-desc">Granting or denying access to specific resources after identity is confirmed. Implemented through ACLs, RBAC, ABAC, or policy engines. AuthZ answers: "What are you allowed to do?" A user may be authenticated but unauthorized for a given resource.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Accounting (Audit)</div>
+                <div class="card-desc">Recording what happened -- who accessed what, when, and what they did. Implemented through logging, SIEM systems, and audit trails. Accounting answers: "What did you actually do?" Without accounting, breaches go undetected and forensics are impossible.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Common Mistake</div>
+            Organizations often invest heavily in authentication but underinvest in authorization and accounting. Strong passwords with no access controls mean every authenticated user can access everything. No audit trail means breaches can persist undetected for months -- the average dwell time for an undetected breach is 204 days.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- THREAT / VULN / RISK ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 14</div>
+        <div class="slide-title"><span class="accent">Threat</span>, <span class="cyan">Vulnerability</span>, Risk</div>
+        <div class="slide-subtitle">Three distinct concepts with a precise mathematical relationship. Confusing them leads to misallocated budgets and broken policy.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 440 220" width="420" role="img" aria-label="Risk relationship diagram: Threat plus Vulnerability equals Risk, with an arrow showing that Risk is the product of the two.">
+                <!-- Threat circle -->
+                <circle cx="100" cy="100" r="60" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="2"/>
+                <text x="100" y="90" text-anchor="middle" fill="#ff00ff" font-size="13" font-weight="700">THREAT</text>
+                <text x="100" y="108" text-anchor="middle" fill="#9a82a0" font-size="9">Potential cause</text>
+                <text x="100" y="120" text-anchor="middle" fill="#9a82a0" font-size="9">of harm</text>
+                <!-- Vulnerability circle -->
+                <circle cx="260" cy="100" r="60" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="2"/>
+                <text x="260" y="90" text-anchor="middle" fill="#00ffff" font-size="13" font-weight="700">VULNERABILITY</text>
+                <text x="260" y="108" text-anchor="middle" fill="#9a82a0" font-size="9">Exploitable</text>
+                <text x="260" y="120" text-anchor="middle" fill="#9a82a0" font-size="9">weakness</text>
+                <!-- Plus sign -->
+                <text x="180" y="106" text-anchor="middle" fill="#5a4460" font-size="22" font-weight="700">+</text>
+                <!-- Arrow -->
+                <line x1="322" y1="100" x2="355" y2="100" stroke="#ff44ff" stroke-width="2" marker-end="url(#arrowR)"/>
+                <!-- Risk box -->
+                <rect x="360" y="60" width="75" height="80" rx="8" fill="rgba(255,68,255,0.12)" stroke="#ff44ff" stroke-width="2"/>
+                <text x="397" y="96" text-anchor="middle" fill="#ff44ff" font-size="13" font-weight="700">RISK</text>
+                <text x="397" y="112" text-anchor="middle" fill="#9a82a0" font-size="8">Likelihood x</text>
+                <text x="397" y="122" text-anchor="middle" fill="#9a82a0" font-size="8">Impact</text>
+                <defs>
+                    <marker id="arrowR" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                        <path d="M0,0 L8,3 L0,6" fill="#ff44ff"/>
+                    </marker>
+                </defs>
+                <!-- Formula -->
+                <text x="220" y="200" text-anchor="middle" fill="#5a4460" font-size="10" letter-spacing="0.1em">RISK = THREAT x VULNERABILITY x IMPACT</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Threat</div>
+                <div class="card-desc">Any potential cause of an unwanted incident. A threat is an actor (hacker, insider, natural disaster) paired with intent or capability. Threats exist whether or not your organization has weaknesses. A tornado is a threat to a data center regardless of its construction.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Vulnerability</div>
+                <div class="card-desc">A weakness in a system, process, or procedure that a threat can exploit. An unpatched server, a misconfigured firewall, a poorly trained employee -- these are vulnerabilities. Vulnerabilities without threats create no risk. Threats without vulnerabilities create no risk.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Risk</div>
+                <div class="card-desc">The probability that a threat will exploit a vulnerability and the resulting impact. Risk = Likelihood x Impact. Risk is what organizations actually manage. You cannot eliminate threats, but you can reduce vulnerabilities and mitigate impact to bring risk to acceptable levels.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Policy Connection</div>
+            Risk management is the engine of cybersecurity policy. Every policy exists to reduce risk. Understanding the relationship between threat, vulnerability, and risk is the prerequisite for writing effective policy -- because policy that addresses threats you do not face or ignores vulnerabilities you do have is worse than useless. It creates false confidence.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- ATTACK SURFACE / VECTORS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 14</div>
+        <div class="slide-title"><span class="accent">Attack Surface</span> and <span class="cyan">Attack Vectors</span></div>
+        <div class="slide-subtitle">The surface is what you expose. The vector is how they get in. Reducing the surface shrinks the vector space.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 480 200" width="460" role="img" aria-label="Attack surface diagram showing a central organization box with multiple attack vectors pointing inward: network, web apps, email, physical, supply chain, and social engineering.">
+                <!-- Central org -->
+                <rect x="170" y="60" width="140" height="80" rx="10" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="2"/>
+                <text x="240" y="95" text-anchor="middle" fill="#ede0f0" font-size="11" font-weight="700">YOUR</text>
+                <text x="240" y="110" text-anchor="middle" fill="#ede0f0" font-size="11" font-weight="700">ORGANIZATION</text>
+                <!-- Vectors -->
+                <line x1="40" y1="40" x2="168" y2="80" stroke="#00ffff" stroke-width="1.5" stroke-dasharray="4 3"/>
+                <text x="30" y="35" text-anchor="end" fill="#00ffff" font-size="9" font-weight="600">NETWORK</text>
+                <line x1="40" y1="160" x2="168" y2="120" stroke="#00ffff" stroke-width="1.5" stroke-dasharray="4 3"/>
+                <text x="30" y="165" text-anchor="end" fill="#00ffff" font-size="9" font-weight="600">PHYSICAL</text>
+                <line x1="100" y1="100" x2="168" y2="100" stroke="#ff44ff" stroke-width="1.5" stroke-dasharray="4 3"/>
+                <text x="10" y="104" text-anchor="start" fill="#ff44ff" font-size="9" font-weight="600">EMAIL/PHISHING</text>
+                <line x1="440" y1="40" x2="312" y2="80" stroke="#00ffff" stroke-width="1.5" stroke-dasharray="4 3"/>
+                <text x="450" y="35" text-anchor="start" fill="#00ffff" font-size="9" font-weight="600">WEB APPS</text>
+                <line x1="440" y1="160" x2="312" y2="120" stroke="#ff44ff" stroke-width="1.5" stroke-dasharray="4 3"/>
+                <text x="450" y="165" text-anchor="start" fill="#ff44ff" font-size="9" font-weight="600">SUPPLY CHAIN</text>
+                <line x1="380" y1="100" x2="312" y2="100" stroke="#00ffff" stroke-width="1.5" stroke-dasharray="4 3"/>
+                <text x="470" y="104" text-anchor="end" fill="#00ffff" font-size="9" font-weight="600">SOCIAL ENG.</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Attack Surface</div>
+                <div class="card-desc">The sum of all points where an attacker could attempt to enter or extract data. Includes network interfaces, web applications, APIs, physical access points, employee inboxes, and third-party integrations. Every new service, device, or vendor increases the attack surface. Minimizing it is a core security principle.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Attack Vectors</div>
+                <div class="card-desc">The specific path or method an attacker uses to reach a target. Common vectors include phishing emails, unpatched software, stolen credentials, malicious USB devices, and compromised supply chain components. Understanding vectors helps prioritize defenses -- most breaches use a small set of well-known vectors.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">The 80/20 Rule</div>
+            Verizon's Data Breach Investigations Report consistently shows that the vast majority of breaches use a handful of vectors: stolen credentials, phishing, vulnerability exploitation, and misconfigurations. Effective policy focuses hardening efforts on the vectors that actually get exploited -- not theoretical exotic attacks.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- DEFENSE IN DEPTH ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 14</div>
+        <div class="slide-title"><span class="accent">Defense in Depth</span></div>
+        <div class="slide-subtitle">No single control is sufficient. Layered security ensures that failure of one layer does not mean total compromise.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 400 260" width="380" role="img" aria-label="Defense in depth diagram showing concentric rectangles representing layers from outermost to innermost: Policies and Procedures, Perimeter Security, Network Security, Host Security, Application Security, and Data at the center.">
+                <!-- Outer layers -->
+                <rect x="10" y="10" width="380" height="240" rx="12" fill="none" stroke="#5a4460" stroke-width="1" stroke-dasharray="4 3"/>
+                <text x="200" y="28" text-anchor="middle" fill="#5a4460" font-size="9" letter-spacing="0.1em">POLICIES &amp; PROCEDURES</text>
+                <rect x="35" y="38" width="330" height="190" rx="10" fill="none" stroke="#ff44ff" stroke-width="1.5" opacity="0.5"/>
+                <text x="200" y="54" text-anchor="middle" fill="#ff44ff" font-size="9" letter-spacing="0.08em">PERIMETER SECURITY</text>
+                <rect x="60" y="62" width="280" height="150" rx="8" fill="none" stroke="#ff00ff" stroke-width="1.5" opacity="0.6"/>
+                <text x="200" y="78" text-anchor="middle" fill="#ff00ff" font-size="9" letter-spacing="0.08em">NETWORK SECURITY</text>
+                <rect x="90" y="86" width="220" height="110" rx="8" fill="none" stroke="#00ffff" stroke-width="1.5" opacity="0.7"/>
+                <text x="200" y="102" text-anchor="middle" fill="#00ffff" font-size="9" letter-spacing="0.08em">HOST SECURITY</text>
+                <rect x="120" y="108" width="160" height="72" rx="6" fill="none" stroke="#ff00ff" stroke-width="1.5" opacity="0.8"/>
+                <text x="200" y="124" text-anchor="middle" fill="#ff00ff" font-size="9" letter-spacing="0.08em">APPLICATION SECURITY</text>
+                <!-- Core data -->
+                <rect x="155" y="132" width="90" height="38" rx="6" fill="rgba(255,0,255,0.15)" stroke="#ff00ff" stroke-width="2"/>
+                <text x="200" y="156" text-anchor="middle" fill="#ede0f0" font-size="11" font-weight="700">DATA</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Layer 1-2: Policy + Perimeter</div>
+                <div class="card-desc">Written security policies define acceptable behavior. Perimeter controls (firewalls, DMZs, IDS/IPS) filter traffic at the boundary. These are the outermost defenses -- necessary but never sufficient alone.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Layer 3-4: Network + Host</div>
+                <div class="card-desc">Network segmentation, VLANs, and ACLs limit lateral movement. Host-level controls include endpoint protection, OS hardening, and patch management. If the perimeter fails, these layers slow the attacker.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Layer 5-6: Application + Data</div>
+                <div class="card-desc">Input validation, secure coding, and WAFs protect applications. Encryption at rest and in transit, access controls, and DLP protect the data itself. The innermost layers are the last line of defense.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">The Castle Analogy</div>
+            A medieval castle did not rely on a single wall. It had a moat, outer walls, inner walls, a keep, and guards at every level. Defense in depth applies the same principle to information systems -- multiple independent layers, each capable of stopping or slowing an attacker even if the layers above have been breached.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- LEAST PRIVILEGE ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 14</div>
+        <div class="slide-title"><span class="accent">Least Privilege</span> and <span class="cyan">Need-to-Know</span></div>
+        <div class="slide-subtitle">Two complementary principles that limit the blast radius of any compromise -- human or technical.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Principle of Least Privilege (PoLP)</div>
+                <div class="card-desc">Every user, process, and system should operate with the minimum permissions necessary to accomplish its task -- and no more. An accountant does not need admin rights. A web server does not need database write access to tables it only reads. Excess privilege is excess risk.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Need-to-Know</div>
+                <div class="card-desc">Access to information should be restricted to individuals who require it for their specific role or task. Even if someone has the clearance level, they should not access data unrelated to their duties. Need-to-know is about data classification. Least privilege is about system permissions. Together they form a complete access control strategy.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Anti-Pattern: Privilege Creep</div>
+                <div class="card-desc">As employees change roles, they accumulate permissions from every position. After three transfers, they may have more access than any single role requires. Regular access reviews and role-based access control (RBAC) prevent this.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Anti-Pattern: Shared Accounts</div>
+                <div class="card-desc">When multiple people share one admin account, accountability is destroyed. If something goes wrong, you cannot determine who did it. Every privileged action must be traceable to a single individual.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Best Practice: JIT Access</div>
+                <div class="card-desc">Just-In-Time access grants elevated privileges only when needed, for a defined duration, with approval. Engineers do not hold permanent admin rights -- they request them, get time-limited access, and privileges are automatically revoked.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Policy Implication</div>
+            A least privilege policy is not a one-time implementation. It requires continuous enforcement: automated provisioning and deprovisioning tied to HR systems, quarterly access reviews, and privileged access management (PAM) tools. The goal is zero standing privilege -- no one holds elevated access by default.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- ZERO TRUST ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 14</div>
+        <div class="slide-title"><span class="accent">Zero Trust</span> Architecture</div>
+        <div class="slide-subtitle">"Never trust, always verify." The modern security model that assumes breach and verifies every request.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 480 190" width="460" role="img" aria-label="Zero Trust architecture diagram showing a user going through identity verification, device health check, and policy engine before reaching a protected resource, with continuous monitoring underneath.">
+                <!-- User -->
+                <rect x="0" y="50" width="80" height="60" rx="8" fill="rgba(0,255,255,0.1)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="40" y="75" text-anchor="middle" fill="#00ffff" font-size="10" font-weight="700">USER</text>
+                <text x="40" y="90" text-anchor="middle" fill="#5a4460" font-size="8">Any location</text>
+                <!-- Identity -->
+                <rect x="110" y="50" width="80" height="60" rx="8" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="150" y="72" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">IDENTITY</text>
+                <text x="150" y="84" text-anchor="middle" fill="#9a82a0" font-size="8">MFA + SSO</text>
+                <text x="150" y="96" text-anchor="middle" fill="#5a4460" font-size="7">Who are you?</text>
+                <!-- Device -->
+                <rect x="220" y="50" width="80" height="60" rx="8" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="260" y="72" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">DEVICE</text>
+                <text x="260" y="84" text-anchor="middle" fill="#9a82a0" font-size="8">Health check</text>
+                <text x="260" y="96" text-anchor="middle" fill="#5a4460" font-size="7">Is it compliant?</text>
+                <!-- Policy -->
+                <rect x="330" y="50" width="80" height="60" rx="8" fill="rgba(255,68,255,0.1)" stroke="#ff44ff" stroke-width="1.5"/>
+                <text x="370" y="72" text-anchor="middle" fill="#ff44ff" font-size="9" font-weight="700">POLICY</text>
+                <text x="370" y="84" text-anchor="middle" fill="#9a82a0" font-size="8">Engine</text>
+                <text x="370" y="96" text-anchor="middle" fill="#5a4460" font-size="7">Context decision</text>
+                <!-- Resource -->
+                <rect x="440" y="50" width="38" height="60" rx="8" fill="rgba(0,255,255,0.12)" stroke="#00ffff" stroke-width="2"/>
+                <text x="459" y="85" text-anchor="middle" fill="#00ffff" font-size="8" font-weight="700">APP</text>
+                <!-- Arrows -->
+                <line x1="82" y1="80" x2="108" y2="80" stroke="#5a4460" stroke-width="1"/>
+                <line x1="192" y1="80" x2="218" y2="80" stroke="#5a4460" stroke-width="1"/>
+                <line x1="302" y1="80" x2="328" y2="80" stroke="#5a4460" stroke-width="1"/>
+                <line x1="412" y1="80" x2="438" y2="80" stroke="#5a4460" stroke-width="1"/>
+                <!-- Continuous monitoring bar -->
+                <rect x="0" y="140" width="478" height="30" rx="6" fill="rgba(255,0,255,0.05)" stroke="rgba(255,0,255,0.15)" stroke-width="1"/>
+                <text x="239" y="159" text-anchor="middle" fill="#ff00ff" font-size="9" letter-spacing="0.12em">CONTINUOUS MONITORING &amp; ADAPTIVE RESPONSE</text>
+                <!-- Connection lines down -->
+                <line x1="150" y1="112" x2="150" y2="138" stroke="rgba(255,0,255,0.2)" stroke-width="1" stroke-dasharray="3 2"/>
+                <line x1="260" y1="112" x2="260" y2="138" stroke="rgba(255,0,255,0.2)" stroke-width="1" stroke-dasharray="3 2"/>
+                <line x1="370" y1="112" x2="370" y2="138" stroke="rgba(255,0,255,0.2)" stroke-width="1" stroke-dasharray="3 2"/>
+                <!-- Top label -->
+                <text x="239" y="30" text-anchor="middle" fill="#5a4460" font-size="9" letter-spacing="0.08em">"NEVER TRUST, ALWAYS VERIFY"</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Core Principles</div>
+                <div class="card-desc">Verify explicitly -- authenticate and authorize based on all available data points (identity, location, device health, data classification). Use least privilege access. Assume breach -- minimize blast radius using micro-segmentation and end-to-end encryption.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Why It Replaced Perimeter Security</div>
+                <div class="card-desc">The traditional model trusted everything inside the network. Remote work, cloud services, and BYOD destroyed that boundary. Zero Trust assumes attackers may already be inside the network and treats every access request as potentially hostile regardless of origin.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">NIST SP 800-207</div>
+            The U.S. government standardized Zero Trust Architecture in NIST SP 800-207. Executive Order 14028 (May 2021) mandated federal agencies adopt Zero Trust. If you write policy for any organization that works with the federal government, ZTA compliance is no longer optional -- it is contractual.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- THREAT ACTORS ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 14</div>
+        <div class="slide-title"><span class="accent">Threat Actors</span></div>
+        <div class="slide-subtitle">Understanding who attacks and why is essential for writing policy that addresses real threats, not imaginary ones.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 500 90" width="480" role="img" aria-label="Threat actor spectrum from low sophistication on the left (script kiddies) to high sophistication on the right (nation-states), with hacktivists, organized crime, and insiders in between.">
+                <!-- Gradient bar -->
+                <defs>
+                    <linearGradient id="threatGrad" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stop-color="#00ffff"/>
+                        <stop offset="50%" stop-color="#ff00ff"/>
+                        <stop offset="100%" stop-color="#ef4444"/>
+                    </linearGradient>
+                </defs>
+                <rect x="20" y="35" width="460" height="8" rx="4" fill="url(#threatGrad)" opacity="0.6"/>
+                <!-- Markers -->
+                <circle cx="60" cy="39" r="5" fill="#00ffff"/>
+                <text x="60" y="25" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">SCRIPT KIDDIES</text>
+                <text x="60" y="62" text-anchor="middle" fill="#5a4460" font-size="7">Low skill</text>
+                <circle cx="165" cy="39" r="5" fill="#22c55e"/>
+                <text x="165" y="25" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="700">HACKTIVISTS</text>
+                <text x="165" y="62" text-anchor="middle" fill="#5a4460" font-size="7">Ideological</text>
+                <circle cx="270" cy="39" r="5" fill="#ff00ff"/>
+                <text x="270" y="25" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">ORGANIZED CRIME</text>
+                <text x="270" y="62" text-anchor="middle" fill="#5a4460" font-size="7">Financial</text>
+                <circle cx="370" cy="39" r="5" fill="#eab308"/>
+                <text x="370" y="25" text-anchor="middle" fill="#eab308" font-size="9" font-weight="700">INSIDERS</text>
+                <text x="370" y="62" text-anchor="middle" fill="#5a4460" font-size="7">Trusted access</text>
+                <circle cx="450" cy="39" r="5" fill="#ef4444"/>
+                <text x="450" y="25" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">NATION-STATES</text>
+                <text x="450" y="62" text-anchor="middle" fill="#5a4460" font-size="7">Unlimited resources</text>
+                <!-- Axis labels -->
+                <text x="20" y="82" text-anchor="start" fill="#5a4460" font-size="8" letter-spacing="0.08em">LOW SOPHISTICATION</text>
+                <text x="480" y="82" text-anchor="end" fill="#5a4460" font-size="8" letter-spacing="0.08em">HIGH SOPHISTICATION</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">Script Kiddies</div>
+                <div class="card-desc">Low-skill attackers using pre-made tools and scripts. Opportunistic, not targeted. Dangerous in volume -- they scan the entire internet for known vulnerabilities. Your policy must cover basic hygiene because these attacks never stop.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Hacktivists</div>
+                <div class="card-desc">Ideologically motivated. Target organizations for political or social reasons. Methods include website defacement, DDoS, and data dumps. Anonymous and LulzSec are historical examples. Motivation: embarrassment and disruption, not profit.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Organized Crime</div>
+                <div class="card-desc">Profit-driven criminal enterprises. Ransomware, business email compromise, and credential theft are primary tools. Operate like businesses with customer support and affiliate programs. Responsible for the majority of financially motivated breaches.</div>
+            </div>
+        </div>
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Insiders</div>
+                <div class="card-desc">Current or former employees, contractors, or partners with legitimate access. May be malicious (disgruntled employee stealing data), negligent (clicking phishing links), or compromised (credentials stolen). The hardest threat to detect because they already have authorized access.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Nation-States (APTs)</div>
+                <div class="card-desc">State-sponsored groups with virtually unlimited resources, patience, and sophistication. Conduct espionage, sabotage, and intellectual property theft. Operate for years undetected. Examples: APT28 (Russia), APT41 (China), Lazarus Group (North Korea). If a nation-state targets you specifically, your defense strategy changes fundamentally.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- CYBER KILL CHAIN ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 14</div>
+        <div class="slide-title">The <span class="accent">Cyber Kill Chain</span></div>
+        <div class="slide-subtitle">Lockheed Martin's 7-stage model of how attacks progress. Disrupting any stage breaks the chain.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 520 60" width="500" role="img" aria-label="Seven stages of the Lockheed Martin Cyber Kill Chain shown as connected chevrons: Recon, Weaponize, Deliver, Exploit, Install, C2, Actions.">
+                <defs>
+                    <linearGradient id="kcGrad" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stop-color="#00ffff"/>
+                        <stop offset="100%" stop-color="#ff00ff"/>
+                    </linearGradient>
+                </defs>
+                <!-- Chevrons -->
+                <polygon points="0,5 60,5 72,30 60,55 0,55 12,30" fill="rgba(0,255,255,0.15)" stroke="#00ffff" stroke-width="1"/>
+                <text x="36" y="34" text-anchor="middle" fill="#00ffff" font-size="8" font-weight="700">RECON</text>
+                <polygon points="75,5 135,5 147,30 135,55 75,55 87,30" fill="rgba(0,200,220,0.12)" stroke="rgba(0,220,230,0.6)" stroke-width="1"/>
+                <text x="111" y="34" text-anchor="middle" fill="#00ccdd" font-size="8" font-weight="700">WEAPON.</text>
+                <polygon points="150,5 210,5 222,30 210,55 150,55 162,30" fill="rgba(100,0,200,0.12)" stroke="rgba(180,0,255,0.6)" stroke-width="1"/>
+                <text x="186" y="34" text-anchor="middle" fill="#cc44ff" font-size="8" font-weight="700">DELIVER</text>
+                <polygon points="225,5 285,5 297,30 285,55 225,55 237,30" fill="rgba(200,0,200,0.12)" stroke="rgba(255,0,200,0.6)" stroke-width="1"/>
+                <text x="261" y="34" text-anchor="middle" fill="#ff44cc" font-size="8" font-weight="700">EXPLOIT</text>
+                <polygon points="300,5 360,5 372,30 360,55 300,55 312,30" fill="rgba(255,0,150,0.12)" stroke="rgba(255,0,180,0.6)" stroke-width="1"/>
+                <text x="336" y="34" text-anchor="middle" fill="#ff44aa" font-size="8" font-weight="700">INSTALL</text>
+                <polygon points="375,5 435,5 447,30 435,55 375,55 387,30" fill="rgba(255,0,100,0.12)" stroke="rgba(255,0,120,0.6)" stroke-width="1"/>
+                <text x="411" y="34" text-anchor="middle" fill="#ff4488" font-size="8" font-weight="700">C2</text>
+                <polygon points="450,5 510,5 522,30 510,55 450,55 462,30" fill="rgba(255,0,255,0.15)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="486" y="34" text-anchor="middle" fill="#ff00ff" font-size="8" font-weight="700">ACTIONS</text>
+            </svg>
+        </div>
+
+        <div class="kill-chain">
+            <div class="kc-step">
+                <div class="kc-num">1</div>
+                <div class="kc-name">Reconnaissance</div>
+                <div class="kc-desc">Research the target. Harvest emails, scan networks, identify technologies and personnel.</div>
+            </div>
+            <div class="kc-step">
+                <div class="kc-num">2</div>
+                <div class="kc-name">Weaponization</div>
+                <div class="kc-desc">Pair an exploit with a payload. Create a malicious document, craft a phishing lure, or build a custom tool.</div>
+            </div>
+            <div class="kc-step">
+                <div class="kc-num">3</div>
+                <div class="kc-name">Delivery</div>
+                <div class="kc-desc">Transmit the weapon to the target. Email attachment, malicious link, compromised website, or USB drop.</div>
+            </div>
+            <div class="kc-step">
+                <div class="kc-num">4</div>
+                <div class="kc-name">Exploitation</div>
+                <div class="kc-desc">Trigger the vulnerability. Code executes, credentials are captured, or access is gained.</div>
+            </div>
+            <div class="kc-step">
+                <div class="kc-num">5</div>
+                <div class="kc-name">Installation</div>
+                <div class="kc-desc">Establish persistence. Install backdoor, create accounts, modify startup scripts, or deploy rootkit.</div>
+            </div>
+            <div class="kc-step">
+                <div class="kc-num">6</div>
+                <div class="kc-name">Command & Control</div>
+                <div class="kc-desc">Open a channel back to the attacker. Beaconing, DNS tunneling, or encrypted C2 over HTTPS.</div>
+            </div>
+            <div class="kc-step">
+                <div class="kc-num">7</div>
+                <div class="kc-name">Actions on Objectives</div>
+                <div class="kc-desc">Achieve the goal. Exfiltrate data, deploy ransomware, destroy systems, or pivot laterally.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">Defense Strategy</div>
+            The kill chain is a defender's tool, not just an attacker's roadmap. If you can detect and disrupt any single stage, the attack fails. Block reconnaissance with minimal public exposure. Filter delivery with email security. Prevent exploitation with patching. Detect C2 with network monitoring. The earlier you break the chain, the lower the cost.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- MITRE ATT&CK ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 14</div>
+        <div class="slide-title"><span class="accent">MITRE ATT&CK</span> Framework</div>
+        <div class="slide-subtitle">A knowledge base of adversary tactics and techniques based on real-world observations. The industry standard for threat classification.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 520 160" width="500" role="img" aria-label="Simplified MITRE ATT&CK matrix showing 10 tactic columns with 2-3 technique boxes beneath each, representing the breadth of the framework.">
+                <!-- Header row -->
+                <rect x="0" y="0" width="520" height="28" rx="4" fill="rgba(255,0,255,0.08)"/>
+                <text x="260" y="18" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700" letter-spacing="0.1em">MITRE ATT&CK ENTERPRISE MATRIX (SIMPLIFIED)</text>
+                <!-- Tactic columns -->
+                <rect x="2" y="34" width="49" height="22" rx="3" fill="rgba(0,255,255,0.12)" stroke="rgba(0,255,255,0.3)" stroke-width="0.5"/>
+                <text x="26" y="49" text-anchor="middle" fill="#00ffff" font-size="6" font-weight="700">RECON</text>
+                <rect x="54" y="34" width="49" height="22" rx="3" fill="rgba(0,255,255,0.12)" stroke="rgba(0,255,255,0.3)" stroke-width="0.5"/>
+                <text x="78" y="49" text-anchor="middle" fill="#00ffff" font-size="6" font-weight="700">RESOURCE</text>
+                <rect x="106" y="34" width="49" height="22" rx="3" fill="rgba(0,255,255,0.12)" stroke="rgba(0,255,255,0.3)" stroke-width="0.5"/>
+                <text x="130" y="49" text-anchor="middle" fill="#00ffff" font-size="6" font-weight="700">INIT ACCESS</text>
+                <rect x="158" y="34" width="49" height="22" rx="3" fill="rgba(255,0,255,0.12)" stroke="rgba(255,0,255,0.3)" stroke-width="0.5"/>
+                <text x="182" y="49" text-anchor="middle" fill="#ff00ff" font-size="6" font-weight="700">EXECUTION</text>
+                <rect x="210" y="34" width="49" height="22" rx="3" fill="rgba(255,0,255,0.12)" stroke="rgba(255,0,255,0.3)" stroke-width="0.5"/>
+                <text x="234" y="49" text-anchor="middle" fill="#ff00ff" font-size="6" font-weight="700">PERSIST</text>
+                <rect x="262" y="34" width="49" height="22" rx="3" fill="rgba(255,0,255,0.12)" stroke="rgba(255,0,255,0.3)" stroke-width="0.5"/>
+                <text x="286" y="49" text-anchor="middle" fill="#ff00ff" font-size="6" font-weight="700">PRIV ESC</text>
+                <rect x="314" y="34" width="49" height="22" rx="3" fill="rgba(255,68,255,0.12)" stroke="rgba(255,68,255,0.3)" stroke-width="0.5"/>
+                <text x="338" y="49" text-anchor="middle" fill="#ff44ff" font-size="6" font-weight="700">DEF EVAS</text>
+                <rect x="366" y="34" width="49" height="22" rx="3" fill="rgba(255,68,255,0.12)" stroke="rgba(255,68,255,0.3)" stroke-width="0.5"/>
+                <text x="390" y="49" text-anchor="middle" fill="#ff44ff" font-size="6" font-weight="700">LATERAL</text>
+                <rect x="418" y="34" width="49" height="22" rx="3" fill="rgba(239,68,68,0.12)" stroke="rgba(239,68,68,0.3)" stroke-width="0.5"/>
+                <text x="442" y="49" text-anchor="middle" fill="#ef4444" font-size="6" font-weight="700">COLLECT</text>
+                <rect x="470" y="34" width="49" height="22" rx="3" fill="rgba(239,68,68,0.12)" stroke="rgba(239,68,68,0.3)" stroke-width="0.5"/>
+                <text x="494" y="49" text-anchor="middle" fill="#ef4444" font-size="6" font-weight="700">EXFIL</text>
+                <!-- Technique boxes (samples per column) -->
+                <rect x="2" y="60" width="49" height="16" rx="2" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>
+                <text x="26" y="71" text-anchor="middle" fill="#9a82a0" font-size="5.5">Active Scan</text>
+                <rect x="2" y="79" width="49" height="16" rx="2" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>
+                <text x="26" y="90" text-anchor="middle" fill="#9a82a0" font-size="5.5">OSINT</text>
+                <rect x="106" y="60" width="49" height="16" rx="2" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>
+                <text x="130" y="71" text-anchor="middle" fill="#9a82a0" font-size="5.5">Phishing</text>
+                <rect x="106" y="79" width="49" height="16" rx="2" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>
+                <text x="130" y="90" text-anchor="middle" fill="#9a82a0" font-size="5.5">Supply Chain</text>
+                <rect x="158" y="60" width="49" height="16" rx="2" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>
+                <text x="182" y="71" text-anchor="middle" fill="#9a82a0" font-size="5.5">PowerShell</text>
+                <rect x="210" y="60" width="49" height="16" rx="2" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>
+                <text x="234" y="71" text-anchor="middle" fill="#9a82a0" font-size="5.5">Registry Keys</text>
+                <rect x="262" y="60" width="49" height="16" rx="2" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>
+                <text x="286" y="71" text-anchor="middle" fill="#9a82a0" font-size="5.5">Token Manip</text>
+                <rect x="314" y="60" width="49" height="16" rx="2" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>
+                <text x="338" y="71" text-anchor="middle" fill="#9a82a0" font-size="5.5">Obfuscation</text>
+                <rect x="366" y="60" width="49" height="16" rx="2" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>
+                <text x="390" y="71" text-anchor="middle" fill="#9a82a0" font-size="5.5">Pass-the-Hash</text>
+                <rect x="418" y="60" width="49" height="16" rx="2" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>
+                <text x="442" y="71" text-anchor="middle" fill="#9a82a0" font-size="5.5">Keylogging</text>
+                <rect x="470" y="60" width="49" height="16" rx="2" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>
+                <text x="494" y="71" text-anchor="middle" fill="#9a82a0" font-size="5.5">C2 Channel</text>
+                <!-- Legend -->
+                <text x="260" y="120" text-anchor="middle" fill="#5a4460" font-size="8">14 Tactics &bull; 200+ Techniques &bull; 400+ Sub-techniques</text>
+                <text x="260" y="140" text-anchor="middle" fill="#5a4460" font-size="7" letter-spacing="0.05em">Based on real-world adversary behavior observed by MITRE and the community</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">What It Is</div>
+                <div class="card-desc">A curated knowledge base of adversary tactics (the "why") and techniques (the "how") based on real-world observations. Organized as a matrix where columns are tactical goals (initial access, execution, persistence, etc.) and rows are specific techniques used to achieve them. Continuously updated with contributions from the global security community.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">How It Is Used</div>
+                <div class="card-desc">Threat intelligence teams map adversaries to ATT&CK techniques. Red teams use it to plan realistic simulations. Blue teams use it to identify detection gaps. Vendors map their products to ATT&CK coverage. Policy writers use it to justify controls -- "We need EDR because we have no detection for T1059 (Command and Scripting Interpreter)."</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Kill Chain vs ATT&CK</div>
+            The kill chain is linear: recon through actions. ATT&CK is a matrix: attackers can use any combination of techniques across any tactic at any point. ATT&CK does not assume attacks follow a sequence. In practice, most organizations use both -- the kill chain for strategic communication and ATT&CK for operational detection and response.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- GLOSSARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 14</div>
+        <div class="slide-title"><span class="accent">Key Terms</span> Glossary</div>
+        <div class="slide-subtitle">Reference definitions for the core terminology introduced in this presentation.</div>
+
+        <table class="glossary-table">
+            <thead>
+                <tr><th>Term</th><th>Definition</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>CIA Triad</td><td>Confidentiality, Integrity, Availability -- the three pillars of information security.</td></tr>
+                <tr><td>AAA</td><td>Authentication, Authorization, Accounting -- the three functions of access control.</td></tr>
+                <tr><td>Threat</td><td>Any potential cause of an unwanted incident that may harm a system or organization.</td></tr>
+                <tr><td>Vulnerability</td><td>A weakness in a system that can be exploited by a threat to cause harm.</td></tr>
+                <tr><td>Risk</td><td>The probability that a threat will exploit a vulnerability, weighted by the potential impact.</td></tr>
+                <tr><td>Attack Surface</td><td>The total number of points where an unauthorized user could attempt to enter or extract data.</td></tr>
+                <tr><td>Attack Vector</td><td>The specific path or method used to gain unauthorized access to a system.</td></tr>
+                <tr><td>Defense in Depth</td><td>A layered security strategy where multiple independent controls protect each asset.</td></tr>
+                <tr><td>Least Privilege</td><td>The principle that users and processes should have only the minimum access required.</td></tr>
+                <tr><td>Zero Trust</td><td>A security model that requires verification for every access request regardless of origin.</td></tr>
+                <tr><td>Kill Chain</td><td>Lockheed Martin's 7-stage model of a cyberattack lifecycle.</td></tr>
+                <tr><td>MITRE ATT&CK</td><td>A knowledge base of adversary tactics, techniques, and procedures based on real-world observations.</td></tr>
+                <tr><td>APT</td><td>Advanced Persistent Threat -- a sophisticated, long-term attack campaign, typically state-sponsored.</td></tr>
+                <tr><td>IoC</td><td>Indicator of Compromise -- forensic evidence that a breach or attack has occurred.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- KEY TAKEAWAYS ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 14</div>
+        <div class="slide-title"><span class="accent">Key Takeaways</span></div>
+        <div class="slide-subtitle">The foundational concepts you need to carry into every policy discussion for the rest of this course.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">The CIA triad (Confidentiality, Integrity, Availability) is the classification system for every security control. Every policy decision maps back to at least one pillar.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Authentication proves identity. Authorization grants access. Accounting records actions. All three are required -- investing in only one or two creates critical gaps.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Risk = Threat x Vulnerability x Impact. You cannot eliminate threats, but you can reduce vulnerabilities and mitigate impact. Policy exists to manage risk to acceptable levels.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Defense in depth means no single point of failure. Multiple independent layers ensure that breaching one control does not mean total compromise.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Least privilege and need-to-know limit the blast radius of any compromise. Zero standing privilege is the modern standard.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">Zero Trust replaces perimeter-based security. "Never trust, always verify" is now federal policy (NIST 800-207, EO 14028).</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">Know your adversary. Script kiddies, hacktivists, organized crime, insiders, and nation-states each require different policy responses.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">The kill chain and MITRE ATT&CK are complementary frameworks. The kill chain is strategic (linear stages). ATT&CK is operational (matrix of tactics and techniques).</span>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">What Comes Next</div>
+            These concepts are not isolated topics -- they are the vocabulary you will use when writing policies, evaluating frameworks, assessing risk, and communicating with stakeholders. Every subsequent module in this course builds directly on the definitions and relationships established here.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- MARK COMPLETE ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 14 &nbsp;|&nbsp; Complete</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Presentation<br>
+                <span class="accent">Complete</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Core Concepts and Terminology -- 14 slides
+            </div>
+        </div>
+
+        <div class="scenario-strip" style="text-align:center; font-style:normal;">
+            CIA Triad &nbsp;&bull;&nbsp; AAA &nbsp;&bull;&nbsp; Threat/Vulnerability/Risk &nbsp;&bull;&nbsp; Attack Surface &nbsp;&bull;&nbsp; Defense in Depth &nbsp;&bull;&nbsp; Least Privilege &nbsp;&bull;&nbsp; Zero Trust &nbsp;&bull;&nbsp; Threat Actors &nbsp;&bull;&nbsp; Kill Chain &nbsp;&bull;&nbsp; MITRE ATT&CK
+        </div>
+
+        <div style="text-align:center; margin-top:10px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+
+        <div class="title-meta-row" style="margin-top:8px;">
+            <span>CIS2208</span>
+            <span>Cybersecurity Policy</span>
+            <span>Week 1</span>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Cybersecurity Policy</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 14</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 14;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        var completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('divergent', 'csp-w1-concepts-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

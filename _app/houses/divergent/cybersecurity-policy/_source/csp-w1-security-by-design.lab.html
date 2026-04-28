@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Design Review | Cybersecurity Policy Lab</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d0810 0%, #0a060d 100%);
+            color: #ede0f0;
+            min-height: 100vh;
+            padding: 24px;
+            line-height: 1.6;
+        }
+
+        .container { max-width: 880px; margin: 0 auto; }
+
+        .back-link {
+            color: #ff00ff; text-decoration: none; font-size: 0.95em;
+            display: inline-block; margin-bottom: 12px; transition: opacity 0.2s;
+        }
+        .back-link:hover { opacity: 0.7; }
+
+        h1 {
+            color: #ff00ff; font-size: 1.8em; margin-bottom: 4px;
+            text-shadow: 0 0 12px rgba(255, 0, 255, 0.3);
+        }
+        .subtitle { color: #9a82a0; font-size: 0.9em; margin-bottom: 20px; }
+
+        .panel {
+            background: rgba(13, 8, 16, 0.85);
+            border: 1px solid rgba(255, 0, 255, 0.25);
+            border-radius: 8px; padding: 20px; margin-bottom: 20px;
+        }
+        .panel h2 {
+            color: #00ffff; font-size: 1.15em; margin-bottom: 10px;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.15); padding-bottom: 6px;
+        }
+        .panel p { color: #9a82a0; font-size: 0.92em; }
+        .panel ul { color: #9a82a0; font-size: 0.88em; margin: 10px 0 0 20px; }
+        .panel li { margin-bottom: 4px; }
+        .principle-name { color: #ff00ff; font-weight: 600; }
+
+        /* Score bar */
+        .score-bar {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 20px; padding: 12px 16px;
+            background: rgba(13, 8, 16, 0.85);
+            border: 1px solid rgba(255, 0, 255, 0.25); border-radius: 8px;
+        }
+        .score-label { color: #ff00ff; font-weight: 600; font-size: 1.05em; }
+        .score-track {
+            flex: 1; height: 22px; background: #1a0f20;
+            border-radius: 4px; overflow: hidden;
+        }
+        .score-fill {
+            height: 100%; width: 0%;
+            background: linear-gradient(90deg, #ff00ff, #00ffff);
+            transition: width 0.5s ease; border-radius: 4px;
+        }
+        .score-text { color: #ede0f0; font-weight: 600; min-width: 50px; text-align: right; }
+
+        /* Scenario cards */
+        .scenario-list { display: flex; flex-direction: column; gap: 14px; margin-bottom: 24px; }
+
+        .scenario-card {
+            background: rgba(13, 8, 16, 0.85);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            border-radius: 8px; padding: 18px; transition: border-color 0.3s;
+        }
+        .scenario-card.graded-correct { border-color: #00c850; }
+        .scenario-card.graded-incorrect { border-color: #c80028; }
+
+        .scenario-number { color: #5a4460; font-size: 0.82em; margin-bottom: 4px; }
+        .scenario-desc { color: #ede0f0; font-size: 0.95em; margin-bottom: 12px; line-height: 1.5; }
+
+        .scenario-select {
+            display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+        }
+        .scenario-select label { color: #9a82a0; font-size: 0.88em; white-space: nowrap; }
+        .scenario-select select {
+            background: #1a0f22; color: #ede0f0; border: 1px solid rgba(255, 0, 255, 0.3);
+            padding: 8px 12px; border-radius: 6px; font-family: inherit;
+            font-size: 0.9em; cursor: pointer; min-width: 240px;
+        }
+        .scenario-select select:focus { outline: none; border-color: #ff00ff; box-shadow: 0 0 8px rgba(255, 0, 255, 0.3); }
+        .scenario-select select:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .scenario-feedback {
+            margin-top: 10px; padding: 10px 14px; border-radius: 6px;
+            font-size: 0.88em; display: none;
+        }
+        .scenario-feedback.correct {
+            background: rgba(0, 200, 80, 0.1); border: 1px solid rgba(0, 200, 80, 0.2);
+            color: #a0ffc0; display: block;
+        }
+        .scenario-feedback.incorrect {
+            background: rgba(200, 0, 40, 0.1); border: 1px solid rgba(200, 0, 40, 0.2);
+            color: #ffa0a0; display: block;
+        }
+
+        /* Buttons */
+        .btn-row { display: flex; gap: 12px; flex-wrap: wrap; }
+        .btn {
+            padding: 12px 28px; border: none; border-radius: 6px;
+            font-family: inherit; font-weight: 600; font-size: 0.95em;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #ff00ff, #cc00cc);
+            color: #fff; box-shadow: 0 0 12px rgba(255, 0, 255, 0.3);
+        }
+        .btn-primary:hover { box-shadow: 0 0 20px rgba(255, 0, 255, 0.5); }
+        .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-secondary {
+            background: transparent; color: #00ffff;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+        }
+        .btn-secondary:hover { border-color: #00ffff; }
+        .btn-complete {
+            background: linear-gradient(135deg, #00c850, #00a040);
+            color: #fff; display: none;
+        }
+        .btn-complete:hover { box-shadow: 0 0 16px rgba(0, 200, 80, 0.4); }
+
+        .footer-nav {
+            text-align: center; padding: 20px 0; margin-top: 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .footer-nav a { color: #5a4460; text-decoration: none; font-size: 0.85em; }
+        .footer-nav a:hover { color: #ff00ff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="../index.html" class="back-link">&larr; Back to Course</a>
+        <h1>Design Review</h1>
+        <p class="subtitle">CIS2208 -- Week 1: Security by Design (Saltzer &amp; Schroeder Principles)</p>
+
+        <div class="panel">
+            <h2>Instructions</h2>
+            <p>Review 8 system design scenarios. For each, select which Saltzer &amp; Schroeder design
+            principle the scenario best demonstrates (follows or violates). Then click
+            <strong>Check Answers</strong> to see your results. Score at least 6/8 to mark complete.</p>
+        </div>
+
+        <div class="panel">
+            <h2>The 8 Saltzer &amp; Schroeder Principles</h2>
+            <ul>
+                <li><span class="principle-name">Economy of Mechanism</span> -- Keep designs simple and small.</li>
+                <li><span class="principle-name">Fail-Safe Defaults</span> -- Default to deny; access must be explicitly granted.</li>
+                <li><span class="principle-name">Complete Mediation</span> -- Check every access to every object.</li>
+                <li><span class="principle-name">Open Design</span> -- Security should not depend on secrecy of the mechanism.</li>
+                <li><span class="principle-name">Separation of Privilege</span> -- Require multiple conditions to grant access.</li>
+                <li><span class="principle-name">Least Privilege</span> -- Grant only the minimum access necessary.</li>
+                <li><span class="principle-name">Least Common Mechanism</span> -- Minimize shared mechanisms between users.</li>
+                <li><span class="principle-name">Psychological Acceptability</span> -- Security mechanisms must be easy to use correctly.</li>
+            </ul>
+        </div>
+
+        <div class="score-bar">
+            <span class="score-label">Score</span>
+            <div class="score-track"><div class="score-fill" id="scoreFill"></div></div>
+            <span class="score-text" id="scoreText">0 / 8</span>
+        </div>
+
+        <div class="scenario-list" id="scenarioList"></div>
+
+        <div class="btn-row">
+            <button class="btn btn-primary" id="btnCheck" onclick="checkAnswers()">Check Answers</button>
+            <button class="btn btn-secondary" onclick="resetLab()">Reset</button>
+            <button class="btn btn-complete" id="btnComplete" onclick="completeLab()">Mark Complete</button>
+        </div>
+    </div>
+
+    <div class="footer-nav">
+        <a href="../index.html">Course Home</a>
+    </div>
+
+    <script>
+    (function() {
+        'use strict';
+
+        const PRINCIPLES = [
+            'Economy of Mechanism',
+            'Fail-Safe Defaults',
+            'Complete Mediation',
+            'Open Design',
+            'Separation of Privilege',
+            'Least Privilege',
+            'Least Common Mechanism',
+            'Psychological Acceptability'
+        ];
+
+        const SCENARIOS = [
+            {
+                desc: 'A new firewall appliance ships with all ports closed. Administrators must explicitly open each port required for business operations.',
+                answer: 'Fail-Safe Defaults',
+                explain: 'The system defaults to denying all traffic. Access (open ports) must be explicitly granted -- a textbook example of fail-safe defaults.'
+            },
+            {
+                desc: 'A web application checks the user\'s session token and permissions on every single API request, including cached resources, rather than only at login.',
+                answer: 'Complete Mediation',
+                explain: 'Every access to every object is verified, not just the initial authentication. This ensures revoked permissions take effect immediately.'
+            },
+            {
+                desc: 'A company publishes the full source code of its encryption library on GitHub, relying on the strength of the algorithm and key secrecy -- not code secrecy -- for protection.',
+                answer: 'Open Design',
+                explain: 'The security depends on key secrecy, not on keeping the mechanism hidden. Public review actually strengthens the design.'
+            },
+            {
+                desc: 'A nuclear launch system requires two officers to simultaneously turn their keys before a missile can be armed.',
+                answer: 'Separation of Privilege',
+                explain: 'No single individual can authorize the action alone. Multiple independent conditions (two keys, two officers) must be satisfied.'
+            },
+            {
+                desc: 'A CI/CD pipeline grants its build service account read-only access to the source repository and write access only to the artifact bucket -- nothing else.',
+                answer: 'Least Privilege',
+                explain: 'The service account has exactly the permissions it needs to do its job, no more. Compromising it limits blast radius.'
+            },
+            {
+                desc: 'Instead of giving all departments a shared file server, the company provisions isolated storage containers for each team with no cross-team access paths.',
+                answer: 'Least Common Mechanism',
+                explain: 'Minimizing shared resources between users reduces the risk that a compromise in one department propagates to another.'
+            },
+            {
+                desc: 'A security team replaces a 47-step manual certificate rotation process with a single automated command that handles validation, deployment, and rollback.',
+                answer: 'Economy of Mechanism',
+                explain: 'A simpler mechanism is easier to analyze, test, and verify. Complexity is the enemy of security.'
+            },
+            {
+                desc: 'A hospital SSO portal uses clear labels, simple password rules, and a prominent "Report Suspicious Activity" button so staff naturally follow policy without frustration.',
+                answer: 'Psychological Acceptability',
+                explain: 'When security controls are intuitive and non-burdensome, users follow them willingly rather than finding workarounds.'
+            }
+        ];
+
+        let checked = false;
+
+        function init() {
+            checked = false;
+            document.getElementById('btnCheck').disabled = false;
+            document.getElementById('btnComplete').style.display = 'none';
+            document.getElementById('scoreFill').style.width = '0%';
+            document.getElementById('scoreText').textContent = '0 / 8';
+            buildScenarios();
+        }
+
+        function buildScenarios() {
+            const list = document.getElementById('scenarioList');
+            /* Shuffle scenario display order */
+            const indices = [...Array(SCENARIOS.length).keys()].sort(() => Math.random() - 0.5);
+            list.innerHTML = '';
+
+            indices.forEach((origIdx, displayIdx) => {
+                const s = SCENARIOS[origIdx];
+                const card = document.createElement('div');
+                card.className = 'scenario-card';
+                card.dataset.origIndex = origIdx;
+
+                /* Build principle options (shuffled) */
+                const shuffledPrinciples = [...PRINCIPLES].sort(() => Math.random() - 0.5);
+                let optionsHtml = '<option value="">-- Select a principle --</option>';
+                shuffledPrinciples.forEach(p => {
+                    optionsHtml += '<option value="' + p + '">' + p + '</option>';
+                });
+
+                card.innerHTML =
+                    '<div class="scenario-number">Scenario ' + (displayIdx + 1) + ' of 8</div>' +
+                    '<div class="scenario-desc">' + s.desc + '</div>' +
+                    '<div class="scenario-select">' +
+                        '<label>Principle:</label>' +
+                        '<select data-orig="' + origIdx + '">' + optionsHtml + '</select>' +
+                    '</div>' +
+                    '<div class="scenario-feedback" id="fb-' + origIdx + '"></div>';
+
+                list.appendChild(card);
+            });
+        }
+
+        window.checkAnswers = function() {
+            /* Verify all answered */
+            const selects = document.querySelectorAll('.scenario-select select');
+            let allAnswered = true;
+            selects.forEach(sel => { if (!sel.value) allAnswered = false; });
+            if (!allAnswered) {
+                alert('Please select a principle for every scenario before checking.');
+                return;
+            }
+
+            checked = true;
+            let score = 0;
+
+            selects.forEach(sel => {
+                const origIdx = parseInt(sel.dataset.orig);
+                const scenario = SCENARIOS[origIdx];
+                const isCorrect = sel.value === scenario.answer;
+                if (isCorrect) score++;
+
+                sel.disabled = true;
+                const card = sel.closest('.scenario-card');
+                card.classList.add(isCorrect ? 'graded-correct' : 'graded-incorrect');
+
+                const fb = document.getElementById('fb-' + origIdx);
+                if (isCorrect) {
+                    fb.className = 'scenario-feedback correct';
+                    fb.textContent = '[CORRECT] ' + scenario.explain;
+                } else {
+                    fb.className = 'scenario-feedback incorrect';
+                    fb.textContent = '[INCORRECT] The correct principle is ' + scenario.answer + '. ' + scenario.explain;
+                }
+            });
+
+            /* Update score */
+            const pct = Math.round((score / SCENARIOS.length) * 100);
+            document.getElementById('scoreFill').style.width = pct + '%';
+            document.getElementById('scoreText').textContent = score + ' / 8';
+            document.getElementById('btnCheck').disabled = true;
+
+            if (score >= 6) {
+                document.getElementById('btnComplete').style.display = 'inline-block';
+            }
+        };
+
+        window.resetLab = function() { init(); };
+
+        window.completeLab = function() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('divergent', 'csp-w1-security-by-design-lab', { returnUrl: '../index.html' });
+            }
+        };
+
+        init();
+    })();
+    </script>
+</body>
+</html>

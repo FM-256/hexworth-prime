@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laws and Regulations | Cybersecurity Policy</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d0810 0%, #0a060d 50%, #100812 100%);
+            color: #ede0f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow-y: auto;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: linear-gradient(90deg, #ff00ff, #00ffff);
+            transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(13, 8, 16, 0.95);
+            border-top: 1px solid rgba(255, 0, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #9a82a0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(255, 0, 255, 0.12); color: #ff00ff; border-color: #ff00ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #5a4460; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: linear-gradient(135deg, #ff00ff, #ff44ff);
+            color: #0d0810; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: linear-gradient(135deg, #ff44ff, #ff88ff); transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #ff00ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #ede0f0; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ff00ff; }
+        .slide-title .cyan { color: #00ffff; }
+        .slide-subtitle { font-size: 0.95rem; color: #9a82a0; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(255, 0, 255, 0.06); border-left: 3px solid #ff00ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #f5b8f5; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-magenta { background: rgba(255, 0, 255, 0.08); border: 1px solid rgba(255, 0, 255, 0.3); color: #f5b8f5; }
+        .box-cyan    { background: rgba(0, 255, 255, 0.08); border: 1px solid rgba(0, 255, 255, 0.3); color: #b8f5f5; }
+        .box-red     { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold    { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-green   { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-label   { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #ede0f0; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ff00ff; }
+        .title-hero .big-title .cyan { color: #00ffff; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #5a4460;
+        }
+        .title-meta-row span { border-left: 2px solid rgba(255, 0, 255, 0.2); padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #ff00ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #ede0f0; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #9a82a0; line-height: 1.4; }
+        .card.c-magenta { border-left-color: #ff00ff; }
+        .card.c-cyan    { border-left-color: #00ffff; }
+        .card.c-red     { border-left-color: #ef4444; }
+        .card.c-gold    { border-left-color: #eab308; }
+        .card.c-green   { border-left-color: #22c55e; }
+        .card.c-purple  { border-left-color: #ff44ff; }
+        .card.c-blue    { border-left-color: #3b82f6; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #5a4460; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #ff00ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #ede0f0; }
+
+        /* SVG diagram containers */
+        .svg-container {
+            display: flex; justify-content: center; align-items: center;
+            margin: 10px 0; padding: 10px;
+        }
+        .svg-container svg { max-width: 100%; height: auto; }
+
+        /* Glossary table */
+        .glossary-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+        .glossary-table th {
+            text-align: left; padding: 6px 10px; font-size: 0.72rem;
+            text-transform: uppercase; letter-spacing: 0.08em;
+            color: #ff00ff; border-bottom: 1px solid rgba(255, 0, 255, 0.3);
+        }
+        .glossary-table td {
+            padding: 6px 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            vertical-align: top;
+        }
+        .glossary-table td:first-child { color: #00ffff; font-weight: 600; white-space: nowrap; }
+        .glossary-table td:last-child { color: #9a82a0; }
+
+        /* Timeline steps */
+        .timeline { display: flex; gap: 2px; margin: 10px 0; }
+        .tl-step {
+            flex: 1; padding: 10px 6px; text-align: center;
+            background: rgba(255, 0, 255, 0.06); border: 1px solid rgba(255, 0, 255, 0.15);
+            border-radius: 4px; transition: background 0.2s;
+        }
+        .tl-step:hover { background: rgba(255, 0, 255, 0.14); }
+        .tl-num { font-size: 0.68rem; font-weight: 700; color: #00ffff; letter-spacing: 0.08em; margin-bottom: 3px; }
+        .tl-name { font-size: 0.78rem; font-weight: 700; color: #ede0f0; margin-bottom: 3px; }
+        .tl-desc { font-size: 0.7rem; color: #9a82a0; line-height: 1.3; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid, .card-grid-4 { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .timeline { flex-wrap: wrap; } .tl-step { min-width: 45%; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Laws and Regulations | Cybersecurity Policy</h1>
+
+<div id="progress-bar" style="width:7.14%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 14 &nbsp;|&nbsp; CSP-W3-01 &nbsp;|&nbsp; Week 3</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Laws and <span class="accent">Regulations</span><br>
+                <span class="cyan" style="font-size:0.65em;">CFAA, HIPAA, GDPR, Global Landscape</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                CFAA &bull; HIPAA &bull; GDPR &bull; US Sectoral Laws &bull; State Laws &bull; Federal Legislation &bull; International Frameworks &bull; Cybercrime Treaties &bull; Enforcement &bull; Emerging Issues
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Technology moves at the speed of innovation. Law moves at the speed of politics. The gap between those two speeds is where breaches happen, fines are levied, and careers are made or destroyed. This deck maps the legal landscape that every cybersecurity professional must navigate -- from the 1986 CFAA to the 2024 EU AI Act. You cannot write policy, advise executives, or architect defenses without understanding the laws that define what is required, what is prohibited, and what happens when things go wrong.
+        </div>
+        <div class="title-meta-row">
+            <span>14 Slides</span>
+            <span>CSP-W3-01</span>
+            <span>Week 3</span>
+            <span>CIS2208 -- Cybersecurity Policy</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- WHY CYBERSECURITY LAW MATTERS ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 14</div>
+        <div class="slide-title">Why Cybersecurity <span class="accent">Law</span> Matters</div>
+        <div class="slide-subtitle">Liability, compliance, enforcement, and the cost of getting it wrong.</div>
+
+        <!-- SVG: Legal Landscape Evolution -->
+        <div class="svg-container">
+            <svg viewBox="0 0 560 180" width="540" role="img" aria-label="Legal landscape evolution timeline from 1986 to present. Shows major milestones: CFAA in 1986, HIPAA in 1996, GLBA in 1999, FISMA in 2002, state breach laws from 2003 onward, GDPR in 2016, CCPA in 2018, and CIRCIA in 2022. Each milestone is a node on an ascending line showing increasing regulatory complexity over time.">
+                <!-- Timeline base -->
+                <line x1="30" y1="140" x2="540" y2="40" stroke="rgba(255,0,255,0.3)" stroke-width="1.5"/>
+                <!-- Era labels -->
+                <text x="80" y="170" text-anchor="middle" fill="#5a4460" font-size="7" letter-spacing="0.05em">EARLY FEDERAL</text>
+                <text x="240" y="170" text-anchor="middle" fill="#5a4460" font-size="7" letter-spacing="0.05em">SECTOR-SPECIFIC</text>
+                <text x="420" y="170" text-anchor="middle" fill="#5a4460" font-size="7" letter-spacing="0.05em">COMPREHENSIVE / GLOBAL</text>
+                <!-- Milestone nodes -->
+                <circle cx="50" cy="132" r="6" fill="rgba(239,68,68,0.3)" stroke="#ef4444" stroke-width="1.2"/>
+                <text x="50" y="122" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">CFAA</text>
+                <text x="50" y="148" text-anchor="middle" fill="#9a82a0" font-size="6">1986</text>
+
+                <circle cx="120" cy="122" r="6" fill="rgba(0,255,255,0.3)" stroke="#00ffff" stroke-width="1.2"/>
+                <text x="120" y="112" text-anchor="middle" fill="#00ffff" font-size="8" font-weight="700">HIPAA</text>
+                <text x="120" y="138" text-anchor="middle" fill="#9a82a0" font-size="6">1996</text>
+
+                <circle cx="170" cy="115" r="6" fill="rgba(234,179,8,0.3)" stroke="#eab308" stroke-width="1.2"/>
+                <text x="170" y="105" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">GLBA</text>
+                <text x="170" y="131" text-anchor="middle" fill="#9a82a0" font-size="6">1999</text>
+
+                <circle cx="220" cy="107" r="6" fill="rgba(34,197,94,0.3)" stroke="#22c55e" stroke-width="1.2"/>
+                <text x="220" y="97" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">FISMA</text>
+                <text x="220" y="123" text-anchor="middle" fill="#9a82a0" font-size="6">2002</text>
+
+                <circle cx="280" cy="98" r="6" fill="rgba(255,68,255,0.3)" stroke="#ff44ff" stroke-width="1.2"/>
+                <text x="280" y="88" text-anchor="middle" fill="#ff44ff" font-size="8" font-weight="700">Breach Laws</text>
+                <text x="280" y="114" text-anchor="middle" fill="#9a82a0" font-size="6">2003+</text>
+
+                <circle cx="370" cy="85" r="8" fill="rgba(255,0,255,0.3)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="370" y="73" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">GDPR</text>
+                <text x="370" y="101" text-anchor="middle" fill="#9a82a0" font-size="6">2016/18</text>
+
+                <circle cx="440" cy="73" r="6" fill="rgba(0,255,255,0.3)" stroke="#00ffff" stroke-width="1.2"/>
+                <text x="440" y="63" text-anchor="middle" fill="#00ffff" font-size="8" font-weight="700">CCPA</text>
+                <text x="440" y="89" text-anchor="middle" fill="#9a82a0" font-size="6">2018</text>
+
+                <circle cx="510" cy="58" r="6" fill="rgba(234,179,8,0.3)" stroke="#eab308" stroke-width="1.2"/>
+                <text x="510" y="48" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">CIRCIA</text>
+                <text x="510" y="74" text-anchor="middle" fill="#9a82a0" font-size="6">2022</text>
+
+                <!-- Trend arrow -->
+                <text x="540" y="30" text-anchor="end" fill="#ff00ff" font-size="7" font-weight="600" letter-spacing="0.05em">COMPLEXITY</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Liability</div>
+                <div class="card-desc">Organizations have a legal duty of care to protect data. Failure to implement reasonable security measures creates liability -- negligence claims, class action lawsuits, regulatory fines. The Equifax breach cost $700M+ in settlements. T-Mobile paid $350M. These are not abstractions; they are balance-sheet events that destroy companies.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Compliance</div>
+                <div class="card-desc">Compliance is the minimum legal bar, not the security goal. HIPAA, PCI DSS, SOX, GDPR -- each mandates specific controls, documentation, and audits. Non-compliance is not just a fine; it is evidence of negligence in a courtroom. Compliance programs cost millions per year, but the cost of non-compliance is orders of magnitude higher.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Enforcement</div>
+                <div class="card-desc">Regulators have teeth. The FTC has brought 80+ data security enforcement actions. GDPR fines have exceeded $4B total since 2018. The SEC now requires material cyber incident disclosure within 4 business days. State attorneys general can (and do) bring independent enforcement actions, creating a multi-front regulatory battlefield.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Criminal Penalties</div>
+                <div class="card-desc">Beyond civil liability, cybersecurity law carries criminal penalties. CFAA violations can result in prison time. HIPAA willful neglect carries fines up to $1.5M per violation category per year. Insider threats, unauthorized access, and data theft are federal crimes. Executives can face personal criminal liability for coverups (Uber CISO case, 2022).</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">The Compliance-Security Gap</div>
+            Being compliant does not mean being secure. Target was PCI DSS compliant when it was breached in 2013. Equifax had a CISO and a security program. Compliance creates a floor, not a ceiling. Effective cybersecurity policy must go beyond checkbox compliance to address actual risk -- but the law defines the minimum, and falling below it creates immediate legal exposure.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- CFAA ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 14</div>
+        <div class="slide-title">Computer Fraud and <span class="accent">Abuse Act</span> <span class="cyan">(CFAA, 1986)</span></div>
+        <div class="slide-subtitle">The foundational US federal computer crime statute -- powerful, broad, and deeply controversial.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">18 U.S.C. 1030(a)(1)</div>
+                <div class="card-desc">Unauthorized access to national security information. Espionage-level offense. Penalties up to 10 years (first offense), 20 years (subsequent).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">18 U.S.C. 1030(a)(2)</div>
+                <div class="card-desc">Accessing a computer to obtain information from financial institutions, government, or any protected computer. The most commonly charged provision. Covers everything from database intrusions to scraping.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">18 U.S.C. 1030(a)(5)</div>
+                <div class="card-desc">Knowingly causing damage to a protected computer. Covers malware distribution, DDoS attacks, ransomware deployment, and data destruction. Up to 10 years imprisonment.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">18 U.S.C. 1030(a)(7)</div>
+                <div class="card-desc">Threatening to damage a computer or release stolen data for extortion. Directly targets ransomware operators and data extortion schemes. Penalties up to 5 years.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">"Exceeds Authorized Access"</div>
+                <div class="card-desc">The most debated phrase in cybersecurity law. Does a Terms of Service violation equal a federal crime? Van Buren v. United States (2021) narrowed interpretation -- accessing data for improper purpose is not criminal if you had authorized access to the system.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">"Protected Computer"</div>
+                <div class="card-desc">Defined so broadly (any computer used in interstate or foreign commerce) that it covers essentially every internet-connected device. A smartphone, IoT thermostat, or cloud VM all qualify. This gives the CFAA near-universal jurisdiction.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">The Aaron Swartz Controversy</div>
+            In 2011, MIT researcher Aaron Swartz was charged under the CFAA with 13 felony counts for bulk-downloading academic articles from JSTOR via MIT's network. Prosecutors sought 35 years in prison and $1M in fines -- for downloading articles from a service his institution already paid for. Swartz died by suicide in 2013. The case became a lightning rod for CFAA reform, exposing how the statute's broad language enables prosecutorial overreach. "Aaron's Law" reform bills have been introduced repeatedly but never passed.
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Security Research Implications</div>
+            The CFAA's breadth creates a chilling effect on legitimate security research. Bug bounty programs exist partly to create explicit authorization that avoids CFAA exposure. The DOJ issued a 2022 policy memo stating it would not prosecute good-faith security researchers -- but a policy memo is not law, and the next administration can reverse it. Researchers still face legal risk for vulnerability disclosure, port scanning, and web scraping.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- HIPAA ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 14</div>
+        <div class="slide-title"><span class="accent">HIPAA</span> -- Health Insurance Portability and <span class="cyan">Accountability Act</span></div>
+        <div class="slide-subtitle">The US standard for protecting health information -- three rules, 20+ years of enforcement, billions in fines.</div>
+
+        <!-- SVG: HIPAA Covered Entity Flow -->
+        <div class="svg-container">
+            <svg viewBox="0 0 520 220" width="500" role="img" aria-label="HIPAA covered entity flow diagram. Shows three categories of covered entities at top: health plans, healthcare clearinghouses, and healthcare providers. Arrows flow down to PHI (protected health information) in the center. Business associates connect via BAA (business associate agreement) arrows. At the bottom, three rules apply: Privacy Rule, Security Rule, and Breach Notification Rule.">
+                <!-- Covered Entity boxes -->
+                <rect x="10" y="10" width="140" height="42" rx="6" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="80" y="28" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">Health Plans</text>
+                <text x="80" y="42" text-anchor="middle" fill="#9a82a0" font-size="7">Insurers, HMOs, Medicare</text>
+
+                <rect x="190" y="10" width="140" height="42" rx="6" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="260" y="28" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">Clearinghouses</text>
+                <text x="260" y="42" text-anchor="middle" fill="#9a82a0" font-size="7">Claims processors</text>
+
+                <rect x="370" y="10" width="140" height="42" rx="6" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="440" y="28" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">Providers</text>
+                <text x="440" y="42" text-anchor="middle" fill="#9a82a0" font-size="7">Hospitals, clinics, Rx</text>
+
+                <!-- Arrows to PHI -->
+                <line x1="80" y1="52" x2="230" y2="85" stroke="rgba(0,255,255,0.3)" stroke-width="1"/>
+                <line x1="260" y1="52" x2="260" y2="85" stroke="rgba(0,255,255,0.3)" stroke-width="1"/>
+                <line x1="440" y1="52" x2="290" y2="85" stroke="rgba(0,255,255,0.3)" stroke-width="1"/>
+
+                <!-- PHI center -->
+                <rect x="190" y="85" width="140" height="36" rx="6" fill="rgba(255,0,255,0.15)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="260" y="100" text-anchor="middle" fill="#ff00ff" font-size="11" font-weight="800">PHI</text>
+                <text x="260" y="114" text-anchor="middle" fill="#f5b8f5" font-size="7">Protected Health Information</text>
+
+                <!-- Business Associates -->
+                <rect x="380" y="78" width="130" height="50" rx="6" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1"/>
+                <text x="445" y="96" text-anchor="middle" fill="#eab308" font-size="9" font-weight="700">Business Associates</text>
+                <text x="445" y="110" text-anchor="middle" fill="#9a82a0" font-size="7">IT vendors, cloud, billing</text>
+                <text x="445" y="122" text-anchor="middle" fill="#eab308" font-size="6" font-weight="600">Requires BAA</text>
+                <line x1="380" y1="103" x2="330" y2="103" stroke="#eab308" stroke-width="1" stroke-dasharray="3 3"/>
+                <text x="355" y="98" text-anchor="middle" fill="#eab308" font-size="6">BAA</text>
+
+                <!-- Three rules -->
+                <line x1="220" y1="121" x2="120" y2="150" stroke="rgba(255,0,255,0.3)" stroke-width="1"/>
+                <line x1="260" y1="121" x2="260" y2="150" stroke="rgba(255,0,255,0.3)" stroke-width="1"/>
+                <line x1="300" y1="121" x2="400" y2="150" stroke="rgba(255,0,255,0.3)" stroke-width="1"/>
+
+                <rect x="30" y="150" width="160" height="55" rx="6" fill="rgba(255,0,255,0.06)" stroke="rgba(255,0,255,0.25)" stroke-width="1"/>
+                <text x="110" y="168" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">Privacy Rule</text>
+                <text x="110" y="180" text-anchor="middle" fill="#9a82a0" font-size="6.5">Use/disclosure limits</text>
+                <text x="110" y="192" text-anchor="middle" fill="#9a82a0" font-size="6.5">Patient rights (access, amend)</text>
+                <text x="110" y="200" text-anchor="middle" fill="#9a82a0" font-size="6.5">Minimum necessary standard</text>
+
+                <rect x="200" y="150" width="120" height="55" rx="6" fill="rgba(0,255,255,0.06)" stroke="rgba(0,255,255,0.25)" stroke-width="1"/>
+                <text x="260" y="168" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">Security Rule</text>
+                <text x="260" y="180" text-anchor="middle" fill="#9a82a0" font-size="6.5">Admin safeguards</text>
+                <text x="260" y="192" text-anchor="middle" fill="#9a82a0" font-size="6.5">Physical safeguards</text>
+                <text x="260" y="200" text-anchor="middle" fill="#9a82a0" font-size="6.5">Technical safeguards</text>
+
+                <rect x="330" y="150" width="170" height="55" rx="6" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.25)" stroke-width="1"/>
+                <text x="415" y="168" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">Breach Notification</text>
+                <text x="415" y="180" text-anchor="middle" fill="#9a82a0" font-size="6.5">60 days to notify individuals</text>
+                <text x="415" y="192" text-anchor="middle" fill="#9a82a0" font-size="6.5">Notify HHS (500+ = immediate)</text>
+                <text x="415" y="200" text-anchor="middle" fill="#9a82a0" font-size="6.5">Media notice if 500+ in state</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">18 PHI Identifiers</div>
+                <div class="card-desc">Names, dates, SSN, phone, email, medical record numbers, device identifiers, biometrics, photos, IP addresses, URLs, and any other unique identifying number. If you can link it to a patient, it is PHI. De-identification requires removing all 18 identifiers or expert statistical certification.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Security Rule Safeguards</div>
+                <div class="card-desc">Administrative: risk analysis, workforce training, contingency plan. Physical: facility access controls, workstation security, device disposal. Technical: access controls, audit logs, integrity controls, transmission security. Most requirements are "addressable" (implement or document why an alternative is equivalent).</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Penalty Tiers</div>
+                <div class="card-desc">Tier 1 (did not know): $100-$50K per violation. Tier 2 (reasonable cause): $1K-$50K. Tier 3 (willful neglect, corrected): $10K-$50K. Tier 4 (willful neglect, not corrected): $50K per violation, up to $1.5M per category per year. Criminal penalties up to 10 years imprisonment for wrongful disclosure with intent to sell.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- GDPR ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 14</div>
+        <div class="slide-title"><span class="accent">GDPR</span> -- General Data Protection <span class="cyan">Regulation</span></div>
+        <div class="slide-subtitle">The EU regulation that reset global privacy expectations. 4% of worldwide annual revenue fines. Extraterritorial reach.</div>
+
+        <!-- SVG: GDPR Rights Wheel -->
+        <div class="svg-container">
+            <svg viewBox="0 0 400 280" width="380" role="img" aria-label="GDPR data subject rights wheel. A central circle labeled Data Subject Rights with eight spokes radiating outward to individual rights: right to be informed, right of access, right to rectification, right to erasure, right to restrict processing, right to data portability, right to object, and rights related to automated decision-making.">
+                <!-- Center -->
+                <circle cx="200" cy="130" r="38" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="200" y="126" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="800">DATA SUBJECT</text>
+                <text x="200" y="138" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="800">RIGHTS</text>
+                <!-- Spokes and rights -->
+                <!-- Top -->
+                <line x1="200" y1="92" x2="200" y2="28" stroke="rgba(0,255,255,0.4)" stroke-width="1"/>
+                <rect x="145" y="8" width="110" height="22" rx="4" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="0.8"/>
+                <text x="200" y="23" text-anchor="middle" fill="#00ffff" font-size="8" font-weight="600">Right to Be Informed</text>
+                <!-- Top-right -->
+                <line x1="227" y1="98" x2="310" y2="40" stroke="rgba(255,68,255,0.4)" stroke-width="1"/>
+                <rect x="275" y="26" width="100" height="22" rx="4" fill="rgba(255,68,255,0.08)" stroke="#ff44ff" stroke-width="0.8"/>
+                <text x="325" y="41" text-anchor="middle" fill="#ff44ff" font-size="8" font-weight="600">Right of Access</text>
+                <!-- Right -->
+                <line x1="238" y1="130" x2="328" y2="130" stroke="rgba(239,68,68,0.4)" stroke-width="1"/>
+                <rect x="330" y="119" width="65" height="22" rx="4" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="0.8"/>
+                <text x="362" y="134" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="600">Rectification</text>
+                <!-- Bottom-right -->
+                <line x1="227" y1="162" x2="310" y2="210" stroke="rgba(234,179,8,0.4)" stroke-width="1"/>
+                <rect x="275" y="203" width="115" height="22" rx="4" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="0.8"/>
+                <text x="332" y="218" text-anchor="middle" fill="#eab308" font-size="8" font-weight="600">Right to Erasure</text>
+                <!-- Bottom -->
+                <line x1="200" y1="168" x2="200" y2="238" stroke="rgba(34,197,94,0.4)" stroke-width="1"/>
+                <rect x="130" y="240" width="140" height="22" rx="4" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="0.8"/>
+                <text x="200" y="255" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">Restrict Processing</text>
+                <!-- Bottom-left -->
+                <line x1="173" y1="162" x2="90" y2="210" stroke="rgba(59,130,246,0.4)" stroke-width="1"/>
+                <rect x="20" y="203" width="120" height="22" rx="4" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="0.8"/>
+                <text x="80" y="218" text-anchor="middle" fill="#3b82f6" font-size="8" font-weight="600">Data Portability</text>
+                <!-- Left -->
+                <line x1="162" y1="130" x2="80" y2="130" stroke="rgba(255,0,255,0.4)" stroke-width="1"/>
+                <rect x="5" y="119" width="76" height="22" rx="4" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="0.8"/>
+                <text x="43" y="134" text-anchor="middle" fill="#ff00ff" font-size="8" font-weight="600">Right to Object</text>
+                <!-- Top-left -->
+                <line x1="173" y1="98" x2="90" y2="40" stroke="rgba(0,255,255,0.4)" stroke-width="1"/>
+                <rect x="15" y="26" width="120" height="22" rx="4" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="0.8"/>
+                <text x="75" y="41" text-anchor="middle" fill="#00ffff" font-size="8" font-weight="600">Automated Decisions</text>
+            </svg>
+        </div>
+
+        <div class="section-label">Seven Principles of GDPR</div>
+        <div class="timeline">
+            <div class="tl-step">
+                <div class="tl-num">01</div>
+                <div class="tl-name">Lawfulness</div>
+                <div class="tl-desc">Fair, transparent processing with legal basis</div>
+            </div>
+            <div class="tl-step">
+                <div class="tl-num">02</div>
+                <div class="tl-name">Purpose Limitation</div>
+                <div class="tl-desc">Collect for specified, legitimate purposes only</div>
+            </div>
+            <div class="tl-step">
+                <div class="tl-num">03</div>
+                <div class="tl-name">Data Minimization</div>
+                <div class="tl-desc">Adequate, relevant, limited to necessary</div>
+            </div>
+            <div class="tl-step">
+                <div class="tl-num">04</div>
+                <div class="tl-name">Accuracy</div>
+                <div class="tl-desc">Keep data accurate and up to date</div>
+            </div>
+            <div class="tl-step">
+                <div class="tl-num">05</div>
+                <div class="tl-name">Storage Limit</div>
+                <div class="tl-desc">Keep only as long as necessary</div>
+            </div>
+            <div class="tl-step">
+                <div class="tl-num">06</div>
+                <div class="tl-name">Integrity</div>
+                <div class="tl-desc">Ensure security of processing</div>
+            </div>
+            <div class="tl-step">
+                <div class="tl-num">07</div>
+                <div class="tl-name">Accountability</div>
+                <div class="tl-desc">Demonstrate compliance</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">DPO Requirement</div>
+                <div class="card-desc">Data Protection Officers are mandatory for public authorities, organizations whose core activities involve large-scale systematic monitoring, or large-scale processing of special category data. The DPO must report to the highest management level and cannot be dismissed for performing their duties.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">72-Hour Breach Notification</div>
+                <div class="card-desc">Controllers must notify the supervisory authority within 72 hours of becoming aware of a personal data breach (unless unlikely to result in risk). Data subjects must be notified "without undue delay" if high risk. The clock starts at awareness -- not discovery of the full scope.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Fines: Up to 4% Global Revenue</div>
+                <div class="card-desc">Two tiers: up to 10M EUR or 2% for administrative failures; up to 20M EUR or 4% of worldwide annual turnover for violations of data processing principles, conditions for consent, or data subject rights. Amazon fined 746M EUR (2021). Meta fined 1.2B EUR (2023). These are existential numbers.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- US SECTORAL APPROACH ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 14</div>
+        <div class="slide-title">US <span class="accent">Sectoral</span> Approach</div>
+        <div class="slide-subtitle">No comprehensive federal privacy law. Instead, a patchwork of sector-specific statutes that each protect a different slice of data.</div>
+
+        <!-- SVG: US Sectoral Law Map -->
+        <div class="svg-container">
+            <svg viewBox="0 0 520 220" width="500" role="img" aria-label="US sectoral law map. Shows six sectors arranged around a central label reading No Federal Comprehensive Privacy Law. The sectors are finance with GLBA and SOX, healthcare with HIPAA, education with FERPA, children with COPPA, communications with ECPA and SCA, and government with FISMA. Each sector has its own regulatory body and key requirements.">
+                <!-- Central gap -->
+                <rect x="175" y="80" width="170" height="55" rx="8" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1" stroke-dasharray="4 3"/>
+                <text x="260" y="102" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">NO COMPREHENSIVE</text>
+                <text x="260" y="116" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">FEDERAL PRIVACY LAW</text>
+                <text x="260" y="130" text-anchor="middle" fill="#9a82a0" font-size="6.5">(as of 2026)</text>
+
+                <!-- Finance -->
+                <rect x="10" y="10" width="140" height="55" rx="6" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1"/>
+                <text x="80" y="28" text-anchor="middle" fill="#eab308" font-size="9" font-weight="700">FINANCE</text>
+                <text x="80" y="42" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="600">GLBA + SOX</text>
+                <text x="80" y="55" text-anchor="middle" fill="#9a82a0" font-size="6.5">FTC, OCC, SEC</text>
+                <line x1="140" y1="55" x2="185" y2="85" stroke="rgba(234,179,8,0.3)" stroke-width="0.8"/>
+
+                <!-- Healthcare -->
+                <rect x="190" y="10" width="140" height="55" rx="6" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="260" y="28" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">HEALTHCARE</text>
+                <text x="260" y="42" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="600">HIPAA + HITECH</text>
+                <text x="260" y="55" text-anchor="middle" fill="#9a82a0" font-size="6.5">HHS OCR</text>
+                <line x1="260" y1="65" x2="260" y2="80" stroke="rgba(0,255,255,0.3)" stroke-width="0.8"/>
+
+                <!-- Education -->
+                <rect x="370" y="10" width="140" height="55" rx="6" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1"/>
+                <text x="440" y="28" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="700">EDUCATION</text>
+                <text x="440" y="42" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="600">FERPA</text>
+                <text x="440" y="55" text-anchor="middle" fill="#9a82a0" font-size="6.5">Dept. of Education</text>
+                <line x1="380" y1="55" x2="340" y2="85" stroke="rgba(34,197,94,0.3)" stroke-width="0.8"/>
+
+                <!-- Children -->
+                <rect x="10" y="155" width="140" height="55" rx="6" fill="rgba(255,68,255,0.08)" stroke="#ff44ff" stroke-width="1"/>
+                <text x="80" y="173" text-anchor="middle" fill="#ff44ff" font-size="9" font-weight="700">CHILDREN</text>
+                <text x="80" y="187" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="600">COPPA (under 13)</text>
+                <text x="80" y="200" text-anchor="middle" fill="#9a82a0" font-size="6.5">FTC enforcement</text>
+                <line x1="140" y1="160" x2="185" y2="135" stroke="rgba(255,68,255,0.3)" stroke-width="0.8"/>
+
+                <!-- Communications -->
+                <rect x="190" y="155" width="140" height="55" rx="6" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="260" y="173" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">COMMUNICATIONS</text>
+                <text x="260" y="187" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="600">ECPA + SCA</text>
+                <text x="260" y="200" text-anchor="middle" fill="#9a82a0" font-size="6.5">DOJ, courts</text>
+                <line x1="260" y1="155" x2="260" y2="135" stroke="rgba(255,0,255,0.3)" stroke-width="0.8"/>
+
+                <!-- Government -->
+                <rect x="370" y="155" width="140" height="55" rx="6" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1"/>
+                <text x="440" y="173" text-anchor="middle" fill="#3b82f6" font-size="9" font-weight="700">GOVERNMENT</text>
+                <text x="440" y="187" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="600">FISMA + Privacy Act</text>
+                <text x="440" y="200" text-anchor="middle" fill="#9a82a0" font-size="6.5">OMB, CISA, NIST</text>
+                <line x1="380" y1="160" x2="340" y2="135" stroke="rgba(59,130,246,0.3)" stroke-width="0.8"/>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">GLBA (Gramm-Leach-Bliley Act, 1999)</div>
+                <div class="card-desc">Requires financial institutions to explain information-sharing practices and safeguard sensitive data. The Safeguards Rule mandates written information security programs, risk assessments, encryption of customer data in transit and at rest, and MFA for anyone accessing customer information. FTC enforces for non-bank institutions.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">FERPA (1974)</div>
+                <div class="card-desc">Protects student education records at institutions receiving federal funding. Parents (or students over 18) have the right to inspect, request amendment, and control disclosure. Schools cannot release records without consent, with limited exceptions (directory information, judicial orders, health/safety emergencies).</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">COPPA (1998)</div>
+                <div class="card-desc">Regulates collection of personal information from children under 13 by websites and online services. Requires verifiable parental consent before collection. FTC has levied major fines: TikTok ($5.7M, 2019), Epic Games ($275M, 2022). Now under pressure to extend protections to teens (KOSA, state laws).</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">ECPA (1986) + SCA</div>
+                <div class="card-desc">Governs government access to electronic communications. Three parts: Wiretap Act (real-time interception), Stored Communications Act (stored data), Pen Register Act (metadata). Written before cloud computing -- law enforcement access to cloud-stored email is governed by a statute that predates the web. Carpenter v. United States (2018) added 4th Amendment protections for cell-site location data.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- STATE-LEVEL LAWS ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 14</div>
+        <div class="slide-title">State-Level <span class="accent">Privacy</span> and <span class="cyan">Breach</span> Laws</div>
+        <div class="slide-subtitle">50 states, 50+ breach notification laws, and an accelerating wave of comprehensive privacy statutes.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">CCPA/CPRA (California, 2018/2020)</div>
+                <div class="card-desc">The de facto national standard. Applies to businesses collecting data of California residents with $25M+ revenue, 100K+ consumer records, or 50%+ revenue from selling personal information. Rights: know, delete, opt-out of sale, non-discrimination, correct, limit sensitive data use. CPRA created the California Privacy Protection Agency (CPPA) -- the first dedicated state privacy enforcement body. Private right of action for data breaches. $7,500 per intentional violation.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The State Privacy Wave</div>
+                <div class="card-desc">Following California's lead, 15+ states have enacted comprehensive privacy laws as of 2025: Virginia (VCDPA), Colorado (CPA), Connecticut (CTDPA), Utah (UCPA), Iowa, Indiana, Tennessee, Montana, Texas, Oregon, Delaware, New Hampshire, New Jersey, Maryland, and Minnesota. Each has different thresholds, definitions, and enforcement mechanisms. No two are identical, creating a compliance nightmare for national organizations.</div>
+            </div>
+        </div>
+
+        <!-- SVG: Breach Notification Timeline -->
+        <div class="svg-container">
+            <svg viewBox="0 0 520 140" width="500" role="img" aria-label="Breach notification timeline comparison across jurisdictions. Shows different notification deadlines: GDPR at 72 hours, HIPAA at 60 days, various state laws from 30 to 60 days, and some states with no specific deadline requiring only reasonable promptness. Demonstrates the complexity of multi-jurisdiction compliance.">
+                <text x="260" y="15" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700" letter-spacing="0.06em">BREACH NOTIFICATION DEADLINES</text>
+                <!-- Timeline axis -->
+                <line x1="40" y1="50" x2="500" y2="50" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+                <!-- Tick marks -->
+                <line x1="70" y1="45" x2="70" y2="55" stroke="#ff00ff" stroke-width="1"/>
+                <text x="70" y="42" text-anchor="middle" fill="#9a82a0" font-size="7">24h</text>
+
+                <line x1="130" y1="45" x2="130" y2="55" stroke="#ff00ff" stroke-width="1"/>
+                <text x="130" y="42" text-anchor="middle" fill="#9a82a0" font-size="7">72h</text>
+
+                <line x1="210" y1="45" x2="210" y2="55" stroke="#ff00ff" stroke-width="1"/>
+                <text x="210" y="42" text-anchor="middle" fill="#9a82a0" font-size="7">30 days</text>
+
+                <line x1="310" y1="45" x2="310" y2="55" stroke="#ff00ff" stroke-width="1"/>
+                <text x="310" y="42" text-anchor="middle" fill="#9a82a0" font-size="7">45 days</text>
+
+                <line x1="400" y1="45" x2="400" y2="55" stroke="#ff00ff" stroke-width="1"/>
+                <text x="400" y="42" text-anchor="middle" fill="#9a82a0" font-size="7">60 days</text>
+
+                <line x1="480" y1="45" x2="480" y2="55" stroke="#ff00ff" stroke-width="1"/>
+                <text x="480" y="42" text-anchor="middle" fill="#9a82a0" font-size="7">90 days</text>
+
+                <!-- Jurisdiction bars -->
+                <rect x="60" y="60" width="80" height="14" rx="3" fill="rgba(0,255,255,0.2)" stroke="#00ffff" stroke-width="0.8"/>
+                <text x="100" y="71" text-anchor="middle" fill="#00ffff" font-size="7" font-weight="600">GDPR (72h)</text>
+
+                <rect x="60" y="78" width="70" height="14" rx="3" fill="rgba(234,179,8,0.2)" stroke="#eab308" stroke-width="0.8"/>
+                <text x="95" y="89" text-anchor="middle" fill="#eab308" font-size="7" font-weight="600">CO, FL (30d)</text>
+
+                <rect x="60" y="96" width="260" height="14" rx="3" fill="rgba(255,68,255,0.2)" stroke="#ff44ff" stroke-width="0.8"/>
+                <text x="190" y="107" text-anchor="middle" fill="#ff44ff" font-size="7" font-weight="600">OH, WA, VA (45d)</text>
+
+                <rect x="60" y="114" width="350" height="14" rx="3" fill="rgba(255,0,255,0.2)" stroke="#ff00ff" stroke-width="0.8"/>
+                <text x="235" y="125" text-anchor="middle" fill="#ff00ff" font-size="7" font-weight="600">HIPAA (60d) | Many states (60d)</text>
+            </svg>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Compliance Challenge</div>
+            A single data breach affecting customers in multiple states triggers parallel notification obligations with different deadlines, content requirements, and recipient lists. Some states require notification to the state AG within 30 days; others have no AG notification. Some define "personal information" to include login credentials; others do not. Organizations must build breach response playbooks that satisfy the most restrictive requirements across all applicable jurisdictions simultaneously.
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">The Federal Preemption Debate</div>
+            A federal comprehensive privacy law could preempt (override) the state patchwork, creating uniform national standards. The American Data Privacy and Protection Act (ADPPA) advanced further than any previous attempt in 2022 but stalled over preemption scope and private right of action. California opposes preemption that would weaken CCPA/CPRA. Industry wants preemption to simplify compliance. This tension remains unresolved.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- FEDERAL CYBERSECURITY LEGISLATION ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 14</div>
+        <div class="slide-title">Federal <span class="accent">Cybersecurity</span> Legislation</div>
+        <div class="slide-subtitle">FISMA, CISA, and CIRCIA -- the federal framework for securing government systems and critical infrastructure.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">FISMA (2002, updated 2014)</div>
+                <div class="card-desc">Federal Information Security Modernization Act. Mandates cybersecurity programs for all federal agencies. Requires annual security assessments, continuous monitoring, and incident reporting. NIST develops the standards (SP 800 series); OMB oversees compliance; CISA provides operational assistance. Every federal system must be categorized (FIPS 199), receive baseline controls (SP 800-53), and undergo assessment and authorization (A&A).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">CISA Act (2018)</div>
+                <div class="card-desc">Established the Cybersecurity and Infrastructure Security Agency within DHS. CISA is the operational lead for federal civilian cybersecurity and critical infrastructure protection. Runs the National Cybersecurity Protection System (NCPS/Einstein), coordinates vulnerability disclosure, issues binding operational directives (BODs) to federal agencies, and operates the Joint Cyber Defense Collaborative (JCDC) with private sector partners.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">CIRCIA (2022)</div>
+                <div class="card-desc">Cyber Incident Reporting for Critical Infrastructure Act. Requires critical infrastructure entities to report significant cyber incidents to CISA within 72 hours and ransomware payments within 24 hours. Covers 16 critical infrastructure sectors. CISA is finalizing implementation rules (expected 2025-2026). Creates the first mandatory federal incident reporting framework for the private sector.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Executive Orders</div>
+                <div class="card-desc">EO 14028 (May 2021) -- "Improving the Nation's Cybersecurity." Mandated zero trust architecture for federal agencies, software supply chain security (SBOMs), endpoint detection and response, MFA everywhere, and encryption of data at rest and in transit. Set aggressive timelines that reshaped federal IT procurement overnight.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">NIST Cybersecurity Framework</div>
+                <div class="card-desc">Not legislation, but the de facto standard referenced by most US cybersecurity regulations. CSF 2.0 (2024) added the Govern function. Five (now six) core functions: Govern, Identify, Protect, Detect, Respond, Recover. Voluntary for private sector but increasingly mandated by contract, regulation, and cyber insurance requirements.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">SEC Cyber Disclosure Rules (2023)</div>
+                <div class="card-desc">Public companies must disclose material cybersecurity incidents on Form 8-K within 4 business days of determining materiality. Annual 10-K filings must describe cybersecurity risk management, strategy, governance, and board oversight. Makes cybersecurity a boardroom issue with securities law consequences for inadequate disclosure.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">The Regulatory Stack</div>
+            A single healthcare company might simultaneously be subject to HIPAA (HHS), FTC Act Section 5 (FTC), state breach notification laws (50 state AGs), SEC disclosure rules (if publicly traded), FISMA (if a federal contractor), PCI DSS (if processing payments), and CIRCIA (if critical infrastructure). Compliance is not a single standard -- it is a stack of overlapping, sometimes conflicting requirements that demand specialized legal and technical expertise.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- INTERNATIONAL LANDSCAPE ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 14</div>
+        <div class="slide-title">International <span class="accent">Regulatory</span> <span class="cyan">Landscape</span></div>
+        <div class="slide-subtitle">Every major economy now has cybersecurity and data protection legislation. Compliance is a global problem.</div>
+
+        <!-- SVG: International Regulation Comparison -->
+        <div class="svg-container">
+            <svg viewBox="0 0 540 230" width="520" role="img" aria-label="International regulation comparison showing five major jurisdictions. European Union with GDPR and NIS2, China with Cybersecurity Law, Data Security Law, and PIPL, Brazil with LGPD, India with DPDP Act, and Japan with APPI. Each jurisdiction shows enforcement approach ranging from rights-based to state-centric to developing.">
+                <!-- Header -->
+                <text x="270" y="16" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700" letter-spacing="0.06em">GLOBAL DATA PROTECTION LANDSCAPE</text>
+                <!-- Column headers -->
+                <text x="70" y="38" text-anchor="middle" fill="#5a4460" font-size="7" font-weight="600">JURISDICTION</text>
+                <text x="200" y="38" text-anchor="middle" fill="#5a4460" font-size="7" font-weight="600">KEY LAWS</text>
+                <text x="350" y="38" text-anchor="middle" fill="#5a4460" font-size="7" font-weight="600">APPROACH</text>
+                <text x="490" y="38" text-anchor="middle" fill="#5a4460" font-size="7" font-weight="600">MAX PENALTY</text>
+                <line x1="10" y1="44" x2="530" y2="44" stroke="rgba(255,0,255,0.2)" stroke-width="0.8"/>
+
+                <!-- EU -->
+                <rect x="10" y="50" width="120" height="30" rx="4" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="0.8"/>
+                <text x="70" y="69" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">European Union</text>
+                <text x="200" y="62" text-anchor="middle" fill="#ede0f0" font-size="8">GDPR (2018)</text>
+                <text x="200" y="75" text-anchor="middle" fill="#9a82a0" font-size="7">NIS2 Directive (2024)</text>
+                <text x="350" y="69" text-anchor="middle" fill="#9a82a0" font-size="7.5">Rights-based, comprehensive</text>
+                <text x="490" y="69" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="600">4% global revenue</text>
+                <line x1="10" y1="86" x2="530" y2="86" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>
+
+                <!-- China -->
+                <rect x="10" y="92" width="120" height="30" rx="4" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="0.8"/>
+                <text x="70" y="111" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">China</text>
+                <text x="200" y="100" text-anchor="middle" fill="#ede0f0" font-size="7.5">CSL (2017) + DSL (2021)</text>
+                <text x="200" y="114" text-anchor="middle" fill="#9a82a0" font-size="7">PIPL (2021)</text>
+                <text x="350" y="107" text-anchor="middle" fill="#9a82a0" font-size="7.5">State-centric, data localization</text>
+                <text x="490" y="107" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="600">5% revenue + shutdown</text>
+                <line x1="10" y1="128" x2="530" y2="128" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>
+
+                <!-- Brazil -->
+                <rect x="10" y="134" width="120" height="30" rx="4" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="0.8"/>
+                <text x="70" y="153" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="700">Brazil</text>
+                <text x="200" y="150" text-anchor="middle" fill="#ede0f0" font-size="8">LGPD (2020)</text>
+                <text x="350" y="150" text-anchor="middle" fill="#9a82a0" font-size="7.5">GDPR-modeled, ANPD enforces</text>
+                <text x="490" y="150" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="600">2% revenue (50M BRL cap)</text>
+                <line x1="10" y1="170" x2="530" y2="170" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>
+
+                <!-- India -->
+                <rect x="10" y="176" width="120" height="30" rx="4" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="0.8"/>
+                <text x="70" y="195" text-anchor="middle" fill="#eab308" font-size="9" font-weight="700">India</text>
+                <text x="200" y="192" text-anchor="middle" fill="#ede0f0" font-size="8">DPDP Act (2023)</text>
+                <text x="350" y="192" text-anchor="middle" fill="#9a82a0" font-size="7.5">Consent-based, broad govt exemptions</text>
+                <text x="490" y="192" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="600">250 Cr INR (~$30M)</text>
+                <line x1="10" y1="212" x2="530" y2="212" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>
+
+                <!-- Japan -->
+                <rect x="10" y="216" width="120" height="14" rx="4" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="0.8"/>
+                <text x="70" y="227" text-anchor="middle" fill="#3b82f6" font-size="8" font-weight="600">Japan (APPI)</text>
+                <text x="200" y="227" text-anchor="middle" fill="#9a82a0" font-size="7">APPI (amended 2022)</text>
+                <text x="350" y="227" text-anchor="middle" fill="#9a82a0" font-size="7">Co-regulation, adequacy with EU</text>
+                <text x="490" y="227" text-anchor="middle" fill="#9a82a0" font-size="7">100M JPY (~$670K)</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">EU NIS2 Directive (2024)</div>
+                <div class="card-desc">Network and Information Security Directive 2 replaces NIS1 with expanded scope covering 18 sectors, mandatory incident reporting within 24 hours (early warning) and 72 hours (full notification), supply chain security requirements, and personal liability for senior management. Member states must transpose into national law. Covers "essential" and "important" entities with different oversight regimes.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">China's Three-Pillar System</div>
+                <div class="card-desc">Cybersecurity Law (2017): network security, critical infrastructure, data localization for CII operators. Data Security Law (2021): data classification, cross-border transfer restrictions, national security reviews. PIPL (2021): personal information protection modeled partly on GDPR but with significant state access carve-outs. Together, these give the Chinese government comprehensive authority over all data within its borders and extraterritorial claims over data involving Chinese citizens.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Cross-Border Data Transfer</div>
+            Moving data across borders is now a legal minefield. GDPR requires "adequacy decisions" or Standard Contractual Clauses (SCCs) for transfers outside the EEA. The EU-US Data Privacy Framework replaced Privacy Shield (invalidated in Schrems II). China requires security assessments for cross-border transfers of important data. India's DPDP allows transfers to approved countries. A global company must navigate an ever-shifting matrix of bilateral agreements, adequacy findings, and transfer mechanisms.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- CYBERCRIME TREATIES ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 14</div>
+        <div class="slide-title">Cybercrime <span class="accent">Treaties</span> and <span class="cyan">International Cooperation</span></div>
+        <div class="slide-subtitle">Cybercrime is borderless. International law enforcement cooperation is not. Treaties attempt to bridge this gap.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Budapest Convention (2001)</div>
+                <div class="card-desc">Council of Europe Convention on Cybercrime -- the first and most widely adopted international treaty on cybercrime. 68+ parties (including the US) as of 2025. Harmonizes criminal law definitions across signatories: illegal access, interception, data interference, system interference, misuse of devices, computer-related fraud and forgery. Establishes a 24/7 network of contact points for rapid cross-border law enforcement cooperation. The Second Additional Protocol (2022) adds provisions for direct cooperation with service providers in other countries, emergency disclosure, and joint investigation teams.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">UN Cybercrime Treaty (2024)</div>
+                <div class="card-desc">After years of negotiation, the UN adopted its first cybercrime convention in 2024. Broader scope than Budapest, covering content-related offenses and expanded surveillance powers. Controversial: human rights organizations warn it could be used to criminalize legitimate security research, protect authoritarian surveillance, and suppress dissent. Russia and China pushed for broader state powers; Western nations sought narrower scope with human rights safeguards. The final text is a compromise that civil society groups have called "a threat to global privacy and security."</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">MLATs</div>
+                <div class="card-desc">Mutual Legal Assistance Treaties are bilateral agreements for evidence sharing between countries. Process is notoriously slow -- average 10 months for a request. The CLOUD Act (2018) allows US law enforcement to compel US-based tech companies to produce data regardless of where it is stored, and creates executive agreements for reciprocal access with foreign governments.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Interpol / Europol</div>
+                <div class="card-desc">Interpol's Cyber Fusion Centre coordinates international cybercrime operations. Europol's European Cybercrime Centre (EC3) has led major takedowns: Emotet botnet, EncroChat encrypted phones, Hive ransomware. Joint operations increasingly involve simultaneous arrests and infrastructure seizures across 20+ countries.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Attribution Problem</div>
+                <div class="card-desc">International law requires attribution to hold states accountable, but technical attribution is probabilistic, not certain. Nation-state actors use false flags, compromise infrastructure in third countries, and operate through criminal proxies. The Tallinn Manual attempts to apply existing international law to cyber operations, but there is no consensus on when a cyberattack constitutes an "armed attack" triggering the right to self-defense under the UN Charter.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">The Jurisdiction Gap</div>
+            A ransomware gang operating from Russia attacks a hospital in Florida, using infrastructure rented in the Netherlands, with ransom payments flowing through cryptocurrency mixers registered in the Seychelles. Which country has jurisdiction? All of them -- and effectively none of them. International cybercrime cooperation depends on political will, and many cybercriminal safe havens have no incentive to cooperate. This jurisdictional gap is the single biggest structural obstacle in cybercrime enforcement.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- ENFORCEMENT ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 14</div>
+        <div class="slide-title"><span class="accent">Enforcement</span> Agencies and <span class="cyan">Mechanisms</span></div>
+        <div class="slide-subtitle">Who enforces cybersecurity law, how they do it, and why it matters for every organization.</div>
+
+        <!-- SVG: Enforcement Agency Org Chart -->
+        <div class="svg-container">
+            <svg viewBox="0 0 520 200" width="500" role="img" aria-label="Enforcement agency organizational chart. Shows federal agencies at top tier: FTC for consumer protection, SEC for public companies, HHS OCR for healthcare, and DOJ for criminal prosecution. Second tier shows CISA for critical infrastructure and state attorneys general for state law enforcement. Arrows show overlapping jurisdiction creating multi-front enforcement.">
+                <text x="260" y="16" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700" letter-spacing="0.06em">US ENFORCEMENT LANDSCAPE</text>
+                <!-- Federal Tier -->
+                <text x="260" y="36" text-anchor="middle" fill="#5a4460" font-size="7" font-weight="600" letter-spacing="0.08em">FEDERAL ENFORCEMENT</text>
+                <rect x="10" y="42" width="115" height="48" rx="6" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="67" y="58" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">FTC</text>
+                <text x="67" y="70" text-anchor="middle" fill="#9a82a0" font-size="6.5">Section 5 (unfair practices)</text>
+                <text x="67" y="82" text-anchor="middle" fill="#9a82a0" font-size="6.5">80+ data security actions</text>
+
+                <rect x="140" y="42" width="115" height="48" rx="6" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="197" y="58" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">SEC</text>
+                <text x="197" y="70" text-anchor="middle" fill="#9a82a0" font-size="6.5">Public companies</text>
+                <text x="197" y="82" text-anchor="middle" fill="#9a82a0" font-size="6.5">Disclosure rules, 8-K/10-K</text>
+
+                <rect x="270" y="42" width="115" height="48" rx="6" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1"/>
+                <text x="327" y="58" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="700">HHS OCR</text>
+                <text x="327" y="70" text-anchor="middle" fill="#9a82a0" font-size="6.5">HIPAA enforcement</text>
+                <text x="327" y="82" text-anchor="middle" fill="#9a82a0" font-size="6.5">$138M+ in settlements</text>
+
+                <rect x="400" y="42" width="115" height="48" rx="6" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1"/>
+                <text x="457" y="58" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">DOJ</text>
+                <text x="457" y="70" text-anchor="middle" fill="#9a82a0" font-size="6.5">Criminal prosecution</text>
+                <text x="457" y="82" text-anchor="middle" fill="#9a82a0" font-size="6.5">CFAA, wire fraud, ECPA</text>
+
+                <!-- Operational + State Tier -->
+                <text x="260" y="112" text-anchor="middle" fill="#5a4460" font-size="7" font-weight="600" letter-spacing="0.08em">OPERATIONAL + STATE ENFORCEMENT</text>
+                <rect x="70" y="118" width="160" height="48" rx="6" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1"/>
+                <text x="150" y="134" text-anchor="middle" fill="#eab308" font-size="9" font-weight="700">CISA</text>
+                <text x="150" y="146" text-anchor="middle" fill="#9a82a0" font-size="6.5">Critical infrastructure protection</text>
+                <text x="150" y="158" text-anchor="middle" fill="#9a82a0" font-size="6.5">BODs, advisories, CIRCIA intake</text>
+
+                <rect x="290" y="118" width="160" height="48" rx="6" fill="rgba(255,68,255,0.08)" stroke="#ff44ff" stroke-width="1"/>
+                <text x="370" y="134" text-anchor="middle" fill="#ff44ff" font-size="9" font-weight="700">State AGs (50+)</text>
+                <text x="370" y="146" text-anchor="middle" fill="#9a82a0" font-size="6.5">State privacy/breach laws</text>
+                <text x="370" y="158" text-anchor="middle" fill="#9a82a0" font-size="6.5">Multi-state coordinated actions</text>
+
+                <!-- Overlap arrows -->
+                <line x1="67" y1="90" x2="150" y2="118" stroke="rgba(255,0,255,0.2)" stroke-width="0.8" stroke-dasharray="3 3"/>
+                <line x1="457" y1="90" x2="370" y2="118" stroke="rgba(239,68,68,0.2)" stroke-width="0.8" stroke-dasharray="3 3"/>
+                <line x1="197" y1="90" x2="150" y2="118" stroke="rgba(0,255,255,0.2)" stroke-width="0.8" stroke-dasharray="3 3"/>
+                <line x1="327" y1="90" x2="370" y2="118" stroke="rgba(34,197,94,0.2)" stroke-width="0.8" stroke-dasharray="3 3"/>
+
+                <!-- Multi-front label -->
+                <rect x="160" y="178" width="200" height="18" rx="4" fill="rgba(255,0,255,0.06)" stroke="rgba(255,0,255,0.2)" stroke-width="0.8"/>
+                <text x="260" y="191" text-anchor="middle" fill="#ff00ff" font-size="7.5" font-weight="600" letter-spacing="0.05em">MULTI-FRONT ENFORCEMENT = DEFAULT</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">FTC: The De Facto Regulator</div>
+                <div class="card-desc">The FTC uses Section 5 of the FTC Act ("unfair or deceptive practices") as a general-purpose data security authority. No specific cybersecurity statute needed -- if your security practices are unreasonable and you said otherwise, the FTC can act. Consent orders require 20-year compliance programs. Landmark cases: Wyndham Hotels, LabMD, CafePress, Chegg. The FTC's 2023 Health Breach Notification Rule update extended its reach to health apps and wearables not covered by HIPAA.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">State AG Multi-Front Attacks</div>
+                <div class="card-desc">State attorneys general can enforce state breach notification laws, consumer protection statutes, and in some states (like California), specific privacy laws. Multi-state coordinated actions combine the resources of 30+ state AG offices into a single investigation. Examples: Equifax ($575M, 50-state settlement), Anthem ($115M, 43-state settlement), Google ($391M location tracking, 40 states). State AGs move faster than federal agencies and face fewer political constraints.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Personal Liability Trend</div>
+            Enforcement is shifting from just fining companies to holding individuals accountable. The SEC charged SolarWinds CISO Timothy Brown with fraud for misleading investors about security practices. Former Uber CISO Joseph Sullivan was convicted of obstruction and misprision of felony for concealing a data breach. EU NIS2 enables personal liability for senior management. The message is clear: cybersecurity is now a personal liability issue for executives and security leaders.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- EMERGING LEGAL ISSUES ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 14</div>
+        <div class="slide-title">Emerging <span class="accent">Legal</span> Issues</div>
+        <div class="slide-subtitle">AI regulation, encryption backdoors, Section 230, and cyber insurance -- the legal frontier.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">AI Regulation</div>
+                <div class="card-desc">The EU AI Act (2024) is the world's first comprehensive AI law, creating a risk-based framework: unacceptable risk (banned), high risk (strict requirements), limited risk (transparency), minimal risk (unregulated). US approach is executive order + sectoral guidance (no federal AI law). Key cybersecurity intersections: AI-powered attacks, deepfake fraud, automated vulnerability exploitation, and AI systems as targets. Who is liable when an AI system makes a decision that harms someone? Existing law has no good answer.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Encryption Backdoors</div>
+                <div class="card-desc">Law enforcement wants mandated access to encrypted communications (Australia's Assistance and Access Act, 2018; UK Online Safety Act, 2023; proposed US EARN IT Act). Security community's consensus: there is no such thing as a backdoor only law enforcement can use. Any mandated access mechanism is a vulnerability that adversaries will discover and exploit. The Apple-FBI dispute (2016) and ongoing Signal/WhatsApp debates frame this as an irreconcilable conflict between security and surveillance.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Section 230 Reform</div>
+                <div class="card-desc">Section 230 of the Communications Decency Act (1996) shields platforms from liability for user-generated content. Reform proposals come from both political parties (for different reasons). Cybersecurity implications: platforms currently have legal cover to leave up malicious content, but also have freedom to remove it. Weakening Section 230 could create chilling effects on threat intelligence sharing, vulnerability disclosure platforms, and security research communities.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Cyber Insurance</div>
+                <div class="card-desc">Cyber insurance is becoming a de facto regulatory mechanism. Insurers now require specific security controls (MFA, EDR, offline backups, patching cadence) as conditions of coverage. Premiums have increased 50-100% since 2020. War exclusion clauses (triggered by nation-state attribution) create coverage gaps -- Merck's $1.4B NotPetya claim was initially denied under a war exclusion (later overturned). Lloyd's of London mandated state-backed attack exclusions starting 2023.</div>
+            </div>
+        </div>
+
+        <!-- SVG: Penalty Scale Comparison -->
+        <div class="svg-container">
+            <svg viewBox="0 0 520 120" width="500" role="img" aria-label="Penalty scale comparison across major regulations. Shows horizontal bars comparing maximum penalties: CFAA at 20 years criminal, HIPAA at 1.5 million per category per year, GDPR at 4 percent global revenue, CCPA at 7500 per intentional violation, SEC at securities fraud penalties, and NIS2 at 10 million euros or 2 percent revenue.">
+                <text x="260" y="14" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700" letter-spacing="0.06em">PENALTY COMPARISON</text>
+                <!-- Bars -->
+                <text x="75" y="33" text-anchor="end" fill="#ef4444" font-size="7.5" font-weight="600">CFAA</text>
+                <rect x="80" y="25" width="180" height="12" rx="2" fill="rgba(239,68,68,0.25)" stroke="#ef4444" stroke-width="0.6"/>
+                <text x="268" y="34" text-anchor="start" fill="#9a82a0" font-size="7">Up to 20 years criminal</text>
+
+                <text x="75" y="50" text-anchor="end" fill="#00ffff" font-size="7.5" font-weight="600">HIPAA</text>
+                <rect x="80" y="42" width="120" height="12" rx="2" fill="rgba(0,255,255,0.25)" stroke="#00ffff" stroke-width="0.6"/>
+                <text x="208" y="51" text-anchor="start" fill="#9a82a0" font-size="7">$1.5M/category/year + criminal</text>
+
+                <text x="75" y="67" text-anchor="end" fill="#ff00ff" font-size="7.5" font-weight="600">GDPR</text>
+                <rect x="80" y="59" width="400" height="12" rx="2" fill="rgba(255,0,255,0.25)" stroke="#ff00ff" stroke-width="0.6"/>
+                <text x="488" y="68" text-anchor="start" fill="#9a82a0" font-size="7">4%</text>
+
+                <text x="75" y="84" text-anchor="end" fill="#ff44ff" font-size="7.5" font-weight="600">CCPA</text>
+                <rect x="80" y="76" width="60" height="12" rx="2" fill="rgba(255,68,255,0.25)" stroke="#ff44ff" stroke-width="0.6"/>
+                <text x="148" y="85" text-anchor="start" fill="#9a82a0" font-size="7">$7,500/intentional violation</text>
+
+                <text x="75" y="101" text-anchor="end" fill="#eab308" font-size="7.5" font-weight="600">SEC</text>
+                <rect x="80" y="93" width="250" height="12" rx="2" fill="rgba(234,179,8,0.25)" stroke="#eab308" stroke-width="0.6"/>
+                <text x="338" y="102" text-anchor="start" fill="#9a82a0" font-size="7">Securities fraud penalties + personal liability</text>
+
+                <text x="75" y="118" text-anchor="end" fill="#22c55e" font-size="7.5" font-weight="600">NIS2</text>
+                <rect x="80" y="110" width="200" height="12" rx="2" fill="rgba(34,197,94,0.25)" stroke="#22c55e" stroke-width="0.6"/>
+                <text x="288" y="119" text-anchor="start" fill="#9a82a0" font-size="7">10M EUR or 2% revenue + management liability</text>
+            </svg>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- KEY TAKEAWAYS ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 14</div>
+        <div class="slide-title">Key <span class="accent">Takeaways</span></div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">01</span>
+                <span class="fact-text"><strong>The CFAA is the backbone of US computer crime law</strong> -- but its broad language creates ongoing controversy around security research, prosecutorial discretion, and the boundary between authorized and unauthorized access. Van Buren narrowed it; reform efforts continue.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">02</span>
+                <span class="fact-text"><strong>HIPAA protects health information through three rules</strong> -- Privacy (use/disclosure), Security (safeguards), and Breach Notification (60-day reporting). BAAs extend obligations to business associates. Penalty tiers scale with culpability from $100 to $1.5M per category per year.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">03</span>
+                <span class="fact-text"><strong>GDPR reset global expectations</strong> -- 7 principles, 8 data subject rights, 72-hour breach notification, mandatory DPOs, and fines up to 4% of worldwide annual revenue. Its extraterritorial reach means any organization serving EU residents must comply.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">04</span>
+                <span class="fact-text"><strong>The US has no comprehensive federal privacy law</strong> -- instead, a sectoral patchwork (GLBA, FERPA, COPPA, ECPA) that leaves gaps. States are filling those gaps, led by California's CCPA/CPRA, creating a fragmented compliance landscape.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">05</span>
+                <span class="fact-text"><strong>Federal cybersecurity legislation (FISMA, CISA Act, CIRCIA)</strong> establishes requirements for government agencies and critical infrastructure. CIRCIA creates the first mandatory private-sector incident reporting framework. SEC rules make cyber disclosure a securities law issue.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">06</span>
+                <span class="fact-text"><strong>The global landscape is converging on GDPR-like models</strong> -- but with significant regional variation. China prioritizes state access. Brazil and India are building enforcement capacity. Cross-border data transfer remains legally complex and politically charged.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">07</span>
+                <span class="fact-text"><strong>Enforcement is multi-front and increasingly personal</strong> -- FTC, SEC, HHS OCR, DOJ, state AGs, and international regulators all have overlapping authority. The trend toward holding individual executives personally liable (Sullivan, SolarWinds CISO) changes the calculation for every security leader.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">08</span>
+                <span class="fact-text"><strong>Emerging issues will define the next decade</strong> -- AI regulation, encryption policy, Section 230 reform, and cyber insurance as a de facto regulatory mechanism are all active legal battlegrounds with direct cybersecurity implications.</span>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">The Bottom Line</div>
+            Cybersecurity law is not static. It is evolving faster than at any point in history, driven by escalating threats, high-profile breaches, and growing public awareness. Every cybersecurity professional must understand the legal landscape -- not to practice law, but to ensure that technical decisions are defensible, compliant, and aligned with organizational risk tolerance. The cost of ignorance is measured in fines, lawsuits, criminal charges, and careers.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- MARK COMPLETE ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 14 &nbsp;|&nbsp; Complete</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Presentation<br>
+                <span class="accent">Complete</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Laws and Regulations -- 14 slides
+            </div>
+        </div>
+
+        <div class="scenario-strip" style="text-align:center; font-style:normal;">
+            CFAA &bull; HIPAA &bull; GDPR &bull; US Sectoral Laws &bull; State Laws &bull; Federal Legislation &bull; International Frameworks &bull; Cybercrime Treaties &bull; Enforcement &bull; Emerging Issues
+        </div>
+
+        <div style="text-align:center; margin-top:10px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+
+        <div class="title-meta-row" style="margin-top:8px;">
+            <span>CIS2208</span>
+            <span>Cybersecurity Policy</span>
+            <span>Week 3</span>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Cybersecurity Policy</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 14</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 14;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        var completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('divergent', 'csp-w3-laws-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

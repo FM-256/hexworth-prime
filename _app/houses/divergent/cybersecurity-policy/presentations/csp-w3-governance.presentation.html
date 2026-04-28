@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cybersecurity Governance | Cybersecurity Policy</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d0810 0%, #0a060d 50%, #100812 100%);
+            color: #ede0f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow-y: auto;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: linear-gradient(90deg, #ff00ff, #00ffff);
+            transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(13, 8, 16, 0.95);
+            border-top: 1px solid rgba(255, 0, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #9a82a0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(255, 0, 255, 0.12); color: #ff00ff; border-color: #ff00ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #5a4460; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: linear-gradient(135deg, #ff00ff, #ff44ff);
+            color: #0d0810; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: linear-gradient(135deg, #ff44ff, #ff88ff); transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #ff00ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #ede0f0; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ff00ff; }
+        .slide-title .cyan { color: #00ffff; }
+        .slide-subtitle { font-size: 0.95rem; color: #9a82a0; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(255, 0, 255, 0.06); border-left: 3px solid #ff00ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #f5b8f5; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-magenta { background: rgba(255, 0, 255, 0.08); border: 1px solid rgba(255, 0, 255, 0.3); color: #f5b8f5; }
+        .box-cyan    { background: rgba(0, 255, 255, 0.08); border: 1px solid rgba(0, 255, 255, 0.3); color: #b8f5f5; }
+        .box-red     { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold    { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-green   { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-label   { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #ede0f0; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ff00ff; }
+        .title-hero .big-title .cyan { color: #00ffff; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #5a4460;
+        }
+        .title-meta-row span { border-left: 2px solid rgba(255, 0, 255, 0.2); padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card-grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #ff00ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #ede0f0; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #9a82a0; line-height: 1.4; }
+        .card.c-magenta { border-left-color: #ff00ff; }
+        .card.c-cyan    { border-left-color: #00ffff; }
+        .card.c-red     { border-left-color: #ef4444; }
+        .card.c-gold    { border-left-color: #eab308; }
+        .card.c-green   { border-left-color: #22c55e; }
+        .card.c-purple  { border-left-color: #ff44ff; }
+        .card.c-blue    { border-left-color: #3b82f6; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #5a4460; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #ff00ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #ede0f0; }
+
+        /* SVG diagram containers */
+        .svg-container {
+            display: flex; justify-content: center; align-items: center;
+            margin: 10px 0; padding: 10px;
+        }
+        .svg-container svg { max-width: 100%; height: auto; }
+
+        /* Glossary table */
+        .glossary-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+        .glossary-table th {
+            text-align: left; padding: 6px 10px; font-size: 0.72rem;
+            text-transform: uppercase; letter-spacing: 0.08em;
+            color: #ff00ff; border-bottom: 1px solid rgba(255, 0, 255, 0.3);
+        }
+        .glossary-table td {
+            padding: 6px 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            vertical-align: top;
+        }
+        .glossary-table td:first-child { color: #00ffff; font-weight: 600; white-space: nowrap; }
+        .glossary-table td:last-child { color: #9a82a0; }
+
+        /* Timeline steps */
+        .timeline { display: flex; gap: 2px; margin: 10px 0; }
+        .tl-step {
+            flex: 1; padding: 10px 6px; text-align: center;
+            background: rgba(255, 0, 255, 0.06); border: 1px solid rgba(255, 0, 255, 0.15);
+            border-radius: 4px; transition: background 0.2s;
+        }
+        .tl-step:hover { background: rgba(255, 0, 255, 0.14); }
+        .tl-num { font-size: 0.68rem; font-weight: 700; color: #00ffff; letter-spacing: 0.08em; margin-bottom: 3px; }
+        .tl-name { font-size: 0.78rem; font-weight: 700; color: #ede0f0; margin-bottom: 3px; }
+        .tl-desc { font-size: 0.7rem; color: #9a82a0; line-height: 1.3; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid, .card-grid-4, .card-grid-5 { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .timeline { flex-wrap: wrap; } .tl-step { min-width: 45%; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Cybersecurity Governance | Cybersecurity Policy</h1>
+
+<div id="progress-bar" style="width:7.14%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 14 &nbsp;|&nbsp; CSP-W3-01 &nbsp;|&nbsp; Week 3</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Cybersecurity <span class="accent">Governance</span><br>
+                <span class="cyan" style="font-size:0.65em;">COBIT, ISO 27001, Policy Hierarchy</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Board Oversight &bull; COBIT 2019 &bull; ISO 27001/27002 &bull; Policy Architecture &bull; Governance Structures &bull; Risk Governance &bull; Metrics &bull; Framework Comparison
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Cybersecurity governance is not a technical problem -- it is a business problem. It determines who makes decisions about risk, who is accountable when things go wrong, and how the organization's security posture aligns with its strategic objectives. This deck covers the frameworks, structures, and metrics that transform cybersecurity from an IT cost center into a board-level strategic function. Every policy you write exists within a governance structure -- understanding that structure is prerequisite to writing effective policy.
+        </div>
+        <div class="title-meta-row">
+            <span>14 Slides</span>
+            <span>CSP-W3-01</span>
+            <span>Week 3</span>
+            <span>CIS2208 -- Cybersecurity Policy</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- WHAT IS CYBERSECURITY GOVERNANCE ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 14</div>
+        <div class="slide-title">What Is Cybersecurity <span class="accent">Governance</span>?</div>
+        <div class="slide-subtitle">Board-level oversight, accountability structures, and risk appetite -- the strategic layer above security operations.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Direction</div>
+                <div class="card-desc">Setting the strategic vision for cybersecurity. The board defines what the organization must protect, what level of risk is acceptable, and how security investments align with business objectives. Direction flows top-down -- from the boardroom to the SOC.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Oversight</div>
+                <div class="card-desc">Monitoring whether security activities achieve their intended outcomes. The board does not configure firewalls -- it asks whether the firewall investment reduced breach probability. Oversight requires metrics, reporting cadence, and independent audit verification.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Accountability</div>
+                <div class="card-desc">Ensuring clear ownership for cybersecurity outcomes at every level. The CEO is ultimately accountable to the board. The CISO is responsible for program execution. Individual managers own risk within their domains. Accountability without authority is dysfunction.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Governance answers three questions: Who decides? Who is accountable? How do we know it is working? Without governance, organizations have security tools and personnel but no coherent strategy, no measured outcomes, and no executive accountability when a breach occurs.
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">Risk Appetite</div>
+            Risk appetite is a board-level declaration of how much risk the organization is willing to accept in pursuit of its objectives. It is not a number -- it is a strategic position. "We accept no risk of customer data exposure" versus "We accept moderate risk of operational disruption during cost optimization" produce radically different security programs and budgets.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- THREE-LAYER GOVERNANCE ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 14</div>
+        <div class="slide-title"><span class="accent">Corporate</span> vs <span class="cyan">IT</span> vs <span class="accent">Cybersecurity</span> Governance</div>
+        <div class="slide-subtitle">Three nested governance domains -- each with distinct scope, stakeholders, and accountability structures.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 540 240" width="520" role="img" aria-label="Three-layer governance relationship diagram. Outermost layer is Corporate Governance encompassing the entire organization. Middle layer is IT Governance focused on technology alignment. Innermost layer is Cybersecurity Governance focused on risk, threats, and controls.">
+                <!-- Outer ring: Corporate Governance -->
+                <rect x="10" y="10" width="520" height="220" rx="12" fill="rgba(255,0,255,0.04)" stroke="#ff00ff" stroke-width="2"/>
+                <text x="270" y="32" text-anchor="middle" fill="#ff00ff" font-size="11" font-weight="700" letter-spacing="0.08em">CORPORATE GOVERNANCE</text>
+                <text x="270" y="46" text-anchor="middle" fill="#9a82a0" font-size="7">Board of Directors | Shareholders | Regulatory Compliance | Strategic Objectives</text>
+                <!-- Middle ring: IT Governance -->
+                <rect x="50" y="58" width="440" height="155" rx="10" fill="rgba(0,255,255,0.04)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="270" y="76" text-anchor="middle" fill="#00ffff" font-size="10" font-weight="700" letter-spacing="0.06em">IT GOVERNANCE</text>
+                <text x="270" y="88" text-anchor="middle" fill="#9a82a0" font-size="7">CIO | IT Strategy | Value Delivery | Resource Optimization | Performance Measurement</text>
+                <!-- Inner ring: Cybersecurity Governance -->
+                <rect x="95" y="100" width="350" height="98" rx="8" fill="rgba(255,68,255,0.06)" stroke="#ff44ff" stroke-width="1.5"/>
+                <text x="270" y="118" text-anchor="middle" fill="#ff44ff" font-size="10" font-weight="700" letter-spacing="0.06em">CYBERSECURITY GOVERNANCE</text>
+                <text x="270" y="130" text-anchor="middle" fill="#9a82a0" font-size="7">CISO | Risk Management | Threat Response | Controls | Compliance</text>
+                <!-- Inner detail boxes -->
+                <rect x="110" y="140" width="100" height="44" rx="4" fill="rgba(255,0,255,0.08)" stroke="rgba(255,0,255,0.3)" stroke-width="1"/>
+                <text x="160" y="155" text-anchor="middle" fill="#ede0f0" font-size="8" font-weight="600">Policies</text>
+                <text x="160" y="167" text-anchor="middle" fill="#9a82a0" font-size="6.5">Standards, procedures</text>
+                <text x="160" y="178" text-anchor="middle" fill="#9a82a0" font-size="6.5">guidelines, baselines</text>
+                <rect x="220" y="140" width="100" height="44" rx="4" fill="rgba(0,255,255,0.08)" stroke="rgba(0,255,255,0.3)" stroke-width="1"/>
+                <text x="270" y="155" text-anchor="middle" fill="#ede0f0" font-size="8" font-weight="600">Risk Mgmt</text>
+                <text x="270" y="167" text-anchor="middle" fill="#9a82a0" font-size="6.5">Appetite, tolerance</text>
+                <text x="270" y="178" text-anchor="middle" fill="#9a82a0" font-size="6.5">registers, treatment</text>
+                <rect x="330" y="140" width="100" height="44" rx="4" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>
+                <text x="380" y="155" text-anchor="middle" fill="#ede0f0" font-size="8" font-weight="600">Assurance</text>
+                <text x="380" y="167" text-anchor="middle" fill="#9a82a0" font-size="6.5">Audits, metrics</text>
+                <text x="380" y="178" text-anchor="middle" fill="#9a82a0" font-size="6.5">reporting, compliance</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Corporate Governance</div>
+                <div class="card-desc">The board ensures the organization creates value for stakeholders while managing risk. Sarbanes-Oxley, SEC regulations, and fiduciary duties define the boundaries. Cybersecurity is a board-reportable risk -- the same as financial risk or operational risk.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">IT Governance</div>
+                <div class="card-desc">Ensures IT investments support business objectives and deliver value. COBIT, ITIL, and Val IT provide frameworks. IT governance asks: are we building the right systems, and are we building them right? The CIO is the primary accountable officer.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Cybersecurity Governance</div>
+                <div class="card-desc">A subset of IT governance focused specifically on protecting information assets and managing cyber risk. The CISO leads execution, but governance authority flows from the board. Effective cybersecurity governance requires both technical expertise and business acumen.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Key Insight</div>
+            These three layers are not independent -- they are nested. A cybersecurity policy that contradicts corporate governance will be overridden. A CISO who reports through four layers to reach the board has structurally less influence than one who reports directly. Governance structure determines governance effectiveness.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- COBIT 2019 ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 14</div>
+        <div class="slide-title"><span class="accent">COBIT</span> <span class="cyan">2019</span> Framework</div>
+        <div class="slide-subtitle">Five principles, 40 governance and management objectives -- ISACA's comprehensive framework for enterprise IT governance.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 400 280" width="380" role="img" aria-label="COBIT 2019 five principles wheel. Central hub labeled COBIT 2019 surrounded by five principle segments: Meeting Stakeholder Needs, Holistic Approach, Dynamic Governance, Governance Distinct from Management, and Tailored to Enterprise Needs.">
+                <!-- Center circle -->
+                <circle cx="200" cy="130" r="42" fill="rgba(255,0,255,0.12)" stroke="#ff00ff" stroke-width="2"/>
+                <text x="200" y="126" text-anchor="middle" fill="#ff00ff" font-size="11" font-weight="700">COBIT</text>
+                <text x="200" y="140" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700">2019</text>
+                <!-- Principle 1: Top -->
+                <line x1="200" y1="88" x2="200" y2="40" stroke="rgba(255,0,255,0.4)" stroke-width="1"/>
+                <rect x="130" y="8" width="140" height="32" rx="6" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="200" y="22" text-anchor="middle" fill="#ede0f0" font-size="8" font-weight="700">1. Meeting Stakeholder</text>
+                <text x="200" y="33" text-anchor="middle" fill="#9a82a0" font-size="7">Needs</text>
+                <!-- Principle 2: Top-right -->
+                <line x1="236" y1="100" x2="310" y2="58" stroke="rgba(0,255,255,0.4)" stroke-width="1"/>
+                <rect x="280" y="38" width="110" height="32" rx="6" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="335" y="52" text-anchor="middle" fill="#ede0f0" font-size="8" font-weight="700">2. Holistic</text>
+                <text x="335" y="63" text-anchor="middle" fill="#9a82a0" font-size="7">Approach</text>
+                <!-- Principle 3: Bottom-right -->
+                <line x1="236" y1="158" x2="310" y2="192" stroke="rgba(34,197,94,0.4)" stroke-width="1"/>
+                <rect x="280" y="178" width="110" height="32" rx="6" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1"/>
+                <text x="335" y="192" text-anchor="middle" fill="#ede0f0" font-size="8" font-weight="700">3. Dynamic</text>
+                <text x="335" y="203" text-anchor="middle" fill="#9a82a0" font-size="7">Governance System</text>
+                <!-- Principle 4: Bottom-left -->
+                <line x1="164" y1="158" x2="90" y2="192" stroke="rgba(234,179,8,0.4)" stroke-width="1"/>
+                <rect x="10" y="178" width="130" height="32" rx="6" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1"/>
+                <text x="75" y="192" text-anchor="middle" fill="#ede0f0" font-size="8" font-weight="700">4. Governance Distinct</text>
+                <text x="75" y="203" text-anchor="middle" fill="#9a82a0" font-size="7">from Management</text>
+                <!-- Principle 5: Top-left -->
+                <line x1="164" y1="100" x2="90" y2="58" stroke="rgba(255,68,255,0.4)" stroke-width="1"/>
+                <rect x="10" y="38" width="110" height="32" rx="6" fill="rgba(255,68,255,0.08)" stroke="#ff44ff" stroke-width="1"/>
+                <text x="65" y="52" text-anchor="middle" fill="#ede0f0" font-size="8" font-weight="700">5. Tailored to</text>
+                <text x="65" y="63" text-anchor="middle" fill="#9a82a0" font-size="7">Enterprise Needs</text>
+                <!-- Bottom label -->
+                <text x="200" y="240" text-anchor="middle" fill="#5a4460" font-size="7" letter-spacing="0.06em">40 GOVERNANCE &amp; MANAGEMENT OBJECTIVES | EDM + APO + BAI + DSS + MEA</text>
+                <!-- Objective domains -->
+                <rect x="30" y="252" width="65" height="20" rx="3" fill="rgba(255,0,255,0.08)" stroke="rgba(255,0,255,0.2)" stroke-width="0.5"/>
+                <text x="62" y="265" text-anchor="middle" fill="#ff00ff" font-size="7" font-weight="600">EDM (5)</text>
+                <rect x="102" y="252" width="65" height="20" rx="3" fill="rgba(0,255,255,0.08)" stroke="rgba(0,255,255,0.2)" stroke-width="0.5"/>
+                <text x="134" y="265" text-anchor="middle" fill="#00ffff" font-size="7" font-weight="600">APO (14)</text>
+                <rect x="174" y="252" width="65" height="20" rx="3" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>
+                <text x="206" y="265" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="600">BAI (11)</text>
+                <rect x="246" y="252" width="65" height="20" rx="3" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>
+                <text x="278" y="265" text-anchor="middle" fill="#eab308" font-size="7" font-weight="600">DSS (6)</text>
+                <rect x="318" y="252" width="65" height="20" rx="3" fill="rgba(255,68,255,0.08)" stroke="rgba(255,68,255,0.2)" stroke-width="0.5"/>
+                <text x="350" y="265" text-anchor="middle" fill="#ff44ff" font-size="7" font-weight="600">MEA (4)</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Governance Objectives (EDM)</div>
+                <div class="card-desc">Evaluate, Direct, Monitor -- the 5 objectives that belong to the board. EDM01: Ensured Governance Framework. EDM02: Ensured Benefits Delivery. EDM03: Ensured Risk Optimization. EDM04: Ensured Resource Optimization. EDM05: Ensured Stakeholder Engagement.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Management Objectives (35)</div>
+                <div class="card-desc">Spread across four domains: APO (Align, Plan, Organize -- 14 objectives covering strategy, architecture, risk, and security), BAI (Build, Acquire, Implement -- 11), DSS (Deliver, Service, Support -- 6), and MEA (Monitor, Evaluate, Assess -- 4).</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">COBIT for Cybersecurity</div>
+            COBIT 2019 includes APO13 (Managed Security) as a dedicated security management objective, but cybersecurity governance touches nearly every other objective. Risk management (APO12), compliance (MEA03), incident management (DSS02), and change management (BAI06) all have direct cybersecurity implications. COBIT's strength is connecting security activities to business value -- something pure technical frameworks often lack.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- ISO 27001 ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 14</div>
+        <div class="slide-title"><span class="accent">ISO/IEC 27001</span> -- <span class="cyan">ISMS</span></div>
+        <div class="slide-subtitle">The international standard for Information Security Management Systems -- Plan, Do, Check, Act.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 400 260" width="380" role="img" aria-label="ISO 27001 Plan-Do-Check-Act cycle. Four quadrants arranged in a circular flow: Plan (establish ISMS), Do (implement and operate), Check (monitor and review), Act (maintain and improve). Arrows connect each phase in a continuous cycle.">
+                <!-- Center -->
+                <circle cx="200" cy="120" r="28" fill="rgba(255,0,255,0.12)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="200" y="116" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">ISO</text>
+                <text x="200" y="128" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">27001</text>
+                <!-- PLAN - top left -->
+                <rect x="20" y="15" width="150" height="80" rx="8" fill="rgba(255,0,255,0.06)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="95" y="36" text-anchor="middle" fill="#ff00ff" font-size="12" font-weight="700">PLAN</text>
+                <text x="95" y="50" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="600">Establish ISMS</text>
+                <text x="95" y="62" text-anchor="middle" fill="#9a82a0" font-size="6.5">Define scope &amp; policy</text>
+                <text x="95" y="73" text-anchor="middle" fill="#9a82a0" font-size="6.5">Risk assessment</text>
+                <text x="95" y="84" text-anchor="middle" fill="#9a82a0" font-size="6.5">Statement of Applicability</text>
+                <!-- DO - top right -->
+                <rect x="230" y="15" width="150" height="80" rx="8" fill="rgba(0,255,255,0.06)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="305" y="36" text-anchor="middle" fill="#00ffff" font-size="12" font-weight="700">DO</text>
+                <text x="305" y="50" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="600">Implement &amp; Operate</text>
+                <text x="305" y="62" text-anchor="middle" fill="#9a82a0" font-size="6.5">Deploy controls</text>
+                <text x="305" y="73" text-anchor="middle" fill="#9a82a0" font-size="6.5">Security awareness training</text>
+                <text x="305" y="84" text-anchor="middle" fill="#9a82a0" font-size="6.5">Manage operations</text>
+                <!-- CHECK - bottom right -->
+                <rect x="230" y="145" width="150" height="80" rx="8" fill="rgba(34,197,94,0.06)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="305" y="166" text-anchor="middle" fill="#22c55e" font-size="12" font-weight="700">CHECK</text>
+                <text x="305" y="180" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="600">Monitor &amp; Review</text>
+                <text x="305" y="192" text-anchor="middle" fill="#9a82a0" font-size="6.5">Internal audits</text>
+                <text x="305" y="203" text-anchor="middle" fill="#9a82a0" font-size="6.5">Management review</text>
+                <text x="305" y="214" text-anchor="middle" fill="#9a82a0" font-size="6.5">Measure effectiveness</text>
+                <!-- ACT - bottom left -->
+                <rect x="20" y="145" width="150" height="80" rx="8" fill="rgba(234,179,8,0.06)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="95" y="166" text-anchor="middle" fill="#eab308" font-size="12" font-weight="700">ACT</text>
+                <text x="95" y="180" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="600">Maintain &amp; Improve</text>
+                <text x="95" y="192" text-anchor="middle" fill="#9a82a0" font-size="6.5">Corrective actions</text>
+                <text x="95" y="203" text-anchor="middle" fill="#9a82a0" font-size="6.5">Preventive actions</text>
+                <text x="95" y="214" text-anchor="middle" fill="#9a82a0" font-size="6.5">Continual improvement</text>
+                <!-- Arrows connecting phases -->
+                <defs>
+                    <marker id="arrowPDCA" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+                        <path d="M0,0 L7,2.5 L0,5" fill="rgba(255,0,255,0.5)"/>
+                    </marker>
+                </defs>
+                <path d="M170,50 Q200,30 230,50" fill="none" stroke="rgba(255,0,255,0.4)" stroke-width="1.5" marker-end="url(#arrowPDCA)"/>
+                <path d="M355,95 Q375,120 355,145" fill="none" stroke="rgba(255,0,255,0.4)" stroke-width="1.5" marker-end="url(#arrowPDCA)"/>
+                <path d="M230,190 Q200,210 170,190" fill="none" stroke="rgba(255,0,255,0.4)" stroke-width="1.5" marker-end="url(#arrowPDCA)"/>
+                <path d="M45,145 Q25,120 45,95" fill="none" stroke="rgba(255,0,255,0.4)" stroke-width="1.5" marker-end="url(#arrowPDCA)"/>
+                <!-- Bottom label -->
+                <text x="200" y="250" text-anchor="middle" fill="#5a4460" font-size="8" letter-spacing="0.08em">CONTINUOUS IMPROVEMENT CYCLE</text>
+            </svg>
+        </div>
+
+        <div class="section-label">Certification Process</div>
+        <div class="timeline">
+            <div class="tl-step">
+                <div class="tl-num">STEP 1</div>
+                <div class="tl-name">Gap Analysis</div>
+                <div class="tl-desc">Assess current state against ISO 27001 requirements</div>
+            </div>
+            <div class="tl-step">
+                <div class="tl-num">STEP 2</div>
+                <div class="tl-name">Risk Assessment</div>
+                <div class="tl-desc">Identify assets, threats, vulnerabilities, risk treatment</div>
+            </div>
+            <div class="tl-step">
+                <div class="tl-num">STEP 3</div>
+                <div class="tl-name">Implement ISMS</div>
+                <div class="tl-desc">Deploy controls, train staff, document processes</div>
+            </div>
+            <div class="tl-step">
+                <div class="tl-num">STEP 4</div>
+                <div class="tl-name">Stage 1 Audit</div>
+                <div class="tl-desc">Documentation review by certification body</div>
+            </div>
+            <div class="tl-step">
+                <div class="tl-num">STEP 5</div>
+                <div class="tl-name">Stage 2 Audit</div>
+                <div class="tl-desc">On-site assessment of ISMS effectiveness</div>
+            </div>
+            <div class="tl-step">
+                <div class="tl-num">STEP 6</div>
+                <div class="tl-name">Surveillance</div>
+                <div class="tl-desc">Annual audits, recertification every 3 years</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Why Certification Matters</div>
+            ISO 27001 certification is increasingly a contractual requirement for cloud providers, managed service providers, and any organization handling sensitive data. It demonstrates due diligence to regulators, provides a competitive advantage in procurement, and establishes a defensible security posture. The standard does not prescribe specific technologies -- it requires a systematic, risk-based approach to information security management.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- ISO 27002 ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 14</div>
+        <div class="slide-title"><span class="accent">ISO 27002</span> -- Controls <span class="cyan">Catalogue</span></div>
+        <div class="slide-subtitle">The companion standard -- 93 controls organized into four themes that implement the ISO 27001 ISMS.</div>
+
+        <div class="card-grid-4">
+            <div class="card c-magenta">
+                <div class="card-label">Organizational (37)</div>
+                <div class="card-desc">Policies, roles, responsibilities, asset management, access control, supplier relationships, incident management, business continuity, compliance. The largest theme -- defines the governance scaffolding around all other controls.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">People (8)</div>
+                <div class="card-desc">Screening, terms of employment, security awareness, disciplinary process, responsibilities after termination, confidentiality agreements, remote working, and security event reporting. The human element that technology alone cannot address.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Physical (14)</div>
+                <div class="card-desc">Physical security perimeters, entry controls, securing offices and facilities, monitoring, protection against environmental threats, equipment security, secure disposal, clear desk and screen. Defense starts at the building perimeter.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Technological (34)</div>
+                <div class="card-desc">Endpoint security, privileged access, authentication, malware protection, vulnerability management, logging, monitoring, network security, secure development, data masking, DLP, encryption, and web filtering. The technical controls most security teams focus on.</div>
+            </div>
+        </div>
+
+        <div class="section-label">Key Control Examples</div>
+        <table class="glossary-table">
+            <thead>
+                <tr><th>Control ID</th><th>Control Name</th><th>Theme</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>5.1</td><td>Policies for information security -- documented and approved by management</td><td>Organizational</td></tr>
+                <tr><td>6.3</td><td>Information security awareness, education, and training</td><td>People</td></tr>
+                <tr><td>7.1</td><td>Physical security perimeters -- barriers to prevent unauthorized access</td><td>Physical</td></tr>
+                <tr><td>8.5</td><td>Secure authentication -- multi-factor for sensitive systems</td><td>Technological</td></tr>
+                <tr><td>8.16</td><td>Monitoring activities -- detection of anomalous behavior and events</td><td>Technological</td></tr>
+            </tbody>
+        </table>
+
+        <div class="box box-cyan">
+            <div class="box-label">27001 vs 27002 Relationship</div>
+            ISO 27001 is the certifiable standard -- it defines what an ISMS must include. ISO 27002 is the implementation guide -- it describes how to implement each control. You certify against 27001. You reference 27002 when deciding how to satisfy the Statement of Applicability. Think of 27001 as the blueprint and 27002 as the construction manual.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- POLICY HIERARCHY ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 14</div>
+        <div class="slide-title"><span class="accent">Policy</span> <span class="cyan">Hierarchy</span></div>
+        <div class="slide-subtitle">Policies, standards, procedures, guidelines, baselines -- five layers from strategic intent to operational execution.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 440 260" width="420" role="img" aria-label="Policy hierarchy pyramid. Five layers from top to bottom: Policies (mandatory, board-approved), Standards (mandatory, specific requirements), Procedures (mandatory, step-by-step instructions), Guidelines (recommended, best practices), and Baselines (mandatory, minimum configurations).">
+                <!-- Pyramid layers -->
+                <polygon points="220,10 140,65 300,65" fill="rgba(255,0,255,0.15)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="220" y="38" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700">POLICIES</text>
+                <text x="220" y="52" text-anchor="middle" fill="#ede0f0" font-size="7">Mandatory | Board-approved</text>
+
+                <polygon points="140,68 100,118 340,118 300,68" fill="rgba(0,255,255,0.1)" stroke="#00ffff" stroke-width="1.2"/>
+                <text x="220" y="88" text-anchor="middle" fill="#00ffff" font-size="10" font-weight="700">STANDARDS</text>
+                <text x="220" y="102" text-anchor="middle" fill="#ede0f0" font-size="7">Mandatory | Specific requirements</text>
+
+                <polygon points="100,121 60,171 380,171 340,121" fill="rgba(34,197,94,0.1)" stroke="#22c55e" stroke-width="1.2"/>
+                <text x="220" y="141" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="700">PROCEDURES</text>
+                <text x="220" y="155" text-anchor="middle" fill="#ede0f0" font-size="7">Mandatory | Step-by-step instructions</text>
+
+                <polygon points="60,174 30,218 410,218 380,174" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1.2"/>
+                <text x="220" y="192" text-anchor="middle" fill="#eab308" font-size="10" font-weight="700">GUIDELINES</text>
+                <text x="220" y="206" text-anchor="middle" fill="#ede0f0" font-size="7">Recommended | Best practices (not mandatory)</text>
+
+                <rect x="10" y="222" width="420" height="30" rx="4" fill="rgba(255,68,255,0.08)" stroke="#ff44ff" stroke-width="1.2"/>
+                <text x="220" y="240" text-anchor="middle" fill="#ff44ff" font-size="10" font-weight="700">BASELINES</text>
+                <text x="220" y="250" text-anchor="middle" fill="#ede0f0" font-size="6.5">Mandatory | Minimum configuration standards</text>
+
+                <!-- Side annotations -->
+                <text x="10" y="25" fill="#9a82a0" font-size="7" font-style="italic">Strategic</text>
+                <text x="10" y="245" fill="#9a82a0" font-size="7" font-style="italic">Operational</text>
+                <line x1="12" y1="32" x2="12" y2="232" stroke="rgba(255,0,255,0.2)" stroke-width="1" stroke-dasharray="4 3"/>
+                <defs>
+                    <marker id="arrowDown" markerWidth="6" markerHeight="6" refX="3" refY="6" orient="auto">
+                        <path d="M0,0 L3,6 L6,0" fill="rgba(255,0,255,0.3)"/>
+                    </marker>
+                </defs>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Policies</div>
+                <div class="card-desc">High-level statements of management intent. "All employees must use multi-factor authentication for remote access." Approved by the board or senior management. Broad in scope, stable over time, mandatory for all employees.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Standards</div>
+                <div class="card-desc">Specific, measurable requirements that implement policies. "MFA must use FIDO2-compliant hardware tokens or TOTP with minimum 6-digit codes." Mandatory compliance. Updated more frequently than policies as technology evolves.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Procedures</div>
+                <div class="card-desc">Step-by-step instructions for performing specific tasks. "To enroll a FIDO2 token: 1) Log into IAM portal. 2) Select Security Keys. 3) Insert token. 4) Follow enrollment wizard." Mandatory for affected personnel. Highly specific and operational.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Guidelines &amp; Baselines</div>
+                <div class="card-desc">Guidelines are recommended practices -- advisory, not mandatory. "Consider using password managers for non-SSO applications." Baselines are mandatory minimum configurations: "All Windows endpoints must run CIS Benchmark Level 1." Baselines are enforceable; guidelines are not.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">Common Mistake</div>
+            Organizations often confuse policies with procedures. A 200-page document that specifies both "we will protect customer data" and "click File, then Save As, then select Encrypted PDF" is neither a good policy nor a good procedure -- it is an unmaintainable hybrid that no one reads. Keep each layer at its proper level of abstraction.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- WRITING EFFECTIVE POLICIES ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 14</div>
+        <div class="slide-title">Writing <span class="accent">Effective</span> Security <span class="cyan">Policies</span></div>
+        <div class="slide-subtitle">Components, approval workflows, review cycles, and the difference between a policy that works and one that gathers dust.</div>
+
+        <div class="section-label">Required Policy Components</div>
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Purpose &amp; Scope</div>
+                <div class="card-desc">Why does this policy exist? Who does it apply to? A clear purpose statement prevents scope creep and ensures readers know immediately whether the policy applies to them. "This policy applies to all employees, contractors, and third-party users who access company information systems."</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Policy Statements</div>
+                <div class="card-desc">The actual requirements -- clear, unambiguous, and enforceable. Use "must" for mandatory requirements, "should" for recommendations, "may" for discretionary. Avoid vague language like "adequate" or "appropriate" without defining what those mean in context.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Roles &amp; Responsibilities</div>
+                <div class="card-desc">Who owns this policy? Who enforces it? Who reviews it? Every policy needs an owner (typically a department head or CISO), an enforcement mechanism (HR, IT, management), and designated reviewers. Orphaned policies are dead policies.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Compliance &amp; Enforcement</div>
+                <div class="card-desc">What happens if someone violates this policy? Consequences must be defined and consistently applied -- from verbal warning to termination. A policy without enforcement is a suggestion. Reference the disciplinary process and exception-handling procedures.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Definitions &amp; References</div>
+                <div class="card-desc">Define technical terms for non-technical audiences. Reference related policies, standards, and regulatory requirements. Cross-referencing prevents contradictions between policies and ensures readers can find supporting detail.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Review &amp; Revision</div>
+                <div class="card-desc">Every policy must specify its review cycle -- typically annual or after a significant security event. Include version history, approval dates, and next review date. A policy last reviewed in 2019 has questionable relevance in 2026.</div>
+            </div>
+        </div>
+
+        <div class="section-label">Approval Workflow</div>
+        <div class="timeline">
+            <div class="tl-step">
+                <div class="tl-num">DRAFT</div>
+                <div class="tl-name">Author</div>
+                <div class="tl-desc">CISO or policy owner drafts based on risk assessment</div>
+            </div>
+            <div class="tl-step">
+                <div class="tl-num">REVIEW</div>
+                <div class="tl-name">Stakeholders</div>
+                <div class="tl-desc">Legal, HR, IT, business units review for impact and feasibility</div>
+            </div>
+            <div class="tl-step">
+                <div class="tl-num">APPROVE</div>
+                <div class="tl-name">Authority</div>
+                <div class="tl-desc">Senior management or board approval based on policy tier</div>
+            </div>
+            <div class="tl-step">
+                <div class="tl-num">PUBLISH</div>
+                <div class="tl-name">Communicate</div>
+                <div class="tl-desc">Distribute, train affected staff, obtain acknowledgment</div>
+            </div>
+            <div class="tl-step">
+                <div class="tl-num">ENFORCE</div>
+                <div class="tl-name">Monitor</div>
+                <div class="tl-desc">Track compliance, handle exceptions, audit adherence</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">The Readability Test</div>
+            If your information security policy cannot be understood by a non-technical manager in five minutes, it will not be followed. The best policies are short (2-5 pages), written in plain language, and focused on a single topic. Detailed technical implementation belongs in standards and procedures -- not in the policy itself.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- GOVERNANCE STRUCTURES ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 14</div>
+        <div class="slide-title"><span class="accent">Governance</span> <span class="cyan">Structures</span></div>
+        <div class="slide-subtitle">Board committees, CISO reporting lines, steering committees -- the organizational architecture of cybersecurity governance.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 520 230" width="500" role="img" aria-label="Governance organizational chart. Board of Directors at top, with Risk Committee and Audit Committee below. CEO reports to Board. CISO reporting line shown with two options: direct to CEO (strong) or through CIO (weaker). Security Steering Committee shown as cross-functional advisory body.">
+                <!-- Board -->
+                <rect x="175" y="5" width="170" height="32" rx="6" fill="rgba(255,0,255,0.12)" stroke="#ff00ff" stroke-width="2"/>
+                <text x="260" y="25" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700">BOARD OF DIRECTORS</text>
+                <!-- Board committees -->
+                <line x1="200" y1="37" x2="120" y2="55" stroke="rgba(0,255,255,0.4)" stroke-width="1"/>
+                <rect x="50" y="55" width="140" height="28" rx="5" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="120" y="73" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="600">Risk Committee</text>
+                <line x1="320" y1="37" x2="400" y2="55" stroke="rgba(0,255,255,0.4)" stroke-width="1"/>
+                <rect x="330" y="55" width="140" height="28" rx="5" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="400" y="73" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="600">Audit Committee</text>
+                <!-- CEO -->
+                <line x1="260" y1="37" x2="260" y2="100" stroke="rgba(255,0,255,0.4)" stroke-width="1.5"/>
+                <rect x="205" y="100" width="110" height="28" rx="5" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="260" y="118" text-anchor="middle" fill="#ede0f0" font-size="10" font-weight="700">CEO</text>
+                <!-- CIO path (weaker) -->
+                <line x1="260" y1="128" x2="160" y2="150" stroke="rgba(255,255,255,0.15)" stroke-width="1" stroke-dasharray="4 3"/>
+                <rect x="100" y="150" width="120" height="28" rx="5" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+                <text x="160" y="168" text-anchor="middle" fill="#9a82a0" font-size="9" font-weight="600">CIO</text>
+                <!-- CISO - direct to CEO (strong) -->
+                <line x1="260" y1="128" x2="360" y2="150" stroke="#ff00ff" stroke-width="2"/>
+                <rect x="300" y="150" width="120" height="28" rx="5" fill="rgba(255,0,255,0.12)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="360" y="168" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700">CISO</text>
+                <!-- CISO through CIO (weaker option) -->
+                <line x1="160" y1="178" x2="300" y2="164" stroke="rgba(255,255,255,0.1)" stroke-width="1" stroke-dasharray="4 3"/>
+                <text x="230" y="185" text-anchor="middle" fill="#5a4460" font-size="6.5" font-style="italic">weaker path</text>
+                <text x="400" y="188" text-anchor="middle" fill="#ff00ff" font-size="6.5" font-style="italic">direct reporting (stronger)</text>
+                <!-- Steering committee -->
+                <rect x="50" y="200" width="420" height="26" rx="5" fill="rgba(234,179,8,0.06)" stroke="#eab308" stroke-width="1"/>
+                <text x="260" y="217" text-anchor="middle" fill="#eab308" font-size="9" font-weight="600">SECURITY STEERING COMMITTEE (cross-functional: Legal, HR, IT, Finance, Business Units)</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Board Risk Committee</div>
+                <div class="card-desc">Oversees enterprise risk management including cyber risk. Reviews risk appetite statements, approves risk treatment plans, and receives quarterly CISO briefings. Many boards now require at least one member with cybersecurity expertise -- a SEC recommendation since 2023.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">CISO Reporting Line</div>
+                <div class="card-desc">Where the CISO reports determines their influence. Direct CEO reporting (NIST recommendation) gives cybersecurity executive-level voice. Reporting through the CIO creates a conflict of interest -- the CIO prioritizes availability and delivery, while the CISO prioritizes security.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Steering Committee</div>
+                <div class="card-desc">Cross-functional body that bridges security and business. Includes representatives from every major business unit, Legal, HR, Finance, and IT. Meets monthly or quarterly to review policy changes, budget requests, risk acceptances, and incident lessons learned. Advisory role -- authority remains with the CISO and board.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Structural Failure Pattern</div>
+            When the CISO reports to the CIO, who reports to the CFO, who reports to the CEO -- cybersecurity is four levels removed from the board. Critical risk decisions get filtered, diluted, or deprioritized. The Equifax breach (2017) investigation revealed that the CISO reported through the CIO with no direct board access -- a structural failure that delayed breach response by weeks.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- RISK GOVERNANCE ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 14</div>
+        <div class="slide-title"><span class="accent">Risk</span> <span class="cyan">Governance</span></div>
+        <div class="slide-subtitle">Risk appetite vs tolerance vs capacity -- the risk register and risk treatment decisions that drive governance outcomes.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 520 160" width="500" role="img" aria-label="Risk appetite spectrum. A horizontal gradient bar showing risk capacity (maximum), risk appetite (acceptable range), and risk tolerance (acceptable deviation). Current risk position is marked on the spectrum.">
+                <!-- Spectrum bar -->
+                <rect x="30" y="50" width="460" height="40" rx="6" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+                <!-- Risk capacity zone (full bar) -->
+                <rect x="30" y="50" width="460" height="40" rx="6" fill="rgba(239,68,68,0.04)"/>
+                <!-- Risk appetite zone -->
+                <rect x="80" y="50" width="250" height="40" fill="rgba(34,197,94,0.1)"/>
+                <!-- Risk tolerance zone (slightly wider) -->
+                <rect x="60" y="50" width="300" height="40" fill="rgba(234,179,8,0.06)"/>
+                <!-- Re-draw appetite on top -->
+                <rect x="80" y="50" width="250" height="40" fill="rgba(34,197,94,0.08)"/>
+                <!-- Current risk marker -->
+                <line x1="270" y1="45" x2="270" y2="95" stroke="#ff00ff" stroke-width="2.5"/>
+                <circle cx="270" cy="70" r="5" fill="#ff00ff"/>
+                <!-- Labels -->
+                <text x="30" y="42" fill="#ef4444" font-size="8" font-weight="700">ZERO RISK</text>
+                <text x="490" y="42" text-anchor="end" fill="#ef4444" font-size="8" font-weight="700">MAXIMUM RISK</text>
+                <text x="205" y="66" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="700">RISK APPETITE</text>
+                <text x="205" y="78" text-anchor="middle" fill="#22c55e" font-size="7">(acceptable range)</text>
+                <text x="270" y="40" text-anchor="middle" fill="#ff00ff" font-size="8" font-weight="700">CURRENT RISK</text>
+                <!-- Tolerance brackets -->
+                <line x1="60" y1="96" x2="60" y2="108" stroke="#eab308" stroke-width="1"/>
+                <line x1="360" y1="96" x2="360" y2="108" stroke="#eab308" stroke-width="1"/>
+                <line x1="60" y1="108" x2="360" y2="108" stroke="#eab308" stroke-width="1"/>
+                <text x="210" y="120" text-anchor="middle" fill="#eab308" font-size="8" font-weight="600">RISK TOLERANCE (acceptable deviation)</text>
+                <!-- Capacity brackets -->
+                <line x1="30" y1="96" x2="30" y2="135" stroke="#ef4444" stroke-width="1"/>
+                <line x1="490" y1="96" x2="490" y2="135" stroke="#ef4444" stroke-width="1"/>
+                <line x1="30" y1="135" x2="490" y2="135" stroke="#ef4444" stroke-width="1"/>
+                <text x="260" y="148" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="600">RISK CAPACITY (maximum survivable risk)</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Risk Appetite</div>
+                <div class="card-desc">The amount and type of risk the organization is willing to accept in pursuit of its objectives. Set by the board. "We accept moderate risk of operational disruption but zero tolerance for customer data exposure." Expressed qualitatively or quantitatively in a Risk Appetite Statement.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Risk Tolerance</div>
+                <div class="card-desc">The acceptable deviation from risk appetite. If risk appetite says "moderate," tolerance defines the boundary. "We will tolerate up to 4 hours of downtime per quarter for non-critical systems." More granular than appetite -- applied at the business unit or system level.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Risk Capacity</div>
+                <div class="card-desc">The maximum risk the organization can absorb before existential failure. A startup with $2M in revenue cannot survive a $50M breach -- its capacity is far lower than a Fortune 500 company. Capacity is a hard limit. Appetite should never exceed capacity.</div>
+            </div>
+        </div>
+
+        <div class="section-label">Risk Register</div>
+        <table class="glossary-table">
+            <thead>
+                <tr><th>Field</th><th>Purpose</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Risk ID</td><td>Unique identifier for tracking and cross-referencing across governance documents</td></tr>
+                <tr><td>Description</td><td>Clear statement of the risk scenario -- threat, vulnerability, and potential impact</td></tr>
+                <tr><td>Likelihood</td><td>Probability of occurrence -- qualitative (High/Med/Low) or quantitative (annualized rate)</td></tr>
+                <tr><td>Impact</td><td>Business consequence if the risk materializes -- financial, reputational, operational, legal</td></tr>
+                <tr><td>Risk Owner</td><td>The individual accountable for monitoring and managing this risk</td></tr>
+                <tr><td>Treatment</td><td>Accept, Mitigate, Transfer (insure), or Avoid -- with justification for the decision</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- GOVERNANCE METRICS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 14</div>
+        <div class="slide-title">Governance <span class="accent">Metrics</span></div>
+        <div class="slide-subtitle">What gets measured gets managed -- compliance rates, policy exceptions, audit findings, and board reporting cadence.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Policy Compliance Rate</div>
+                <div class="card-desc">Percentage of organizational units compliant with each security policy. Measured through automated scanning (endpoint compliance), manual audits (physical security), and self-attestation (acceptable use). Target: 95%+ for critical policies. Track trends quarterly -- declining compliance signals policy fatigue or enforcement gaps.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Policy Exception Count</div>
+                <div class="card-desc">Number of active policy exceptions and their risk-adjusted impact. Every exception represents accepted risk. Track: total active exceptions, average exception duration, exceptions by department, exceptions past their expiration date. A rising exception count indicates the policy may be misaligned with operational reality.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Audit Findings</div>
+                <div class="card-desc">Open audit findings by severity, age, and remediation status. Critical findings open for more than 30 days signal governance failure. Track: total open findings, mean time to remediate (MTTR) by severity, repeat findings (indicates systemic issues), and findings per business unit.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Security Awareness Completion</div>
+                <div class="card-desc">Percentage of employees who have completed required security training. Regulatory frameworks (HIPAA, PCI-DSS, CMMC) mandate annual training. Track: completion rate, phishing simulation click rates (behavioral metric), and time-to-completion. Below 90% completion is a compliance risk.</div>
+            </div>
+        </div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 520 150" width="500" role="img" aria-label="Audit lifecycle diagram showing five phases: Plan, Execute, Report, Remediate, and Verify, connected by arrows in a continuous cycle.">
+                <!-- Phase boxes -->
+                <rect x="10" y="40" width="85" height="55" rx="6" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="52" y="60" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700">PLAN</text>
+                <text x="52" y="73" text-anchor="middle" fill="#9a82a0" font-size="7">Scope, schedule</text>
+                <text x="52" y="84" text-anchor="middle" fill="#9a82a0" font-size="7">audit criteria</text>
+
+                <rect x="115" y="40" width="85" height="55" rx="6" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="157" y="60" text-anchor="middle" fill="#00ffff" font-size="10" font-weight="700">EXECUTE</text>
+                <text x="157" y="73" text-anchor="middle" fill="#9a82a0" font-size="7">Gather evidence</text>
+                <text x="157" y="84" text-anchor="middle" fill="#9a82a0" font-size="7">test controls</text>
+
+                <rect x="220" y="40" width="85" height="55" rx="6" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="262" y="60" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="700">REPORT</text>
+                <text x="262" y="73" text-anchor="middle" fill="#9a82a0" font-size="7">Findings, risk</text>
+                <text x="262" y="84" text-anchor="middle" fill="#9a82a0" font-size="7">ratings, evidence</text>
+
+                <rect x="325" y="40" width="85" height="55" rx="6" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="367" y="60" text-anchor="middle" fill="#eab308" font-size="10" font-weight="700">REMEDIATE</text>
+                <text x="367" y="73" text-anchor="middle" fill="#9a82a0" font-size="7">Fix findings</text>
+                <text x="367" y="84" text-anchor="middle" fill="#9a82a0" font-size="7">assign owners</text>
+
+                <rect x="430" y="40" width="85" height="55" rx="6" fill="rgba(255,68,255,0.08)" stroke="#ff44ff" stroke-width="1.5"/>
+                <text x="472" y="60" text-anchor="middle" fill="#ff44ff" font-size="10" font-weight="700">VERIFY</text>
+                <text x="472" y="73" text-anchor="middle" fill="#9a82a0" font-size="7">Confirm closure</text>
+                <text x="472" y="84" text-anchor="middle" fill="#9a82a0" font-size="7">retest controls</text>
+
+                <!-- Connecting arrows -->
+                <defs>
+                    <marker id="arrowAudit" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+                        <path d="M0,0 L7,2.5 L0,5" fill="rgba(255,0,255,0.5)"/>
+                    </marker>
+                </defs>
+                <line x1="95" y1="67" x2="113" y2="67" stroke="rgba(255,0,255,0.4)" stroke-width="1.5" marker-end="url(#arrowAudit)"/>
+                <line x1="200" y1="67" x2="218" y2="67" stroke="rgba(255,0,255,0.4)" stroke-width="1.5" marker-end="url(#arrowAudit)"/>
+                <line x1="305" y1="67" x2="323" y2="67" stroke="rgba(255,0,255,0.4)" stroke-width="1.5" marker-end="url(#arrowAudit)"/>
+                <line x1="410" y1="67" x2="428" y2="67" stroke="rgba(255,0,255,0.4)" stroke-width="1.5" marker-end="url(#arrowAudit)"/>
+
+                <!-- Return arrow -->
+                <path d="M472,95 Q472,125 260,125 Q48,125 48,95" fill="none" stroke="rgba(255,0,255,0.2)" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrowAudit)"/>
+                <text x="260" y="140" text-anchor="middle" fill="#5a4460" font-size="7" letter-spacing="0.06em">CONTINUOUS AUDIT LIFECYCLE</text>
+            </svg>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Board Reporting</div>
+            Board members are not cybersecurity experts -- they are fiduciaries. Effective board reporting translates technical metrics into business risk language. Instead of "47 critical CVEs unpatched," report "3 business-critical systems have exploitable vulnerabilities with a combined potential impact of $12M." Include trend data, peer benchmarking, and clear action requests. Frequency: quarterly minimum, with immediate escalation for material incidents.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- FRAMEWORK COMPARISON ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 14</div>
+        <div class="slide-title">Framework <span class="accent">Comparison</span></div>
+        <div class="slide-subtitle">COBIT vs ISO 27001 vs NIST CSF vs ITIL -- selecting the right governance framework for the right purpose.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 540 200" width="520" role="img" aria-label="Framework comparison matrix showing four frameworks (COBIT, ISO 27001, NIST CSF, ITIL) compared across four dimensions: Scope, Focus, Certifiable, and Best For.">
+                <!-- Header row -->
+                <rect x="5" y="5" width="85" height="25" rx="4" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="47" y="21" text-anchor="middle" fill="#ff00ff" font-size="8" font-weight="700">DIMENSION</text>
+                <rect x="95" y="5" width="105" height="25" rx="4" fill="rgba(255,0,255,0.06)" stroke="rgba(255,0,255,0.3)" stroke-width="0.8"/>
+                <text x="147" y="21" text-anchor="middle" fill="#ff00ff" font-size="8" font-weight="700">COBIT 2019</text>
+                <rect x="205" y="5" width="105" height="25" rx="4" fill="rgba(0,255,255,0.06)" stroke="rgba(0,255,255,0.3)" stroke-width="0.8"/>
+                <text x="257" y="21" text-anchor="middle" fill="#00ffff" font-size="8" font-weight="700">ISO 27001</text>
+                <rect x="315" y="5" width="105" height="25" rx="4" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.3)" stroke-width="0.8"/>
+                <text x="367" y="21" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">NIST CSF</text>
+                <rect x="425" y="5" width="105" height="25" rx="4" fill="rgba(234,179,8,0.06)" stroke="rgba(234,179,8,0.3)" stroke-width="0.8"/>
+                <text x="477" y="21" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">ITIL 4</text>
+
+                <!-- Row 1: Scope -->
+                <text x="47" y="53" text-anchor="middle" fill="#9a82a0" font-size="8" font-weight="600">Scope</text>
+                <rect x="95" y="35" width="105" height="30" rx="3" fill="rgba(255,255,255,0.02)"/>
+                <text x="147" y="50" text-anchor="middle" fill="#ede0f0" font-size="7">Enterprise IT</text>
+                <text x="147" y="60" text-anchor="middle" fill="#9a82a0" font-size="6.5">governance &amp; mgmt</text>
+                <rect x="205" y="35" width="105" height="30" rx="3" fill="rgba(255,255,255,0.02)"/>
+                <text x="257" y="50" text-anchor="middle" fill="#ede0f0" font-size="7">Information</text>
+                <text x="257" y="60" text-anchor="middle" fill="#9a82a0" font-size="6.5">security mgmt</text>
+                <rect x="315" y="35" width="105" height="30" rx="3" fill="rgba(255,255,255,0.02)"/>
+                <text x="367" y="50" text-anchor="middle" fill="#ede0f0" font-size="7">Cybersecurity</text>
+                <text x="367" y="60" text-anchor="middle" fill="#9a82a0" font-size="6.5">risk management</text>
+                <rect x="425" y="35" width="105" height="30" rx="3" fill="rgba(255,255,255,0.02)"/>
+                <text x="477" y="50" text-anchor="middle" fill="#ede0f0" font-size="7">IT service</text>
+                <text x="477" y="60" text-anchor="middle" fill="#9a82a0" font-size="6.5">management</text>
+
+                <!-- Row 2: Focus -->
+                <text x="47" y="88" text-anchor="middle" fill="#9a82a0" font-size="8" font-weight="600">Focus</text>
+                <rect x="95" y="72" width="105" height="30" rx="3" fill="rgba(255,255,255,0.02)"/>
+                <text x="147" y="87" text-anchor="middle" fill="#ede0f0" font-size="7">Business value</text>
+                <text x="147" y="97" text-anchor="middle" fill="#9a82a0" font-size="6.5">from IT investments</text>
+                <rect x="205" y="72" width="105" height="30" rx="3" fill="rgba(255,255,255,0.02)"/>
+                <text x="257" y="87" text-anchor="middle" fill="#ede0f0" font-size="7">CIA triad</text>
+                <text x="257" y="97" text-anchor="middle" fill="#9a82a0" font-size="6.5">risk-based controls</text>
+                <rect x="315" y="72" width="105" height="30" rx="3" fill="rgba(255,255,255,0.02)"/>
+                <text x="367" y="87" text-anchor="middle" fill="#ede0f0" font-size="7">Identify-Protect</text>
+                <text x="367" y="97" text-anchor="middle" fill="#9a82a0" font-size="6.5">Detect-Respond-Recover</text>
+                <rect x="425" y="72" width="105" height="30" rx="3" fill="rgba(255,255,255,0.02)"/>
+                <text x="477" y="87" text-anchor="middle" fill="#ede0f0" font-size="7">Service lifecycle</text>
+                <text x="477" y="97" text-anchor="middle" fill="#9a82a0" font-size="6.5">value streams</text>
+
+                <!-- Row 3: Certifiable -->
+                <text x="47" y="123" text-anchor="middle" fill="#9a82a0" font-size="8" font-weight="600">Certifiable?</text>
+                <rect x="95" y="107" width="105" height="25" rx="3" fill="rgba(255,255,255,0.02)"/>
+                <text x="147" y="123" text-anchor="middle" fill="#eab308" font-size="8" font-weight="600">Assessable</text>
+                <rect x="205" y="107" width="105" height="25" rx="3" fill="rgba(255,255,255,0.02)"/>
+                <text x="257" y="123" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">Yes</text>
+                <rect x="315" y="107" width="105" height="25" rx="3" fill="rgba(255,255,255,0.02)"/>
+                <text x="367" y="123" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="600">No</text>
+                <rect x="425" y="107" width="105" height="25" rx="3" fill="rgba(255,255,255,0.02)"/>
+                <text x="477" y="123" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">Yes (individuals)</text>
+
+                <!-- Row 4: Best For -->
+                <text x="47" y="155" text-anchor="middle" fill="#9a82a0" font-size="8" font-weight="600">Best For</text>
+                <rect x="95" y="138" width="105" height="35" rx="3" fill="rgba(255,255,255,0.02)"/>
+                <text x="147" y="152" text-anchor="middle" fill="#ede0f0" font-size="7">Aligning IT with</text>
+                <text x="147" y="163" text-anchor="middle" fill="#9a82a0" font-size="6.5">business strategy</text>
+                <rect x="205" y="138" width="105" height="35" rx="3" fill="rgba(255,255,255,0.02)"/>
+                <text x="257" y="152" text-anchor="middle" fill="#ede0f0" font-size="7">Demonstrating</text>
+                <text x="257" y="163" text-anchor="middle" fill="#9a82a0" font-size="6.5">security compliance</text>
+                <rect x="315" y="138" width="105" height="35" rx="3" fill="rgba(255,255,255,0.02)"/>
+                <text x="367" y="152" text-anchor="middle" fill="#ede0f0" font-size="7">Improving cyber</text>
+                <text x="367" y="163" text-anchor="middle" fill="#9a82a0" font-size="6.5">risk posture</text>
+                <rect x="425" y="138" width="105" height="35" rx="3" fill="rgba(255,255,255,0.02)"/>
+                <text x="477" y="152" text-anchor="middle" fill="#ede0f0" font-size="7">Optimizing IT</text>
+                <text x="477" y="163" text-anchor="middle" fill="#9a82a0" font-size="6.5">service delivery</text>
+
+                <!-- Grid lines -->
+                <line x1="90" y1="5" x2="90" y2="173" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>
+                <line x1="200" y1="5" x2="200" y2="173" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>
+                <line x1="310" y1="5" x2="310" y2="173" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>
+                <line x1="420" y1="5" x2="420" y2="173" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>
+                <line x1="5" y1="32" x2="530" y2="32" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>
+                <line x1="5" y1="68" x2="530" y2="68" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>
+                <line x1="5" y1="104" x2="530" y2="104" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>
+                <line x1="5" y1="135" x2="530" y2="135" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>
+
+                <!-- Bottom note -->
+                <text x="270" y="192" text-anchor="middle" fill="#5a4460" font-size="7" letter-spacing="0.06em">FRAMEWORKS ARE COMPLEMENTARY, NOT COMPETING -- MOST ENTERPRISES USE TWO OR MORE</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Layering Strategy</div>
+                <div class="card-desc">Use COBIT for enterprise IT governance alignment with business strategy. Layer ISO 27001 for a certifiable ISMS. Adopt NIST CSF for cybersecurity risk management communication. Use ITIL for operational service delivery. Each addresses a different governance need -- they are complementary, not competing.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Selection Criteria</div>
+                <div class="card-desc">Choose based on: regulatory requirements (some mandate specific frameworks), industry norms (healthcare favors NIST, finance favors COBIT), customer expectations (B2B SaaS clients demand ISO 27001 certification), organizational maturity (NIST CSF tiers help immature organizations start), and geographic scope (ISO is global, NIST is US-centric but widely adopted).</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Mapping Across Frameworks</div>
+            NIST provides official crosswalks between CSF and ISO 27001, COBIT, and other frameworks. This allows organizations to demonstrate compliance with multiple frameworks simultaneously without duplicating effort. A single control implementation can satisfy COBIT APO13, ISO 27001 A.8.5, and NIST CSF PR.AC-7 -- but only if the governance structure explicitly maps and tracks these relationships.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- KEY TAKEAWAYS ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 14</div>
+        <div class="slide-title">Key <span class="accent">Takeaways</span></div>
+        <div class="slide-subtitle">Cybersecurity governance distilled into policy-actionable principles.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Cybersecurity governance is a board-level responsibility, not an IT function. It provides direction, oversight, and accountability for how the organization manages cyber risk. Without governance, security tools exist without strategy.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Corporate, IT, and cybersecurity governance are nested layers. Cybersecurity governance operates within -- and must align with -- the broader IT and corporate governance structures. Misalignment creates policy conflicts and resource competition.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">COBIT 2019 connects IT governance to business value through 40 governance and management objectives. Its strength is bridging the gap between what the board cares about and what IT delivers. APO13 specifically addresses security management.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">ISO 27001 provides a certifiable ISMS built on the Plan-Do-Check-Act cycle. ISO 27002 supplies the 93 controls across four themes -- organizational, people, physical, and technological -- that implement the ISMS requirements.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">The policy hierarchy -- policies, standards, procedures, guidelines, baselines -- keeps each document at the correct level of abstraction. Policies declare intent. Standards specify requirements. Procedures describe execution. Mixing levels produces unreadable, unmaintainable documents.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">Effective security policies require clear purpose, enforceable language, defined ownership, compliance mechanisms, and mandatory review cycles. A policy without enforcement is a suggestion. A policy without review is obsolete.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">CISO reporting structure determines governance effectiveness. Direct-to-CEO reporting gives cybersecurity executive voice. Burying the CISO under the CIO creates structural conflicts between availability and security priorities.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">Risk appetite, tolerance, and capacity are distinct governance concepts. Appetite is what you are willing to accept. Tolerance is the acceptable deviation. Capacity is the maximum you can survive. The risk register operationalizes all three.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">9</span>
+                <span class="fact-text">Governance metrics translate security operations into board-level language. Compliance rates, exception counts, audit findings, and training completion rates are the KPIs that demonstrate whether governance is working -- or failing.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">10</span>
+                <span class="fact-text">COBIT, ISO 27001, NIST CSF, and ITIL are complementary frameworks. Most mature organizations layer multiple frameworks -- using crosswalks to satisfy multiple compliance requirements from a single set of implemented controls.</span>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">What Comes Next</div>
+            Governance provides the structure within which all cybersecurity decisions are made. The frameworks, policies, and metrics covered in this deck are the foundation for every regulatory compliance effort, risk management decision, and incident response plan you will encounter. In the next module, you will apply these governance principles to specific regulatory frameworks -- examining how HIPAA, PCI-DSS, and GDPR translate governance intent into enforceable requirements.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- MARK COMPLETE ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 14 &nbsp;|&nbsp; Complete</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Presentation<br>
+                <span class="accent">Complete</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Cybersecurity Governance -- 14 slides
+            </div>
+        </div>
+
+        <div class="scenario-strip" style="text-align:center; font-style:normal;">
+            Board Oversight &bull; COBIT 2019 &bull; ISO 27001/27002 &bull; Policy Hierarchy &bull; Effective Policies &bull; Governance Structures &bull; Risk Governance &bull; Metrics &bull; Framework Comparison
+        </div>
+
+        <div style="text-align:center; margin-top:10px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+
+        <div class="title-meta-row" style="margin-top:8px;">
+            <span>CIS2208</span>
+            <span>Cybersecurity Policy</span>
+            <span>Week 3</span>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Cybersecurity Policy</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 14</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 14;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        var completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('divergent', 'csp-w3-governance-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

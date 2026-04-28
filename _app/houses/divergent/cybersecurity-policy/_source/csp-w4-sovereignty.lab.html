@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sovereignty Dashboard | Cybersecurity Policy</title>
+    <style>
+        :root {
+            --div-primary: #ff00ff;
+            --div-secondary: #cc00cc;
+            --div-accent: #ff44ff;
+            --div-cyan: #00ffff;
+            --div-glow: rgba(255, 0, 255, 0.25);
+            --bg-main: #0d0810;
+            --bg-deep: #0a060d;
+            --bg-card: #120b14;
+            --bg-card-hover: #1a0f1e;
+            --text-primary: #ede0f0;
+            --text-secondary: #9a82a0;
+            --text-muted: #5a4460;
+            --border-color: rgba(255, 0, 255, 0.10);
+            --border-hover: rgba(255, 0, 255, 0.32);
+            --success: #00ff9d;
+            --danger: #ef4444;
+            --warning: #fbbf24;
+        }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background: linear-gradient(160deg, var(--bg-main) 0%, var(--bg-deep) 100%);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            color: var(--text-primary); line-height: 1.6;
+        }
+        .lab-container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+
+        .back-link {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            color: var(--div-primary); text-decoration: none; margin-bottom: 1rem;
+            font-size: 0.85rem; transition: all 0.3s;
+        }
+        .back-link:hover { color: var(--div-accent); transform: translateX(-4px); }
+
+        .lab-header {
+            text-align: center; margin-bottom: 2rem; padding: 2rem;
+            background: linear-gradient(135deg, var(--bg-card), var(--bg-deep));
+            border-radius: 16px; border: 1px solid var(--div-primary);
+            box-shadow: 0 0 30px var(--div-glow);
+        }
+        .lab-header h1 {
+            font-size: 2rem; margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--div-primary), var(--div-cyan));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .lab-header .subtitle { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem; }
+        .lab-meta { display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; }
+        .meta-item { color: var(--text-muted); font-size: 0.85rem; }
+
+        .instructions {
+            background: var(--bg-card); border-radius: 12px; padding: 1.5rem;
+            margin-bottom: 1.5rem; border: 1px solid var(--border-color);
+        }
+        .instructions h2 { color: var(--div-primary); font-size: 1.1rem; margin-bottom: 0.75rem; }
+        .instructions p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.5rem; }
+
+        .score-bar {
+            background: var(--bg-card); border-radius: 12px; padding: 1rem 1.5rem;
+            margin-bottom: 2rem; border: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .score-label { color: var(--text-secondary); font-size: 0.9rem; }
+        .score-value { color: var(--div-cyan); font-size: 1.2rem; font-weight: 700; }
+
+        /* Country tabs */
+        .country-tabs {
+            display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.5rem;
+        }
+        .country-tab {
+            padding: 8px 18px; background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 8px; color: var(--text-secondary); font-size: 0.85rem;
+            cursor: pointer; transition: all 0.3s; font-weight: 600;
+        }
+        .country-tab:hover { border-color: var(--border-hover); color: var(--text-primary); }
+        .country-tab.active {
+            border-color: var(--div-primary); background: rgba(255, 0, 255, 0.1);
+            color: var(--div-primary);
+        }
+
+        /* Country profile */
+        .country-profile {
+            background: var(--bg-card); border-radius: 12px; padding: 1.5rem;
+            margin-bottom: 2rem; border: 1px solid var(--border-color); display: none;
+        }
+        .country-profile.active { display: block; }
+        .country-name {
+            font-size: 1.2rem; font-weight: 700; margin-bottom: 1rem;
+            color: var(--div-cyan);
+        }
+        .metrics-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.75rem;
+        }
+        .metric-card {
+            background: rgba(0, 0, 0, 0.25); border-radius: 8px; padding: 0.75rem 1rem;
+            border: 1px solid rgba(255, 0, 255, 0.08);
+        }
+        .metric-label { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.25rem; }
+        .metric-value { font-size: 0.88rem; color: var(--text-primary); font-weight: 600; }
+
+        /* Questions */
+        .question-section {
+            margin-top: 2rem;
+        }
+        .question-section h2 {
+            color: var(--div-primary); font-size: 1.1rem; margin-bottom: 1rem;
+        }
+        .question-card {
+            background: var(--bg-card); border-radius: 12px; padding: 1.25rem 1.5rem;
+            margin-bottom: 1rem; border: 1px solid var(--border-color);
+            transition: all 0.3s;
+        }
+        .question-card:hover { border-color: var(--border-hover); }
+        .question-card.correct { border-color: var(--success); background: rgba(0, 255, 157, 0.04); }
+        .question-card.incorrect { border-color: var(--danger); background: rgba(239, 68, 68, 0.04); }
+
+        .q-number {
+            font-size: 0.7rem; color: var(--div-primary); font-weight: 700;
+            letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.5rem;
+        }
+        .q-text { color: var(--text-primary); font-size: 0.9rem; margin-bottom: 0.75rem; line-height: 1.55; }
+
+        .options-list { list-style: none; }
+        .option-item {
+            display: flex; align-items: center; gap: 0.75rem;
+            padding: 0.5rem 0.75rem; margin-bottom: 0.35rem;
+            border-radius: 6px; cursor: pointer; transition: all 0.2s;
+        }
+        .option-item:hover { background: rgba(255, 0, 255, 0.05); }
+        .option-item.selected { background: rgba(255, 0, 255, 0.1); }
+        .option-radio {
+            width: 18px; height: 18px; min-width: 18px;
+            border: 2px solid rgba(255, 0, 255, 0.3); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s;
+        }
+        .option-radio-inner {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: transparent; transition: all 0.2s;
+        }
+        .option-item.selected .option-radio { border-color: var(--div-primary); }
+        .option-item.selected .option-radio-inner { background: var(--div-primary); }
+        .option-text { font-size: 0.85rem; color: var(--text-secondary); }
+        .option-item.selected .option-text { color: var(--text-primary); }
+
+        .card-feedback {
+            font-size: 0.82rem; padding: 6px 12px; border-radius: 6px; margin-top: 0.75rem; display: none;
+        }
+        .card-feedback.show-correct {
+            display: block; background: rgba(0, 255, 157, 0.1);
+            border: 1px solid var(--success); color: var(--success);
+        }
+        .card-feedback.show-incorrect {
+            display: block; background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--danger); color: var(--danger);
+        }
+
+        .action-row {
+            display: flex; gap: 1rem; justify-content: center; margin: 2rem 0; flex-wrap: wrap;
+        }
+        .btn {
+            padding: 12px 32px; border: none; border-radius: 8px;
+            font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.3s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--div-primary), var(--div-secondary));
+            color: #0d0810;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--div-glow); }
+        .btn-complete {
+            background: linear-gradient(135deg, var(--div-primary), var(--div-secondary));
+            color: #0d0810; width: 100%; padding: 1rem; font-size: 1.05rem; display: none;
+        }
+        .btn-complete:hover { transform: translateY(-2px); box-shadow: 0 8px 28px var(--div-glow); }
+        .btn-complete.done { background: var(--success); cursor: default; transform: none; box-shadow: none; }
+        .btn-reset {
+            background: transparent; border: 1px solid rgba(255, 0, 255, 0.2);
+            color: var(--text-secondary);
+        }
+        .btn-reset:hover { border-color: var(--div-primary); color: var(--div-primary); }
+
+        @media (max-width: 768px) {
+            .lab-container { padding: 1rem; }
+            .lab-header h1 { font-size: 1.5rem; }
+            .metrics-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="lab-container">
+        <a href="../index.html" class="back-link">&larr; Cybersecurity Policy Hub</a>
+
+        <header class="lab-header">
+            <h1>Sovereignty Dashboard</h1>
+            <p class="subtitle">Compare national cybersecurity strategies and answer questions on global cyber policy</p>
+            <div class="lab-meta">
+                <span class="meta-item">Lab 16</span>
+                <span class="meta-item">25 minutes</span>
+                <span class="meta-item">10 Questions</span>
+            </div>
+        </header>
+
+        <div class="instructions">
+            <h2>Instructions</h2>
+            <p>Review the cybersecurity strategy profiles for 6 nations using the tabs below. Each profile displays key metrics including critical infrastructure sectors, data localization policy, internet governance model, military cyber capability, and international cooperation level.</p>
+            <p>After reviewing the data, answer 10 comparison questions. You need <strong>8/10 correct</strong> to unlock Mark Complete.</p>
+        </div>
+
+        <div class="score-bar">
+            <span class="score-label">Score</span>
+            <span class="score-value" id="scoreDisplay">-- / 10</span>
+        </div>
+
+        <div class="country-tabs" id="countryTabs"></div>
+        <div id="profileContainer"></div>
+
+        <div class="question-section">
+            <h2>Comparison Questions</h2>
+            <div id="questionContainer"></div>
+        </div>
+
+        <div class="action-row">
+            <button class="btn btn-primary" id="checkBtn" onclick="checkAnswers()">Check Answers</button>
+            <button class="btn btn-reset" onclick="resetLab()">Reset</button>
+        </div>
+
+        <button class="btn btn-complete" id="completeBtn" onclick="markComplete()">Mark Complete</button>
+    </div>
+
+    <script>
+        var COUNTRIES = [
+            {
+                id: 'us', name: 'United States',
+                ciSectors: '16 sectors (energy, finance, healthcare, defense, IT, transportation, water, communications, food, government, emergency services, chemical, commercial, manufacturing, dams, nuclear)',
+                dataLocalization: 'Sector-specific -- no blanket federal requirement; ITAR/EAR restrict defense data; HIPAA and financial rules apply per sector',
+                governance: 'Multi-stakeholder -- supports open, interoperable internet through ICANN and private-sector-led governance',
+                militaryCyber: 'US Cyber Command (USCYBERCOM) -- full-spectrum operations, 133+ Cyber Mission Force teams, dual-hat with NSA',
+                cooperation: 'Very High -- Five Eyes, NATO CCDCOE, bilateral agreements, CISA international partnerships'
+            },
+            {
+                id: 'eu', name: 'European Union',
+                ciSectors: '11 sectors under NIS2 Directive (energy, transport, banking, financial market infrastructure, health, drinking water, wastewater, digital infrastructure, public administration, space, food)',
+                dataLocalization: 'Strict -- GDPR restricts cross-border data transfers; adequacy decisions required; Schrems II invalidated Privacy Shield; Data Act adds cloud switching rules',
+                governance: 'Regulatory -- promotes rights-based internet governance; Digital Services Act and AI Act set global precedents',
+                militaryCyber: 'National forces per member state; EU Cyber Rapid Response Teams (CRRTs); evolving joint capability under PESCO',
+                cooperation: 'High -- ENISA coordination, NATO partnership, bilateral agreements, Budapest Convention signatory'
+            },
+            {
+                id: 'cn', name: 'China',
+                ciSectors: '8 priority areas (telecom, energy, transport, water, finance, public services, e-government, defense science/technology)',
+                dataLocalization: 'Very Strict -- Cybersecurity Law (2017), Data Security Law (2021), PIPL (2021) require data localization; security assessments for cross-border transfers; critical data must stay onshore',
+                governance: 'State-controlled -- Great Firewall, Cyberspace Administration of China (CAC) regulates content and access; advocates cyber sovereignty doctrine',
+                militaryCyber: 'PLA Strategic Support Force (SSF) -- network warfare, electronic warfare, space operations integrated; extensive APT activity attributed',
+                cooperation: 'Selective -- Shanghai Cooperation Organisation (SCO), bilateral with Russia; opposes Western multi-stakeholder model'
+            },
+            {
+                id: 'ru', name: 'Russia',
+                ciSectors: '13 areas (healthcare, science, transport, communication, energy, banking/finance, fuel, nuclear, defense, space, mining, metallurgy, chemical)',
+                dataLocalization: 'Strict -- Federal Law 242-FZ requires Russian citizen data stored on servers physically located in Russia; Sovereign Internet Law (2019) enables national internet isolation',
+                governance: 'State-controlled -- SORM surveillance infrastructure, Roskomnadzor content regulation; advocates state sovereignty over cyberspace at UN',
+                militaryCyber: 'GRU Units 26165/74455, FSB Center 16/18 -- extensive offensive operations; military doctrine integrates information warfare with conventional operations',
+                cooperation: 'Low -- limited to SCO and CSTO allies; opposes Budapest Convention; promotes rival UN norms framework'
+            },
+            {
+                id: 'il', name: 'Israel',
+                ciSectors: '7 sectors (energy, water, telecommunications, transportation, finance, government, healthcare)',
+                dataLocalization: 'Moderate -- Privacy Protection Regulations require adequate protection for cross-border transfers; no blanket localization mandate; defense/intelligence data highly restricted',
+                governance: 'Hybrid -- democratic internet governance with National Cyber Directorate (INCD) as central authority; strong public-private partnership model',
+                militaryCyber: 'Unit 8200 (signals intelligence), IDF Cyber Command -- world-class offensive and defensive capability; mandatory military service builds deep talent pipeline',
+                cooperation: 'High -- US bilateral cyber agreements, Abraham Accords expanded partnerships, CyberSpark innovation hub hosts multinational collaboration'
+            },
+            {
+                id: 'au', name: 'Australia',
+                ciSectors: '11 sectors (communications, financial services, data storage/processing, defense, higher education, energy, food, healthcare, space, transport, water)',
+                dataLocalization: 'Moderate -- no general data localization law; Privacy Act applies to cross-border disclosures; Critical Infrastructure Act 2018 restricts foreign ownership; Telecommunications Act requires onshore data access',
+                governance: 'Multi-stakeholder -- Australian Signals Directorate (ASD) leads cyber defense; supports open internet; significant ISP-level filtering for security',
+                militaryCyber: 'Australian Signals Directorate (ASD) -- offensive cyber capability confirmed in 2016; integrated with Five Eyes intelligence sharing',
+                cooperation: 'Very High -- Five Eyes, AUKUS (cyber/AI component), Quad (with US/India/Japan), Pacific Cyber Security Operational Network'
+            }
+        ];
+
+        var QUESTIONS = [
+            {
+                id: 1,
+                text: 'Which country has the strictest data localization requirements, mandating that citizen data and critical data remain on domestic servers with security assessments for any cross-border transfers?',
+                options: ['United States', 'European Union', 'China', 'Australia'],
+                answer: 'China',
+                detail: 'China\'s Cybersecurity Law, Data Security Law, and PIPL collectively create the strictest data localization regime, requiring critical data to stay onshore and security assessments for all cross-border transfers.'
+            },
+            {
+                id: 2,
+                text: 'Which two nations are both members of the Five Eyes intelligence-sharing alliance?',
+                options: ['United States and China', 'Russia and Israel', 'United States and Australia', 'European Union and Russia'],
+                answer: 'United States and Australia',
+                detail: 'Five Eyes consists of the US, UK, Canada, Australia, and New Zealand. Both the US and Australia are founding members with deeply integrated signals intelligence sharing.'
+            },
+            {
+                id: 3,
+                text: 'Which nation designates the most critical infrastructure sectors, with 16 identified sectors requiring cybersecurity protections?',
+                options: ['China', 'Russia', 'United States', 'European Union'],
+                answer: 'United States',
+                detail: 'The US Presidential Policy Directive 21 (PPD-21) identifies 16 critical infrastructure sectors, the most of any nation profiled here.'
+            },
+            {
+                id: 4,
+                text: 'Which country operates under a "cyber sovereignty" doctrine and maintains the Great Firewall to control internet access?',
+                options: ['Russia', 'China', 'Israel', 'European Union'],
+                answer: 'China',
+                detail: 'China advocates for cyber sovereignty -- the idea that each nation should have the right to control its own cyberspace. The Great Firewall is the practical implementation of this doctrine.'
+            },
+            {
+                id: 5,
+                text: 'Which nation\'s military cyber capability is uniquely strengthened by mandatory military service that builds a deep national talent pipeline?',
+                options: ['United States', 'Australia', 'Israel', 'Russia'],
+                answer: 'Israel',
+                detail: 'Israel\'s mandatory military service, particularly through Unit 8200, creates a unique talent pipeline where the majority of the nation\'s cybersecurity workforce gains hands-on experience during compulsory service.'
+            },
+            {
+                id: 6,
+                text: 'The EU\'s GDPR is an example of which internet governance approach?',
+                options: ['State-controlled', 'Multi-stakeholder', 'Regulatory (rights-based)', 'Hybrid'],
+                answer: 'Regulatory (rights-based)',
+                detail: 'The EU promotes a rights-based regulatory approach to internet governance, with GDPR, the Digital Services Act, and the AI Act setting global precedents for privacy and digital rights.'
+            },
+            {
+                id: 7,
+                text: 'Which country passed a Sovereign Internet Law in 2019 enabling it to isolate its national internet from the global network?',
+                options: ['China', 'Russia', 'Israel', 'Australia'],
+                answer: 'Russia',
+                detail: 'Russia\'s 2019 Sovereign Internet Law (also known as the RuNet isolation law) gives authorities the technical capability to disconnect Russia\'s internet segment from the global network.'
+            },
+            {
+                id: 8,
+                text: 'Which nation has the LOWEST international cybersecurity cooperation level among the six profiled?',
+                options: ['China', 'Russia', 'Israel', 'Australia'],
+                answer: 'Russia',
+                detail: 'Russia has the lowest cooperation level -- limited to SCO and CSTO allies, opposing the Budapest Convention, and promoting a rival UN norms framework rather than joining Western-led institutions.'
+            },
+            {
+                id: 9,
+                text: 'AUKUS is a security partnership that includes Australia and which other nation(s)?',
+                options: ['European Union and Japan', 'United States and United Kingdom', 'China and India', 'Israel and Canada'],
+                answer: 'United States and United Kingdom',
+                detail: 'AUKUS is a trilateral security partnership between Australia, the United Kingdom, and the United States, with components covering nuclear submarines, cyber capabilities, and AI.'
+            },
+            {
+                id: 10,
+                text: 'Which nation uses a public-private partnership model with an innovation hub (CyberSpark) that hosts multinational cybersecurity collaboration?',
+                options: ['United States', 'Israel', 'Australia', 'European Union'],
+                answer: 'Israel',
+                detail: 'Israel operates CyberSpark in Be\'er Sheva, an innovation hub where multinational companies, academia, and the Israeli military collaborate on cybersecurity research and development.'
+            }
+        ];
+
+        var submitted = false;
+        var activeCountry = 'us';
+
+        function buildTabs() {
+            var tabs = document.getElementById('countryTabs');
+            tabs.innerHTML = '';
+            COUNTRIES.forEach(function(c) {
+                var tab = document.createElement('div');
+                tab.className = 'country-tab' + (c.id === activeCountry ? ' active' : '');
+                tab.textContent = c.name;
+                tab.dataset.countryId = c.id;
+                tab.addEventListener('click', function() {
+                    switchCountry(c.id);
+                });
+                tabs.appendChild(tab);
+            });
+        }
+
+        function buildProfiles() {
+            var container = document.getElementById('profileContainer');
+            container.innerHTML = '';
+            COUNTRIES.forEach(function(c) {
+                var profile = document.createElement('div');
+                profile.className = 'country-profile' + (c.id === activeCountry ? ' active' : '');
+                profile.id = 'profile-' + c.id;
+                profile.innerHTML =
+                    '<div class="country-name">' + c.name + '</div>' +
+                    '<div class="metrics-grid">' +
+                        '<div class="metric-card"><div class="metric-label">CI Sectors Protected</div><div class="metric-value">' + c.ciSectors + '</div></div>' +
+                        '<div class="metric-card"><div class="metric-label">Data Localization</div><div class="metric-value">' + c.dataLocalization + '</div></div>' +
+                        '<div class="metric-card"><div class="metric-label">Internet Governance</div><div class="metric-value">' + c.governance + '</div></div>' +
+                        '<div class="metric-card"><div class="metric-label">Military Cyber Capability</div><div class="metric-value">' + c.militaryCyber + '</div></div>' +
+                        '<div class="metric-card"><div class="metric-label">International Cooperation</div><div class="metric-value">' + c.cooperation + '</div></div>' +
+                    '</div>';
+                container.appendChild(profile);
+            });
+        }
+
+        function switchCountry(id) {
+            activeCountry = id;
+            document.querySelectorAll('.country-tab').forEach(function(tab) {
+                tab.classList.toggle('active', tab.dataset.countryId === id);
+            });
+            document.querySelectorAll('.country-profile').forEach(function(p) {
+                p.classList.toggle('active', p.id === 'profile-' + id);
+            });
+        }
+
+        function buildQuestions() {
+            var container = document.getElementById('questionContainer');
+            container.innerHTML = '';
+
+            QUESTIONS.forEach(function(q) {
+                var card = document.createElement('div');
+                card.className = 'question-card';
+                card.id = 'qcard-' + q.id;
+
+                var optionsHtml = '<ul class="options-list">';
+                q.options.forEach(function(opt, idx) {
+                    optionsHtml +=
+                        '<li class="option-item" data-qid="' + q.id + '" data-val="' + opt + '" onclick="selectOption(' + q.id + ', this)">' +
+                            '<div class="option-radio"><div class="option-radio-inner"></div></div>' +
+                            '<span class="option-text">' + opt + '</span>' +
+                        '</li>';
+                });
+                optionsHtml += '</ul>';
+
+                card.innerHTML =
+                    '<div class="q-number">Question ' + q.id + '</div>' +
+                    '<div class="q-text">' + q.text + '</div>' +
+                    optionsHtml +
+                    '<div class="card-feedback" id="fb-' + q.id + '"></div>';
+
+                container.appendChild(card);
+            });
+        }
+
+        function selectOption(qid, el) {
+            if (submitted) return;
+            var siblings = el.parentNode.querySelectorAll('.option-item');
+            siblings.forEach(function(s) { s.classList.remove('selected'); });
+            el.classList.add('selected');
+        }
+
+        function getQuestionById(id) {
+            for (var i = 0; i < QUESTIONS.length; i++) {
+                if (QUESTIONS[i].id === id) return QUESTIONS[i];
+            }
+            return null;
+        }
+
+        function checkAnswers() {
+            if (submitted) return;
+            var score = 0;
+
+            QUESTIONS.forEach(function(q) {
+                var card = document.getElementById('qcard-' + q.id);
+                var fb = document.getElementById('fb-' + q.id);
+                var selected = card.querySelector('.option-item.selected');
+                var userAnswer = selected ? selected.dataset.val : '';
+
+                card.classList.remove('correct', 'incorrect');
+                fb.className = 'card-feedback';
+
+                if (userAnswer === q.answer) {
+                    score++;
+                    card.classList.add('correct');
+                    fb.className = 'card-feedback show-correct';
+                    fb.textContent = 'Correct -- ' + q.detail;
+                } else {
+                    card.classList.add('incorrect');
+                    fb.className = 'card-feedback show-incorrect';
+                    fb.textContent = 'Incorrect. The correct answer is ' + q.answer + '. ' + q.detail;
+                }
+
+                /* Disable clicks */
+                card.querySelectorAll('.option-item').forEach(function(item) {
+                    item.style.pointerEvents = 'none';
+                });
+            });
+
+            submitted = true;
+            document.getElementById('scoreDisplay').textContent = score + ' / 10';
+            document.getElementById('checkBtn').disabled = true;
+            document.getElementById('checkBtn').style.opacity = '0.4';
+
+            if (score >= 8) {
+                document.getElementById('completeBtn').style.display = 'block';
+            }
+        }
+
+        function resetLab() {
+            submitted = false;
+            document.getElementById('scoreDisplay').textContent = '-- / 10';
+            document.getElementById('checkBtn').disabled = false;
+            document.getElementById('checkBtn').style.opacity = '1';
+            document.getElementById('completeBtn').style.display = 'none';
+            document.getElementById('completeBtn').classList.remove('done');
+            document.getElementById('completeBtn').textContent = 'Mark Complete';
+            activeCountry = 'us';
+            buildTabs();
+            buildProfiles();
+            buildQuestions();
+        }
+
+        function markComplete() {
+            var btn = document.getElementById('completeBtn');
+            if (btn.classList.contains('done')) return;
+            btn.classList.add('done');
+            btn.textContent = 'Completed';
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('divergent', 'csp-w4-sovereignty-lab', { returnUrl: '../index.html' });
+            }
+        }
+
+        buildTabs();
+        buildProfiles();
+        buildQuestions();
+    </script>
+
+    <script src="../../../../components/TrailHunter.js"></script>
+</body>
+</html>

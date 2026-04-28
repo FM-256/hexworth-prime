@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compliance and Audit | Cybersecurity Policy</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d0810 0%, #0a060d 50%, #100812 100%);
+            color: #ede0f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow-y: auto;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: linear-gradient(90deg, #ff00ff, #00ffff);
+            transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(13, 8, 16, 0.95);
+            border-top: 1px solid rgba(255, 0, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #9a82a0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(255, 0, 255, 0.12); color: #ff00ff; border-color: #ff00ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #5a4460; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: linear-gradient(135deg, #ff00ff, #ff44ff);
+            color: #0d0810; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: linear-gradient(135deg, #ff44ff, #ff88ff); transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #ff00ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #ede0f0; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ff00ff; }
+        .slide-title .cyan { color: #00ffff; }
+        .slide-subtitle { font-size: 0.95rem; color: #9a82a0; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(255, 0, 255, 0.06); border-left: 3px solid #ff00ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #f5b8f5; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-magenta { background: rgba(255, 0, 255, 0.08); border: 1px solid rgba(255, 0, 255, 0.3); color: #f5b8f5; }
+        .box-cyan    { background: rgba(0, 255, 255, 0.08); border: 1px solid rgba(0, 255, 255, 0.3); color: #b8f5f5; }
+        .box-red     { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold    { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-green   { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-label   { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #ede0f0; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ff00ff; }
+        .title-hero .big-title .cyan { color: #00ffff; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #5a4460;
+        }
+        .title-meta-row span { border-left: 2px solid rgba(255, 0, 255, 0.2); padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #ff00ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #ede0f0; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #9a82a0; line-height: 1.4; }
+        .card.c-magenta { border-left-color: #ff00ff; }
+        .card.c-cyan    { border-left-color: #00ffff; }
+        .card.c-red     { border-left-color: #ef4444; }
+        .card.c-gold    { border-left-color: #eab308; }
+        .card.c-green   { border-left-color: #22c55e; }
+        .card.c-purple  { border-left-color: #ff44ff; }
+        .card.c-blue    { border-left-color: #3b82f6; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #5a4460; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #ff00ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #ede0f0; }
+
+        /* SVG diagram containers */
+        .svg-container {
+            display: flex; justify-content: center; align-items: center;
+            margin: 10px 0; padding: 10px;
+        }
+        .svg-container svg { max-width: 100%; height: auto; }
+
+        /* Glossary table */
+        .glossary-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+        .glossary-table th {
+            text-align: left; padding: 6px 10px; font-size: 0.72rem;
+            text-transform: uppercase; letter-spacing: 0.08em;
+            color: #ff00ff; border-bottom: 1px solid rgba(255, 0, 255, 0.3);
+        }
+        .glossary-table td {
+            padding: 6px 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            vertical-align: top;
+        }
+        .glossary-table td:first-child { color: #00ffff; font-weight: 600; white-space: nowrap; }
+        .glossary-table td:last-child { color: #9a82a0; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid, .card-grid-4 { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Compliance and Audit | Cybersecurity Policy</h1>
+
+<div id="progress-bar" style="width:7.14%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 14 &nbsp;|&nbsp; CSP-W3-01 &nbsp;|&nbsp; Week 3</div>
+        <div class="title-hero">
+            <div class="big-title">
+                <span class="accent">Compliance</span> and<br>
+                <span class="cyan">Audit</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                PCI DSS &nbsp;&bull;&nbsp; SOC 2 &nbsp;&bull;&nbsp; FedRAMP &nbsp;&bull;&nbsp; HITRUST CSF &nbsp;&bull;&nbsp; Audit Lifecycle
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Your organization just closed a $40M government contract that requires FedRAMP Moderate authorization. Your payment processing system handles 6 million card transactions per year, mandating PCI DSS Level 1 compliance. Your SaaS customers are demanding SOC 2 Type II reports before renewing. Compliance is not optional -- it is the cost of doing business. But passing an audit and being secure are two different things. This deck examines the major compliance frameworks, what auditors actually look for, and how to build a culture where compliance is a byproduct of good security -- not a checkbox exercise.
+        </div>
+        <div class="title-meta-row">
+            <span>14 Slides</span>
+            <span>CSP-W3-01</span>
+            <span>Week 3</span>
+            <span>CIS2208 -- Cybersecurity Policy</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- COMPLIANCE VS SECURITY ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 14</div>
+        <div class="slide-title"><span class="accent">Compliance</span> vs <span class="cyan">Security</span></div>
+        <div class="slide-subtitle">Compliance is the floor, not the ceiling. A compliant organization can still be breached. A secure organization may not yet be compliant.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 520 260" width="500" role="img" aria-label="Comparison diagram showing compliance as a baseline floor with security extending above it. Left side shows a compliance column reaching a defined threshold line. Right side shows a security column extending well above that threshold, illustrating that security goes beyond compliance minimums.">
+                <!-- Floor line -->
+                <line x1="40" y1="200" x2="480" y2="200" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+                <text x="260" y="218" text-anchor="middle" fill="#5a4460" font-size="8" letter-spacing="0.08em">BASELINE</text>
+                <!-- Compliance threshold line -->
+                <line x1="40" y1="120" x2="480" y2="120" stroke="#ff00ff" stroke-width="1" stroke-dasharray="6 4"/>
+                <text x="40" y="112" fill="#ff00ff" font-size="8" font-weight="600">COMPLIANCE THRESHOLD</text>
+                <!-- Compliance column -->
+                <rect x="80" y="120" width="140" height="80" rx="6" fill="rgba(255,0,255,0.12)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="150" y="155" text-anchor="middle" fill="#ff00ff" font-size="13" font-weight="700">COMPLIANCE</text>
+                <text x="150" y="172" text-anchor="middle" fill="#9a82a0" font-size="8">Meets minimum</text>
+                <text x="150" y="184" text-anchor="middle" fill="#9a82a0" font-size="8">regulatory requirements</text>
+                <!-- Security column (taller) -->
+                <rect x="300" y="40" width="140" height="160" rx="6" fill="rgba(0,255,255,0.12)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="370" y="100" text-anchor="middle" fill="#00ffff" font-size="13" font-weight="700">SECURITY</text>
+                <text x="370" y="118" text-anchor="middle" fill="#9a82a0" font-size="8">Risk-driven protection</text>
+                <text x="370" y="130" text-anchor="middle" fill="#9a82a0" font-size="8">beyond minimums</text>
+                <!-- Above threshold label -->
+                <text x="370" y="62" text-anchor="middle" fill="#00ffff" font-size="7" font-weight="600">DEFENSE IN DEPTH</text>
+                <text x="370" y="74" text-anchor="middle" fill="#00ffff" font-size="7" font-weight="600">THREAT INTELLIGENCE</text>
+                <text x="370" y="86" text-anchor="middle" fill="#00ffff" font-size="7" font-weight="600">PROACTIVE HUNTING</text>
+                <!-- Warning box -->
+                <rect x="100" y="232" width="320" height="24" rx="4" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1"/>
+                <text x="260" y="248" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">Compliant does NOT mean secure -- Target was PCI compliant when breached in 2013</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">What Compliance Gives You</div>
+                <div class="card-desc">A structured baseline of controls. Third-party validation. Legal liability reduction (due diligence defense). Customer trust signals. Regulatory permission to operate. Compliance frameworks encode decades of lessons learned into actionable control sets that apply broadly across industries.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Where Compliance Falls Short</div>
+                <div class="card-desc">Point-in-time assessments cannot capture continuous risk. Frameworks lag behind emerging threats by 2-4 years. Checkbox culture rewards documentation over effectiveness. Equifax was ISO 27001 certified. Target was PCI DSS compliant. Capital One passed multiple audits. All were breached.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">The Core Distinction</div>
+            Compliance asks: "Do you meet the minimum standard?" Security asks: "Can you withstand the actual threat?" Organizations that treat compliance as the goal rather than the floor will always be one audit cycle behind the adversary. The frameworks exist to establish a baseline -- what you build above that baseline determines your actual risk posture.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- PCI DSS 4.0 ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 14</div>
+        <div class="slide-title"><span class="accent">PCI DSS 4.0</span> -- Payment Card Security</div>
+        <div class="slide-subtitle">The Payment Card Industry Data Security Standard applies to any entity that stores, processes, or transmits cardholder data.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 540 320" width="520" role="img" aria-label="Grid showing the 12 PCI DSS requirements organized into 6 goals: Build and Maintain a Secure Network, Protect Cardholder Data, Maintain a Vulnerability Management Program, Implement Strong Access Controls, Regularly Monitor and Test, and Maintain an Information Security Policy.">
+                <!-- Title -->
+                <text x="270" y="18" text-anchor="middle" fill="#ff00ff" font-size="11" font-weight="700">PCI DSS 4.0 -- 12 REQUIREMENTS</text>
+                <!-- Row 1: Build & Maintain Secure Network -->
+                <rect x="10" y="30" width="255" height="42" rx="4" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="18" y="48" fill="#ff00ff" font-size="7" font-weight="700">R1</text>
+                <text x="36" y="48" fill="#ede0f0" font-size="7.5">Install &amp; maintain network security controls</text>
+                <text x="18" y="63" fill="#ff00ff" font-size="7" font-weight="700">R2</text>
+                <text x="36" y="63" fill="#ede0f0" font-size="7.5">Apply secure configurations to all components</text>
+                <!-- Row 1 right: Protect Cardholder Data -->
+                <rect x="275" y="30" width="255" height="42" rx="4" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="283" y="48" fill="#00ffff" font-size="7" font-weight="700">R3</text>
+                <text x="301" y="48" fill="#ede0f0" font-size="7.5">Protect stored account data</text>
+                <text x="283" y="63" fill="#00ffff" font-size="7" font-weight="700">R4</text>
+                <text x="301" y="63" fill="#ede0f0" font-size="7.5">Protect with strong cryptography during transmission</text>
+                <!-- Row 2: Vuln Management -->
+                <rect x="10" y="82" width="255" height="42" rx="4" fill="rgba(255,68,255,0.08)" stroke="#ff44ff" stroke-width="1"/>
+                <text x="18" y="100" fill="#ff44ff" font-size="7" font-weight="700">R5</text>
+                <text x="36" y="100" fill="#ede0f0" font-size="7.5">Protect all systems from malicious software</text>
+                <text x="18" y="115" fill="#ff44ff" font-size="7" font-weight="700">R6</text>
+                <text x="36" y="115" fill="#ede0f0" font-size="7.5">Develop &amp; maintain secure systems &amp; software</text>
+                <!-- Row 2 right: Access Control -->
+                <rect x="275" y="82" width="255" height="56" rx="4" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1"/>
+                <text x="283" y="100" fill="#eab308" font-size="7" font-weight="700">R7</text>
+                <text x="301" y="100" fill="#ede0f0" font-size="7.5">Restrict access by business need-to-know</text>
+                <text x="283" y="115" fill="#eab308" font-size="7" font-weight="700">R8</text>
+                <text x="301" y="115" fill="#ede0f0" font-size="7.5">Identify users &amp; authenticate access</text>
+                <text x="283" y="130" fill="#eab308" font-size="7" font-weight="700">R9</text>
+                <text x="301" y="130" fill="#ede0f0" font-size="7.5">Restrict physical access to cardholder data</text>
+                <!-- Row 3: Monitor & Test -->
+                <rect x="10" y="148" width="255" height="42" rx="4" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1"/>
+                <text x="18" y="166" fill="#22c55e" font-size="7" font-weight="700">R10</text>
+                <text x="40" y="166" fill="#ede0f0" font-size="7.5">Log &amp; monitor all access to system components</text>
+                <text x="18" y="181" fill="#22c55e" font-size="7" font-weight="700">R11</text>
+                <text x="40" y="181" fill="#ede0f0" font-size="7.5">Test security of systems &amp; networks regularly</text>
+                <!-- Row 3 right: Policy -->
+                <rect x="275" y="148" width="255" height="42" rx="4" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1"/>
+                <text x="283" y="166" fill="#3b82f6" font-size="7" font-weight="700">R12</text>
+                <text x="305" y="166" fill="#ede0f0" font-size="7.5">Support information security with policies</text>
+                <text x="305" y="181" fill="#9a82a0" font-size="7">and programs for all personnel</text>
+                <!-- Level boxes -->
+                <text x="270" y="214" text-anchor="middle" fill="#5a4460" font-size="8" font-weight="700" letter-spacing="0.08em">MERCHANT LEVELS</text>
+                <rect x="10" y="224" width="122" height="38" rx="4" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1"/>
+                <text x="71" y="240" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">LEVEL 1</text>
+                <text x="71" y="254" text-anchor="middle" fill="#9a82a0" font-size="7">&gt;6M transactions/yr</text>
+                <rect x="142" y="224" width="122" height="38" rx="4" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1"/>
+                <text x="203" y="240" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">LEVEL 2</text>
+                <text x="203" y="254" text-anchor="middle" fill="#9a82a0" font-size="7">1M -- 6M trans/yr</text>
+                <rect x="274" y="224" width="122" height="38" rx="4" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="335" y="240" text-anchor="middle" fill="#00ffff" font-size="8" font-weight="700">LEVEL 3</text>
+                <text x="335" y="254" text-anchor="middle" fill="#9a82a0" font-size="7">20K -- 1M trans/yr</text>
+                <rect x="406" y="224" width="122" height="38" rx="4" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1"/>
+                <text x="467" y="240" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">LEVEL 4</text>
+                <text x="467" y="254" text-anchor="middle" fill="#9a82a0" font-size="7">&lt;20K trans/yr</text>
+                <!-- SAQ vs ROC -->
+                <rect x="10" y="274" width="255" height="36" rx="4" fill="rgba(255,0,255,0.06)" stroke="rgba(255,0,255,0.2)" stroke-width="1"/>
+                <text x="137" y="290" text-anchor="middle" fill="#ff00ff" font-size="8" font-weight="700">SAQ (Self-Assessment)</text>
+                <text x="137" y="302" text-anchor="middle" fill="#9a82a0" font-size="7">Levels 2-4 self-report compliance</text>
+                <rect x="275" y="274" width="255" height="36" rx="4" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.2)" stroke-width="1"/>
+                <text x="402" y="290" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">ROC (Report on Compliance)</text>
+                <text x="402" y="302" text-anchor="middle" fill="#9a82a0" font-size="7">Level 1 requires on-site QSA audit</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">SAQ vs ROC</div>
+                <div class="card-desc">Self-Assessment Questionnaires (SAQ) are for smaller merchants who self-validate. There are 9 SAQ types based on how you handle card data. Reports on Compliance (ROC) require an on-site assessment by a Qualified Security Assessor (QSA). Level 1 merchants and service providers must undergo annual ROC assessments.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">QSA Role</div>
+                <div class="card-desc">Qualified Security Assessors are certified by the PCI SSC to conduct on-site assessments. They validate that controls are implemented, not just documented. QSAs test configurations, review logs, interview personnel, and observe processes. Their report goes to the acquiring bank and card brands.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">What Changed in 4.0</div>
+                <div class="card-desc">PCI DSS 4.0 (March 2024 mandatory) introduced the Customized Approach, allowing organizations to meet control objectives through alternative methods. Added requirements for MFA everywhere, targeted risk analysis, and enhanced authentication. Shifts from prescriptive rules to outcome-based security.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- SOC 2 ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 14</div>
+        <div class="slide-title"><span class="accent">SOC 2</span> -- Trust Service Criteria</div>
+        <div class="slide-subtitle">SOC 2, developed by AICPA, evaluates service organizations against five Trust Service Criteria. It is the de facto standard for SaaS vendors.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 520 300" width="500" role="img" aria-label="Pentagon diagram showing the five SOC 2 Trust Service Criteria: Security at the top, then Availability, Processing Integrity, Confidentiality, and Privacy arranged around the pentagon, with Security highlighted as the mandatory criterion.">
+                <!-- Pentagon shape -->
+                <polygon points="260,30 430,154 365,280 155,280 90,154" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+                <!-- Center label -->
+                <text x="260" y="158" text-anchor="middle" fill="#5a4460" font-size="9" font-weight="700">SOC 2</text>
+                <text x="260" y="172" text-anchor="middle" fill="#5a4460" font-size="8">TRUST SERVICE</text>
+                <text x="260" y="184" text-anchor="middle" fill="#5a4460" font-size="8">CRITERIA</text>
+                <!-- Security (top - mandatory) -->
+                <circle cx="260" cy="30" r="28" fill="rgba(255,0,255,0.15)" stroke="#ff00ff" stroke-width="2"/>
+                <text x="260" y="26" text-anchor="middle" fill="#ff00ff" font-size="8" font-weight="700">SECURITY</text>
+                <text x="260" y="38" text-anchor="middle" fill="#ff00ff" font-size="7">(Required)</text>
+                <line x1="260" y1="58" x2="260" y2="140" stroke="rgba(255,0,255,0.2)" stroke-width="1" stroke-dasharray="3 3"/>
+                <!-- Availability (top right) -->
+                <circle cx="430" cy="154" r="28" fill="rgba(0,255,255,0.1)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="430" y="150" text-anchor="middle" fill="#00ffff" font-size="7.5" font-weight="700">AVAIL-</text>
+                <text x="430" y="162" text-anchor="middle" fill="#00ffff" font-size="7.5" font-weight="700">ABILITY</text>
+                <line x1="402" y1="154" x2="290" y2="164" stroke="rgba(0,255,255,0.15)" stroke-width="1" stroke-dasharray="3 3"/>
+                <!-- Processing Integrity (bottom right) -->
+                <circle cx="365" cy="280" r="28" fill="rgba(255,68,255,0.1)" stroke="#ff44ff" stroke-width="1.5"/>
+                <text x="365" y="274" text-anchor="middle" fill="#ff44ff" font-size="7" font-weight="700">PROCESSING</text>
+                <text x="365" y="286" text-anchor="middle" fill="#ff44ff" font-size="7" font-weight="700">INTEGRITY</text>
+                <line x1="345" y1="258" x2="280" y2="190" stroke="rgba(255,68,255,0.15)" stroke-width="1" stroke-dasharray="3 3"/>
+                <!-- Confidentiality (bottom left) -->
+                <circle cx="155" cy="280" r="28" fill="rgba(234,179,8,0.1)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="155" y="274" text-anchor="middle" fill="#eab308" font-size="7" font-weight="700">CONFIDEN-</text>
+                <text x="155" y="286" text-anchor="middle" fill="#eab308" font-size="7" font-weight="700">TIALITY</text>
+                <line x1="175" y1="258" x2="240" y2="190" stroke="rgba(234,179,8,0.15)" stroke-width="1" stroke-dasharray="3 3"/>
+                <!-- Privacy (top left) -->
+                <circle cx="90" cy="154" r="28" fill="rgba(34,197,94,0.1)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="90" y="158" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">PRIVACY</text>
+                <line x1="118" y1="154" x2="230" y2="164" stroke="rgba(34,197,94,0.15)" stroke-width="1" stroke-dasharray="3 3"/>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Type I vs Type II</div>
+                <div class="card-desc">Type I evaluates the design of controls at a specific point in time -- a snapshot. Type II evaluates both the design and operating effectiveness of controls over a period (typically 6-12 months). Type II is far more valuable because it demonstrates controls actually work consistently, not just that they exist on paper. Most enterprise customers require Type II.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The Five Criteria</div>
+                <div class="card-desc"><strong style="color:#ff00ff;">Security</strong> (mandatory) -- protection against unauthorized access. <strong style="color:#00ffff;">Availability</strong> -- system is operational per SLAs. <strong style="color:#ff44ff;">Processing Integrity</strong> -- processing is complete, valid, accurate, timely. <strong style="color:#eab308;">Confidentiality</strong> -- information designated confidential is protected. <strong style="color:#22c55e;">Privacy</strong> -- personal information is collected, used, retained, and disclosed properly.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Market Reality</div>
+            SOC 2 has become a de facto requirement for B2B SaaS. Enterprise procurement teams will not sign contracts without a current SOC 2 Type II report. The report is issued by a CPA firm, not a security firm -- this is an accounting standard (SSAE 18), which is why it carries trust in board rooms. A SOC 2 gap can stall a deal worth millions.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- FEDRAMP ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 14</div>
+        <div class="slide-title"><span class="accent">FedRAMP</span> -- Federal Authorization</div>
+        <div class="slide-subtitle">The Federal Risk and Authorization Management Program standardizes security assessment for cloud products used by U.S. federal agencies.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 540 240" width="520" role="img" aria-label="FedRAMP authorization flow showing three phases from left to right: Readiness Assessment, Authorization (with JAB or Agency paths), and Continuous Monitoring, connected by arrows. Below shows three impact levels: Low, Moderate, and High with their control counts.">
+                <!-- Phase 1: Readiness -->
+                <rect x="10" y="20" width="150" height="90" rx="8" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="85" y="44" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">PHASE 1</text>
+                <text x="85" y="58" text-anchor="middle" fill="#00ffff" font-size="10" font-weight="700">READINESS</text>
+                <text x="85" y="76" text-anchor="middle" fill="#9a82a0" font-size="7.5">FedRAMP Ready designation</text>
+                <text x="85" y="88" text-anchor="middle" fill="#9a82a0" font-size="7.5">Gap analysis &amp; SSP prep</text>
+                <text x="85" y="100" text-anchor="middle" fill="#9a82a0" font-size="7.5">Select 3PAO assessor</text>
+                <!-- Arrow 1 -->
+                <line x1="162" y1="65" x2="190" y2="65" stroke="#ff00ff" stroke-width="1.5" marker-end="url(#aFR1)"/>
+                <!-- Phase 2: Authorization -->
+                <rect x="194" y="20" width="160" height="90" rx="8" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="274" y="44" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">PHASE 2</text>
+                <text x="274" y="58" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700">AUTHORIZATION</text>
+                <text x="274" y="76" text-anchor="middle" fill="#9a82a0" font-size="7.5">3PAO assessment &amp; SAR</text>
+                <text x="274" y="88" text-anchor="middle" fill="#9a82a0" font-size="7.5">JAB P-ATO or Agency ATO</text>
+                <text x="274" y="100" text-anchor="middle" fill="#9a82a0" font-size="7.5">POA&amp;M for residual risk</text>
+                <!-- Arrow 2 -->
+                <line x1="356" y1="65" x2="384" y2="65" stroke="#ff44ff" stroke-width="1.5" marker-end="url(#aFR2)"/>
+                <!-- Phase 3: ConMon -->
+                <rect x="388" y="20" width="140" height="90" rx="8" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="458" y="44" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="700">PHASE 3</text>
+                <text x="458" y="58" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="700">CONTINUOUS MON</text>
+                <text x="458" y="76" text-anchor="middle" fill="#9a82a0" font-size="7.5">Monthly vuln scans</text>
+                <text x="458" y="88" text-anchor="middle" fill="#9a82a0" font-size="7.5">Annual assessment</text>
+                <text x="458" y="100" text-anchor="middle" fill="#9a82a0" font-size="7.5">Incident reporting</text>
+                <!-- Feedback arrow -->
+                <path d="M458,112 L458,130 L85,130 L85,112" fill="none" stroke="#22c55e" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#aFR3)"/>
+                <text x="270" y="142" text-anchor="middle" fill="#22c55e" font-size="7.5" font-weight="600">ANNUAL REAUTHORIZATION CYCLE</text>
+                <!-- Impact levels -->
+                <text x="270" y="168" text-anchor="middle" fill="#5a4460" font-size="8" font-weight="700" letter-spacing="0.08em">IMPACT LEVELS</text>
+                <rect x="30" y="178" width="150" height="50" rx="6" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1"/>
+                <text x="105" y="198" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="700">LOW</text>
+                <text x="105" y="212" text-anchor="middle" fill="#9a82a0" font-size="7.5">~125 controls</text>
+                <text x="105" y="222" text-anchor="middle" fill="#9a82a0" font-size="7">Public, non-sensitive data</text>
+                <rect x="195" y="178" width="150" height="50" rx="6" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1"/>
+                <text x="270" y="198" text-anchor="middle" fill="#eab308" font-size="10" font-weight="700">MODERATE</text>
+                <text x="270" y="212" text-anchor="middle" fill="#9a82a0" font-size="7.5">~325 controls</text>
+                <text x="270" y="222" text-anchor="middle" fill="#9a82a0" font-size="7">CUI, PII, most agencies</text>
+                <rect x="360" y="178" width="150" height="50" rx="6" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1"/>
+                <text x="435" y="198" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="700">HIGH</text>
+                <text x="435" y="212" text-anchor="middle" fill="#9a82a0" font-size="7.5">~421 controls</text>
+                <text x="435" y="222" text-anchor="middle" fill="#9a82a0" font-size="7">Law enforcement, health, finance</text>
+                <defs>
+                    <marker id="aFR1" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#ff00ff"/></marker>
+                    <marker id="aFR2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#ff44ff"/></marker>
+                    <marker id="aFR3" markerWidth="8" markerHeight="6" refX="4" refY="0" orient="auto"><path d="M0,0 L8,0 L4,6" fill="#22c55e"/></marker>
+                </defs>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">JAB vs Agency Path</div>
+                <div class="card-desc">The Joint Authorization Board (JAB) issues a Provisional ATO (P-ATO) that any agency can leverage. The Agency path means a single sponsoring agency issues the ATO. JAB P-ATO is harder to get but more reusable. Most CSPs now pursue the Agency path first for speed, then seek JAB P-ATO for broader market access.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">3PAO Assessment</div>
+                <div class="card-desc">Third Party Assessment Organizations (3PAOs) are accredited by FedRAMP to perform independent security assessments. They test every control in the System Security Plan (SSP), produce a Security Assessment Report (SAR), and identify findings. 3PAO independence is critical -- they cannot also be the consultant who helped you prepare.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Cost and Timeline</div>
+                <div class="card-desc">FedRAMP authorization typically costs $1M-$3M and takes 12-18 months for initial authorization. Continuous monitoring adds $200K-$500K annually. The investment is justified by access to the federal market ($100B+ in cloud spending). Once authorized, the "do once, use many" model reduces redundant assessments across agencies.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- HITRUST CSF ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 14</div>
+        <div class="slide-title"><span class="accent">HITRUST CSF</span> -- Unified Framework</div>
+        <div class="slide-subtitle">The HITRUST Common Security Framework harmonizes requirements from HIPAA, PCI DSS, ISO 27001, NIST, and more into a single certifiable framework.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Why HITRUST Exists</div>
+                <div class="card-desc">Healthcare organizations must comply with HIPAA, but HIPAA has no certification process -- you simply attest. HITRUST created a prescriptive, certifiable framework that maps HIPAA requirements to testable controls. It has since expanded beyond healthcare to include mappings to 50+ authoritative sources including PCI DSS, SOC 2, and NIST CSF.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Assessment Types</div>
+                <div class="card-desc"><strong style="color:#00ffff;">e1 Assessment</strong> -- essential, focused evaluation (~44 controls) for lower-risk organizations. 1-year validity. <strong style="color:#ff00ff;">i1 Assessment</strong> -- implemented, broader coverage (~182 controls) for moderate assurance. 1-year validity. <strong style="color:#ef4444;">r2 Assessment</strong> -- the gold standard, risk-based (~400+ controls), 2-year validity with interim assessment.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Certification Process</div>
+                <div class="card-desc">An authorized HITRUST External Assessor conducts the evaluation. Evidence is submitted to HITRUST's Assurance Intelligence Engine for quality review. HITRUST (not the assessor) issues the certification. This centralized quality control differentiates HITRUST from frameworks where the assessor has final authority.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Cross-Framework Mapping</div>
+                <div class="card-desc">HITRUST's greatest value is control harmonization. A single HITRUST r2 assessment can satisfy requirements for HIPAA, PCI DSS, SOC 2, NIST 800-53, ISO 27001, GDPR, and state privacy laws simultaneously. This "assess once, report many" approach reduces audit fatigue for organizations with multiple compliance obligations.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Cost-Benefit Reality</div>
+                <div class="card-desc">HITRUST r2 certification costs $150K-$500K+ including assessor fees and HITRUST licensing. Timeline is 6-12 months. The investment pays off for organizations that face 3+ overlapping frameworks -- replacing multiple separate audits with one comprehensive assessment. For organizations with only one compliance obligation, it may be overkill.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">Industry Adoption</div>
+            HITRUST is dominant in healthcare (required by most major health plans and hospital systems for business associates), gaining traction in finance and government. Over 80% of U.S. hospitals and health plans require HITRUST certification from their vendors. If your organization handles protected health information, HITRUST r2 is effectively mandatory.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- AUDIT PROCESS ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 14</div>
+        <div class="slide-title">The <span class="accent">Audit</span> <span class="cyan">Lifecycle</span></div>
+        <div class="slide-subtitle">Every compliance audit follows a structured lifecycle regardless of framework. Understanding the phases eliminates surprises.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 520 280" width="500" role="img" aria-label="Circular audit lifecycle diagram with five stages arranged in a circle: Planning at the top, then Fieldwork, Reporting, Remediation, and Follow-Up, connected by arrows forming a continuous cycle.">
+                <!-- Center text -->
+                <text x="260" y="140" text-anchor="middle" fill="#5a4460" font-size="9" font-weight="700">AUDIT</text>
+                <text x="260" y="154" text-anchor="middle" fill="#5a4460" font-size="8">LIFECYCLE</text>
+                <!-- Planning (top) -->
+                <circle cx="260" cy="36" r="32" fill="rgba(255,0,255,0.12)" stroke="#ff00ff" stroke-width="2"/>
+                <text x="260" y="32" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">PLANNING</text>
+                <text x="260" y="44" text-anchor="middle" fill="#9a82a0" font-size="7">Scope, schedule,</text>
+                <text x="260" y="54" text-anchor="middle" fill="#9a82a0" font-size="7">criteria</text>
+                <!-- Fieldwork (top right) -->
+                <circle cx="420" cy="112" r="32" fill="rgba(0,255,255,0.12)" stroke="#00ffff" stroke-width="2"/>
+                <text x="420" y="108" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">FIELDWORK</text>
+                <text x="420" y="120" text-anchor="middle" fill="#9a82a0" font-size="7">Testing, evidence,</text>
+                <text x="420" y="130" text-anchor="middle" fill="#9a82a0" font-size="7">interviews</text>
+                <!-- Reporting (bottom right) -->
+                <circle cx="360" cy="236" r="32" fill="rgba(255,68,255,0.12)" stroke="#ff44ff" stroke-width="2"/>
+                <text x="360" y="232" text-anchor="middle" fill="#ff44ff" font-size="9" font-weight="700">REPORTING</text>
+                <text x="360" y="244" text-anchor="middle" fill="#9a82a0" font-size="7">Findings, opinion,</text>
+                <text x="360" y="254" text-anchor="middle" fill="#9a82a0" font-size="7">management letter</text>
+                <!-- Remediation (bottom left) -->
+                <circle cx="160" cy="236" r="32" fill="rgba(234,179,8,0.12)" stroke="#eab308" stroke-width="2"/>
+                <text x="160" y="226" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">REMEDI-</text>
+                <text x="160" y="238" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">ATION</text>
+                <text x="160" y="252" text-anchor="middle" fill="#9a82a0" font-size="7">Fix, document,</text>
+                <text x="160" y="262" text-anchor="middle" fill="#9a82a0" font-size="7">validate</text>
+                <!-- Follow-Up (top left) -->
+                <circle cx="100" cy="112" r="32" fill="rgba(34,197,94,0.12)" stroke="#22c55e" stroke-width="2"/>
+                <text x="100" y="106" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">FOLLOW-</text>
+                <text x="100" y="118" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">UP</text>
+                <text x="100" y="132" text-anchor="middle" fill="#9a82a0" font-size="7">Retest, close,</text>
+                <text x="100" y="142" text-anchor="middle" fill="#9a82a0" font-size="7">lessons learned</text>
+                <!-- Connecting arrows (clockwise) -->
+                <path d="M286,52 Q340,60 400,90" fill="none" stroke="#ff00ff" stroke-width="1.5" marker-end="url(#aAL1)"/>
+                <path d="M436,140 Q440,180 380,216" fill="none" stroke="#00ffff" stroke-width="1.5" marker-end="url(#aAL2)"/>
+                <path d="M330,248 Q280,260 192,248" fill="none" stroke="#ff44ff" stroke-width="1.5" marker-end="url(#aAL3)"/>
+                <path d="M136,220 Q110,180 104,144" fill="none" stroke="#eab308" stroke-width="1.5" marker-end="url(#aAL4)"/>
+                <path d="M116,84 Q140,60 234,40" fill="none" stroke="#22c55e" stroke-width="1.5" marker-end="url(#aAL5)"/>
+                <defs>
+                    <marker id="aAL1" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#ff00ff"/></marker>
+                    <marker id="aAL2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#00ffff"/></marker>
+                    <marker id="aAL3" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#ff44ff"/></marker>
+                    <marker id="aAL4" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#eab308"/></marker>
+                    <marker id="aAL5" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#22c55e"/></marker>
+                </defs>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">1. Planning</div>
+                <div class="card-desc">Define the audit scope, objectives, and criteria (which framework, which controls). Identify key contacts and schedule interviews. Request initial documentation (policies, network diagrams, asset inventories). Set the timeline. A well-scoped audit prevents scope creep and wasted effort on both sides.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">2. Fieldwork</div>
+                <div class="card-desc">The auditor tests controls through evidence collection: reviewing configurations, examining logs, conducting interviews, observing processes, and sampling transactions. This is the most time-intensive phase. The organization must produce evidence that controls are designed correctly (Type I) and operating effectively (Type II).</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">3. Reporting</div>
+                <div class="card-desc">The auditor issues formal findings categorized by severity (critical, high, medium, low). A management response is required for each finding. The final report includes the auditor's opinion, detailed findings, and recommendations. For SOC 2, this becomes the official report shared with customers.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">4. Remediation</div>
+                <div class="card-desc">The organization addresses each finding with corrective actions. Critical and high findings typically require remediation within 30-90 days. A Plan of Action and Milestones (POA&M) tracks remediation progress. Each fix must be documented with evidence showing the control is now effective.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">5. Follow-Up</div>
+                <div class="card-desc">The auditor retests remediated findings to confirm they are resolved. Lessons learned are captured to improve processes for the next audit cycle. Unresolved findings carry forward. The cycle then restarts -- continuous compliance means the next audit's planning begins as follow-up concludes.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- AUDIT EVIDENCE ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 14</div>
+        <div class="slide-title">Audit <span class="accent">Evidence</span>: What Auditors Want</div>
+        <div class="slide-subtitle">Auditors do not accept assertions. They require verifiable evidence across multiple categories to validate every control.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 520 220" width="500" role="img" aria-label="Evidence hierarchy pyramid showing five layers from bottom to top: Policies and Procedures at the base, then Configurations and Screenshots, Logs and Audit Trails, Interviews and Walkthroughs, and Observation at the top. Each layer is labeled with its evidence type and relative weight.">
+                <!-- Pyramid layers (bottom to top) -->
+                <polygon points="30,200 490,200 440,165 80,165" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="260" y="188" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">POLICIES &amp; PROCEDURES</text>
+                <text x="460" y="188" fill="#5a4460" font-size="7">Foundation</text>
+                <polygon points="80,162 440,162 395,127 125,127" fill="rgba(0,255,255,0.1)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="260" y="150" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">CONFIGURATIONS &amp; SCREENSHOTS</text>
+                <text x="415" y="150" fill="#5a4460" font-size="7">Technical proof</text>
+                <polygon points="125,124 395,124 350,89 170,89" fill="rgba(255,68,255,0.1)" stroke="#ff44ff" stroke-width="1.5"/>
+                <text x="260" y="112" text-anchor="middle" fill="#ff44ff" font-size="9" font-weight="700">LOGS &amp; AUDIT TRAILS</text>
+                <text x="372" y="112" fill="#5a4460" font-size="7">Operational proof</text>
+                <polygon points="170,86 350,86 310,51 210,51" fill="rgba(234,179,8,0.1)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="260" y="74" text-anchor="middle" fill="#eab308" font-size="9" font-weight="700">INTERVIEWS</text>
+                <text x="332" y="74" fill="#5a4460" font-size="7">Human validation</text>
+                <polygon points="210,48 310,48 260,16" fill="rgba(34,197,94,0.12)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="260" y="38" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">OBSERVE</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Policies &amp; Procedures</div>
+                <div class="card-desc">Written documentation that defines what the organization should do. Includes information security policies, acceptable use policies, incident response plans, change management procedures. Must be current (reviewed within 12 months), approved by management, and communicated to personnel. A policy that exists but is not followed is worse than no policy.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Configurations &amp; Screenshots</div>
+                <div class="card-desc">Technical proof that controls are implemented: firewall rules, access control lists, encryption settings, MFA configurations, group policy objects. Auditors want to see the actual settings, not a description of them. Screenshots with timestamps, configuration exports, or live demonstrations during fieldwork.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Logs &amp; Audit Trails</div>
+                <div class="card-desc">Evidence that controls are operating over time: access logs, change management tickets, vulnerability scan reports, patch deployment records, incident tickets. Logs must be tamper-resistant, centrally collected, and retained per policy (typically 90 days minimum, 1 year for most frameworks). Gaps in logging are automatic findings.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Interviews</div>
+                <div class="card-desc">Auditors interview personnel at multiple levels to verify that people understand their responsibilities and that processes described in documentation match reality. They will interview system administrators about patch procedures, security analysts about incident response, and executives about risk management oversight. Inconsistent answers between documentation and interviews generate findings.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Observation</div>
+                <div class="card-desc">The auditor directly observes processes in action: watching an incident response drill, observing physical security controls (badge readers, locked server rooms), or watching a change management review meeting. Observation is the highest-quality evidence because it cannot be fabricated. It confirms that processes work in practice, not just on paper.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- COMMON FINDINGS ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 14</div>
+        <div class="slide-title">Common <span class="accent">Findings</span> and <span class="cyan">Remediation</span></div>
+        <div class="slide-subtitle">The same findings appear in audit after audit, across industries and frameworks. These are the gaps that auditors find most frequently.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Access Control Gaps</div>
+                <div class="card-desc">
+                    <strong style="color:#fee2e2;">Finding:</strong> Excessive privileges, orphaned accounts, shared credentials, missing MFA on privileged accounts, no periodic access reviews.<br>
+                    <strong style="color:#22c55e;">Remediation:</strong> Implement least-privilege access model. Quarterly access reviews. Automated deprovisioning tied to HR termination process. MFA for all admin and remote access. Eliminate shared accounts entirely.
+                </div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Logging Failures</div>
+                <div class="card-desc">
+                    <strong style="color:#fef9c3;">Finding:</strong> Incomplete log collection, logs not centralized, insufficient retention, no alerting on critical events, log tampering possible.<br>
+                    <strong style="color:#22c55e;">Remediation:</strong> Deploy centralized SIEM. Define required log sources (auth, admin, change, access). Set retention to framework minimum (90 days active, 1 year archive). Implement integrity monitoring. Alert on failed logins, privilege escalation, configuration changes.
+                </div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Patch Management</div>
+                <div class="card-desc">
+                    <strong style="color:#f5b8f5;">Finding:</strong> Critical patches not applied within SLA (typically 30 days), no patching process documentation, no testing before deployment, incomplete asset inventory means unpatched systems exist unknown.<br>
+                    <strong style="color:#22c55e;">Remediation:</strong> Formal patch management policy with severity-based SLAs. Automated patch deployment with testing environment. Complete asset inventory with vulnerability scanning coverage validation.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Encryption Gaps</div>
+                <div class="card-desc">
+                    <strong style="color:#b8f5f5;">Finding:</strong> Data at rest not encrypted, deprecated TLS versions (1.0/1.1) in use, weak cipher suites, missing certificate management, encryption keys stored alongside encrypted data.<br>
+                    <strong style="color:#22c55e;">Remediation:</strong> Encrypt all sensitive data at rest (AES-256). Enforce TLS 1.2+ with strong cipher suites. Implement proper key management (HSM or KMS). Certificate lifecycle automation. Deprecate all weak protocols.
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Pattern Recognition</div>
+            These four finding categories appear in over 70% of audit reports regardless of framework. Organizations that proactively address access control, logging, patching, and encryption before an audit begins will eliminate the majority of potential findings. The remaining findings tend to be documentation gaps -- policies that do not exist, are outdated, or do not match operational reality.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- CONTINUOUS COMPLIANCE ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 14</div>
+        <div class="slide-title"><span class="accent">Continuous</span> Compliance</div>
+        <div class="slide-subtitle">Point-in-time audits are snapshots. Continuous compliance means controls are monitored, tested, and validated in real time -- not just during audit season.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 540 240" width="520" role="img" aria-label="GRC dashboard mockup showing four quadrants: Control Status with a compliance percentage gauge, Risk Heat Map with colored cells, Finding Tracker showing open items by severity, and Automation Coverage showing percent of controls automatically tested.">
+                <!-- Dashboard frame -->
+                <rect x="20" y="10" width="500" height="220" rx="8" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+                <text x="270" y="30" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700">GRC DASHBOARD -- REAL-TIME COMPLIANCE</text>
+                <!-- Q1: Control Status -->
+                <rect x="32" y="42" width="230" height="85" rx="6" fill="rgba(255,0,255,0.06)" stroke="rgba(255,0,255,0.2)" stroke-width="1"/>
+                <text x="147" y="58" text-anchor="middle" fill="#ff00ff" font-size="8" font-weight="700">CONTROL STATUS</text>
+                <!-- Gauge arc -->
+                <path d="M100,110 A40,40 0 1,1 194,110" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="6"/>
+                <path d="M100,110 A40,40 0 1,1 186,82" fill="none" stroke="#22c55e" stroke-width="6"/>
+                <text x="147" y="108" text-anchor="middle" fill="#22c55e" font-size="16" font-weight="800">94%</text>
+                <text x="147" y="120" text-anchor="middle" fill="#9a82a0" font-size="7">Controls Passing</text>
+                <!-- Q2: Risk Heat Map -->
+                <rect x="278" y="42" width="230" height="85" rx="6" fill="rgba(0,255,255,0.06)" stroke="rgba(0,255,255,0.2)" stroke-width="1"/>
+                <text x="393" y="58" text-anchor="middle" fill="#00ffff" font-size="8" font-weight="700">RISK HEAT MAP</text>
+                <!-- Heat map grid -->
+                <rect x="310" y="66" width="24" height="18" rx="2" fill="rgba(34,197,94,0.3)"/>
+                <rect x="338" y="66" width="24" height="18" rx="2" fill="rgba(34,197,94,0.3)"/>
+                <rect x="366" y="66" width="24" height="18" rx="2" fill="rgba(234,179,8,0.3)"/>
+                <rect x="394" y="66" width="24" height="18" rx="2" fill="rgba(234,179,8,0.5)"/>
+                <rect x="422" y="66" width="24" height="18" rx="2" fill="rgba(239,68,68,0.3)"/>
+                <rect x="450" y="66" width="24" height="18" rx="2" fill="rgba(239,68,68,0.5)"/>
+                <rect x="310" y="88" width="24" height="18" rx="2" fill="rgba(34,197,94,0.2)"/>
+                <rect x="338" y="88" width="24" height="18" rx="2" fill="rgba(234,179,8,0.3)"/>
+                <rect x="366" y="88" width="24" height="18" rx="2" fill="rgba(234,179,8,0.4)"/>
+                <rect x="394" y="88" width="24" height="18" rx="2" fill="rgba(239,68,68,0.3)"/>
+                <rect x="422" y="88" width="24" height="18" rx="2" fill="rgba(239,68,68,0.5)"/>
+                <rect x="450" y="88" width="24" height="18" rx="2" fill="rgba(239,68,68,0.7)"/>
+                <text x="300" y="78" text-anchor="end" fill="#9a82a0" font-size="6">Low</text>
+                <text x="300" y="100" text-anchor="end" fill="#9a82a0" font-size="6">High</text>
+                <text x="322" y="114" text-anchor="middle" fill="#9a82a0" font-size="5.5">Low</text>
+                <text x="462" y="114" text-anchor="middle" fill="#9a82a0" font-size="5.5">High</text>
+                <text x="393" y="122" text-anchor="middle" fill="#5a4460" font-size="6">LIKELIHOOD</text>
+                <!-- Q3: Finding Tracker -->
+                <rect x="32" y="137" width="230" height="85" rx="6" fill="rgba(234,179,8,0.06)" stroke="rgba(234,179,8,0.2)" stroke-width="1"/>
+                <text x="147" y="153" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">OPEN FINDINGS</text>
+                <rect x="48" y="162" width="60" height="10" rx="2" fill="rgba(239,68,68,0.5)"/>
+                <text x="118" y="171" fill="#ef4444" font-size="7" font-weight="600">3 Critical</text>
+                <rect x="48" y="178" width="100" height="10" rx="2" fill="rgba(234,179,8,0.5)"/>
+                <text x="158" y="187" fill="#eab308" font-size="7" font-weight="600">7 High</text>
+                <rect x="48" y="194" width="150" height="10" rx="2" fill="rgba(0,255,255,0.3)"/>
+                <text x="208" y="203" fill="#00ffff" font-size="7" font-weight="600">12 Medium</text>
+                <!-- Q4: Automation Coverage -->
+                <rect x="278" y="137" width="230" height="85" rx="6" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.2)" stroke-width="1"/>
+                <text x="393" y="153" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">AUTOMATION COVERAGE</text>
+                <text x="393" y="186" text-anchor="middle" fill="#22c55e" font-size="22" font-weight="800">72%</text>
+                <text x="393" y="202" text-anchor="middle" fill="#9a82a0" font-size="7">Controls Auto-Tested</text>
+                <text x="393" y="214" text-anchor="middle" fill="#5a4460" font-size="6.5">Target: 85% by Q4</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">GRC Platforms</div>
+                <div class="card-desc">Governance, Risk, and Compliance (GRC) tools like ServiceNow GRC, Archer, Drata, Vanta, and Anecdotes centralize control management, evidence collection, and risk tracking. They map controls to multiple frameworks simultaneously, eliminating redundant work. Modern GRC platforms integrate with cloud APIs to pull evidence automatically.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Automated Control Testing</div>
+                <div class="card-desc">Instead of manually screenshotting configurations during audit season, automated tools continuously verify controls: Is MFA enabled? Are logs flowing to SIEM? Are patches applied within SLA? Are access reviews completed? Automation transforms compliance from a periodic fire drill into a continuous state visible on a dashboard.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Real-Time Dashboards</div>
+                <div class="card-desc">Executive-facing dashboards show compliance posture at any moment: percent of controls passing, open findings by severity, risk heat maps, and framework-specific readiness scores. When a control drifts out of compliance, the dashboard turns red immediately -- not 6 months later during the next audit. This visibility drives accountability.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- COST OF NON-COMPLIANCE ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 14</div>
+        <div class="slide-title">The Cost of <span class="accent">Non-Compliance</span></div>
+        <div class="slide-subtitle">Non-compliance is not free. The financial, operational, and reputational consequences compound rapidly.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 520 220" width="500" role="img" aria-label="Balance scale diagram showing the cost of compliance on the left (investment) versus the cost of non-compliance on the right (consequences), with the non-compliance side heavily outweighing the compliance side.">
+                <!-- Fulcrum -->
+                <polygon points="260,190 245,210 275,210" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+                <!-- Balance beam (tilted - right side heavier) -->
+                <line x1="60" y1="115" x2="460" y2="165" stroke="rgba(255,255,255,0.2)" stroke-width="2"/>
+                <!-- Left pan: Compliance cost (lighter = higher) -->
+                <rect x="30" y="70" width="160" height="44" rx="6" fill="rgba(34,197,94,0.1)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="110" y="88" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="700">COST OF COMPLIANCE</text>
+                <text x="110" y="102" text-anchor="middle" fill="#9a82a0" font-size="7.5">Predictable investment</text>
+                <line x1="110" y1="114" x2="110" y2="70" stroke="#22c55e" stroke-width="1" stroke-dasharray="3 3"/>
+                <!-- Right pan: Non-compliance cost (heavier = lower) -->
+                <rect x="330" y="120" width="160" height="44" rx="6" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="410" y="138" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">COST OF NON-COMPLIANCE</text>
+                <text x="410" y="152" text-anchor="middle" fill="#9a82a0" font-size="7.5">Unpredictable catastrophe</text>
+                <line x1="410" y1="164" x2="410" y2="120" stroke="#ef4444" stroke-width="1" stroke-dasharray="3 3"/>
+                <!-- Cost comparison labels -->
+                <text x="110" y="42" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">$100K -- $3M/year</text>
+                <text x="110" y="54" text-anchor="middle" fill="#5a4460" font-size="7">Audits, tools, staff</text>
+                <text x="410" y="178" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="600">$4.88M avg breach</text>
+                <text x="410" y="190" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="600">+ $10M -- $1B in fines</text>
+                <text x="410" y="204" text-anchor="middle" fill="#5a4460" font-size="7">+ lost customers + lawsuits</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Regulatory Fines</div>
+                <div class="card-desc">
+                    <strong style="color:#fee2e2;">GDPR:</strong> Up to 4% of global annual revenue or 20M EUR. <strong style="color:#fee2e2;">HIPAA:</strong> $100 -- $50,000 per violation, up to $1.5M per year per category. <strong style="color:#fee2e2;">PCI DSS:</strong> $5,000 -- $100,000 per month of non-compliance from card brands. <strong style="color:#fee2e2;">SOX:</strong> $5M fine and up to 20 years imprisonment for officers who certify false financial statements. These are not theoretical -- Meta paid $1.3B (GDPR), Equifax paid $575M (multiple), Anthem paid $16M (HIPAA).
+                </div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Business Impact</div>
+                <div class="card-desc">
+                    <strong style="color:#fef9c3;">Lost contracts:</strong> Enterprise customers require compliance certifications before signing. No SOC 2 = no deal. <strong style="color:#fef9c3;">Insurance:</strong> Cyber insurance premiums increase 200-300% after a breach; some carriers deny coverage entirely for non-compliant organizations. <strong style="color:#fef9c3;">Market value:</strong> Stock prices drop an average of 7.5% after a disclosed breach, with sustained depression for 2+ years.
+                </div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Reputational Damage</div>
+                <div class="card-desc">Customer trust erodes with each breach headline. 65% of consumers lose trust in a company after a data breach (IBM). Brand recovery takes 3-5 years on average. Some brands never recover -- TalkTalk lost 100,000 customers immediately after their 2015 breach and was eventually acquired at a fraction of its pre-breach valuation.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Legal Exposure</div>
+                <div class="card-desc">Class-action lawsuits follow every major breach. T-Mobile paid $350M to settle (2021 breach). Capital One paid $190M. Legal costs extend for years beyond the breach itself. Directors and officers face personal liability if they failed to exercise due care -- compliance frameworks provide a due diligence defense.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Operational Disruption</div>
+                <div class="card-desc">Post-breach incident response diverts the entire security team for months. Forensic investigations cost $100-$800 per hour. Mandatory breach notification requires notifying every affected individual. Regulatory investigations consume executive time. Some organizations face operational shutdown orders until compliance is demonstrated.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- AUDIT-READY CULTURE ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 14</div>
+        <div class="slide-title">Building an <span class="accent">Audit-Ready</span> Culture</div>
+        <div class="slide-subtitle">Audit readiness is not a project with an end date. It is an organizational discipline embedded in how work gets done every day.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Documentation Discipline</div>
+                <div class="card-desc">Every policy must be written, approved, versioned, and reviewed annually. Every procedure must be documented with enough detail that someone unfamiliar could follow it. Document retention policies define how long each evidence type is kept. If it is not documented, it did not happen -- this is the auditor's default assumption.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Change Management</div>
+                <div class="card-desc">All changes to production systems must go through a formal change management process: request, approval, testing, implementation, verification. Emergency changes get retroactive documentation within 24-48 hours. Change advisory boards (CABs) review significant changes. The change log becomes audit evidence that controls were followed.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Evidence Retention</div>
+                <div class="card-desc">Audit evidence must be systematically collected and retained before the auditor asks for it. Automate evidence collection where possible: scheduled configuration exports, automated access review workflows, ticket system retention policies. A centralized evidence repository (GRC tool or organized file structure) eliminates the frantic scramble during audit season.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Executive Sponsorship</div>
+                <div class="card-desc">Compliance programs that report to the CISO or CTO alone will fail. Effective programs have board-level visibility, dedicated budget, and executive champions who model compliance behavior. When the CEO skips security training, the message to every employee is that compliance is optional. Tone at the top determines culture at the bottom.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Continuous Improvement</div>
+                <div class="card-desc">After each audit cycle, conduct a retrospective: What findings were unexpected? What evidence took too long to produce? Which processes need automation? Track finding trends across audit cycles -- repeat findings indicate a systemic problem, not an isolated gap. Mature organizations close findings faster each cycle and reduce total findings year over year.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">The Cultural Shift</div>
+            Organizations that treat compliance as a separate activity from daily operations will always struggle with audits. The goal is to make compliance invisible -- baked into change management tickets, embedded in deployment pipelines, automated in configuration management. When compliance is how you work (not extra work), audits become a formality rather than a crisis.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- KEY TAKEAWAYS ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 14</div>
+        <div class="slide-title">Key <span class="accent">Takeaways</span></div>
+        <div class="slide-subtitle">Compliance and Audit -- the essential concepts from this presentation.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">01</span>
+                <span class="fact-text"><strong style="color:#ff00ff;">Compliance is the floor, not the ceiling.</strong> Frameworks provide a baseline of controls. Real security requires going beyond the minimum. Compliant organizations get breached regularly.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">02</span>
+                <span class="fact-text"><strong style="color:#00ffff;">PCI DSS 4.0</strong> governs payment card security with 12 requirements across 4 merchant levels. Level 1 requires a QSA-led ROC; smaller merchants self-assess via SAQ. Version 4.0 shifts toward outcome-based security.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">03</span>
+                <span class="fact-text"><strong style="color:#ff44ff;">SOC 2</strong> evaluates service organizations against 5 Trust Service Criteria. Security is mandatory. Type II (operating effectiveness over time) is the market standard for SaaS vendor assurance.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">04</span>
+                <span class="fact-text"><strong style="color:#eab308;">FedRAMP</strong> is required for cloud services used by federal agencies. Three impact levels (Low/Moderate/High). Authorization costs $1M-$3M and takes 12-18 months. Continuous monitoring is mandatory post-authorization.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">05</span>
+                <span class="fact-text"><strong style="color:#22c55e;">HITRUST CSF</strong> unifies 50+ frameworks into one certifiable assessment. Dominant in healthcare. The r2 assessment is the gold standard. "Assess once, report many" reduces audit fatigue.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">06</span>
+                <span class="fact-text"><strong style="color:#3b82f6;">Audits follow a lifecycle:</strong> Planning, Fieldwork, Reporting, Remediation, Follow-Up. Evidence comes in five forms: policies, configurations, logs, interviews, and observation.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">07</span>
+                <span class="fact-text"><strong style="color:#ef4444;">The top four findings</strong> across all audits: access control gaps, logging failures, patch management deficiencies, and encryption weaknesses. Fixing these proactively eliminates 70%+ of audit findings.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">08</span>
+                <span class="fact-text"><strong style="color:#ff00ff;">Continuous compliance</strong> through GRC platforms, automated control testing, and real-time dashboards transforms compliance from a periodic fire drill into a sustained organizational state.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">09</span>
+                <span class="fact-text"><strong style="color:#00ffff;">Non-compliance costs dwarf compliance costs.</strong> Regulatory fines, breach costs, lost business, legal exposure, and reputational damage make the ROI of compliance programs overwhelming.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">10</span>
+                <span class="fact-text"><strong style="color:#ff44ff;">Audit-ready culture</strong> requires documentation discipline, formal change management, evidence retention, executive sponsorship, and continuous improvement. Compliance must be how you work, not extra work.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- MARK COMPLETE ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 14 &nbsp;|&nbsp; CSP-W3-01 &nbsp;|&nbsp; Week 3</div>
+        <div class="title-hero">
+            <div class="big-title">
+                <span class="accent">Compliance</span> and<br>
+                <span class="cyan">Audit</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Compliance and Audit -- 14 slides
+            </div>
+        </div>
+
+        <div class="scenario-strip" style="text-align:center; font-style:normal;">
+            PCI DSS 4.0 &nbsp;&bull;&nbsp; SOC 2 &nbsp;&bull;&nbsp; FedRAMP &nbsp;&bull;&nbsp; HITRUST CSF &nbsp;&bull;&nbsp; Audit Lifecycle &nbsp;&bull;&nbsp; Evidence Types &nbsp;&bull;&nbsp; Common Findings &nbsp;&bull;&nbsp; Continuous Compliance &nbsp;&bull;&nbsp; Cost of Non-Compliance &nbsp;&bull;&nbsp; Audit-Ready Culture
+        </div>
+
+        <div style="text-align:center; margin-top:10px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+
+        <div class="title-meta-row" style="margin-top:8px;">
+            <span>CIS2208</span>
+            <span>Cybersecurity Policy</span>
+            <span>Week 3</span>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Cybersecurity Policy</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 14</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 14;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        var completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('divergent', 'csp-w3-compliance-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

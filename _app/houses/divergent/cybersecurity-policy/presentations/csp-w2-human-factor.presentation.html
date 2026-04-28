@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Human Factor | Cybersecurity Policy</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d0810 0%, #0a060d 50%, #100812 100%);
+            color: #ede0f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow-y: auto;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: linear-gradient(90deg, #ff00ff, #00ffff);
+            transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(13, 8, 16, 0.95);
+            border-top: 1px solid rgba(255, 0, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #9a82a0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(255, 0, 255, 0.12); color: #ff00ff; border-color: #ff00ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #5a4460; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: linear-gradient(135deg, #ff00ff, #ff44ff);
+            color: #0d0810; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: linear-gradient(135deg, #ff44ff, #ff88ff); transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #ff00ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #ede0f0; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ff00ff; }
+        .slide-title .cyan { color: #00ffff; }
+        .slide-subtitle { font-size: 0.95rem; color: #9a82a0; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(255, 0, 255, 0.06); border-left: 3px solid #ff00ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #f5b8f5; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-magenta { background: rgba(255, 0, 255, 0.08); border: 1px solid rgba(255, 0, 255, 0.3); color: #f5b8f5; }
+        .box-cyan    { background: rgba(0, 255, 255, 0.08); border: 1px solid rgba(0, 255, 255, 0.3); color: #b8f5f5; }
+        .box-red     { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold    { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-green   { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-label   { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #ede0f0; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ff00ff; }
+        .title-hero .big-title .cyan { color: #00ffff; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #5a4460;
+        }
+        .title-meta-row span { border-left: 2px solid rgba(255, 0, 255, 0.2); padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #ff00ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #ede0f0; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #9a82a0; line-height: 1.4; }
+        .card.c-magenta { border-left-color: #ff00ff; }
+        .card.c-cyan    { border-left-color: #00ffff; }
+        .card.c-red     { border-left-color: #ef4444; }
+        .card.c-gold    { border-left-color: #eab308; }
+        .card.c-green   { border-left-color: #22c55e; }
+        .card.c-purple  { border-left-color: #ff44ff; }
+        .card.c-blue    { border-left-color: #3b82f6; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #5a4460; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #ff00ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #ede0f0; }
+
+        /* SVG diagram containers */
+        .svg-container {
+            display: flex; justify-content: center; align-items: center;
+            margin: 10px 0; padding: 10px;
+        }
+        .svg-container svg { max-width: 100%; height: auto; }
+
+        /* Kill chain steps */
+        .kill-chain { display: flex; gap: 2px; margin: 10px 0; }
+        .kc-step {
+            flex: 1; padding: 10px 6px; text-align: center;
+            background: rgba(255, 0, 255, 0.06); border: 1px solid rgba(255, 0, 255, 0.15);
+            border-radius: 4px; transition: background 0.2s;
+        }
+        .kc-step:hover { background: rgba(255, 0, 255, 0.14); }
+        .kc-num { font-size: 0.68rem; font-weight: 700; color: #00ffff; letter-spacing: 0.08em; margin-bottom: 3px; }
+        .kc-name { font-size: 0.78rem; font-weight: 700; color: #ede0f0; margin-bottom: 3px; }
+        .kc-desc { font-size: 0.7rem; color: #9a82a0; line-height: 1.3; }
+
+        /* Glossary table */
+        .glossary-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+        .glossary-table th {
+            text-align: left; padding: 6px 10px; font-size: 0.72rem;
+            text-transform: uppercase; letter-spacing: 0.08em;
+            color: #ff00ff; border-bottom: 1px solid rgba(255, 0, 255, 0.3);
+        }
+        .glossary-table td {
+            padding: 6px 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            vertical-align: top;
+        }
+        .glossary-table td:first-child { color: #00ffff; font-weight: 600; white-space: nowrap; }
+        .glossary-table td:last-child { color: #9a82a0; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid, .card-grid-4 { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .kill-chain { flex-wrap: wrap; } .kc-step { min-width: 45%; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">The Human Factor | Cybersecurity Policy</h1>
+
+<div id="progress-bar" style="width:7.69%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 13 &nbsp;|&nbsp; CSP-W2-01 &nbsp;|&nbsp; Week 2</div>
+        <div class="title-hero">
+            <div class="big-title">
+                The <span class="accent">Human</span><br>
+                <span class="cyan">Factor</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Social Engineering &nbsp;&bull;&nbsp; Insider Threats &nbsp;&bull;&nbsp; Psychological Manipulation &nbsp;&bull;&nbsp; Security Awareness
+            </div>
+        </div>
+        <div class="scenario-strip">
+            You can deploy the most advanced firewalls, encrypt every packet, and patch every CVE within hours -- and still get breached because someone clicked a link or held a door open. The 2024 Verizon DBIR reports that 74% of breaches involve a human element. This deck examines why people are the persistent vulnerability, how adversaries exploit them, and what policy can do about it.
+        </div>
+        <div class="title-meta-row">
+            <span>13 Slides</span>
+            <span>CSP-W2-01</span>
+            <span>Week 2</span>
+            <span>CIS2208 -- Cybersecurity Policy</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- WEAKEST LINK ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 13</div>
+        <div class="slide-title">Why Humans Are the <span class="accent">Weakest Link</span></div>
+        <div class="slide-subtitle">Technology is deterministic. People are not. Attackers exploit the gap between policy and behavior.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 520 240" width="500" role="img" aria-label="Attack chain through human vector: attacker sends social engineering attack to human target, who provides access to organizational systems, leading to data breach. Each stage is shown as a connected node.">
+                <!-- Attacker -->
+                <circle cx="60" cy="120" r="36" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="2"/>
+                <text x="60" y="112" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="700">THREAT</text>
+                <text x="60" y="126" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="700">ACTOR</text>
+                <!-- Arrow 1 -->
+                <line x1="98" y1="120" x2="140" y2="120" stroke="#ff00ff" stroke-width="1.5" marker-end="url(#aHF1)"/>
+                <text x="119" y="108" text-anchor="middle" fill="#5a4460" font-size="8">Social Eng.</text>
+                <!-- Human -->
+                <circle cx="180" cy="120" r="36" fill="rgba(255,0,255,0.12)" stroke="#ff00ff" stroke-width="2"/>
+                <text x="180" y="112" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700">HUMAN</text>
+                <text x="180" y="126" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700">TARGET</text>
+                <!-- Arrow 2 -->
+                <line x1="218" y1="120" x2="260" y2="120" stroke="#ff44ff" stroke-width="1.5" marker-end="url(#aHF2)"/>
+                <text x="239" y="108" text-anchor="middle" fill="#5a4460" font-size="8">Credentials</text>
+                <!-- Systems -->
+                <rect x="264" y="84" width="72" height="72" rx="10" fill="rgba(0,255,255,0.1)" stroke="#00ffff" stroke-width="2"/>
+                <text x="300" y="116" text-anchor="middle" fill="#00ffff" font-size="10" font-weight="700">SYSTEMS</text>
+                <text x="300" y="130" text-anchor="middle" fill="#9a82a0" font-size="8">Access granted</text>
+                <!-- Arrow 3 -->
+                <line x1="338" y1="120" x2="380" y2="120" stroke="#00ffff" stroke-width="1.5" marker-end="url(#aHF3)"/>
+                <text x="359" y="108" text-anchor="middle" fill="#5a4460" font-size="8">Exfiltration</text>
+                <!-- Breach -->
+                <rect x="384" y="84" width="72" height="72" rx="10" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="2"/>
+                <text x="420" y="112" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="700">DATA</text>
+                <text x="420" y="126" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="700">BREACH</text>
+                <!-- Stat banner -->
+                <rect x="100" y="190" width="320" height="34" rx="6" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="260" y="212" text-anchor="middle" fill="#ff00ff" font-size="12" font-weight="700">74% of breaches involve a human element</text>
+                <text x="260" y="186" text-anchor="middle" fill="#5a4460" font-size="8">SOURCE: VERIZON 2024 DBIR</text>
+                <defs>
+                    <marker id="aHF1" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#ff00ff"/></marker>
+                    <marker id="aHF2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#ff44ff"/></marker>
+                    <marker id="aHF3" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#00ffff"/></marker>
+                </defs>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">The Statistics</div>
+                <div class="card-desc">Verizon DBIR 2024: 74% of breaches involve a human element -- phishing, stolen credentials, misuse, or error. IBM Cost of a Data Breach 2024: average breach cost $4.88M, with social engineering and compromised credentials as the top two initial attack vectors. These are not edge cases -- they are the dominant attack surface.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Why Technology Alone Fails</div>
+                <div class="card-desc">Humans are susceptible to emotional manipulation, cognitive biases, fatigue, and time pressure -- none of which firewalls can filter. An employee who trusts a phone call from "IT support" will hand over credentials that bypass every technical control. The attack surface is the human mind, and it has no patch Tuesday.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">The Core Problem</div>
+            Security policies are written for rational actors who follow procedures. Attackers exploit the fact that humans under stress, distraction, or authority pressure deviate from procedures predictably. The gap between "what policy says" and "what people do" is the attack surface that social engineers exploit.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- SOCIAL ENGINEERING FUNDAMENTALS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 13</div>
+        <div class="slide-title"><span class="accent">Social Engineering</span> Fundamentals</div>
+        <div class="slide-subtitle">The art of manipulating people into performing actions or divulging confidential information. Every technique exploits trust.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 520 280" width="500" role="img" aria-label="Social engineering attack types diagram showing four attack categories radiating from a central human target: pretexting, baiting, quid pro quo, and tailgating, each with a brief description.">
+                <!-- Center human target -->
+                <circle cx="260" cy="140" r="42" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="2"/>
+                <text x="260" y="134" text-anchor="middle" fill="#ff00ff" font-size="11" font-weight="700">HUMAN</text>
+                <text x="260" y="150" text-anchor="middle" fill="#ff00ff" font-size="11" font-weight="700">TARGET</text>
+                <!-- Pretexting - top left -->
+                <rect x="20" y="10" width="150" height="64" rx="8" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="95" y="32" text-anchor="middle" fill="#00ffff" font-size="11" font-weight="700">PRETEXTING</text>
+                <text x="95" y="48" text-anchor="middle" fill="#9a82a0" font-size="8">Fabricated scenario</text>
+                <text x="95" y="60" text-anchor="middle" fill="#9a82a0" font-size="8">to extract information</text>
+                <line x1="172" y1="55" x2="224" y2="108" stroke="#00ffff" stroke-width="1" stroke-dasharray="4 3"/>
+                <!-- Baiting - top right -->
+                <rect x="350" y="10" width="150" height="64" rx="8" fill="rgba(255,68,255,0.08)" stroke="#ff44ff" stroke-width="1.5"/>
+                <text x="425" y="32" text-anchor="middle" fill="#ff44ff" font-size="11" font-weight="700">BAITING</text>
+                <text x="425" y="48" text-anchor="middle" fill="#9a82a0" font-size="8">Lure with something</text>
+                <text x="425" y="60" text-anchor="middle" fill="#9a82a0" font-size="8">enticing (USB, download)</text>
+                <line x1="348" y1="55" x2="296" y2="108" stroke="#ff44ff" stroke-width="1" stroke-dasharray="4 3"/>
+                <!-- Quid Pro Quo - bottom left -->
+                <rect x="20" y="206" width="150" height="64" rx="8" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="95" y="228" text-anchor="middle" fill="#eab308" font-size="11" font-weight="700">QUID PRO QUO</text>
+                <text x="95" y="244" text-anchor="middle" fill="#9a82a0" font-size="8">Service in exchange</text>
+                <text x="95" y="256" text-anchor="middle" fill="#9a82a0" font-size="8">for information</text>
+                <line x1="172" y1="225" x2="224" y2="172" stroke="#eab308" stroke-width="1" stroke-dasharray="4 3"/>
+                <!-- Tailgating - bottom right -->
+                <rect x="350" y="206" width="150" height="64" rx="8" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="425" y="228" text-anchor="middle" fill="#22c55e" font-size="11" font-weight="700">TAILGATING</text>
+                <text x="425" y="244" text-anchor="middle" fill="#9a82a0" font-size="8">Following authorized</text>
+                <text x="425" y="256" text-anchor="middle" fill="#9a82a0" font-size="8">person through door</text>
+                <line x1="348" y1="225" x2="296" y2="172" stroke="#22c55e" stroke-width="1" stroke-dasharray="4 3"/>
+            </svg>
+        </div>
+
+        <div class="card-grid-4">
+            <div class="card c-cyan">
+                <div class="card-label">Pretexting</div>
+                <div class="card-desc">Attacker invents a fabricated scenario (pretext) to engage the target. "I am from IT and need your password to fix a critical issue." The pretext establishes trust and urgency. Effective because it exploits the target's desire to be helpful and compliant with authority.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Baiting</div>
+                <div class="card-desc">Entices the victim with something appealing -- a USB drive labeled "Salary Data Q4" left in a parking lot, a free download laced with malware. Exploits curiosity and greed. In controlled tests, 45-98% of dropped USB drives are plugged in by finders.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Quid Pro Quo</div>
+                <div class="card-desc">Attacker offers something (tech support, a service) in exchange for information. "I can speed up your computer if you give me remote access." Similar to baiting but involves an exchange rather than a lure. Exploits reciprocity -- the human instinct to return favors.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Tailgating</div>
+                <div class="card-desc">Physical social engineering. The attacker follows an authorized person through a secured door, often carrying boxes or wearing a uniform. Exploits politeness -- most people will hold the door. Also called "piggybacking." Defeats badge-access controls entirely.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">Policy Takeaway</div>
+            Social engineering works because it bypasses technical controls by targeting human behavior. Policies must address procedures for identity verification, challenge protocols for unknown visitors, and clear escalation paths when something feels wrong. You cannot firewall politeness.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- PHISHING DEEP DIVE ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 13</div>
+        <div class="slide-title"><span class="accent">Phishing</span> Deep Dive</div>
+        <div class="slide-subtitle">The most common social engineering vector. Phishing accounts for 36% of all breaches (Verizon DBIR 2024).</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 540 260" width="520" role="img" aria-label="Phishing email anatomy diagram showing a deconstructed phishing email with labeled components: spoofed sender, urgency subject line, generic greeting, threatening body text, malicious link, and spoofed signature.">
+                <!-- Email frame -->
+                <rect x="120" y="8" width="300" height="244" rx="8" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+                <!-- Header bar -->
+                <rect x="120" y="8" width="300" height="28" rx="8" fill="rgba(255,0,255,0.08)"/>
+                <rect x="120" y="28" width="300" height="8" fill="rgba(255,0,255,0.08)"/>
+                <text x="270" y="26" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">PHISHING EMAIL ANATOMY</text>
+                <!-- From line -->
+                <text x="132" y="52" fill="#ef4444" font-size="8" font-weight="600">From: security@bank-0f-america.com</text>
+                <!-- Subject line -->
+                <text x="132" y="68" fill="#eab308" font-size="8" font-weight="600">Subject: URGENT: Account Suspended - Verify Now</text>
+                <line x1="120" y1="76" x2="420" y2="76" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+                <!-- Body -->
+                <text x="132" y="92" fill="#9a82a0" font-size="7.5">Dear Valued Customer,</text>
+                <text x="132" y="108" fill="#9a82a0" font-size="7.5">We have detected unusual activity on your account.</text>
+                <text x="132" y="120" fill="#9a82a0" font-size="7.5">Your account will be permanently closed within 24</text>
+                <text x="132" y="132" fill="#9a82a0" font-size="7.5">hours unless you verify your identity immediately.</text>
+                <!-- Malicious link -->
+                <rect x="148" y="144" width="244" height="24" rx="4" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="1"/>
+                <text x="270" y="160" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="600">https://bank0famerica-secure-login.evil.com/verify</text>
+                <!-- Signature -->
+                <text x="132" y="188" fill="#9a82a0" font-size="7.5">Bank of America Security Team</text>
+                <text x="132" y="200" fill="#5a4460" font-size="7">This is an automated message. Do not reply.</text>
+                <!-- Labels pointing to elements -->
+                <line x1="118" y1="48" x2="60" y2="48" stroke="#ef4444" stroke-width="1"/>
+                <text x="56" y="44" text-anchor="end" fill="#ef4444" font-size="7.5" font-weight="600">SPOOFED</text>
+                <text x="56" y="54" text-anchor="end" fill="#ef4444" font-size="7.5" font-weight="600">SENDER</text>
+                <line x1="118" y1="64" x2="60" y2="74" stroke="#eab308" stroke-width="1"/>
+                <text x="56" y="74" text-anchor="end" fill="#eab308" font-size="7.5" font-weight="600">URGENCY</text>
+                <line x1="422" y1="92" x2="470" y2="84" stroke="#ff44ff" stroke-width="1"/>
+                <text x="474" y="80" fill="#ff44ff" font-size="7.5" font-weight="600">GENERIC</text>
+                <text x="474" y="90" fill="#ff44ff" font-size="7.5" font-weight="600">GREETING</text>
+                <line x1="422" y1="128" x2="470" y2="120" stroke="#ff00ff" stroke-width="1"/>
+                <text x="474" y="116" fill="#ff00ff" font-size="7.5" font-weight="600">THREAT /</text>
+                <text x="474" y="126" fill="#ff00ff" font-size="7.5" font-weight="600">DEADLINE</text>
+                <line x1="422" y1="156" x2="470" y2="152" stroke="#ef4444" stroke-width="1"/>
+                <text x="474" y="148" fill="#ef4444" font-size="7.5" font-weight="600">MALICIOUS</text>
+                <text x="474" y="158" fill="#ef4444" font-size="7.5" font-weight="600">LINK</text>
+                <line x1="422" y1="192" x2="470" y2="188" stroke="#00ffff" stroke-width="1"/>
+                <text x="474" y="184" fill="#00ffff" font-size="7.5" font-weight="600">SPOOFED</text>
+                <text x="474" y="194" fill="#00ffff" font-size="7.5" font-weight="600">SIGNATURE</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Spear Phishing</div>
+                <div class="card-desc">Targeted phishing aimed at a specific individual using personal information (job title, colleagues, recent activities). Far more effective than bulk phishing because the pretext is tailored. Often the initial vector in APT campaigns.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Whaling</div>
+                <div class="card-desc">Spear phishing targeting C-suite executives, board members, or other high-value individuals. Whaling emails mimic legal subpoenas, board communications, or vendor contracts. A single successful whale can authorize wire transfers worth millions.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">BEC (Business Email Compromise)</div>
+                <div class="card-desc">Attacker compromises or impersonates a business email account to authorize fraudulent transactions. FBI IC3 reports $2.9B in BEC losses in 2023. Often involves no malware at all -- just a convincing email from a "trusted" sender requesting a wire transfer.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Vishing (Voice Phishing)</div>
+                <div class="card-desc">Phishing via phone calls. Attacker impersonates IT support, a bank, or law enforcement. Caller ID spoofing makes verification difficult. Particularly effective against non-technical employees. AI-generated voice cloning is making vishing dramatically more convincing.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Smishing (SMS Phishing)</div>
+                <div class="card-desc">Phishing via text messages. "Your package delivery failed -- click to reschedule." Exploits the trust people place in SMS compared to email. Mobile screens hide full URLs, making malicious links harder to spot. Rapidly growing vector since 2020.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- INSIDER THREATS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 13</div>
+        <div class="slide-title"><span class="accent">Insider Threats</span>: The Enemy Within</div>
+        <div class="slide-subtitle">Not all threats come from outside. Insiders have legitimate access, making detection fundamentally harder.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 520 200" width="500" role="img" aria-label="Insider threat spectrum showing three categories from left to right: malicious insiders (deliberate harm), negligent insiders (careless mistakes), and compromised insiders (external control), arranged on a gradient from intentional to unintentional.">
+                <!-- Spectrum bar -->
+                <rect x="30" y="85" width="460" height="30" rx="4" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+                <rect x="30" y="85" width="153" height="30" rx="4" fill="rgba(239,68,68,0.15)"/>
+                <rect x="183" y="85" width="154" height="30" fill="rgba(234,179,8,0.15)"/>
+                <rect x="337" y="85" width="153" height="30" rx="4" fill="rgba(255,0,255,0.15)"/>
+                <!-- Spectrum labels -->
+                <text x="30" y="78" fill="#5a4460" font-size="8" letter-spacing="0.08em">INTENTIONAL</text>
+                <text x="490" y="78" text-anchor="end" fill="#5a4460" font-size="8" letter-spacing="0.08em">UNINTENTIONAL</text>
+                <line x1="30" y1="82" x2="490" y2="82" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+                <!-- Malicious -->
+                <circle cx="106" cy="44" r="24" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="106" y="48" text-anchor="middle" fill="#ef4444" font-size="18" font-weight="700">M</text>
+                <text x="106" y="100" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="700">MALICIOUS</text>
+                <text x="106" y="134" text-anchor="middle" fill="#9a82a0" font-size="8">Deliberate theft,</text>
+                <text x="106" y="146" text-anchor="middle" fill="#9a82a0" font-size="8">sabotage, espionage</text>
+                <text x="106" y="166" text-anchor="middle" fill="#5a4460" font-size="7.5">~25% of incidents</text>
+                <!-- Negligent -->
+                <circle cx="260" cy="44" r="24" fill="rgba(234,179,8,0.1)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="260" y="48" text-anchor="middle" fill="#eab308" font-size="18" font-weight="700">N</text>
+                <text x="260" y="100" text-anchor="middle" fill="#eab308" font-size="10" font-weight="700">NEGLIGENT</text>
+                <text x="260" y="134" text-anchor="middle" fill="#9a82a0" font-size="8">Careless mistakes,</text>
+                <text x="260" y="146" text-anchor="middle" fill="#9a82a0" font-size="8">policy violations</text>
+                <text x="260" y="166" text-anchor="middle" fill="#5a4460" font-size="7.5">~56% of incidents</text>
+                <!-- Compromised -->
+                <circle cx="414" cy="44" r="24" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="414" y="48" text-anchor="middle" fill="#ff00ff" font-size="18" font-weight="700">C</text>
+                <text x="414" y="100" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700">COMPROMISED</text>
+                <text x="414" y="134" text-anchor="middle" fill="#9a82a0" font-size="8">Credentials stolen,</text>
+                <text x="414" y="146" text-anchor="middle" fill="#9a82a0" font-size="8">device hijacked</text>
+                <text x="414" y="166" text-anchor="middle" fill="#5a4460" font-size="7.5">~19% of incidents</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Malicious Insider</div>
+                <div class="card-desc">Deliberately exploits authorized access for personal gain, revenge, or ideology. Includes data theft, intellectual property exfiltration, sabotage, and espionage. Hardest to prevent because they already have legitimate access and knowledge of security controls.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Negligent Insider</div>
+                <div class="card-desc">No malicious intent but causes harm through carelessness, ignorance, or fatigue. Sending sensitive data to the wrong recipient, clicking phishing links, using weak passwords, leaving devices unlocked. Responsible for the majority of insider incidents. Training is the primary countermeasure.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Compromised Insider</div>
+                <div class="card-desc">An otherwise innocent employee whose credentials or device have been taken over by an external attacker. The insider is a victim but their access is the weapon. Detection requires behavioral analytics -- the account acts normally until it suddenly does not.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Cost Impact</div>
+            Ponemon Institute 2023: average cost of an insider threat incident is $16.2M per organization per year. Negligent insiders are cheapest per incident ($6.6M average) but most frequent. Malicious insiders average $4.1M per incident but cause greater reputational damage. Containment takes an average of 86 days.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- INSIDER THREAT INDICATORS ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 13</div>
+        <div class="slide-title">Insider Threat <span class="accent">Indicators</span></div>
+        <div class="slide-subtitle">Detection depends on recognizing patterns across behavioral, digital, and organizational signals before damage is done.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Behavioral Indicators</div>
+                <div class="card-desc">
+                    &bull; Working unusual hours without justification<br>
+                    &bull; Expressing disgruntlement or grievances about the organization<br>
+                    &bull; Sudden interest in projects outside their scope<br>
+                    &bull; Resistance to oversight or auditing<br>
+                    &bull; Unexplained financial changes (sudden wealth or distress)<br>
+                    &bull; Discussing resignation while increasing data access
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Digital Indicators</div>
+                <div class="card-desc">
+                    &bull; Accessing files or systems outside normal pattern<br>
+                    &bull; Large or unusual data downloads or transfers<br>
+                    &bull; Use of unauthorized USB drives or cloud storage<br>
+                    &bull; Attempting to access restricted resources<br>
+                    &bull; Disabling security tools or logging<br>
+                    &bull; Emailing sensitive data to personal accounts
+                </div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Organizational Indicators</div>
+                <div class="card-desc">
+                    &bull; Upcoming termination or layoff (flight risk period)<br>
+                    &bull; Passed over for promotion<br>
+                    &bull; Disciplinary action or performance issues<br>
+                    &bull; Contractor with access but low organizational loyalty<br>
+                    &bull; Recent merger/acquisition creating job uncertainty<br>
+                    &bull; Departing employee in notice period
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Detection Strategy</div>
+            No single indicator is proof of malicious intent. Insider threat programs use behavioral analytics (UEBA -- User and Entity Behavior Analytics) to establish baselines and detect anomalies. The key is correlating signals across categories: a disgruntled employee (behavioral) who starts downloading large datasets (digital) after being passed over for promotion (organizational) represents a converging risk pattern.
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">Policy Requirement</div>
+            NIST SP 800-53 requires insider threat programs for federal systems (PM-12). CISA's Insider Threat Mitigation Guide recommends formal programs for all organizations. An effective program requires HR, IT Security, Legal, and Management working together -- it cannot be a purely technical solution.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- SECURITY AWARENESS TRAINING ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 13</div>
+        <div class="slide-title">Security <span class="accent">Awareness</span> Training</div>
+        <div class="slide-subtitle">The primary countermeasure for human-element risk. But not all training programs are created equal.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 520 220" width="500" role="img" aria-label="Awareness training pipeline showing five stages flowing left to right: baseline assessment, training delivery, phishing simulation, measurement and metrics, and continuous improvement, connected by arrows.">
+                <!-- Stage boxes -->
+                <rect x="2" y="60" width="90" height="100" rx="8" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="47" y="88" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">BASELINE</text>
+                <text x="47" y="102" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">ASSESSMENT</text>
+                <text x="47" y="122" text-anchor="middle" fill="#9a82a0" font-size="7">Measure current</text>
+                <text x="47" y="134" text-anchor="middle" fill="#9a82a0" font-size="7">awareness level</text>
+
+                <rect x="110" y="60" width="90" height="100" rx="8" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="155" y="88" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">TRAINING</text>
+                <text x="155" y="102" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">DELIVERY</text>
+                <text x="155" y="122" text-anchor="middle" fill="#9a82a0" font-size="7">Role-based,</text>
+                <text x="155" y="134" text-anchor="middle" fill="#9a82a0" font-size="7">engaging content</text>
+
+                <rect x="218" y="60" width="90" height="100" rx="8" fill="rgba(255,68,255,0.08)" stroke="#ff44ff" stroke-width="1.5"/>
+                <text x="263" y="88" text-anchor="middle" fill="#ff44ff" font-size="9" font-weight="700">PHISHING</text>
+                <text x="263" y="102" text-anchor="middle" fill="#ff44ff" font-size="9" font-weight="700">SIMULATION</text>
+                <text x="263" y="122" text-anchor="middle" fill="#9a82a0" font-size="7">Test under</text>
+                <text x="263" y="134" text-anchor="middle" fill="#9a82a0" font-size="7">real conditions</text>
+
+                <rect x="326" y="60" width="90" height="100" rx="8" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="371" y="88" text-anchor="middle" fill="#eab308" font-size="9" font-weight="700">MEASURE</text>
+                <text x="371" y="102" text-anchor="middle" fill="#eab308" font-size="9" font-weight="700">& REPORT</text>
+                <text x="371" y="122" text-anchor="middle" fill="#9a82a0" font-size="7">Click rates,</text>
+                <text x="371" y="134" text-anchor="middle" fill="#9a82a0" font-size="7">report rates</text>
+
+                <rect x="434" y="60" width="84" height="100" rx="8" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="476" y="88" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="700">CONTINUOUS</text>
+                <text x="476" y="102" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="700">IMPROVE</text>
+                <text x="476" y="122" text-anchor="middle" fill="#9a82a0" font-size="7">Adapt, repeat,</text>
+                <text x="476" y="134" text-anchor="middle" fill="#9a82a0" font-size="7">reinforce</text>
+
+                <!-- Arrows -->
+                <line x1="94" y1="110" x2="108" y2="110" stroke="#ff00ff" stroke-width="1.5" marker-end="url(#aTP1)"/>
+                <line x1="202" y1="110" x2="216" y2="110" stroke="#00ffff" stroke-width="1.5" marker-end="url(#aTP2)"/>
+                <line x1="310" y1="110" x2="324" y2="110" stroke="#ff44ff" stroke-width="1.5" marker-end="url(#aTP3)"/>
+                <line x1="418" y1="110" x2="432" y2="110" stroke="#eab308" stroke-width="1.5" marker-end="url(#aTP4)"/>
+                <!-- Feedback loop arrow -->
+                <path d="M476,162 L476,190 L47,190 L47,162" fill="none" stroke="#22c55e" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#aTP5)"/>
+                <text x="260" y="204" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">CONTINUOUS FEEDBACK LOOP</text>
+                <defs>
+                    <marker id="aTP1" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#ff00ff"/></marker>
+                    <marker id="aTP2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#00ffff"/></marker>
+                    <marker id="aTP3" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#ff44ff"/></marker>
+                    <marker id="aTP4" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#eab308"/></marker>
+                    <marker id="aTP5" markerWidth="8" markerHeight="6" refX="4" refY="0" orient="auto"><path d="M0,0 L8,0 L4,6" fill="#22c55e"/></marker>
+                </defs>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">What Works</div>
+                <div class="card-desc">Frequent, short modules (monthly micro-training). Role-based content (executives get BEC training, developers get secure coding). Gamification and competition. Positive reinforcement for reporting. Just-in-time training after a failed simulation. Simulations that mirror real threats the organization faces.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">What Fails</div>
+                <div class="card-desc">Annual checkbox compliance training. Generic content not tailored to role or industry. Punitive responses to failed phishing tests (creates fear of reporting). Death-by-PowerPoint approach with no interactivity. No follow-up measurement. Training without executive participation sends the message that security is someone else's problem.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Evidence of Effectiveness</div>
+            SANS 2023 Security Awareness Report: organizations with mature awareness programs see phishing click rates drop from 30-40% to under 5% within 12-18 months. However, training decay is real -- without reinforcement, click rates rebound within 4-6 months. Frequency matters more than duration.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- PSYCHOLOGICAL MANIPULATION ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 13</div>
+        <div class="slide-title"><span class="accent">Psychological</span> Manipulation: <span class="cyan">Cialdini's Principles</span></div>
+        <div class="slide-subtitle">Social engineers weaponize the same influence principles that marketers and leaders use ethically. Robert Cialdini identified six (now seven) principles of persuasion.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 520 280" width="500" role="img" aria-label="Cialdini's six principles of influence arranged as hexagonal nodes around a central attacker node: authority, urgency/scarcity, social proof, reciprocity, commitment/consistency, and liking.">
+                <!-- Center -->
+                <circle cx="260" cy="140" r="38" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="2"/>
+                <text x="260" y="134" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="700">SOCIAL</text>
+                <text x="260" y="148" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="700">ENGINEER</text>
+                <!-- Authority - top -->
+                <rect x="218" y="8" width="84" height="44" rx="6" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="260" y="28" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">AUTHORITY</text>
+                <text x="260" y="42" text-anchor="middle" fill="#9a82a0" font-size="7">"I'm from IT"</text>
+                <line x1="260" y1="54" x2="260" y2="100" stroke="#ff00ff" stroke-width="1" stroke-dasharray="4 3"/>
+                <!-- Urgency/Scarcity - top right -->
+                <rect x="380" y="38" width="84" height="44" rx="6" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="422" y="58" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">URGENCY</text>
+                <text x="422" y="72" text-anchor="middle" fill="#9a82a0" font-size="7">"Act NOW"</text>
+                <line x1="390" y1="84" x2="295" y2="118" stroke="#ef4444" stroke-width="1" stroke-dasharray="4 3"/>
+                <!-- Social Proof - bottom right -->
+                <rect x="380" y="198" width="84" height="44" rx="6" fill="rgba(0,255,255,0.1)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="422" y="216" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">SOCIAL PROOF</text>
+                <text x="422" y="230" text-anchor="middle" fill="#9a82a0" font-size="7">"Everyone else did"</text>
+                <line x1="390" y1="196" x2="295" y2="162" stroke="#00ffff" stroke-width="1" stroke-dasharray="4 3"/>
+                <!-- Reciprocity - bottom -->
+                <rect x="218" y="228" width="84" height="44" rx="6" fill="rgba(234,179,8,0.1)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="260" y="248" text-anchor="middle" fill="#eab308" font-size="9" font-weight="700">RECIPROCITY</text>
+                <text x="260" y="262" text-anchor="middle" fill="#9a82a0" font-size="7">"I helped you..."</text>
+                <line x1="260" y1="226" x2="260" y2="180" stroke="#eab308" stroke-width="1" stroke-dasharray="4 3"/>
+                <!-- Commitment - bottom left -->
+                <rect x="56" y="198" width="84" height="44" rx="6" fill="rgba(34,197,94,0.1)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="98" y="216" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="700">COMMITMENT</text>
+                <text x="98" y="230" text-anchor="middle" fill="#9a82a0" font-size="7">"You agreed to..."</text>
+                <line x1="130" y1="196" x2="225" y2="162" stroke="#22c55e" stroke-width="1" stroke-dasharray="4 3"/>
+                <!-- Liking - top left -->
+                <rect x="56" y="38" width="84" height="44" rx="6" fill="rgba(255,68,255,0.1)" stroke="#ff44ff" stroke-width="1.5"/>
+                <text x="98" y="58" text-anchor="middle" fill="#ff44ff" font-size="9" font-weight="700">LIKING</text>
+                <text x="98" y="72" text-anchor="middle" fill="#9a82a0" font-size="7">"We're alike"</text>
+                <line x1="130" y1="84" x2="225" y2="118" stroke="#ff44ff" stroke-width="1" stroke-dasharray="4 3"/>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Authority</div>
+                <div class="card-desc">People comply with requests from perceived authority figures. Attackers impersonate CEOs, IT directors, law enforcement, or auditors. "This is the CFO -- I need you to process this wire transfer immediately." The uniform, title, or email domain is the weapon.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Urgency / Scarcity</div>
+                <div class="card-desc">Time pressure bypasses critical thinking. "Your account will be locked in 30 minutes." Scarcity creates fear of loss. Under urgency, people skip verification steps they would normally follow. Nearly every phishing email uses urgency as a trigger.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Social Proof</div>
+                <div class="card-desc">People follow what others are doing. "The rest of your team has already updated their credentials." If the attacker can name specific colleagues who "complied," the target assumes the request is legitimate. Herding behavior overrides individual skepticism.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">Defense Through Awareness</div>
+            Teaching employees to recognize these manipulation techniques is the most effective countermeasure. When someone understands that urgency is a deliberate pressure tactic, they are more likely to pause and verify. The goal is not to make people suspicious of everything -- it is to create a "think before you act" reflex when influence principles are being applied to security-relevant decisions.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- CASE STUDIES ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 13</div>
+        <div class="slide-title">Case Studies: <span class="accent">Twitter 2020</span> and <span class="cyan">Edward Snowden</span></div>
+        <div class="slide-subtitle">Two defining incidents that illustrate social engineering and insider threats at the highest level.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta" style="padding: 14px 16px;">
+                <div class="card-label">Twitter Hack (July 2020) -- Social Engineering</div>
+                <div class="card-desc" style="font-size: 0.84rem; line-height: 1.45;">
+                    <strong style="color:#ede0f0;">What happened:</strong> Attackers compromised 130 high-profile Twitter accounts (Obama, Musk, Apple) to promote a Bitcoin scam, netting $120,000.<br><br>
+                    <strong style="color:#ede0f0;">How:</strong> A 17-year-old coordinated phone-based social engineering (vishing) targeting Twitter employees. Attackers called employees pretending to be IT staff, directed them to a fake internal VPN page, and captured credentials. Once inside, they accessed internal admin tools.<br><br>
+                    <strong style="color:#ede0f0;">Why it matters:</strong> No malware. No zero-days. No technical exploit. Pure social engineering. The attackers manipulated employees using authority ("I am from IT") and urgency ("VPN issue needs immediate attention"). Multi-billion-dollar company compromised by phone calls.<br><br>
+                    <strong style="color:#ede0f0;">Policy lesson:</strong> Internal tools need the same access controls as external systems. Out-of-band verification for credential requests. Admin tool access should require hardware MFA.
+                </div>
+            </div>
+            <div class="card c-cyan" style="padding: 14px 16px;">
+                <div class="card-label">Edward Snowden (2013) -- Insider Threat</div>
+                <div class="card-desc" style="font-size: 0.84rem; line-height: 1.45;">
+                    <strong style="color:#ede0f0;">What happened:</strong> NSA contractor Edward Snowden exfiltrated an estimated 1.5 million classified documents revealing mass surveillance programs, causing the largest intelligence leak in U.S. history.<br><br>
+                    <strong style="color:#ede0f0;">How:</strong> Snowden had system administrator privileges as a contractor at an NSA facility in Hawaii. He used his legitimate access to copy classified materials onto thumb drives. He reportedly persuaded colleagues to share their login credentials by claiming he needed them for his sysadmin duties.<br><br>
+                    <strong style="color:#ede0f0;">Why it matters:</strong> A single insider with privileged access and motivation caused catastrophic damage to national security. Technical controls (DLP, USB restrictions) and behavioral monitoring that existed were insufficient or improperly configured.<br><br>
+                    <strong style="color:#ede0f0;">Policy lesson:</strong> Least privilege must apply to contractors and admins. Separation of duties for sensitive operations. USB port restrictions on classified systems. Insider threat monitoring for privileged users.
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Common Thread</div>
+            Both incidents demonstrate that technology alone cannot prevent human-element breaches. The Twitter hack exploited employee trust via social engineering. Snowden exploited legitimate access and social manipulation of colleagues. In both cases, the human was the attack vector that bypassed every technical control in place.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- BUILDING SECURITY CULTURE ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 13</div>
+        <div class="slide-title">Building a <span class="accent">Security Culture</span></div>
+        <div class="slide-subtitle">Security culture is the shared attitudes, norms, and behaviors around security within an organization. It cannot be mandated -- it must be cultivated.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 400 280" width="380" role="img" aria-label="Security culture pyramid with five layers from bottom to top: leadership commitment at the base, policies and procedures, training and awareness, reporting and feedback, and continuous improvement at the apex.">
+                <!-- Pyramid layers - bottom to top -->
+                <polygon points="200,10 380,270 20,270" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+                <!-- Layer 5 - base: Leadership -->
+                <polygon points="44,230 356,230 380,270 20,270" fill="rgba(255,0,255,0.12)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="200" y="256" text-anchor="middle" fill="#ff00ff" font-size="11" font-weight="700">LEADERSHIP COMMITMENT</text>
+                <!-- Layer 4: Policies -->
+                <polygon points="72,188 328,188 356,230 44,230" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="200" y="215" text-anchor="middle" fill="#00ffff" font-size="10" font-weight="700">POLICIES &amp; PROCEDURES</text>
+                <!-- Layer 3: Training -->
+                <polygon points="104,146 296,146 328,188 72,188" fill="rgba(255,68,255,0.08)" stroke="#ff44ff" stroke-width="1"/>
+                <text x="200" y="173" text-anchor="middle" fill="#ff44ff" font-size="10" font-weight="700">TRAINING &amp; AWARENESS</text>
+                <!-- Layer 2: Reporting -->
+                <polygon points="140,104 260,104 296,146 104,146" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1"/>
+                <text x="200" y="131" text-anchor="middle" fill="#eab308" font-size="10" font-weight="700">REPORTING &amp; FEEDBACK</text>
+                <!-- Layer 1 - apex: Continuous Improvement -->
+                <polygon points="200,10 260,104 140,104" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1"/>
+                <text x="200" y="74" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="700">CONTINUOUS</text>
+                <text x="200" y="88" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="700">IMPROVEMENT</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Tone from the Top</div>
+                <div class="card-desc">Culture flows downward. When the CEO participates in phishing simulations, follows clean desk policies, and visibly prioritizes security, employees follow. When leadership bypasses controls for convenience, employees learn that security is optional. Executive buy-in is not a nice-to-have -- it is the foundation.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">No-Blame Reporting</div>
+                <div class="card-desc">Employees must feel safe reporting suspicious activity and security mistakes without fear of punishment. A no-blame culture dramatically increases incident reporting rates. If an employee who clicks a phishing link gets reprimanded, the next employee who clicks will hide it. Hidden incidents become breaches.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Reporting Mechanisms</div>
+                <div class="card-desc">One-click "Report Phishing" buttons in email clients. Anonymous tip lines. Clear escalation procedures. The easier it is to report, the more reports you get. Organizations with accessible reporting mechanisms detect incidents an average of 50% faster than those without.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Positive Reinforcement</div>
+                <div class="card-desc">Reward employees who report phishing attempts, identify tailgaters, or flag suspicious behavior. Recognition programs, gamification, and security champion designations within departments create peer-driven motivation. Punishment drives hiding; recognition drives vigilance.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- MEASURING HUMAN RISK ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 13</div>
+        <div class="slide-title">Measuring <span class="accent">Human Risk</span></div>
+        <div class="slide-subtitle">What gets measured gets managed. Human risk metrics transform security awareness from a compliance checkbox into a strategic function.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 520 240" width="500" role="img" aria-label="Human risk metrics dashboard showing six key metrics in a grid layout: phishing click rate, report rate, time to report, SAT completion, repeat offenders, and risk score trend, each with a visual indicator and target value.">
+                <!-- Dashboard frame -->
+                <rect x="10" y="10" width="500" height="220" rx="10" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+                <text x="260" y="32" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700" letter-spacing="0.1em">HUMAN RISK METRICS DASHBOARD</text>
+                <line x1="30" y1="40" x2="490" y2="40" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+                <!-- Metric 1: Click Rate -->
+                <rect x="24" y="50" width="148" height="78" rx="6" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.2)" stroke-width="1"/>
+                <text x="98" y="68" text-anchor="middle" fill="#5a4460" font-size="7" letter-spacing="0.06em">PHISHING CLICK RATE</text>
+                <text x="98" y="98" text-anchor="middle" fill="#ef4444" font-size="26" font-weight="800">4.2%</text>
+                <text x="98" y="118" text-anchor="middle" fill="#22c55e" font-size="8">Target: &lt; 5%</text>
+                <!-- Metric 2: Report Rate -->
+                <rect x="186" y="50" width="148" height="78" rx="6" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.2)" stroke-width="1"/>
+                <text x="260" y="68" text-anchor="middle" fill="#5a4460" font-size="7" letter-spacing="0.06em">PHISHING REPORT RATE</text>
+                <text x="260" y="98" text-anchor="middle" fill="#22c55e" font-size="26" font-weight="800">72%</text>
+                <text x="260" y="118" text-anchor="middle" fill="#22c55e" font-size="8">Target: &gt; 70%</text>
+                <!-- Metric 3: Time to Report -->
+                <rect x="348" y="50" width="148" height="78" rx="6" fill="rgba(0,255,255,0.06)" stroke="rgba(0,255,255,0.2)" stroke-width="1"/>
+                <text x="422" y="68" text-anchor="middle" fill="#5a4460" font-size="7" letter-spacing="0.06em">AVG TIME TO REPORT</text>
+                <text x="422" y="98" text-anchor="middle" fill="#00ffff" font-size="26" font-weight="800">8m</text>
+                <text x="422" y="118" text-anchor="middle" fill="#eab308" font-size="8">Target: &lt; 5 min</text>
+                <!-- Metric 4: SAT Completion -->
+                <rect x="24" y="140" width="148" height="78" rx="6" fill="rgba(255,0,255,0.06)" stroke="rgba(255,0,255,0.2)" stroke-width="1"/>
+                <text x="98" y="158" text-anchor="middle" fill="#5a4460" font-size="7" letter-spacing="0.06em">SAT COMPLETION RATE</text>
+                <text x="98" y="188" text-anchor="middle" fill="#ff00ff" font-size="26" font-weight="800">94%</text>
+                <text x="98" y="208" text-anchor="middle" fill="#22c55e" font-size="8">Target: &gt; 95%</text>
+                <!-- Metric 5: Repeat Offenders -->
+                <rect x="186" y="140" width="148" height="78" rx="6" fill="rgba(234,179,8,0.06)" stroke="rgba(234,179,8,0.2)" stroke-width="1"/>
+                <text x="260" y="158" text-anchor="middle" fill="#5a4460" font-size="7" letter-spacing="0.06em">REPEAT OFFENDERS</text>
+                <text x="260" y="188" text-anchor="middle" fill="#eab308" font-size="26" font-weight="800">1.8%</text>
+                <text x="260" y="208" text-anchor="middle" fill="#22c55e" font-size="8">Target: &lt; 3%</text>
+                <!-- Metric 6: Risk Trend -->
+                <rect x="348" y="140" width="148" height="78" rx="6" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.2)" stroke-width="1"/>
+                <text x="422" y="158" text-anchor="middle" fill="#5a4460" font-size="7" letter-spacing="0.06em">RISK SCORE TREND</text>
+                <!-- Mini trend line -->
+                <polyline points="370,196 385,190 400,194 415,182 430,178 445,170 460,164" fill="none" stroke="#22c55e" stroke-width="2"/>
+                <text x="422" y="208" text-anchor="middle" fill="#22c55e" font-size="8">6-month downtrend</text>
+            </svg>
+        </div>
+
+        <div class="glossary-table">
+            <thead>
+                <tr><th>Metric</th><th>What It Measures</th><th>Why It Matters</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Phishing Click Rate</td><td>% of employees who click simulated phishing links</td><td>Direct measure of susceptibility. Industry benchmark: 2-5% is good.</td></tr>
+                <tr><td>Report Rate</td><td>% of employees who report simulated phishing</td><td>More important than click rate. High report rate = engaged security culture.</td></tr>
+                <tr><td>Time to Report</td><td>Minutes between email delivery and first report</td><td>Speed of detection. Faster reports = faster containment of real attacks.</td></tr>
+                <tr><td>SAT Completion</td><td>% of employees who complete security awareness training on time</td><td>Compliance baseline. Below 90% indicates management enforcement gaps.</td></tr>
+                <tr><td>Repeat Offenders</td><td>% of employees who fail multiple simulations</td><td>Identifies individuals needing targeted intervention or role reassignment.</td></tr>
+                <tr><td>Risk Score Trend</td><td>Composite score tracked over 6-12 months</td><td>Shows whether the program is improving organizational resilience over time.</td></tr>
+            </tbody>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- KEY TAKEAWAYS ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 13</div>
+        <div class="slide-title"><span class="accent">Key Takeaways</span></div>
+        <div class="slide-subtitle">The human factor is not a problem to be solved -- it is a risk to be continuously managed through policy, culture, and measurement.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">74% of breaches involve a human element. Technology alone cannot solve a human problem. Every security strategy must account for how people actually behave, not how policy says they should.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Social engineering exploits trust, authority, urgency, and reciprocity. Pretexting, baiting, quid pro quo, and tailgating bypass technical controls by targeting the human operating system.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Phishing remains the dominant initial attack vector. Spear phishing, whaling, BEC, vishing, and smishing each require different awareness training approaches. One-size-fits-all training misses the mark.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Insider threats come in three forms: malicious, negligent, and compromised. Negligent insiders cause the majority of incidents. Detection requires correlating behavioral, digital, and organizational indicators.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Security awareness training works -- but only when it is frequent, role-based, measured, and reinforced. Annual compliance training without follow-up creates false confidence, not real resilience.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">Cialdini's influence principles (authority, urgency, social proof, reciprocity, commitment, liking) are the attacker's playbook. Teaching employees to recognize these triggers is the strongest inoculation.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">Security culture must be built from leadership down. No-blame reporting, positive reinforcement, and visible executive participation are the pillars. Punitive cultures drive incident hiding.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">Measure human risk with phishing click rates, report rates, time to report, SAT completion, repeat offenders, and composite risk scores. What gets measured gets managed -- and improved.</span>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">What Comes Next</div>
+            These concepts connect directly to policy development. When you write an acceptable use policy, you are addressing negligent insiders. When you mandate phishing simulations, you are measuring human risk. When you establish a reporting hotline, you are building security culture. The human factor is not a chapter in cybersecurity -- it is the substrate on which every other chapter is built.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- MARK COMPLETE ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 13 &nbsp;|&nbsp; Complete</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Presentation<br>
+                <span class="accent">Complete</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                The Human Factor -- 13 slides
+            </div>
+        </div>
+
+        <div class="scenario-strip" style="text-align:center; font-style:normal;">
+            Social Engineering &nbsp;&bull;&nbsp; Phishing &nbsp;&bull;&nbsp; Insider Threats &nbsp;&bull;&nbsp; Threat Indicators &nbsp;&bull;&nbsp; Security Awareness &nbsp;&bull;&nbsp; Cialdini's Principles &nbsp;&bull;&nbsp; Case Studies &nbsp;&bull;&nbsp; Security Culture &nbsp;&bull;&nbsp; Human Risk Metrics
+        </div>
+
+        <div style="text-align:center; margin-top:10px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+
+        <div class="title-meta-row" style="margin-top:8px;">
+            <span>CIS2208</span>
+            <span>Cybersecurity Policy</span>
+            <span>Week 2</span>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Cybersecurity Policy</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 13</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 13;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        var completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('divergent', 'csp-w2-human-factor-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

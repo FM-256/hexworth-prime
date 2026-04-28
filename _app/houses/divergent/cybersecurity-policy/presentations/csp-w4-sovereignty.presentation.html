@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Sovereignty | Cybersecurity Policy</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d0810 0%, #0a060d 50%, #100812 100%);
+            color: #ede0f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow-y: auto;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: linear-gradient(90deg, #ff00ff, #00ffff);
+            transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(13, 8, 16, 0.95);
+            border-top: 1px solid rgba(255, 0, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #9a82a0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(255, 0, 255, 0.12); color: #ff00ff; border-color: #ff00ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #5a4460; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: linear-gradient(135deg, #ff00ff, #ff44ff);
+            color: #0d0810; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: linear-gradient(135deg, #ff44ff, #ff88ff); transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #ff00ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #ede0f0; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ff00ff; }
+        .slide-title .cyan { color: #00ffff; }
+        .slide-subtitle { font-size: 0.95rem; color: #9a82a0; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(255, 0, 255, 0.06); border-left: 3px solid #ff00ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #f5b8f5; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-magenta { background: rgba(255, 0, 255, 0.08); border: 1px solid rgba(255, 0, 255, 0.3); color: #f5b8f5; }
+        .box-cyan    { background: rgba(0, 255, 255, 0.08); border: 1px solid rgba(0, 255, 255, 0.3); color: #b8f5f5; }
+        .box-red     { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold    { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-green   { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-label   { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #ede0f0; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ff00ff; }
+        .title-hero .big-title .cyan { color: #00ffff; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #5a4460;
+        }
+        .title-meta-row span { border-left: 2px solid rgba(255, 0, 255, 0.2); padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #ff00ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #ede0f0; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #9a82a0; line-height: 1.4; }
+        .card.c-magenta { border-left-color: #ff00ff; }
+        .card.c-cyan    { border-left-color: #00ffff; }
+        .card.c-red     { border-left-color: #ef4444; }
+        .card.c-gold    { border-left-color: #eab308; }
+        .card.c-green   { border-left-color: #22c55e; }
+        .card.c-purple  { border-left-color: #ff44ff; }
+        .card.c-blue    { border-left-color: #3b82f6; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #5a4460; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #ff00ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #ede0f0; }
+
+        /* SVG diagram containers */
+        .svg-container {
+            display: flex; justify-content: center; align-items: center;
+            margin: 10px 0; padding: 10px;
+        }
+        .svg-container svg { max-width: 100%; height: auto; }
+
+        /* Glossary table */
+        .glossary-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+        .glossary-table th {
+            text-align: left; padding: 6px 10px; font-size: 0.72rem;
+            text-transform: uppercase; letter-spacing: 0.08em;
+            color: #ff00ff; border-bottom: 1px solid rgba(255, 0, 255, 0.3);
+        }
+        .glossary-table td {
+            padding: 6px 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            vertical-align: top;
+        }
+        .glossary-table td:first-child { color: #00ffff; font-weight: 600; white-space: nowrap; }
+        .glossary-table td:last-child { color: #9a82a0; }
+
+        /* Timeline steps */
+        .timeline { display: flex; gap: 2px; margin: 10px 0; }
+        .tl-step {
+            flex: 1; padding: 10px 6px; text-align: center;
+            background: rgba(255, 0, 255, 0.06); border: 1px solid rgba(255, 0, 255, 0.15);
+            border-radius: 4px; transition: background 0.2s;
+        }
+        .tl-step:hover { background: rgba(255, 0, 255, 0.14); }
+        .tl-num { font-size: 0.68rem; font-weight: 700; color: #00ffff; letter-spacing: 0.08em; margin-bottom: 3px; }
+        .tl-name { font-size: 0.78rem; font-weight: 700; color: #ede0f0; margin-bottom: 3px; }
+        .tl-desc { font-size: 0.7rem; color: #9a82a0; line-height: 1.3; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid, .card-grid-4 { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .timeline { flex-wrap: wrap; } .tl-step { min-width: 45%; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Digital Sovereignty | Cybersecurity Policy</h1>
+
+<div id="progress-bar" style="width:7.14%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 14 &nbsp;|&nbsp; CSP-W4-01 &nbsp;|&nbsp; Week 4</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Digital <span class="accent">Sovereignty</span><br>
+                <span class="cyan" style="font-size:0.65em;">National Strategies, CI Protection, Future Trends</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Digital Sovereignty &bull; Critical Infrastructure &bull; National Strategies &bull; Cyber Warfare &bull; Tallinn Manual &bull; Internet Governance &bull; Data Sovereignty &bull; Tech Sovereignty &bull; Election Security &bull; Emerging Challenges &bull; Global Norms
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Every nation on earth is racing to answer the same question: who controls the digital infrastructure that underpins modern society? Sovereignty -- the foundational principle of the Westphalian state system -- is being redefined by data flows that ignore borders, supply chains that span continents, and cyber weapons that can cripple a nation without a single soldier crossing a line. This deck maps the geopolitical landscape of cybersecurity: from critical infrastructure protection to the emerging norms that may -- or may not -- prevent a digital catastrophe.
+        </div>
+        <div class="title-meta-row">
+            <span>14 Slides</span>
+            <span>CSP-W4-01</span>
+            <span>Week 4</span>
+            <span>CIS2208 -- Cybersecurity Policy</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- WHAT IS DIGITAL SOVEREIGNTY ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 14</div>
+        <div class="slide-title">What Is <span class="accent">Digital Sovereignty</span>?</div>
+        <div class="slide-subtitle">Data localization, technological independence, internet governance -- the three pillars of state control in cyberspace.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Data Sovereignty</div>
+                <div class="card-desc">The principle that data is subject to the laws and governance structures of the nation where it is collected or stored. When a French citizen's medical records sit on a US-owned cloud server in Ireland, three legal systems collide. Data localization mandates (Russia, China, India, Vietnam) force data to remain within national borders. The policy question: does data sovereignty protect citizens, or does it fragment the internet?</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Technological Independence</div>
+                <div class="card-desc">The capacity of a nation to develop, maintain, and control its own critical technology stack -- from semiconductors to operating systems to cloud infrastructure. Dependence on foreign technology creates strategic vulnerability. The 2020 Huawei bans demonstrated how supply chain dependencies can become geopolitical leverage. Nations that cannot build their own chips, encrypt their own communications, or host their own data are digitally dependent.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Internet Governance</div>
+                <div class="card-desc">Who sets the rules for how the internet operates? The multistakeholder model (US/EU preference) distributes governance across governments, private sector, civil society, and technical community. The sovereign model (China/Russia preference) treats the internet as national territory subject to state control. The ITU, ICANN, and IGF represent competing visions of who should govern the global network.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Digital sovereignty is not a technical concept -- it is a political one. It represents the extension of Westphalian sovereignty into cyberspace: the claim that a nation has the right to control what happens within its digital borders. The tension is fundamental -- the internet was designed to be borderless, but the political systems that govern human societies are defined by borders.
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">The Sovereignty Spectrum</div>
+            At one end: the "open internet" model, where data flows freely and governance is distributed. At the other: the "sovereign internet" model, where the state controls all digital infrastructure, content, and data within its borders. Most nations fall somewhere in between, and the trend line is moving toward more state control, not less. Even the EU -- champion of digital rights -- now mandates data localization, platform regulation, and technology audits.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- CRITICAL INFRASTRUCTURE ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 14</div>
+        <div class="slide-title"><span class="accent">Critical Infrastructure</span>: The 16 Sectors</div>
+        <div class="slide-subtitle">PPD-21 designates 16 CI sectors -- the assets, systems, and networks so vital that their destruction would debilitate national security, economic stability, or public health.</div>
+
+        <!-- SVG: 16 CI Sectors Grid -->
+        <div class="svg-container">
+            <svg viewBox="0 0 560 260" width="540" role="img" aria-label="Grid of 16 critical infrastructure sectors designated by Presidential Policy Directive 21. Four rows of four sectors each, color-coded by category: physical infrastructure in magenta, digital and communications in cyan, public services in green, and economic and government in gold.">
+                <text x="280" y="16" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700" letter-spacing="0.06em">16 CRITICAL INFRASTRUCTURE SECTORS (PPD-21 / CISA)</text>
+                <!-- Row 1 -->
+                <rect x="5" y="28" width="130" height="46" rx="5" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="70" y="46" text-anchor="middle" fill="#ff00ff" font-size="7.5" font-weight="700">ENERGY</text>
+                <text x="70" y="58" text-anchor="middle" fill="#9a82a0" font-size="6">Electric, oil, natural gas</text>
+                <text x="70" y="68" text-anchor="middle" fill="#5a4460" font-size="5.5">SSA: DOE</text>
+
+                <rect x="143" y="28" width="130" height="46" rx="5" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="208" y="46" text-anchor="middle" fill="#00ffff" font-size="7.5" font-weight="700">COMMUNICATIONS</text>
+                <text x="208" y="58" text-anchor="middle" fill="#9a82a0" font-size="6">Telecom, internet, broadcast</text>
+                <text x="208" y="68" text-anchor="middle" fill="#5a4460" font-size="5.5">SSA: CISA</text>
+
+                <rect x="281" y="28" width="130" height="46" rx="5" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="346" y="46" text-anchor="middle" fill="#00ffff" font-size="7.5" font-weight="700">IT SECTOR</text>
+                <text x="346" y="58" text-anchor="middle" fill="#9a82a0" font-size="6">Hardware, software, services</text>
+                <text x="346" y="68" text-anchor="middle" fill="#5a4460" font-size="5.5">SSA: CISA</text>
+
+                <rect x="419" y="28" width="130" height="46" rx="5" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="484" y="46" text-anchor="middle" fill="#ff00ff" font-size="7.5" font-weight="700">WATER</text>
+                <text x="484" y="58" text-anchor="middle" fill="#9a82a0" font-size="6">Drinking water, wastewater</text>
+                <text x="484" y="68" text-anchor="middle" fill="#5a4460" font-size="5.5">SSA: EPA</text>
+
+                <!-- Row 2 -->
+                <rect x="5" y="82" width="130" height="46" rx="5" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1"/>
+                <text x="70" y="100" text-anchor="middle" fill="#eab308" font-size="7.5" font-weight="700">FINANCIAL</text>
+                <text x="70" y="112" text-anchor="middle" fill="#9a82a0" font-size="6">Banking, securities, insurance</text>
+                <text x="70" y="122" text-anchor="middle" fill="#5a4460" font-size="5.5">SSA: Treasury</text>
+
+                <rect x="143" y="82" width="130" height="46" rx="5" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="208" y="100" text-anchor="middle" fill="#ff00ff" font-size="7.5" font-weight="700">TRANSPORTATION</text>
+                <text x="208" y="112" text-anchor="middle" fill="#9a82a0" font-size="6">Aviation, rail, maritime, road</text>
+                <text x="208" y="122" text-anchor="middle" fill="#5a4460" font-size="5.5">SSA: DHS/DOT</text>
+
+                <rect x="281" y="82" width="130" height="46" rx="5" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1"/>
+                <text x="346" y="100" text-anchor="middle" fill="#22c55e" font-size="7.5" font-weight="700">HEALTHCARE</text>
+                <text x="346" y="112" text-anchor="middle" fill="#9a82a0" font-size="6">Hospitals, pharma, labs</text>
+                <text x="346" y="122" text-anchor="middle" fill="#5a4460" font-size="5.5">SSA: HHS</text>
+
+                <rect x="419" y="82" width="130" height="46" rx="5" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1"/>
+                <text x="484" y="100" text-anchor="middle" fill="#22c55e" font-size="7.5" font-weight="700">EMERGENCY SVCS</text>
+                <text x="484" y="112" text-anchor="middle" fill="#9a82a0" font-size="6">Law enforcement, fire, EMS</text>
+                <text x="484" y="122" text-anchor="middle" fill="#5a4460" font-size="5.5">SSA: DHS</text>
+
+                <!-- Row 3 -->
+                <rect x="5" y="136" width="130" height="46" rx="5" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1"/>
+                <text x="70" y="154" text-anchor="middle" fill="#eab308" font-size="7.5" font-weight="700">FOOD &amp; AG</text>
+                <text x="70" y="166" text-anchor="middle" fill="#9a82a0" font-size="6">Farms, processing, distribution</text>
+                <text x="70" y="176" text-anchor="middle" fill="#5a4460" font-size="5.5">SSA: USDA/FDA</text>
+
+                <rect x="143" y="136" width="130" height="46" rx="5" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1"/>
+                <text x="208" y="154" text-anchor="middle" fill="#eab308" font-size="7.5" font-weight="700">GOV FACILITIES</text>
+                <text x="208" y="166" text-anchor="middle" fill="#9a82a0" font-size="6">Federal, state, local buildings</text>
+                <text x="208" y="176" text-anchor="middle" fill="#5a4460" font-size="5.5">SSA: DHS/GSA</text>
+
+                <rect x="281" y="136" width="130" height="46" rx="5" fill="rgba(255,68,255,0.08)" stroke="#ff44ff" stroke-width="1"/>
+                <text x="346" y="154" text-anchor="middle" fill="#ff44ff" font-size="7.5" font-weight="700">NUCLEAR</text>
+                <text x="346" y="166" text-anchor="middle" fill="#9a82a0" font-size="6">Reactors, materials, waste</text>
+                <text x="346" y="176" text-anchor="middle" fill="#5a4460" font-size="5.5">SSA: DHS</text>
+
+                <rect x="419" y="136" width="130" height="46" rx="5" fill="rgba(255,68,255,0.08)" stroke="#ff44ff" stroke-width="1"/>
+                <text x="484" y="154" text-anchor="middle" fill="#ff44ff" font-size="7.5" font-weight="700">DAMS</text>
+                <text x="484" y="166" text-anchor="middle" fill="#9a82a0" font-size="6">90,000+ dams, levees</text>
+                <text x="484" y="176" text-anchor="middle" fill="#5a4460" font-size="5.5">SSA: DHS</text>
+
+                <!-- Row 4 -->
+                <rect x="5" y="190" width="130" height="46" rx="5" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="70" y="208" text-anchor="middle" fill="#00ffff" font-size="7.5" font-weight="700">DEFENSE IND.</text>
+                <text x="70" y="220" text-anchor="middle" fill="#9a82a0" font-size="6">Military supply chain</text>
+                <text x="70" y="230" text-anchor="middle" fill="#5a4460" font-size="5.5">SSA: DOD</text>
+
+                <rect x="143" y="190" width="130" height="46" rx="5" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1"/>
+                <text x="208" y="208" text-anchor="middle" fill="#22c55e" font-size="7.5" font-weight="700">CHEMICAL</text>
+                <text x="208" y="220" text-anchor="middle" fill="#9a82a0" font-size="6">Manufacturing, storage</text>
+                <text x="208" y="230" text-anchor="middle" fill="#5a4460" font-size="5.5">SSA: DHS</text>
+
+                <rect x="281" y="190" width="130" height="46" rx="5" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="346" y="208" text-anchor="middle" fill="#ff00ff" font-size="7.5" font-weight="700">COMMERCIAL</text>
+                <text x="346" y="220" text-anchor="middle" fill="#9a82a0" font-size="6">Retail, entertainment, real estate</text>
+                <text x="346" y="230" text-anchor="middle" fill="#5a4460" font-size="5.5">SSA: DHS</text>
+
+                <rect x="419" y="190" width="130" height="46" rx="5" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1"/>
+                <text x="484" y="208" text-anchor="middle" fill="#ef4444" font-size="7.5" font-weight="700">CRITICAL MFG</text>
+                <text x="484" y="220" text-anchor="middle" fill="#9a82a0" font-size="6">Metals, machinery, electrical</text>
+                <text x="484" y="230" text-anchor="middle" fill="#5a4460" font-size="5.5">SSA: DHS</text>
+
+                <!-- Legend -->
+                <text x="280" y="254" text-anchor="middle" fill="#5a4460" font-size="6.5" letter-spacing="0.04em">SSA = Sector-Specific Agency | PPD-21 (2013) superseded HSPD-7 | CISA coordinates cross-sector risk</text>
+            </svg>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Interdependency Risk</div>
+            Critical infrastructure sectors do not operate in isolation. The energy sector depends on IT and communications. Healthcare depends on energy, water, and transportation. Financial services depend on IT, communications, and energy. A cascading failure across interdependent sectors is the nightmare scenario -- and it is not theoretical. The 2021 Colonial Pipeline ransomware attack disrupted fuel supply across the US Southeast, demonstrating how a single attack on one sector (energy) can cascade into transportation, emergency services, and public order.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- NATIONAL CYBERSECURITY STRATEGIES ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 14</div>
+        <div class="slide-title">National <span class="accent">Cybersecurity</span> <span class="cyan">Strategies</span></div>
+        <div class="slide-subtitle">Five nations, five approaches -- each shaped by political systems, threat landscapes, and strategic priorities.</div>
+
+        <!-- SVG: National Strategy Comparison -->
+        <div class="svg-container">
+            <svg viewBox="0 0 560 200" width="540" role="img" aria-label="National cybersecurity strategy comparison across five nations. The United States emphasizes market incentives and liability shifting. The EU emphasizes regulation and solidarity. China emphasizes state control and self-reliance. Israel emphasizes military-civil integration. Australia emphasizes partnerships and the Pacific region.">
+                <text x="280" y="14" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700" letter-spacing="0.06em">NATIONAL STRATEGY COMPARISON</text>
+
+                <!-- US -->
+                <rect x="5" y="24" width="105" height="170" rx="6" fill="rgba(255,0,255,0.06)" stroke="#ff00ff" stroke-width="1.2"/>
+                <text x="57" y="42" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">UNITED STATES</text>
+                <text x="57" y="56" text-anchor="middle" fill="#ede0f0" font-size="6.5" font-weight="600">National Cyber</text>
+                <text x="57" y="66" text-anchor="middle" fill="#ede0f0" font-size="6.5" font-weight="600">Strategy (2023)</text>
+                <text x="57" y="82" text-anchor="middle" fill="#9a82a0" font-size="6">Shift liability to</text>
+                <text x="57" y="92" text-anchor="middle" fill="#9a82a0" font-size="6">vendors/providers</text>
+                <text x="57" y="106" text-anchor="middle" fill="#9a82a0" font-size="6">5 pillars including</text>
+                <text x="57" y="116" text-anchor="middle" fill="#9a82a0" font-size="6">defend CI, disrupt</text>
+                <text x="57" y="126" text-anchor="middle" fill="#9a82a0" font-size="6">threat actors</text>
+                <text x="57" y="142" text-anchor="middle" fill="#ff00ff" font-size="6" font-weight="600">Market incentives</text>
+                <text x="57" y="154" text-anchor="middle" fill="#ff00ff" font-size="6" font-weight="600">+ regulation</text>
+                <rect x="15" y="164" width="85" height="16" rx="3" fill="rgba(255,0,255,0.15)"/>
+                <text x="57" y="176" text-anchor="middle" fill="#ede0f0" font-size="6.5" font-weight="600">ONCD + CISA</text>
+
+                <!-- EU -->
+                <rect x="118" y="24" width="105" height="170" rx="6" fill="rgba(0,255,255,0.06)" stroke="#00ffff" stroke-width="1.2"/>
+                <text x="170" y="42" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">EUROPEAN UNION</text>
+                <text x="170" y="56" text-anchor="middle" fill="#ede0f0" font-size="6.5" font-weight="600">Cyber Solidarity</text>
+                <text x="170" y="66" text-anchor="middle" fill="#ede0f0" font-size="6.5" font-weight="600">Act (2024)</text>
+                <text x="170" y="82" text-anchor="middle" fill="#9a82a0" font-size="6">NIS2 mandatory for</text>
+                <text x="170" y="92" text-anchor="middle" fill="#9a82a0" font-size="6">essential entities</text>
+                <text x="170" y="106" text-anchor="middle" fill="#9a82a0" font-size="6">EU-CyCLONe for</text>
+                <text x="170" y="116" text-anchor="middle" fill="#9a82a0" font-size="6">crisis management</text>
+                <text x="170" y="126" text-anchor="middle" fill="#9a82a0" font-size="6">Cyber Reserve Force</text>
+                <text x="170" y="142" text-anchor="middle" fill="#00ffff" font-size="6" font-weight="600">Regulation-first</text>
+                <text x="170" y="154" text-anchor="middle" fill="#00ffff" font-size="6" font-weight="600">+ solidarity</text>
+                <rect x="128" y="164" width="85" height="16" rx="3" fill="rgba(0,255,255,0.15)"/>
+                <text x="170" y="176" text-anchor="middle" fill="#ede0f0" font-size="6.5" font-weight="600">ENISA + CSIRTs</text>
+
+                <!-- China -->
+                <rect x="231" y="24" width="105" height="170" rx="6" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.2"/>
+                <text x="283" y="42" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">CHINA</text>
+                <text x="283" y="56" text-anchor="middle" fill="#ede0f0" font-size="6.5" font-weight="600">Cybersecurity Law</text>
+                <text x="283" y="66" text-anchor="middle" fill="#ede0f0" font-size="6.5" font-weight="600">(2017) + DSL/PIPL</text>
+                <text x="283" y="82" text-anchor="middle" fill="#9a82a0" font-size="6">Data localization</text>
+                <text x="283" y="92" text-anchor="middle" fill="#9a82a0" font-size="6">mandated for CI data</text>
+                <text x="283" y="106" text-anchor="middle" fill="#9a82a0" font-size="6">Great Firewall for</text>
+                <text x="283" y="116" text-anchor="middle" fill="#9a82a0" font-size="6">content control</text>
+                <text x="283" y="126" text-anchor="middle" fill="#9a82a0" font-size="6">Tech self-reliance</text>
+                <text x="283" y="142" text-anchor="middle" fill="#ef4444" font-size="6" font-weight="600">State control</text>
+                <text x="283" y="154" text-anchor="middle" fill="#ef4444" font-size="6" font-weight="600">+ self-sufficiency</text>
+                <rect x="241" y="164" width="85" height="16" rx="3" fill="rgba(239,68,68,0.15)"/>
+                <text x="283" y="176" text-anchor="middle" fill="#ede0f0" font-size="6.5" font-weight="600">CAC + MSS</text>
+
+                <!-- Israel -->
+                <rect x="344" y="24" width="105" height="170" rx="6" fill="rgba(34,197,94,0.06)" stroke="#22c55e" stroke-width="1.2"/>
+                <text x="396" y="42" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="700">ISRAEL</text>
+                <text x="396" y="56" text-anchor="middle" fill="#ede0f0" font-size="6.5" font-weight="600">National Cyber</text>
+                <text x="396" y="66" text-anchor="middle" fill="#ede0f0" font-size="6.5" font-weight="600">Directorate (INCD)</text>
+                <text x="396" y="82" text-anchor="middle" fill="#9a82a0" font-size="6">Military-to-startup</text>
+                <text x="396" y="92" text-anchor="middle" fill="#9a82a0" font-size="6">talent pipeline</text>
+                <text x="396" y="106" text-anchor="middle" fill="#9a82a0" font-size="6">Unit 8200 alumni</text>
+                <text x="396" y="116" text-anchor="middle" fill="#9a82a0" font-size="6">drive industry</text>
+                <text x="396" y="126" text-anchor="middle" fill="#9a82a0" font-size="6">Beersheva CyberHub</text>
+                <text x="396" y="142" text-anchor="middle" fill="#22c55e" font-size="6" font-weight="600">Military-civil</text>
+                <text x="396" y="154" text-anchor="middle" fill="#22c55e" font-size="6" font-weight="600">integration</text>
+                <rect x="354" y="164" width="85" height="16" rx="3" fill="rgba(34,197,94,0.15)"/>
+                <text x="396" y="176" text-anchor="middle" fill="#ede0f0" font-size="6.5" font-weight="600">INCD + IDF</text>
+
+                <!-- Australia -->
+                <rect x="457" y="24" width="105" height="170" rx="6" fill="rgba(234,179,8,0.06)" stroke="#eab308" stroke-width="1.2"/>
+                <text x="509" y="42" text-anchor="middle" fill="#eab308" font-size="9" font-weight="700">AUSTRALIA</text>
+                <text x="509" y="56" text-anchor="middle" fill="#ede0f0" font-size="6.5" font-weight="600">Cyber Security</text>
+                <text x="509" y="66" text-anchor="middle" fill="#ede0f0" font-size="6.5" font-weight="600">Strategy (2023-30)</text>
+                <text x="509" y="82" text-anchor="middle" fill="#9a82a0" font-size="6">Six cyber shields</text>
+                <text x="509" y="92" text-anchor="middle" fill="#9a82a0" font-size="6">from citizen to global</text>
+                <text x="509" y="106" text-anchor="middle" fill="#9a82a0" font-size="6">Offensive capability</text>
+                <text x="509" y="116" text-anchor="middle" fill="#9a82a0" font-size="6">via ASD/ASIS</text>
+                <text x="509" y="126" text-anchor="middle" fill="#9a82a0" font-size="6">Pacific partnerships</text>
+                <text x="509" y="142" text-anchor="middle" fill="#eab308" font-size="6" font-weight="600">Partnership</text>
+                <text x="509" y="154" text-anchor="middle" fill="#eab308" font-size="6" font-weight="600">+ Pacific focus</text>
+                <rect x="467" y="164" width="85" height="16" rx="3" fill="rgba(234,179,8,0.15)"/>
+                <text x="509" y="176" text-anchor="middle" fill="#ede0f0" font-size="6.5" font-weight="600">ASD + ACSC</text>
+            </svg>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">US National Cyber Strategy -- Five Pillars</div>
+            (1) Defend critical infrastructure -- minimum security requirements for CI sectors. (2) Disrupt and dismantle threat actors -- use all instruments of national power. (3) Shape market forces to drive security and resilience -- shift liability to software vendors. (4) Invest in a resilient future -- secure the technical foundations of the internet. (5) Forge international partnerships -- build coalitions for responsible state behavior. The 2023 strategy marks a fundamental shift: the US government is moving from voluntary to mandatory security requirements.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- CYBER WARFARE AND STATE-SPONSORED ATTACKS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 14</div>
+        <div class="slide-title">Cyber <span class="accent">Warfare</span> and <span class="cyan">State-Sponsored</span> Attacks</div>
+        <div class="slide-subtitle">Attribution challenges, proportional response, and the blurred line between espionage, sabotage, and acts of war.</div>
+
+        <!-- SVG: Cyber Warfare Attribution Chain -->
+        <div class="svg-container">
+            <svg viewBox="0 0 560 150" width="540" role="img" aria-label="Cyber warfare attribution chain showing the difficulty of tracing attacks from observed malware through infrastructure, operators, sponsors, to the responsible nation-state. Each step introduces increasing uncertainty.">
+                <text x="280" y="14" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700" letter-spacing="0.06em">ATTRIBUTION CHAIN -- FROM MALWARE TO NATION-STATE</text>
+
+                <!-- Step boxes connected by arrows -->
+                <rect x="5" y="30" width="95" height="55" rx="5" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1"/>
+                <text x="52" y="48" text-anchor="middle" fill="#ef4444" font-size="7.5" font-weight="700">MALWARE</text>
+                <text x="52" y="60" text-anchor="middle" fill="#9a82a0" font-size="6">Code analysis</text>
+                <text x="52" y="70" text-anchor="middle" fill="#9a82a0" font-size="6">TTPs, signatures</text>
+                <text x="52" y="80" text-anchor="middle" fill="#22c55e" font-size="5.5">HIGH CONFIDENCE</text>
+
+                <line x1="105" y1="57" x2="120" y2="57" stroke="rgba(255,0,255,0.4)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+                <rect x="122" y="30" width="95" height="55" rx="5" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="169" y="48" text-anchor="middle" fill="#ff00ff" font-size="7.5" font-weight="700">INFRA</text>
+                <text x="169" y="60" text-anchor="middle" fill="#9a82a0" font-size="6">C2 servers, proxies</text>
+                <text x="169" y="70" text-anchor="middle" fill="#9a82a0" font-size="6">VPNs, botnets</text>
+                <text x="169" y="80" text-anchor="middle" fill="#eab308" font-size="5.5">MODERATE CONF.</text>
+
+                <line x1="222" y1="57" x2="237" y2="57" stroke="rgba(255,0,255,0.4)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+                <rect x="239" y="30" width="95" height="55" rx="5" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="286" y="48" text-anchor="middle" fill="#00ffff" font-size="7.5" font-weight="700">OPERATORS</text>
+                <text x="286" y="60" text-anchor="middle" fill="#9a82a0" font-size="6">APT groups, teams</text>
+                <text x="286" y="70" text-anchor="middle" fill="#9a82a0" font-size="6">Behavioral patterns</text>
+                <text x="286" y="80" text-anchor="middle" fill="#eab308" font-size="5.5">MODERATE CONF.</text>
+
+                <line x1="339" y1="57" x2="354" y2="57" stroke="rgba(255,0,255,0.4)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+                <rect x="356" y="30" width="95" height="55" rx="5" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1"/>
+                <text x="403" y="48" text-anchor="middle" fill="#eab308" font-size="7.5" font-weight="700">SPONSORS</text>
+                <text x="403" y="60" text-anchor="middle" fill="#9a82a0" font-size="6">Intelligence agency</text>
+                <text x="403" y="70" text-anchor="middle" fill="#9a82a0" font-size="6">Military unit</text>
+                <text x="403" y="80" text-anchor="middle" fill="#ef4444" font-size="5.5">LOW CONFIDENCE</text>
+
+                <line x1="456" y1="57" x2="471" y2="57" stroke="rgba(255,0,255,0.4)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+                <rect x="473" y="30" width="82" height="55" rx="5" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="514" y="48" text-anchor="middle" fill="#ef4444" font-size="7.5" font-weight="700">NATION</text>
+                <text x="514" y="60" text-anchor="middle" fill="#9a82a0" font-size="6">Political decision</text>
+                <text x="514" y="70" text-anchor="middle" fill="#9a82a0" font-size="6">to authorize</text>
+                <text x="514" y="80" text-anchor="middle" fill="#ef4444" font-size="5.5">LOWEST CONF.</text>
+
+                <!-- Confidence degradation bar -->
+                <defs><linearGradient id="confGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#22c55e"/><stop offset="50%" stop-color="#eab308"/><stop offset="100%" stop-color="#ef4444"/></linearGradient><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(255,0,255,0.5)"/></marker></defs>
+                <rect x="5" y="100" width="550" height="8" rx="4" fill="url(#confGrad)" opacity="0.5"/>
+                <text x="30" y="122" text-anchor="middle" fill="#22c55e" font-size="6.5" font-weight="600">TECHNICAL</text>
+                <text x="30" y="132" text-anchor="middle" fill="#9a82a0" font-size="5.5">High certainty</text>
+                <text x="280" y="122" text-anchor="middle" fill="#eab308" font-size="6.5" font-weight="600">OPERATIONAL</text>
+                <text x="280" y="132" text-anchor="middle" fill="#9a82a0" font-size="5.5">Moderate certainty</text>
+                <text x="530" y="122" text-anchor="middle" fill="#ef4444" font-size="6.5" font-weight="600">POLITICAL</text>
+                <text x="530" y="132" text-anchor="middle" fill="#9a82a0" font-size="5.5">Low certainty</text>
+
+                <text x="280" y="148" text-anchor="middle" fill="#5a4460" font-size="6">Attribution confidence degrades as you move from technical artifacts to political responsibility</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Attribution Challenges</div>
+                <div class="card-desc">Attackers use false flags (Olympic Destroyer planted Russian code to frame North Korea), compromised infrastructure in third countries, and outsourcing to criminal proxies. The Volt Typhoon campaign (China) lived entirely off legitimate tools -- no custom malware to fingerprint. Technical attribution is science; political attribution is policy.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Proportional Response</div>
+                <div class="card-desc">International law requires that responses to hostile acts be proportional. But how do you calibrate proportionality when a cyberattack's effects are ambiguous? The US response to SolarWinds (sanctions, diplomatic expulsions) was deliberately restrained. Israel's response to an Iranian attempt to poison its water supply in 2020 was a retaliatory cyberattack on an Iranian port.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Major State Actors</div>
+                <div class="card-desc">Russia: SolarWinds, NotPetya, Ukraine grid attacks. China: Volt Typhoon (CI pre-positioning), APT10 (IP theft). North Korea: Lazarus Group (financial theft, $1.5B+ stolen). Iran: Shamoon (Saudi Aramco wiper), Albanian government attacks. Each nation has different objectives: Russia destabilizes, China steals, North Korea funds, Iran retaliates.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">The Gray Zone Problem</div>
+            Most state-sponsored cyber operations fall below the threshold of armed conflict -- espionage, intellectual property theft, election interference, pre-positioning in CI networks. This "gray zone" is deliberate: it allows aggressors to impose costs on adversaries without triggering a military response. International law has no clear rules for this space, which is exactly why states operate there.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- TALLINN MANUAL ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 14</div>
+        <div class="slide-title"><span class="accent">Tallinn Manual</span> and <span class="cyan">International Law</span> in Cyberspace</div>
+        <div class="slide-subtitle">The most comprehensive academic analysis of how existing international law applies to cyber operations -- and its limits.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Tallinn Manual 1.0 (2013)</div>
+                <div class="card-desc">Focused on the law of armed conflict (jus ad bellum and jus in bello) applied to cyber warfare. Written by an international group of legal scholars at the NATO Cooperative Cyber Defence Centre of Excellence in Tallinn, Estonia. Key finding: existing international law -- including the UN Charter's prohibition on the use of force -- applies to cyberspace. A cyberattack that causes physical destruction or death can constitute an armed attack under Article 51, triggering the right of self-defense.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Tallinn Manual 2.0 (2017)</div>
+                <div class="card-desc">Expanded to cover peacetime cyber operations -- the gray zone where most state-sponsored activity occurs. Addressed sovereignty, due diligence, jurisdiction, international human rights law, and the law of the sea and air as they apply to cyber. Key principle: a state that knowingly allows its territory to be used for hostile cyber operations against another state violates its due diligence obligation. Non-binding, but the most authoritative legal reference for state practice.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Sovereignty</div>
+                <div class="card-desc">A state's sovereignty extends to cyber infrastructure within its territory and to cyber operations conducted from its territory. Remotely causing effects within another state's territory may violate sovereignty -- but the threshold is debated. Russia and China reject the idea that sovereignty alone creates binding legal obligations in cyberspace.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Use of Force</div>
+                <div class="card-desc">Article 2(4) of the UN Charter prohibits the use of force. A cyber operation rises to "use of force" when its scale and effects are comparable to a kinetic attack. Stuxnet (physical destruction of centrifuges) likely qualifies. Espionage (even massive) does not. The Schmitt Analysis evaluates severity, immediacy, directness, invasiveness, measurability, military character, state involvement, and presumptive legality.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Jus ad Bellum</div>
+                <div class="card-desc">The right to go to war. Article 51 permits self-defense in response to an "armed attack." If a cyberattack constitutes an armed attack (physical destruction, casualties), the victim state may respond with proportional force -- including kinetic force. But anticipatory self-defense against imminent cyber threats raises temporal questions: by the time you detect a cyber operation, the damage may already be done.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Limitations</div>
+            The Tallinn Manual is not a treaty -- it is an academic analysis with no binding legal authority. Major cyber powers (US, China, Russia) have not endorsed it. Its conclusions depend on analogies between cyber and kinetic operations that adversaries may reject. And its coverage of AI-driven autonomous cyber operations -- which did not exist when it was written -- is minimal. The manual describes the law as scholars believe it is, not necessarily as states practice it.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- INTERNET GOVERNANCE ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 14</div>
+        <div class="slide-title"><span class="accent">Internet</span> <span class="cyan">Governance</span></div>
+        <div class="slide-subtitle">ICANN, IGF, ITU -- competing institutions, competing visions of who controls the global network.</div>
+
+        <!-- SVG: Internet Governance Models -->
+        <div class="svg-container">
+            <svg viewBox="0 0 540 200" width="520" role="img" aria-label="Internet governance comparison showing multistakeholder model on the left with ICANN, IGF, IETF, and W3C sharing authority across governments, private sector, civil society, and technical community, versus the sovereign model on the right where the state controls through the ITU, national firewalls, and content filtering.">
+                <text x="270" y="14" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700" letter-spacing="0.06em">INTERNET GOVERNANCE MODELS</text>
+
+                <!-- Multistakeholder side -->
+                <rect x="5" y="24" width="250" height="168" rx="8" fill="rgba(0,255,255,0.04)" stroke="#00ffff" stroke-width="1.2"/>
+                <text x="130" y="42" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">MULTISTAKEHOLDER MODEL</text>
+                <text x="130" y="54" text-anchor="middle" fill="#9a82a0" font-size="6.5">US, EU, Japan, Brazil, India (shifting)</text>
+
+                <!-- Four stakeholder boxes -->
+                <rect x="15" y="64" width="112" height="36" rx="4" fill="rgba(0,255,255,0.08)" stroke="rgba(0,255,255,0.25)" stroke-width="0.8"/>
+                <text x="71" y="78" text-anchor="middle" fill="#ede0f0" font-size="7" font-weight="600">Governments</text>
+                <text x="71" y="90" text-anchor="middle" fill="#9a82a0" font-size="5.5">Policy, regulation</text>
+
+                <rect x="135" y="64" width="112" height="36" rx="4" fill="rgba(0,255,255,0.08)" stroke="rgba(0,255,255,0.25)" stroke-width="0.8"/>
+                <text x="191" y="78" text-anchor="middle" fill="#ede0f0" font-size="7" font-weight="600">Private Sector</text>
+                <text x="191" y="90" text-anchor="middle" fill="#9a82a0" font-size="5.5">Infrastructure, innovation</text>
+
+                <rect x="15" y="108" width="112" height="36" rx="4" fill="rgba(0,255,255,0.08)" stroke="rgba(0,255,255,0.25)" stroke-width="0.8"/>
+                <text x="71" y="122" text-anchor="middle" fill="#ede0f0" font-size="7" font-weight="600">Civil Society</text>
+                <text x="71" y="134" text-anchor="middle" fill="#9a82a0" font-size="5.5">Rights, access, equity</text>
+
+                <rect x="135" y="108" width="112" height="36" rx="4" fill="rgba(0,255,255,0.08)" stroke="rgba(0,255,255,0.25)" stroke-width="0.8"/>
+                <text x="191" y="122" text-anchor="middle" fill="#ede0f0" font-size="7" font-weight="600">Technical Community</text>
+                <text x="191" y="134" text-anchor="middle" fill="#9a82a0" font-size="5.5">Standards, protocols</text>
+
+                <!-- Institutions row -->
+                <rect x="15" y="152" width="54" height="28" rx="3" fill="rgba(0,255,255,0.12)"/>
+                <text x="42" y="168" text-anchor="middle" fill="#00ffff" font-size="7" font-weight="600">ICANN</text>
+                <text x="42" y="177" text-anchor="middle" fill="#9a82a0" font-size="5">DNS/IPs</text>
+                <rect x="77" y="152" width="54" height="28" rx="3" fill="rgba(0,255,255,0.12)"/>
+                <text x="104" y="168" text-anchor="middle" fill="#00ffff" font-size="7" font-weight="600">IGF</text>
+                <text x="104" y="177" text-anchor="middle" fill="#9a82a0" font-size="5">Dialogue</text>
+                <rect x="139" y="152" width="54" height="28" rx="3" fill="rgba(0,255,255,0.12)"/>
+                <text x="166" y="168" text-anchor="middle" fill="#00ffff" font-size="7" font-weight="600">IETF</text>
+                <text x="166" y="177" text-anchor="middle" fill="#9a82a0" font-size="5">Protocols</text>
+                <rect x="201" y="152" width="46" height="28" rx="3" fill="rgba(0,255,255,0.12)"/>
+                <text x="224" y="168" text-anchor="middle" fill="#00ffff" font-size="7" font-weight="600">W3C</text>
+                <text x="224" y="177" text-anchor="middle" fill="#9a82a0" font-size="5">Web std</text>
+
+                <!-- VS divider -->
+                <text x="270" y="115" text-anchor="middle" fill="#5a4460" font-size="11" font-weight="700">VS</text>
+
+                <!-- Sovereign side -->
+                <rect x="285" y="24" width="250" height="168" rx="8" fill="rgba(239,68,68,0.04)" stroke="#ef4444" stroke-width="1.2"/>
+                <text x="410" y="42" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">SOVEREIGN MODEL</text>
+                <text x="410" y="54" text-anchor="middle" fill="#9a82a0" font-size="6.5">China, Russia, Iran, Saudi Arabia</text>
+
+                <!-- State control hierarchy -->
+                <rect x="315" y="64" width="190" height="30" rx="4" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1"/>
+                <text x="410" y="83" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">STATE</text>
+
+                <line x1="410" y1="94" x2="410" y2="104" stroke="rgba(239,68,68,0.4)" stroke-width="1"/>
+
+                <rect x="295" y="104" width="100" height="32" rx="4" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.25)" stroke-width="0.8"/>
+                <text x="345" y="118" text-anchor="middle" fill="#ede0f0" font-size="7" font-weight="600">National Firewall</text>
+                <text x="345" y="130" text-anchor="middle" fill="#9a82a0" font-size="5.5">Content filtering, censorship</text>
+
+                <rect x="405" y="104" width="120" height="32" rx="4" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.25)" stroke-width="0.8"/>
+                <text x="465" y="118" text-anchor="middle" fill="#ede0f0" font-size="7" font-weight="600">ITU as Authority</text>
+                <text x="465" y="130" text-anchor="middle" fill="#9a82a0" font-size="5.5">State-to-state governance</text>
+
+                <rect x="295" y="144" width="100" height="32" rx="4" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.25)" stroke-width="0.8"/>
+                <text x="345" y="158" text-anchor="middle" fill="#ede0f0" font-size="7" font-weight="600">Data Localization</text>
+                <text x="345" y="170" text-anchor="middle" fill="#9a82a0" font-size="5.5">All data stays in-country</text>
+
+                <rect x="405" y="144" width="120" height="32" rx="4" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.25)" stroke-width="0.8"/>
+                <text x="465" y="158" text-anchor="middle" fill="#ede0f0" font-size="7" font-weight="600">Domestic Platforms</text>
+                <text x="465" y="170" text-anchor="middle" fill="#9a82a0" font-size="5.5">Replace foreign services</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">ICANN</div>
+                <div class="card-desc">Internet Corporation for Assigned Names and Numbers. Manages the DNS root zone, IP address allocation, and protocol parameters. Transitioned from US government oversight (NTIA) to a multistakeholder model in 2016. The IANA transition was a flashpoint -- critics argued the US gave up control of the internet's addressing system. Supporters argued it was never US property to keep.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">IGF</div>
+                <div class="card-desc">Internet Governance Forum. A UN-convened multistakeholder platform for policy dialogue on internet issues. No binding decision-making authority -- purely deliberative. Created by the 2005 World Summit on the Information Society (WSIS). Annual meetings produce no treaties but shape the global conversation on digital rights, access, cybersecurity, and governance.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">ITU</div>
+                <div class="card-desc">International Telecommunication Union. UN specialized agency. China and Russia have pushed to give the ITU authority over internet governance -- replacing the multistakeholder model with a state-centric treaty-based model. The 2012 World Conference on International Telecommunications (WCIT) split: 89 nations signed a new treaty expanding ITU authority; 55 (including the US and EU) refused. The internet governance battle is a proxy for broader geopolitical competition.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- DATA SOVEREIGNTY ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 14</div>
+        <div class="slide-title">Data <span class="accent">Sovereignty</span></div>
+        <div class="slide-subtitle">GDPR transfers, Schrems II, data localization mandates, and the CLOUD Act -- the legal battle over where data lives and who can access it.</div>
+
+        <!-- SVG: Data Sovereignty Flow -->
+        <div class="svg-container">
+            <svg viewBox="0 0 560 170" width="540" role="img" aria-label="Cross-border data transfer flow diagram. Shows data originating in the EU, passing through legal mechanisms including Standard Contractual Clauses, Binding Corporate Rules, and adequacy decisions, potentially blocked by Schrems II invalidation, then reaching US servers where FISA Section 702 and the CLOUD Act create government access points. The EU-US Data Privacy Framework provides a new transfer pathway.">
+                <text x="280" y="14" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700" letter-spacing="0.06em">CROSS-BORDER DATA TRANSFER FLOW</text>
+
+                <!-- EU Origin -->
+                <rect x="5" y="30" width="80" height="55" rx="6" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1.2"/>
+                <text x="45" y="50" text-anchor="middle" fill="#00ffff" font-size="8" font-weight="700">EU DATA</text>
+                <text x="45" y="62" text-anchor="middle" fill="#9a82a0" font-size="6">Personal data</text>
+                <text x="45" y="72" text-anchor="middle" fill="#9a82a0" font-size="6">GDPR protected</text>
+
+                <!-- Arrow -->
+                <line x1="90" y1="57" x2="108" y2="57" stroke="rgba(0,255,255,0.5)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+                <!-- Transfer Mechanisms -->
+                <rect x="110" y="24" width="130" height="70" rx="6" fill="rgba(255,0,255,0.06)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="175" y="38" text-anchor="middle" fill="#ff00ff" font-size="7" font-weight="700">TRANSFER MECHANISMS</text>
+                <text x="175" y="52" text-anchor="middle" fill="#ede0f0" font-size="6.5">SCCs (Standard Clauses)</text>
+                <text x="175" y="64" text-anchor="middle" fill="#ede0f0" font-size="6.5">BCRs (Corporate Rules)</text>
+                <text x="175" y="76" text-anchor="middle" fill="#ede0f0" font-size="6.5">Adequacy Decisions</text>
+                <text x="175" y="88" text-anchor="middle" fill="#eab308" font-size="6">+ Transfer Impact Assessment</text>
+
+                <!-- Arrow -->
+                <line x1="245" y1="57" x2="263" y2="57" stroke="rgba(255,0,255,0.5)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+                <!-- Schrems II Block -->
+                <rect x="265" y="28" width="90" height="60" rx="6" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,3"/>
+                <text x="310" y="46" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="700">SCHREMS II</text>
+                <text x="310" y="58" text-anchor="middle" fill="#ef4444" font-size="6">Privacy Shield</text>
+                <text x="310" y="68" text-anchor="middle" fill="#ef4444" font-size="6">INVALIDATED</text>
+                <text x="310" y="80" text-anchor="middle" fill="#9a82a0" font-size="5.5">July 2020</text>
+
+                <!-- Arrow -->
+                <line x1="360" y1="57" x2="378" y2="57" stroke="rgba(255,0,255,0.5)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+                <!-- US Destination -->
+                <rect x="380" y="24" width="80" height="70" rx="6" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="1.2"/>
+                <text x="420" y="42" text-anchor="middle" fill="#ff00ff" font-size="8" font-weight="700">US SERVER</text>
+                <text x="420" y="56" text-anchor="middle" fill="#9a82a0" font-size="6">AWS/Azure/GCP</text>
+                <text x="420" y="68" text-anchor="middle" fill="#9a82a0" font-size="6">FISA 702</text>
+                <text x="420" y="80" text-anchor="middle" fill="#9a82a0" font-size="6">access risk</text>
+
+                <!-- CLOUD Act -->
+                <rect x="470" y="30" width="85" height="55" rx="6" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1"/>
+                <text x="512" y="48" text-anchor="middle" fill="#eab308" font-size="7" font-weight="700">CLOUD ACT</text>
+                <text x="512" y="60" text-anchor="middle" fill="#9a82a0" font-size="6">US can compel</text>
+                <text x="512" y="70" text-anchor="middle" fill="#9a82a0" font-size="6">data stored</text>
+                <text x="512" y="80" text-anchor="middle" fill="#9a82a0" font-size="6">anywhere</text>
+
+                <!-- DPF pathway -->
+                <rect x="175" y="108" width="210" height="28" rx="5" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1"/>
+                <text x="280" y="120" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="700">EU-US DATA PRIVACY FRAMEWORK (2023)</text>
+                <text x="280" y="131" text-anchor="middle" fill="#9a82a0" font-size="6">New adequacy decision -- replaces Privacy Shield | Executive Order 14086</text>
+
+                <!-- Arrow from DPF to US -->
+                <line x1="390" y1="122" x2="420" y2="95" stroke="rgba(34,197,94,0.4)" stroke-width="1" stroke-dasharray="3,2"/>
+
+                <text x="280" y="155" text-anchor="middle" fill="#5a4460" font-size="6.5">Schrems III challenge expected -- sustainability of DPF remains uncertain</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Schrems II Impact</div>
+                <div class="card-desc">Max Schrems, an Austrian privacy activist, challenged Facebook's transfer of EU personal data to the US. The CJEU invalidated the EU-US Privacy Shield in July 2020, finding that US surveillance laws (FISA Section 702, EO 12333) did not provide adequate protection for EU data subjects. The ruling affected 5,000+ companies relying on Privacy Shield. Organizations scrambled to implement SCCs with supplementary measures -- but the CJEU suggested that even SCCs may be insufficient if the destination country's surveillance laws override contractual protections.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Data Localization Laws</div>
+                <div class="card-desc">Russia (Federal Law 242-FZ): personal data of Russian citizens must be stored on servers physically located in Russia. LinkedIn was blocked for non-compliance. China (PIPL/DSL): critical information infrastructure operators must store data in China; cross-border transfers require security assessments. India (DPDP Act 2023): allows transfers to approved countries but reserves the right to restrict. Vietnam, Indonesia, Nigeria, Turkey, and Saudi Arabia all have varying data localization requirements. The global trend is toward more restriction, not less.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">The CLOUD Act Conflict</div>
+            The US CLOUD Act (2018) allows US law enforcement to compel US-based tech companies to produce data regardless of where that data is physically stored. This directly conflicts with data localization laws and GDPR: if Microsoft stores EU data in Ireland, the US can demand it while the EU prohibits disclosure. Executive agreements between the US and partner nations (UK agreement signed 2022) attempt to resolve this, but the fundamental conflict between extraterritorial jurisdiction and data sovereignty remains unresolved.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- TECHNOLOGICAL SOVEREIGNTY ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 14</div>
+        <div class="slide-title">Technological <span class="accent">Sovereignty</span></div>
+        <div class="slide-subtitle">5G and the Huawei debate, semiconductors and the CHIPS Act, cloud independence and GAIA-X -- the race to own the stack.</div>
+
+        <!-- SVG: Technology Supply Chain -->
+        <div class="svg-container">
+            <svg viewBox="0 0 560 160" width="540" role="img" aria-label="Technology supply chain sovereignty diagram showing three layers: chip fabrication dominated by TSMC and Samsung, network infrastructure split between Western vendors and Huawei, and cloud services dominated by US hyperscalers with European GAIA-X as a sovereignty alternative.">
+                <text x="280" y="14" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700" letter-spacing="0.06em">TECHNOLOGY SOVEREIGNTY -- SUPPLY CHAIN LAYERS</text>
+
+                <!-- Layer 1: Semiconductors -->
+                <rect x="5" y="26" width="550" height="36" rx="5" fill="rgba(255,0,255,0.06)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="50" y="42" text-anchor="middle" fill="#ff00ff" font-size="8" font-weight="700">CHIPS</text>
+                <text x="50" y="54" text-anchor="middle" fill="#9a82a0" font-size="5.5">Fabrication</text>
+
+                <rect x="95" y="31" width="70" height="26" rx="3" fill="rgba(0,255,255,0.12)"/>
+                <text x="130" y="44" text-anchor="middle" fill="#00ffff" font-size="6.5" font-weight="600">TSMC</text>
+                <text x="130" y="53" text-anchor="middle" fill="#9a82a0" font-size="5">Taiwan (54%)</text>
+
+                <rect x="175" y="31" width="70" height="26" rx="3" fill="rgba(0,255,255,0.12)"/>
+                <text x="210" y="44" text-anchor="middle" fill="#00ffff" font-size="6.5" font-weight="600">Samsung</text>
+                <text x="210" y="53" text-anchor="middle" fill="#9a82a0" font-size="5">S. Korea (17%)</text>
+
+                <rect x="255" y="31" width="70" height="26" rx="3" fill="rgba(239,68,68,0.12)"/>
+                <text x="290" y="44" text-anchor="middle" fill="#ef4444" font-size="6.5" font-weight="600">SMIC</text>
+                <text x="290" y="53" text-anchor="middle" fill="#9a82a0" font-size="5">China (6%)</text>
+
+                <rect x="335" y="31" width="70" height="26" rx="3" fill="rgba(34,197,94,0.12)"/>
+                <text x="370" y="44" text-anchor="middle" fill="#22c55e" font-size="6.5" font-weight="600">Intel</text>
+                <text x="370" y="53" text-anchor="middle" fill="#9a82a0" font-size="5">US (10%)</text>
+
+                <rect x="415" y="31" width="130" height="26" rx="3" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.3)" stroke-width="0.6"/>
+                <text x="480" y="44" text-anchor="middle" fill="#eab308" font-size="6.5" font-weight="600">CHIPS Act ($52B)</text>
+                <text x="480" y="53" text-anchor="middle" fill="#9a82a0" font-size="5">US reshoring</text>
+
+                <!-- Layer 2: Network Infrastructure -->
+                <rect x="5" y="70" width="550" height="36" rx="5" fill="rgba(0,255,255,0.06)" stroke="#00ffff" stroke-width="1"/>
+                <text x="50" y="86" text-anchor="middle" fill="#00ffff" font-size="8" font-weight="700">5G/NET</text>
+                <text x="50" y="98" text-anchor="middle" fill="#9a82a0" font-size="5.5">Infrastructure</text>
+
+                <rect x="95" y="75" width="70" height="26" rx="3" fill="rgba(34,197,94,0.12)"/>
+                <text x="130" y="88" text-anchor="middle" fill="#22c55e" font-size="6.5" font-weight="600">Ericsson</text>
+                <text x="130" y="97" text-anchor="middle" fill="#9a82a0" font-size="5">Sweden</text>
+
+                <rect x="175" y="75" width="70" height="26" rx="3" fill="rgba(34,197,94,0.12)"/>
+                <text x="210" y="88" text-anchor="middle" fill="#22c55e" font-size="6.5" font-weight="600">Nokia</text>
+                <text x="210" y="97" text-anchor="middle" fill="#9a82a0" font-size="5">Finland</text>
+
+                <rect x="255" y="75" width="70" height="26" rx="3" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="0.8"/>
+                <text x="290" y="88" text-anchor="middle" fill="#ef4444" font-size="6.5" font-weight="600">Huawei</text>
+                <text x="290" y="97" text-anchor="middle" fill="#9a82a0" font-size="5">China (BANNED)</text>
+
+                <rect x="335" y="75" width="70" height="26" rx="3" fill="rgba(34,197,94,0.12)"/>
+                <text x="370" y="88" text-anchor="middle" fill="#22c55e" font-size="6.5" font-weight="600">Samsung</text>
+                <text x="370" y="97" text-anchor="middle" fill="#9a82a0" font-size="5">S. Korea</text>
+
+                <rect x="415" y="75" width="130" height="26" rx="3" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.3)" stroke-width="0.6"/>
+                <text x="480" y="88" text-anchor="middle" fill="#ef4444" font-size="6.5" font-weight="600">Open RAN Push</text>
+                <text x="480" y="97" text-anchor="middle" fill="#9a82a0" font-size="5">Vendor diversity</text>
+
+                <!-- Layer 3: Cloud -->
+                <rect x="5" y="114" width="550" height="36" rx="5" fill="rgba(255,68,255,0.06)" stroke="#ff44ff" stroke-width="1"/>
+                <text x="50" y="130" text-anchor="middle" fill="#ff44ff" font-size="8" font-weight="700">CLOUD</text>
+                <text x="50" y="142" text-anchor="middle" fill="#9a82a0" font-size="5.5">Services</text>
+
+                <rect x="95" y="119" width="70" height="26" rx="3" fill="rgba(255,0,255,0.12)"/>
+                <text x="130" y="132" text-anchor="middle" fill="#ff00ff" font-size="6.5" font-weight="600">AWS</text>
+                <text x="130" y="141" text-anchor="middle" fill="#9a82a0" font-size="5">US (31%)</text>
+
+                <rect x="175" y="119" width="70" height="26" rx="3" fill="rgba(0,255,255,0.12)"/>
+                <text x="210" y="132" text-anchor="middle" fill="#00ffff" font-size="6.5" font-weight="600">Azure</text>
+                <text x="210" y="141" text-anchor="middle" fill="#9a82a0" font-size="5">US (25%)</text>
+
+                <rect x="255" y="119" width="70" height="26" rx="3" fill="rgba(34,197,94,0.12)"/>
+                <text x="290" y="132" text-anchor="middle" fill="#22c55e" font-size="6.5" font-weight="600">GCP</text>
+                <text x="290" y="141" text-anchor="middle" fill="#9a82a0" font-size="5">US (11%)</text>
+
+                <rect x="335" y="119" width="70" height="26" rx="3" fill="rgba(239,68,68,0.12)"/>
+                <text x="370" y="132" text-anchor="middle" fill="#ef4444" font-size="6.5" font-weight="600">Alibaba</text>
+                <text x="370" y="141" text-anchor="middle" fill="#9a82a0" font-size="5">China (4%)</text>
+
+                <rect x="415" y="119" width="130" height="26" rx="3" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.3)" stroke-width="0.6"/>
+                <text x="480" y="132" text-anchor="middle" fill="#eab308" font-size="6.5" font-weight="600">GAIA-X</text>
+                <text x="480" y="141" text-anchor="middle" fill="#9a82a0" font-size="5">EU sovereignty cloud</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">The Huawei Debate</div>
+                <div class="card-desc">The US banned Huawei from 5G networks citing national security risks -- alleged backdoors and Chinese intelligence law requiring cooperation with state agencies. The UK reversed its initial approval. The EU left it to member states. The debate exposed a fundamental tension: Huawei equipment was cheaper and arguably more advanced, but deploying it in CI creates a dependency on a potential adversary's technology.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">CHIPS Act</div>
+                <div class="card-desc">The US CHIPS and Science Act (2022) provides $52.7 billion in subsidies and tax credits to incentivize domestic semiconductor manufacturing. Driven by the realization that 92% of advanced chip fabrication occurs in Taiwan -- a single point of failure adjacent to an assertive China. TSMC, Samsung, and Intel are building US fabs. The EU Chips Act provides EUR 43 billion for similar goals. The semiconductor supply chain is now a national security priority.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">GAIA-X</div>
+                <div class="card-desc">A European initiative to build a federated cloud infrastructure that ensures data sovereignty, transparency, and interoperability. Born from frustration with dependence on US hyperscalers (AWS, Azure, GCP) and the CLOUD Act's extraterritorial reach. Progress has been slow -- critics say it is more vision than product. France's "trusted cloud" label and Germany's Sovereign Cloud Stack are national implementations. The goal: European data processed on European infrastructure under European law.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- ELECTION SECURITY ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 14</div>
+        <div class="slide-title"><span class="accent">Election</span> <span class="cyan">Security</span></div>
+        <div class="slide-subtitle">Disinformation, foreign interference, and the infrastructure that underpins democratic legitimacy.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Disinformation Operations</div>
+                <div class="card-desc">Russia's Internet Research Agency (IRA) ran coordinated influence campaigns targeting the 2016 US election -- creating fake social media personas, organizing real-world rallies, and amplifying divisive content. The goal was not to elect a specific candidate but to erode trust in democratic institutions. Similar operations targeted the 2017 French election (Macron leaks), 2016 Brexit referendum, and elections across Europe, Africa, and Latin America. Deepfake technology is making detection exponentially harder.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Infrastructure Attacks</div>
+                <div class="card-desc">Election infrastructure includes voter registration databases, electronic poll books, voting machines, vote tabulation systems, and results-reporting websites. In 2016, Russian actors scanned election systems in all 50 US states and breached voter registration databases in at least two. The 2020 election saw unprecedented defensive measures: paper ballot trails, post-election audits, CISA's #Protect2020 initiative, and the Election Infrastructure Information Sharing and Analysis Center (EI-ISAC).</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Technical Defenses</div>
+                <div class="card-desc">Voter-verified paper audit trails (VVPAT), risk-limiting audits (RLA), air-gapped tabulation systems, multi-factor authentication for election officials, and physical chain-of-custody for ballots. The US Election Assistance Commission (EAC) certifies voting systems. CISA provides free vulnerability assessments to election jurisdictions. But 10,000+ local election offices create a massive attack surface.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Legal Framework</div>
+                <div class="card-desc">Election infrastructure was designated as critical infrastructure in 2017 (GCC/SCC structure). The Honest Ads Act (proposed) would regulate online political advertising. Section 230 shields platforms from liability for hosting disinformation. International law is ambiguous -- the Tallinn Manual's sovereignty principle suggests foreign interference violates sovereignty, but enforcement is effectively impossible.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">The Perception Problem</div>
+                <div class="card-desc">The greatest threat to election security may not be actual vote manipulation but the perception that votes can be manipulated. If citizens lose trust in election outcomes, democracy is undermined regardless of whether the count is accurate. Transparency, audibility, and public education are as important as technical security. The "big lie" phenomenon demonstrates that perception can detach entirely from technical reality.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">Global Pattern</div>
+            Election interference is not unique to the US. Russia targeted Ukraine's 2014 election with a vote-counting system hack. China was linked to interference in Taiwan's 2020 election. Iran targeted the 2020 US election with voter intimidation emails. The pattern is consistent: adversary nations target elections because democracies are uniquely vulnerable to legitimacy attacks. An authoritarian regime does not need to worry about public trust in its election outcomes.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- EMERGING CHALLENGES ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 14</div>
+        <div class="slide-title">Emerging <span class="accent">Challenges</span></div>
+        <div class="slide-subtitle">AI governance, quantum computing, space cybersecurity, digital currencies -- the frontiers that will define the next decade.</div>
+
+        <!-- SVG: Emerging Challenges Radar -->
+        <div class="svg-container">
+            <svg viewBox="0 0 480 240" width="460" role="img" aria-label="Emerging challenges radar diagram. Four quadrants show AI Governance with high impact and near-term timeline, Quantum Computing with transformative impact and medium-term timeline, Space Cybersecurity with growing impact and medium-term timeline, and Digital Currencies with high impact and near-term timeline. Concentric rings indicate immediacy from 2025 at center to 2035 plus at the outer ring.">
+                <text x="240" y="14" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700" letter-spacing="0.06em">EMERGING CHALLENGE RADAR</text>
+
+                <!-- Concentric rings -->
+                <circle cx="240" cy="130" r="95" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="0.8"/>
+                <circle cx="240" cy="130" r="65" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="0.8"/>
+                <circle cx="240" cy="130" r="35" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.8"/>
+
+                <!-- Axis lines -->
+                <line x1="240" y1="30" x2="240" y2="230" stroke="rgba(255,255,255,0.05)" stroke-width="0.6"/>
+                <line x1="140" y1="130" x2="340" y2="130" stroke="rgba(255,255,255,0.05)" stroke-width="0.6"/>
+
+                <!-- Ring labels -->
+                <text x="240" y="100" text-anchor="middle" fill="#5a4460" font-size="6">2025-27</text>
+                <text x="240" y="70" text-anchor="middle" fill="#5a4460" font-size="6">2028-30</text>
+                <text x="240" y="40" text-anchor="middle" fill="#5a4460" font-size="6">2031-35+</text>
+
+                <!-- AI Governance (top-left, near-term) -->
+                <circle cx="195" cy="90" r="22" fill="rgba(255,0,255,0.15)" stroke="#ff00ff" stroke-width="1.2"/>
+                <text x="195" y="87" text-anchor="middle" fill="#ff00ff" font-size="7" font-weight="700">AI</text>
+                <text x="195" y="97" text-anchor="middle" fill="#ff00ff" font-size="6">GOVERNANCE</text>
+
+                <!-- Quantum (top-right, medium-term) -->
+                <circle cx="300" cy="70" r="22" fill="rgba(0,255,255,0.15)" stroke="#00ffff" stroke-width="1.2"/>
+                <text x="300" y="67" text-anchor="middle" fill="#00ffff" font-size="7" font-weight="700">QUANTUM</text>
+                <text x="300" y="77" text-anchor="middle" fill="#00ffff" font-size="6">COMPUTING</text>
+
+                <!-- Space (bottom-right, medium-term) -->
+                <circle cx="310" cy="180" r="22" fill="rgba(234,179,8,0.15)" stroke="#eab308" stroke-width="1.2"/>
+                <text x="310" y="177" text-anchor="middle" fill="#eab308" font-size="7" font-weight="700">SPACE</text>
+                <text x="310" y="187" text-anchor="middle" fill="#eab308" font-size="6">CYBER</text>
+
+                <!-- Digital Currencies (bottom-left, near-term) -->
+                <circle cx="180" cy="170" r="22" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1.2"/>
+                <text x="180" y="167" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="700">DIGITAL</text>
+                <text x="180" y="177" text-anchor="middle" fill="#22c55e" font-size="6">CURRENCIES</text>
+
+                <!-- Impact labels on right -->
+                <text x="400" y="80" fill="#00ffff" font-size="6.5" font-weight="600">Cryptographic collapse</text>
+                <text x="400" y="90" fill="#9a82a0" font-size="5.5">RSA/ECC broken by 2030s</text>
+                <text x="400" y="50" fill="#ff00ff" font-size="6.5" font-weight="600">EU AI Act live 2025</text>
+                <text x="400" y="60" fill="#9a82a0" font-size="5.5">Autonomous weapons debate</text>
+                <text x="400" y="175" fill="#eab308" font-size="6.5" font-weight="600">Satellite CI growing</text>
+                <text x="400" y="185" fill="#9a82a0" font-size="5.5">GPS, comms, ISR at risk</text>
+                <text x="400" y="210" fill="#22c55e" font-size="6.5" font-weight="600">CBDCs vs crypto</text>
+                <text x="400" y="220" fill="#9a82a0" font-size="5.5">Financial surveillance</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">AI Governance</div>
+                <div class="card-desc">The EU AI Act (2024) creates a risk-based regulatory framework. The US relies on executive orders and sectoral guidance. China requires algorithm registration and content labeling. Key cybersecurity questions: who is liable when AI generates malware? Can autonomous cyber defense systems make targeting decisions without human oversight? The weaponization of AI for social engineering, vulnerability discovery, and adaptive malware is already happening. Governance is trailing capability by years.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Quantum Computing</div>
+                <div class="card-desc">A cryptographically relevant quantum computer (CRQC) would break RSA, ECC, and Diffie-Hellman -- the foundations of internet security. NIST finalized post-quantum cryptography (PQC) standards in 2024 (CRYSTALS-Kyber, CRYSTALS-Dilithium, SPHINCS+). The "harvest now, decrypt later" threat is already real: adversaries are collecting encrypted data today to decrypt when quantum computers mature. Migration timelines: 10-15 years for full PQC adoption across global infrastructure.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Space Cybersecurity</div>
+                <div class="card-desc">Satellites are critical infrastructure for GPS, communications, weather, and military ISR. The 2022 Viasat hack (KA-SAT) at the start of the Ukraine invasion disrupted European satellite communications. Most satellite protocols lack encryption. Space systems have 15-20 year lifespans with minimal update capability. The Artemis Accords and the UN Committee on the Peaceful Uses of Outer Space (COPUOS) have no binding cybersecurity provisions for space assets.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Digital Currencies</div>
+                <div class="card-desc">Central bank digital currencies (CBDCs) could give governments unprecedented visibility into financial transactions -- a surveillance tool or a transparency mechanism depending on perspective. China's digital yuan is operational. The EU's digital euro is in development. Cryptocurrency enables ransomware payments, sanctions evasion (North Korea's Lazarus Group), and money laundering. The policy tension: enabling innovation versus preventing financial cybercrime.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- GLOBAL CYBER NORMS ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 14</div>
+        <div class="slide-title">The Future: Global <span class="accent">Cyber Norms</span></div>
+        <div class="slide-subtitle">Paris Call, cyber peacekeeping, digital Geneva Convention -- the search for rules in an ungoverned domain.</div>
+
+        <!-- SVG: Global Norms Timeline -->
+        <div class="svg-container">
+            <svg viewBox="0 0 560 130" width="540" role="img" aria-label="Timeline of global cyber norms development from 2013 to the present. Key milestones include the 2013 UN GGE consensus on international law applying to cyberspace, 2015 UN GGE 11 voluntary norms, 2017 Tallinn Manual 2.0, 2018 Paris Call for Trust and Security, 2021 UN OEWG report, 2023 UN Cybercrime Convention negotiations, and ongoing Digital Geneva Convention proposals.">
+                <text x="280" y="14" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700" letter-spacing="0.06em">GLOBAL CYBER NORMS TIMELINE</text>
+
+                <!-- Timeline line -->
+                <line x1="20" y1="50" x2="540" y2="50" stroke="rgba(255,0,255,0.3)" stroke-width="2"/>
+
+                <!-- 2013 -->
+                <circle cx="40" cy="50" r="4" fill="#ff00ff"/>
+                <text x="40" y="38" text-anchor="middle" fill="#ff00ff" font-size="7" font-weight="700">2013</text>
+                <text x="40" y="68" text-anchor="middle" fill="#ede0f0" font-size="6" font-weight="600">UN GGE</text>
+                <text x="40" y="78" text-anchor="middle" fill="#9a82a0" font-size="5.5">Intl law applies</text>
+                <text x="40" y="87" text-anchor="middle" fill="#9a82a0" font-size="5.5">to cyberspace</text>
+
+                <!-- 2015 -->
+                <circle cx="128" cy="50" r="4" fill="#00ffff"/>
+                <text x="128" y="38" text-anchor="middle" fill="#00ffff" font-size="7" font-weight="700">2015</text>
+                <text x="128" y="68" text-anchor="middle" fill="#ede0f0" font-size="6" font-weight="600">UN GGE Norms</text>
+                <text x="128" y="78" text-anchor="middle" fill="#9a82a0" font-size="5.5">11 voluntary norms</text>
+                <text x="128" y="87" text-anchor="middle" fill="#9a82a0" font-size="5.5">for state behavior</text>
+
+                <!-- 2017 -->
+                <circle cx="216" cy="50" r="4" fill="#ff44ff"/>
+                <text x="216" y="38" text-anchor="middle" fill="#ff44ff" font-size="7" font-weight="700">2017</text>
+                <text x="216" y="68" text-anchor="middle" fill="#ede0f0" font-size="6" font-weight="600">Tallinn 2.0</text>
+                <text x="216" y="78" text-anchor="middle" fill="#9a82a0" font-size="5.5">Peacetime cyber</text>
+                <text x="216" y="87" text-anchor="middle" fill="#9a82a0" font-size="5.5">ops + sovereignty</text>
+
+                <!-- 2018 -->
+                <circle cx="304" cy="50" r="4" fill="#22c55e"/>
+                <text x="304" y="38" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="700">2018</text>
+                <text x="304" y="68" text-anchor="middle" fill="#ede0f0" font-size="6" font-weight="600">Paris Call</text>
+                <text x="304" y="78" text-anchor="middle" fill="#9a82a0" font-size="5.5">80+ nations, 700+</text>
+                <text x="304" y="87" text-anchor="middle" fill="#9a82a0" font-size="5.5">orgs signed</text>
+
+                <!-- 2021 -->
+                <circle cx="392" cy="50" r="4" fill="#eab308"/>
+                <text x="392" y="38" text-anchor="middle" fill="#eab308" font-size="7" font-weight="700">2021</text>
+                <text x="392" y="68" text-anchor="middle" fill="#ede0f0" font-size="6" font-weight="600">UN OEWG</text>
+                <text x="392" y="78" text-anchor="middle" fill="#9a82a0" font-size="5.5">All UN members</text>
+                <text x="392" y="87" text-anchor="middle" fill="#9a82a0" font-size="5.5">consensus report</text>
+
+                <!-- 2024+ -->
+                <circle cx="490" cy="50" r="4" fill="#ef4444"/>
+                <text x="490" y="38" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="700">2024+</text>
+                <text x="490" y="68" text-anchor="middle" fill="#ede0f0" font-size="6" font-weight="600">UN Cybercrime</text>
+                <text x="490" y="78" text-anchor="middle" fill="#9a82a0" font-size="5.5">Convention + Digital</text>
+                <text x="490" y="87" text-anchor="middle" fill="#9a82a0" font-size="5.5">Geneva proposals</text>
+
+                <!-- Progress bar beneath -->
+                <rect x="20" y="100" width="520" height="8" rx="4" fill="rgba(255,255,255,0.04)"/>
+                <rect x="20" y="100" width="260" height="8" rx="4" fill="rgba(255,0,255,0.2)"/>
+                <text x="150" y="122" text-anchor="middle" fill="#ff00ff" font-size="6" font-weight="600">CONSENSUS ACHIEVED</text>
+                <text x="410" y="122" text-anchor="middle" fill="#5a4460" font-size="6">ENFORCEMENT GAP REMAINS</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Paris Call for Trust and Security</div>
+                <div class="card-desc">Launched by France in 2018, the Paris Call is a multistakeholder initiative with 80+ national governments and 700+ organizations committed to nine principles: protecting the electoral process, defending intellectual property, preventing ICT-enabled attacks on CI, securing the "public core" of the internet, preventing proliferation of cyber weapons, strengthening digital hygiene, preventing private hack-back, promoting norms, and protecting the integrity of the supply chain. Notable absences: the US (until 2021), Russia, and China.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Digital Geneva Convention</div>
+                <div class="card-desc">Proposed by Microsoft's Brad Smith in 2017, the concept calls for a binding international treaty establishing norms for state behavior in cyberspace -- modeled on the Geneva Conventions that govern armed conflict. Proposed commitments: no targeting CI, no stockpiling vulnerabilities, no offensive operations against election systems, attribution through an independent body. Critics argue it is unenforceable -- no verification mechanism, no penalties, and the nations most likely to violate it are the ones least likely to sign.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Cyber Peacekeeping</div>
+                <div class="card-desc">An emerging concept: international organizations deploying cyber incident response teams to conflict zones, monitoring ceasefires in cyberspace, and providing neutral forensic analysis after attacks. The UN's ICT for Peace foundation has explored this. Challenges include the lack of "ceasefire lines" in cyberspace, the speed of cyber operations versus diplomatic timelines, and the question of who staffs and funds a cyber peacekeeping force.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">UN GGE vs OEWG</div>
+                <div class="card-desc">Two parallel UN processes: the Group of Governmental Experts (GGE, 25 members, consensus-based) and the Open-Ended Working Group (OEWG, all UN members). The GGE produced the foundational 2013 and 2015 reports. The OEWG was proposed by Russia as an alternative -- critics saw it as an attempt to dilute Western influence. Both processes now affirm that international law applies to cyberspace, but disagree on how. The OEWG continues through 2025.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">The Enforcement Problem</div>
+                <div class="card-desc">Norms without enforcement are aspirational documents. The 2015 UN GGE norms prohibit attacks on CI during peacetime -- yet Russia attacked Ukraine's power grid that same year. Attribution challenges, lack of penalties, and great power vetoes at the UN Security Council make enforcement nearly impossible. The result: a growing body of agreed norms that major cyber powers routinely violate.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- KEY TAKEAWAYS ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 14</div>
+        <div class="slide-title">Key <span class="accent">Takeaways</span></div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">01</span>
+                <span class="fact-text"><strong>Digital sovereignty extends Westphalian sovereignty into cyberspace</strong> -- the claim that nations have the right to control data, technology, and internet governance within their borders. Three pillars: data sovereignty, technological independence, and internet governance models. The spectrum runs from open internet to sovereign internet, and the global trend is toward more state control.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">02</span>
+                <span class="fact-text"><strong>16 critical infrastructure sectors underpin national security</strong> -- designated by PPD-21 and coordinated by CISA. Interdependencies between sectors create cascading failure risks. Colonial Pipeline demonstrated how a single ransomware attack on one sector can cascade into transportation, emergency services, and public order across an entire region.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">03</span>
+                <span class="fact-text"><strong>National cybersecurity strategies reflect political systems</strong> -- the US shifts liability to vendors, the EU regulates through NIS2 and the Cyber Solidarity Act, China mandates state control and self-reliance, Israel integrates military-civilian talent pipelines, and Australia builds Pacific partnerships. The 2023 US National Cyber Strategy marks a shift from voluntary to mandatory security requirements.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">04</span>
+                <span class="fact-text"><strong>Attribution is the central problem of cyber warfare</strong> -- confidence degrades as you move from technical artifacts to political responsibility. The gray zone below the threshold of armed conflict is where most state-sponsored operations occur. International law has no clear rules for espionage, IP theft, or CI pre-positioning that falls short of armed attack.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">05</span>
+                <span class="fact-text"><strong>The Tallinn Manual is the most authoritative legal analysis</strong> of how international law applies to cyberspace -- but it is not binding. It establishes that sovereignty, use of force, and self-defense principles apply to cyber operations. Major cyber powers have not endorsed it, and its coverage of AI-driven operations is minimal.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">06</span>
+                <span class="fact-text"><strong>Data sovereignty creates a three-way collision</strong> between GDPR extraterritorial reach, the US CLOUD Act's global data access claims, and national data localization mandates. Schrems II invalidated the EU-US Privacy Shield. The EU-US Data Privacy Framework (2023) is a temporary fix -- a Schrems III challenge is expected.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">07</span>
+                <span class="fact-text"><strong>Technological sovereignty is a supply chain security problem</strong> -- semiconductor fabrication concentrated in Taiwan (TSMC 54%), 5G infrastructure dependent on a handful of vendors, and cloud services dominated by US hyperscalers. The CHIPS Act, GAIA-X, and Open RAN are policy responses to strategic dependency.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">08</span>
+                <span class="fact-text"><strong>Global cyber norms are growing but unenforceable</strong> -- the Paris Call, UN GGE/OEWG consensus reports, and Digital Geneva Convention proposals all point toward agreed rules of behavior. The enforcement gap is the fundamental problem: norms that major powers routinely violate are aspirational, not operational.</span>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">The Bottom Line</div>
+            Digital sovereignty is the defining geopolitical issue of the next decade. Every cybersecurity professional must understand the intersection of technology, law, and politics that shapes this landscape. The questions are not abstract -- they determine where data is stored, who can access it, which vendors build national infrastructure, how nations respond to cyber attacks, and whether the internet remains a global commons or fragments into sovereign enclaves. The answers will be written by the generation entering the field now.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- MARK COMPLETE ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 14 &nbsp;|&nbsp; Complete</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Presentation<br>
+                <span class="accent">Complete</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Digital Sovereignty -- 14 slides
+            </div>
+        </div>
+
+        <div class="scenario-strip" style="text-align:center; font-style:normal;">
+            Digital Sovereignty &bull; Critical Infrastructure &bull; National Strategies &bull; Cyber Warfare &bull; Tallinn Manual &bull; Internet Governance &bull; Data Sovereignty &bull; Tech Sovereignty &bull; Election Security &bull; Emerging Challenges &bull; Global Norms
+        </div>
+
+        <div style="text-align:center; margin-top:10px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+
+        <div class="title-meta-row" style="margin-top:8px;">
+            <span>CIS2208</span>
+            <span>Cybersecurity Policy</span>
+            <span>Week 4</span>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Cybersecurity Policy</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 14</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 14;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        var completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('divergent', 'csp-w4-sovereignty-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

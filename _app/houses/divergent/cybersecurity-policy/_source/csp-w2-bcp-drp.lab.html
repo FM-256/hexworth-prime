@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BCP/DRP Planner | Cybersecurity Policy</title>
+    <style>
+        :root {
+            --div-primary: #ff00ff;
+            --div-secondary: #cc00cc;
+            --div-accent: #ff44ff;
+            --div-cyan: #00ffff;
+            --div-glow: rgba(255, 0, 255, 0.25);
+            --bg-main: #0d0810;
+            --bg-deep: #0a060d;
+            --bg-card: #120b14;
+            --bg-card-hover: #1a0f1e;
+            --text-primary: #ede0f0;
+            --text-secondary: #9a82a0;
+            --text-muted: #5a4460;
+            --border-color: rgba(255, 0, 255, 0.10);
+            --border-hover: rgba(255, 0, 255, 0.32);
+            --success: #00ff9d;
+            --danger: #ef4444;
+            --warning: #fbbf24;
+        }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background: linear-gradient(160deg, var(--bg-main) 0%, var(--bg-deep) 100%);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            color: var(--text-primary); line-height: 1.6;
+        }
+        .lab-container { max-width: 1000px; margin: 0 auto; padding: 2rem; }
+
+        .back-link {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            color: var(--div-primary); text-decoration: none; margin-bottom: 1rem;
+            font-size: 0.85rem; transition: all 0.3s;
+        }
+        .back-link:hover { color: var(--div-accent); transform: translateX(-4px); }
+
+        .lab-header {
+            text-align: center; margin-bottom: 2rem; padding: 2rem;
+            background: linear-gradient(135deg, var(--bg-card), var(--bg-deep));
+            border-radius: 16px; border: 1px solid var(--div-primary);
+            box-shadow: 0 0 30px var(--div-glow);
+        }
+        .lab-header h1 {
+            font-size: 2rem; margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--div-primary), var(--div-cyan));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .lab-header .subtitle { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem; }
+        .lab-meta { display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; }
+        .meta-item { color: var(--text-muted); font-size: 0.85rem; }
+
+        .instructions {
+            background: var(--bg-card); border-radius: 12px; padding: 1.5rem;
+            margin-bottom: 1.5rem; border: 1px solid var(--border-color);
+        }
+        .instructions h2 { color: var(--div-primary); font-size: 1.1rem; margin-bottom: 0.75rem; }
+        .instructions p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.5rem; }
+
+        .scenario-box {
+            background: rgba(0, 255, 255, 0.04); border: 1px solid rgba(0, 255, 255, 0.15);
+            border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 2rem;
+        }
+        .scenario-box h3 { color: var(--div-cyan); font-size: 1rem; margin-bottom: 0.5rem; }
+        .scenario-box p { color: var(--text-secondary); font-size: 0.88rem; }
+
+        .score-bar {
+            background: var(--bg-card); border-radius: 12px; padding: 1rem 1.5rem;
+            margin-bottom: 2rem; border: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .score-label { color: var(--text-secondary); font-size: 0.9rem; }
+        .score-value { color: var(--div-cyan); font-size: 1.2rem; font-weight: 700; }
+
+        .section-title {
+            color: var(--div-primary); font-size: 1rem; font-weight: 700;
+            margin-bottom: 1rem; letter-spacing: 0.05em;
+        }
+        .section-desc { color: var(--text-muted); font-size: 0.82rem; margin-bottom: 1rem; }
+
+        /* Sortable list */
+        .sortable-list { list-style: none; margin-bottom: 2rem; }
+        .sortable-item {
+            display: flex; align-items: center; gap: 1rem;
+            padding: 0.75rem 1rem; margin-bottom: 0.5rem;
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 8px; cursor: grab; transition: all 0.2s;
+            user-select: none;
+        }
+        .sortable-item:hover { border-color: var(--border-hover); background: var(--bg-card-hover); }
+        .sortable-item.dragging { opacity: 0.5; border-color: var(--div-primary); }
+        .sortable-item.drag-over { border-color: var(--div-cyan); background: rgba(0, 255, 255, 0.04); }
+        .sortable-item.result-correct { border-color: var(--success); }
+        .sortable-item.result-incorrect { border-color: var(--danger); }
+
+        .drag-handle { color: var(--text-muted); font-size: 1.1rem; min-width: 20px; text-align: center; }
+        .rank-num {
+            width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+            background: rgba(255, 0, 255, 0.1); border-radius: 6px;
+            font-size: 0.8rem; font-weight: 700; color: var(--div-primary);
+        }
+        .func-name { flex: 1; font-size: 0.9rem; color: var(--text-primary); }
+        .func-desc { font-size: 0.75rem; color: var(--text-muted); }
+
+        .config-row { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+        .config-row select {
+            padding: 6px 10px; background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(255, 0, 255, 0.2); border-radius: 6px;
+            color: var(--text-primary); font-size: 0.8rem; cursor: pointer;
+        }
+        .config-row select:focus { outline: none; border-color: var(--div-primary); }
+        .config-label { font-size: 0.75rem; color: var(--text-muted); min-width: 40px; }
+
+        .item-feedback { font-size: 0.75rem; margin-top: 0.25rem; display: none; padding-left: 3rem; }
+        .item-feedback.show { display: block; }
+        .item-feedback.fb-correct { color: var(--success); }
+        .item-feedback.fb-incorrect { color: var(--danger); }
+
+        .action-row {
+            display: flex; gap: 1rem; justify-content: center; margin: 2rem 0; flex-wrap: wrap;
+        }
+        .btn {
+            padding: 12px 32px; border: none; border-radius: 8px;
+            font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.3s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--div-primary), var(--div-secondary));
+            color: #0d0810;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--div-glow); }
+        .btn-complete {
+            background: linear-gradient(135deg, var(--div-primary), var(--div-secondary));
+            color: #0d0810; width: 100%; padding: 1rem; font-size: 1.05rem; display: none;
+        }
+        .btn-complete:hover { transform: translateY(-2px); box-shadow: 0 8px 28px var(--div-glow); }
+        .btn-complete.done { background: var(--success); cursor: default; transform: none; box-shadow: none; }
+        .btn-reset {
+            background: transparent; border: 1px solid rgba(255, 0, 255, 0.2);
+            color: var(--text-secondary);
+        }
+        .btn-reset:hover { border-color: var(--div-primary); color: var(--div-primary); }
+
+        @media (max-width: 768px) {
+            .lab-container { padding: 1rem; }
+            .lab-header h1 { font-size: 1.5rem; }
+            .config-row { flex-direction: column; align-items: stretch; }
+        }
+    </style>
+</head>
+<body>
+    <div class="lab-container">
+        <a href="../index.html" class="back-link">&larr; Cybersecurity Policy Hub</a>
+
+        <header class="lab-header">
+            <h1>BCP/DRP Planner</h1>
+            <p class="subtitle">Build a business continuity and disaster recovery plan for a healthcare organization</p>
+            <div class="lab-meta">
+                <span class="meta-item">Lab 7</span>
+                <span class="meta-item">30 minutes</span>
+                <span class="meta-item">8 Functions</span>
+            </div>
+        </header>
+
+        <div class="instructions">
+            <h2>Instructions</h2>
+            <p><strong>Step 1:</strong> Drag the business functions into order of criticality (most critical at the top).</p>
+            <p><strong>Step 2:</strong> Assign an RTO (Recovery Time Objective) to each function using the dropdown.</p>
+            <p><strong>Step 3:</strong> Select a DR strategy (Hot / Warm / Cold / Cloud) for each function.</p>
+            <p>Click <strong>Check Plan</strong> to validate your decisions. Scoring is based on correct rank position, appropriate RTO assignment, and suitable DR strategy selection. You need <strong>70%</strong> to unlock Mark Complete.</p>
+        </div>
+
+        <div class="scenario-box">
+            <h3>Scenario: MedVault Health Systems</h3>
+            <p>MedVault is a mid-size healthcare organization operating 3 hospitals and 12 outpatient clinics. They manage electronic health records (EHR) for 200,000 patients, process 8,000 insurance claims daily, and maintain HIPAA-regulated systems. After a recent ransomware incident at a peer organization, the CISO has tasked you with building a BCP/DRP. Rank these business functions and assign recovery parameters.</p>
+        </div>
+
+        <div class="score-bar">
+            <span class="score-label">Score</span>
+            <span class="score-value" id="scoreDisplay">-- / --</span>
+        </div>
+
+        <div class="section-title">Business Functions -- Drag to Rank by Criticality</div>
+        <div class="section-desc">Position 1 = most critical. Consider patient safety, regulatory requirements, and revenue impact.</div>
+
+        <ul class="sortable-list" id="funcList"></ul>
+
+        <div class="action-row">
+            <button class="btn btn-primary" id="checkBtn" onclick="checkPlan()">Check Plan</button>
+            <button class="btn btn-reset" onclick="resetLab()">Reset</button>
+        </div>
+
+        <button class="btn btn-complete" id="completeBtn" onclick="markComplete()">Mark Complete</button>
+    </div>
+
+    <script>
+        /*
+         * Each function has:
+         * - correctRank: ideal priority (1 = most critical)
+         * - correctRTO: best RTO choice
+         * - acceptableRTO: array of acceptable RTOs (partial credit)
+         * - correctDR: best DR strategy
+         * - acceptableDR: array of acceptable strategies
+         */
+        var FUNCTIONS = [
+            {
+                id: 'ehr', name: 'Electronic Health Records (EHR)',
+                desc: 'Patient records, allergies, medications, treatment history',
+                correctRank: 1, correctRTO: '1hr', acceptableRTO: ['1hr'],
+                correctDR: 'hot', acceptableDR: ['hot']
+            },
+            {
+                id: 'lab', name: 'Clinical Lab Systems',
+                desc: 'Lab orders, test results, blood bank, pathology reports',
+                correctRank: 2, correctRTO: '1hr', acceptableRTO: ['1hr', '4hr'],
+                correctDR: 'hot', acceptableDR: ['hot']
+            },
+            {
+                id: 'pharmacy', name: 'Pharmacy Management',
+                desc: 'Drug dispensing, interaction checking, controlled substance tracking',
+                correctRank: 3, correctRTO: '1hr', acceptableRTO: ['1hr', '4hr'],
+                correctDR: 'hot', acceptableDR: ['hot', 'warm']
+            },
+            {
+                id: 'claims', name: 'Insurance Claims Processing',
+                desc: '8,000 claims/day, payer EDI connections, revenue cycle',
+                correctRank: 4, correctRTO: '4hr', acceptableRTO: ['4hr', '24hr'],
+                correctDR: 'warm', acceptableDR: ['warm', 'cloud']
+            },
+            {
+                id: 'email', name: 'Email and Communication',
+                desc: 'Staff email, clinical messaging, pager integration',
+                correctRank: 5, correctRTO: '4hr', acceptableRTO: ['4hr', '24hr'],
+                correctDR: 'warm', acceptableDR: ['warm', 'cloud']
+            },
+            {
+                id: 'hr', name: 'HR and Payroll',
+                desc: 'Employee records, scheduling, payroll processing, credentialing',
+                correctRank: 6, correctRTO: '24hr', acceptableRTO: ['24hr', '72hr'],
+                correctDR: 'cold', acceptableDR: ['cold', 'cloud', 'warm']
+            },
+            {
+                id: 'training', name: 'Staff Training Portal',
+                desc: 'Compliance training, HIPAA modules, CE tracking',
+                correctRank: 7, correctRTO: '72hr', acceptableRTO: ['72hr', '1wk'],
+                correctDR: 'cloud', acceptableDR: ['cloud', 'cold']
+            },
+            {
+                id: 'marketing', name: 'Marketing Website',
+                desc: 'Public-facing site, provider directory, patient testimonials',
+                correctRank: 8, correctRTO: '1wk', acceptableRTO: ['72hr', '1wk'],
+                correctDR: 'cloud', acceptableDR: ['cloud', 'cold']
+            }
+        ];
+
+        var RTO_OPTIONS = ['1hr', '4hr', '24hr', '72hr', '1wk'];
+        var DR_OPTIONS = ['hot', 'warm', 'cold', 'cloud'];
+        var submitted = false;
+        var dragSrcIdx = null;
+
+        function shuffle(arr) {
+            var a = arr.slice();
+            for (var i = a.length - 1; i > 0; i--) {
+                var j = Math.floor(Math.random() * (i + 1));
+                var t = a[i]; a[i] = a[j]; a[j] = t;
+            }
+            return a;
+        }
+
+        function buildList() {
+            var list = document.getElementById('funcList');
+            list.innerHTML = '';
+            var shuffled = shuffle(FUNCTIONS);
+
+            shuffled.forEach(function(fn, idx) {
+                var li = document.createElement('li');
+                li.className = 'sortable-item';
+                li.setAttribute('draggable', 'true');
+                li.dataset.funcId = fn.id;
+
+                var rtoOpts = '<option value="">RTO</option>';
+                RTO_OPTIONS.forEach(function(r) {
+                    rtoOpts += '<option value="' + r + '">' + r + '</option>';
+                });
+
+                var drOpts = '<option value="">DR Strategy</option>';
+                DR_OPTIONS.forEach(function(d) {
+                    var label = d.charAt(0).toUpperCase() + d.slice(1);
+                    if (d === 'hot') label = 'Hot Site';
+                    if (d === 'warm') label = 'Warm Site';
+                    if (d === 'cold') label = 'Cold Site';
+                    if (d === 'cloud') label = 'Cloud DR';
+                    drOpts += '<option value="' + d + '">' + label + '</option>';
+                });
+
+                li.innerHTML =
+                    '<span class="drag-handle">&#x2630;</span>' +
+                    '<span class="rank-num" id="rank-' + fn.id + '">' + (idx + 1) + '</span>' +
+                    '<span class="func-name">' + fn.name + '<br><span class="func-desc">' + fn.desc + '</span></span>' +
+                    '<div class="config-row">' +
+                        '<select id="rto-' + fn.id + '">' + rtoOpts + '</select>' +
+                        '<select id="dr-' + fn.id + '">' + drOpts + '</select>' +
+                    '</div>';
+
+                /* Drag events */
+                li.addEventListener('dragstart', function(e) {
+                    if (submitted) { e.preventDefault(); return; }
+                    dragSrcIdx = getItemIndex(li);
+                    li.classList.add('dragging');
+                    e.dataTransfer.effectAllowed = 'move';
+                });
+                li.addEventListener('dragend', function() {
+                    li.classList.remove('dragging');
+                    updateRankNumbers();
+                });
+                li.addEventListener('dragover', function(e) {
+                    if (submitted) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    li.classList.add('drag-over');
+                });
+                li.addEventListener('dragleave', function() {
+                    li.classList.remove('drag-over');
+                });
+                li.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    li.classList.remove('drag-over');
+                    if (submitted) return;
+                    var targetIdx = getItemIndex(li);
+                    if (dragSrcIdx === null || dragSrcIdx === targetIdx) return;
+                    var items = Array.from(list.children);
+                    var draggedItem = items[dragSrcIdx];
+                    if (dragSrcIdx < targetIdx) {
+                        list.insertBefore(draggedItem, li.nextSibling);
+                    } else {
+                        list.insertBefore(draggedItem, li);
+                    }
+                    updateRankNumbers();
+                    dragSrcIdx = null;
+                });
+
+                list.appendChild(li);
+            });
+        }
+
+        function getItemIndex(item) {
+            return Array.from(item.parentNode.children).indexOf(item);
+        }
+
+        function updateRankNumbers() {
+            var items = document.querySelectorAll('.sortable-item');
+            items.forEach(function(item, idx) {
+                var fid = item.dataset.funcId;
+                var rankEl = document.getElementById('rank-' + fid);
+                if (rankEl) rankEl.textContent = idx + 1;
+            });
+        }
+
+        function getFuncById(id) {
+            for (var i = 0; i < FUNCTIONS.length; i++) {
+                if (FUNCTIONS[i].id === id) return FUNCTIONS[i];
+            }
+            return null;
+        }
+
+        function checkPlan() {
+            if (submitted) return;
+            var items = document.querySelectorAll('.sortable-item');
+            var totalPoints = 0;
+            var earnedPoints = 0;
+            var maxPerFunc = 6; /* 2 for rank + 2 for RTO + 2 for DR */
+            var totalPossible = FUNCTIONS.length * maxPerFunc;
+
+            items.forEach(function(item, idx) {
+                var fid = item.dataset.funcId;
+                var fn = getFuncById(fid);
+                if (!fn) return;
+
+                var userRank = idx + 1;
+                var userRTO = document.getElementById('rto-' + fid).value;
+                var userDR = document.getElementById('dr-' + fid).value;
+                var points = 0;
+                var details = [];
+
+                /* Rank scoring: exact = 2, off by 1 = 1 */
+                var rankDiff = Math.abs(userRank - fn.correctRank);
+                if (rankDiff === 0) {
+                    points += 2; details.push('Rank: correct');
+                } else if (rankDiff === 1) {
+                    points += 1; details.push('Rank: close (off by 1)');
+                } else {
+                    details.push('Rank: should be #' + fn.correctRank);
+                }
+
+                /* RTO scoring: exact = 2, acceptable = 1 */
+                if (userRTO === fn.correctRTO) {
+                    points += 2; details.push('RTO: correct');
+                } else if (fn.acceptableRTO.indexOf(userRTO) !== -1) {
+                    points += 1; details.push('RTO: acceptable (ideal: ' + fn.correctRTO + ')');
+                } else if (userRTO) {
+                    details.push('RTO: should be ' + fn.correctRTO);
+                } else {
+                    details.push('RTO: not selected');
+                }
+
+                /* DR scoring: exact = 2, acceptable = 1 */
+                if (userDR === fn.correctDR) {
+                    points += 2; details.push('DR: correct');
+                } else if (fn.acceptableDR.indexOf(userDR) !== -1) {
+                    points += 1; details.push('DR: acceptable (ideal: ' + fn.correctDR + ')');
+                } else if (userDR) {
+                    details.push('DR: should be ' + fn.correctDR);
+                } else {
+                    details.push('DR: not selected');
+                }
+
+                earnedPoints += points;
+
+                /* Show feedback */
+                item.classList.remove('result-correct', 'result-incorrect');
+                if (points >= 5) {
+                    item.classList.add('result-correct');
+                } else if (points <= 2) {
+                    item.classList.add('result-incorrect');
+                }
+
+                /* Add feedback element if not exists */
+                var fbId = 'fb-' + fid;
+                var existing = document.getElementById(fbId);
+                if (!existing) {
+                    existing = document.createElement('div');
+                    existing.id = fbId;
+                    existing.className = 'item-feedback';
+                    item.parentNode.insertBefore(existing, item.nextSibling);
+                }
+                existing.className = 'item-feedback show ' + (points >= 4 ? 'fb-correct' : 'fb-incorrect');
+                existing.textContent = points + '/' + maxPerFunc + ' -- ' + details.join(' | ');
+
+                /* Disable inputs */
+                document.getElementById('rto-' + fid).disabled = true;
+                document.getElementById('dr-' + fid).disabled = true;
+            });
+
+            submitted = true;
+            document.getElementById('scoreDisplay').textContent = earnedPoints + ' / ' + totalPossible;
+            document.getElementById('checkBtn').disabled = true;
+            document.getElementById('checkBtn').style.opacity = '0.4';
+
+            var threshold = Math.floor(totalPossible * 0.7);
+            if (earnedPoints >= threshold) {
+                document.getElementById('completeBtn').style.display = 'block';
+            }
+        }
+
+        function resetLab() {
+            submitted = false;
+            dragSrcIdx = null;
+            document.getElementById('scoreDisplay').textContent = '-- / --';
+            document.getElementById('checkBtn').disabled = false;
+            document.getElementById('checkBtn').style.opacity = '1';
+            document.getElementById('completeBtn').style.display = 'none';
+            document.getElementById('completeBtn').classList.remove('done');
+            document.getElementById('completeBtn').textContent = 'Mark Complete';
+            /* Remove feedback elements */
+            document.querySelectorAll('.item-feedback').forEach(function(el) { el.remove(); });
+            buildList();
+        }
+
+        function markComplete() {
+            var btn = document.getElementById('completeBtn');
+            if (btn.classList.contains('done')) return;
+            btn.classList.add('done');
+            btn.textContent = 'Completed';
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('divergent', 'csp-w2-bcp-drp-lab', { returnUrl: '../index.html' });
+            }
+        }
+
+        buildList();
+    </script>
+
+    <script src="../../../../components/TrailHunter.js"></script>
+</body>
+</html>

@@ -412,6 +412,16 @@ Add 2-player options to arcade games. MVP: split-screen local (WASD + arrows) or
 
 ---
 
+## PFI Auto-Grader — Remaining Items (added 2026-04-27)
+*Sprints: PFI-AG-1 through PFI-AG-4 — polish and infrastructure*
+
+- [ ] **PFI-AG-1** — Rate limit tuning: currently set to 20/hr for testing. Lower to production value (5-10/hr per project per user). Update in `functions/index.js` `gradePFIProject`.
+- [ ] **PFI-AG-2** — Quiz answer rebalancing: 47 quizzes identified with >90% same answer position. Answers are correct but poorly distributed. Needs careful manual/targeted approach (automated attempt failed — comma formatting broke).
+- [ ] **PFI-AG-3** — Instructor submission viewer: build handler dashboard UI for viewing student auto-grader submissions. Data already in Firestore `pfi_submissions/{projectId}_{uid}` — needs read UI on admin/handler side with filtering by student, week, score.
+- [ ] **PFI-AG-4** — Tier 0 Progress Protection: architectural — Firestore as source of truth for progress, write confirmation, progress snapshots. Needs planning doc and user review before implementation.
+
+---
+
 ## Context Recovery Instructions
 
 If you are a new session reading this file:

@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NIST Cybersecurity Framework | Cybersecurity Policy</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d0810 0%, #0a060d 50%, #100812 100%);
+            color: #ede0f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow-y: auto;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: linear-gradient(90deg, #ff00ff, #00ffff);
+            transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(13, 8, 16, 0.95);
+            border-top: 1px solid rgba(255, 0, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #9a82a0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(255, 0, 255, 0.12); color: #ff00ff; border-color: #ff00ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #5a4460; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: linear-gradient(135deg, #ff00ff, #ff44ff);
+            color: #0d0810; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: linear-gradient(135deg, #ff44ff, #ff88ff); transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #ff00ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #ede0f0; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ff00ff; }
+        .slide-title .cyan { color: #00ffff; }
+        .slide-subtitle { font-size: 0.95rem; color: #9a82a0; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(255, 0, 255, 0.06); border-left: 3px solid #ff00ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #f5b8f5; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-magenta { background: rgba(255, 0, 255, 0.08); border: 1px solid rgba(255, 0, 255, 0.3); color: #f5b8f5; }
+        .box-cyan    { background: rgba(0, 255, 255, 0.08); border: 1px solid rgba(0, 255, 255, 0.3); color: #b8f5f5; }
+        .box-red     { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold    { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-green   { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-label   { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #ede0f0; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ff00ff; }
+        .title-hero .big-title .cyan { color: #00ffff; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #5a4460;
+        }
+        .title-meta-row span { border-left: 2px solid rgba(255, 0, 255, 0.2); padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card-grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+        .card-grid-6 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #ff00ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #ede0f0; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #9a82a0; line-height: 1.4; }
+        .card.c-magenta { border-left-color: #ff00ff; }
+        .card.c-cyan    { border-left-color: #00ffff; }
+        .card.c-red     { border-left-color: #ef4444; }
+        .card.c-gold    { border-left-color: #eab308; }
+        .card.c-green   { border-left-color: #22c55e; }
+        .card.c-purple  { border-left-color: #ff44ff; }
+        .card.c-blue    { border-left-color: #3b82f6; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #5a4460; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #ff00ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #ede0f0; }
+
+        /* SVG diagram containers */
+        .svg-container {
+            display: flex; justify-content: center; align-items: center;
+            margin: 10px 0; padding: 10px;
+        }
+        .svg-container svg { max-width: 100%; height: auto; }
+
+        /* Glossary table */
+        .glossary-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+        .glossary-table th {
+            text-align: left; padding: 6px 10px; font-size: 0.72rem;
+            text-transform: uppercase; letter-spacing: 0.08em;
+            color: #ff00ff; border-bottom: 1px solid rgba(255, 0, 255, 0.3);
+        }
+        .glossary-table td {
+            padding: 6px 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            vertical-align: top;
+        }
+        .glossary-table td:first-child { color: #00ffff; font-weight: 600; white-space: nowrap; }
+        .glossary-table td:last-child { color: #9a82a0; }
+
+        /* Timeline steps */
+        .timeline { display: flex; gap: 2px; margin: 10px 0; }
+        .tl-step {
+            flex: 1; padding: 10px 6px; text-align: center;
+            background: rgba(255, 0, 255, 0.06); border: 1px solid rgba(255, 0, 255, 0.15);
+            border-radius: 4px; transition: background 0.2s;
+        }
+        .tl-step:hover { background: rgba(255, 0, 255, 0.14); }
+        .tl-num { font-size: 0.68rem; font-weight: 700; color: #00ffff; letter-spacing: 0.08em; margin-bottom: 3px; }
+        .tl-name { font-size: 0.78rem; font-weight: 700; color: #ede0f0; margin-bottom: 3px; }
+        .tl-desc { font-size: 0.7rem; color: #9a82a0; line-height: 1.3; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid, .card-grid-4, .card-grid-5, .card-grid-6 { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .timeline { flex-wrap: wrap; } .tl-step { min-width: 45%; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">NIST Cybersecurity Framework | Cybersecurity Policy</h1>
+
+<div id="progress-bar" style="width:7.14%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 14 &nbsp;|&nbsp; CSP-W4-01 &nbsp;|&nbsp; Week 4</div>
+        <div class="title-hero">
+            <div class="big-title">
+                NIST Cybersecurity <span class="accent">Framework</span><br>
+                <span class="cyan" style="font-size:0.65em;">Five Functions, Profiles, Tiers, CSF 2.0</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                EO 13636 &bull; Identify &bull; Protect &bull; Detect &bull; Respond &bull; Recover &bull; Govern &bull; Profiles &bull; Tiers &bull; Crosswalks
+            </div>
+        </div>
+        <div class="scenario-strip">
+            The NIST Cybersecurity Framework is the most widely adopted risk-management framework in the United States and increasingly across the globe. Originally created under Executive Order 13636 to protect critical infrastructure, it has evolved into a universal language for communicating cybersecurity posture across sectors, supply chains, and regulatory boundaries. CSF 2.0 adds a sixth function -- Govern -- elevating organizational leadership and accountability to the same level as technical controls. This deck covers the complete framework: its origin, all six functions, subcategories, profiles, implementation tiers, and how organizations map it to existing standards like ISO 27001 and CIS Controls.
+        </div>
+        <div class="title-meta-row">
+            <span>14 Slides</span>
+            <span>CSP-W4-01</span>
+            <span>Week 4</span>
+            <span>CIS2208 -- Cybersecurity Policy</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- WHAT IS THE NIST CSF ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 14</div>
+        <div class="slide-title">What Is the <span class="accent">NIST CSF</span>?</div>
+        <div class="slide-subtitle">Origin, purpose, and design principles -- a voluntary, sector-agnostic framework for managing cybersecurity risk.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 560 200" width="540" role="img" aria-label="NIST CSF adoption timeline from 2013 to 2024. Key milestones: EO 13636 in February 2013, CSF 1.0 released February 2014, CSF 1.1 update April 2018, CSF 2.0 released February 2024.">
+                <!-- Timeline base -->
+                <line x1="30" y1="100" x2="530" y2="100" stroke="rgba(255,0,255,0.3)" stroke-width="2"/>
+                <!-- EO 13636 -->
+                <circle cx="70" cy="100" r="6" fill="#ff00ff" stroke="#ff44ff" stroke-width="1.5"/>
+                <rect x="20" y="30" width="100" height="50" rx="6" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="70" y="47" text-anchor="middle" fill="#ff00ff" font-size="8" font-weight="700">EO 13636</text>
+                <text x="70" y="59" text-anchor="middle" fill="#ede0f0" font-size="7">Improving Critical</text>
+                <text x="70" y="70" text-anchor="middle" fill="#ede0f0" font-size="7">Infrastructure Cybersec</text>
+                <line x1="70" y1="80" x2="70" y2="94" stroke="rgba(255,0,255,0.4)" stroke-width="1"/>
+                <text x="70" y="125" text-anchor="middle" fill="#5a4460" font-size="8" font-weight="600">Feb 2013</text>
+                <!-- CSF 1.0 -->
+                <circle cx="210" cy="100" r="6" fill="#00ffff" stroke="#00ffff" stroke-width="1.5"/>
+                <rect x="155" y="30" width="110" height="50" rx="6" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="210" y="47" text-anchor="middle" fill="#00ffff" font-size="8" font-weight="700">CSF 1.0</text>
+                <text x="210" y="59" text-anchor="middle" fill="#ede0f0" font-size="7">5 Functions, 23 Categories</text>
+                <text x="210" y="70" text-anchor="middle" fill="#ede0f0" font-size="7">108 Subcategories</text>
+                <line x1="210" y1="80" x2="210" y2="94" stroke="rgba(0,255,255,0.4)" stroke-width="1"/>
+                <text x="210" y="125" text-anchor="middle" fill="#5a4460" font-size="8" font-weight="600">Feb 2014</text>
+                <!-- CSF 1.1 -->
+                <circle cx="350" cy="100" r="6" fill="#22c55e" stroke="#22c55e" stroke-width="1.5"/>
+                <rect x="295" y="30" width="110" height="50" rx="6" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1"/>
+                <text x="350" y="47" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">CSF 1.1</text>
+                <text x="350" y="59" text-anchor="middle" fill="#ede0f0" font-size="7">Supply Chain Added</text>
+                <text x="350" y="70" text-anchor="middle" fill="#ede0f0" font-size="7">Self-Assessment Guidance</text>
+                <line x1="350" y1="80" x2="350" y2="94" stroke="rgba(34,197,94,0.4)" stroke-width="1"/>
+                <text x="350" y="125" text-anchor="middle" fill="#5a4460" font-size="8" font-weight="600">Apr 2018</text>
+                <!-- CSF 2.0 -->
+                <circle cx="490" cy="100" r="6" fill="#ff44ff" stroke="#ff44ff" stroke-width="1.5"/>
+                <rect x="430" y="30" width="120" height="50" rx="6" fill="rgba(255,68,255,0.08)" stroke="#ff44ff" stroke-width="1"/>
+                <text x="490" y="47" text-anchor="middle" fill="#ff44ff" font-size="8" font-weight="700">CSF 2.0</text>
+                <text x="490" y="59" text-anchor="middle" fill="#ede0f0" font-size="7">6 Functions (Govern added)</text>
+                <text x="490" y="70" text-anchor="middle" fill="#ede0f0" font-size="7">All orgs, not just CI</text>
+                <line x1="490" y1="80" x2="490" y2="94" stroke="rgba(255,68,255,0.4)" stroke-width="1"/>
+                <text x="490" y="125" text-anchor="middle" fill="#5a4460" font-size="8" font-weight="600">Feb 2024</text>
+                <!-- Bottom label -->
+                <text x="280" y="160" text-anchor="middle" fill="#5a4460" font-size="7" letter-spacing="0.06em">NIST SP 800-SERIES | NATIONAL INSTITUTE OF STANDARDS AND TECHNOLOGY</text>
+                <!-- Arrow heads -->
+                <polygon points="530,100 522,95 522,105" fill="rgba(255,0,255,0.5)"/>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Voluntary Framework</div>
+                <div class="card-desc">The CSF is not a regulation -- it is a voluntary risk-management framework. No organization is legally required to adopt it (unless mandated by sector-specific regulation or contract). Its power comes from ubiquity: when everyone speaks the same framework language, supply chain assurance, audits, and board communication become dramatically simpler.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Sector-Agnostic Design</div>
+                <div class="card-desc">Unlike HIPAA (healthcare) or PCI-DSS (payment cards), the CSF applies to any organization of any size in any sector. A hospital, a bank, a school district, and a defense contractor can all describe their cybersecurity posture using the same framework structure. This universality is its greatest strength.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Risk-Based Approach</div>
+                <div class="card-desc">The CSF does not prescribe specific controls or technologies. It provides a structure for organizations to assess their own risk, determine their target state, and prioritize investments accordingly. Two organizations in the same sector may implement the framework differently based on their unique risk profiles and business objectives.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">Executive Order 13636</div>
+            Signed by President Obama on February 12, 2013, EO 13636 -- "Improving Critical Infrastructure Cybersecurity" -- directed NIST to develop a voluntary framework for reducing cyber risks to critical infrastructure. NIST held workshops with over 3,000 participants from industry, academia, and government to build the framework collaboratively. The result was not a government mandate but a consensus document -- owned by the community that built it.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- CSF 2.0 ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 14</div>
+        <div class="slide-title"><span class="accent">CSF 2.0</span> -- The <span class="cyan">Govern</span> Function</div>
+        <div class="slide-subtitle">Six functions, expanded scope beyond critical infrastructure, and governance elevated to a core pillar.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 480 380" width="460" role="img" aria-label="NIST CSF 2.0 six-function wheel. Central hub labeled CSF 2.0 surrounded by six function segments: Govern at the top wrapping around the outside, then Identify, Protect, Detect, Respond, and Recover arranged in a circle. Govern encompasses all other functions.">
+                <!-- Outer Govern ring -->
+                <circle cx="240" cy="200" r="170" fill="none" stroke="#ff44ff" stroke-width="2" stroke-dasharray="4,3" opacity="0.4"/>
+                <text x="240" y="22" text-anchor="middle" fill="#ff44ff" font-size="11" font-weight="700" letter-spacing="0.1em">GOVERN (GV)</text>
+                <text x="240" y="36" text-anchor="middle" fill="#9a82a0" font-size="7">Organizational context, risk strategy, roles, policy, oversight, supply chain</text>
+                <!-- Center hub -->
+                <circle cx="240" cy="200" r="48" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="2"/>
+                <text x="240" y="194" text-anchor="middle" fill="#ff00ff" font-size="13" font-weight="700">CSF</text>
+                <text x="240" y="210" text-anchor="middle" fill="#ff00ff" font-size="11" font-weight="700">2.0</text>
+                <!-- Identify - top -->
+                <rect x="190" y="62" width="100" height="56" rx="8" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="240" y="82" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700">IDENTIFY</text>
+                <text x="240" y="94" text-anchor="middle" fill="#ede0f0" font-size="7">(ID)</text>
+                <text x="240" y="108" text-anchor="middle" fill="#9a82a0" font-size="6.5">Assets, Risk, Supply Chain</text>
+                <line x1="240" y1="118" x2="240" y2="152" stroke="rgba(255,0,255,0.3)" stroke-width="1"/>
+                <!-- Protect - top right -->
+                <rect x="340" y="110" width="100" height="56" rx="8" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="390" y="130" text-anchor="middle" fill="#00ffff" font-size="10" font-weight="700">PROTECT</text>
+                <text x="390" y="142" text-anchor="middle" fill="#ede0f0" font-size="7">(PR)</text>
+                <text x="390" y="156" text-anchor="middle" fill="#9a82a0" font-size="6.5">Access, Training, Data</text>
+                <line x1="340" y1="138" x2="290" y2="175" stroke="rgba(0,255,255,0.3)" stroke-width="1"/>
+                <!-- Detect - bottom right -->
+                <rect x="340" y="234" width="100" height="56" rx="8" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="390" y="254" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="700">DETECT</text>
+                <text x="390" y="266" text-anchor="middle" fill="#ede0f0" font-size="7">(DE)</text>
+                <text x="390" y="280" text-anchor="middle" fill="#9a82a0" font-size="6.5">Monitoring, Analysis</text>
+                <line x1="340" y1="262" x2="290" y2="225" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>
+                <!-- Respond - bottom -->
+                <rect x="190" y="282" width="100" height="56" rx="8" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="240" y="302" text-anchor="middle" fill="#eab308" font-size="10" font-weight="700">RESPOND</text>
+                <text x="240" y="314" text-anchor="middle" fill="#ede0f0" font-size="7">(RS)</text>
+                <text x="240" y="328" text-anchor="middle" fill="#9a82a0" font-size="6.5">Planning, Mitigation</text>
+                <line x1="240" y1="282" x2="240" y2="248" stroke="rgba(234,179,8,0.3)" stroke-width="1"/>
+                <!-- Recover - bottom left -->
+                <rect x="40" y="234" width="100" height="56" rx="8" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="90" y="254" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="700">RECOVER</text>
+                <text x="90" y="266" text-anchor="middle" fill="#ede0f0" font-size="7">(RC)</text>
+                <text x="90" y="280" text-anchor="middle" fill="#9a82a0" font-size="6.5">Restoration, Comms</text>
+                <line x1="140" y1="262" x2="190" y2="225" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>
+                <!-- Govern connection lines to all -->
+                <path d="M240,42 L240,62" stroke="rgba(255,68,255,0.3)" stroke-width="1" stroke-dasharray="3,2"/>
+                <path d="M400,42 Q440,80 440,110" stroke="rgba(255,68,255,0.3)" stroke-width="1" stroke-dasharray="3,2"/>
+                <path d="M80,42 Q40,80 40,234" stroke="rgba(255,68,255,0.3)" stroke-width="1" stroke-dasharray="3,2"/>
+                <!-- Bottom label -->
+                <text x="240" y="370" text-anchor="middle" fill="#5a4460" font-size="7" letter-spacing="0.06em">GOVERN WRAPS ALL FIVE OPERATIONAL FUNCTIONS | CSF 2.0 (FEBRUARY 2024)</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-purple">
+                <div class="card-label">What Changed in 2.0</div>
+                <div class="card-desc">The Govern function was added as the sixth and overarching function, elevating governance from an implicit assumption to an explicit requirement. The scope expanded from "critical infrastructure" to "all organizations." New emphasis on supply chain risk management, improved guidance for small and medium enterprises, and better integration with other NIST publications (SP 800-53, SP 800-221).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Why Govern Matters</div>
+                <div class="card-desc">In CSF 1.0/1.1, governance was embedded within the Identify function. CSF 2.0 recognized that governance is not one activity among many -- it is the foundation that informs and directs all other functions. Without explicit governance, organizations had technical controls but lacked the strategic direction, accountability, and oversight to deploy them effectively. Govern wraps around all five operational functions.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">Expanded Scope</div>
+            CSF 1.0 was explicitly targeted at critical infrastructure sectors -- energy, water, financial services, healthcare, and transportation. CSF 2.0 drops this limitation entirely. The title changed from "Framework for Improving Critical Infrastructure Cybersecurity" to simply "The NIST Cybersecurity Framework." Any organization -- a startup, a nonprofit, a university, a local government -- can now adopt the framework without the implicit question of whether they qualify as critical infrastructure.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- IDENTIFY FUNCTION ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 14</div>
+        <div class="slide-title"><span class="accent">Identify</span> (ID) -- <span class="cyan">Know Your Environment</span></div>
+        <div class="slide-subtitle">Asset management, business environment, governance, risk assessment, risk strategy, and supply chain risk management.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 520 250" width="500" role="img" aria-label="Identify function subcategory breakdown. Central node labeled ID (Identify) with six branches radiating outward to subcategory groups: Asset Management, Business Environment, Governance, Risk Assessment, Risk Management Strategy, and Supply Chain Risk Management.">
+                <!-- Center node -->
+                <circle cx="260" cy="125" r="36" fill="rgba(255,0,255,0.12)" stroke="#ff00ff" stroke-width="2"/>
+                <text x="260" y="121" text-anchor="middle" fill="#ff00ff" font-size="12" font-weight="700">ID</text>
+                <text x="260" y="135" text-anchor="middle" fill="#ede0f0" font-size="8">Identify</text>
+                <!-- AM - Asset Management -->
+                <line x1="224" y1="112" x2="90" y2="50" stroke="rgba(255,0,255,0.4)" stroke-width="1.5"/>
+                <rect x="15" y="20" width="150" height="55" rx="6" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="90" y="38" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">ID.AM</text>
+                <text x="90" y="51" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="600">Asset Management</text>
+                <text x="90" y="63" text-anchor="middle" fill="#9a82a0" font-size="6.5">Hardware, software, data flows</text>
+                <!-- BE - Business Environment -->
+                <line x1="224" y1="135" x2="90" y2="165" stroke="rgba(0,255,255,0.4)" stroke-width="1.5"/>
+                <rect x="15" y="138" width="150" height="55" rx="6" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="90" y="156" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">ID.BE</text>
+                <text x="90" y="169" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="600">Business Environment</text>
+                <text x="90" y="181" text-anchor="middle" fill="#9a82a0" font-size="6.5">Mission, objectives, dependencies</text>
+                <!-- GV - Governance (pre-2.0) -->
+                <line x1="260" y1="89" x2="260" y2="30" stroke="rgba(255,68,255,0.4)" stroke-width="1.5"/>
+                <rect x="195" y="2" width="130" height="28" rx="6" fill="rgba(255,68,255,0.06)" stroke="#ff44ff" stroke-width="1" stroke-dasharray="4,2"/>
+                <text x="260" y="20" text-anchor="middle" fill="#ff44ff" font-size="8" font-weight="600">ID.GV -- Governance*</text>
+                <!-- RA - Risk Assessment -->
+                <line x1="296" y1="112" x2="430" y2="50" stroke="rgba(34,197,94,0.4)" stroke-width="1.5"/>
+                <rect x="355" y="20" width="150" height="55" rx="6" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1"/>
+                <text x="430" y="38" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="700">ID.RA</text>
+                <text x="430" y="51" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="600">Risk Assessment</text>
+                <text x="430" y="63" text-anchor="middle" fill="#9a82a0" font-size="6.5">Threats, vulns, likelihood, impact</text>
+                <!-- RM - Risk Management Strategy -->
+                <line x1="296" y1="125" x2="430" y2="125" stroke="rgba(234,179,8,0.4)" stroke-width="1.5"/>
+                <rect x="355" y="98" width="150" height="55" rx="6" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1"/>
+                <text x="430" y="116" text-anchor="middle" fill="#eab308" font-size="9" font-weight="700">ID.RM</text>
+                <text x="430" y="129" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="600">Risk Mgmt Strategy</text>
+                <text x="430" y="141" text-anchor="middle" fill="#9a82a0" font-size="6.5">Tolerance, priorities, processes</text>
+                <!-- SC - Supply Chain -->
+                <line x1="296" y1="135" x2="430" y2="195" stroke="rgba(239,68,68,0.4)" stroke-width="1.5"/>
+                <rect x="355" y="175" width="150" height="55" rx="6" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1"/>
+                <text x="430" y="193" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">ID.SC</text>
+                <text x="430" y="206" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="600">Supply Chain RM</text>
+                <text x="430" y="218" text-anchor="middle" fill="#9a82a0" font-size="6.5">Vendors, partners, third parties</text>
+                <!-- Footnote -->
+                <text x="260" y="242" text-anchor="middle" fill="#5a4460" font-size="7">*ID.GV was moved to the new GOVERN function in CSF 2.0</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Asset Management (ID.AM)</div>
+                <div class="card-desc">You cannot protect what you do not know about. ID.AM requires inventorying all physical devices, software platforms, data flows, and external information systems. This includes shadow IT -- systems deployed without IT approval that still process organizational data.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Risk Assessment (ID.RA)</div>
+                <div class="card-desc">Identify threats and vulnerabilities to organizational assets, determine the likelihood of exploitation, and assess potential business impact. Risk assessment is not a one-time activity -- it must be continuous, reflecting changes in the threat landscape and the organization's attack surface.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Supply Chain RM (ID.SC)</div>
+                <div class="card-desc">Assess and manage cybersecurity risk introduced by suppliers, partners, and service providers. SolarWinds demonstrated that a compromised vendor can bypass every internal control. Supply chain risk management requires due diligence, contractual requirements, and ongoing monitoring of third-party security posture.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Identify Is the Foundation</div>
+            Every other function depends on the Identify function. You cannot protect assets you have not inventoried, detect threats to systems you do not know exist, respond to incidents affecting business processes you have not mapped, or recover services whose dependencies you have not documented. Identify is where cybersecurity begins.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- PROTECT FUNCTION ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 14</div>
+        <div class="slide-title"><span class="accent">Protect</span> (PR) -- <span class="cyan">Safeguard Critical Services</span></div>
+        <div class="slide-subtitle">Access control, awareness training, data security, information protection, maintenance, and protective technology.</div>
+
+        <div class="card-grid-6">
+            <div class="card c-magenta">
+                <div class="card-label">PR.AC -- Access Control</div>
+                <div class="card-desc">Identities and credentials are managed. Physical and logical access is limited to authorized users, processes, and devices. Principles of least privilege and separation of duties are enforced. This includes identity management, multi-factor authentication, remote access controls, and network segmentation.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">PR.AT -- Awareness &amp; Training</div>
+                <div class="card-desc">All users -- including privileged users, executives, and third parties -- receive cybersecurity awareness education. Training is role-based: a system administrator receives different training than an HR generalist. The goal is a security-aware culture where people are the first line of defense, not the weakest link.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">PR.DS -- Data Security</div>
+                <div class="card-desc">Data at rest is protected through encryption, access controls, and integrity checks. Data in transit is protected through TLS, VPNs, and secure protocols. Assets are formally managed through removal, transfer, and disposal processes. Data leakage prevention mechanisms are in place for sensitive information.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">PR.IP -- Information Protection</div>
+                <div class="card-desc">Security baselines for technology assets are established and maintained. Configuration management ensures systems are hardened. Backups are conducted, tested, and stored securely. Response and recovery plans are tested. Change control processes prevent unauthorized modifications to production systems.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">PR.MA -- Maintenance</div>
+                <div class="card-desc">Maintenance and repair of organizational assets is performed in a controlled manner with approved tools. Remote maintenance is logged, monitored, and conducted through secure channels. Maintenance personnel are authorized and supervised. Equipment removed for off-site maintenance is sanitized first.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">PR.PT -- Protective Technology</div>
+                <div class="card-desc">Audit and log records are determined, documented, and reviewed. Removable media is restricted. Communications and control networks are protected. Resilience requirements are established and implemented. Systems operate in least-functionality mode -- unnecessary services, ports, and protocols are disabled.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            The Protect function is where most organizations spend the majority of their cybersecurity budget. Firewalls, endpoint protection, encryption, IAM systems, training programs, and patch management all fall under Protect. The trap is spending 90% of the budget on Protect while neglecting Detect, Respond, and Recover -- because no Protect control is 100% effective. Assume breach, then build the other functions accordingly.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- DETECT FUNCTION ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 14</div>
+        <div class="slide-title"><span class="accent">Detect</span> (DE) -- <span class="cyan">Find Threats Early</span></div>
+        <div class="slide-subtitle">Anomalies and events, security continuous monitoring, and detection processes.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 500 220" width="480" role="img" aria-label="Detect function flow diagram. Three subcategories flow left to right: Anomalies and Events feeds into Continuous Monitoring which feeds into Detection Processes. Each has specific activities listed beneath.">
+                <!-- DE.AE -->
+                <rect x="10" y="30" width="145" height="120" rx="8" fill="rgba(34,197,94,0.06)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="82" y="50" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="700">DE.AE</text>
+                <text x="82" y="63" text-anchor="middle" fill="#ede0f0" font-size="8" font-weight="600">Anomalies &amp; Events</text>
+                <line x1="20" y1="72" x2="145" y2="72" stroke="rgba(34,197,94,0.2)" stroke-width="1"/>
+                <text x="82" y="86" text-anchor="middle" fill="#9a82a0" font-size="7">Baseline of network ops</text>
+                <text x="82" y="98" text-anchor="middle" fill="#9a82a0" font-size="7">Event data aggregation</text>
+                <text x="82" y="110" text-anchor="middle" fill="#9a82a0" font-size="7">Impact determination</text>
+                <text x="82" y="122" text-anchor="middle" fill="#9a82a0" font-size="7">Alert thresholds</text>
+                <text x="82" y="134" text-anchor="middle" fill="#9a82a0" font-size="7">Incident correlation</text>
+                <!-- Arrow 1 -->
+                <defs>
+                    <marker id="arrowDetect" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+                        <path d="M0,0 L7,2.5 L0,5" fill="rgba(34,197,94,0.6)"/>
+                    </marker>
+                </defs>
+                <line x1="155" y1="90" x2="175" y2="90" stroke="rgba(34,197,94,0.5)" stroke-width="2" marker-end="url(#arrowDetect)"/>
+                <!-- DE.CM -->
+                <rect x="178" y="30" width="145" height="120" rx="8" fill="rgba(0,255,255,0.06)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="250" y="50" text-anchor="middle" fill="#00ffff" font-size="10" font-weight="700">DE.CM</text>
+                <text x="250" y="63" text-anchor="middle" fill="#ede0f0" font-size="8" font-weight="600">Continuous Monitoring</text>
+                <line x1="188" y1="72" x2="313" y2="72" stroke="rgba(0,255,255,0.2)" stroke-width="1"/>
+                <text x="250" y="86" text-anchor="middle" fill="#9a82a0" font-size="7">Network monitoring</text>
+                <text x="250" y="98" text-anchor="middle" fill="#9a82a0" font-size="7">Physical environment</text>
+                <text x="250" y="110" text-anchor="middle" fill="#9a82a0" font-size="7">Personnel activity</text>
+                <text x="250" y="122" text-anchor="middle" fill="#9a82a0" font-size="7">Malicious code detection</text>
+                <text x="250" y="134" text-anchor="middle" fill="#9a82a0" font-size="7">External service providers</text>
+                <!-- Arrow 2 -->
+                <line x1="323" y1="90" x2="343" y2="90" stroke="rgba(0,255,255,0.5)" stroke-width="2" marker-end="url(#arrowDetect)"/>
+                <!-- DE.DP -->
+                <rect x="346" y="30" width="145" height="120" rx="8" fill="rgba(255,0,255,0.06)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="418" y="50" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700">DE.DP</text>
+                <text x="418" y="63" text-anchor="middle" fill="#ede0f0" font-size="8" font-weight="600">Detection Processes</text>
+                <line x1="356" y1="72" x2="481" y2="72" stroke="rgba(255,0,255,0.2)" stroke-width="1"/>
+                <text x="418" y="86" text-anchor="middle" fill="#9a82a0" font-size="7">Roles &amp; responsibilities</text>
+                <text x="418" y="98" text-anchor="middle" fill="#9a82a0" font-size="7">Compliance testing</text>
+                <text x="418" y="110" text-anchor="middle" fill="#9a82a0" font-size="7">Process communication</text>
+                <text x="418" y="122" text-anchor="middle" fill="#9a82a0" font-size="7">Continuous improvement</text>
+                <text x="418" y="134" text-anchor="middle" fill="#9a82a0" font-size="7">Event detection testing</text>
+                <!-- Bottom label -->
+                <text x="250" y="180" text-anchor="middle" fill="#5a4460" font-size="7" letter-spacing="0.06em">MEAN TIME TO DETECT (MTTD) -- THE CRITICAL METRIC FOR DETECT FUNCTION EFFECTIVENESS</text>
+                <text x="250" y="195" text-anchor="middle" fill="#5a4460" font-size="7">INDUSTRY AVERAGE: 204 DAYS (IBM COST OF A DATA BREACH REPORT)</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Why Detection Fails</div>
+                <div class="card-desc">Alert fatigue is the number one reason detection fails. A SOC receiving 10,000 alerts per day cannot investigate them all. Tuning detection rules, reducing false positives, and automating triage are essential. An untuned SIEM is worse than no SIEM -- it creates a false sense of security while burying real threats in noise.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Continuous Monitoring</div>
+                <div class="card-desc">Point-in-time assessments (annual pen tests, quarterly vulnerability scans) are necessary but insufficient. The threat landscape changes daily. Continuous monitoring means real-time visibility into network traffic, user behavior, system configurations, and external threat intelligence feeds. Automation is not optional -- it is the only way to achieve actual continuity.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Detection Technologies</div>
+                <div class="card-desc">SIEM (Security Information and Event Management), IDS/IPS (Intrusion Detection/Prevention Systems), EDR (Endpoint Detection and Response), NDR (Network Detection and Response), and UEBA (User and Entity Behavior Analytics) are the primary tools. Each covers a different detection surface -- logs, network, endpoint, and behavior respectively.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">The Dwell Time Problem</div>
+            Dwell time is the duration between initial compromise and detection. Longer dwell times mean more data exfiltrated, more lateral movement, and more damage. Reducing dwell time from months to hours is the primary objective of the Detect function. Organizations that invest in detection capabilities proportional to their protection controls consistently achieve better breach outcomes.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- RESPOND FUNCTION ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 14</div>
+        <div class="slide-title"><span class="accent">Respond</span> (RS) -- <span class="cyan">Act on Detected Incidents</span></div>
+        <div class="slide-subtitle">Response planning, communications, analysis, mitigation, and improvements.</div>
+
+        <div class="section-label">Respond Subcategories</div>
+        <div class="timeline">
+            <div class="tl-step">
+                <div class="tl-num">RS.RP</div>
+                <div class="tl-name">Response Planning</div>
+                <div class="tl-desc">Execute the incident response plan during or after an event</div>
+            </div>
+            <div class="tl-step">
+                <div class="tl-num">RS.CO</div>
+                <div class="tl-name">Communications</div>
+                <div class="tl-desc">Coordinate with stakeholders, law enforcement, ISACs</div>
+            </div>
+            <div class="tl-step">
+                <div class="tl-num">RS.AN</div>
+                <div class="tl-name">Analysis</div>
+                <div class="tl-desc">Investigate notifications, understand impact, perform forensics</div>
+            </div>
+            <div class="tl-step">
+                <div class="tl-num">RS.MI</div>
+                <div class="tl-name">Mitigation</div>
+                <div class="tl-desc">Contain the incident, eradicate the threat, prevent expansion</div>
+            </div>
+            <div class="tl-step">
+                <div class="tl-num">RS.IM</div>
+                <div class="tl-name">Improvements</div>
+                <div class="tl-desc">Incorporate lessons learned into future response activities</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Response Planning in Practice</div>
+                <div class="card-desc">A response plan that exists only as a document in SharePoint is not a plan -- it is a liability. Response plans must be exercised through tabletop exercises, red team engagements, and simulated incident scenarios. Everyone must know their role before an incident occurs. During a real breach, there is no time to read the manual for the first time. Plans must include decision trees for escalation, communication templates for stakeholders, and pre-authorized containment actions.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Communications During Incidents</div>
+                <div class="card-desc">RS.CO is where many organizations fail catastrophically. Who notifies the board? When does legal get involved? At what point do you inform customers? Is there a regulatory notification deadline (72 hours under GDPR, "without unreasonable delay" under most US state breach notification laws)? Crisis communications must be pre-planned with approved templates, designated spokespersons, and clear escalation thresholds.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Analysis and Forensics</div>
+            RS.AN requires that organizations have the capability to investigate incidents -- not just detect them. This means preserving evidence (chain of custody), conducting root cause analysis, correlating events across multiple data sources, and determining the full scope of compromise. Many organizations outsource forensic capabilities to incident response retainer firms (CrowdStrike, Mandiant, Secureworks) because building in-house forensic expertise is expensive and underutilized in peacetime.
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Lessons Learned</div>
+            RS.IM -- Improvements -- is the most frequently skipped subcategory. After an incident, organizations are exhausted and want to move on. But without a formal after-action review, the same root causes produce the same incidents. Every incident response should conclude with a blameless post-mortem that documents what happened, what worked, what failed, and what changes are required to prevent recurrence.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- RECOVER FUNCTION ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 14</div>
+        <div class="slide-title"><span class="accent">Recover</span> (RC) -- <span class="cyan">Restore Normal Operations</span></div>
+        <div class="slide-subtitle">Recovery planning, improvements, and communications -- restoring capabilities impaired during an incident.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">RC.RP -- Recovery Planning</div>
+                <div class="card-desc">Recovery plans are executed during or after an incident to restore systems and assets affected by a cybersecurity event. This includes restoration priorities (which systems come back first), backup verification, system rebuilding procedures, and validation testing to confirm restored systems are clean and functional. Recovery time objectives (RTO) and recovery point objectives (RPO) define acceptable thresholds.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">RC.IM -- Improvements</div>
+                <div class="card-desc">Recovery strategies are updated based on lessons learned. If a ransomware event revealed that backups were also encrypted because they were on the same network segment, the recovery plan must be updated to include air-gapped or immutable backups. Continuous improvement applies to recovery just as it does to detection and response.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">RC.CO -- Communications</div>
+                <div class="card-desc">Reputation management and stakeholder communication during recovery. Public relations, customer notifications, regulatory status updates, and internal morale management. Recovery communications differ from response communications -- the message shifts from "we are under attack" to "we are restoring operations and here is our timeline." Transparency builds trust; silence destroys it.</div>
+            </div>
+        </div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 500 160" width="480" role="img" aria-label="Protect, Detect, Respond, Recover operational flow. Four boxes connected by arrows showing the incident lifecycle: Protect prevents most threats, Detect finds what gets through, Respond contains the damage, Recover restores operations.">
+                <!-- Protect -->
+                <rect x="10" y="30" width="105" height="70" rx="8" fill="rgba(0,255,255,0.06)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="62" y="55" text-anchor="middle" fill="#00ffff" font-size="11" font-weight="700">PROTECT</text>
+                <text x="62" y="70" text-anchor="middle" fill="#9a82a0" font-size="7">Prevent most threats</text>
+                <text x="62" y="82" text-anchor="middle" fill="#9a82a0" font-size="7">from succeeding</text>
+                <!-- Arrow -->
+                <defs>
+                    <marker id="arrowFlow" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+                        <path d="M0,0 L7,2.5 L0,5" fill="rgba(255,0,255,0.6)"/>
+                    </marker>
+                </defs>
+                <line x1="115" y1="65" x2="133" y2="65" stroke="rgba(255,0,255,0.4)" stroke-width="2" marker-end="url(#arrowFlow)"/>
+                <text x="124" y="55" text-anchor="middle" fill="#5a4460" font-size="6">breach</text>
+                <!-- Detect -->
+                <rect x="136" y="30" width="105" height="70" rx="8" fill="rgba(34,197,94,0.06)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="188" y="55" text-anchor="middle" fill="#22c55e" font-size="11" font-weight="700">DETECT</text>
+                <text x="188" y="70" text-anchor="middle" fill="#9a82a0" font-size="7">Find what got</text>
+                <text x="188" y="82" text-anchor="middle" fill="#9a82a0" font-size="7">through</text>
+                <!-- Arrow -->
+                <line x1="241" y1="65" x2="259" y2="65" stroke="rgba(255,0,255,0.4)" stroke-width="2" marker-end="url(#arrowFlow)"/>
+                <text x="250" y="55" text-anchor="middle" fill="#5a4460" font-size="6">alert</text>
+                <!-- Respond -->
+                <rect x="262" y="30" width="105" height="70" rx="8" fill="rgba(234,179,8,0.06)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="314" y="55" text-anchor="middle" fill="#eab308" font-size="11" font-weight="700">RESPOND</text>
+                <text x="314" y="70" text-anchor="middle" fill="#9a82a0" font-size="7">Contain and</text>
+                <text x="314" y="82" text-anchor="middle" fill="#9a82a0" font-size="7">eradicate</text>
+                <!-- Arrow -->
+                <line x1="367" y1="65" x2="385" y2="65" stroke="rgba(255,0,255,0.4)" stroke-width="2" marker-end="url(#arrowFlow)"/>
+                <text x="376" y="55" text-anchor="middle" fill="#5a4460" font-size="6">clear</text>
+                <!-- Recover -->
+                <rect x="388" y="30" width="105" height="70" rx="8" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="440" y="55" text-anchor="middle" fill="#ef4444" font-size="11" font-weight="700">RECOVER</text>
+                <text x="440" y="70" text-anchor="middle" fill="#9a82a0" font-size="7">Restore normal</text>
+                <text x="440" y="82" text-anchor="middle" fill="#9a82a0" font-size="7">operations</text>
+                <!-- Feedback loop -->
+                <path d="M440,100 L440,130 Q440,140 430,140 L72,140 Q62,140 62,130 L62,100" fill="none" stroke="rgba(255,0,255,0.25)" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowFlow)"/>
+                <text x="250" y="152" text-anchor="middle" fill="#ff44ff" font-size="7" font-weight="600">LESSONS LEARNED FEED BACK INTO PROTECT</text>
+            </svg>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Recovery vs. Business Continuity</div>
+            The Recover function is about restoring cybersecurity capabilities specifically -- not general disaster recovery. However, it overlaps heavily with Business Continuity Planning (BCP) and Disaster Recovery Planning (DRP). The distinction matters: BCP keeps the business running during disruption (alternate sites, manual processes), while the CSF Recover function focuses specifically on restoring the security of systems and data. Both are necessary; neither is sufficient alone.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- GOVERN FUNCTION (CSF 2.0) ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 14</div>
+        <div class="slide-title"><span class="accent">Govern</span> (GV) -- <span class="cyan">CSF 2.0 Leadership Pillar</span></div>
+        <div class="slide-subtitle">Organizational context, risk management strategy, roles and responsibilities, policy, oversight, and supply chain risk management.</div>
+
+        <div class="card-grid-6">
+            <div class="card c-purple">
+                <div class="card-label">GV.OC -- Organizational Context</div>
+                <div class="card-desc">The organization's mission, stakeholder expectations, legal and regulatory requirements, and dependencies are understood and used to inform cybersecurity risk decisions. Context determines what risks matter -- a hospital protects patient data differently than a defense contractor protects classified designs.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">GV.RM -- Risk Mgmt Strategy</div>
+                <div class="card-desc">The organization's priorities, constraints, risk tolerance, and assumptions are established, communicated, and used to support operational risk decisions. Risk appetite is defined at the board level and cascaded through the organization. Every security investment decision traces back to this strategy.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">GV.RR -- Roles &amp; Responsibilities</div>
+                <div class="card-desc">Cybersecurity roles, responsibilities, and authorities are established to foster accountability, performance assessment, and continuous improvement. This includes the CISO reporting structure, security committee charters, and individual accountability for risk owners across all business units.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">GV.PO -- Policy</div>
+                <div class="card-desc">Organizational cybersecurity policy is established, communicated, and enforced. Policy is the codification of governance intent -- it translates board-level risk appetite into actionable requirements. Policies must be reviewed periodically, updated after incidents, and accessible to all personnel they apply to.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">GV.OV -- Oversight</div>
+                <div class="card-desc">Results of organization-wide cybersecurity risk management activities and performance are used to inform, improve, and adjust the risk management strategy. This is the feedback loop -- without oversight, governance is a paper exercise. Board-level reporting, KPI dashboards, and independent audits provide oversight data.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">GV.SC -- Supply Chain RM</div>
+                <div class="card-desc">Cyber supply chain risk management processes are identified, established, managed, monitored, and improved by organizational stakeholders. CSF 2.0 elevated supply chain from a subcategory within Identify to a governance-level concern, reflecting lessons from SolarWinds, Log4j, and Kaseya.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Govern is the function that answers: Who is accountable for cybersecurity? What risk level is acceptable? How do we know our program is working? These are not technical questions -- they are leadership questions. CSF 2.0 recognizes that cybersecurity programs without strong governance produce inconsistent outcomes regardless of technical investment. A well-governed program with modest tools outperforms an ungoverned program with unlimited budget.
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">Govern Wraps All Functions</div>
+            Unlike the other five functions which operate sequentially (Identify, then Protect, then Detect, then Respond, then Recover), Govern operates continuously and wraps around all other functions. It sets the strategy that Identify follows, the requirements that Protect implements, the thresholds that Detect monitors, the plans that Respond executes, and the priorities that Recover restores. Governance is not a phase -- it is the operating environment.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- FRAMEWORK PROFILES ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 14</div>
+        <div class="slide-title">Framework <span class="accent">Profiles</span> -- <span class="cyan">Current vs Target</span></div>
+        <div class="slide-subtitle">Gap analysis between where the organization is today and where it needs to be.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 520 280" width="500" role="img" aria-label="Current versus target profile comparison diagram. Two profile columns side by side -- Current Profile on the left showing partial completion across five functions, and Target Profile on the right showing desired completion levels. A gap analysis arrow in the center highlights the differences.">
+                <!-- Current Profile -->
+                <rect x="10" y="10" width="200" height="240" rx="10" fill="rgba(239,68,68,0.04)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="110" y="32" text-anchor="middle" fill="#ef4444" font-size="11" font-weight="700">CURRENT PROFILE</text>
+                <text x="110" y="45" text-anchor="middle" fill="#9a82a0" font-size="7">"Where we are today"</text>
+                <!-- Current bars -->
+                <text x="25" y="72" fill="#ede0f0" font-size="8" font-weight="600">Identify</text>
+                <rect x="90" y="62" width="108" height="12" rx="3" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
+                <rect x="90" y="62" width="75" height="12" rx="3" fill="rgba(255,0,255,0.3)"/>
+                <text x="25" y="96" fill="#ede0f0" font-size="8" font-weight="600">Protect</text>
+                <rect x="90" y="86" width="108" height="12" rx="3" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
+                <rect x="90" y="86" width="90" height="12" rx="3" fill="rgba(0,255,255,0.3)"/>
+                <text x="25" y="120" fill="#ede0f0" font-size="8" font-weight="600">Detect</text>
+                <rect x="90" y="110" width="108" height="12" rx="3" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
+                <rect x="90" y="110" width="45" height="12" rx="3" fill="rgba(34,197,94,0.3)"/>
+                <text x="25" y="144" fill="#ede0f0" font-size="8" font-weight="600">Respond</text>
+                <rect x="90" y="134" width="108" height="12" rx="3" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
+                <rect x="90" y="134" width="55" height="12" rx="3" fill="rgba(234,179,8,0.3)"/>
+                <text x="25" y="168" fill="#ede0f0" font-size="8" font-weight="600">Recover</text>
+                <rect x="90" y="158" width="108" height="12" rx="3" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
+                <rect x="90" y="158" width="30" height="12" rx="3" fill="rgba(239,68,68,0.3)"/>
+                <text x="25" y="192" fill="#ede0f0" font-size="8" font-weight="600">Govern</text>
+                <rect x="90" y="182" width="108" height="12" rx="3" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
+                <rect x="90" y="182" width="20" height="12" rx="3" fill="rgba(255,68,255,0.3)"/>
+                <!-- Maturity labels -->
+                <text x="110" y="220" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">GAPS IN DETECT, RESPOND, RECOVER, GOVERN</text>
+                <text x="110" y="235" text-anchor="middle" fill="#5a4460" font-size="7">Protect-heavy, detection-weak posture</text>
+
+                <!-- Gap arrow -->
+                <text x="260" y="100" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700">GAP</text>
+                <text x="260" y="115" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">ANALYSIS</text>
+                <defs>
+                    <marker id="arrowGap" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                        <path d="M0,0 L8,3 L0,6" fill="#ff00ff"/>
+                    </marker>
+                </defs>
+                <line x1="240" y1="130" x2="240" y2="165" stroke="#ff00ff" stroke-width="2" marker-end="url(#arrowGap)"/>
+                <text x="260" y="155" text-anchor="middle" fill="#9a82a0" font-size="7">Prioritized</text>
+                <text x="260" y="166" text-anchor="middle" fill="#9a82a0" font-size="7">Roadmap</text>
+
+                <!-- Target Profile -->
+                <rect x="310" y="10" width="200" height="240" rx="10" fill="rgba(34,197,94,0.04)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="410" y="32" text-anchor="middle" fill="#22c55e" font-size="11" font-weight="700">TARGET PROFILE</text>
+                <text x="410" y="45" text-anchor="middle" fill="#9a82a0" font-size="7">"Where we need to be"</text>
+                <!-- Target bars -->
+                <text x="325" y="72" fill="#ede0f0" font-size="8" font-weight="600">Identify</text>
+                <rect x="390" y="62" width="108" height="12" rx="3" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
+                <rect x="390" y="62" width="95" height="12" rx="3" fill="rgba(255,0,255,0.5)"/>
+                <text x="325" y="96" fill="#ede0f0" font-size="8" font-weight="600">Protect</text>
+                <rect x="390" y="86" width="108" height="12" rx="3" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
+                <rect x="390" y="86" width="100" height="12" rx="3" fill="rgba(0,255,255,0.5)"/>
+                <text x="325" y="120" fill="#ede0f0" font-size="8" font-weight="600">Detect</text>
+                <rect x="390" y="110" width="108" height="12" rx="3" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
+                <rect x="390" y="110" width="90" height="12" rx="3" fill="rgba(34,197,94,0.5)"/>
+                <text x="325" y="144" fill="#ede0f0" font-size="8" font-weight="600">Respond</text>
+                <rect x="390" y="134" width="108" height="12" rx="3" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
+                <rect x="390" y="134" width="85" height="12" rx="3" fill="rgba(234,179,8,0.5)"/>
+                <text x="325" y="168" fill="#ede0f0" font-size="8" font-weight="600">Recover</text>
+                <rect x="390" y="158" width="108" height="12" rx="3" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
+                <rect x="390" y="158" width="80" height="12" rx="3" fill="rgba(239,68,68,0.5)"/>
+                <text x="325" y="192" fill="#ede0f0" font-size="8" font-weight="600">Govern</text>
+                <rect x="390" y="182" width="108" height="12" rx="3" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
+                <rect x="390" y="182" width="75" height="12" rx="3" fill="rgba(255,68,255,0.5)"/>
+                <!-- Target label -->
+                <text x="410" y="220" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="600">BALANCED POSTURE ACROSS ALL FUNCTIONS</text>
+                <text x="410" y="235" text-anchor="middle" fill="#5a4460" font-size="7">Risk-informed, governance-driven maturity</text>
+                <!-- Bottom -->
+                <text x="260" y="270" text-anchor="middle" fill="#5a4460" font-size="7" letter-spacing="0.06em">PROFILES ARE UNIQUE TO EACH ORGANIZATION -- THERE IS NO UNIVERSAL "RIGHT" PROFILE</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Current Profile</div>
+                <div class="card-desc">Documents the organization's present cybersecurity posture by mapping existing activities to CSF subcategories. This is a factual assessment -- not aspirational. It captures what the organization is actually doing today, including gaps. Current profiles reveal where investment has been concentrated (usually Protect) and where it has been neglected (usually Detect, Respond, Recover, and now Govern).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Target Profile</div>
+                <div class="card-desc">Documents the desired cybersecurity outcomes based on business requirements, risk tolerance, regulatory obligations, and available resources. The target profile is not "all subcategories at maximum maturity" -- it is the right level of maturity for this organization at this time. A small nonprofit has a different target profile than a Fortune 500 bank. The gap between current and target drives the roadmap.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">Gap Analysis Drives Investment</div>
+            The gap between the current and target profiles is the organization's cybersecurity roadmap. It answers the question every CISO faces from the board: "Where should we spend our next dollar?" Gap analysis enables risk-prioritized investment decisions rather than reactive spending driven by the latest headline breach. A profile-based approach also provides a measurable progress metric -- the board can see the gap narrowing over time.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- IMPLEMENTATION TIERS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 14</div>
+        <div class="slide-title">Implementation <span class="accent">Tiers</span> -- <span class="cyan">Maturity Levels</span></div>
+        <div class="slide-subtitle">Partial, Risk Informed, Repeatable, Adaptive -- how mature is the organization's risk management?</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 500 240" width="480" role="img" aria-label="Implementation tiers ladder diagram. Four tiers shown as ascending steps from left to right: Tier 1 Partial at the bottom, Tier 2 Risk Informed above it, Tier 3 Repeatable higher, and Tier 4 Adaptive at the top. Each step is progressively taller and more brightly colored.">
+                <!-- Tier 1 -->
+                <rect x="20" y="170" width="105" height="50" rx="6" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="72" y="190" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="700">TIER 1</text>
+                <text x="72" y="205" text-anchor="middle" fill="#ede0f0" font-size="8" font-weight="600">Partial</text>
+                <!-- Tier 2 -->
+                <rect x="140" y="125" width="105" height="95" rx="6" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="192" y="145" text-anchor="middle" fill="#eab308" font-size="10" font-weight="700">TIER 2</text>
+                <text x="192" y="160" text-anchor="middle" fill="#ede0f0" font-size="8" font-weight="600">Risk Informed</text>
+                <!-- Tier 3 -->
+                <rect x="260" y="75" width="105" height="145" rx="6" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="312" y="95" text-anchor="middle" fill="#00ffff" font-size="10" font-weight="700">TIER 3</text>
+                <text x="312" y="110" text-anchor="middle" fill="#ede0f0" font-size="8" font-weight="600">Repeatable</text>
+                <!-- Tier 4 -->
+                <rect x="380" y="20" width="105" height="200" rx="6" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="432" y="40" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="700">TIER 4</text>
+                <text x="432" y="55" text-anchor="middle" fill="#ede0f0" font-size="8" font-weight="600">Adaptive</text>
+                <!-- Ascending arrow -->
+                <defs>
+                    <marker id="arrowTier" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                        <path d="M0,0 L8,3 L0,6" fill="rgba(255,0,255,0.6)"/>
+                    </marker>
+                </defs>
+                <line x1="30" y1="230" x2="475" y2="230" stroke="rgba(255,0,255,0.2)" stroke-width="1.5" marker-end="url(#arrowTier)"/>
+                <text x="250" y="238" text-anchor="middle" fill="#5a4460" font-size="7" letter-spacing="0.06em">INCREASING MATURITY AND INTEGRATION</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-4">
+            <div class="card c-red">
+                <div class="card-label">Tier 1: Partial</div>
+                <div class="card-desc">Risk management is ad hoc and reactive. Cybersecurity activities are performed irregularly, not informed by organizational risk objectives. Limited awareness of cybersecurity risk at the organizational level. No formalized processes -- individuals do what they think is right without coordination.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Tier 2: Risk Informed</div>
+                <div class="card-desc">Risk management practices are approved by management but may not be organization-wide policy. Awareness of cybersecurity risk exists at the organizational level, but a consistent approach has not been established. Some external participation (ISACs, vendor advisories) but not systematic.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Tier 3: Repeatable</div>
+                <div class="card-desc">Risk management practices are formally approved and expressed as policy. Organizational approach to managing cybersecurity risk is consistent, well-documented, and regularly updated. Personnel have the knowledge and skills to perform their roles. Active participation in information sharing with external partners.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Tier 4: Adaptive</div>
+                <div class="card-desc">The organization adapts its cybersecurity practices based on lessons learned and predictive indicators derived from previous and current activities. Continuous improvement incorporating advanced technologies and practices. Active contribution to the broader cybersecurity ecosystem through information sharing and collaboration.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Tiers Are Not Scores</div>
+            Implementation tiers are not maturity scores and do not represent a compliance checklist. Not every organization needs to be Tier 4 -- the appropriate tier depends on the organization's risk environment, mission, and resources. A Tier 2 organization that understands its risk posture and makes informed decisions may be more secure than a Tier 3 organization with documented processes that are not actually followed. Tiers describe how well risk management is integrated into organizational decision-making, not how many tools are deployed.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- USING THE CSF / CROSSWALKS ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 14</div>
+        <div class="slide-title">Using the CSF -- <span class="accent">Crosswalks</span> &amp; <span class="cyan">Mapping</span></div>
+        <div class="slide-subtitle">Mapping the CSF to ISO 27001, COBIT, CIS Controls, and regulatory frameworks for unified compliance.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 520 260" width="500" role="img" aria-label="Framework crosswalk mapping diagram. NIST CSF in the center with bidirectional mapping arrows connecting to ISO 27001, COBIT 2019, CIS Controls v8, NIST SP 800-53, HIPAA, and PCI DSS arranged around the perimeter.">
+                <!-- Center CSF -->
+                <rect x="185" y="85" width="150" height="65" rx="10" fill="rgba(255,0,255,0.12)" stroke="#ff00ff" stroke-width="2"/>
+                <text x="260" y="110" text-anchor="middle" fill="#ff00ff" font-size="13" font-weight="700">NIST CSF 2.0</text>
+                <text x="260" y="126" text-anchor="middle" fill="#ede0f0" font-size="8">6 Functions | 22 Categories</text>
+                <text x="260" y="140" text-anchor="middle" fill="#9a82a0" font-size="7">Universal Risk Framework</text>
+                <!-- ISO 27001 - top left -->
+                <rect x="10" y="10" width="130" height="45" rx="6" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="75" y="28" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">ISO 27001/27002</text>
+                <text x="75" y="42" text-anchor="middle" fill="#9a82a0" font-size="7">93 controls, 4 themes</text>
+                <line x1="140" y1="45" x2="195" y2="90" stroke="rgba(0,255,255,0.3)" stroke-width="1.5"/>
+                <!-- COBIT - top right -->
+                <rect x="380" y="10" width="130" height="45" rx="6" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1"/>
+                <text x="445" y="28" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="700">COBIT 2019</text>
+                <text x="445" y="42" text-anchor="middle" fill="#9a82a0" font-size="7">40 objectives, 5 domains</text>
+                <line x1="380" y1="45" x2="325" y2="90" stroke="rgba(34,197,94,0.3)" stroke-width="1.5"/>
+                <!-- CIS Controls - left -->
+                <rect x="10" y="95" width="130" height="45" rx="6" fill="rgba(255,68,255,0.08)" stroke="#ff44ff" stroke-width="1"/>
+                <text x="75" y="113" text-anchor="middle" fill="#ff44ff" font-size="9" font-weight="700">CIS Controls v8</text>
+                <text x="75" y="127" text-anchor="middle" fill="#9a82a0" font-size="7">18 controls, 153 safeguards</text>
+                <line x1="140" y1="117" x2="185" y2="117" stroke="rgba(255,68,255,0.3)" stroke-width="1.5"/>
+                <!-- NIST 800-53 - right -->
+                <rect x="380" y="95" width="130" height="45" rx="6" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1"/>
+                <text x="445" y="113" text-anchor="middle" fill="#eab308" font-size="9" font-weight="700">NIST SP 800-53</text>
+                <text x="445" y="127" text-anchor="middle" fill="#9a82a0" font-size="7">1,000+ controls, 20 families</text>
+                <line x1="380" y1="117" x2="335" y2="117" stroke="rgba(234,179,8,0.3)" stroke-width="1.5"/>
+                <!-- HIPAA - bottom left -->
+                <rect x="10" y="180" width="130" height="45" rx="6" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1"/>
+                <text x="75" y="198" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">HIPAA</text>
+                <text x="75" y="212" text-anchor="middle" fill="#9a82a0" font-size="7">Security Rule safeguards</text>
+                <line x1="140" y1="195" x2="195" y2="145" stroke="rgba(239,68,68,0.3)" stroke-width="1.5"/>
+                <!-- PCI DSS - bottom right -->
+                <rect x="380" y="180" width="130" height="45" rx="6" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1"/>
+                <text x="445" y="198" text-anchor="middle" fill="#3b82f6" font-size="9" font-weight="700">PCI DSS v4.0</text>
+                <text x="445" y="212" text-anchor="middle" fill="#9a82a0" font-size="7">12 requirements, 6 goals</text>
+                <line x1="380" y1="195" x2="325" y2="145" stroke="rgba(59,130,246,0.3)" stroke-width="1.5"/>
+                <!-- Bottom label -->
+                <text x="260" y="250" text-anchor="middle" fill="#5a4460" font-size="7" letter-spacing="0.06em">INFORMATIVE REFERENCES MAP CSF SUBCATEGORIES TO SPECIFIC CONTROLS IN OTHER FRAMEWORKS</text>
+            </svg>
+        </div>
+
+        <div class="section-label">Crosswalk Examples</div>
+        <table class="glossary-table">
+            <thead>
+                <tr><th>CSF Subcategory</th><th>ISO 27001</th><th>CIS Controls</th><th>NIST 800-53</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>ID.AM-1</td><td>A.8.9 (Config mgmt)</td><td>CIS 1 (HW Inventory)</td><td>CM-8 (System Component Inventory)</td></tr>
+                <tr><td>PR.AC-1</td><td>A.9.2 (User access)</td><td>CIS 6 (Access Control)</td><td>AC-2 (Account Management)</td></tr>
+                <tr><td>DE.CM-1</td><td>A.8.16 (Monitoring)</td><td>CIS 13 (Network Monitor)</td><td>SI-4 (System Monitoring)</td></tr>
+                <tr><td>RS.RP-1</td><td>A.5.24 (IR planning)</td><td>CIS 17 (IR Mgmt)</td><td>IR-1 (IR Policy/Procedures)</td></tr>
+            </tbody>
+        </table>
+
+        <div class="box box-green">
+            <div class="box-label">Why Crosswalks Matter</div>
+            Most organizations face multiple compliance obligations simultaneously -- HIPAA and PCI-DSS, or SOX and CMMC, or GDPR and ISO 27001. Without crosswalks, each framework is a separate compliance effort with separate assessments, separate documentation, and separate budgets. The CSF serves as a Rosetta Stone -- implement controls once, map them to every framework, and demonstrate compliance across all simultaneously. This "comply once, report many" approach reduces audit fatigue and eliminates redundant work.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- KEY TAKEAWAYS ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 14</div>
+        <div class="slide-title"><span class="accent">Key</span> Takeaways</div>
+        <div class="slide-subtitle">The essential points from this presentation on the NIST Cybersecurity Framework.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">01</span>
+                <span class="fact-text">The NIST CSF is a voluntary, sector-agnostic, risk-based framework -- not a compliance checklist. It provides structure for managing cybersecurity risk without prescribing specific technologies or controls.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">02</span>
+                <span class="fact-text">CSF 2.0 added the Govern function as the sixth and overarching function, recognizing that governance is the foundation for all other cybersecurity activities. The scope expanded from critical infrastructure to all organizations.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">03</span>
+                <span class="fact-text">The five operational functions form a lifecycle: Identify (know your assets), Protect (safeguard them), Detect (find threats), Respond (contain incidents), Recover (restore operations). Govern wraps around all five.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">04</span>
+                <span class="fact-text">Framework Profiles (current vs target) enable gap analysis -- the difference between where you are and where you need to be drives investment decisions and roadmap prioritization.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">05</span>
+                <span class="fact-text">Implementation Tiers (Partial, Risk Informed, Repeatable, Adaptive) describe how well risk management is integrated into organizational decision-making -- not how many tools are deployed.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">06</span>
+                <span class="fact-text">Crosswalks map CSF subcategories to ISO 27001, CIS Controls, NIST 800-53, HIPAA, PCI-DSS, and other frameworks -- enabling a "comply once, report many" approach that reduces audit fatigue.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">07</span>
+                <span class="fact-text">Supply chain risk management is elevated in CSF 2.0 to a governance-level concern (GV.SC), reflecting lessons from SolarWinds, Log4j, and Kaseya that third-party risk can bypass every internal control.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">08</span>
+                <span class="fact-text">Most organizations over-invest in Protect and under-invest in Detect, Respond, and Recover. The CSF framework structure makes this imbalance visible and provides a language to address it with leadership.</span>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">What Comes Next</div>
+            The NIST CSF provides the organizational framework for cybersecurity risk management. In the next module, you will examine how the framework translates into specific policy documents -- information security policies, acceptable use policies, incident response plans, and data classification schemes -- the artifacts that operationalize framework intent into enforceable organizational requirements.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- MARK COMPLETE ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 14 &nbsp;|&nbsp; Complete</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Presentation<br>
+                <span class="accent">Complete</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                NIST Cybersecurity Framework -- 14 slides
+            </div>
+        </div>
+
+        <div class="scenario-strip" style="text-align:center; font-style:normal;">
+            EO 13636 &bull; CSF 2.0 &bull; Identify &bull; Protect &bull; Detect &bull; Respond &bull; Recover &bull; Govern &bull; Profiles &bull; Tiers &bull; Crosswalks
+        </div>
+
+        <div style="text-align:center; margin-top:10px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+
+        <div class="title-meta-row" style="margin-top:8px;">
+            <span>CIS2208</span>
+            <span>Cybersecurity Policy</span>
+            <span>Week 4</span>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Cybersecurity Policy</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 14</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 14;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        var completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('divergent', 'csp-w4-nist-csf-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

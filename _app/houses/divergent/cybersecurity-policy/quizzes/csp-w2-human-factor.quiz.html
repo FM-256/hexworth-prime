@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Week 2 Quiz: The Human Factor | The Domino Effect</title>
+    <style>
+        :root {
+            --bg: #0d0810;
+            --bg-card: #120b14;
+            --bg-option: #1a0f1e;
+            --primary: #ff00ff;
+            --cyan: #00ffff;
+            --primary-dim: rgba(255, 0, 255, 0.15);
+            --text: #ede0f0;
+            --text-muted: #9a82a0;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --border: rgba(255, 0, 255, 0.10);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, var(--bg) 0%, #0a060d 50%, #110828 100%);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .quiz-container { max-width: 800px; margin: 0 auto; padding: 2rem; }
+        .nav-links { display: flex; gap: 1.5rem; margin-bottom: 1.5rem; }
+        .back-link { color: var(--primary); text-decoration: none; font-size: 0.9rem; transition: all 0.3s; }
+        .back-link:hover { color: #ff88ff; transform: translateX(-5px); }
+
+        .quiz-header { text-align: center; margin-bottom: 2rem; padding: 2rem; background: var(--bg-card); border-radius: 14px; border: 1px solid var(--primary-dim); }
+        .quiz-header h1 { font-size: 1.6rem; color: var(--primary); margin-bottom: 0.5rem; }
+        .quiz-header .subtitle { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.75rem; }
+        .quiz-header .meta { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; font-size: 0.8rem; }
+        .quiz-header .meta span { background: var(--bg); padding: 4px 12px; border-radius: 6px; border: 1px solid var(--border); color: var(--text-muted); }
+
+        .progress-bar-wrap { background: var(--bg-card); border-radius: 10px; padding: 14px 18px; margin-bottom: 1.5rem; border: 1px solid var(--border); display: flex; align-items: center; gap: 14px; }
+        .progress-label { font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; }
+        .progress-track { flex: 1; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--cyan)); border-radius: 4px; transition: width 0.4s ease; width: 0%; }
+        .score-label { font-size: 0.85rem; color: var(--cyan); font-weight: 600; white-space: nowrap; }
+
+        .question-card { background: var(--bg-card); border-radius: 14px; padding: 2rem; border: 1px solid var(--border); margin-bottom: 1.5rem; }
+        .question-num { font-size: 0.8rem; color: var(--primary); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 0.75rem; }
+        .question-text { font-size: 1.15rem; font-weight: 600; margin-bottom: 1.5rem; line-height: 1.5; }
+
+        .options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 1rem; }
+        .option { display: flex; align-items: center; gap: 12px; padding: 14px 18px; background: var(--bg-option); border: 1px solid var(--border); border-radius: 10px; cursor: pointer; transition: all 0.2s; font-size: 0.95rem; }
+        .option:hover { border-color: rgba(255, 0, 255, 0.4); background: rgba(255, 0, 255, 0.05); }
+        .option.selected { border-color: var(--primary); background: rgba(255, 0, 255, 0.08); }
+        .option.correct { border-color: var(--success); background: rgba(34, 197, 94, 0.1); }
+        .option.incorrect { border-color: var(--danger); background: rgba(239, 68, 68, 0.08); }
+        .option.disabled { pointer-events: none; opacity: 0.7; }
+        .option.correct.disabled, .option.incorrect.disabled { opacity: 1; }
+        .option-letter { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: var(--bg); border: 1px solid var(--border); font-weight: 700; font-size: 0.85rem; color: var(--primary); flex-shrink: 0; }
+        .option.correct .option-letter { background: var(--success); color: #fff; border-color: var(--success); }
+        .option.incorrect .option-letter { background: var(--danger); color: #fff; border-color: var(--danger); }
+
+        .feedback { padding: 14px 18px; border-radius: 10px; margin-bottom: 1rem; font-size: 0.9rem; line-height: 1.6; display: none; }
+        .feedback.correct { display: block; background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #86efac; }
+        .feedback.incorrect { display: block; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fca5a5; }
+
+        .quiz-nav { display: flex; justify-content: flex-end; }
+        .next-btn { padding: 10px 24px; background: rgba(255, 0, 255, 0.15); border: 1px solid rgba(255, 0, 255, 0.4); color: var(--primary); border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .next-btn:hover { background: var(--primary); color: #fff; }
+        .next-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .next-btn:disabled:hover { background: rgba(255, 0, 255, 0.15); color: var(--primary); }
+
+        .results-card { display: none; text-align: center; background: var(--bg-card); border-radius: 14px; padding: 3rem 2rem; border: 1px solid var(--border); }
+        .results-card h2 { color: var(--primary); font-size: 1.4rem; margin-bottom: 1rem; }
+        .score-big { font-size: 3.5rem; font-weight: 700; color: var(--success); margin-bottom: 0.5rem; }
+        .score-big.low { color: var(--danger); }
+        .score-big.mid { color: #fbbf24; }
+        .score-msg { color: var(--text-muted); font-size: 1rem; margin-bottom: 2rem; }
+        .results-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        .results-btns a, .results-btns button { padding: 10px 24px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: all 0.2s; border: none; }
+        .btn-retry { background: rgba(255, 0, 255, 0.15); border: 1px solid rgba(255, 0, 255, 0.4) !important; color: var(--primary); }
+        .btn-retry:hover { background: var(--primary); color: #fff; }
+        .btn-hub { background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.4) !important; color: var(--success); }
+        .btn-hub:hover { background: var(--success); color: #fff; }
+
+        @media (max-width: 640px) {
+            .quiz-container { padding: 1rem; }
+            .question-card { padding: 1.25rem; }
+            .quiz-header h1 { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="quiz-container">
+        <div class="nav-links">
+            <a href="../index.html" class="back-link">&#8592; The Domino Effect Hub</a>
+        </div>
+
+        <div class="quiz-header">
+            <h1>Week 2 Quiz: The Human Factor</h1>
+            <p class="subtitle">Social engineering, phishing, insider threats, security awareness, Cialdini principles</p>
+            <div class="meta">
+                <span>Week 2</span>
+                <span>15 Questions</span>
+                <span>70% to Pass</span>
+            </div>
+        </div>
+
+        <div class="progress-bar-wrap">
+            <span class="progress-label" id="progressLabel">Question 1 of 15</span>
+            <div class="progress-track">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <span class="score-label" id="scoreLabel">Score: 0</span>
+        </div>
+
+        <div class="question-card" id="questionCard">
+            <div class="question-num" id="questionNum">QUESTION 1</div>
+            <div class="question-text" id="questionText"></div>
+            <div class="options" id="optionsEl"></div>
+            <div class="feedback" id="feedback"></div>
+            <div class="quiz-nav">
+                <button class="next-btn" id="nextBtn" onclick="nextQuestion()" disabled>Next Question</button>
+            </div>
+        </div>
+
+        <div class="results-card" id="resultsCard">
+            <h2>Quiz Complete</h2>
+            <div class="score-big" id="finalScore"></div>
+            <p class="score-msg" id="scoreMsg"></p>
+            <div class="results-btns">
+                <button class="btn-retry" onclick="restartQuiz()">Try Again</button>
+                <a href="../index.html" class="btn-hub">Back to Course Hub</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* -- Quiz: The Human Factor --
+           Social engineering, phishing types, insider threats,
+           security awareness, Cialdini principles, security culture.
+           15 questions, 70% pass threshold. */
+        var questions = [
+            {
+                q: "Social engineering attacks are effective primarily because they exploit:",
+                opts: [
+                    "Unpatched software vulnerabilities in enterprise operating systems",
+                    "Weak encryption algorithms used in legacy communication protocols",
+                    "Human psychology -- trust, fear, urgency, and the desire to be helpful",
+                    "Misconfigured firewall rules that allow unauthorized inbound connections"
+                ],
+                ans: 2,
+                exp: "Social engineering bypasses technical controls by targeting people. Attackers exploit cognitive biases, emotional responses, and social norms -- trust in authority, desire to help, fear of consequences, and urgency -- to manipulate victims into revealing information or performing actions."
+            },
+            {
+                q: "Spear phishing differs from regular phishing in that it:",
+                opts: [
+                    "Targets specific individuals or organizations with personalized, researched content",
+                    "Uses text messages instead of email as the delivery mechanism",
+                    "Only targets financial institutions and banking customers",
+                    "Requires physical access to the target's computer to install malware"
+                ],
+                ans: 0,
+                exp: "Spear phishing is a targeted attack directed at specific individuals using personalized information gathered through OSINT. Unlike broad phishing campaigns sent to thousands, spear phishing emails reference the target's name, role, projects, or colleagues to increase credibility and success rates."
+            },
+            {
+                q: "Whaling is a form of phishing specifically targeting:",
+                opts: [
+                    "Senior executives, board members, and other high-value individuals within an organization",
+                    "Large organizations with more than 10,000 employees",
+                    "Marine industry companies and port authorities",
+                    "Government agencies responsible for national defense"
+                ],
+                ans: 0,
+                exp: "Whaling targets C-suite executives, board members, and other senior leaders who have authority to approve financial transactions, access sensitive data, or make strategic decisions. These attacks are highly customized and often impersonate other executives, legal counsel, or board members."
+            },
+            {
+                q: "Vishing is a social engineering technique that uses which communication channel?",
+                opts: [
+                    "Voice calls (phone or VoIP) to manipulate victims",
+                    "Email with malicious attachments",
+                    "Social media direct messages",
+                    "Physical mail sent to the target's home address"
+                ],
+                ans: 0,
+                exp: "Vishing (voice phishing) uses phone calls to manipulate victims. Attackers may impersonate IT support, banks, government agencies, or executives. Caller ID spoofing makes the calls appear legitimate. The 2020 Twitter hack began with vishing calls to employees."
+            },
+            {
+                q: "An insider threat can be:",
+                opts: [
+                    "A current or former employee, contractor, or partner who -- whether maliciously, negligently, or through compromise -- misuses authorized access",
+                    "Only a malicious employee who deliberately steals data for personal gain",
+                    "Only an external attacker who has gained initial access through a phishing email",
+                    "Only applicable to government and military organizations with classified information"
+                ],
+                ans: 0,
+                exp: "Insider threats encompass three categories: malicious insiders who intentionally cause harm, negligent insiders who accidentally expose data through carelessness, and compromised insiders whose credentials have been stolen. All have legitimate access, making detection challenging."
+            },
+            {
+                q: "Robert Cialdini's principle of 'authority' is exploited in social engineering when an attacker:",
+                opts: [
+                    "Offers the victim a free gift or reward in exchange for information",
+                    "Creates a sense of scarcity by claiming an offer expires in minutes",
+                    "Impersonates someone in a position of power, such as an executive, IT director, or law enforcement officer",
+                    "Claims that many other employees have already complied with the same request"
+                ],
+                ans: 2,
+                exp: "Cialdini's authority principle states that people tend to comply with requests from perceived authority figures. Attackers exploit this by impersonating executives, IT administrators, auditors, or law enforcement. A call from 'the CEO' demanding an urgent wire transfer leverages this principle."
+            },
+            {
+                q: "Cialdini's principle of 'reciprocity' in social engineering works because:",
+                opts: [
+                    "People fear punishment from authority figures",
+                    "People value items more when they perceive them as scarce",
+                    "People naturally follow the behavior of the majority",
+                    "People feel obligated to return favors, so an attacker who provides something first can request something in return"
+                ],
+                ans: 3,
+                exp: "Reciprocity is the social norm of returning favors. An attacker might first help with a technical problem, provide useful information, or give a small gift. The victim then feels obligated to reciprocate -- perhaps by sharing credentials, granting access, or revealing sensitive information."
+            },
+            {
+                q: "Pretexting is a social engineering technique where the attacker:",
+                opts: [
+                    "Sends mass emails with generic subject lines to thousands of recipients",
+                    "Places malicious USB drives in public areas hoping someone will plug them in",
+                    "Physically follows an authorized person through a secured door",
+                    "Creates a fabricated scenario (a pretext) to establish trust and extract information from the target"
+                ],
+                ans: 3,
+                exp: "Pretexting involves creating a convincing false identity and backstory to manipulate the target. For example, an attacker might call posing as a new employee who needs help resetting their password, or as an IT vendor conducting a routine security audit. The pretext provides context that makes the request seem legitimate."
+            },
+            {
+                q: "Tailgating (or piggybacking) is a physical social engineering technique where an attacker:",
+                opts: [
+                    "Calls the target and follows up with a spoofed email to reinforce the deception",
+                    "Monitors the target's social media to gather information for a future attack",
+                    "Follows an authorized person through a physical access control point without presenting their own credentials",
+                    "Installs a keylogger on a shared computer in a public area"
+                ],
+                ans: 2,
+                exp: "Tailgating exploits human politeness -- people hold doors open for others. An attacker dressed appropriately (carrying boxes, wearing a vendor badge) follows an employee through a secured entrance. It bypasses physical access controls like badge readers and mantraps."
+            },
+            {
+                q: "An effective security awareness training program should:",
+                opts: [
+                    "Be conducted once during employee onboarding and never repeated",
+                    "Focus exclusively on technical details of malware analysis and incident response",
+                    "Be ongoing, use varied methods including simulated phishing, and be tailored to role-specific risks",
+                    "Punish employees who fail simulated phishing tests with immediate termination"
+                ],
+                ans: 2,
+                exp: "Effective security awareness training is continuous (not one-time), uses diverse methods (simulations, interactive modules, real-world examples), and is tailored to specific roles. It should create a positive security culture where reporting suspicious activity is encouraged, not punished."
+            },
+            {
+                q: "Cialdini's principle of 'urgency/scarcity' is exploited in phishing when:",
+                opts: [
+                    "The attacker includes the victim's name and job title to appear personalized",
+                    "The email contains a legitimate-looking unsubscribe link at the bottom",
+                    "The attacker sends the email from a spoofed executive email address",
+                    "The email claims the victim's account will be locked in 24 hours unless they act immediately"
+                ],
+                ans: 3,
+                exp: "Scarcity and urgency create pressure to act quickly without thinking critically. Phishing emails that claim 'Your account will be suspended in 24 hours' or 'This offer expires today' exploit this principle, overriding the victim's natural caution and critical thinking."
+            },
+            {
+                q: "A security culture within an organization is best described as:",
+                opts: [
+                    "The set of firewall rules and access control lists deployed across the network",
+                    "The shared values, attitudes, and behaviors regarding security that are embedded in daily operations and decision-making",
+                    "The annual budget allocated to the information security department",
+                    "The number of security certifications held by the IT staff"
+                ],
+                ans: 1,
+                exp: "Security culture encompasses the collective mindset and behaviors of all employees regarding security. In a strong security culture, employees view security as everyone's responsibility, report suspicious activity without fear, follow policies consistently, and make security-conscious decisions in their daily work."
+            },
+            {
+                q: "Business Email Compromise (BEC) attacks typically involve:",
+                opts: [
+                    "Mass distribution of ransomware through email attachments",
+                    "Impersonating a trusted party (often an executive or vendor) via email to trick employees into transferring funds or sharing sensitive data",
+                    "Compromising the email server itself through exploitation of software vulnerabilities",
+                    "Encrypting all emails in transit using compromised TLS certificates"
+                ],
+                ans: 1,
+                exp: "BEC attacks use email impersonation (spoofed addresses or compromised accounts) to trick employees into wire transfers, gift card purchases, or data disclosure. The FBI reports BEC as one of the costliest cybercrime categories, with losses exceeding $2.7 billion annually in the U.S. alone."
+            },
+            {
+                q: "The most effective countermeasure against social engineering is:",
+                opts: [
+                    "Deploying next-generation firewalls with deep packet inspection",
+                    "A combination of ongoing employee training, verification procedures, and a culture that encourages reporting without blame",
+                    "Blocking all external email and phone communications",
+                    "Requiring all employees to hold cybersecurity certifications"
+                ],
+                ans: 1,
+                exp: "Because social engineering targets people rather than technology, the primary defense is human. Effective countermeasures combine regular training, clear verification procedures (call-back verification for financial requests, multi-person authorization), and a blame-free reporting culture that encourages employees to flag suspicious activity."
+            },
+            {
+                q: "Smishing is a social engineering attack delivered via:",
+                opts: [
+                    "Malicious QR codes placed in physical locations",
+                    "SMS text messages containing malicious links or deceptive requests",
+                    "Compromised smart home devices that display fraudulent alerts",
+                    "Fake job postings on professional networking platforms"
+                ],
+                ans: 1,
+                exp: "Smishing (SMS phishing) delivers social engineering attacks through text messages. Common examples include fake package delivery notifications, bank fraud alerts, and tax refund messages. Smishing is effective because people tend to trust text messages more than email and often read them immediately on mobile devices."
+            }
+        ];
+
+                var current = 0;
+        var score = 0;
+        var answered = false;
+        var TOTAL = questions.length;
+
+        function loadQuestion() {
+            var q = questions[current];
+            document.getElementById('questionNum').textContent = 'QUESTION ' + (current + 1);
+            document.getElementById('questionText').textContent = q.q;
+            document.getElementById('progressLabel').textContent = 'Question ' + (current + 1) + ' of ' + TOTAL;
+            document.getElementById('progressFill').style.width = ((current + 1) / TOTAL * 100) + '%';
+
+            var html = '';
+            var letters = ['A', 'B', 'C', 'D'];
+            for (var i = 0; i < q.opts.length; i++) {
+                html += '<div class="option" onclick="selectAnswer(' + i + ')">' +
+                    '<span class="option-letter">' + letters[i] + '</span>' +
+                    '<span>' + q.opts[i] + '</span></div>';
+            }
+            document.getElementById('optionsEl').innerHTML = html;
+            document.getElementById('feedback').className = 'feedback';
+            document.getElementById('feedback').textContent = '';
+            document.getElementById('nextBtn').disabled = true;
+            answered = false;
+        }
+
+        function selectAnswer(idx) {
+            if (answered) return;
+            answered = true;
+
+            var q = questions[current];
+            var opts = document.querySelectorAll('.option');
+
+            for (var i = 0; i < opts.length; i++) {
+                opts[i].classList.add('disabled');
+                if (i === q.ans) opts[i].classList.add('correct');
+                else if (i === idx) opts[i].classList.add('incorrect');
+            }
+
+            var fb = document.getElementById('feedback');
+            if (idx === q.ans) {
+                score++;
+                fb.className = 'feedback correct';
+                fb.textContent = 'Correct. ' + q.exp;
+            } else {
+                fb.className = 'feedback incorrect';
+                fb.textContent = 'Incorrect. ' + q.exp;
+            }
+
+            document.getElementById('scoreLabel').textContent = 'Score: ' + score;
+            document.getElementById('nextBtn').disabled = false;
+
+            if (current === TOTAL - 1) {
+                document.getElementById('nextBtn').textContent = 'See Results';
+            }
+        }
+
+        function nextQuestion() {
+            current++;
+            if (current >= TOTAL) {
+                showResults();
+                return;
+            }
+            loadQuestion();
+        }
+
+        function showResults() {
+            document.getElementById('questionCard').style.display = 'none';
+            document.querySelector('.progress-bar-wrap').style.display = 'none';
+            var resultsCard = document.getElementById('resultsCard');
+            resultsCard.style.display = 'block';
+
+            var pct = Math.round((score / TOTAL) * 100);
+            var scoreBig = document.getElementById('finalScore');
+            scoreBig.textContent = score + '/' + TOTAL + ' (' + pct + '%)';
+
+            if (pct >= 80) scoreBig.className = 'score-big';
+            else if (pct >= 60) scoreBig.className = 'score-big mid';
+            else scoreBig.className = 'score-big low';
+
+            var msg = '';
+            if (pct >= 90) msg = 'Outstanding. You understand how human psychology is exploited in cyberattacks.';
+            else if (pct >= 70) msg = 'Solid. Review the Cialdini principles and phishing variants you missed.';
+            else if (pct >= 50) msg = 'Getting there. Revisit the social engineering taxonomy and insider threat categories.';
+            else msg = 'Keep studying. The human factor is the most exploited attack vector -- understand it deeply.';
+            document.getElementById('scoreMsg').textContent = msg;
+
+            if (pct >= 70 && typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.completeQuiz('divergent', 'csp-w2-human-factor-quiz', score);
+            }
+        }
+
+        function restartQuiz() {
+            current = 0;
+            score = 0;
+            answered = false;
+            document.getElementById('scoreLabel').textContent = 'Score: 0';
+            document.getElementById('questionCard').style.display = '';
+            document.querySelector('.progress-bar-wrap').style.display = '';
+            document.getElementById('resultsCard').style.display = 'none';
+            document.getElementById('nextBtn').textContent = 'Next Question';
+            loadQuestion();
+        }
+
+        loadQuestion();
+    </script>
+</body>
+</html>

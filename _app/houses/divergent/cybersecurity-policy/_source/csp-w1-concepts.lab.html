@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Concept Classifier | Cybersecurity Policy Lab</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d0810 0%, #0a060d 100%);
+            color: #ede0f0;
+            min-height: 100vh;
+            padding: 24px;
+            line-height: 1.6;
+        }
+
+        .container { max-width: 800px; margin: 0 auto; }
+
+        .back-link {
+            color: #ff00ff; text-decoration: none; font-size: 0.95em;
+            display: inline-block; margin-bottom: 12px; transition: opacity 0.2s;
+        }
+        .back-link:hover { opacity: 0.7; }
+
+        h1 {
+            color: #ff00ff; font-size: 1.8em; margin-bottom: 4px;
+            text-shadow: 0 0 12px rgba(255, 0, 255, 0.3);
+        }
+        .subtitle { color: #9a82a0; font-size: 0.9em; margin-bottom: 20px; }
+
+        .panel {
+            background: rgba(13, 8, 16, 0.85);
+            border: 1px solid rgba(255, 0, 255, 0.25);
+            border-radius: 8px; padding: 20px; margin-bottom: 20px;
+        }
+        .panel h2 {
+            color: #00ffff; font-size: 1.15em; margin-bottom: 10px;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.15); padding-bottom: 6px;
+        }
+        .panel p { color: #9a82a0; font-size: 0.92em; }
+
+        /* Progress */
+        .progress-row {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 20px; padding: 12px 16px;
+            background: rgba(13, 8, 16, 0.85);
+            border: 1px solid rgba(255, 0, 255, 0.25); border-radius: 8px;
+        }
+        .progress-label { color: #ff00ff; font-weight: 600; font-size: 1.05em; }
+        .progress-track {
+            flex: 1; height: 22px; background: #1a0f20;
+            border-radius: 4px; overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%; width: 0%;
+            background: linear-gradient(90deg, #ff00ff, #00ffff);
+            transition: width 0.4s ease; border-radius: 4px;
+        }
+        .progress-text { color: #ede0f0; font-weight: 600; min-width: 56px; text-align: right; }
+
+        /* Question card */
+        .question-card {
+            background: rgba(13, 8, 16, 0.85);
+            border: 1px solid rgba(0, 255, 255, 0.25);
+            border-radius: 10px; padding: 28px; margin-bottom: 20px;
+            text-align: center; min-height: 160px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .question-number { color: #5a4460; font-size: 0.85em; margin-bottom: 8px; }
+        .question-text {
+            color: #ede0f0; font-size: 1.2em; font-weight: 500;
+            max-width: 600px; line-height: 1.5;
+        }
+
+        /* CIA buttons */
+        .cia-buttons {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 12px; margin-bottom: 20px;
+        }
+        .cia-btn {
+            padding: 16px 12px; border: 2px solid rgba(255, 0, 255, 0.3);
+            border-radius: 8px; background: rgba(26, 15, 34, 0.7);
+            color: #ede0f0; font-family: inherit; font-size: 1em;
+            font-weight: 600; cursor: pointer; transition: all 0.2s;
+            text-align: center;
+        }
+        .cia-btn:hover {
+            border-color: #ff00ff; background: rgba(255, 0, 255, 0.08);
+            box-shadow: 0 0 12px rgba(255, 0, 255, 0.2);
+        }
+        .cia-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .cia-btn.selected-correct {
+            border-color: #00c850; background: rgba(0, 200, 80, 0.12);
+            color: #a0ffc0;
+        }
+        .cia-btn.selected-incorrect {
+            border-color: #c80028; background: rgba(200, 0, 40, 0.12);
+            color: #ffa0a0;
+        }
+        .cia-btn.highlight-correct {
+            border-color: #00c850; background: rgba(0, 200, 80, 0.08);
+        }
+
+        .cia-btn .cia-icon {
+            display: block; font-size: 1.6em; margin-bottom: 4px;
+        }
+
+        /* Feedback */
+        .feedback {
+            padding: 14px 18px; border-radius: 8px; margin-bottom: 16px;
+            font-size: 0.92em; display: none;
+        }
+        .feedback.correct {
+            background: rgba(0, 200, 80, 0.1); border: 1px solid rgba(0, 200, 80, 0.25);
+            color: #a0ffc0; display: block;
+        }
+        .feedback.incorrect {
+            background: rgba(200, 0, 40, 0.1); border: 1px solid rgba(200, 0, 40, 0.25);
+            color: #ffa0a0; display: block;
+        }
+
+        .btn-row { display: flex; gap: 12px; flex-wrap: wrap; }
+        .btn {
+            padding: 12px 28px; border: none; border-radius: 6px;
+            font-family: inherit; font-weight: 600; font-size: 0.95em;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #ff00ff, #cc00cc);
+            color: #fff; box-shadow: 0 0 12px rgba(255, 0, 255, 0.3);
+        }
+        .btn-primary:hover { box-shadow: 0 0 20px rgba(255, 0, 255, 0.5); }
+        .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-secondary {
+            background: transparent; color: #00ffff;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+        }
+        .btn-secondary:hover { border-color: #00ffff; }
+        .btn-complete {
+            background: linear-gradient(135deg, #00c850, #00a040);
+            color: #fff; display: none;
+        }
+        .btn-complete:hover { box-shadow: 0 0 16px rgba(0, 200, 80, 0.4); }
+
+        /* Summary */
+        .summary-panel {
+            display: none; padding: 20px; margin-top: 20px;
+            background: rgba(13, 8, 16, 0.85);
+            border: 1px solid rgba(0, 255, 255, 0.25); border-radius: 8px;
+        }
+        .summary-panel h2 { color: #00ffff; margin-bottom: 12px; }
+        .summary-item {
+            padding: 8px 12px; margin-bottom: 6px; border-radius: 4px; font-size: 0.9em;
+        }
+        .summary-item.pass { background: rgba(0, 200, 80, 0.1); color: #a0ffc0; }
+        .summary-item.fail { background: rgba(200, 0, 40, 0.1); color: #ffa0a0; }
+
+        .footer-nav {
+            text-align: center; padding: 20px 0; margin-top: 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .footer-nav a { color: #5a4460; text-decoration: none; font-size: 0.85em; }
+        .footer-nav a:hover { color: #ff00ff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="../index.html" class="back-link">&larr; Back to Course</a>
+        <h1>Concept Classifier</h1>
+        <p class="subtitle">CIS2208 -- Week 1: Core Cybersecurity Concepts (CIA Triad)</p>
+
+        <div class="panel">
+            <h2>Instructions</h2>
+            <p>You will be shown 15 cybersecurity terms or scenarios, one at a time. For each, classify it
+            under the correct CIA Triad category: <strong>Confidentiality</strong>,
+            <strong>Integrity</strong>, or <strong>Availability</strong>. You need at least 12 correct
+            to mark this lab complete.</p>
+        </div>
+
+        <div class="progress-row">
+            <span class="progress-label">Progress</span>
+            <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+            <span class="progress-text" id="progressText">0 / 15</span>
+        </div>
+
+        <div class="question-card" id="questionCard">
+            <div class="question-number" id="questionNum">Question 1 of 15</div>
+            <div class="question-text" id="questionText"></div>
+        </div>
+
+        <div class="cia-buttons" id="ciaButtons">
+            <button class="cia-btn" data-cat="Confidentiality" onclick="selectAnswer('Confidentiality')">
+                <span class="cia-icon">[C]</span>Confidentiality
+            </button>
+            <button class="cia-btn" data-cat="Integrity" onclick="selectAnswer('Integrity')">
+                <span class="cia-icon">[I]</span>Integrity
+            </button>
+            <button class="cia-btn" data-cat="Availability" onclick="selectAnswer('Availability')">
+                <span class="cia-icon">[A]</span>Availability
+            </button>
+        </div>
+
+        <div class="feedback" id="feedback"></div>
+
+        <div class="btn-row">
+            <button class="btn btn-primary" id="btnNext" onclick="nextQuestion()" style="display:none;">Next Question</button>
+            <button class="btn btn-secondary" onclick="resetLab()">Restart</button>
+            <button class="btn btn-complete" id="btnComplete" onclick="completeLab()">Mark Complete</button>
+        </div>
+
+        <div class="summary-panel" id="summaryPanel"></div>
+    </div>
+
+    <div class="footer-nav">
+        <a href="../index.html">Course Home</a>
+    </div>
+
+    <script>
+    (function() {
+        'use strict';
+
+        const QUESTIONS = [
+            { text: 'Encrypting data at rest on a database server', answer: 'Confidentiality', explain: 'Encryption prevents unauthorized reading of stored data.' },
+            { text: 'Checksums on file transfers', answer: 'Integrity', explain: 'Checksums verify data was not altered during transmission.' },
+            { text: 'Redundant power supplies in a data center', answer: 'Availability', explain: 'Redundant power ensures systems stay operational during failures.' },
+            { text: 'Role-based access control (RBAC) on a file share', answer: 'Confidentiality', explain: 'RBAC restricts who can view sensitive data.' },
+            { text: 'Digital signatures on software updates', answer: 'Integrity', explain: 'Digital signatures confirm code has not been tampered with.' },
+            { text: 'Load balancers distributing web traffic', answer: 'Availability', explain: 'Load balancing prevents overload and keeps services accessible.' },
+            { text: 'Using a VPN to access corporate resources remotely', answer: 'Confidentiality', explain: 'VPNs encrypt traffic to protect data in transit from eavesdropping.' },
+            { text: 'Version control tracking every change to source code', answer: 'Integrity', explain: 'Version control creates an audit trail of all modifications.' },
+            { text: 'Automated failover to a backup database server', answer: 'Availability', explain: 'Failover maintains service when the primary server goes down.' },
+            { text: 'Data masking in non-production environments', answer: 'Confidentiality', explain: 'Masking hides real data so developers cannot see sensitive information.' },
+            { text: 'Write-once audit logs stored on immutable media', answer: 'Integrity', explain: 'Immutable logs cannot be altered, preserving evidence of events.' },
+            { text: 'Content Delivery Network (CDN) caching static assets', answer: 'Availability', explain: 'CDNs reduce latency and handle traffic spikes to keep content accessible.' },
+            { text: 'Multi-factor authentication (MFA) for user logins', answer: 'Confidentiality', explain: 'MFA prevents unauthorized access even if passwords are compromised.' },
+            { text: 'Hash comparison to detect unauthorized changes to system files', answer: 'Integrity', explain: 'Hash comparison reveals if any file has been modified from its known-good state.' },
+            { text: 'Geographically distributed backup sites (hot/warm/cold)', answer: 'Availability', explain: 'Distributed sites enable recovery when a primary location is destroyed.' }
+        ];
+
+        let currentIndex = 0;
+        let score = 0;
+        let answered = false;
+        let results = [];
+        let shuffled = [];
+
+        function init() {
+            shuffled = [...QUESTIONS].sort(() => Math.random() - 0.5);
+            currentIndex = 0;
+            score = 0;
+            answered = false;
+            results = [];
+            document.getElementById('btnNext').style.display = 'none';
+            document.getElementById('btnComplete').style.display = 'none';
+            document.getElementById('summaryPanel').style.display = 'none';
+            document.getElementById('feedback').className = 'feedback';
+            document.getElementById('feedback').style.display = 'none';
+            updateProgress();
+            showQuestion();
+        }
+
+        function showQuestion() {
+            if (currentIndex >= shuffled.length) { showSummary(); return; }
+            answered = false;
+            const q = shuffled[currentIndex];
+            document.getElementById('questionNum').textContent = 'Question ' + (currentIndex + 1) + ' of ' + shuffled.length;
+            document.getElementById('questionText').textContent = q.text;
+            document.getElementById('feedback').className = 'feedback';
+            document.getElementById('feedback').style.display = 'none';
+            document.getElementById('btnNext').style.display = 'none';
+
+            /* Reset buttons */
+            document.querySelectorAll('.cia-btn').forEach(btn => {
+                btn.disabled = false;
+                btn.className = 'cia-btn';
+            });
+        }
+
+        window.selectAnswer = function(choice) {
+            if (answered) return;
+            answered = true;
+
+            const q = shuffled[currentIndex];
+            const isCorrect = choice === q.answer;
+            if (isCorrect) score++;
+
+            results.push({ text: q.text, correct: isCorrect, picked: choice, answer: q.answer, explain: q.explain });
+
+            /* Highlight buttons */
+            document.querySelectorAll('.cia-btn').forEach(btn => {
+                btn.disabled = true;
+                const cat = btn.dataset.cat;
+                if (cat === choice && isCorrect) btn.classList.add('selected-correct');
+                else if (cat === choice && !isCorrect) btn.classList.add('selected-incorrect');
+                if (cat === q.answer && !isCorrect) btn.classList.add('highlight-correct');
+            });
+
+            /* Show feedback */
+            const fb = document.getElementById('feedback');
+            fb.style.display = '';
+            if (isCorrect) {
+                fb.className = 'feedback correct';
+                fb.textContent = '[CORRECT] ' + q.explain;
+            } else {
+                fb.className = 'feedback incorrect';
+                fb.textContent = '[INCORRECT] The answer is ' + q.answer + '. ' + q.explain;
+            }
+
+            document.getElementById('btnNext').style.display = 'inline-block';
+            updateProgress();
+        };
+
+        window.nextQuestion = function() {
+            currentIndex++;
+            showQuestion();
+        };
+
+        function updateProgress() {
+            const total = shuffled.length;
+            const done = results.length;
+            const pct = Math.round((done / total) * 100);
+            document.getElementById('progressFill').style.width = pct + '%';
+            document.getElementById('progressText').textContent = score + ' / ' + total;
+        }
+
+        function showSummary() {
+            const total = shuffled.length;
+            document.getElementById('questionCard').innerHTML =
+                '<div class="question-text">Lab Complete! You scored ' + score + ' / ' + total + '</div>';
+            document.getElementById('ciaButtons').style.display = 'none';
+            document.getElementById('btnNext').style.display = 'none';
+            document.getElementById('feedback').style.display = 'none';
+
+            /* Final progress */
+            const pct = Math.round((score / total) * 100);
+            document.getElementById('progressFill').style.width = pct + '%';
+            document.getElementById('progressText').textContent = score + ' / ' + total;
+
+            /* Build summary */
+            const panel = document.getElementById('summaryPanel');
+            let html = '<h2>Results: ' + score + ' / ' + total + '</h2>';
+            results.forEach((r, i) => {
+                const cls = r.correct ? 'pass' : 'fail';
+                const icon = r.correct ? '[CORRECT]' : '[INCORRECT]';
+                html += '<div class="summary-item ' + cls + '">' +
+                    '<strong>' + icon + ' Q' + (i + 1) + ':</strong> ' + r.text +
+                    (r.correct ? '' : ' (You chose: ' + r.picked + ', Answer: ' + r.answer + ')') +
+                    '</div>';
+            });
+            panel.innerHTML = html;
+            panel.style.display = 'block';
+
+            if (score >= 12) {
+                document.getElementById('btnComplete').style.display = 'inline-block';
+            }
+        }
+
+        window.resetLab = function() {
+            document.getElementById('ciaButtons').style.display = 'grid';
+            init();
+        };
+
+        window.completeLab = function() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('divergent', 'csp-w1-concepts-lab', { returnUrl: '../index.html' });
+            }
+        };
+
+        init();
+    })();
+    </script>
+</body>
+</html>

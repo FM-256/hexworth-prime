@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Continuity and Disaster Recovery | Cybersecurity Policy</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d0810 0%, #0a060d 50%, #100812 100%);
+            color: #ede0f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow-y: auto;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: linear-gradient(90deg, #ff00ff, #00ffff);
+            transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(13, 8, 16, 0.95);
+            border-top: 1px solid rgba(255, 0, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #9a82a0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(255, 0, 255, 0.12); color: #ff00ff; border-color: #ff00ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #5a4460; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: linear-gradient(135deg, #ff00ff, #ff44ff);
+            color: #0d0810; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: linear-gradient(135deg, #ff44ff, #ff88ff); transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #ff00ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #ede0f0; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ff00ff; }
+        .slide-title .cyan { color: #00ffff; }
+        .slide-subtitle { font-size: 0.95rem; color: #9a82a0; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(255, 0, 255, 0.06); border-left: 3px solid #ff00ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #f5b8f5; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-magenta { background: rgba(255, 0, 255, 0.08); border: 1px solid rgba(255, 0, 255, 0.3); color: #f5b8f5; }
+        .box-cyan    { background: rgba(0, 255, 255, 0.08); border: 1px solid rgba(0, 255, 255, 0.3); color: #b8f5f5; }
+        .box-red     { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold    { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-green   { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-label   { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #ede0f0; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ff00ff; }
+        .title-hero .big-title .cyan { color: #00ffff; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #5a4460;
+        }
+        .title-meta-row span { border-left: 2px solid rgba(255, 0, 255, 0.2); padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #ff00ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #ede0f0; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #9a82a0; line-height: 1.4; }
+        .card.c-magenta { border-left-color: #ff00ff; }
+        .card.c-cyan    { border-left-color: #00ffff; }
+        .card.c-red     { border-left-color: #ef4444; }
+        .card.c-gold    { border-left-color: #eab308; }
+        .card.c-green   { border-left-color: #22c55e; }
+        .card.c-purple  { border-left-color: #ff44ff; }
+        .card.c-blue    { border-left-color: #3b82f6; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #5a4460; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #ff00ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #ede0f0; }
+
+        /* SVG diagram containers */
+        .svg-container {
+            display: flex; justify-content: center; align-items: center;
+            margin: 10px 0; padding: 10px;
+        }
+        .svg-container svg { max-width: 100%; height: auto; }
+
+        /* Kill chain steps -- reused for lifecycle steps */
+        .kill-chain { display: flex; gap: 2px; margin: 10px 0; }
+        .kc-step {
+            flex: 1; padding: 10px 6px; text-align: center;
+            background: rgba(255, 0, 255, 0.06); border: 1px solid rgba(255, 0, 255, 0.15);
+            border-radius: 4px; transition: background 0.2s;
+        }
+        .kc-step:hover { background: rgba(255, 0, 255, 0.14); }
+        .kc-num { font-size: 0.68rem; font-weight: 700; color: #00ffff; letter-spacing: 0.08em; margin-bottom: 3px; }
+        .kc-name { font-size: 0.78rem; font-weight: 700; color: #ede0f0; margin-bottom: 3px; }
+        .kc-desc { font-size: 0.7rem; color: #9a82a0; line-height: 1.3; }
+
+        /* Glossary table */
+        .glossary-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+        .glossary-table th {
+            text-align: left; padding: 6px 10px; font-size: 0.72rem;
+            text-transform: uppercase; letter-spacing: 0.08em;
+            color: #ff00ff; border-bottom: 1px solid rgba(255, 0, 255, 0.3);
+        }
+        .glossary-table td {
+            padding: 6px 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            vertical-align: top;
+        }
+        .glossary-table td:first-child { color: #00ffff; font-weight: 600; white-space: nowrap; }
+        .glossary-table td:last-child { color: #9a82a0; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid, .card-grid-4 { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .kill-chain { flex-wrap: wrap; } .kc-step { min-width: 45%; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Business Continuity and Disaster Recovery | Cybersecurity Policy</h1>
+
+<div id="progress-bar" style="width:7.14%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 14 &nbsp;|&nbsp; CSP-W2-BCP &nbsp;|&nbsp; Week 2</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Business Continuity and<br>
+                <span class="accent">Disaster Recovery</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                BCP vs DRP &nbsp;&bull;&nbsp; BIA &nbsp;&bull;&nbsp; Recovery Metrics &nbsp;&bull;&nbsp; DR Sites &nbsp;&bull;&nbsp; Backup Strategies &nbsp;&bull;&nbsp; IR Lifecycle
+            </div>
+        </div>
+        <div class="scenario-strip">
+            When a ransomware attack encrypts your production servers at 2 AM, or a hurricane floods your data center, the question is not whether your organization will face a disaster -- it is whether you have a plan that survives first contact. Business continuity and disaster recovery are not aspirational -- they are operational requirements. This deck covers the planning, metrics, strategies, and testing that separate organizations that recover from those that do not.
+        </div>
+        <div class="title-meta-row">
+            <span>14 Slides</span>
+            <span>CSP-W2-BCP</span>
+            <span>Week 2</span>
+            <span>CIS2208 -- Cybersecurity Policy</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- BCP vs DRP ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 14</div>
+        <div class="slide-title"><span class="accent">BCP</span> vs <span class="cyan">DRP</span></div>
+        <div class="slide-subtitle">Two related but distinct disciplines. BCP keeps the business running. DRP restores IT systems. Both are required.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 480 240" width="460" role="img" aria-label="Venn diagram showing BCP and DRP overlap. BCP circle on the left covers business operations, stakeholders, and alternate processes. DRP circle on the right covers IT systems, data restoration, and technical recovery. The overlap region covers shared goals: minimize downtime, protect assets, and ensure resilience.">
+                <!-- BCP circle -->
+                <circle cx="175" cy="120" r="100" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="2"/>
+                <!-- DRP circle -->
+                <circle cx="305" cy="120" r="100" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="2"/>
+                <!-- Overlap fill -->
+                <clipPath id="clipBCP"><circle cx="175" cy="120" r="100"/></clipPath>
+                <circle cx="305" cy="120" r="100" fill="rgba(255,68,255,0.12)" clip-path="url(#clipBCP)"/>
+                <!-- Labels -->
+                <text x="130" y="80" text-anchor="middle" fill="#ff00ff" font-size="13" font-weight="700">BCP</text>
+                <text x="130" y="100" text-anchor="middle" fill="#9a82a0" font-size="9">Business operations</text>
+                <text x="130" y="114" text-anchor="middle" fill="#9a82a0" font-size="9">Alternate processes</text>
+                <text x="130" y="128" text-anchor="middle" fill="#9a82a0" font-size="9">Stakeholder comms</text>
+                <text x="130" y="142" text-anchor="middle" fill="#9a82a0" font-size="9">Supply chain</text>
+                <text x="130" y="156" text-anchor="middle" fill="#9a82a0" font-size="9">Manual workarounds</text>
+                <text x="350" y="80" text-anchor="middle" fill="#00ffff" font-size="13" font-weight="700">DRP</text>
+                <text x="350" y="100" text-anchor="middle" fill="#9a82a0" font-size="9">IT infrastructure</text>
+                <text x="350" y="114" text-anchor="middle" fill="#9a82a0" font-size="9">Data restoration</text>
+                <text x="350" y="128" text-anchor="middle" fill="#9a82a0" font-size="9">System failover</text>
+                <text x="350" y="142" text-anchor="middle" fill="#9a82a0" font-size="9">Network recovery</text>
+                <text x="350" y="156" text-anchor="middle" fill="#9a82a0" font-size="9">Technical playbooks</text>
+                <!-- Overlap labels -->
+                <text x="240" y="108" text-anchor="middle" fill="#ff44ff" font-size="9" font-weight="600">Minimize</text>
+                <text x="240" y="120" text-anchor="middle" fill="#ff44ff" font-size="9" font-weight="600">downtime</text>
+                <text x="240" y="136" text-anchor="middle" fill="#ff44ff" font-size="9" font-weight="600">Protect assets</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Business Continuity Plan (BCP)</div>
+                <div class="card-desc">A comprehensive plan that ensures critical business functions can continue during and after a disaster. BCP is broader than IT -- it covers people, processes, facilities, supply chains, and communication. A hospital BCP addresses patient care with paper records if the EHR goes down. A bank BCP covers manual transaction processing. BCP asks: "How does the business keep operating?"</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Disaster Recovery Plan (DRP)</div>
+                <div class="card-desc">A subset of BCP focused specifically on restoring IT infrastructure and data after a disruption. DRP covers server failover, database restoration, network recovery, and application restart procedures. DRP is technical and measurable -- it defines exact steps, sequences, and timelines for bringing systems back online. DRP asks: "How do we restore the technology?"</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Critical Distinction</div>
+            A DRP without a BCP means you can restore servers but have no plan for business operations during the outage. A BCP without a DRP means you have business workarounds but no path to restore technology. Organizations need both. NIST SP 800-34 provides the federal framework for integrating continuity and recovery planning.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- BIA ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 14</div>
+        <div class="slide-title"><span class="accent">Business Impact</span> <span class="cyan">Analysis</span></div>
+        <div class="slide-subtitle">The BIA is the foundation of every continuity plan. It identifies what matters most, how long you can survive without it, and what breaks first.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 500 260" width="480" role="img" aria-label="BIA priority matrix showing four quadrants. Top-left (high impact, high urgency) is critical -- labeled in magenta. Top-right (high impact, low urgency) is important -- labeled in cyan. Bottom-left (low impact, high urgency) is time-sensitive -- labeled in purple. Bottom-right (low impact, low urgency) is deferrable -- labeled in gray.">
+                <!-- Axes -->
+                <line x1="80" y1="20" x2="80" y2="230" stroke="#5a4460" stroke-width="1.5"/>
+                <line x1="80" y1="230" x2="480" y2="230" stroke="#5a4460" stroke-width="1.5"/>
+                <!-- Axis labels -->
+                <text x="40" y="130" text-anchor="middle" fill="#9a82a0" font-size="10" font-weight="600" transform="rotate(-90,40,130)">BUSINESS IMPACT</text>
+                <text x="280" y="255" text-anchor="middle" fill="#9a82a0" font-size="10" font-weight="600">RECOVERY URGENCY</text>
+                <text x="75" y="35" text-anchor="end" fill="#5a4460" font-size="8">HIGH</text>
+                <text x="75" y="225" text-anchor="end" fill="#5a4460" font-size="8">LOW</text>
+                <text x="100" y="248" text-anchor="start" fill="#5a4460" font-size="8">HIGH</text>
+                <text x="460" y="248" text-anchor="end" fill="#5a4460" font-size="8">LOW</text>
+                <!-- Q1: Critical (high impact, high urgency) -->
+                <rect x="90" y="30" width="185" height="95" rx="6" fill="rgba(255,0,255,0.12)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="182" y="55" text-anchor="middle" fill="#ff00ff" font-size="12" font-weight="700">CRITICAL</text>
+                <text x="182" y="72" text-anchor="middle" fill="#f5b8f5" font-size="9">Payment processing</text>
+                <text x="182" y="85" text-anchor="middle" fill="#f5b8f5" font-size="9">Patient care systems</text>
+                <text x="182" y="98" text-anchor="middle" fill="#f5b8f5" font-size="9">Auth / identity services</text>
+                <text x="182" y="115" text-anchor="middle" fill="#9a82a0" font-size="8">RTO: 0-4 hours</text>
+                <!-- Q2: Important (high impact, low urgency) -->
+                <rect x="285" y="30" width="185" height="95" rx="6" fill="rgba(0,255,255,0.1)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="377" y="55" text-anchor="middle" fill="#00ffff" font-size="12" font-weight="700">IMPORTANT</text>
+                <text x="377" y="72" text-anchor="middle" fill="#b8f5f5" font-size="9">Email systems</text>
+                <text x="377" y="85" text-anchor="middle" fill="#b8f5f5" font-size="9">ERP / CRM platforms</text>
+                <text x="377" y="98" text-anchor="middle" fill="#b8f5f5" font-size="9">Reporting dashboards</text>
+                <text x="377" y="115" text-anchor="middle" fill="#9a82a0" font-size="8">RTO: 4-24 hours</text>
+                <!-- Q3: Time-sensitive (low impact, high urgency) -->
+                <rect x="90" y="135" width="185" height="85" rx="6" fill="rgba(255,68,255,0.08)" stroke="#ff44ff" stroke-width="1"/>
+                <text x="182" y="158" text-anchor="middle" fill="#ff44ff" font-size="11" font-weight="700">TIME-SENSITIVE</text>
+                <text x="182" y="174" text-anchor="middle" fill="#9a82a0" font-size="9">VoIP / phone systems</text>
+                <text x="182" y="187" text-anchor="middle" fill="#9a82a0" font-size="9">Badge access systems</text>
+                <text x="182" y="205" text-anchor="middle" fill="#5a4460" font-size="8">RTO: 24-72 hours</text>
+                <!-- Q4: Deferrable (low impact, low urgency) -->
+                <rect x="285" y="135" width="185" height="85" rx="6" fill="rgba(255,255,255,0.03)" stroke="#5a4460" stroke-width="1"/>
+                <text x="377" y="158" text-anchor="middle" fill="#5a4460" font-size="11" font-weight="700">DEFERRABLE</text>
+                <text x="377" y="174" text-anchor="middle" fill="#5a4460" font-size="9">Training portals</text>
+                <text x="377" y="187" text-anchor="middle" fill="#5a4460" font-size="9">Internal wikis</text>
+                <text x="377" y="205" text-anchor="middle" fill="#5a4460" font-size="8">RTO: 72+ hours</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Identify Critical Functions</div>
+                <div class="card-desc">What processes generate revenue, serve customers, or meet legal obligations? Map every business function to its impact if unavailable for 1 hour, 4 hours, 24 hours, and 1 week. The answers drive every recovery priority.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Map Dependencies</div>
+                <div class="card-desc">Critical functions rarely stand alone. Payment processing depends on databases, networks, and third-party APIs. A dependency map reveals hidden single points of failure -- the one vendor, server, or person whose absence halts everything.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Quantify Financial Impact</div>
+                <div class="card-desc">Calculate the cost of downtime per hour for each function: lost revenue, regulatory fines, SLA penalties, reputational damage, and recovery labor. This financial data justifies the budget for continuity investments to executive leadership.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">BIA is Not Optional</div>
+            Without a BIA, recovery priorities are based on assumptions and politics rather than data. The department that shouts loudest gets restored first, not the function that matters most. A rigorous BIA transforms continuity planning from guesswork into engineering.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- RECOVERY METRICS ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 14</div>
+        <div class="slide-title">Recovery <span class="accent">Metrics</span></div>
+        <div class="slide-subtitle">Four numbers that define your recovery posture. Every DR contract, SLA, and backup policy references these metrics.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 560 180" width="540" role="img" aria-label="RTO and RPO timeline diagram. A horizontal timeline shows the disaster event in the center. RPO extends left from the disaster, measuring acceptable data loss. RTO extends right, measuring maximum acceptable downtime. MTD extends further right as the absolute maximum tolerable period. MTBF is shown above as the average time between failures.">
+                <defs>
+                    <marker id="arrLeft" markerWidth="8" markerHeight="6" refX="0" refY="3" orient="auto">
+                        <path d="M8,0 L0,3 L8,6" fill="#ff00ff"/>
+                    </marker>
+                    <marker id="arrRight" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                        <path d="M0,0 L8,3 L0,6" fill="#00ffff"/>
+                    </marker>
+                    <marker id="arrRightM" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                        <path d="M0,0 L8,3 L0,6" fill="#ff44ff"/>
+                    </marker>
+                </defs>
+                <!-- Main timeline -->
+                <line x1="30" y1="100" x2="530" y2="100" stroke="#5a4460" stroke-width="1.5"/>
+                <!-- Disaster marker -->
+                <line x1="240" y1="70" x2="240" y2="130" stroke="#ef4444" stroke-width="2"/>
+                <rect x="210" y="55" width="60" height="18" rx="3" fill="rgba(239,68,68,0.2)" stroke="#ef4444" stroke-width="1"/>
+                <text x="240" y="67" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">DISASTER</text>
+                <!-- RPO arrow (left of disaster) -->
+                <line x1="90" y1="86" x2="235" y2="86" stroke="#ff00ff" stroke-width="1.5" marker-start="url(#arrLeft)"/>
+                <text x="162" y="80" text-anchor="middle" fill="#ff00ff" font-size="11" font-weight="700">RPO</text>
+                <text x="90" y="80" text-anchor="middle" fill="#9a82a0" font-size="8">Last backup</text>
+                <!-- RTO arrow (right of disaster) -->
+                <line x1="245" y1="86" x2="400" y2="86" stroke="#00ffff" stroke-width="1.5" marker-end="url(#arrRight)"/>
+                <text x="322" y="80" text-anchor="middle" fill="#00ffff" font-size="11" font-weight="700">RTO</text>
+                <text x="400" y="80" text-anchor="middle" fill="#9a82a0" font-size="8">Systems restored</text>
+                <!-- MTD arrow (extends further right) -->
+                <line x1="245" y1="118" x2="490" y2="118" stroke="#ff44ff" stroke-width="1.5" marker-end="url(#arrRightM)"/>
+                <text x="367" y="138" text-anchor="middle" fill="#ff44ff" font-size="11" font-weight="700">MTD</text>
+                <text x="490" y="138" text-anchor="middle" fill="#9a82a0" font-size="8">Business fails</text>
+                <!-- MTBF label above -->
+                <rect x="150" y="15" width="200" height="24" rx="4" fill="rgba(255,255,255,0.03)" stroke="#5a4460" stroke-width="1"/>
+                <text x="250" y="31" text-anchor="middle" fill="#5a4460" font-size="9" font-weight="600">MTBF -- avg time between failures</text>
+                <!-- Time markers -->
+                <text x="30" y="155" text-anchor="start" fill="#5a4460" font-size="8">TIME</text>
+                <line x1="30" y1="145" x2="530" y2="145" stroke="#5a4460" stroke-width="0.5" stroke-dasharray="3 3"/>
+            </svg>
+        </div>
+
+        <div class="card-grid-4">
+            <div class="card c-magenta">
+                <div class="card-label">RPO</div>
+                <div class="card-desc">Recovery Point Objective -- the maximum acceptable data loss measured in time. An RPO of 1 hour means you can lose up to 1 hour of data. Drives backup frequency: RPO of 15 minutes requires near-continuous replication.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">RTO</div>
+                <div class="card-desc">Recovery Time Objective -- the maximum acceptable downtime before business impact becomes unacceptable. An RTO of 4 hours means systems must be restored within 4 hours of failure. Drives DR site selection and failover architecture.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">MTD</div>
+                <div class="card-desc">Maximum Tolerable Downtime -- the absolute limit beyond which the business suffers irreversible harm: regulatory penalties, permanent customer loss, or insolvency. MTD must always be greater than RTO. If MTD = RTO, there is zero margin for error.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">MTBF</div>
+                <div class="card-desc">Mean Time Between Failures -- the average operational time between system failures. Calculated from historical data. Higher MTBF indicates more reliable systems. Used to forecast when failures will occur and to justify redundancy investments.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Why These Numbers Matter</div>
+            Every DR contract, cloud SLA, and backup policy references RTO and RPO. If your vendor promises a 4-hour RTO but your BIA requires 1 hour, you have a gap. If your backup runs nightly but your RPO is 1 hour, you are exposed to 23 hours of potential data loss. These metrics translate business requirements into technical specifications.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- RISK ASSESSMENT ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 14</div>
+        <div class="slide-title">Risk Assessment for <span class="accent">Continuity</span></div>
+        <div class="slide-subtitle">Continuity planning starts with understanding what can go wrong. Not all threats are equal -- and the most likely are rarely the most dramatic.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Natural Disasters</div>
+                <div class="card-desc">Hurricanes, earthquakes, floods, wildfires, tornadoes. Geographic risk varies dramatically -- a data center in Miami faces hurricane risk; one in San Francisco faces seismic risk. BCP must account for regional threat profiles. FEMA flood maps and USGS seismic data inform site selection.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Cyber Incidents</div>
+                <div class="card-desc">Ransomware, DDoS, data breaches, supply chain compromises. Cyber events are now the most common trigger for DR activation. The 2021 Colonial Pipeline ransomware attack shut down fuel distribution for the eastern United States for six days. Cyber-specific DRP is no longer optional.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Pandemic / Health Crisis</div>
+                <div class="card-desc">COVID-19 proved that workforce availability is a continuity risk. Organizations that could not support remote work within days faced existential threats. Pandemic BCP covers workforce health, remote access scaling, supply chain alternatives, and extended operational degradation.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Supply Chain Failure</div>
+                <div class="card-desc">Single-vendor dependency, chip shortages, cloud provider outages, SaaS vendor bankruptcy. The 2021 global chip shortage disrupted manufacturing for 18+ months. BCP must identify vendor dependencies and establish alternate sourcing. The SolarWinds attack proved that trusted suppliers can become attack vectors.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-purple">
+                <div class="card-label">Infrastructure Failure</div>
+                <div class="card-desc">Power grid outages, ISP failures, cooling system failures, hardware end-of-life. The 2003 Northeast blackout affected 55 million people across eight states and Canada. Redundant power (UPS + generator), diverse ISP connections, and hardware refresh cycles are baseline continuity controls.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Human Factors</div>
+                <div class="card-desc">Key person dependency, accidental deletion, insider threat, labor actions. If one engineer holds all the passwords, their absence is a continuity event. Cross-training, documentation, and separation of duties reduce human-factor risk. The "bus factor" is a real metric.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Risk Assessment Reality</div>
+            Organizations consistently underestimate the probability of common events and overestimate rare ones. You are far more likely to face a ransomware attack or ISP outage than an earthquake. Risk assessment must be data-driven, updated annually, and tied to actual incident history -- not worst-case imagination.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- DR SITE STRATEGIES ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 14</div>
+        <div class="slide-title"><span class="accent">Disaster Recovery</span> Site Strategies</div>
+        <div class="slide-subtitle">Where do you go when your primary site is unavailable? Four options, each with different cost, speed, and capability tradeoffs.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 540 200" width="520" role="img" aria-label="DR site comparison showing four site types from left to right: hot site, warm site, cold site, and cloud DR. Each is represented as a box with cost and RTO indicators. Hot site has highest cost and lowest RTO. Cloud DR is shown as a modern alternative spanning multiple RTO ranges.">
+                <defs>
+                    <marker id="arrCost" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                        <path d="M0,0 L8,3 L0,6" fill="#5a4460"/>
+                    </marker>
+                </defs>
+                <!-- Cost arrow -->
+                <line x1="30" y1="180" x2="30" y2="25" stroke="#5a4460" stroke-width="1" marker-end="url(#arrCost)"/>
+                <text x="25" y="20" text-anchor="end" fill="#5a4460" font-size="8">COST</text>
+                <!-- RTO arrow -->
+                <line x1="50" y1="190" x2="520" y2="190" stroke="#5a4460" stroke-width="1" marker-end="url(#arrCost)"/>
+                <text x="525" y="194" text-anchor="start" fill="#5a4460" font-size="8">RTO</text>
+                <!-- Hot site -->
+                <rect x="55" y="30" width="105" height="90" rx="6" fill="rgba(255,0,255,0.15)" stroke="#ff00ff" stroke-width="2"/>
+                <text x="107" y="55" text-anchor="middle" fill="#ff00ff" font-size="12" font-weight="700">HOT SITE</text>
+                <text x="107" y="72" text-anchor="middle" fill="#f5b8f5" font-size="9">Fully operational</text>
+                <text x="107" y="85" text-anchor="middle" fill="#f5b8f5" font-size="9">Real-time replication</text>
+                <text x="107" y="98" text-anchor="middle" fill="#f5b8f5" font-size="9">RTO: minutes</text>
+                <text x="107" y="112" text-anchor="middle" fill="#9a82a0" font-size="8">$$$$</text>
+                <!-- Warm site -->
+                <rect x="175" y="55" width="105" height="90" rx="6" fill="rgba(0,255,255,0.12)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="227" y="78" text-anchor="middle" fill="#00ffff" font-size="12" font-weight="700">WARM SITE</text>
+                <text x="227" y="95" text-anchor="middle" fill="#b8f5f5" font-size="9">Partial hardware</text>
+                <text x="227" y="108" text-anchor="middle" fill="#b8f5f5" font-size="9">Periodic backups</text>
+                <text x="227" y="121" text-anchor="middle" fill="#b8f5f5" font-size="9">RTO: hours-days</text>
+                <text x="227" y="137" text-anchor="middle" fill="#9a82a0" font-size="8">$$$</text>
+                <!-- Cold site -->
+                <rect x="295" y="80" width="105" height="90" rx="6" fill="rgba(255,68,255,0.08)" stroke="#ff44ff" stroke-width="1"/>
+                <text x="347" y="103" text-anchor="middle" fill="#ff44ff" font-size="12" font-weight="700">COLD SITE</text>
+                <text x="347" y="120" text-anchor="middle" fill="#9a82a0" font-size="9">Empty facility</text>
+                <text x="347" y="133" text-anchor="middle" fill="#9a82a0" font-size="9">Power + connectivity</text>
+                <text x="347" y="146" text-anchor="middle" fill="#9a82a0" font-size="9">RTO: days-weeks</text>
+                <text x="347" y="162" text-anchor="middle" fill="#5a4460" font-size="8">$$</text>
+                <!-- Cloud DR -->
+                <rect x="415" y="40" width="105" height="130" rx="6" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="4 3"/>
+                <text x="467" y="63" text-anchor="middle" fill="#3b82f6" font-size="12" font-weight="700">CLOUD DR</text>
+                <text x="467" y="80" text-anchor="middle" fill="#93c5fd" font-size="9">On-demand infra</text>
+                <text x="467" y="93" text-anchor="middle" fill="#93c5fd" font-size="9">Pay-per-use</text>
+                <text x="467" y="106" text-anchor="middle" fill="#93c5fd" font-size="9">Multi-region</text>
+                <text x="467" y="119" text-anchor="middle" fill="#93c5fd" font-size="9">RTO: min-hours</text>
+                <text x="467" y="137" text-anchor="middle" fill="#9a82a0" font-size="8">$-$$$$</text>
+                <text x="467" y="157" text-anchor="middle" fill="#5a4460" font-size="7">(scales with config)</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Hot Site</div>
+                <div class="card-desc">A fully operational duplicate of the primary site with real-time data replication. Staff can switch operations within minutes. Highest cost but lowest RTO. Used by financial institutions, hospitals, and critical infrastructure where any downtime is unacceptable. Typical cost: 6-10x the cold site equivalent.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Warm Site</div>
+                <div class="card-desc">Partial infrastructure is in place -- hardware exists but may need configuration, software loading, and data restoration from recent backups. RTO of hours to a day. The compromise option: significantly cheaper than hot, significantly faster than cold. Most mid-size organizations land here.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-purple">
+                <div class="card-label">Cold Site</div>
+                <div class="card-desc">An empty facility with power, cooling, and network connectivity but no hardware or data. Everything must be procured, installed, and configured after activation. RTO of days to weeks. Lowest cost but longest recovery. Suitable only for non-critical functions with high MTD tolerances.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Cloud-Based DR</div>
+                <div class="card-desc">Infrastructure spun up on demand in AWS, Azure, or GCP. Eliminates physical site management. Pay-per-use model means you only pay full cost during an actual disaster. Multi-region replication can achieve hot-site RTOs at warm-site costs. The modern default for most organizations, but requires careful planning for egress costs, bandwidth, and vendor lock-in.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- BACKUP STRATEGIES ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 14</div>
+        <div class="slide-title"><span class="accent">Backup</span> Strategies</div>
+        <div class="slide-subtitle">Backups are the last line of defense. If everything else fails, backups determine whether you recover or start over.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 480 180" width="460" role="img" aria-label="3-2-1 backup rule diagram showing three copies of data, stored on two different media types, with one copy stored offsite. Three document icons on the left, two different storage media icons in the center, and a cloud icon on the right representing offsite storage.">
+                <!-- 3 copies -->
+                <rect x="20" y="30" width="120" height="120" rx="8" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="80" y="55" text-anchor="middle" fill="#ff00ff" font-size="28" font-weight="800">3</text>
+                <text x="80" y="75" text-anchor="middle" fill="#f5b8f5" font-size="10">Copies of</text>
+                <text x="80" y="88" text-anchor="middle" fill="#f5b8f5" font-size="10">your data</text>
+                <!-- Doc icons -->
+                <rect x="50" y="98" width="16" height="20" rx="2" fill="none" stroke="#ff44ff" stroke-width="1"/>
+                <rect x="70" y="98" width="16" height="20" rx="2" fill="none" stroke="#ff44ff" stroke-width="1"/>
+                <rect x="90" y="98" width="16" height="20" rx="2" fill="none" stroke="#ff44ff" stroke-width="1"/>
+                <!-- Arrow -->
+                <line x1="145" y1="90" x2="170" y2="90" stroke="#5a4460" stroke-width="1.5"/>
+                <!-- 2 media -->
+                <rect x="175" y="30" width="120" height="120" rx="8" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="235" y="55" text-anchor="middle" fill="#00ffff" font-size="28" font-weight="800">2</text>
+                <text x="235" y="75" text-anchor="middle" fill="#b8f5f5" font-size="10">Different</text>
+                <text x="235" y="88" text-anchor="middle" fill="#b8f5f5" font-size="10">media types</text>
+                <!-- Media icons -->
+                <rect x="200" y="98" width="24" height="16" rx="3" fill="none" stroke="#00ffff" stroke-width="1"/>
+                <text x="212" y="110" text-anchor="middle" fill="#00ffff" font-size="7">SSD</text>
+                <rect x="232" y="98" width="24" height="16" rx="3" fill="none" stroke="#00ffff" stroke-width="1"/>
+                <text x="244" y="110" text-anchor="middle" fill="#00ffff" font-size="7">TAPE</text>
+                <!-- Arrow -->
+                <line x1="300" y1="90" x2="325" y2="90" stroke="#5a4460" stroke-width="1.5"/>
+                <!-- 1 offsite -->
+                <rect x="330" y="30" width="130" height="120" rx="8" fill="rgba(255,68,255,0.08)" stroke="#ff44ff" stroke-width="1.5"/>
+                <text x="395" y="55" text-anchor="middle" fill="#ff44ff" font-size="28" font-weight="800">1</text>
+                <text x="395" y="75" text-anchor="middle" fill="#f5b8f5" font-size="10">Copy stored</text>
+                <text x="395" y="88" text-anchor="middle" fill="#f5b8f5" font-size="10">offsite</text>
+                <!-- Cloud icon -->
+                <ellipse cx="395" cy="115" rx="22" ry="12" fill="none" stroke="#ff44ff" stroke-width="1"/>
+                <text x="395" y="119" text-anchor="middle" fill="#ff44ff" font-size="7">CLOUD</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Full Backup</div>
+                <div class="card-desc">Complete copy of all data every time. Simple to restore but consumes the most storage and takes the longest to run. Typically done weekly or monthly, with incremental or differential backups between cycles.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Incremental Backup</div>
+                <div class="card-desc">Only backs up data changed since the last backup of any type. Fastest and smallest. But restoration requires the last full backup plus every incremental since then, in order. Failure of any one incremental breaks the chain.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Differential Backup</div>
+                <div class="card-desc">Backs up all data changed since the last full backup. Grows larger each day but restoration only requires the last full plus the latest differential. Balances speed and restore simplicity between full and incremental.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Immutable Backups</div>
+            Ransomware operators specifically target backups for encryption or deletion. Immutable backups cannot be modified or deleted for a defined retention period -- even by administrators. Cloud providers offer object lock (AWS S3 Object Lock, Azure Immutable Blob Storage). Air-gapped tape remains the gold standard for immutability. If your backups can be encrypted by the same ransomware that hit production, they are not backups -- they are liabilities.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- IR LIFECYCLE ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 14</div>
+        <div class="slide-title">Incident Response <span class="accent">Lifecycle</span></div>
+        <div class="slide-subtitle">NIST SP 800-61 defines six phases. Each phase feeds the next. Skipping phases guarantees repeat incidents.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 420 420" width="360" role="img" aria-label="Incident response lifecycle shown as a circular diagram with six phases arranged clockwise: Preparation, Detection and Analysis, Containment, Eradication, Recovery, and Lessons Learned. Arrows connect each phase in sequence, with Lessons Learned connecting back to Preparation to complete the cycle.">
+                <!-- Center circle -->
+                <circle cx="210" cy="210" r="60" fill="rgba(255,0,255,0.06)" stroke="#ff00ff" stroke-width="1" stroke-dasharray="4 3"/>
+                <text x="210" y="205" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700">INCIDENT</text>
+                <text x="210" y="220" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700">RESPONSE</text>
+                <!-- Phase 1: Preparation (top) -->
+                <rect x="155" y="20" width="110" height="50" rx="6" fill="rgba(255,0,255,0.12)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="210" y="42" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700">01</text>
+                <text x="210" y="58" text-anchor="middle" fill="#ede0f0" font-size="10" font-weight="600">Preparation</text>
+                <!-- Phase 2: Detection (top-right) -->
+                <rect x="310" y="95" width="110" height="50" rx="6" fill="rgba(0,255,255,0.12)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="365" y="117" text-anchor="middle" fill="#00ffff" font-size="10" font-weight="700">02</text>
+                <text x="365" y="133" text-anchor="middle" fill="#ede0f0" font-size="10" font-weight="600">Detection</text>
+                <!-- Phase 3: Containment (bottom-right) -->
+                <rect x="310" y="270" width="110" height="50" rx="6" fill="rgba(255,68,255,0.12)" stroke="#ff44ff" stroke-width="1.5"/>
+                <text x="365" y="292" text-anchor="middle" fill="#ff44ff" font-size="10" font-weight="700">03</text>
+                <text x="365" y="308" text-anchor="middle" fill="#ede0f0" font-size="10" font-weight="600">Containment</text>
+                <!-- Phase 4: Eradication (bottom) -->
+                <rect x="155" y="350" width="110" height="50" rx="6" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="210" y="372" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="700">04</text>
+                <text x="210" y="388" text-anchor="middle" fill="#ede0f0" font-size="10" font-weight="600">Eradication</text>
+                <!-- Phase 5: Recovery (bottom-left) -->
+                <rect x="0" y="270" width="110" height="50" rx="6" fill="rgba(34,197,94,0.12)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="55" y="292" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="700">05</text>
+                <text x="55" y="308" text-anchor="middle" fill="#ede0f0" font-size="10" font-weight="600">Recovery</text>
+                <!-- Phase 6: Lessons Learned (top-left) -->
+                <rect x="0" y="95" width="110" height="50" rx="6" fill="rgba(234,179,8,0.12)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="55" y="117" text-anchor="middle" fill="#eab308" font-size="10" font-weight="700">06</text>
+                <text x="55" y="133" text-anchor="middle" fill="#ede0f0" font-size="9" font-weight="600">Lessons Learned</text>
+                <!-- Connecting arrows (clockwise) -->
+                <line x1="245" y1="70" x2="310" y2="100" stroke="#5a4460" stroke-width="1" stroke-dasharray="3 3"/>
+                <line x1="390" y1="145" x2="390" y2="270" stroke="#5a4460" stroke-width="1" stroke-dasharray="3 3"/>
+                <line x1="310" y1="310" x2="265" y2="350" stroke="#5a4460" stroke-width="1" stroke-dasharray="3 3"/>
+                <line x1="155" y1="370" x2="110" y2="310" stroke="#5a4460" stroke-width="1" stroke-dasharray="3 3"/>
+                <line x1="30" y1="270" x2="30" y2="145" stroke="#5a4460" stroke-width="1" stroke-dasharray="3 3"/>
+                <line x1="80" y1="95" x2="155" y2="55" stroke="#5a4460" stroke-width="1" stroke-dasharray="3 3"/>
+            </svg>
+        </div>
+
+        <div class="kill-chain">
+            <div class="kc-step">
+                <div class="kc-num">01</div>
+                <div class="kc-name">Prepare</div>
+                <div class="kc-desc">Policies, tools, team training, playbooks</div>
+            </div>
+            <div class="kc-step">
+                <div class="kc-num">02</div>
+                <div class="kc-name">Detect</div>
+                <div class="kc-desc">SIEM alerts, anomaly detection, user reports</div>
+            </div>
+            <div class="kc-step">
+                <div class="kc-num">03</div>
+                <div class="kc-name">Contain</div>
+                <div class="kc-desc">Isolate affected systems, limit blast radius</div>
+            </div>
+            <div class="kc-step">
+                <div class="kc-num">04</div>
+                <div class="kc-name">Eradicate</div>
+                <div class="kc-desc">Remove threat actor, patch vulnerabilities</div>
+            </div>
+            <div class="kc-step">
+                <div class="kc-num">05</div>
+                <div class="kc-name">Recover</div>
+                <div class="kc-desc">Restore systems, verify integrity, monitor</div>
+            </div>
+            <div class="kc-step">
+                <div class="kc-num">06</div>
+                <div class="kc-name">Learn</div>
+                <div class="kc-desc">Post-incident review, update playbooks</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">The Lessons Learned Gap</div>
+            Most organizations complete phases 1-5 but skip phase 6. Without a formal post-incident review, the same root causes produce the same incidents. The Lessons Learned phase feeds back into Preparation -- it is not the end of the cycle but the beginning of the next one. NIST mandates this feedback loop for a reason.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- COMMUNICATION PLANS ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 14</div>
+        <div class="slide-title">Crisis <span class="accent">Communication</span> Plans</div>
+        <div class="slide-subtitle">When a disaster occurs, who talks to whom, when, and through what channel? Poorly managed communication turns a technical incident into a public relations disaster.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Internal Communication</div>
+                <div class="card-desc">Incident response team activation, executive notification chains, employee updates. Define primary and backup communication channels -- if email is down, what do you use? Pre-draft templates for common scenarios. Establish a cadence: initial alert within 15 minutes, situation updates every 2 hours.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Stakeholder Notification</div>
+                <div class="card-desc">Customers, partners, vendors, board of directors. Each stakeholder group needs different information at different times. Customers need to know if their data is affected. Vendors need to know if SLAs are at risk. The board needs to understand financial exposure. Over-communicating is always better than silence.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Regulatory Reporting</div>
+                <div class="card-desc">GDPR requires breach notification within 72 hours. HIPAA requires notification within 60 days. State breach notification laws vary -- some require notification within 30 days. SEC rules require material cybersecurity incidents to be disclosed in 8-K filings within 4 business days. Missing a deadline creates legal liability on top of the original incident.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Media / Public Relations</div>
+                <div class="card-desc">Designate a single spokesperson. Pre-approve messaging templates with legal counsel. Never speculate about root cause, scope, or timeline in public statements. Acknowledge the incident, describe actions being taken, and provide a timeline for updates. Equifax's botched breach disclosure in 2017 caused more reputational damage than the breach itself.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Law Enforcement</div>
+                <div class="card-desc">FBI (IC3), CISA, and local law enforcement for criminal cyber incidents. Preserve evidence before contacting -- chain of custody matters. File reports through official channels: FBI's Internet Crime Complaint Center for cyber incidents, local police for physical incidents. Cooperation with law enforcement may be legally required for certain incident types.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">The Communication Paradox</div>
+            During a crisis, communication bandwidth is lowest precisely when communication needs are highest. Pre-built contact lists, message templates, escalation trees, and channel redundancy must exist before the incident. If you are figuring out who to call during the disaster, you have already failed.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- TESTING AND EXERCISES ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 14</div>
+        <div class="slide-title">Testing and <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">An untested plan is not a plan -- it is a document. Testing reveals gaps, builds muscle memory, and validates assumptions before a real disaster does.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 420 240" width="400" role="img" aria-label="Testing pyramid with four levels. From bottom to top: tabletop exercise (widest, lowest cost), structured walkthrough, functional simulation, and full interruption test (narrowest, highest cost). An arrow on the left shows cost increasing upward. An arrow on the right shows realism increasing upward.">
+                <!-- Pyramid -->
+                <polygon points="210,20 40,220 380,220" fill="none" stroke="#5a4460" stroke-width="1"/>
+                <!-- Level 4: Full Interruption (top) -->
+                <polygon points="210,20 155,85 265,85" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="210" y="55" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">FULL INTERRUPTION</text>
+                <text x="210" y="70" text-anchor="middle" fill="#9a82a0" font-size="7">Actual failover</text>
+                <!-- Level 3: Simulation -->
+                <rect x="130" y="88" width="160" height="38" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="210" y="107" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">FUNCTIONAL SIMULATION</text>
+                <text x="210" y="120" text-anchor="middle" fill="#9a82a0" font-size="7">Simulated disaster, real procedures</text>
+                <!-- Level 2: Walkthrough -->
+                <rect x="95" y="130" width="230" height="38" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="210" y="149" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">STRUCTURED WALKTHROUGH</text>
+                <text x="210" y="162" text-anchor="middle" fill="#9a82a0" font-size="7">Step-by-step plan review with teams</text>
+                <!-- Level 1: Tabletop -->
+                <rect x="55" y="172" width="310" height="38" fill="rgba(255,68,255,0.06)" stroke="#ff44ff" stroke-width="1"/>
+                <text x="210" y="191" text-anchor="middle" fill="#ff44ff" font-size="9" font-weight="700">TABLETOP EXERCISE</text>
+                <text x="210" y="204" text-anchor="middle" fill="#9a82a0" font-size="7">Discussion-based scenario walkthrough</text>
+                <!-- Left arrow: Cost -->
+                <line x1="25" y1="220" x2="25" y2="30" stroke="#ff00ff" stroke-width="1" marker-end="url(#arrPyrUp)"/>
+                <text x="20" y="25" text-anchor="end" fill="#ff00ff" font-size="8" font-weight="600">COST</text>
+                <!-- Right arrow: Realism -->
+                <line x1="395" y1="220" x2="395" y2="30" stroke="#00ffff" stroke-width="1" marker-end="url(#arrPyrUp2)"/>
+                <text x="418" y="25" text-anchor="end" fill="#00ffff" font-size="8" font-weight="600">REALISM</text>
+                <defs>
+                    <marker id="arrPyrUp" markerWidth="8" markerHeight="6" refX="4" refY="0" orient="auto">
+                        <path d="M0,6 L4,0 L8,6" fill="#ff00ff"/>
+                    </marker>
+                    <marker id="arrPyrUp2" markerWidth="8" markerHeight="6" refX="4" refY="0" orient="auto">
+                        <path d="M0,6 L4,0 L8,6" fill="#00ffff"/>
+                    </marker>
+                </defs>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-purple">
+                <div class="card-label">Tabletop Exercise</div>
+                <div class="card-desc">A facilitated discussion where team members walk through a hypothetical scenario. No systems are touched. Low cost, easy to schedule, and effective at identifying communication gaps, role confusion, and plan deficiencies. Should be conducted at least quarterly. Common scenarios: ransomware attack, cloud provider outage, insider data theft.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Structured Walkthrough</div>
+                <div class="card-desc">Team members step through the actual plan document, procedure by procedure, verifying that each step is accurate, contact information is current, and dependencies are documented. More structured than a tabletop but still discussion-based. Often reveals outdated procedures and missing runbooks.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Functional Simulation</div>
+                <div class="card-desc">A realistic drill where teams execute recovery procedures in a test environment. Systems are actually failed over, backups are restored, communication trees are activated. Tests both the plan and the people. Reveals timing gaps -- the plan says "restore from backup" but how long does that actually take?</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Full Interruption Test</div>
+                <div class="card-desc">The production system is actually taken offline and recovery procedures are executed for real. The most realistic test but the highest risk -- if recovery fails, you have a real outage. Reserved for mature organizations with high confidence in their plans. Financial regulators (FFIEC) may require full interruption tests annually.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- PANDEMIC LESSONS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 14</div>
+        <div class="slide-title">Pandemic <span class="accent">Lessons</span></div>
+        <div class="slide-subtitle">COVID-19 exposed fundamental assumptions in business continuity planning. The organizations that survived had plans that accounted for workforce disruption at scale.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 520 200" width="500" role="img" aria-label="Pandemic impact flow diagram showing three disruption waves flowing from left to right: workforce disruption leads to remote access demands, which leads to supply chain breakdown, which leads to sustained degraded operations. Each wave is shown as an arrow with cascading effects.">
+                <!-- Wave 1 -->
+                <rect x="10" y="40" width="110" height="120" rx="8" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="65" y="65" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="700">WAVE 1</text>
+                <text x="65" y="82" text-anchor="middle" fill="#fee2e2" font-size="9">Workforce</text>
+                <text x="65" y="95" text-anchor="middle" fill="#fee2e2" font-size="9">Disruption</text>
+                <text x="65" y="115" text-anchor="middle" fill="#9a82a0" font-size="7">Lockdowns</text>
+                <text x="65" y="127" text-anchor="middle" fill="#9a82a0" font-size="7">Illness</text>
+                <text x="65" y="139" text-anchor="middle" fill="#9a82a0" font-size="7">Childcare</text>
+                <!-- Arrow -->
+                <line x1="122" y1="100" x2="142" y2="100" stroke="#5a4460" stroke-width="1.5"/>
+                <polygon points="140,95 150,100 140,105" fill="#5a4460"/>
+                <!-- Wave 2 -->
+                <rect x="150" y="40" width="110" height="120" rx="8" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="205" y="65" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700">WAVE 2</text>
+                <text x="205" y="82" text-anchor="middle" fill="#f5b8f5" font-size="9">Remote Access</text>
+                <text x="205" y="95" text-anchor="middle" fill="#f5b8f5" font-size="9">Demands</text>
+                <text x="205" y="115" text-anchor="middle" fill="#9a82a0" font-size="7">VPN overload</text>
+                <text x="205" y="127" text-anchor="middle" fill="#9a82a0" font-size="7">Laptop shortage</text>
+                <text x="205" y="139" text-anchor="middle" fill="#9a82a0" font-size="7">SaaS scaling</text>
+                <!-- Arrow -->
+                <line x1="262" y1="100" x2="282" y2="100" stroke="#5a4460" stroke-width="1.5"/>
+                <polygon points="280,95 290,100 280,105" fill="#5a4460"/>
+                <!-- Wave 3 -->
+                <rect x="290" y="40" width="110" height="120" rx="8" fill="rgba(0,255,255,0.1)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="345" y="65" text-anchor="middle" fill="#00ffff" font-size="10" font-weight="700">WAVE 3</text>
+                <text x="345" y="82" text-anchor="middle" fill="#b8f5f5" font-size="9">Supply Chain</text>
+                <text x="345" y="95" text-anchor="middle" fill="#b8f5f5" font-size="9">Breakdown</text>
+                <text x="345" y="115" text-anchor="middle" fill="#9a82a0" font-size="7">Vendor failures</text>
+                <text x="345" y="127" text-anchor="middle" fill="#9a82a0" font-size="7">Chip shortage</text>
+                <text x="345" y="139" text-anchor="middle" fill="#9a82a0" font-size="7">Shipping delays</text>
+                <!-- Arrow -->
+                <line x1="402" y1="100" x2="422" y2="100" stroke="#5a4460" stroke-width="1.5"/>
+                <polygon points="420,95 430,100 420,105" fill="#5a4460"/>
+                <!-- Sustained degradation -->
+                <rect x="430" y="40" width="80" height="120" rx="8" fill="rgba(234,179,8,0.1)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="470" y="65" text-anchor="middle" fill="#eab308" font-size="9" font-weight="700">SUSTAINED</text>
+                <text x="470" y="80" text-anchor="middle" fill="#fef9c3" font-size="9">Degraded</text>
+                <text x="470" y="93" text-anchor="middle" fill="#fef9c3" font-size="9">Ops</text>
+                <text x="470" y="115" text-anchor="middle" fill="#9a82a0" font-size="7">18+ months</text>
+                <text x="470" y="127" text-anchor="middle" fill="#9a82a0" font-size="7">New normal</text>
+                <!-- Timeline -->
+                <text x="265" y="190" text-anchor="middle" fill="#5a4460" font-size="8" letter-spacing="0.1em">MARCH 2020 -------- CASCADING IMPACT -------- 2021+</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">VPN and Remote Access</div>
+                <div class="card-desc">Organizations designed for 10% remote work suddenly needed 100%. VPN concentrators saturated. Split-tunnel vs full-tunnel decisions had security implications. Zero Trust architectures proved more resilient than VPN-dependent models. Lesson: design remote access for surge capacity, not steady state.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Supply Chain Resilience</div>
+                <div class="card-desc">Just-in-time inventory models failed when global shipping stopped. Hardware refresh cycles extended by 6-12 months. Single-source vendors became single points of failure. Lesson: BCP must include vendor diversification, safety stock for critical components, and alternate sourcing agreements.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">The Assumption That Broke</div>
+            Pre-COVID BCPs assumed disasters were localized and temporary -- a hurricane hits one site, you fail over to another. COVID was global and sustained. Every site was affected simultaneously. Every vendor was affected simultaneously. The lesson: BCP must account for scenarios where there is no unaffected site to fail over to.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- REGULATORY REQUIREMENTS ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 14</div>
+        <div class="slide-title"><span class="accent">Regulatory</span> Requirements</div>
+        <div class="slide-subtitle">Business continuity is not optional in regulated industries. Non-compliance carries penalties that can exceed the cost of the disaster itself.</div>
+
+        <table class="glossary-table">
+            <thead>
+                <tr>
+                    <th>Framework</th>
+                    <th>Sector</th>
+                    <th>BCP/DR Requirements</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>FFIEC</td>
+                    <td>Financial</td>
+                    <td>Comprehensive BCP required for all FDIC-insured institutions. Must include BIA, risk assessment, testing, and board-approved plans. Annual testing with full interruption tests expected. Examiners review BCP during every safety and soundness exam.</td>
+                </tr>
+                <tr>
+                    <td>HIPAA</td>
+                    <td>Healthcare</td>
+                    <td>Contingency Plan standard (45 CFR 164.308(a)(7)) requires data backup, disaster recovery, and emergency mode operation plans. Must maintain exact copies of ePHI and procedures for restoring systems. Testing and revision are required addressable specifications.</td>
+                </tr>
+                <tr>
+                    <td>SOX</td>
+                    <td>Public Companies</td>
+                    <td>Section 404 requires internal controls over financial reporting, which includes IT continuity. Auditors assess whether financial systems can survive disruption. Failure to demonstrate adequate DR controls can result in material weakness findings.</td>
+                </tr>
+                <tr>
+                    <td>GDPR Art 32</td>
+                    <td>EU Data</td>
+                    <td>Requires "the ability to restore the availability and access to personal data in a timely manner in the event of a physical or technical incident." Also requires regular testing of security measures. Fines up to 4% of global annual revenue or 20 million euros.</td>
+                </tr>
+                <tr>
+                    <td>NIST SP 800-34</td>
+                    <td>Federal</td>
+                    <td>Contingency Planning Guide for Federal Information Systems. Defines the seven-step process: policy, BIA, preventive controls, recovery strategies, plan development, testing, and maintenance. Required for all federal systems under FISMA.</td>
+                </tr>
+                <tr>
+                    <td>ISO 22301</td>
+                    <td>International</td>
+                    <td>The international standard for business continuity management systems (BCMS). Certifiable standard that provides a framework for planning, establishing, implementing, operating, monitoring, reviewing, and maintaining a BCMS.</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="box box-gold">
+            <div class="box-label">Compliance is the Floor, Not the Ceiling</div>
+            Meeting regulatory minimums does not mean your organization will survive a disaster. Regulations define the baseline -- what you must do to avoid penalties. Effective BCP/DR goes beyond compliance to address your specific risk profile, operational dependencies, and recovery capabilities. The goal is resilience, not checkboxes.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- KEY TAKEAWAYS ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 14</div>
+        <div class="slide-title"><span class="accent">Key Takeaways</span></div>
+        <div class="slide-subtitle">The principles that separate organizations that recover from those that do not.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">BCP keeps the business running during a disaster. DRP restores the technology. Both are required -- neither is sufficient alone. DRP is a subset of BCP.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">The Business Impact Analysis (BIA) is the foundation. Without it, recovery priorities are driven by politics instead of data. Every continuity decision flows from the BIA.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">RPO defines acceptable data loss. RTO defines acceptable downtime. MTD is the absolute limit. These metrics translate business requirements into technical specifications for every backup and DR contract.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">DR site selection (hot, warm, cold, cloud) is a cost-vs-RTO tradeoff. Cloud-based DR is the modern default, offering hot-site capabilities at warm-site costs -- but requires careful planning for egress and vendor lock-in.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">The 3-2-1 backup rule is the minimum standard. Immutable backups are essential in the ransomware era -- if your backups can be encrypted by the same attack, they are not backups.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">The NIST incident response lifecycle has six phases. Most organizations skip Lessons Learned, which guarantees repeat incidents. The cycle is a loop, not a line.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">An untested plan is not a plan. Testing ranges from tabletop exercises (low cost) to full interruption tests (high realism). Start with tabletops quarterly and work up.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">COVID-19 broke the assumption that disasters are localized and temporary. Modern BCP must account for global, sustained disruption with no unaffected failover site.</span>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">What Comes Next</div>
+            These concepts are not theoretical -- they are operational requirements tested by every major incident. When you write cybersecurity policy, every control you recommend either supports or undermines your organization's ability to continue operating and recover from disruption. BCP and DRP are the bridge between policy on paper and survival in practice.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- MARK COMPLETE ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 14 &nbsp;|&nbsp; Complete</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Presentation<br>
+                <span class="accent">Complete</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Business Continuity and Disaster Recovery -- 14 slides
+            </div>
+        </div>
+
+        <div class="scenario-strip" style="text-align:center; font-style:normal;">
+            BCP vs DRP &nbsp;&bull;&nbsp; BIA &nbsp;&bull;&nbsp; RTO/RPO/MTD/MTBF &nbsp;&bull;&nbsp; Risk Assessment &nbsp;&bull;&nbsp; DR Sites &nbsp;&bull;&nbsp; 3-2-1 Backups &nbsp;&bull;&nbsp; IR Lifecycle &nbsp;&bull;&nbsp; Crisis Comms &nbsp;&bull;&nbsp; Testing &nbsp;&bull;&nbsp; Pandemic Lessons &nbsp;&bull;&nbsp; Regulatory
+        </div>
+
+        <div style="text-align:center; margin-top:10px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+
+        <div class="title-meta-row" style="margin-top:8px;">
+            <span>CIS2208</span>
+            <span>Cybersecurity Policy</span>
+            <span>Week 2</span>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Cybersecurity Policy</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 14</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 14;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        var completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('divergent', 'csp-w2-bcp-drp-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

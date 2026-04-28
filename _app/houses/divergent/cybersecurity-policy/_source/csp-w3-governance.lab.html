@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Policy Classifier | Cybersecurity Policy</title>
+    <style>
+        :root {
+            --div-primary: #ff00ff;
+            --div-secondary: #cc00cc;
+            --div-accent: #ff44ff;
+            --div-cyan: #00ffff;
+            --div-glow: rgba(255, 0, 255, 0.25);
+            --bg-main: #0d0810;
+            --bg-deep: #0a060d;
+            --bg-card: #120b14;
+            --bg-card-hover: #1a0f1e;
+            --text-primary: #ede0f0;
+            --text-secondary: #9a82a0;
+            --text-muted: #5a4460;
+            --border-color: rgba(255, 0, 255, 0.10);
+            --border-hover: rgba(255, 0, 255, 0.32);
+            --success: #00ff9d;
+            --danger: #ef4444;
+            --warning: #fbbf24;
+        }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background: linear-gradient(160deg, var(--bg-main) 0%, var(--bg-deep) 100%);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            color: var(--text-primary); line-height: 1.6;
+        }
+        .lab-container { max-width: 960px; margin: 0 auto; padding: 2rem; }
+
+        .back-link {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            color: var(--div-primary); text-decoration: none; margin-bottom: 1rem;
+            font-size: 0.85rem; transition: all 0.3s;
+        }
+        .back-link:hover { color: var(--div-accent); transform: translateX(-4px); }
+
+        .lab-header {
+            text-align: center; margin-bottom: 2rem; padding: 2rem;
+            background: linear-gradient(135deg, var(--bg-card), var(--bg-deep));
+            border-radius: 16px; border: 1px solid var(--div-primary);
+            box-shadow: 0 0 30px var(--div-glow);
+        }
+        .lab-header h1 {
+            font-size: 2rem; margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--div-primary), var(--div-cyan));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .lab-header .subtitle { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem; }
+        .lab-meta { display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; }
+        .meta-item { color: var(--text-muted); font-size: 0.85rem; }
+
+        .instructions {
+            background: var(--bg-card); border-radius: 12px; padding: 1.5rem;
+            margin-bottom: 2rem; border: 1px solid var(--border-color);
+        }
+        .instructions h2 { color: var(--div-primary); font-size: 1.1rem; margin-bottom: 0.75rem; }
+        .instructions p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.5rem; }
+        .instructions .categories {
+            display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem;
+        }
+        .cat-tag {
+            font-size: 0.75rem; padding: 4px 12px;
+            background: rgba(255, 0, 255, 0.08); border: 1px solid rgba(255, 0, 255, 0.2);
+            border-radius: 4px; color: var(--div-accent);
+        }
+
+        .score-bar {
+            background: var(--bg-card); border-radius: 12px; padding: 1rem 1.5rem;
+            margin-bottom: 2rem; border: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .score-label { color: var(--text-secondary); font-size: 0.9rem; }
+        .score-value { color: var(--div-cyan); font-size: 1.2rem; font-weight: 700; }
+
+        .doc-card {
+            background: var(--bg-card); border-radius: 12px; padding: 1.25rem 1.5rem;
+            margin-bottom: 1rem; border: 1px solid var(--border-color);
+            transition: all 0.3s;
+        }
+        .doc-card:hover { border-color: var(--border-hover); }
+        .doc-card.correct { border-color: var(--success); background: rgba(0, 255, 157, 0.04); }
+        .doc-card.incorrect { border-color: var(--danger); background: rgba(239, 68, 68, 0.04); }
+
+        .doc-number {
+            font-size: 0.7rem; color: var(--div-primary); font-weight: 700;
+            letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.5rem;
+        }
+        .doc-desc { color: var(--text-primary); font-size: 0.9rem; margin-bottom: 1rem; line-height: 1.65; }
+
+        .select-row { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+        .select-row select {
+            padding: 8px 14px; background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(255, 0, 255, 0.2); border-radius: 8px;
+            color: var(--text-primary); font-size: 0.85rem; cursor: pointer;
+            min-width: 200px;
+        }
+        .select-row select:focus { outline: none; border-color: var(--div-primary); box-shadow: 0 0 10px var(--div-glow); }
+
+        .card-feedback {
+            font-size: 0.82rem; padding: 6px 12px; border-radius: 6px; margin-top: 0.75rem; display: none;
+        }
+        .card-feedback.show-correct {
+            display: block; background: rgba(0, 255, 157, 0.1);
+            border: 1px solid var(--success); color: var(--success);
+        }
+        .card-feedback.show-incorrect {
+            display: block; background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--danger); color: var(--danger);
+        }
+
+        .action-row {
+            display: flex; gap: 1rem; justify-content: center; margin: 2rem 0; flex-wrap: wrap;
+        }
+        .btn {
+            padding: 12px 32px; border: none; border-radius: 8px;
+            font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.3s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--div-primary), var(--div-secondary));
+            color: #0d0810;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--div-glow); }
+        .btn-complete {
+            background: linear-gradient(135deg, var(--div-primary), var(--div-secondary));
+            color: #0d0810; width: 100%; padding: 1rem; font-size: 1.05rem; display: none;
+        }
+        .btn-complete:hover { transform: translateY(-2px); box-shadow: 0 8px 28px var(--div-glow); }
+        .btn-complete.done { background: var(--success); cursor: default; transform: none; box-shadow: none; }
+        .btn-reset {
+            background: transparent; border: 1px solid rgba(255, 0, 255, 0.2);
+            color: var(--text-secondary);
+        }
+        .btn-reset:hover { border-color: var(--div-primary); color: var(--div-primary); }
+
+        @media (max-width: 768px) {
+            .lab-container { padding: 1rem; }
+            .lab-header h1 { font-size: 1.5rem; }
+            .select-row { flex-direction: column; align-items: stretch; }
+            .select-row select { min-width: unset; }
+        }
+    </style>
+</head>
+<body>
+    <div class="lab-container">
+        <a href="../index.html" class="back-link">&larr; Cybersecurity Policy Hub</a>
+
+        <header class="lab-header">
+            <h1>Policy Classifier</h1>
+            <p class="subtitle">Classify governance documents into the correct document hierarchy tier</p>
+            <div class="lab-meta">
+                <span class="meta-item">Lab 9</span>
+                <span class="meta-item">15 minutes</span>
+                <span class="meta-item">10 Documents</span>
+            </div>
+        </header>
+
+        <div class="instructions">
+            <h2>Instructions</h2>
+            <p>Each card describes a governance document excerpt or statement. Classify it into the correct document type within the governance hierarchy. Click <strong>Check Answers</strong> when you have classified all 10 documents.</p>
+            <p>You need <strong>8/10 correct</strong> to unlock the Mark Complete button.</p>
+            <div class="categories">
+                <span class="cat-tag">Policy</span>
+                <span class="cat-tag">Standard</span>
+                <span class="cat-tag">Procedure</span>
+                <span class="cat-tag">Guideline</span>
+                <span class="cat-tag">Baseline</span>
+            </div>
+        </div>
+
+        <div class="score-bar">
+            <span class="score-label">Score</span>
+            <span class="score-value" id="scoreDisplay">-- / 10</span>
+        </div>
+
+        <div id="docContainer"></div>
+
+        <div class="action-row">
+            <button class="btn btn-primary" id="checkBtn" onclick="checkAnswers()">Check Answers</button>
+            <button class="btn btn-reset" onclick="resetLab()">Reset</button>
+        </div>
+
+        <button class="btn btn-complete" id="completeBtn" onclick="markComplete()">Mark Complete</button>
+    </div>
+
+    <script>
+        var DOCUMENTS = [
+            {
+                id: 1,
+                desc: 'All employees must use multi-factor authentication when accessing corporate systems remotely. Minimum authentication strength is FIDO2 hardware tokens or TOTP with a 6-digit code.',
+                answer: 'Standard',
+                detail: 'Standards define mandatory, specific technical or operational requirements. This specifies exact MFA methods and minimum strength -- measurable and enforceable.'
+            },
+            {
+                id: 2,
+                desc: 'Recommended steps for creating secure passwords: consider using a passphrase of 4+ random words, avoid dictionary words, and consider a password manager for storage. These suggestions help improve your security posture.',
+                answer: 'Guideline',
+                detail: 'Guidelines are advisory recommendations -- note the language "recommended," "consider," and "suggestions." They are not mandatory.'
+            },
+            {
+                id: 3,
+                desc: 'The organization is committed to protecting information assets from unauthorized access, disclosure, modification, and destruction. All employees share responsibility for safeguarding data in accordance with its classification.',
+                answer: 'Policy',
+                detail: 'Policies are high-level statements of intent and direction from senior management. This sets organizational commitment without specifying how to achieve it.'
+            },
+            {
+                id: 4,
+                desc: 'Step 1: Navigate to the IAM console. Step 2: Select "Create New User." Step 3: Enter the employee ID in the username field. Step 4: Assign the role based on the department matrix in Appendix B. Step 5: Email the temporary credentials to the employee\'s manager.',
+                answer: 'Procedure',
+                detail: 'Procedures are step-by-step instructions for performing a specific task. The numbered sequential steps are the defining characteristic.'
+            },
+            {
+                id: 5,
+                desc: 'All Windows 11 workstations must ship with BitLocker enabled, Windows Defender active, local admin accounts disabled, automatic updates turned on, and the corporate EDR agent installed before deployment to end users.',
+                answer: 'Baseline',
+                detail: 'Baselines define the minimum secure configuration for a specific system or platform. This prescribes a concrete starting-state for Windows 11 workstations.'
+            },
+            {
+                id: 6,
+                desc: 'Access to information systems shall be granted based on the principle of least privilege. Management shall ensure that access rights are reviewed periodically and revoked promptly upon role change or termination.',
+                answer: 'Policy',
+                detail: 'Policies use directive language ("shall") to state organizational intent. This establishes the least-privilege principle without prescribing specific implementation steps.'
+            },
+            {
+                id: 7,
+                desc: 'All encryption implementations must use AES-256 for data at rest and TLS 1.3 for data in transit. RSA key sizes below 2048 bits are prohibited. Certificate lifetimes must not exceed 398 days.',
+                answer: 'Standard',
+                detail: 'Standards mandate specific, measurable technical requirements. Exact algorithms, key sizes, and certificate lifetimes are specified here.'
+            },
+            {
+                id: 8,
+                desc: 'To respond to a phishing report: Step 1: Log the ticket in ServiceNow. Step 2: Quarantine the reported email in the mail gateway. Step 3: Search for other recipients using header analysis. Step 4: Block the sender domain. Step 5: Notify affected users. Step 6: Update the threat intelligence feed.',
+                answer: 'Procedure',
+                detail: 'Procedures provide explicit, ordered steps for completing a task. This is a runbook-style document for incident handling.'
+            },
+            {
+                id: 9,
+                desc: 'When selecting a cloud service provider, teams should evaluate SOC 2 Type II reports, review data residency options, and assess the vendor\'s incident response track record. A shared responsibility matrix is recommended before contract signing.',
+                answer: 'Guideline',
+                detail: 'Guidelines offer recommended best practices using advisory language ("should," "recommended"). Following them is encouraged but not strictly required.'
+            },
+            {
+                id: 10,
+                desc: 'All production Linux servers must be deployed with SELinux in enforcing mode, root SSH login disabled, password authentication off, firewall allowing only ports 22/443, automatic security patches enabled, and the OSSEC agent running.',
+                answer: 'Baseline',
+                detail: 'Baselines set the minimum secure configuration for a specific platform. This defines the hardened starting state for production Linux servers.'
+            }
+        ];
+
+        var CATEGORIES = ['Policy', 'Standard', 'Procedure', 'Guideline', 'Baseline'];
+        var submitted = false;
+
+        function buildCards() {
+            var container = document.getElementById('docContainer');
+            container.innerHTML = '';
+            DOCUMENTS.forEach(function(doc) {
+                var card = document.createElement('div');
+                card.className = 'doc-card';
+                card.id = 'card-' + doc.id;
+
+                var opts = '<option value="">-- Select Type --</option>';
+                CATEGORIES.forEach(function(c) {
+                    opts += '<option value="' + c + '">' + c + '</option>';
+                });
+
+                card.innerHTML =
+                    '<div class="doc-number">Document ' + doc.id + '</div>' +
+                    '<div class="doc-desc">' + doc.desc + '</div>' +
+                    '<div class="select-row">' +
+                        '<select id="sel-' + doc.id + '">' + opts + '</select>' +
+                    '</div>' +
+                    '<div class="card-feedback" id="fb-' + doc.id + '"></div>';
+
+                container.appendChild(card);
+            });
+        }
+
+        function checkAnswers() {
+            if (submitted) return;
+            var score = 0;
+
+            DOCUMENTS.forEach(function(doc) {
+                var sel = document.getElementById('sel-' + doc.id);
+                var fb = document.getElementById('fb-' + doc.id);
+                var card = document.getElementById('card-' + doc.id);
+                var chosen = sel.value;
+
+                card.classList.remove('correct', 'incorrect');
+                fb.className = 'card-feedback';
+
+                if (chosen === doc.answer) {
+                    score++;
+                    card.classList.add('correct');
+                    fb.className = 'card-feedback show-correct';
+                    fb.textContent = 'Correct -- ' + doc.detail;
+                } else {
+                    card.classList.add('incorrect');
+                    fb.className = 'card-feedback show-incorrect';
+                    fb.textContent = 'Incorrect. The correct answer is ' + doc.answer + '. ' + doc.detail;
+                }
+                sel.disabled = true;
+            });
+
+            submitted = true;
+            document.getElementById('scoreDisplay').textContent = score + ' / 10';
+            document.getElementById('checkBtn').disabled = true;
+            document.getElementById('checkBtn').style.opacity = '0.4';
+
+            if (score >= 8) {
+                document.getElementById('completeBtn').style.display = 'block';
+            }
+        }
+
+        function resetLab() {
+            submitted = false;
+            document.getElementById('scoreDisplay').textContent = '-- / 10';
+            document.getElementById('checkBtn').disabled = false;
+            document.getElementById('checkBtn').style.opacity = '1';
+            document.getElementById('completeBtn').style.display = 'none';
+            buildCards();
+        }
+
+        function markComplete() {
+            var btn = document.getElementById('completeBtn');
+            if (btn.classList.contains('done')) return;
+            btn.classList.add('done');
+            btn.textContent = 'Completed';
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('divergent', 'csp-w3-governance-lab', { returnUrl: '../index.html' });
+            }
+        }
+
+        buildCards();
+    </script>
+
+    <script src="../../../../components/TrailHunter.js"></script>
+</body>
+</html>

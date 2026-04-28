@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incident Timeline | Cybersecurity Policy Lab</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d0810 0%, #0a060d 100%);
+            color: #ede0f0;
+            min-height: 100vh;
+            padding: 24px;
+            line-height: 1.6;
+        }
+
+        .container { max-width: 960px; margin: 0 auto; }
+
+        .back-link {
+            color: #ff00ff; text-decoration: none; font-size: 0.95em;
+            display: inline-block; margin-bottom: 12px; transition: opacity 0.2s;
+        }
+        .back-link:hover { opacity: 0.7; }
+
+        h1 {
+            color: #ff00ff; font-size: 1.8em; margin-bottom: 4px;
+            text-shadow: 0 0 12px rgba(255, 0, 255, 0.3);
+        }
+        .subtitle { color: #9a82a0; font-size: 0.9em; margin-bottom: 20px; }
+
+        .panel {
+            background: rgba(13, 8, 16, 0.85);
+            border: 1px solid rgba(255, 0, 255, 0.25);
+            border-radius: 8px; padding: 20px; margin-bottom: 20px;
+        }
+        .panel h2 {
+            color: #00ffff; font-size: 1.15em; margin-bottom: 10px;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.15); padding-bottom: 6px;
+        }
+        .panel p { color: #9a82a0; font-size: 0.92em; }
+
+        /* Score bar */
+        .score-bar {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 20px; padding: 12px 16px;
+            background: rgba(13, 8, 16, 0.85);
+            border: 1px solid rgba(255, 0, 255, 0.25); border-radius: 8px;
+        }
+        .score-label { color: #ff00ff; font-weight: 600; font-size: 1.05em; }
+        .score-track {
+            flex: 1; height: 22px; background: #1a0f20;
+            border-radius: 4px; overflow: hidden;
+        }
+        .score-fill {
+            height: 100%; width: 0%; background: linear-gradient(90deg, #ff00ff, #00ffff);
+            transition: width 0.5s ease; border-radius: 4px;
+        }
+        .score-text { color: #ede0f0; font-weight: 600; min-width: 50px; text-align: right; }
+
+        /* Card pool */
+        .card-pool {
+            display: flex; flex-wrap: wrap; gap: 10px;
+            padding: 16px; min-height: 80px;
+            background: rgba(13, 8, 16, 0.6);
+            border: 1px dashed rgba(255, 0, 255, 0.2); border-radius: 8px;
+            margin-bottom: 24px;
+        }
+
+        .incident-card {
+            padding: 10px 16px; border-radius: 6px; cursor: grab;
+            background: #1a0f22; border: 1px solid rgba(255, 0, 255, 0.35);
+            color: #ede0f0; font-size: 0.88em; font-weight: 500;
+            user-select: none; transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .incident-card:hover { border-color: #ff00ff; box-shadow: 0 0 8px rgba(255, 0, 255, 0.3); }
+        .incident-card.dragging { opacity: 0.4; }
+        .incident-card.correct {
+            background: rgba(0, 200, 80, 0.15); border-color: #00c850;
+            color: #a0ffc0; cursor: default;
+        }
+        .incident-card.incorrect {
+            background: rgba(200, 0, 40, 0.15); border-color: #c80028;
+            color: #ffa0a0;
+        }
+
+        /* Timeline */
+        .timeline {
+            position: relative; padding: 0;
+            display: flex; flex-direction: column; gap: 6px;
+        }
+        .timeline::before {
+            content: ''; position: absolute; left: 18px; top: 0; bottom: 0;
+            width: 2px; background: rgba(255, 0, 255, 0.15);
+        }
+
+        .timeline-slot {
+            display: flex; align-items: center; gap: 12px;
+            padding: 8px 12px 8px 42px; min-height: 48px;
+            background: rgba(26, 15, 32, 0.5);
+            border: 1px solid rgba(255, 0, 255, 0.1); border-radius: 6px;
+            position: relative; transition: all 0.2s;
+        }
+        .timeline-slot::before {
+            content: ''; position: absolute; left: 13px; top: 50%;
+            transform: translateY(-50%); width: 12px; height: 12px;
+            border-radius: 50%; background: #1a0f22;
+            border: 2px solid rgba(255, 0, 255, 0.3);
+        }
+        .timeline-slot.drag-over {
+            border-color: #00ffff; background: rgba(0, 255, 255, 0.05);
+        }
+        .timeline-slot.filled.correct::before { background: #00c850; border-color: #00c850; }
+        .timeline-slot.filled.incorrect::before { background: #c80028; border-color: #c80028; }
+        .slot-number { color: #5a4460; font-size: 0.85em; min-width: 24px; }
+        .slot-year { color: #ff00ff; font-weight: 600; font-size: 0.9em; min-width: 44px; }
+        .slot-content {
+            flex: 1; color: #9a82a0; font-size: 0.88em; font-style: italic;
+        }
+        .slot-content.has-card { color: #ede0f0; font-style: normal; }
+
+        /* Buttons */
+        .btn-row { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
+        .btn {
+            padding: 12px 28px; border: none; border-radius: 6px;
+            font-family: inherit; font-weight: 600; font-size: 0.95em;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #ff00ff, #cc00cc);
+            color: #fff; box-shadow: 0 0 12px rgba(255, 0, 255, 0.3);
+        }
+        .btn-primary:hover { box-shadow: 0 0 20px rgba(255, 0, 255, 0.5); }
+        .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-secondary {
+            background: transparent; color: #00ffff;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+        }
+        .btn-secondary:hover { border-color: #00ffff; }
+        .btn-complete {
+            background: linear-gradient(135deg, #00c850, #00a040);
+            color: #fff; display: none;
+        }
+        .btn-complete:hover { box-shadow: 0 0 16px rgba(0, 200, 80, 0.4); }
+
+        /* Results */
+        .results-panel {
+            display: none; padding: 20px; margin-top: 20px;
+            background: rgba(13, 8, 16, 0.85);
+            border: 1px solid rgba(0, 255, 255, 0.25); border-radius: 8px;
+        }
+        .results-panel h2 { color: #00ffff; margin-bottom: 10px; }
+        .result-item {
+            padding: 8px 12px; margin-bottom: 6px; border-radius: 4px;
+            font-size: 0.9em;
+        }
+        .result-item.pass { background: rgba(0, 200, 80, 0.1); color: #a0ffc0; }
+        .result-item.fail { background: rgba(200, 0, 40, 0.1); color: #ffa0a0; }
+
+        .footer-nav {
+            text-align: center; padding: 20px 0; margin-top: 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .footer-nav a { color: #5a4460; text-decoration: none; font-size: 0.85em; }
+        .footer-nav a:hover { color: #ff00ff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="../index.html" class="back-link">&larr; Back to Course</a>
+        <h1>Incident Timeline</h1>
+        <p class="subtitle">CIS2208 -- Week 1: Origins and Evolution of Cybersecurity</p>
+
+        <div class="panel">
+            <h2>Instructions</h2>
+            <p>Below are 12 major cyber incidents. Drag each card from the pool and drop it onto the correct
+            chronological position on the timeline. After placing all 12, click <strong>Check Answers</strong>
+            to see your score. Correct placements highlight green; incorrect highlight red.</p>
+        </div>
+
+        <div class="score-bar">
+            <span class="score-label">Score</span>
+            <div class="score-track"><div class="score-fill" id="scoreFill"></div></div>
+            <span class="score-text" id="scoreText">0 / 12</span>
+        </div>
+
+        <h2 style="color:#00ffff;font-size:1.05em;margin-bottom:10px;">Incident Cards</h2>
+        <div class="card-pool" id="cardPool"></div>
+
+        <h2 style="color:#00ffff;font-size:1.05em;margin-bottom:10px;">Timeline (Earliest to Latest)</h2>
+        <div class="timeline" id="timeline"></div>
+
+        <div class="btn-row">
+            <button class="btn btn-primary" id="btnCheck" onclick="checkAnswers()">Check Answers</button>
+            <button class="btn btn-secondary" onclick="resetLab()">Reset</button>
+            <button class="btn btn-complete" id="btnComplete" onclick="completeLab()">Mark Complete</button>
+        </div>
+
+        <div class="results-panel" id="resultsPanel"></div>
+    </div>
+
+    <div class="footer-nav">
+        <a href="../index.html">Course Home</a>
+    </div>
+
+    <script>
+    (function() {
+        'use strict';
+
+        /* ── Incident Data (correct chronological order) ── */
+        const INCIDENTS = [
+            { id: 'morris',     name: 'Morris Worm',       year: 1988, detail: 'First major internet worm; infected ~6,000 UNIX machines.' },
+            { id: 'melissa',    name: 'Melissa Virus',     year: 1999, detail: 'Mass-mailing macro virus that disrupted email servers worldwide.' },
+            { id: 'iloveyou',   name: 'ILOVEYOU',          year: 2000, detail: 'VBScript worm that overwrote files; ~$10B in damages.' },
+            { id: 'titanrain',  name: 'Titan Rain',        year: 2003, detail: 'Coordinated espionage attacks against U.S. defense systems.' },
+            { id: 'stuxnet',    name: 'Stuxnet',           year: 2010, detail: 'Nation-state malware that damaged Iranian nuclear centrifuges.' },
+            { id: 'target',     name: 'Target Breach',     year: 2013, detail: 'POS malware compromised 40 million credit card numbers.' },
+            { id: 'opm',        name: 'OPM Breach',        year: 2014, detail: '21.5 million federal employee records exfiltrated.' },
+            { id: 'wannacry',   name: 'WannaCry',          year: 2017, detail: 'Ransomware worm exploiting EternalBlue; hit 150+ countries.' },
+            { id: 'equifax',    name: 'Equifax Breach',    year: 2017, detail: '147 million consumer records exposed via Apache Struts flaw.' },
+            { id: 'solarwinds', name: 'SolarWinds',        year: 2020, detail: 'Supply-chain attack via trojanized Orion updates.' },
+            { id: 'colonial',   name: 'Colonial Pipeline', year: 2021, detail: 'Ransomware shut down major U.S. fuel pipeline.' },
+            { id: 'log4shell',  name: 'Log4Shell',         year: 2021, detail: 'Critical RCE in Log4j; billions of devices vulnerable.' }
+        ];
+
+        let placements = {};   /* slotIndex -> incidentId */
+        let cardSlotMap = {};   /* incidentId -> slotIndex */
+        let checked = false;
+
+        /* ── Build UI ── */
+        function init() {
+            buildCards();
+            buildTimeline();
+        }
+
+        function buildCards() {
+            const pool = document.getElementById('cardPool');
+            pool.innerHTML = '';
+
+            /* Shuffle for display */
+            const shuffled = [...INCIDENTS].sort(() => Math.random() - 0.5);
+            shuffled.forEach(inc => {
+                const card = document.createElement('div');
+                card.className = 'incident-card';
+                card.textContent = inc.name + ' (' + inc.year + ')';
+                card.dataset.id = inc.id;
+                card.draggable = true;
+                card.addEventListener('dragstart', onDragStart);
+                card.addEventListener('dragend', onDragEnd);
+                pool.appendChild(card);
+            });
+        }
+
+        function buildTimeline() {
+            const tl = document.getElementById('timeline');
+            tl.innerHTML = '';
+            for (let i = 0; i < INCIDENTS.length; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'timeline-slot';
+                slot.dataset.index = i;
+                slot.innerHTML =
+                    '<span class="slot-number">' + (i + 1) + '.</span>' +
+                    '<span class="slot-content">Drop an incident here</span>';
+                slot.addEventListener('dragover', onDragOver);
+                slot.addEventListener('dragenter', onDragEnter);
+                slot.addEventListener('dragleave', onDragLeave);
+                slot.addEventListener('drop', onDrop);
+                tl.appendChild(slot);
+            }
+        }
+
+        /* ── Drag & Drop ── */
+        let draggedId = null;
+
+        function onDragStart(e) {
+            draggedId = e.target.dataset.id;
+            e.target.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function onDragEnd(e) {
+            e.target.classList.remove('dragging');
+            draggedId = null;
+            document.querySelectorAll('.timeline-slot').forEach(s => s.classList.remove('drag-over'));
+        }
+
+        function onDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+
+        function onDragEnter(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('drag-over');
+        }
+
+        function onDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+
+        function onDrop(e) {
+            e.preventDefault();
+            const slot = e.currentTarget;
+            slot.classList.remove('drag-over');
+            if (checked || !draggedId) return;
+
+            const idx = parseInt(slot.dataset.index);
+
+            /* If this slot already has a card, return it to the pool */
+            if (placements[idx]) {
+                returnCardToPool(placements[idx]);
+            }
+
+            /* If this card was in another slot, clear that slot */
+            if (cardSlotMap[draggedId] !== undefined) {
+                const oldIdx = cardSlotMap[draggedId];
+                delete placements[oldIdx];
+                resetSlotUI(oldIdx);
+            }
+
+            /* Place card */
+            placements[idx] = draggedId;
+            cardSlotMap[draggedId] = idx;
+
+            const inc = INCIDENTS.find(i => i.id === draggedId);
+            const content = slot.querySelector('.slot-content');
+            content.textContent = inc.name + ' (' + inc.year + ')';
+            content.classList.add('has-card');
+            slot.classList.add('filled');
+
+            /* Hide card from pool */
+            const poolCard = document.querySelector('#cardPool .incident-card[data-id="' + draggedId + '"]');
+            if (poolCard) poolCard.style.display = 'none';
+
+            draggedId = null;
+        }
+
+        function returnCardToPool(incId) {
+            const poolCard = document.querySelector('#cardPool .incident-card[data-id="' + incId + '"]');
+            if (poolCard) poolCard.style.display = '';
+            delete cardSlotMap[incId];
+        }
+
+        function resetSlotUI(idx) {
+            const slot = document.querySelectorAll('.timeline-slot')[idx];
+            if (!slot) return;
+            const content = slot.querySelector('.slot-content');
+            content.textContent = 'Drop an incident here';
+            content.classList.remove('has-card');
+            slot.classList.remove('filled', 'correct', 'incorrect');
+        }
+
+        /* ── Check Answers ── */
+        window.checkAnswers = function() {
+            const placed = Object.keys(placements).length;
+            if (placed < INCIDENTS.length) {
+                alert('Please place all 12 incidents on the timeline before checking.');
+                return;
+            }
+
+            checked = true;
+            let score = 0;
+            const results = [];
+
+            for (let i = 0; i < INCIDENTS.length; i++) {
+                const expected = INCIDENTS[i].id;
+                const actual = placements[i];
+                const isCorrect = expected === actual;
+                if (isCorrect) score++;
+
+                const slot = document.querySelectorAll('.timeline-slot')[i];
+                slot.classList.add(isCorrect ? 'correct' : 'incorrect');
+
+                const actualInc = INCIDENTS.find(inc => inc.id === actual);
+                const expectedInc = INCIDENTS[i];
+                results.push({
+                    position: i + 1,
+                    correct: isCorrect,
+                    placed: actualInc.name + ' (' + actualInc.year + ')',
+                    expected: expectedInc.name + ' (' + expectedInc.year + ')',
+                    detail: expectedInc.detail
+                });
+            }
+
+            /* Update score display */
+            updateScore(score);
+
+            /* Show results */
+            const panel = document.getElementById('resultsPanel');
+            let html = '<h2>Results: ' + score + ' / 12</h2>';
+            results.forEach(r => {
+                const cls = r.correct ? 'pass' : 'fail';
+                const icon = r.correct ? '[CORRECT]' : '[INCORRECT]';
+                html += '<div class="result-item ' + cls + '">' +
+                    '<strong>' + icon + ' Position ' + r.position + ':</strong> ' +
+                    (r.correct
+                        ? r.placed + ' -- ' + r.detail
+                        : 'You placed ' + r.placed + '. Correct answer: ' + r.expected + ' -- ' + r.detail) +
+                    '</div>';
+            });
+            panel.innerHTML = html;
+            panel.style.display = 'block';
+
+            /* Disable check, show complete if passed */
+            document.getElementById('btnCheck').disabled = true;
+            if (score >= 9) {
+                document.getElementById('btnComplete').style.display = 'inline-block';
+            }
+
+            /* Mark pool cards with results */
+            document.querySelectorAll('#cardPool .incident-card').forEach(card => {
+                const id = card.dataset.id;
+                const slotIdx = cardSlotMap[id];
+                if (slotIdx !== undefined) {
+                    card.classList.add(INCIDENTS[slotIdx].id === id ? 'correct' : 'incorrect');
+                }
+            });
+        };
+
+        function updateScore(score) {
+            const pct = Math.round((score / INCIDENTS.length) * 100);
+            document.getElementById('scoreFill').style.width = pct + '%';
+            document.getElementById('scoreText').textContent = score + ' / 12';
+        }
+
+        /* ── Reset ── */
+        window.resetLab = function() {
+            placements = {};
+            cardSlotMap = {};
+            checked = false;
+            document.getElementById('btnCheck').disabled = false;
+            document.getElementById('btnComplete').style.display = 'none';
+            document.getElementById('resultsPanel').style.display = 'none';
+            updateScore(0);
+            buildCards();
+            buildTimeline();
+        };
+
+        /* ── Mark Complete ── */
+        window.completeLab = function() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('divergent', 'csp-w1-origins-lab', { returnUrl: '../index.html' });
+            }
+        };
+
+        init();
+    })();
+    </script>
+</body>
+</html>

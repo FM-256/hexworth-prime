@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- FirebaseAuth provides callFunction() for server-side quiz grading (QC-21) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cybersecurity Policy Final Exam | Hexworth Prime</title>
+<style>
+  :root {
+    --bg: #0d0810;
+    --bg2: #130e1a;
+    --card: #1a1228;
+    --ink: #ede0f0;
+    --muted: #9a82a0;
+    --dim: #5a4460;
+    --primary: #ff00ff;
+    --cyan: #00ffff;
+    --accent: #ff44ff;
+    --gold: #c9a83a;
+    --gold2: #e8c44a;
+    --gold-glow: rgba(201, 168, 58, 0.3);
+    --ok: #2ed573;
+    --warn: #ffc107;
+    --bad: #ff4757;
+    --border: rgba(255, 0, 255, 0.15);
+    --border-gold: rgba(201, 168, 58, 0.35);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #0d0810 0%, #130e1a 50%, #1a0d28 100%);
+    color: var(--ink);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  .page-header {
+    padding: 15px 30px;
+    background: rgba(0, 0, 0, 0.4);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .page-header a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.2s;
+  }
+
+  .page-header a:hover { color: var(--primary); }
+
+  .brand {
+    font-weight: 600;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 30px 20px;
+  }
+
+  .exam-header {
+    text-align: center;
+    margin-bottom: 30px;
+    border: 2px solid var(--border-gold);
+    border-radius: 16px;
+    padding: 24px;
+    background: rgba(201, 168, 58, 0.05);
+  }
+
+  h1 {
+    font-size: clamp(1.6rem, 3vw, 2rem);
+    margin-bottom: 12px;
+    background: linear-gradient(90deg, var(--gold), var(--gold2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .header-meta {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+
+  .tag {
+    font-size: 0.75rem;
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: rgba(201, 168, 58, 0.15);
+    color: var(--gold);
+    border: 1px solid rgba(201, 168, 58, 0.3);
+  }
+
+  .exam-info {
+    background: rgba(26, 18, 40, 0.8);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 30px;
+  }
+
+  .exam-info h2 {
+    color: var(--gold);
+    font-size: 1.2rem;
+    margin-bottom: 10px;
+  }
+
+  .exam-info ul {
+    list-style: none;
+    color: var(--muted);
+  }
+
+  .exam-info li { padding: 4px 0; }
+
+  .exam-info li::before {
+    content: "-> ";
+    color: var(--primary);
+  }
+
+  .timer-bar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(13, 8, 16, 0.95);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .timer {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--gold);
+    font-family: monospace;
+  }
+
+  .timer.warning { color: var(--warn); }
+  .timer.danger { color: var(--bad); animation: pulse 1s infinite; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .progress-text {
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  .question {
+    background: rgba(26, 18, 40, 0.8);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .question-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 14px;
+  }
+
+  .question p {
+    font-weight: 600;
+    color: #fff;
+    font-size: 1.05rem;
+    flex: 1;
+  }
+
+  .q-num {
+    background: rgba(255, 0, 255, 0.2);
+    color: var(--primary);
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-right: 12px;
+    white-space: nowrap;
+  }
+
+  .question label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    margin: 8px 0;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid transparent;
+  }
+
+  .question label:hover {
+    background: rgba(255, 0, 255, 0.1);
+    border-color: rgba(255, 0, 255, 0.3);
+  }
+
+  .question input[type="radio"] {
+    accent-color: var(--primary);
+    width: 18px;
+    height: 18px;
+  }
+
+  .question label.correct {
+    background: rgba(46, 213, 115, 0.15) !important;
+    border-color: var(--ok) !important;
+  }
+
+  .question label.wrong {
+    background: rgba(255, 71, 87, 0.15) !important;
+    border-color: var(--bad) !important;
+  }
+
+  .btn-submit {
+    display: block;
+    width: 100%;
+    max-width: 400px;
+    margin: 30px auto;
+    padding: 16px 40px;
+    background: linear-gradient(135deg, var(--gold), var(--gold2));
+    border: none;
+    border-radius: 10px;
+    color: #0d0810;
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 20px var(--gold-glow);
+  }
+
+  .btn-submit:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px var(--gold-glow);
+  }
+
+  .btn-submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  #result {
+    background: rgba(26, 18, 40, 0.95);
+    border: 2px solid var(--border-gold);
+    border-radius: 16px;
+    padding: 40px;
+    margin-top: 30px;
+    text-align: center;
+    display: none;
+  }
+
+  #result.visible { display: block; }
+
+  #result h2 {
+    font-size: 1.8rem;
+    margin-bottom: 12px;
+    color: var(--ink);
+  }
+
+  .score-circle {
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    border: 6px solid;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 20px auto;
+    background: rgba(0, 0, 0, 0.3);
+  }
+
+  .score-circle.pass {
+    border-color: var(--ok);
+    box-shadow: 0 0 40px rgba(46, 213, 115, 0.4);
+  }
+
+  .score-circle.fail {
+    border-color: var(--bad);
+    box-shadow: 0 0 40px rgba(255, 71, 87, 0.4);
+  }
+
+  .score-percent {
+    font-size: 2.5rem;
+    font-weight: 700;
+  }
+
+  .score-fraction {
+    font-size: 1rem;
+    color: var(--muted);
+  }
+
+  .result-msg {
+    font-size: 1.2rem;
+    margin-top: 20px;
+    padding: 16px;
+    border-radius: 10px;
+  }
+
+  .result-msg.pass {
+    background: rgba(46, 213, 115, 0.15);
+    color: var(--ok);
+    border: 1px solid var(--ok);
+  }
+
+  .result-msg.fail {
+    background: rgba(255, 71, 87, 0.15);
+    color: var(--bad);
+    border: 1px solid var(--bad);
+  }
+
+  .unlock-badge {
+    margin-top: 20px;
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(201, 168, 58, 0.2), rgba(232, 196, 74, 0.15));
+    border: 2px solid var(--gold);
+    border-radius: 12px;
+  }
+
+  .unlock-badge h3 {
+    color: var(--gold);
+    margin-bottom: 10px;
+  }
+
+  .btn-continue {
+    display: inline-block;
+    margin-top: 15px;
+    padding: 12px 30px;
+    background: linear-gradient(135deg, var(--gold), var(--gold2));
+    border: none;
+    border-radius: 8px;
+    color: #0d0810;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  footer {
+    text-align: center;
+    padding: 30px;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  footer a {
+    color: var(--primary);
+    text-decoration: none;
+  }
+
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <a href="../index.html">&#8592; Back to Cybersecurity Policy Hub</a>
+  <span class="brand">Hexworth Prime</span>
+</header>
+
+<div class="timer-bar">
+  <span class="progress-text">Question <span id="answered">0</span>/50 answered</span>
+  <span class="timer" id="timer">75:00</span>
+</div>
+
+<div class="container">
+  <div class="exam-header">
+    <h1>Cybersecurity Policy Final Exam</h1>
+    <div class="header-meta">
+      <span class="tag">CIS2208</span>
+      <span class="tag">50 Questions</span>
+      <span class="tag">70% to Pass</span>
+      <span class="tag">75 Minutes</span>
+      <span class="tag">Chapters 1-16</span>
+    </div>
+  </div>
+
+  <div class="exam-info">
+    <h2>Exam Information</h2>
+    <ul>
+      <li>Comprehensive exam covering all four weeks: policy origins, core concepts, security by design, workforce, threats, the human factor, BCP/DRP, security programs, governance, laws, compliance, security roles, risk management, NIST CSF, NIST 800-53, and data sovereignty (Ch. 1-16)</li>
+      <li>You need 70% (35/50) to pass and complete the course</li>
+      <li>Read each question carefully before selecting an answer</li>
+      <li>Time limit: 75 minutes (timer starts when the page loads)</li>
+      <li>Review your answers before submitting -- you only get one attempt</li>
+    </ul>
+  </div>
+
+  <form id="examForm">
+    <div id="questions"></div>
+    <button type="button" class="btn-submit" id="submitBtn" onclick="submitExam()">Submit Exam</button>
+  </form>
+
+  <div id="result"></div>
+</div>
+
+<footer>
+  Part of <a href="../index.html">Cybersecurity Policy</a> | Hexworth Prime
+</footer>
+
+<script>
+// Answers validated server-side via gradeQuiz() Cloud Function (QC-21)
+// Answer key stored in Firestore quiz_keys/divergent-csp-final
+const QUIZ_ID = 'divergent-csp-final';
+
+/* ── Exam question bank for Cybersecurity Policy Final (Ch. 1-16) ──
+   50 comprehensive questions. No answers in HTML -- server-graded.
+   Array index 0 is always the correct answer; shuffle happens at render. */
+const examData = [
+  // Ch. 1: Origins of Cybersecurity Policy (~3 questions)
+  {q: "The Computer Fraud and Abuse Act (CFAA) of 1986, as subsequently amended, is foundational to U.S. cybersecurity policy because it:", a: ["Established the primary federal criminal statute prohibiting unauthorized access to computer systems and has been used to prosecute a wide range of cyber offenses", "Created the first federal agency dedicated exclusively to cybersecurity incident response", "Required all organizations operating critical infrastructure to implement minimum cybersecurity controls", "Mandated that software vendors disclose known vulnerabilities to the government within 30 days"]},
+
+  {q: "Presidential Decision Directive 63 (PDD-63), issued in 1998, was a milestone in cybersecurity policy because it:", a: ["First recognized the critical infrastructure of the United States as a national security concern requiring coordinated public-private protection", "Established the Department of Homeland Security and placed cybersecurity under its authority", "Required all federal agencies to adopt two-factor authentication within five years", "Created the National Vulnerability Database as a public resource for tracking software flaws"]},
+
+  {q: "The Cybersecurity Information Sharing Act (CISA) of 2015 addressed a key barrier to effective cybersecurity policy by:", a: ["Providing liability protections to encourage private-sector organizations to share cyber threat indicators with the federal government and with each other", "Requiring all Internet service providers to monitor customer traffic for malicious activity", "Establishing mandatory breach notification timelines for all industries", "Granting the NSA authority to conduct defensive cybersecurity operations on private networks"]},
+
+  // Ch. 2: Core Concepts (~3 questions)
+  {q: "Non-repudiation is a core cybersecurity concept that ensures:", a: ["A party to a transaction or communication cannot later deny having performed that action, typically enforced through digital signatures and audit logs", "All data transmissions are encrypted end-to-end to prevent interception by unauthorized parties", "Backup copies of critical data are maintained in geographically separate locations", "System administrators can trace any action to the specific user who performed it"]},
+
+  {q: "The 'need to know' principle extends the concept of least privilege by adding the requirement that:", a: ["Even users with appropriate clearance or access level should only access information that is directly relevant to their current task or assignment", "All access requests must be approved by two separate managers before being granted", "Sensitive information must be compartmented into separate classification levels", "Users must demonstrate knowledge of security policies before receiving system access"]},
+
+  {q: "Risk acceptance, risk mitigation, risk transfer, and risk avoidance are the four primary risk treatment options. An organization that purchases cyber insurance is primarily exercising:", a: ["Risk transfer, because the financial consequences of a security incident are shifted to the insurance provider", "Risk mitigation, because insurance reduces the overall risk to the organization", "Risk avoidance, because the organization avoids financial exposure from cyber incidents", "Risk acceptance, because the organization accepts the risk and pays a premium to manage it"]},
+
+  // Ch. 3: Security by Design (~3 questions)
+  {q: "The principle of 'fail secure' (or 'fail closed') in security by design means that:", a: ["When a system encounters an error or failure, it defaults to a secure state that denies access rather than failing open and permitting unauthorized access", "Systems should be designed to fail gracefully without displaying error messages that could reveal system architecture", "Failed login attempts should be logged but not result in account lockout to preserve availability", "Backup systems should activate automatically when the primary system fails"]},
+
+  {q: "Privacy by Design, as articulated by Ann Cavoukian, requires that privacy protections be:", a: ["Embedded into the design and architecture of systems and business practices proactively, rather than added as an afterthought after a privacy incident occurs", "Implemented only when processing personally identifiable information subject to regulatory requirements", "Managed by a dedicated privacy officer who reviews all system designs before deployment", "Applied at the network perimeter to prevent personal data from leaving the organization"]},
+
+  {q: "The principle of 'economy of mechanism' in secure system design advocates for:", a: ["Keeping security mechanisms as simple and small as possible so they can be thoroughly analyzed, tested, and verified for correctness", "Maximizing the number of security controls to provide comprehensive coverage against all threat vectors", "Using commercial off-the-shelf security products rather than custom implementations to reduce cost", "Automating all security functions to eliminate human error from the security process"]},
+
+  // Ch. 4: Cybersecurity Workforce (~3 questions)
+  {q: "The cybersecurity workforce shortage poses a national security risk because:", a: ["Critical infrastructure sectors including energy, healthcare, and finance cannot adequately staff the security operations needed to defend against increasingly sophisticated threats", "There are not enough cybersecurity professors to teach the required university courses", "Vendor certifications have become too expensive for most professionals to maintain", "Government agencies offer lower salaries than the private sector, creating a talent drain"]},
+
+  {q: "The NICE Framework categorizes cybersecurity work into specialty areas and work roles. This standardization benefits organizations by:", a: ["Enabling consistent job descriptions, training requirements, and career progression pathways that align across agencies, sectors, and educational institutions", "Eliminating the need for organizations to conduct their own workforce assessments", "Requiring all cybersecurity professionals to maintain a minimum set of certifications", "Establishing a single career path from entry-level analyst to chief information security officer"]},
+
+  {q: "Diversity in cybersecurity teams is a policy concern beyond equity because:", a: ["Diverse teams bring varied perspectives and problem-solving approaches that improve threat detection and security decision-making, especially against adaptive adversaries", "Federal contracts require minimum diversity percentages in cybersecurity staffing", "Homogeneous teams are statistically more likely to experience insider threat incidents", "Diverse teams cost less to recruit because they draw from a larger candidate pool"]},
+
+  // Ch. 5: Threats and the Threat Landscape (~3 questions)
+  {q: "Nation-state threat actors are distinguished from cybercriminal groups in cybersecurity policy primarily by their:", a: ["Strategic objectives tied to national interests (espionage, disruption, influence), access to substantial state resources, and willingness to conduct long-duration operations", "Exclusive use of zero-day exploits and custom malware not available to other threat actors", "Focus on financial gain through ransomware and cryptocurrency theft", "Restriction to targeting only military and intelligence agency networks"]},
+
+  {q: "The MITRE ATT&CK framework has become an important cybersecurity policy tool because it:", a: ["Provides a comprehensive, evidence-based knowledge base of adversary tactics and techniques mapped to real-world observations, enabling standardized threat assessment and defensive planning", "Replaces the need for organizations to conduct their own threat intelligence analysis", "Is legally required for compliance with FISMA and FedRAMP security assessments", "Focuses exclusively on insider threats, which are the most damaging category of cyber attack"]},
+
+  {q: "Zero-day vulnerabilities are a significant policy challenge because:", a: ["No patch exists at the time of exploitation, defenders have no signature-based detection capability, and government stockpiling of zero-days creates tension between offensive and defensive equities", "They can only be discovered through expensive government-funded research programs", "They affect only legacy systems that have reached end-of-life support status", "Commercial vulnerability scanners can reliably detect zero-day exploits before they are used"]},
+
+  // Ch. 6: The Human Factor (~3 questions)
+  {q: "Pretexting, baiting, and tailgating are all forms of social engineering. What they share in common from a policy perspective is that:", a: ["They exploit human behavior rather than technical vulnerabilities, requiring organizations to implement controls that address both awareness and procedural enforcement", "They are all federal crimes under the Computer Fraud and Abuse Act", "They can only be prevented through mandatory security awareness training conducted quarterly", "They target exclusively senior executives and IT administrators who have elevated access"]},
+
+  {q: "A security culture is distinct from a security awareness program because:", a: ["A security culture reflects the internalized values, attitudes, and habitual behaviors of the entire organization, whereas an awareness program is a specific training intervention that may or may not change behavior", "A security culture requires executive sponsorship while an awareness program does not", "A security awareness program measures knowledge retention while a security culture does not require measurement", "A security culture is mandated by ISO 27001 while awareness programs are optional"]},
+
+  {q: "Behavioral analytics tools that detect anomalous user activity (UEBA) address the human factor by:", a: ["Establishing baselines of normal user behavior and alerting when deviations occur that may indicate compromised credentials, insider threats, or policy violations", "Replacing the need for security awareness training by catching all human errors automatically", "Monitoring only privileged users, since regular users cannot cause significant security incidents", "Requiring users to authenticate more frequently when their behavior patterns change"]},
+
+  // Ch. 7: Business Continuity and Disaster Recovery (~3 questions)
+  {q: "Tabletop exercises are a critical component of BCP/DRP testing because they:", a: ["Walk stakeholders through a simulated incident scenario to identify gaps in plans, roles, and communication procedures without the cost and disruption of a full-scale test", "Satisfy regulatory requirements as a substitute for actual disaster recovery testing", "Test the technical recovery capabilities of backup systems under realistic load conditions", "Are required before an organization can purchase business interruption insurance"]},
+
+  {q: "The concept of 'maximum tolerable downtime' (MTD) drives BCP policy decisions because it:", a: ["Defines the absolute longest period a critical business function can be unavailable before the organization suffers irreversible harm, setting the outer boundary for all recovery objectives", "Is a contractual obligation specified in all service level agreements with cloud providers", "Applies only to IT systems and has no bearing on manual business processes", "Is calculated annually by external auditors and cannot be modified by the organization"]},
+
+  {q: "A warm site differs from a hot site in disaster recovery planning because:", a: ["A warm site has pre-installed hardware and network connectivity but requires data restoration before operations can resume, while a hot site maintains real-time data replication and can assume operations almost immediately", "A warm site is located within 50 miles of the primary facility, while a hot site must be at least 100 miles away", "A warm site uses older hardware to reduce cost, while a hot site mirrors the exact production hardware", "A warm site is owned by the organization, while a hot site is always provided by a third-party vendor"]},
+
+  // Ch. 8: Security Programs (~3 questions)
+  {q: "A security program charter is a policy document that serves as the foundation of the program because it:", a: ["Defines the program's scope, authority, objectives, and reporting structure, establishing its legitimacy and mandate within the organizational governance framework", "Lists all security tools and technologies the program will procure in the current fiscal year", "Specifies the technical architecture of the security operations center", "Documents the results of the most recent risk assessment and penetration test"]},
+
+  {q: "Separation of duties is both a security principle and a policy control because it:", a: ["Prevents any single individual from having enough access or authority to commit and conceal fraud or cause significant damage without detection by another party", "Ensures that every security task requires two people to complete, doubling the workforce requirement", "Requires that security analysts and system administrators work in different physical locations", "Applies only to financial systems where fraudulent transactions could result in monetary loss"]},
+
+  {q: "Security program maturity models (such as CMMI or C2M2) help organizations by:", a: ["Providing a structured framework to assess current capabilities, identify gaps, set improvement targets, and demonstrate progress to stakeholders and regulators over time", "Ranking organizations against their competitors to determine which has the strongest security posture", "Guaranteeing that organizations at the highest maturity level will not experience security breaches", "Replacing the need for annual risk assessments by providing a continuous measurement capability"]},
+
+  // Ch. 9: Governance (~3 questions)
+  {q: "Cybersecurity governance differs from cybersecurity management in that governance:", a: ["Provides strategic direction, ensures alignment with business objectives, and holds management accountable for implementing the security program, while management handles day-to-day operations", "Focuses on technical implementation of security controls while management handles policy development", "Is the responsibility of the IT department while management is the responsibility of the board", "Requires external auditor oversight while management can be conducted entirely internally"]},
+
+  {q: "A board of directors' cybersecurity oversight responsibilities include:", a: ["Understanding the organization's cyber risk exposure, ensuring adequate resources are allocated to cybersecurity, and holding management accountable for the effectiveness of the security program", "Approving the technical architecture of all security systems before deployment", "Personally reviewing and signing off on all security incident reports within 24 hours", "Holding professional cybersecurity certifications to demonstrate competence in the domain"]},
+
+  {q: "An information security steering committee is a governance mechanism that:", a: ["Brings together senior representatives from business units, IT, legal, compliance, and risk management to align security priorities with organizational objectives and resolve cross-functional conflicts", "Replaces the CISO role by distributing security leadership across multiple executives", "Meets annually to approve the security budget and has no role in ongoing oversight", "Is required only for organizations subject to SOX or HIPAA compliance requirements"]},
+
+  // Ch. 10: Laws (~3 questions)
+  {q: "The General Data Protection Regulation (GDPR) has global cybersecurity policy implications because it:", a: ["Applies to any organization worldwide that processes personal data of EU residents, imposing strict data protection requirements with significant financial penalties for non-compliance", "Requires all organizations to encrypt personal data using AES-256 encryption at rest and in transit", "Prohibits the transfer of any data outside the European Union under any circumstances", "Applies only to technology companies headquartered in the European Union"]},
+
+  {q: "HIPAA's Security Rule requires covered entities to implement safeguards in three categories:", a: ["Administrative, physical, and technical safeguards that together protect the confidentiality, integrity, and availability of electronic protected health information (ePHI)", "Encryption, access control, and audit logging for all systems containing patient data", "Network security, endpoint security, and application security for healthcare IT infrastructure", "Preventive, detective, and corrective controls across all healthcare information systems"]},
+
+  {q: "The Gramm-Leach-Bliley Act (GLBA) requires financial institutions to:", a: ["Develop, implement, and maintain a comprehensive information security program that protects the security and confidentiality of customer financial information", "Report all cybersecurity incidents to the SEC within 48 hours of discovery", "Conduct penetration testing of all customer-facing systems on a quarterly basis", "Encrypt all financial transactions using government-approved cryptographic standards"]},
+
+  // Ch. 11: Compliance (~3 questions)
+  {q: "The distinction between compliance and security is important in cybersecurity policy because:", a: ["An organization can be fully compliant with a regulatory framework yet still have significant security gaps, since compliance represents a minimum baseline rather than a comprehensive security posture", "Compliance is more important than security because regulatory penalties are the greatest financial risk", "Security and compliance are identical concepts with different terminology used by different stakeholders", "Compliance frameworks are always more comprehensive than an organization's internal security standards"]},
+
+  {q: "PCI DSS (Payment Card Industry Data Security Standard) is enforced through contractual obligations rather than government regulation. This model works because:", a: ["Card brands and acquiring banks can impose financial penalties, increase transaction fees, or revoke the ability to process card payments, creating powerful economic incentives for compliance", "Organizations voluntarily comply because PCI DSS represents industry best practices", "The FTC enforces PCI DSS violations as unfair business practices under its regulatory authority", "PCI DSS requirements are identical to those in FISMA, so federal enforcement applies automatically"]},
+
+  {q: "A compliance audit differs from a vulnerability assessment in that:", a: ["A compliance audit evaluates whether the organization's policies, controls, and practices meet the requirements of a specific regulatory or contractual framework, while a vulnerability assessment identifies technical weaknesses in systems", "A compliance audit is conducted by internal staff while a vulnerability assessment requires external consultants", "A vulnerability assessment is more comprehensive because it covers both technical and policy controls", "A compliance audit occurs annually while vulnerability assessments are conducted only after a breach"]},
+
+  // Ch. 12: Roles (~3 questions)
+  {q: "The Chief Information Security Officer (CISO) should ideally report to:", a: ["A senior executive outside the IT organization (such as the CEO, COO, or general counsel) to maintain independence from the team responsible for implementing the systems the CISO must evaluate", "The Chief Information Officer, because all security functions are a subset of information technology", "The Chief Financial Officer, because security budgets represent a significant operational expense", "The board of directors directly, bypassing all other management to ensure unfiltered communication"]},
+
+  {q: "The 'three lines of defense' model in cybersecurity governance assigns responsibilities as follows:", a: ["First line: operational management owns and manages risk; second line: risk management and compliance functions provide oversight; third line: internal audit provides independent assurance", "First line: security operations center; second line: incident response team; third line: forensics investigators", "First line: firewall and perimeter defenses; second line: endpoint protection; third line: data loss prevention", "First line: junior analysts; second line: senior analysts; third line: the CISO and management team"]},
+
+  {q: "Data owners, data custodians, and data users have distinct roles in cybersecurity policy. The data owner is responsible for:", a: ["Classifying the data, defining access requirements, and authorizing who may access it, while the custodian implements the technical controls and the user complies with the access policies", "Implementing encryption, backup, and access control mechanisms for the data they own", "Ensuring they do not share data with unauthorized parties or store it on unapproved devices", "Conducting regular vulnerability scans on systems that store the data they are responsible for"]},
+
+  // Ch. 13: Risk Management (~3 questions)
+  {q: "Quantitative risk analysis uses metrics such as Single Loss Expectancy (SLE) and Annualized Rate of Occurrence (ARO) to calculate:", a: ["Annualized Loss Expectancy (ALE), which estimates the expected monetary loss per year for a specific risk, enabling cost-benefit analysis of proposed controls", "The total cost of ownership for security controls over their expected lifespan", "The probability that a specific threat actor will target the organization in the next fiscal year", "The return on investment for the security program as a whole"]},
+
+  {q: "A risk register is a fundamental risk management tool because it:", a: ["Documents identified risks, their likelihood and impact ratings, assigned owners, treatment decisions, and status of mitigation actions, providing a centralized view of the organization's risk posture", "Automatically calculates risk scores based on vulnerability scan data imported from security tools", "Replaces the need for a formal risk assessment by maintaining a running inventory of all known threats", "Is a legally required document under FISMA and must be submitted to the government annually"]},
+
+  {q: "Residual risk is the risk that remains after controls have been applied. From a policy perspective, residual risk must be:", a: ["Formally acknowledged and accepted by an appropriate authority (typically senior management or the risk owner) who understands the potential consequences of that remaining exposure", "Eliminated entirely before a system can be authorized for operation", "Transferred to a third party through insurance or contractual arrangements in all cases", "Documented but does not require management approval because the risk has already been mitigated"]},
+
+  // Ch. 14: NIST Cybersecurity Framework (CSF) (~3 questions)
+  {q: "The NIST Cybersecurity Framework organizes cybersecurity activities into five core functions. The correct sequence is:", a: ["Identify, Protect, Detect, Respond, Recover -- representing the full lifecycle of managing cybersecurity risk from asset inventory through incident recovery", "Prevent, Detect, Respond, Recover, Review -- representing a linear incident management process", "Assess, Implement, Monitor, Report, Improve -- representing a continuous compliance cycle", "Plan, Build, Run, Monitor, Optimize -- representing the IT service management lifecycle"]},
+
+  {q: "The NIST CSF concept of 'Framework Profiles' allows organizations to:", a: ["Describe their current cybersecurity posture (Current Profile) and their desired target state (Target Profile), with the gap between them driving a prioritized action plan", "Select a predefined security level (Low, Moderate, High) based on their industry sector", "Benchmark their security maturity against other organizations in the same sector", "Skip Framework Tiers they have already achieved and focus only on advanced capabilities"]},
+
+  {q: "NIST CSF Implementation Tiers (Partial, Risk Informed, Repeatable, Adaptive) describe:", a: ["The degree to which an organization's cybersecurity risk management practices exhibit characteristics defined by the Framework, ranging from informal and reactive to agile and continuously improving", "Mandatory compliance levels that organizations must achieve within specified timeframes", "The severity classification of cybersecurity incidents from minor to catastrophic", "The technical sophistication of security tools deployed across the organization"]},
+
+  // Ch. 15: NIST 800-53 (~3 questions)
+  {q: "NIST Special Publication 800-53 is a cornerstone of federal cybersecurity policy because it:", a: ["Provides a comprehensive catalog of security and privacy controls that federal agencies must implement based on the impact level of their information systems", "Establishes the NIST Cybersecurity Framework that is used voluntarily by private-sector organizations", "Defines the federal government's incident response procedures and reporting requirements", "Sets minimum encryption standards for all data processed by federal information systems"]},
+
+  {q: "NIST 800-53 organizes controls into families such as Access Control (AC), Audit and Accountability (AU), and Incident Response (IR). This family-based structure:", a: ["Groups related controls by functional area, making it easier for organizations to assign responsibility, assess completeness, and map controls to specific policy requirements", "Requires organizations to implement every control in a family before moving to the next family", "Applies only to classified systems and is optional for unclassified federal information systems", "Was designed exclusively for cloud computing environments and does not apply to on-premises systems"]},
+
+  {q: "The concept of 'control baselines' in NIST 800-53 (Low, Moderate, High) ensures that:", a: ["Organizations apply security controls proportional to the potential impact of a system compromise, so higher-impact systems receive more rigorous protections without over-controlling low-risk systems", "All federal systems implement the same set of controls regardless of the data they process", "Organizations can choose whichever baseline best fits their budget rather than their risk profile", "Low-impact systems are exempt from security controls and require only annual policy review"]},
+
+  // Ch. 16: Data Sovereignty (~4 questions)
+  {q: "Data sovereignty is a cybersecurity policy concern because:", a: ["Data stored or processed in a foreign jurisdiction may be subject to that country's laws regarding government access, data protection, and privacy, potentially conflicting with the originating country's legal requirements", "Cloud providers automatically encrypt data when it crosses international borders", "International treaties have resolved all jurisdictional conflicts regarding cross-border data flows", "Data sovereignty applies only to government data and has no impact on private-sector organizations"]},
+
+  {q: "The EU-US Data Privacy Framework replaced the Privacy Shield to address:", a: ["Concerns raised by the Court of Justice of the European Union in the Schrems II decision regarding US surveillance practices and the adequacy of protections for EU citizens' data transferred to the United States", "The expiration of the original Safe Harbor agreement's ten-year authorization period", "Technical incompatibilities between EU and US encryption standards for international data transfers", "The European Commission's requirement that all transatlantic data be routed through government-approved networks"]},
+
+  {q: "Data localization laws that require organizations to store citizen data within national borders create cybersecurity policy challenges because they:", a: ["Can conflict with global cloud architectures, increase operational costs, limit disaster recovery options, and create compliance complexity for multinational organizations", "Improve cybersecurity by ensuring all data is subject to a single legal framework", "Apply only to healthcare and financial data, leaving other sectors unaffected", "Have been adopted by fewer than five countries worldwide, limiting their practical impact"]},
+
+  {q: "Standard Contractual Clauses (SCCs) are a data sovereignty mechanism used under GDPR to:", a: ["Provide a legal basis for transferring personal data from the EU to countries that have not received an adequacy decision, by contractually binding the data importer to EU-equivalent protections", "Standardize the technical security controls required for all cloud service providers operating in the EU", "Replace the need for Data Protection Impact Assessments when processing high-risk personal data", "Grant automatic GDPR compliance to organizations that sign the clauses without further obligations"]},
+
+  // Cross-cutting synthesis
+  {q: "A multinational healthcare company migrating to a public cloud must address HIPAA compliance, GDPR data sovereignty requirements, NIST 800-53 controls for its government contracts, and board-level governance oversight -- all simultaneously. The policy challenge this illustrates is:", a: ["Organizations increasingly operate under multiple overlapping regulatory frameworks with different requirements, jurisdictions, and enforcement mechanisms, requiring an integrated governance approach that maps controls across all applicable standards", "Cloud migration is incompatible with regulatory compliance and should be avoided by organizations in regulated industries", "HIPAA, GDPR, and NIST 800-53 have identical control requirements, so compliance with one satisfies all three", "Board-level governance is unnecessary for technical compliance decisions that should be delegated entirely to the IT department"]}
+];
+
+// Shuffle utility
+function shuffle(array) {
+  for (var i = array.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var temp = array[i];
+    array[i] = array[j];
+    array[j] = temp;
+  }
+  return array;
+}
+
+// Render all 50 questions with shuffled answer order
+var questionsContainer = document.getElementById("questions");
+var shuffledData = shuffle([].concat(examData));
+
+shuffledData.forEach(function(item, i) {
+  var div = document.createElement("div");
+  div.classList.add("question");
+  div.setAttribute("data-q", i);
+
+  var html = '<div class="question-header">' +
+    '<span class="q-num">Q' + (i + 1) + '</span>' +
+    '<p>' + item.q + '</p>' +
+    '</div>';
+
+  // Shuffle answer positions; preserve original index for server grading
+  var answerIndices = [0, 1, 2, 3];
+  shuffle(answerIndices);
+
+  answerIndices.forEach(function(origIdx) {
+    html += '<label><input type="radio" name="q' + i + '" value="' + origIdx + '"> ' + item.a[origIdx] + '</label>';
+  });
+
+  div.innerHTML = html;
+  questionsContainer.appendChild(div);
+});
+
+window.shuffledData = shuffledData;
+
+// Countdown timer (75 minutes)
+var timeLeft = 75 * 60;
+var timerEl = document.getElementById('timer');
+var timerInterval = setInterval(function() {
+  timeLeft--;
+  var m = Math.floor(timeLeft / 60);
+  var s = timeLeft % 60;
+  timerEl.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+  if (timeLeft <= 300) timerEl.classList.add('warning');
+  if (timeLeft <= 60) { timerEl.classList.remove('warning'); timerEl.classList.add('danger'); }
+  if (timeLeft <= 0) { clearInterval(timerInterval); submitExam(); }
+}, 1000);
+
+// Track answered count
+document.addEventListener('change', function(e) {
+  if (e.target.type === 'radio') {
+    var answeredCount = document.querySelectorAll('input[type="radio"]:checked').length;
+    document.getElementById('answered').textContent = answeredCount;
+  }
+});
+
+// Submit exam -- server-side graded (QC-21)
+async function submitExam() {
+  clearInterval(timerInterval);
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('submitBtn').textContent = 'Grading...';
+
+  var total = shuffledData.length;
+
+  // Map shuffled positions back to original examData indices for server grading
+  var answerMap = {};
+  shuffledData.forEach(function(item, i) {
+    var selected = document.querySelector('input[name="q' + i + '"]:checked');
+    if (selected) {
+      var origIdx = examData.indexOf(item);
+      answerMap[String(origIdx)] = parseInt(selected.value);
+    }
+  });
+
+  var score = 0, percent = 0, passed = false;
+
+  try {
+    if (typeof FirebaseAuth !== 'undefined') {
+      await FirebaseAuth.waitForAuth();
+      var response = await FirebaseAuth.callFunction('gradeQuiz', {
+        quizId: QUIZ_ID, answers: answerMap
+      });
+      score = response.data.score;
+      percent = response.data.percentage;
+      passed = response.data.passed;
+
+      // Highlight correct and incorrect selections
+      shuffledData.forEach(function(item, i) {
+        var origIdx = examData.indexOf(item);
+        var result = response.data.results[origIdx];
+        var selected = document.querySelector('input[name="q' + i + '"]:checked');
+        if (selected && result) {
+          selected.parentElement.classList.add(result.correct ? 'correct' : 'wrong');
+        }
+      });
+    }
+  } catch (e) {
+    console.warn('Server grading failed:', e.message);
+  }
+
+  // Persist result locally
+  if (passed) {
+    localStorage.setItem('hexworth_divergent_csp_final_passed', 'true');
+    localStorage.setItem('hexworth_divergent_csp_final_score', percent);
+    localStorage.setItem('hexworth_divergent_csp_final_date', new Date().toISOString());
+  }
+
+  var resultDiv = document.getElementById("result");
+  resultDiv.innerHTML =
+    '<h2>' + (passed ? 'Course Complete' : 'Keep Studying') + '</h2>' +
+    '<div class="score-circle ' + (passed ? 'pass' : 'fail') + '">' +
+      '<span class="score-percent">' + percent + '%</span>' +
+      '<span class="score-fraction">' + score + '/' + total + '</span>' +
+    '</div>' +
+    '<div class="result-msg ' + (passed ? 'pass' : 'fail') + '">' +
+      (passed
+        ? 'You have completed Cybersecurity Policy. You demonstrated command of the full policy lifecycle -- from origins and core concepts through governance, law, compliance, risk management, NIST frameworks, and data sovereignty across all sixteen chapters.'
+        : 'You need 70% (35/50) to pass. You scored ' + score + '/50. Review the chapters corresponding to the questions you missed and retake the exam when you are ready.') +
+    '</div>' +
+    (passed
+      ? '<div class="unlock-badge">' +
+          '<h3>Cybersecurity Policy: Complete</h3>' +
+          '<p>All course requirements have been satisfied. Return to the hub to review your full progress record.</p>' +
+          '<a href="../index.html" class="btn-continue">Return to Policy Hub &#8594;</a>' +
+        '</div>'
+      : '<div style="margin-top: 20px;">' +
+          '<a href="../index.html" class="btn-continue">Review Course Materials</a>' +
+        '</div>');
+  resultDiv.classList.add('visible');
+
+  // Record course completion on pass
+  if (passed && typeof ModuleProgress !== 'undefined') {
+    ModuleProgress.complete('divergent', 'csp-final', { returnUrl: '../index.html' });
+  }
+
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+}
+</script>
+
+</body>
+</html>

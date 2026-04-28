@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Organizational Roles in Cybersecurity | Cybersecurity Policy</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d0810 0%, #0a060d 50%, #100812 100%);
+            color: #ede0f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow-y: auto;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: linear-gradient(90deg, #ff00ff, #00ffff);
+            transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(13, 8, 16, 0.95);
+            border-top: 1px solid rgba(255, 0, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #9a82a0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(255, 0, 255, 0.12); color: #ff00ff; border-color: #ff00ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #5a4460; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: linear-gradient(135deg, #ff00ff, #ff44ff);
+            color: #0d0810; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: linear-gradient(135deg, #ff44ff, #ff88ff); transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #ff00ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #ede0f0; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ff00ff; }
+        .slide-title .cyan { color: #00ffff; }
+        .slide-subtitle { font-size: 0.95rem; color: #9a82a0; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(255, 0, 255, 0.06); border-left: 3px solid #ff00ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #f5b8f5; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-magenta { background: rgba(255, 0, 255, 0.08); border: 1px solid rgba(255, 0, 255, 0.3); color: #f5b8f5; }
+        .box-cyan    { background: rgba(0, 255, 255, 0.08); border: 1px solid rgba(0, 255, 255, 0.3); color: #b8f5f5; }
+        .box-red     { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold    { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-green   { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-label   { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #ede0f0; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ff00ff; }
+        .title-hero .big-title .cyan { color: #00ffff; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #5a4460;
+        }
+        .title-meta-row span { border-left: 2px solid rgba(255, 0, 255, 0.2); padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #ff00ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #ede0f0; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #9a82a0; line-height: 1.4; }
+        .card.c-magenta { border-left-color: #ff00ff; }
+        .card.c-cyan    { border-left-color: #00ffff; }
+        .card.c-red     { border-left-color: #ef4444; }
+        .card.c-gold    { border-left-color: #eab308; }
+        .card.c-green   { border-left-color: #22c55e; }
+        .card.c-purple  { border-left-color: #ff44ff; }
+        .card.c-blue    { border-left-color: #3b82f6; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #5a4460; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #ff00ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #ede0f0; }
+
+        /* SVG diagram containers */
+        .svg-container {
+            display: flex; justify-content: center; align-items: center;
+            margin: 10px 0; padding: 10px;
+        }
+        .svg-container svg { max-width: 100%; height: auto; }
+
+        /* Glossary table */
+        .glossary-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+        .glossary-table th {
+            text-align: left; padding: 6px 10px; font-size: 0.72rem;
+            text-transform: uppercase; letter-spacing: 0.08em;
+            color: #ff00ff; border-bottom: 1px solid rgba(255, 0, 255, 0.3);
+        }
+        .glossary-table td {
+            padding: 6px 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            vertical-align: top;
+        }
+        .glossary-table td:first-child { color: #00ffff; font-weight: 600; white-space: nowrap; }
+        .glossary-table td:last-child { color: #9a82a0; }
+
+        /* Timeline steps */
+        .timeline { display: flex; gap: 2px; margin: 10px 0; }
+        .tl-step {
+            flex: 1; padding: 10px 6px; text-align: center;
+            background: rgba(255, 0, 255, 0.06); border: 1px solid rgba(255, 0, 255, 0.15);
+            border-radius: 4px; transition: background 0.2s;
+        }
+        .tl-step:hover { background: rgba(255, 0, 255, 0.14); }
+        .tl-num { font-size: 0.68rem; font-weight: 700; color: #00ffff; letter-spacing: 0.08em; margin-bottom: 3px; }
+        .tl-name { font-size: 0.78rem; font-weight: 700; color: #ede0f0; margin-bottom: 3px; }
+        .tl-desc { font-size: 0.7rem; color: #9a82a0; line-height: 1.3; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid, .card-grid-4 { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .timeline { flex-wrap: wrap; } .tl-step { min-width: 45%; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Organizational Roles in Cybersecurity | Cybersecurity Policy</h1>
+
+<div id="progress-bar" style="width:7.14%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 14 &nbsp;|&nbsp; CSP-W3-01 &nbsp;|&nbsp; Week 3</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Organizational <span class="accent">Roles</span><br>
+                <span class="cyan" style="font-size:0.65em;">CISO, CIO, ISACs, Public-Private Partnerships</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                C-Suite &bull; CISO Deep Dive &bull; Security Teams &bull; GRC &bull; Board Oversight &bull; ISACs &bull; Public-Private Partnerships &bull; Government Agencies &bull; International Orgs &bull; Career Paths &bull; The Human Element
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Cybersecurity is not just a technology problem -- it is an organizational one. Every breach investigation eventually traces back to people: who had authority, who was accountable, who was informed, and who was left out. This deck maps the entire human ecosystem of cybersecurity -- from the C-suite boardroom to the SOC floor, from federal agencies to international coalitions -- and examines how these roles interact to defend (or fail to defend) organizations and nations.
+        </div>
+        <div class="title-meta-row">
+            <span>14 Slides</span>
+            <span>CSP-W3-01</span>
+            <span>Week 3</span>
+            <span>CIS2208 -- Cybersecurity Policy</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- C-SUITE ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 14</div>
+        <div class="slide-title">The <span class="accent">C-Suite</span> and <span class="cyan">Cybersecurity</span></div>
+        <div class="slide-subtitle">Seven executive roles with direct cybersecurity responsibilities -- each with distinct authority, accountability, and blind spots.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 560 220" width="540" role="img" aria-label="C-suite organizational chart. CEO at top center connects downward to six roles: CIO, CISO, CTO, CRO, CPO, and General Counsel. Each box shows the role title and primary cybersecurity responsibility.">
+                <!-- CEO at top -->
+                <rect x="220" y="10" width="120" height="40" rx="6" fill="rgba(255,0,255,0.15)" stroke="#ff00ff" stroke-width="2"/>
+                <text x="280" y="28" text-anchor="middle" fill="#ff00ff" font-size="11" font-weight="700">CEO</text>
+                <text x="280" y="42" text-anchor="middle" fill="#9a82a0" font-size="7">Ultimate accountability</text>
+                <!-- Trunk -->
+                <line x1="280" y1="50" x2="280" y2="75" stroke="#ff00ff" stroke-width="1.5"/>
+                <!-- Horizontal branch -->
+                <line x1="45" y1="75" x2="515" y2="75" stroke="rgba(255,0,255,0.4)" stroke-width="1"/>
+                <!-- CIO -->
+                <line x1="45" y1="75" x2="45" y2="95" stroke="rgba(0,255,255,0.4)" stroke-width="1"/>
+                <rect x="5" y="95" width="80" height="55" rx="5" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="45" y="112" text-anchor="middle" fill="#00ffff" font-size="10" font-weight="700">CIO</text>
+                <text x="45" y="125" text-anchor="middle" fill="#9a82a0" font-size="7">IT strategy &</text>
+                <text x="45" y="135" text-anchor="middle" fill="#9a82a0" font-size="7">infrastructure</text>
+                <!-- CISO -->
+                <line x1="140" y1="75" x2="140" y2="95" stroke="rgba(255,0,255,0.4)" stroke-width="1"/>
+                <rect x="100" y="95" width="80" height="55" rx="5" fill="rgba(255,0,255,0.12)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="140" y="112" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700">CISO</text>
+                <text x="140" y="125" text-anchor="middle" fill="#9a82a0" font-size="7">Security program</text>
+                <text x="140" y="135" text-anchor="middle" fill="#9a82a0" font-size="7">owner</text>
+                <!-- CTO -->
+                <line x1="235" y1="75" x2="235" y2="95" stroke="rgba(255,68,255,0.4)" stroke-width="1"/>
+                <rect x="195" y="95" width="80" height="55" rx="5" fill="rgba(255,68,255,0.08)" stroke="#ff44ff" stroke-width="1"/>
+                <text x="235" y="112" text-anchor="middle" fill="#ff44ff" font-size="10" font-weight="700">CTO</text>
+                <text x="235" y="125" text-anchor="middle" fill="#9a82a0" font-size="7">Technology &</text>
+                <text x="235" y="135" text-anchor="middle" fill="#9a82a0" font-size="7">secure architecture</text>
+                <!-- CRO -->
+                <line x1="325" y1="75" x2="325" y2="95" stroke="rgba(234,179,8,0.4)" stroke-width="1"/>
+                <rect x="285" y="95" width="80" height="55" rx="5" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1"/>
+                <text x="325" y="112" text-anchor="middle" fill="#eab308" font-size="10" font-weight="700">CRO</text>
+                <text x="325" y="125" text-anchor="middle" fill="#9a82a0" font-size="7">Enterprise risk</text>
+                <text x="325" y="135" text-anchor="middle" fill="#9a82a0" font-size="7">integration</text>
+                <!-- CPO -->
+                <line x1="420" y1="75" x2="420" y2="95" stroke="rgba(34,197,94,0.4)" stroke-width="1"/>
+                <rect x="380" y="95" width="80" height="55" rx="5" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1"/>
+                <text x="420" y="112" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="700">CPO</text>
+                <text x="420" y="125" text-anchor="middle" fill="#9a82a0" font-size="7">Data privacy &</text>
+                <text x="420" y="135" text-anchor="middle" fill="#9a82a0" font-size="7">regulatory compliance</text>
+                <!-- General Counsel -->
+                <line x1="515" y1="75" x2="515" y2="95" stroke="rgba(59,130,246,0.4)" stroke-width="1"/>
+                <rect x="475" y="95" width="80" height="55" rx="5" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1"/>
+                <text x="515" y="108" text-anchor="middle" fill="#3b82f6" font-size="9" font-weight="700">GENERAL</text>
+                <text x="515" y="120" text-anchor="middle" fill="#3b82f6" font-size="9" font-weight="700">COUNSEL</text>
+                <text x="515" y="135" text-anchor="middle" fill="#9a82a0" font-size="7">Legal & regulatory</text>
+                <!-- Bottom label -->
+                <text x="280" y="180" text-anchor="middle" fill="#5a4460" font-size="8" letter-spacing="0.1em">CYBERSECURITY IS AN EXECUTIVE-LEVEL CONCERN -- NOT JUST AN IT FUNCTION</text>
+            </svg>
+        </div>
+
+        <div class="card-grid" style="grid-template-columns: repeat(4, 1fr);">
+            <div class="card c-cyan">
+                <div class="card-label">CIO</div>
+                <div class="card-desc">Owns IT strategy, infrastructure, and operations. Historically the CISO reported here -- but this creates a conflict of interest between uptime/velocity and security. Responsible for IT budgets that security competes against.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">CISO</div>
+                <div class="card-desc">Owns the security program end-to-end: policy, architecture, incident response, compliance. Increasingly reports directly to the CEO or board, bypassing the CIO. The most cybersecurity-critical C-suite role.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">CRO</div>
+                <div class="card-desc">Integrates cyber risk into the enterprise risk management framework alongside financial, operational, and reputational risk. Ensures the board sees cybersecurity in the language of business risk, not just technical vulnerability counts.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">CPO</div>
+                <div class="card-desc">Leads data privacy strategy and regulatory compliance (GDPR, CCPA, HIPAA). Works closely with the CISO on data classification, breach notification requirements, and privacy-by-design principles in new systems.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">Key Insight</div>
+            A 2024 Gartner study found that organizations where the CISO reports directly to the CEO experience 35% faster breach detection and 24% lower average breach costs. The reporting line is not just an org chart detail -- it determines whether security has a seat at the strategic table or is buried three levels below it.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- CISO DEEP DIVE ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 14</div>
+        <div class="slide-title"><span class="accent">CISO</span> Deep Dive: The Role <span class="cyan">Redefined</span></div>
+        <div class="slide-subtitle">From technical gatekeeper to business strategist -- the CISO role has undergone a radical transformation in the past decade.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 560 200" width="540" role="img" aria-label="Three CISO reporting line models shown side by side. Model A: CISO reports to CIO (traditional, marked as declining). Model B: CISO reports to CEO (modern, marked as growing). Model C: CISO reports directly to the Board (emerging, marked as new).">
+                <defs>
+                    <marker id="arrowUp" markerWidth="8" markerHeight="6" refX="4" refY="6" orient="auto">
+                        <path d="M0,6 L4,0 L8,6" fill="#ff00ff"/>
+                    </marker>
+                </defs>
+                <!-- Model A: CIO -> CISO -->
+                <text x="95" y="15" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700" letter-spacing="0.06em">MODEL A: TRADITIONAL</text>
+                <rect x="55" y="25" width="80" height="32" rx="5" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1"/>
+                <text x="95" y="40" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">CEO</text>
+                <text x="95" y="50" text-anchor="middle" fill="#9a82a0" font-size="6">Minimal security visibility</text>
+                <line x1="95" y1="57" x2="95" y2="72" stroke="rgba(239,68,68,0.4)" stroke-width="1"/>
+                <rect x="55" y="72" width="80" height="32" rx="5" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1"/>
+                <text x="95" y="87" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">CIO</text>
+                <text x="95" y="97" text-anchor="middle" fill="#9a82a0" font-size="6">Controls budget & priority</text>
+                <line x1="95" y1="104" x2="95" y2="119" stroke="rgba(239,68,68,0.4)" stroke-width="1"/>
+                <rect x="55" y="119" width="80" height="32" rx="5" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="95" y="134" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">CISO</text>
+                <text x="95" y="144" text-anchor="middle" fill="#9a82a0" font-size="6">Subordinate to IT</text>
+                <text x="95" y="170" text-anchor="middle" fill="#ef4444" font-size="7" letter-spacing="0.08em">DECLINING (~30%)</text>
+
+                <!-- Model B: CEO -> CISO -->
+                <text x="280" y="15" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700" letter-spacing="0.06em">MODEL B: MODERN</text>
+                <rect x="240" y="25" width="80" height="32" rx="5" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="280" y="40" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="600">CEO</text>
+                <text x="280" y="50" text-anchor="middle" fill="#9a82a0" font-size="6">Direct security briefings</text>
+                <line x1="260" y1="57" x2="260" y2="72" stroke="rgba(0,255,255,0.4)" stroke-width="1"/>
+                <line x1="300" y1="57" x2="300" y2="72" stroke="rgba(255,0,255,0.4)" stroke-width="1"/>
+                <rect x="220" y="72" width="50" height="32" rx="5" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="245" y="90" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="600">CIO</text>
+                <rect x="275" y="72" width="50" height="32" rx="5" fill="rgba(255,0,255,0.12)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="300" y="90" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">CISO</text>
+                <text x="280" y="122" text-anchor="middle" fill="#9a82a0" font-size="7">Peer to CIO, independent voice</text>
+                <text x="280" y="170" text-anchor="middle" fill="#ff00ff" font-size="7" letter-spacing="0.08em">GROWING (~50%)</text>
+
+                <!-- Model C: Board -> CISO -->
+                <text x="465" y="15" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700" letter-spacing="0.06em">MODEL C: EMERGING</text>
+                <rect x="425" y="25" width="80" height="32" rx="5" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="465" y="38" text-anchor="middle" fill="#00ffff" font-size="8" font-weight="600">BOARD OF</text>
+                <text x="465" y="50" text-anchor="middle" fill="#00ffff" font-size="8" font-weight="600">DIRECTORS</text>
+                <line x1="465" y1="57" x2="465" y2="72" stroke="rgba(0,255,255,0.4)" stroke-width="1"/>
+                <rect x="425" y="72" width="80" height="32" rx="5" fill="rgba(0,255,255,0.12)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="465" y="90" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">CISO</text>
+                <line x1="445" y1="104" x2="445" y2="119" stroke="rgba(255,0,255,0.3)" stroke-width="1" stroke-dasharray="3 2"/>
+                <line x1="485" y1="104" x2="485" y2="119" stroke="rgba(255,0,255,0.3)" stroke-width="1" stroke-dasharray="3 2"/>
+                <rect x="415" y="119" width="40" height="25" rx="4" fill="rgba(255,0,255,0.06)" stroke="rgba(255,0,255,0.3)" stroke-width="0.8"/>
+                <text x="435" y="135" text-anchor="middle" fill="#9a82a0" font-size="7">CEO</text>
+                <rect x="460" y="119" width="40" height="25" rx="4" fill="rgba(255,0,255,0.06)" stroke="rgba(255,0,255,0.3)" stroke-width="0.8"/>
+                <text x="480" y="135" text-anchor="middle" fill="#9a82a0" font-size="7">CIO</text>
+                <text x="465" y="170" text-anchor="middle" fill="#00ffff" font-size="7" letter-spacing="0.08em">EMERGING (~20%)</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Core Responsibilities</div>
+                <div class="card-desc">Security strategy and roadmap. Policy development and enforcement. Incident response program. Security architecture review. Vendor risk management. Regulatory compliance (SOX, HIPAA, PCI-DSS). Security awareness training. Budget ownership and justification to the board.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Evolution of the Role</div>
+                <div class="card-desc">2000s: Technical expert managing firewalls and AV. 2010s: Risk manager translating threats to business impact. 2020s: Business strategist presenting to boards, managing supply chain risk, and leading digital transformation security. Average tenure: 26 months -- one of the shortest in the C-suite.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Reporting Line Debate</div>
+                <div class="card-desc">When the CISO reports to the CIO, security competes with IT projects for budget and priority. SEC 2023 cyber disclosure rules now require public companies to describe board oversight of cybersecurity risk -- accelerating the shift toward direct board-level reporting.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Policy Implication</div>
+            Where the CISO sits in the org chart is itself a policy decision with measurable consequences. SEC rules, NIST CSF, and ISO 27001 all recommend that security leadership have direct access to the board. Organizations should formally document the CISO's authority, escalation paths, and independence from the IT budget cycle.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- SECURITY TEAM STRUCTURE ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 14</div>
+        <div class="slide-title"><span class="accent">Security Team</span> Structure</div>
+        <div class="slide-subtitle">From SOC analysts monitoring alerts to red teams simulating adversaries -- a modern security organization is a multi-layered defense force.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 560 230" width="540" role="img" aria-label="Security team structure diagram. CISO at top connects to four branches: SOC (with Tier 1, 2, 3 analysts), Incident Response team, Threat Intelligence team, and Red/Blue/Purple teams arranged in a defensive spectrum.">
+                <!-- CISO -->
+                <rect x="225" y="5" width="110" height="35" rx="6" fill="rgba(255,0,255,0.15)" stroke="#ff00ff" stroke-width="2"/>
+                <text x="280" y="27" text-anchor="middle" fill="#ff00ff" font-size="11" font-weight="700">CISO</text>
+                <line x1="280" y1="40" x2="280" y2="60" stroke="#ff00ff" stroke-width="1.5"/>
+                <!-- Horizontal branch -->
+                <line x1="70" y1="60" x2="490" y2="60" stroke="rgba(255,0,255,0.35)" stroke-width="1"/>
+                <!-- SOC Branch -->
+                <line x1="70" y1="60" x2="70" y2="80" stroke="rgba(0,255,255,0.5)" stroke-width="1"/>
+                <rect x="20" y="80" width="100" height="30" rx="5" fill="rgba(0,255,255,0.1)" stroke="#00ffff" stroke-width="1"/>
+                <text x="70" y="100" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">SOC</text>
+                <!-- SOC tiers -->
+                <line x1="40" y1="110" x2="40" y2="125" stroke="rgba(0,255,255,0.3)" stroke-width="1"/>
+                <line x1="70" y1="110" x2="70" y2="125" stroke="rgba(0,255,255,0.3)" stroke-width="1"/>
+                <line x1="100" y1="110" x2="100" y2="125" stroke="rgba(0,255,255,0.3)" stroke-width="1"/>
+                <rect x="18" y="125" width="44" height="38" rx="4" fill="rgba(0,255,255,0.06)" stroke="rgba(0,255,255,0.3)" stroke-width="0.8"/>
+                <text x="40" y="140" text-anchor="middle" fill="#00ffff" font-size="7" font-weight="600">TIER 1</text>
+                <text x="40" y="152" text-anchor="middle" fill="#9a82a0" font-size="6">Alert triage</text>
+                <text x="40" y="160" text-anchor="middle" fill="#9a82a0" font-size="6">24/7 monitor</text>
+                <rect x="48" y="125" width="44" height="38" rx="4" fill="rgba(0,255,255,0.06)" stroke="rgba(0,255,255,0.3)" stroke-width="0.8"/>
+                <text x="70" y="140" text-anchor="middle" fill="#00ffff" font-size="7" font-weight="600">TIER 2</text>
+                <text x="70" y="152" text-anchor="middle" fill="#9a82a0" font-size="6">Investigation</text>
+                <text x="70" y="160" text-anchor="middle" fill="#9a82a0" font-size="6">& analysis</text>
+                <rect x="78" y="125" width="44" height="38" rx="4" fill="rgba(0,255,255,0.06)" stroke="rgba(0,255,255,0.3)" stroke-width="0.8"/>
+                <text x="100" y="140" text-anchor="middle" fill="#00ffff" font-size="7" font-weight="600">TIER 3</text>
+                <text x="100" y="152" text-anchor="middle" fill="#9a82a0" font-size="6">Threat hunt</text>
+                <text x="100" y="160" text-anchor="middle" fill="#9a82a0" font-size="6">& engineering</text>
+                <!-- Incident Response -->
+                <line x1="210" y1="60" x2="210" y2="80" stroke="rgba(239,68,68,0.5)" stroke-width="1"/>
+                <rect x="155" y="80" width="110" height="30" rx="5" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1"/>
+                <text x="210" y="96" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">INCIDENT RESPONSE</text>
+                <rect x="155" y="125" width="110" height="38" rx="4" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.3)" stroke-width="0.8"/>
+                <text x="210" y="140" text-anchor="middle" fill="#9a82a0" font-size="7">Containment, eradication</text>
+                <text x="210" y="152" text-anchor="middle" fill="#9a82a0" font-size="7">forensics, recovery</text>
+                <text x="210" y="160" text-anchor="middle" fill="#9a82a0" font-size="6">DFIR + legal coordination</text>
+                <!-- Threat Intel -->
+                <line x1="350" y1="60" x2="350" y2="80" stroke="rgba(234,179,8,0.5)" stroke-width="1"/>
+                <rect x="295" y="80" width="110" height="30" rx="5" fill="rgba(234,179,8,0.1)" stroke="#eab308" stroke-width="1"/>
+                <text x="350" y="96" text-anchor="middle" fill="#eab308" font-size="9" font-weight="700">THREAT INTELLIGENCE</text>
+                <rect x="295" y="125" width="110" height="38" rx="4" fill="rgba(234,179,8,0.06)" stroke="rgba(234,179,8,0.3)" stroke-width="0.8"/>
+                <text x="350" y="140" text-anchor="middle" fill="#9a82a0" font-size="7">IOC collection, actor tracking</text>
+                <text x="350" y="152" text-anchor="middle" fill="#9a82a0" font-size="7">TTP mapping (MITRE ATT&amp;CK)</text>
+                <text x="350" y="160" text-anchor="middle" fill="#9a82a0" font-size="6">Strategic & tactical intel</text>
+                <!-- Red/Blue/Purple -->
+                <line x1="490" y1="60" x2="490" y2="80" stroke="rgba(255,68,255,0.5)" stroke-width="1"/>
+                <rect x="435" y="80" width="110" height="30" rx="5" fill="rgba(255,68,255,0.1)" stroke="#ff44ff" stroke-width="1"/>
+                <text x="490" y="96" text-anchor="middle" fill="#ff44ff" font-size="9" font-weight="700">ADVERSARY SIM</text>
+                <rect x="435" y="125" width="35" height="38" rx="4" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="0.8"/>
+                <text x="452" y="140" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">RED</text>
+                <text x="452" y="155" text-anchor="middle" fill="#9a82a0" font-size="6">Attack</text>
+                <rect x="472" y="125" width="35" height="38" rx="4" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="0.8"/>
+                <text x="490" y="140" text-anchor="middle" fill="#3b82f6" font-size="7" font-weight="600">BLUE</text>
+                <text x="490" y="155" text-anchor="middle" fill="#9a82a0" font-size="6">Defend</text>
+                <rect x="509" y="125" width="35" height="38" rx="4" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="0.8"/>
+                <text x="527" y="140" text-anchor="middle" fill="#a855f7" font-size="7" font-weight="600">PURPLE</text>
+                <text x="527" y="155" text-anchor="middle" fill="#9a82a0" font-size="5">Collab</text>
+                <!-- Bottom label -->
+                <text x="280" y="195" text-anchor="middle" fill="#5a4460" font-size="8" letter-spacing="0.1em">LAYERED DEFENSE REQUIRES SPECIALIZED, COORDINATED TEAMS</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">SOC Analysts (Tier 1-3)</div>
+                <div class="card-desc">Tier 1 monitors SIEM alerts 24/7 and triages potential incidents. Tier 2 performs deep investigation, correlation, and malware analysis. Tier 3 conducts proactive threat hunting and builds custom detection rules. Most SOCs process 10,000+ alerts per day -- only 1-2% are true positives.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Incident Response</div>
+                <div class="card-desc">DFIR (Digital Forensics and Incident Response) teams contain active breaches, preserve evidence for legal proceedings, conduct root cause analysis, and coordinate recovery. They work under extreme time pressure -- the average ransomware dwell time before encryption is now under 24 hours.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Threat Hunters</div>
+                <div class="card-desc">Proactive analysts who assume the network is already compromised and search for indicators of hidden adversary activity. They use hypothesis-driven hunts, behavioral analytics, and MITRE ATT&CK mapping. Threat hunting catches 60% of APTs missed by automated detection.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Red / Blue / Purple Teams</div>
+                <div class="card-desc">Red teams simulate real-world adversaries to test defenses. Blue teams detect and respond to those simulations. Purple teams bridge the gap -- sharing red team TTPs with blue team in real time to rapidly improve detection. The purple team model has become the industry standard for mature organizations.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- GRC ROLES ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 14</div>
+        <div class="slide-title"><span class="accent">GRC</span> Roles: Governance, <span class="cyan">Risk</span> &amp; Compliance</div>
+        <div class="slide-subtitle">The organizational functions that ensure security programs are aligned with business objectives, legal requirements, and risk tolerance.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 520 180" width="500" role="img" aria-label="GRC Venn diagram showing three overlapping circles: Governance, Risk Management, and Compliance. The center intersection is labeled GRC and each segment shows key roles.">
+                <!-- Governance circle -->
+                <circle cx="200" cy="80" r="70" fill="rgba(255,0,255,0.06)" stroke="#ff00ff" stroke-width="1.5" opacity="0.8"/>
+                <text x="165" y="50" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700">GOVERNANCE</text>
+                <text x="165" y="65" text-anchor="middle" fill="#9a82a0" font-size="7">Policy owners</text>
+                <text x="165" y="77" text-anchor="middle" fill="#9a82a0" font-size="7">Security committee</text>
+                <text x="165" y="89" text-anchor="middle" fill="#9a82a0" font-size="7">Board oversight</text>
+                <!-- Risk circle -->
+                <circle cx="260" cy="80" r="70" fill="rgba(234,179,8,0.06)" stroke="#eab308" stroke-width="1.5" opacity="0.8"/>
+                <text x="295" y="50" text-anchor="middle" fill="#eab308" font-size="10" font-weight="700">RISK</text>
+                <text x="295" y="65" text-anchor="middle" fill="#9a82a0" font-size="7">Risk analysts</text>
+                <text x="295" y="77" text-anchor="middle" fill="#9a82a0" font-size="7">Quantitative models</text>
+                <text x="295" y="89" text-anchor="middle" fill="#9a82a0" font-size="7">Third-party risk</text>
+                <!-- Compliance circle -->
+                <circle cx="230" cy="130" r="70" fill="rgba(0,255,255,0.06)" stroke="#00ffff" stroke-width="1.5" opacity="0.8"/>
+                <text x="230" y="155" text-anchor="middle" fill="#00ffff" font-size="10" font-weight="700">COMPLIANCE</text>
+                <text x="230" y="168" text-anchor="middle" fill="#9a82a0" font-size="7">Auditors, DPO, regulators</text>
+                <!-- Center label -->
+                <text x="230" y="100" text-anchor="middle" fill="#ede0f0" font-size="11" font-weight="800">GRC</text>
+                <!-- Side annotations -->
+                <rect x="380" y="30" width="130" height="50" rx="5" fill="rgba(255,0,255,0.06)" stroke="rgba(255,0,255,0.3)" stroke-width="0.8"/>
+                <text x="445" y="48" text-anchor="middle" fill="#ff00ff" font-size="7" font-weight="700">KEY FRAMEWORKS</text>
+                <text x="445" y="62" text-anchor="middle" fill="#9a82a0" font-size="7">NIST CSF | ISO 27001</text>
+                <text x="445" y="73" text-anchor="middle" fill="#9a82a0" font-size="7">COBIT | SOC 2 | FedRAMP</text>
+                <rect x="380" y="95" width="130" height="50" rx="5" fill="rgba(0,255,255,0.06)" stroke="rgba(0,255,255,0.3)" stroke-width="0.8"/>
+                <text x="445" y="113" text-anchor="middle" fill="#00ffff" font-size="7" font-weight="700">KEY REGULATIONS</text>
+                <text x="445" y="127" text-anchor="middle" fill="#9a82a0" font-size="7">GDPR | HIPAA | SOX</text>
+                <text x="445" y="138" text-anchor="middle" fill="#9a82a0" font-size="7">PCI-DSS | CMMC | CCPA</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Compliance Officers</div>
+                <div class="card-desc">Map organizational controls to regulatory requirements. Maintain evidence of compliance for audits. Track control gaps and remediation timelines. A single organization may face 5-15 overlapping compliance frameworks depending on industry, geography, and customer requirements.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Internal & External Auditors</div>
+                <div class="card-desc">Internal auditors continuously assess control effectiveness. External auditors (Big Four, specialized firms) provide independent assurance. SOC 2 Type II audits examine control operation over 6-12 months. PCI QSAs validate payment card security annually. Audit findings drive remediation priorities.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Risk Analysts</div>
+                <div class="card-desc">Quantify cyber risk in financial terms using frameworks like FAIR (Factor Analysis of Information Risk). Conduct risk assessments, model loss scenarios, and calculate annualized loss expectancy. Their output feeds directly into executive decisions about security investment and risk acceptance.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Data Protection Officer (DPO)</div>
+                <div class="card-desc">Required by GDPR for organizations processing EU personal data at scale. The DPO must be independent -- they cannot be fired for doing their job. Responsibilities include advising on data protection impact assessments, serving as the regulator liaison, and monitoring compliance with privacy regulations.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Why GRC Matters for Policy</div>
+            GRC is where cybersecurity policy lives in practice. Without governance, policies are written but not enforced. Without risk management, security spending is disconnected from actual threats. Without compliance, organizations face regulatory fines that can exceed the cost of the breach itself -- GDPR fines have reached 1.2 billion euros for a single violation.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- BOARD OF DIRECTORS ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 14</div>
+        <div class="slide-title"><span class="accent">Board of Directors</span>: Cyber <span class="cyan">Oversight</span></div>
+        <div class="slide-subtitle">Fiduciary duty now extends to cybersecurity. Directors who ignore cyber risk face personal liability, shareholder lawsuits, and regulatory action.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Fiduciary Duty</div>
+                <div class="card-desc">The duty of care requires directors to be reasonably informed about material risks -- and cybersecurity is now unambiguously material. The 2023 SolarWinds SEC enforcement action named individual executives. The Caremark standard holds directors liable for failing to monitor known risks. Ignorance is not a defense.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">SEC Cyber Disclosure Rules (2023)</div>
+                <div class="card-desc">Public companies must disclose material cyber incidents within four business days (Form 8-K). Annual reports (10-K) must describe board oversight of cybersecurity risk and management's role in assessing it. These rules have forced boards to formalize cyber governance structures they previously handled informally.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">NACD Director's Handbook</div>
+                <div class="card-desc">The National Association of Corporate Directors published six principles: (1) Cyber is an enterprise risk, not just IT. (2) Understand the legal implications. (3) Boards need adequate access to expertise. (4) Set expectations for management. (5) Board discussion should include cyber risk. (6) Encourage systemic resilience and collaboration.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">What Boards Should Ask</div>
+                <div class="card-desc">What is our current risk posture? How do we compare to peers? What are the top five risks and what are we doing about them? When was our last incident response exercise? What is the CISO's escalation path to this board? What third-party dependencies pose the greatest risk?</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Cyber Expertise on the Board</div>
+                <div class="card-desc">Only 12% of S&P 500 boards include a director with cybersecurity expertise. ISS and Glass Lewis now flag companies lacking cyber-qualified directors. Some boards address this through advisory committees or by retaining external cyber advisors who brief the board quarterly.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Real Consequences</div>
+                <div class="card-desc">Equifax (2017): Four board members replaced after breach. SolarWinds (2023): SEC sued CISO personally. Target (2013): CEO and CIO resigned, seven board members replaced. Colonial Pipeline (2021): CEO testified before Congress. Board-level accountability is no longer theoretical.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">Policy Takeaway</div>
+            Every cybersecurity policy framework ultimately reports up to the board. The board does not need to understand packet captures -- but they must understand the organization's risk appetite, the adequacy of security investment relative to that appetite, and the incident response chain of command. Governance without board engagement is governance on paper only.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- ISACs ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 14</div>
+        <div class="slide-title"><span class="accent">ISACs</span>: Sector-Specific <span class="cyan">Threat Sharing</span></div>
+        <div class="slide-subtitle">Information Sharing and Analysis Centers -- the sector-specific hubs where competitors become allies against common adversaries.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 560 240" width="540" role="img" aria-label="ISAC sector map showing a central hub labeled ISAC ECOSYSTEM connected by lines to eight sector-specific ISACs arranged in a radial pattern: FS-ISAC (Financial), H-ISAC (Health), MS-ISAC (State/Local Gov), IT-ISAC (Technology), E-ISAC (Energy), A-ISAC (Aviation), WaterISAC, and EI-ISAC (Elections).">
+                <!-- Center hub -->
+                <circle cx="280" cy="120" r="38" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="2"/>
+                <text x="280" y="115" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">ISAC</text>
+                <text x="280" y="128" text-anchor="middle" fill="#ff00ff" font-size="8" font-weight="700">ECOSYSTEM</text>
+                <!-- FS-ISAC -->
+                <line x1="318" y1="108" x2="395" y2="55" stroke="rgba(0,255,255,0.4)" stroke-width="1"/>
+                <rect x="395" y="30" width="85" height="48" rx="5" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="437" y="48" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">FS-ISAC</text>
+                <text x="437" y="60" text-anchor="middle" fill="#9a82a0" font-size="7">Financial Services</text>
+                <text x="437" y="72" text-anchor="middle" fill="#9a82a0" font-size="6">7,000+ members</text>
+                <!-- H-ISAC -->
+                <line x1="318" y1="125" x2="400" y2="125" stroke="rgba(239,68,68,0.4)" stroke-width="1"/>
+                <rect x="400" y="100" width="85" height="48" rx="5" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1"/>
+                <text x="442" y="118" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">H-ISAC</text>
+                <text x="442" y="130" text-anchor="middle" fill="#9a82a0" font-size="7">Healthcare</text>
+                <text x="442" y="142" text-anchor="middle" fill="#9a82a0" font-size="6">700+ orgs</text>
+                <!-- E-ISAC -->
+                <line x1="310" y1="150" x2="380" y2="195" stroke="rgba(234,179,8,0.4)" stroke-width="1"/>
+                <rect x="380" y="175" width="85" height="48" rx="5" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1"/>
+                <text x="422" y="193" text-anchor="middle" fill="#eab308" font-size="9" font-weight="700">E-ISAC</text>
+                <text x="422" y="205" text-anchor="middle" fill="#9a82a0" font-size="7">Energy (NERC)</text>
+                <text x="422" y="217" text-anchor="middle" fill="#9a82a0" font-size="6">Grid operators</text>
+                <!-- MS-ISAC -->
+                <line x1="242" y1="108" x2="170" y2="55" stroke="rgba(255,68,255,0.4)" stroke-width="1"/>
+                <rect x="80" y="30" width="90" height="48" rx="5" fill="rgba(255,68,255,0.08)" stroke="#ff44ff" stroke-width="1"/>
+                <text x="125" y="48" text-anchor="middle" fill="#ff44ff" font-size="9" font-weight="700">MS-ISAC</text>
+                <text x="125" y="60" text-anchor="middle" fill="#9a82a0" font-size="7">State / Local / Tribal</text>
+                <text x="125" y="72" text-anchor="middle" fill="#9a82a0" font-size="6">15,000+ orgs (CIS)</text>
+                <!-- IT-ISAC -->
+                <line x1="242" y1="125" x2="165" y2="125" stroke="rgba(34,197,94,0.4)" stroke-width="1"/>
+                <rect x="80" y="100" width="85" height="48" rx="5" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1"/>
+                <text x="122" y="118" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="700">IT-ISAC</text>
+                <text x="122" y="130" text-anchor="middle" fill="#9a82a0" font-size="7">Technology Sector</text>
+                <text x="122" y="142" text-anchor="middle" fill="#9a82a0" font-size="6">Major tech firms</text>
+                <!-- WaterISAC -->
+                <line x1="250" y1="150" x2="175" y2="195" stroke="rgba(59,130,246,0.4)" stroke-width="1"/>
+                <rect x="80" y="175" width="90" height="48" rx="5" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1"/>
+                <text x="125" y="193" text-anchor="middle" fill="#3b82f6" font-size="9" font-weight="700">WaterISAC</text>
+                <text x="125" y="205" text-anchor="middle" fill="#9a82a0" font-size="7">Water / Wastewater</text>
+                <text x="125" y="217" text-anchor="middle" fill="#9a82a0" font-size="6">Critical infra</text>
+                <!-- A-ISAC top -->
+                <line x1="265" y1="82" x2="265" y2="20" stroke="rgba(255,0,255,0.3)" stroke-width="1"/>
+                <rect x="220" y="0" width="85" height="22" rx="4" fill="rgba(255,0,255,0.06)" stroke="rgba(255,0,255,0.3)" stroke-width="0.8"/>
+                <text x="262" y="14" text-anchor="middle" fill="#9a82a0" font-size="7">A-ISAC (Aviation)</text>
+                <!-- EI-ISAC bottom -->
+                <line x1="280" y1="158" x2="280" y2="220" stroke="rgba(255,0,255,0.3)" stroke-width="1"/>
+                <rect x="237" y="220" width="85" height="22" rx="4" fill="rgba(255,0,255,0.06)" stroke="rgba(255,0,255,0.3)" stroke-width="0.8"/>
+                <text x="280" y="234" text-anchor="middle" fill="#9a82a0" font-size="7">EI-ISAC (Elections)</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">How ISACs Work</div>
+                <div class="card-desc">Member organizations share threat indicators (IOCs), TTPs, and vulnerability data in near-real-time through automated feeds (STIX/TAXII format). Traffic Light Protocol (TLP) controls information sensitivity: TLP:RED (named recipients only), TLP:AMBER (limited sharing), TLP:GREEN (community), TLP:CLEAR (public).</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">FS-ISAC: The Gold Standard</div>
+                <div class="card-desc">Financial Services ISAC has 7,000+ members across 70 countries. Operates a 24/7 Security Operations Center. During major incidents, FS-ISAC can issue cross-sector alerts within minutes. Their Sheltered Harbor program ensures banks can restore critical data even if primary and backup systems are destroyed.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">MS-ISAC: Defending Government</div>
+                <div class="card-desc">Multi-State ISAC, operated by the Center for Internet Security (CIS), serves 15,000+ state, local, tribal, and territorial government organizations. Provides free Albert network monitoring sensors, vulnerability scanning, and incident response support. Many of these organizations have zero dedicated cybersecurity staff.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Presidential Directive</div>
+            ISACs were created by Presidential Decision Directive 63 (1998) and reinforced by PPD-21 (2013). They are the primary mechanism for sector-specific threat intelligence sharing in the United States. Organizations that participate in their sector ISAC detect threats 40% faster than those that rely solely on their own intelligence capabilities.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- PUBLIC-PRIVATE PARTNERSHIPS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 14</div>
+        <div class="slide-title"><span class="accent">Public-Private</span> <span class="cyan">Partnerships</span></div>
+        <div class="slide-subtitle">Government cannot defend cyberspace alone -- 85% of critical infrastructure is privately owned. These partnerships bridge the gap.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 560 200" width="540" role="img" aria-label="Public-private partnership web diagram. Government node on the left connects to a central partnership hub, which connects to a private sector node on the right. Four partnership programs (CISA JCDC, InfraGard, Cyber Threat Alliance, ISAC Council) are shown as bridges between the two sides.">
+                <!-- Government side -->
+                <rect x="10" y="60" width="100" height="80" rx="8" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="2"/>
+                <text x="60" y="85" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700">GOVERNMENT</text>
+                <text x="60" y="100" text-anchor="middle" fill="#9a82a0" font-size="7">Intelligence</text>
+                <text x="60" y="112" text-anchor="middle" fill="#9a82a0" font-size="7">Authority</text>
+                <text x="60" y="124" text-anchor="middle" fill="#9a82a0" font-size="7">Regulation</text>
+                <!-- Private side -->
+                <rect x="450" y="60" width="100" height="80" rx="8" fill="rgba(0,255,255,0.1)" stroke="#00ffff" stroke-width="2"/>
+                <text x="500" y="85" text-anchor="middle" fill="#00ffff" font-size="10" font-weight="700">PRIVATE</text>
+                <text x="500" y="100" text-anchor="middle" fill="#9a82a0" font-size="7">Infrastructure</text>
+                <text x="500" y="112" text-anchor="middle" fill="#9a82a0" font-size="7">Innovation</text>
+                <text x="500" y="124" text-anchor="middle" fill="#9a82a0" font-size="7">Operational data</text>
+                <!-- Bridge programs -->
+                <line x1="110" y1="75" x2="200" y2="35" stroke="rgba(255,0,255,0.3)" stroke-width="1"/>
+                <line x1="360" y1="35" x2="450" y2="75" stroke="rgba(0,255,255,0.3)" stroke-width="1"/>
+                <rect x="200" y="15" width="160" height="38" rx="5" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="280" y="32" text-anchor="middle" fill="#ff00ff" font-size="8" font-weight="700">JCDC (Joint Cyber Defense</text>
+                <text x="280" y="44" text-anchor="middle" fill="#ff00ff" font-size="8" font-weight="700">Collaborative)</text>
+
+                <line x1="110" y1="90" x2="200" y2="78" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>
+                <line x1="360" y1="78" x2="450" y2="90" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>
+                <rect x="200" y="60" width="160" height="35" rx="5" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1"/>
+                <text x="280" y="78" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">InfraGard (FBI)</text>
+                <text x="280" y="89" text-anchor="middle" fill="#9a82a0" font-size="7">70,000+ members</text>
+
+                <line x1="110" y1="110" x2="200" y2="120" stroke="rgba(234,179,8,0.3)" stroke-width="1"/>
+                <line x1="360" y1="120" x2="450" y2="110" stroke="rgba(234,179,8,0.3)" stroke-width="1"/>
+                <rect x="200" y="105" width="160" height="35" rx="5" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1"/>
+                <text x="280" y="123" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">Cyber Threat Alliance</text>
+                <text x="280" y="134" text-anchor="middle" fill="#9a82a0" font-size="7">Vendor threat sharing</text>
+
+                <line x1="110" y1="130" x2="200" y2="163" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>
+                <line x1="360" y1="163" x2="450" y2="130" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>
+                <rect x="200" y="150" width="160" height="35" rx="5" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1"/>
+                <text x="280" y="168" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">National Council of ISACs</text>
+                <text x="280" y="179" text-anchor="middle" fill="#9a82a0" font-size="7">Cross-sector coordination</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">JCDC (Joint Cyber Defense Collaborative)</div>
+                <div class="card-desc">Established by CISA in 2021, JCDC brings together federal agencies (NSA, FBI, USCYBERCOM) with major private-sector companies (Microsoft, Google, Amazon, CrowdStrike, Palo Alto Networks) for joint operational planning. During the Log4Shell crisis, JCDC coordinated the cross-sector response in real time.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">InfraGard</div>
+                <div class="card-desc">FBI's public-private partnership with 70,000+ members across 84 chapters. Provides vetted threat briefings, local FBI field office access, and peer networking. Members undergo background checks. InfraGard facilitates FBI information sharing that would otherwise require security clearances.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Cyber Threat Alliance (CTA)</div>
+                <div class="card-desc">A consortium of cybersecurity vendors (Fortinet, McAfee, Palo Alto, Symantec, Cisco, Check Point) who share threat intelligence with each other despite being competitors. Members contribute IOCs and TTPs into a shared platform. CTA demonstrates that market competition does not preclude security cooperation.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Challenges</div>
+                <div class="card-desc">Trust asymmetry: private sector fears government regulation from the same agencies requesting data sharing. Liability concerns: sharing breach data could invite lawsuits. The CISA Act (2015) provides liability protections, but adoption remains uneven. Speed mismatch: government classification processes slow intelligence sharing.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- GOVERNMENT ROLES ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 14</div>
+        <div class="slide-title"><span class="accent">Government</span> Cybersecurity <span class="cyan">Agencies</span></div>
+        <div class="slide-subtitle">The federal agencies responsible for defending the nation, investigating cybercrime, and setting security standards.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 560 210" width="540" role="img" aria-label="Government cybersecurity agency hierarchy. Top level shows the White House with National Cyber Director. Below it are five major agencies: CISA under DHS, NSA/CSS under DoD, FBI Cyber Division under DOJ, US Cyber Command under DoD, and Secret Service under DHS. Each box shows the agency's primary mission.">
+                <!-- White House / NCD -->
+                <rect x="190" y="5" width="180" height="35" rx="6" fill="rgba(255,0,255,0.12)" stroke="#ff00ff" stroke-width="2"/>
+                <text x="280" y="20" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">WHITE HOUSE -- ONCD</text>
+                <text x="280" y="33" text-anchor="middle" fill="#9a82a0" font-size="7">National Cyber Director -- strategy & coordination</text>
+                <!-- Trunk -->
+                <line x1="280" y1="40" x2="280" y2="58" stroke="#ff00ff" stroke-width="1.5"/>
+                <!-- Horizontal -->
+                <line x1="55" y1="58" x2="505" y2="58" stroke="rgba(255,0,255,0.3)" stroke-width="1"/>
+                <!-- CISA -->
+                <line x1="55" y1="58" x2="55" y2="75" stroke="rgba(0,255,255,0.5)" stroke-width="1"/>
+                <rect x="5" y="75" width="100" height="55" rx="5" fill="rgba(0,255,255,0.1)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="55" y="91" text-anchor="middle" fill="#00ffff" font-size="10" font-weight="700">CISA</text>
+                <text x="55" y="104" text-anchor="middle" fill="#9a82a0" font-size="7">Civilian defense</text>
+                <text x="55" y="115" text-anchor="middle" fill="#9a82a0" font-size="7">Critical infra</text>
+                <text x="55" y="126" text-anchor="middle" fill="#9a82a0" font-size="6">DHS</text>
+                <!-- NSA/CSS -->
+                <line x1="170" y1="58" x2="170" y2="75" stroke="rgba(255,0,255,0.5)" stroke-width="1"/>
+                <rect x="120" y="75" width="100" height="55" rx="5" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="170" y="91" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700">NSA / CSS</text>
+                <text x="170" y="104" text-anchor="middle" fill="#9a82a0" font-size="7">SIGINT, crypto</text>
+                <text x="170" y="115" text-anchor="middle" fill="#9a82a0" font-size="7">Cybersec guidance</text>
+                <text x="170" y="126" text-anchor="middle" fill="#9a82a0" font-size="6">DoD</text>
+                <!-- FBI Cyber -->
+                <line x1="280" y1="58" x2="280" y2="75" stroke="rgba(239,68,68,0.5)" stroke-width="1"/>
+                <rect x="230" y="75" width="100" height="55" rx="5" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="280" y="91" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">FBI CYBER DIV</text>
+                <text x="280" y="104" text-anchor="middle" fill="#9a82a0" font-size="7">Investigation</text>
+                <text x="280" y="115" text-anchor="middle" fill="#9a82a0" font-size="7">Law enforcement</text>
+                <text x="280" y="126" text-anchor="middle" fill="#9a82a0" font-size="6">DOJ</text>
+                <!-- USCYBERCOM -->
+                <line x1="390" y1="58" x2="390" y2="75" stroke="rgba(234,179,8,0.5)" stroke-width="1"/>
+                <rect x="340" y="75" width="100" height="55" rx="5" fill="rgba(234,179,8,0.1)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="390" y="88" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">US CYBER</text>
+                <text x="390" y="100" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">COMMAND</text>
+                <text x="390" y="115" text-anchor="middle" fill="#9a82a0" font-size="7">Military cyber ops</text>
+                <text x="390" y="126" text-anchor="middle" fill="#9a82a0" font-size="6">DoD</text>
+                <!-- Secret Service -->
+                <line x1="505" y1="58" x2="505" y2="75" stroke="rgba(34,197,94,0.5)" stroke-width="1"/>
+                <rect x="455" y="75" width="100" height="55" rx="5" fill="rgba(34,197,94,0.1)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="505" y="88" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">SECRET</text>
+                <text x="505" y="100" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">SERVICE</text>
+                <text x="505" y="115" text-anchor="middle" fill="#9a82a0" font-size="7">Financial crime</text>
+                <text x="505" y="126" text-anchor="middle" fill="#9a82a0" font-size="6">DHS</text>
+                <!-- Mission labels -->
+                <text x="280" y="155" text-anchor="middle" fill="#5a4460" font-size="8" letter-spacing="0.1em">EACH AGENCY HAS A DISTINCT MISSION -- COORDINATION IS THE CHALLENGE</text>
+            </svg>
+        </div>
+
+        <div class="card-grid" style="grid-template-columns: repeat(3, 1fr);">
+            <div class="card c-cyan">
+                <div class="card-label">CISA</div>
+                <div class="card-desc">Cybersecurity and Infrastructure Security Agency (DHS). The nation's civilian cyber defense quarterback. Issues advisories, provides free tools (KEV catalog, vulnerability scanning), runs Shields Up campaigns, and coordinates incident response for federal civilian agencies and critical infrastructure.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">NSA / CSS</div>
+                <div class="card-desc">National Security Agency / Central Security Service. Dual-hatted: signals intelligence collection and cybersecurity guidance. Publishes hardening guides for DoD and industry. The Cybersecurity Collaboration Center works with defense industrial base companies. Operates the most sophisticated offensive cyber capabilities in the world.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">FBI Cyber Division</div>
+                <div class="card-desc">Lead federal agency for investigating cyberattacks and intrusions. Operates 56 field offices with dedicated Cyber Task Forces. Issues Private Industry Notifications (PINs) and Flash alerts. Led the takedowns of Hive ransomware, QakBot botnet, and multiple dark web marketplaces.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">US Cyber Command</div>
+                <div class="card-desc">Military unified combatant command responsible for cyberspace operations. "Defend forward" doctrine: disrupting adversary cyber operations at their source before they reach US networks. Conducted offensive operations against Russian troll farms (2018 midterms) and Iranian infrastructure. Dual-hatted with NSA Director.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Coordination Challenge</div>
+                <div class="card-desc">Five major agencies across three departments, plus the Office of the National Cyber Director established in 2021 to coordinate. The ONCD published the National Cybersecurity Strategy (2023) setting priorities across all agencies. Deconfliction between law enforcement (FBI wants evidence) and military (CYBERCOM wants disruption) remains an ongoing challenge.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- INTERNATIONAL ORGANIZATIONS ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 14</div>
+        <div class="slide-title"><span class="accent">International</span> Cyber <span class="cyan">Organizations</span></div>
+        <div class="slide-subtitle">Cyber threats are borderless. International cooperation is essential -- and deeply complicated by geopolitics, sovereignty, and competing interests.</div>
+
+        <div class="card-grid" style="grid-template-columns: repeat(3, 1fr);">
+            <div class="card c-cyan">
+                <div class="card-label">Five Eyes (FVEY)</div>
+                <div class="card-desc">US, UK, Canada, Australia, New Zealand. The most integrated intelligence-sharing alliance in history. Joint SIGINT collection, shared cyber threat intelligence, coordinated vulnerability disclosure. Five Eyes advisories carry significant weight -- when all five nations jointly attribute an attack, it is effectively a geopolitical statement.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">NATO CCDCOE</div>
+                <div class="card-desc">Cooperative Cyber Defence Centre of Excellence in Tallinn, Estonia. Established after the 2007 Russian cyberattacks on Estonia. Publishes the Tallinn Manual on international law applied to cyber operations. Hosts Locked Shields -- the world's largest live-fire cyber defense exercise with 2,000+ participants annually.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">INTERPOL Cyber</div>
+                <div class="card-desc">Coordinates cybercrime investigations across 195 member countries. Operates the INTERPOL Innovation Centre in Singapore. Runs Gateway -- a platform for police and private sector to share threat data. Key challenge: INTERPOL has no arrest powers and depends entirely on member state cooperation.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Europol EC3</div>
+                <div class="card-desc">European Cybercrime Centre. Supports EU member state investigations against organized cybercrime groups. Led operations against Emotet, Encrochat, and RagnarLocker. Joint Cybercrime Action Taskforce (J-CAT) coordinates cross-border operations. Produces the annual Internet Organised Crime Threat Assessment (IOCTA).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">ENISA</div>
+                <div class="card-desc">European Union Agency for Cybersecurity. Develops EU cybersecurity policy and standards. Manages the EU Cybersecurity Certification Framework. Publishes the annual Threat Landscape report. Supports member state CSIRT (Computer Security Incident Response Team) capacity building.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Budapest Convention</div>
+                <div class="card-desc">The Council of Europe Convention on Cybercrime (2001) -- the only binding international treaty on cybercrime. Ratified by 68 countries. Provides a legal framework for cross-border evidence collection (MLATs). The Second Additional Protocol (2022) adds provisions for direct cooperation with service providers.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">The Attribution Problem</div>
+            International cooperation breaks down at attribution. Russia, China, Iran, and North Korea are not signatories to the Budapest Convention and do not extradite cybercriminals. The UN Open-Ended Working Group (OEWG) has been negotiating norms for responsible state behavior in cyberspace since 2019 with limited binding results. Cyber remains the domain where international law is least developed.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- CAREER PROGRESSION ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 14</div>
+        <div class="slide-title"><span class="accent">Career</span> Progression <span class="cyan">Ladder</span></div>
+        <div class="slide-subtitle">From entry-level analyst to CISO -- the typical cybersecurity career trajectory and the skills that define each transition.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 560 240" width="540" role="img" aria-label="Career progression ladder showing six levels ascending from bottom-left to top-right: Analyst, Engineer, Architect, Manager, Director, and CISO. Each level shows years of experience and key skills. A vertical arrow on the right indicates increasing scope from technical to strategic.">
+                <defs>
+                    <marker id="arrowCareer" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                        <path d="M0,0 L8,3 L0,6" fill="#ff00ff"/>
+                    </marker>
+                </defs>
+                <!-- Ladder steps (bottom to top) -->
+                <!-- Analyst -->
+                <rect x="10" y="185" width="80" height="50" rx="5" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="50" y="202" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">ANALYST</text>
+                <text x="50" y="215" text-anchor="middle" fill="#9a82a0" font-size="7">0-2 years</text>
+                <text x="50" y="227" text-anchor="middle" fill="#9a82a0" font-size="6">Alert triage, tools</text>
+                <!-- Engineer -->
+                <line x1="90" y1="200" x2="110" y2="175" stroke="rgba(255,0,255,0.3)" stroke-width="1" marker-end="url(#arrowCareer)"/>
+                <rect x="110" y="150" width="80" height="50" rx="5" fill="rgba(255,68,255,0.08)" stroke="#ff44ff" stroke-width="1"/>
+                <text x="150" y="167" text-anchor="middle" fill="#ff44ff" font-size="9" font-weight="700">ENGINEER</text>
+                <text x="150" y="180" text-anchor="middle" fill="#9a82a0" font-size="7">2-5 years</text>
+                <text x="150" y="192" text-anchor="middle" fill="#9a82a0" font-size="6">Build & configure</text>
+                <!-- Architect -->
+                <line x1="190" y1="165" x2="210" y2="140" stroke="rgba(255,0,255,0.3)" stroke-width="1" marker-end="url(#arrowCareer)"/>
+                <rect x="210" y="115" width="80" height="50" rx="5" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="250" y="132" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">ARCHITECT</text>
+                <text x="250" y="145" text-anchor="middle" fill="#9a82a0" font-size="7">5-8 years</text>
+                <text x="250" y="157" text-anchor="middle" fill="#9a82a0" font-size="6">Design & strategy</text>
+                <!-- Manager -->
+                <line x1="290" y1="130" x2="310" y2="105" stroke="rgba(255,0,255,0.3)" stroke-width="1" marker-end="url(#arrowCareer)"/>
+                <rect x="310" y="80" width="80" height="50" rx="5" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1"/>
+                <text x="350" y="97" text-anchor="middle" fill="#eab308" font-size="9" font-weight="700">MANAGER</text>
+                <text x="350" y="110" text-anchor="middle" fill="#9a82a0" font-size="7">6-10 years</text>
+                <text x="350" y="122" text-anchor="middle" fill="#9a82a0" font-size="6">People & programs</text>
+                <!-- Director -->
+                <line x1="390" y1="95" x2="410" y2="70" stroke="rgba(255,0,255,0.3)" stroke-width="1" marker-end="url(#arrowCareer)"/>
+                <rect x="410" y="45" width="80" height="50" rx="5" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1"/>
+                <text x="450" y="62" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">DIRECTOR</text>
+                <text x="450" y="75" text-anchor="middle" fill="#9a82a0" font-size="7">10-15 years</text>
+                <text x="450" y="87" text-anchor="middle" fill="#9a82a0" font-size="6">Multi-team leadership</text>
+                <!-- CISO -->
+                <line x1="490" y1="60" x2="505" y2="35" stroke="rgba(255,0,255,0.3)" stroke-width="1" marker-end="url(#arrowCareer)"/>
+                <rect x="495" y="5" width="60" height="50" rx="5" fill="rgba(255,0,255,0.15)" stroke="#ff00ff" stroke-width="2"/>
+                <text x="525" y="25" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="800">CISO</text>
+                <text x="525" y="38" text-anchor="middle" fill="#9a82a0" font-size="7">15+ years</text>
+                <text x="525" y="50" text-anchor="middle" fill="#9a82a0" font-size="6">Business exec</text>
+                <!-- Vertical axis label -->
+                <line x1="555" y1="225" x2="555" y2="15" stroke="rgba(255,0,255,0.2)" stroke-width="1" marker-end="url(#arrowCareer)"/>
+                <text x="548" y="120" text-anchor="middle" fill="#5a4460" font-size="7" transform="rotate(-90, 548, 120)" letter-spacing="0.1em">TECHNICAL  -->  STRATEGIC</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">Technical Track</div>
+                <div class="card-desc">Analyst (SOC, vulnerability scanning) to Engineer (firewall, SIEM, endpoint) to Architect (zero trust design, enterprise security architecture). Certifications: Security+, CySA+, OSCP, CISSP. This track values deep technical expertise -- principal engineers and distinguished architects can match director-level compensation.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Management Track</div>
+                <div class="card-desc">Manager (team leadership, budgeting) to Director (multi-team, program ownership) to VP/CISO (enterprise strategy, board reporting). The critical transition is Manager to Director: you stop managing individual contributors and start managing other managers. The skill set shifts from technical excellence to business acumen.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">The Skills Gap</div>
+                <div class="card-desc">3.5 million unfilled cybersecurity positions globally (ISC2, 2024). Average time to fill a mid-level security role: 6 months. Entry-level positions still require demonstrable skills -- home labs, CTF competitions, and certifications are the primary differentiators. The gap is worst in cloud security and AI security.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Alternative Entry Points</div>
+            Cybersecurity careers do not always start in cybersecurity. Many successful CISOs came from system administration, software development, military intelligence, or even law. The common thread is analytical thinking and curiosity. Programs like CyberCorps Scholarship for Service, DoD Cyber Excepted Service, and SANS CyberTalent provide structured pathways into the field.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- THE HUMAN ELEMENT ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 14</div>
+        <div class="slide-title">The <span class="accent">Human</span> Element: <span class="cyan">Burnout</span> &amp; Resilience</div>
+        <div class="slide-subtitle">The cybersecurity workforce crisis is not just about hiring -- it is about keeping the people we already have.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Burnout by the Numbers</div>
+                <div class="card-desc">66% of security professionals report significant stress levels. 51% have been prescribed medication for mental health related to their job. Average SOC analyst turnover: 26 months. The 24/7 on-call culture, alert fatigue (10,000+ daily alerts), and the asymmetry of defense (you must be right every time; the attacker only needs to be right once) create unsustainable pressure.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">CISO Burnout</div>
+                <div class="card-desc">Average CISO tenure: 26 months -- the shortest of any C-suite role. 24% of CISOs self-medicate with alcohol or drugs to cope with stress. The SEC's decision to personally name and charge the SolarWinds CISO has created an existential question: who would accept personal criminal liability for an organization's security posture?</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Building Resilient Teams</div>
+                <div class="card-desc">Rotation schedules that prevent alert fatigue. Clear escalation paths so analysts are not making critical decisions alone at 3 AM. Automation of repetitive Tier 1 tasks (SOAR platforms). Regular training and skill development -- not just on technology, but on stress management and peer support.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Retention Strategies</div>
+                <div class="card-desc">Competitive compensation (median CISO salary: $240K+, SOC analyst: $75-100K). Clear career progression paths. Conference attendance and certification funding. Flexible work arrangements. Recognition programs. Exit interviews consistently show that people leave security roles because of burnout and lack of advancement -- not compensation.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Diversity as Strength</div>
+                <div class="card-desc">Women hold 25% of cybersecurity roles (up from 11% in 2013). Diverse teams detect threats 20% faster (Neurodiversity in Cyber study, 2023). Programs like WiCyS (Women in Cybersecurity), CyberPatriot, and GenCyber are expanding the pipeline. The field cannot fill 3.5 million roles by recruiting from the same narrow demographic.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Policy Imperative</div>
+            Workforce policy is security policy. An organization with a fully staffed but burned-out team is not secure -- fatigued analysts miss alerts, demoralized engineers skip patch cycles, and stressed CISOs make risk-acceptance decisions they would not make under normal conditions. Sustainable security requires sustainable work practices. Policy must address staffing ratios, on-call limits, and mental health support as security controls, not HR perks.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- KEY TAKEAWAYS ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 14</div>
+        <div class="slide-title"><span class="accent">Key</span> Takeaways</div>
+        <div class="slide-subtitle">12 slides distilled into the principles that will appear in every policy discussion for the rest of this course.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">01</span>
+                <span class="fact-text">Cybersecurity is an executive and board-level concern, not an IT function buried three levels below the CIO. The CISO reporting line determines whether security has strategic influence or is an afterthought.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">02</span>
+                <span class="fact-text">Modern security requires specialized, coordinated teams: SOC analysts, incident responders, threat hunters, red/blue/purple teams, and GRC professionals each play distinct roles in a layered defense.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">03</span>
+                <span class="fact-text">ISACs are the primary mechanism for sector-specific threat intelligence sharing. Organizations that participate detect threats significantly faster than those operating in isolation.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">04</span>
+                <span class="fact-text">Public-private partnerships (JCDC, InfraGard, CTA) bridge the gap between government intelligence and private sector infrastructure. 85% of critical infrastructure is privately owned.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">05</span>
+                <span class="fact-text">Five major federal agencies (CISA, NSA, FBI, USCYBERCOM, Secret Service) have distinct cybersecurity missions. Coordination between them -- and with international partners -- remains an ongoing challenge.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">06</span>
+                <span class="fact-text">International cooperation is essential but limited by sovereignty, attribution challenges, and the absence of binding cyber norms. The Budapest Convention is the only international cybercrime treaty.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">07</span>
+                <span class="fact-text">The cybersecurity workforce gap (3.5M unfilled positions) is a security crisis. Burnout, short tenures, and personal liability risk (SEC enforcement) threaten the people who defend our systems.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">08</span>
+                <span class="fact-text">Workforce policy IS security policy. Staffing ratios, on-call limits, career progression, and mental health support are security controls -- not HR perks.</span>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">Connecting to Course Themes</div>
+            Every policy you analyze or draft in this course will intersect with the roles covered in this deck. Who enforces it? (GRC) Who responds when it fails? (IR/SOC) Who reports to the board? (CISO) Who coordinates across sectors? (ISACs) Who investigates the crime? (FBI) Who sets the standards? (NIST/CISA) Cybersecurity policy is ultimately about people and the structures that enable or constrain their effectiveness.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- MARK COMPLETE ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 14 &nbsp;|&nbsp; Complete</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Presentation<br>
+                <span class="accent">Complete</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Organizational Roles in Cybersecurity -- 14 slides
+            </div>
+        </div>
+
+        <div class="scenario-strip" style="text-align:center; font-style:normal;">
+            C-Suite &bull; CISO Deep Dive &bull; Security Teams &bull; GRC &bull; Board Oversight &bull; ISACs &bull; Public-Private Partnerships &bull; Government Agencies &bull; International Orgs &bull; Career Paths &bull; The Human Element
+        </div>
+
+        <div style="text-align:center; margin-top:10px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+
+        <div class="title-meta-row" style="margin-top:8px;">
+            <span>CIS2208</span>
+            <span>Cybersecurity Policy</span>
+            <span>Week 3</span>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Cybersecurity Policy</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 14</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 14;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        var completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('divergent', 'csp-w3-roles-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

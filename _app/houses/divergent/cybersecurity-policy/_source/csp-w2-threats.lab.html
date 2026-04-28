@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Threat Classifier | Cybersecurity Policy</title>
+    <style>
+        :root {
+            --div-primary: #ff00ff;
+            --div-secondary: #cc00cc;
+            --div-accent: #ff44ff;
+            --div-cyan: #00ffff;
+            --div-glow: rgba(255, 0, 255, 0.25);
+            --bg-main: #0d0810;
+            --bg-deep: #0a060d;
+            --bg-card: #120b14;
+            --bg-card-hover: #1a0f1e;
+            --text-primary: #ede0f0;
+            --text-secondary: #9a82a0;
+            --text-muted: #5a4460;
+            --border-color: rgba(255, 0, 255, 0.10);
+            --border-hover: rgba(255, 0, 255, 0.32);
+            --success: #00ff9d;
+            --danger: #ef4444;
+            --warning: #fbbf24;
+        }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background: linear-gradient(160deg, var(--bg-main) 0%, var(--bg-deep) 100%);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            color: var(--text-primary); line-height: 1.6;
+        }
+        .lab-container { max-width: 960px; margin: 0 auto; padding: 2rem; }
+
+        .back-link {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            color: var(--div-primary); text-decoration: none; margin-bottom: 1rem;
+            font-size: 0.85rem; transition: all 0.3s;
+        }
+        .back-link:hover { color: var(--div-accent); transform: translateX(-4px); }
+
+        .lab-header {
+            text-align: center; margin-bottom: 2rem; padding: 2rem;
+            background: linear-gradient(135deg, var(--bg-card), var(--bg-deep));
+            border-radius: 16px; border: 1px solid var(--div-primary);
+            box-shadow: 0 0 30px var(--div-glow);
+        }
+        .lab-header h1 {
+            font-size: 2rem; margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--div-primary), var(--div-cyan));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .lab-header .subtitle { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem; }
+        .lab-meta { display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; }
+        .meta-item { color: var(--text-muted); font-size: 0.85rem; }
+
+        .instructions {
+            background: var(--bg-card); border-radius: 12px; padding: 1.5rem;
+            margin-bottom: 2rem; border: 1px solid var(--border-color);
+        }
+        .instructions h2 { color: var(--div-primary); font-size: 1.1rem; margin-bottom: 0.75rem; }
+        .instructions p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.5rem; }
+        .instructions .categories {
+            display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem;
+        }
+        .cat-tag {
+            font-size: 0.75rem; padding: 4px 12px;
+            background: rgba(255, 0, 255, 0.08); border: 1px solid rgba(255, 0, 255, 0.2);
+            border-radius: 4px; color: var(--div-accent);
+        }
+
+        .score-bar {
+            background: var(--bg-card); border-radius: 12px; padding: 1rem 1.5rem;
+            margin-bottom: 2rem; border: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .score-label { color: var(--text-secondary); font-size: 0.9rem; }
+        .score-value { color: var(--div-cyan); font-size: 1.2rem; font-weight: 700; }
+
+        .attack-card {
+            background: var(--bg-card); border-radius: 12px; padding: 1.25rem 1.5rem;
+            margin-bottom: 1rem; border: 1px solid var(--border-color);
+            transition: all 0.3s;
+        }
+        .attack-card:hover { border-color: var(--border-hover); }
+        .attack-card.correct { border-color: var(--success); background: rgba(0, 255, 157, 0.04); }
+        .attack-card.incorrect { border-color: var(--danger); background: rgba(239, 68, 68, 0.04); }
+
+        .attack-number {
+            font-size: 0.7rem; color: var(--div-primary); font-weight: 700;
+            letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.5rem;
+        }
+        .attack-desc { color: var(--text-primary); font-size: 0.9rem; margin-bottom: 1rem; line-height: 1.65; }
+
+        .select-row { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+        .select-row select {
+            padding: 8px 14px; background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(255, 0, 255, 0.2); border-radius: 8px;
+            color: var(--text-primary); font-size: 0.85rem; cursor: pointer;
+            min-width: 200px;
+        }
+        .select-row select:focus { outline: none; border-color: var(--div-primary); box-shadow: 0 0 10px var(--div-glow); }
+
+        .card-feedback {
+            font-size: 0.82rem; padding: 6px 12px; border-radius: 6px; margin-top: 0.75rem; display: none;
+        }
+        .card-feedback.show-correct {
+            display: block; background: rgba(0, 255, 157, 0.1);
+            border: 1px solid var(--success); color: var(--success);
+        }
+        .card-feedback.show-incorrect {
+            display: block; background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--danger); color: var(--danger);
+        }
+
+        .action-row {
+            display: flex; gap: 1rem; justify-content: center; margin: 2rem 0; flex-wrap: wrap;
+        }
+        .btn {
+            padding: 12px 32px; border: none; border-radius: 8px;
+            font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.3s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--div-primary), var(--div-secondary));
+            color: #0d0810;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--div-glow); }
+        .btn-complete {
+            background: linear-gradient(135deg, var(--div-primary), var(--div-secondary));
+            color: #0d0810; width: 100%; padding: 1rem; font-size: 1.05rem; display: none;
+        }
+        .btn-complete:hover { transform: translateY(-2px); box-shadow: 0 8px 28px var(--div-glow); }
+        .btn-complete.done { background: var(--success); cursor: default; transform: none; box-shadow: none; }
+        .btn-reset {
+            background: transparent; border: 1px solid rgba(255, 0, 255, 0.2);
+            color: var(--text-secondary);
+        }
+        .btn-reset:hover { border-color: var(--div-primary); color: var(--div-primary); }
+
+        @media (max-width: 768px) {
+            .lab-container { padding: 1rem; }
+            .lab-header h1 { font-size: 1.5rem; }
+            .select-row { flex-direction: column; align-items: stretch; }
+            .select-row select { min-width: unset; }
+        }
+    </style>
+</head>
+<body>
+    <div class="lab-container">
+        <a href="../index.html" class="back-link">&larr; Cybersecurity Policy Hub</a>
+
+        <header class="lab-header">
+            <h1>Threat Classifier</h1>
+            <p class="subtitle">Classify real-world attack descriptions into their correct threat categories</p>
+            <div class="lab-meta">
+                <span class="meta-item">Lab 5</span>
+                <span class="meta-item">20 minutes</span>
+                <span class="meta-item">12 Attacks</span>
+            </div>
+        </header>
+
+        <div class="instructions">
+            <h2>Instructions</h2>
+            <p>Each card below describes a real-world attack scenario. Read the description carefully and select the correct threat category from the dropdown. Click <strong>Check Answers</strong> when you have classified all 12 attacks.</p>
+            <p>You need <strong>10/12 correct</strong> to unlock the Mark Complete button.</p>
+            <div class="categories">
+                <span class="cat-tag">Malware</span>
+                <span class="cat-tag">Network Attack</span>
+                <span class="cat-tag">Web App Attack</span>
+                <span class="cat-tag">Social Engineering</span>
+                <span class="cat-tag">Supply Chain</span>
+                <span class="cat-tag">APT</span>
+            </div>
+        </div>
+
+        <div class="score-bar">
+            <span class="score-label">Score</span>
+            <span class="score-value" id="scoreDisplay">-- / 12</span>
+        </div>
+
+        <div id="attackContainer"></div>
+
+        <div class="action-row">
+            <button class="btn btn-primary" id="checkBtn" onclick="checkAnswers()">Check Answers</button>
+            <button class="btn btn-reset" onclick="resetLab()">Reset</button>
+        </div>
+
+        <button class="btn btn-complete" id="completeBtn" onclick="markComplete()">Mark Complete</button>
+    </div>
+
+    <script>
+        var ATTACKS = [
+            {
+                id: 1,
+                desc: 'Attacker injects JavaScript into a forum post that steals session cookies from every user who views the thread. The stolen cookies are exfiltrated to an external server where the attacker replays them to hijack accounts.',
+                answer: 'Web App Attack',
+                detail: 'Cross-Site Scripting (XSS) -- injecting client-side scripts into web content viewed by other users.'
+            },
+            {
+                id: 2,
+                desc: 'A nation-state group maintains persistent access to a defense contractor\'s network for 14 months, slowly exfiltrating classified blueprints through encrypted DNS tunnels while evading detection by legitimate security tools.',
+                answer: 'APT',
+                detail: 'Advanced Persistent Threat -- long-duration, stealthy, nation-state-sponsored intrusion with specific intelligence objectives.'
+            },
+            {
+                id: 3,
+                desc: 'An employee receives a phone call from someone claiming to be the IT help desk. The caller convinces them to read out their multi-factor authentication code to "verify their account" after a supposed system migration.',
+                answer: 'Social Engineering',
+                detail: 'Vishing (voice phishing) -- manipulating a human via phone to surrender credentials or authentication tokens.'
+            },
+            {
+                id: 4,
+                desc: 'Ransomware encrypts all file shares on the corporate network after a user opens a macro-enabled Word document attached to an invoice email. The attackers demand 5 BTC for the decryption key.',
+                answer: 'Malware',
+                detail: 'Ransomware delivered via malicious macro -- malware that encrypts data and demands payment for the decryption key.'
+            },
+            {
+                id: 5,
+                desc: 'Attackers flood a company\'s public web server with 800 Gbps of UDP traffic from a botnet of compromised IoT devices, overwhelming bandwidth and making the site unreachable for legitimate customers.',
+                answer: 'Network Attack',
+                detail: 'Distributed Denial of Service (DDoS) -- volumetric network attack using amplified traffic to exhaust bandwidth.'
+            },
+            {
+                id: 6,
+                desc: 'Threat actors compromise the build server of a popular open-source library and inject a backdoor into the compiled package. Thousands of organizations pull the tainted update through their automated dependency pipelines.',
+                answer: 'Supply Chain',
+                detail: 'Supply chain compromise -- poisoning a trusted upstream component to reach downstream consumers at scale.'
+            },
+            {
+                id: 7,
+                desc: 'An attacker intercepts traffic between a corporate laptop and the company VPN by setting up a rogue Wi-Fi access point named "Company-Guest" in the hotel lobby during a conference.',
+                answer: 'Network Attack',
+                detail: 'Man-in-the-Middle (Evil Twin) -- intercepting communications through a fraudulent network access point.'
+            },
+            {
+                id: 8,
+                desc: 'A login form is vulnerable to unsanitized input. The attacker enters \' OR 1=1 -- into the username field and gains access to the admin panel without valid credentials.',
+                answer: 'Web App Attack',
+                detail: 'SQL Injection -- exploiting unsanitized input to manipulate database queries.'
+            },
+            {
+                id: 9,
+                desc: 'A USB drive labeled "Q3 Salary Review" is left in the company parking lot. An employee plugs it in, unknowingly executing a payload that installs a keylogger transmitting captured keystrokes over HTTPS.',
+                answer: 'Social Engineering',
+                detail: 'Baiting -- using physical media with enticing labels to trick victims into executing malware.'
+            },
+            {
+                id: 10,
+                desc: 'Attackers compromise a managed IT service provider\'s remote monitoring tool and use it to push a malicious update to 60 client organizations simultaneously, deploying cryptomining software across all endpoints.',
+                answer: 'Supply Chain',
+                detail: 'MSP supply chain attack -- leveraging a trusted service provider\'s tools as a distribution vector.'
+            },
+            {
+                id: 11,
+                desc: 'A worm propagates across the internal network by exploiting an unpatched SMB vulnerability (EternalBlue), spreading from machine to machine without user interaction and installing cryptocurrency mining payloads.',
+                answer: 'Malware',
+                detail: 'Network worm -- self-replicating malware exploiting a known vulnerability to propagate autonomously.'
+            },
+            {
+                id: 12,
+                desc: 'A state-affiliated group compromises a regional telecom provider, installs custom rootkits on core routers, and silently mirrors traffic of targeted government officials for over two years before being detected by a third-party threat intelligence firm.',
+                answer: 'APT',
+                detail: 'Advanced Persistent Threat -- infrastructure-level compromise with long dwell time and intelligence-gathering objectives.'
+            }
+        ];
+
+        var CATEGORIES = ['Malware', 'Network Attack', 'Web App Attack', 'Social Engineering', 'Supply Chain', 'APT'];
+        var submitted = false;
+
+        function buildCards() {
+            var container = document.getElementById('attackContainer');
+            container.innerHTML = '';
+            ATTACKS.forEach(function(atk) {
+                var card = document.createElement('div');
+                card.className = 'attack-card';
+                card.id = 'card-' + atk.id;
+
+                var opts = '<option value="">-- Select Category --</option>';
+                CATEGORIES.forEach(function(c) {
+                    opts += '<option value="' + c + '">' + c + '</option>';
+                });
+
+                card.innerHTML =
+                    '<div class="attack-number">Attack ' + atk.id + '</div>' +
+                    '<div class="attack-desc">' + atk.desc + '</div>' +
+                    '<div class="select-row">' +
+                        '<select id="sel-' + atk.id + '">' + opts + '</select>' +
+                    '</div>' +
+                    '<div class="card-feedback" id="fb-' + atk.id + '"></div>';
+
+                container.appendChild(card);
+            });
+        }
+
+        function checkAnswers() {
+            if (submitted) return;
+            var score = 0;
+
+            ATTACKS.forEach(function(atk) {
+                var sel = document.getElementById('sel-' + atk.id);
+                var fb = document.getElementById('fb-' + atk.id);
+                var card = document.getElementById('card-' + atk.id);
+                var chosen = sel.value;
+
+                card.classList.remove('correct', 'incorrect');
+                fb.className = 'card-feedback';
+
+                if (chosen === atk.answer) {
+                    score++;
+                    card.classList.add('correct');
+                    fb.className = 'card-feedback show-correct';
+                    fb.textContent = 'Correct -- ' + atk.detail;
+                } else {
+                    card.classList.add('incorrect');
+                    fb.className = 'card-feedback show-incorrect';
+                    fb.textContent = 'Incorrect. The correct answer is ' + atk.answer + '. ' + atk.detail;
+                }
+                sel.disabled = true;
+            });
+
+            submitted = true;
+            document.getElementById('scoreDisplay').textContent = score + ' / 12';
+            document.getElementById('checkBtn').disabled = true;
+            document.getElementById('checkBtn').style.opacity = '0.4';
+
+            if (score >= 10) {
+                document.getElementById('completeBtn').style.display = 'block';
+            }
+        }
+
+        function resetLab() {
+            submitted = false;
+            document.getElementById('scoreDisplay').textContent = '-- / 12';
+            document.getElementById('checkBtn').disabled = false;
+            document.getElementById('checkBtn').style.opacity = '1';
+            document.getElementById('completeBtn').style.display = 'none';
+            buildCards();
+        }
+
+        function markComplete() {
+            var btn = document.getElementById('completeBtn');
+            if (btn.classList.contains('done')) return;
+            btn.classList.add('done');
+            btn.textContent = 'Completed';
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('divergent', 'csp-w2-threats-lab', { returnUrl: '../index.html' });
+            }
+        }
+
+        buildCards();
+    </script>
+
+    <script src="../../../../components/TrailHunter.js"></script>
+</body>
+</html>

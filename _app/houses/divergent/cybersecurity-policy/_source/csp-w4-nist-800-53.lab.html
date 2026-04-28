@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control Selector | Cybersecurity Policy</title>
+    <style>
+        :root {
+            --div-primary: #ff00ff;
+            --div-secondary: #cc00cc;
+            --div-accent: #ff44ff;
+            --div-cyan: #00ffff;
+            --div-glow: rgba(255, 0, 255, 0.25);
+            --bg-main: #0d0810;
+            --bg-deep: #0a060d;
+            --bg-card: #120b14;
+            --bg-card-hover: #1a0f1e;
+            --text-primary: #ede0f0;
+            --text-secondary: #9a82a0;
+            --text-muted: #5a4460;
+            --border-color: rgba(255, 0, 255, 0.10);
+            --border-hover: rgba(255, 0, 255, 0.32);
+            --success: #00ff9d;
+            --danger: #ef4444;
+            --warning: #fbbf24;
+        }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background: linear-gradient(160deg, var(--bg-main) 0%, var(--bg-deep) 100%);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            color: var(--text-primary); line-height: 1.6;
+        }
+        .lab-container { max-width: 1000px; margin: 0 auto; padding: 2rem; }
+
+        .back-link {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            color: var(--div-primary); text-decoration: none; margin-bottom: 1rem;
+            font-size: 0.85rem; transition: all 0.3s;
+        }
+        .back-link:hover { color: var(--div-accent); transform: translateX(-4px); }
+
+        .lab-header {
+            text-align: center; margin-bottom: 2rem; padding: 2rem;
+            background: linear-gradient(135deg, var(--bg-card), var(--bg-deep));
+            border-radius: 16px; border: 1px solid var(--div-primary);
+            box-shadow: 0 0 30px var(--div-glow);
+        }
+        .lab-header h1 {
+            font-size: 2rem; margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--div-primary), var(--div-cyan));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .lab-header .subtitle { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem; }
+        .lab-meta { display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; }
+        .meta-item { color: var(--text-muted); font-size: 0.85rem; }
+
+        .instructions {
+            background: var(--bg-card); border-radius: 12px; padding: 1.5rem;
+            margin-bottom: 1.5rem; border: 1px solid var(--border-color);
+        }
+        .instructions h2 { color: var(--div-primary); font-size: 1.1rem; margin-bottom: 0.75rem; }
+        .instructions p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.5rem; }
+
+        .scenario-box {
+            background: rgba(0, 255, 255, 0.04); border: 1px solid rgba(0, 255, 255, 0.15);
+            border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 2rem;
+        }
+        .scenario-box h3 { color: var(--div-cyan); font-size: 1rem; margin-bottom: 0.5rem; }
+        .scenario-box p { color: var(--text-secondary); font-size: 0.88rem; }
+
+        .score-bar {
+            background: var(--bg-card); border-radius: 12px; padding: 1rem 1.5rem;
+            margin-bottom: 2rem; border: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .score-label { color: var(--text-secondary); font-size: 0.9rem; }
+        .score-value { color: var(--div-cyan); font-size: 1.2rem; font-weight: 700; }
+
+        .selection-counter {
+            text-align: center; margin-bottom: 1.5rem;
+            font-size: 0.9rem; color: var(--text-secondary);
+        }
+        .selection-counter span { color: var(--div-cyan); font-weight: 700; }
+
+        .controls-grid {
+            display: grid; grid-template-columns: 1fr; gap: 0.75rem;
+            margin-bottom: 2rem;
+        }
+        .control-item {
+            display: flex; align-items: flex-start; gap: 1rem;
+            padding: 1rem 1.25rem; background: var(--bg-card);
+            border: 1px solid var(--border-color); border-radius: 10px;
+            cursor: pointer; transition: all 0.3s; user-select: none;
+        }
+        .control-item:hover { border-color: var(--border-hover); background: var(--bg-card-hover); }
+        .control-item.selected {
+            border-color: var(--div-primary);
+            background: rgba(255, 0, 255, 0.06);
+        }
+        .control-item.result-correct { border-color: var(--success); background: rgba(0, 255, 157, 0.04); }
+        .control-item.result-incorrect { border-color: var(--danger); background: rgba(239, 68, 68, 0.04); }
+
+        .ctrl-checkbox {
+            width: 22px; height: 22px; min-width: 22px; margin-top: 2px;
+            border: 2px solid rgba(255, 0, 255, 0.3); border-radius: 4px;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s; font-size: 0.75rem;
+        }
+        .control-item.selected .ctrl-checkbox {
+            background: var(--div-primary); border-color: var(--div-primary); color: #0d0810;
+        }
+
+        .ctrl-info { flex: 1; }
+        .ctrl-id {
+            font-size: 0.7rem; color: var(--div-primary); font-weight: 700;
+            letter-spacing: 0.08em; margin-bottom: 0.25rem;
+        }
+        .ctrl-name { font-size: 0.92rem; color: var(--text-primary); margin-bottom: 0.25rem; font-weight: 600; }
+        .ctrl-desc { font-size: 0.82rem; color: var(--text-secondary); line-height: 1.55; }
+        .ctrl-family {
+            font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; margin-top: 0.4rem;
+            display: inline-block; background: rgba(0, 255, 255, 0.08);
+            border: 1px solid rgba(0, 255, 255, 0.15); color: var(--div-cyan);
+        }
+
+        .card-feedback {
+            font-size: 0.8rem; padding: 4px 10px; border-radius: 4px; margin-top: 0.5rem; display: none;
+        }
+        .card-feedback.show-correct {
+            display: inline-block; background: rgba(0, 255, 157, 0.1);
+            border: 1px solid var(--success); color: var(--success);
+        }
+        .card-feedback.show-incorrect {
+            display: inline-block; background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--danger); color: var(--danger);
+        }
+
+        .action-row {
+            display: flex; gap: 1rem; justify-content: center; margin: 2rem 0; flex-wrap: wrap;
+        }
+        .btn {
+            padding: 12px 32px; border: none; border-radius: 8px;
+            font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.3s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--div-primary), var(--div-secondary));
+            color: #0d0810;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--div-glow); }
+        .btn-complete {
+            background: linear-gradient(135deg, var(--div-primary), var(--div-secondary));
+            color: #0d0810; width: 100%; padding: 1rem; font-size: 1.05rem; display: none;
+        }
+        .btn-complete:hover { transform: translateY(-2px); box-shadow: 0 8px 28px var(--div-glow); }
+        .btn-complete.done { background: var(--success); cursor: default; transform: none; box-shadow: none; }
+        .btn-reset {
+            background: transparent; border: 1px solid rgba(255, 0, 255, 0.2);
+            color: var(--text-secondary);
+        }
+        .btn-reset:hover { border-color: var(--div-primary); color: var(--div-primary); }
+
+        @media (max-width: 768px) {
+            .lab-container { padding: 1rem; }
+            .lab-header h1 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="lab-container">
+        <a href="../index.html" class="back-link">&larr; Cybersecurity Policy Hub</a>
+
+        <header class="lab-header">
+            <h1>Control Selector</h1>
+            <p class="subtitle">Select the correct NIST 800-53 controls for a Moderate-impact federal system</p>
+            <div class="lab-meta">
+                <span class="meta-item">Lab 15</span>
+                <span class="meta-item">20 minutes</span>
+                <span class="meta-item">15 Controls</span>
+            </div>
+        </header>
+
+        <div class="instructions">
+            <h2>Instructions</h2>
+            <p>You are the security engineer for a federal agency processing <strong>Moderate-impact</strong> data (FIPS 199). From the 15 controls below, select the <strong>10 that are required</strong> for a Moderate baseline. Exclude the 5 that are High-only or not applicable to this impact level.</p>
+            <p>Click a control to select or deselect it. Click <strong>Submit Selection</strong> when you have chosen exactly 10. You need <strong>13/15 correct decisions</strong> to unlock Mark Complete.</p>
+        </div>
+
+        <div class="scenario-box">
+            <h3>Scenario: Federal Benefits Processing Agency</h3>
+            <p>Your agency manages citizen benefits applications containing PII (Social Security numbers, income data, medical records). The system is categorized as Moderate-impact under FIPS 199. You must select the appropriate NIST SP 800-53 Rev. 5 controls for your System Security Plan. Some controls in the list are only required at the High baseline or are not applicable to your environment.</p>
+        </div>
+
+        <div class="score-bar">
+            <span class="score-label">Score</span>
+            <span class="score-value" id="scoreDisplay">-- / 15</span>
+        </div>
+
+        <div class="selection-counter">Selected: <span id="selCount">0</span> / 10</div>
+
+        <div class="controls-grid" id="controlsGrid"></div>
+
+        <div class="action-row">
+            <button class="btn btn-primary" id="checkBtn" onclick="checkAnswers()">Submit Selection</button>
+            <button class="btn btn-reset" onclick="resetLab()">Reset</button>
+        </div>
+
+        <button class="btn btn-complete" id="completeBtn" onclick="markComplete()">Mark Complete</button>
+    </div>
+
+    <script>
+        /*
+         * moderate = true  -> required at Moderate baseline (should be selected)
+         * moderate = false -> High-only or not applicable (should NOT be selected)
+         */
+        var CONTROLS = [
+            {
+                id: 'AC-2', family: 'Access Control', name: 'Account Management',
+                desc: 'Define and enforce account types, establish conditions for group membership, assign account managers, and review accounts on a periodic basis.',
+                moderate: true
+            },
+            {
+                id: 'AC-6(5)', family: 'Access Control', name: 'Least Privilege -- Privileged Accounts',
+                desc: 'Restrict privileged accounts on the system to a defined set of personnel or roles and audit all privileged actions.',
+                moderate: true
+            },
+            {
+                id: 'AU-6', family: 'Audit & Accountability', name: 'Audit Record Review and Reporting',
+                desc: 'Review and analyze system audit records for indications of inappropriate or unusual activity and report findings to designated officials.',
+                moderate: true
+            },
+            {
+                id: 'AU-10', family: 'Audit & Accountability', name: 'Non-Repudiation',
+                desc: 'Provide irrefutable evidence that a specific user performed a specific action, using digital signatures and cryptographic binding of identity to audit records.',
+                moderate: false,
+                detail: 'High-only -- Non-repudiation (AU-10) is not required at the Moderate baseline.'
+            },
+            {
+                id: 'SC-7', family: 'System & Communications Protection', name: 'Boundary Protection',
+                desc: 'Monitor and control communications at the external managed interfaces to the system and at key internal boundaries within the system.',
+                moderate: true
+            },
+            {
+                id: 'SC-28', family: 'System & Communications Protection', name: 'Protection of Information at Rest',
+                desc: 'Protect the confidentiality and integrity of information at rest using cryptographic mechanisms or alternative physical safeguards.',
+                moderate: true
+            },
+            {
+                id: 'SC-3', family: 'System & Communications Protection', name: 'Security Function Isolation',
+                desc: 'Isolate security functions from non-security functions using hardware separation mechanisms and prevent non-privileged software from accessing security-critical code.',
+                moderate: false,
+                detail: 'High-only -- Security function isolation (SC-3) is required only at the High baseline.'
+            },
+            {
+                id: 'IA-2', family: 'Identification & Authentication', name: 'Identification and Authentication (Org Users)',
+                desc: 'Uniquely identify and authenticate organizational users accessing the system, employing multi-factor authentication for network and local access.',
+                moderate: true
+            },
+            {
+                id: 'IA-8(4)', family: 'Identification & Authentication', name: 'Non-Org Users -- Federal PKI Conformance',
+                desc: 'Require Federal PKI-conformant credentials for all non-organizational users accessing the system, with no fallback authentication allowed.',
+                moderate: false,
+                detail: 'Not applicable -- Federal PKI conformance for non-org users (IA-8(4)) is not a Moderate baseline requirement.'
+            },
+            {
+                id: 'IR-4', family: 'Incident Response', name: 'Incident Handling',
+                desc: 'Implement an incident handling capability that includes preparation, detection, analysis, containment, eradication, and recovery.',
+                moderate: true
+            },
+            {
+                id: 'IR-5', family: 'Incident Response', name: 'Incident Monitoring',
+                desc: 'Track and document information system security incidents on an ongoing basis.',
+                moderate: true
+            },
+            {
+                id: 'IR-10', family: 'Incident Response', name: 'Integrated Security Analysis Team',
+                desc: 'Establish an integrated team of forensic analysts, threat hunters, and intelligence specialists that operates 24/7 to analyze and respond to advanced persistent threats.',
+                moderate: false,
+                detail: 'Not applicable -- IR-10 (Integrated Security Analysis Team) is a specialized High-impact enhancement not in the Moderate baseline.'
+            },
+            {
+                id: 'AU-3', family: 'Audit & Accountability', name: 'Content of Audit Records',
+                desc: 'Ensure audit records contain sufficient detail: what type of event occurred, when, where, the source, the outcome, and the identity of associated individuals.',
+                moderate: true
+            },
+            {
+                id: 'SC-12', family: 'System & Communications Protection', name: 'Cryptographic Key Establishment',
+                desc: 'Establish and manage cryptographic keys when cryptography is employed within the system in accordance with applicable laws and policies.',
+                moderate: true
+            },
+            {
+                id: 'PE-18', family: 'Physical & Environmental Protection', name: 'Location of System Components',
+                desc: 'Position system components within the facility to minimize potential damage from physical and environmental hazards and to minimize the opportunity for unauthorized access.',
+                moderate: false,
+                detail: 'High-only -- PE-18 (Location of System Components) is selected only at the High baseline.'
+            }
+        ];
+
+        var submitted = false;
+
+        function shuffle(arr) {
+            var a = arr.slice();
+            for (var i = a.length - 1; i > 0; i--) {
+                var j = Math.floor(Math.random() * (i + 1));
+                var t = a[i]; a[i] = a[j]; a[j] = t;
+            }
+            return a;
+        }
+
+        function buildGrid() {
+            var grid = document.getElementById('controlsGrid');
+            grid.innerHTML = '';
+            var shuffled = shuffle(CONTROLS);
+
+            shuffled.forEach(function(ctrl) {
+                var item = document.createElement('div');
+                item.className = 'control-item';
+                item.id = 'item-' + ctrl.id.replace(/[()]/g, '');
+                item.dataset.ctrlId = ctrl.id;
+
+                item.innerHTML =
+                    '<div class="ctrl-checkbox" id="chk-' + ctrl.id.replace(/[()]/g, '') + '"></div>' +
+                    '<div class="ctrl-info">' +
+                        '<div class="ctrl-id">' + ctrl.id + '</div>' +
+                        '<div class="ctrl-name">' + ctrl.name + '</div>' +
+                        '<div class="ctrl-desc">' + ctrl.desc + '</div>' +
+                        '<span class="ctrl-family">' + ctrl.family + '</span>' +
+                        '<div class="card-feedback" id="fb-' + ctrl.id.replace(/[()]/g, '') + '"></div>' +
+                    '</div>';
+
+                item.addEventListener('click', function() {
+                    if (submitted) return;
+                    item.classList.toggle('selected');
+                    var chk = item.querySelector('.ctrl-checkbox');
+                    if (item.classList.contains('selected')) {
+                        chk.textContent = '\u2713';
+                    } else {
+                        chk.textContent = '';
+                    }
+                    updateCounter();
+                });
+
+                grid.appendChild(item);
+            });
+        }
+
+        function updateCounter() {
+            var count = document.querySelectorAll('.control-item.selected').length;
+            document.getElementById('selCount').textContent = count;
+        }
+
+        function getControlObj(id) {
+            for (var i = 0; i < CONTROLS.length; i++) {
+                if (CONTROLS[i].id === id) return CONTROLS[i];
+            }
+            return null;
+        }
+
+        function checkAnswers() {
+            if (submitted) return;
+
+            var score = 0;
+            var items = document.querySelectorAll('.control-item');
+
+            items.forEach(function(item) {
+                var ctrlId = item.dataset.ctrlId;
+                var ctrl = getControlObj(ctrlId);
+                if (!ctrl) return;
+
+                var isSelected = item.classList.contains('selected');
+                var safeId = ctrl.id.replace(/[()]/g, '');
+                var fb = document.getElementById('fb-' + safeId);
+
+                item.classList.remove('result-correct', 'result-incorrect');
+                fb.className = 'card-feedback';
+
+                var correct = (isSelected && ctrl.moderate) || (!isSelected && !ctrl.moderate);
+
+                if (correct) {
+                    score++;
+                    item.classList.add('result-correct');
+                    if (isSelected) {
+                        fb.className = 'card-feedback show-correct';
+                        fb.textContent = 'Correct -- required at Moderate baseline.';
+                    } else {
+                        fb.className = 'card-feedback show-correct';
+                        fb.textContent = 'Correct -- properly excluded.';
+                    }
+                } else {
+                    item.classList.add('result-incorrect');
+                    fb.className = 'card-feedback show-incorrect';
+                    if (isSelected && !ctrl.moderate) {
+                        fb.textContent = 'Incorrect -- should not be selected. ' + (ctrl.detail || '');
+                    } else {
+                        fb.textContent = 'Incorrect -- this control IS required at the Moderate baseline.';
+                    }
+                }
+            });
+
+            submitted = true;
+            document.getElementById('scoreDisplay').textContent = score + ' / 15';
+            document.getElementById('checkBtn').disabled = true;
+            document.getElementById('checkBtn').style.opacity = '0.4';
+
+            if (score >= 13) {
+                document.getElementById('completeBtn').style.display = 'block';
+            }
+        }
+
+        function resetLab() {
+            submitted = false;
+            document.getElementById('scoreDisplay').textContent = '-- / 15';
+            document.getElementById('selCount').textContent = '0';
+            document.getElementById('checkBtn').disabled = false;
+            document.getElementById('checkBtn').style.opacity = '1';
+            document.getElementById('completeBtn').style.display = 'none';
+            document.getElementById('completeBtn').classList.remove('done');
+            document.getElementById('completeBtn').textContent = 'Mark Complete';
+            buildGrid();
+        }
+
+        function markComplete() {
+            var btn = document.getElementById('completeBtn');
+            if (btn.classList.contains('done')) return;
+            btn.classList.add('done');
+            btn.textContent = 'Completed';
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('divergent', 'csp-w4-nist-800-53-lab', { returnUrl: '../index.html' });
+            }
+        }
+
+        buildGrid();
+    </script>
+
+    <script src="../../../../components/TrailHunter.js"></script>
+</body>
+</html>

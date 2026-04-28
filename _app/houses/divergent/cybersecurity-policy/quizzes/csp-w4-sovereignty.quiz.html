@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Week 4 Quiz: Digital Sovereignty | Cybersecurity Policy</title>
+    <style>
+        :root {
+            --bg: #0d0810;
+            --bg-card: #16101c;
+            --bg-option: #1a1222;
+            --primary: #ff00ff;
+            --primary-dim: rgba(255, 0, 255, 0.15);
+            --cyan: #00ffff;
+            --text: #ede0f0;
+            --text-muted: #9a82a0;
+            --text-dim: #5a4460;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --border: rgba(255,255,255,0.08);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, var(--bg) 0%, #120a18 50%, #1a0e24 100%);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .quiz-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .back-link {
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+        .back-link:hover { color: #ff88ff; transform: translateX(-5px); }
+
+        .quiz-header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 2rem;
+            background: var(--bg-card);
+            border-radius: 14px;
+            border: 1px solid var(--primary-dim);
+        }
+
+        .quiz-header h1 {
+            font-size: 1.6rem;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .quiz-header .subtitle {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .quiz-header .meta {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            font-size: 0.8rem;
+        }
+
+        .quiz-header .meta span {
+            background: var(--bg);
+            padding: 4px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+        }
+
+        .progress-bar-wrap {
+            background: var(--bg-card);
+            border-radius: 10px;
+            padding: 14px 18px;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .progress-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        .progress-track {
+            flex: 1;
+            height: 8px;
+            background: var(--bg);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--cyan));
+            border-radius: 4px;
+            transition: width 0.4s ease;
+            width: 0%;
+        }
+
+        .score-label {
+            font-size: 0.85rem;
+            color: var(--cyan);
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .question-card {
+            background: var(--bg-card);
+            border-radius: 14px;
+            padding: 2rem;
+            border: 1px solid var(--border);
+            margin-bottom: 1.5rem;
+        }
+
+        .question-num {
+            font-size: 0.8rem;
+            color: var(--primary);
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.75rem;
+        }
+
+        .question-text {
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 1rem;
+        }
+
+        .option {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 18px;
+            background: var(--bg-option);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.95rem;
+        }
+
+        .option:hover { border-color: rgba(255, 0, 255, 0.4); background: rgba(255, 0, 255, 0.05); }
+        .option.selected { border-color: var(--primary); background: rgba(255, 0, 255, 0.08); }
+        .option.correct { border-color: var(--success); background: rgba(34, 197, 94, 0.1); }
+        .option.incorrect { border-color: var(--danger); background: rgba(239, 68, 68, 0.08); }
+        .option.disabled { pointer-events: none; opacity: 0.7; }
+        .option.correct.disabled, .option.incorrect.disabled { opacity: 1; }
+
+        .option-letter {
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: var(--primary);
+            flex-shrink: 0;
+        }
+
+        .option.correct .option-letter { background: var(--success); color: #fff; border-color: var(--success); }
+        .option.incorrect .option-letter { background: var(--danger); color: #fff; border-color: var(--danger); }
+
+        .feedback {
+            padding: 14px 18px;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            display: none;
+        }
+
+        .feedback.correct {
+            display: block;
+            background: rgba(34, 197, 94, 0.08);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #86efac;
+        }
+
+        .feedback.incorrect {
+            display: block;
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+        }
+
+        .quiz-nav {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .next-btn {
+            padding: 10px 24px;
+            background: rgba(255, 0, 255, 0.15);
+            border: 1px solid rgba(255, 0, 255, 0.4);
+            color: var(--primary);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .next-btn:hover { background: var(--primary); color: #fff; }
+        .next-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .next-btn:disabled:hover { background: rgba(255, 0, 255, 0.15); color: var(--primary); }
+
+        .results-card {
+            display: none;
+            text-align: center;
+            background: var(--bg-card);
+            border-radius: 14px;
+            padding: 3rem 2rem;
+            border: 1px solid var(--border);
+        }
+
+        .results-card h2 {
+            color: var(--primary);
+            font-size: 1.4rem;
+            margin-bottom: 1rem;
+        }
+
+        .score-big {
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: var(--success);
+            margin-bottom: 0.5rem;
+        }
+
+        .score-big.low { color: var(--danger); }
+        .score-big.mid { color: #fbbf24; }
+
+        .score-msg {
+            color: var(--text-muted);
+            font-size: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .results-btns {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .results-btns a, .results-btns button {
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+            border: none;
+        }
+
+        .btn-retry {
+            background: rgba(255, 0, 255, 0.15);
+            border: 1px solid rgba(255, 0, 255, 0.4) !important;
+            color: var(--primary);
+        }
+        .btn-retry:hover { background: var(--primary); color: #fff; }
+
+        .btn-hub {
+            background: rgba(34, 197, 94, 0.15);
+            border: 1px solid rgba(34, 197, 94, 0.4) !important;
+            color: var(--success);
+        }
+        .btn-hub:hover { background: var(--success); color: #fff; }
+
+        @media (max-width: 640px) {
+            .quiz-container { padding: 1rem; }
+            .question-card { padding: 1.25rem; }
+            .quiz-header h1 { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="quiz-container">
+        <div class="nav-links">
+            <a href="../index.html" class="back-link">&#8592; Cybersecurity Policy Hub</a>
+        </div>
+
+        <div class="quiz-header">
+            <h1>Week 4 Quiz: Digital Sovereignty</h1>
+            <p class="subtitle">Digital sovereignty, CI sectors, national strategies, Tallinn Manual, internet governance, data localization, election security</p>
+            <div class="meta">
+                <span>Week 4</span>
+                <span>15 Questions</span>
+                <span>70% to Pass</span>
+            </div>
+        </div>
+
+        <div class="progress-bar-wrap">
+            <span class="progress-label" id="progressLabel">Question 1 of 15</span>
+            <div class="progress-track">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <span class="score-label" id="scoreLabel">Score: 0</span>
+        </div>
+
+        <div class="question-card" id="questionCard">
+            <div class="question-num" id="questionNum">QUESTION 1</div>
+            <div class="question-text" id="questionText"></div>
+            <div class="options" id="optionsEl"></div>
+            <div class="feedback" id="feedback"></div>
+            <div class="quiz-nav">
+                <button class="next-btn" id="nextBtn" onclick="nextQuestion()" disabled>Next Question</button>
+            </div>
+        </div>
+
+        <div class="results-card" id="resultsCard">
+            <h2>Quiz Complete</h2>
+            <div class="score-big" id="finalScore"></div>
+            <p class="score-msg" id="scoreMsg"></p>
+            <div class="results-btns">
+                <button class="btn-retry" onclick="restartQuiz()">Try Again</button>
+                <a href="../index.html" class="btn-hub">Back to Policy Hub</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* -- Quiz Engine: Cybersecurity Policy -- Week 4: Digital Sovereignty --
+           Topics: digital sovereignty, CI sectors, national strategies,
+           Tallinn Manual, internet governance, data localization, election security.
+           Passing threshold: 70% (11/15). */
+        var questions = [
+            {
+                q: "Digital sovereignty refers to a nation's ability to:",
+                opts: [
+                    "Control and govern its digital infrastructure, data, and technology ecosystem independently",
+                    "Block all foreign websites and social media platforms",
+                    "Manufacture all technology hardware domestically",
+                    "Prevent citizens from using encrypted communications"
+                ],
+                ans: 0,
+                exp: "Digital sovereignty is a nation's capacity to control its digital destiny -- governing data, infrastructure, and technology within its borders while maintaining autonomy from foreign technology dependencies."
+            },
+            {
+                q: "The United States designates how many critical infrastructure (CI) sectors?",
+                opts: [
+                    "8 sectors",
+                    "16 sectors",
+                    "12 sectors",
+                    "20 sectors"
+                ],
+                ans: 1,
+                exp: "The US designates 16 critical infrastructure sectors under Presidential Policy Directive 21 (PPD-21), including Energy, Financial Services, Healthcare, Communications, Transportation, and others."
+            },
+            {
+                q: "The Tallinn Manual is significant in international cybersecurity law because it:",
+                opts: [
+                    "Is a binding treaty signed by all NATO member states",
+                    "Provides expert analysis of how existing international law applies to cyber operations and cyber warfare",
+                    "Establishes criminal penalties for nation-state cyberattacks",
+                    "Created ICANN as the governing body for internet domain names"
+                ],
+                ans: 1,
+                exp: "The Tallinn Manual (and Tallinn Manual 2.0) is an academic study by international law experts analyzing how existing international law (including the law of armed conflict) applies to cyber operations. It is influential but not legally binding."
+            },
+            {
+                q: "Data localization laws require that:",
+                opts: [
+                    "All data must be encrypted using locally developed algorithms",
+                    "Companies must hire local employees to manage their databases",
+                    "Internet service providers must filter all foreign content",
+                    "Personal or sensitive data of citizens be stored and processed within the country's borders"
+                ],
+                ans: 3,
+                exp: "Data localization laws mandate that certain categories of data (often personal data of citizens) be stored and/or processed on servers physically located within the country's jurisdiction. Russia, China, and India have notable data localization requirements."
+            },
+            {
+                q: "ICANN (Internet Corporation for Assigned Names and Numbers) is responsible for:",
+                opts: [
+                    "Regulating internet content and censoring illegal websites globally",
+                    "Enforcing cybercrime laws across international borders",
+                    "Providing internet access to underserved populations worldwide",
+                    "Coordinating the global Domain Name System (DNS), IP address allocation, and protocol parameters"
+                ],
+                ans: 3,
+                exp: "ICANN coordinates the technical infrastructure of the internet: the DNS root zone, IP address space allocation, and protocol parameter assignment. It operates through a multi-stakeholder governance model."
+            },
+            {
+                q: "The EU's approach to digital sovereignty is exemplified by:",
+                opts: [
+                    "Initiatives like GAIA-X, the Digital Markets Act, and the Digital Services Act aimed at reducing dependency on non-EU technology",
+                    "Banning all non-European cloud service providers",
+                    "Requiring all EU citizens to use government-issued email accounts",
+                    "Building a separate internet infrastructure disconnected from the global internet"
+                ],
+                ans: 0,
+                exp: "The EU pursues digital sovereignty through regulatory frameworks (DMA, DSA, GDPR), industrial initiatives (GAIA-X cloud infrastructure), and investment in domestic semiconductor capacity, aiming to reduce dependence on US and Chinese technology."
+            },
+            {
+                q: "Election security as a cybersecurity policy concern includes protecting:",
+                opts: [
+                    "Only the electronic voting machines used on election day",
+                    "Voter registration systems, voting infrastructure, results reporting, and the information environment against disinformation",
+                    "Only the physical ballots and polling locations",
+                    "Only the campaign websites and fundraising platforms of political parties"
+                ],
+                ans: 1,
+                exp: "Election security encompasses voter registration databases, voting machines and infrastructure, results tabulation and reporting systems, and the information environment (countering disinformation campaigns that undermine democratic processes)."
+            },
+            {
+                q: "China's Cybersecurity Law (2017) is notable for requiring:",
+                opts: [
+                    "All Chinese companies to open-source their security tools",
+                    "Foreign companies to share encryption keys with Chinese competitors",
+                    "All internet traffic to be routed through a single government-controlled gateway",
+                    "Critical information infrastructure operators to store personal data within China and undergo security reviews"
+                ],
+                ans: 3,
+                exp: "China's Cybersecurity Law requires critical information infrastructure operators to store personal data within China, submit to security assessments for cross-border data transfers, and comply with network security standards."
+            },
+            {
+                q: "The concept of 'internet fragmentation' or 'splinternet' refers to:",
+                opts: [
+                    "The trend toward national or regional internets with different rules, content, and accessibility rather than one unified global internet",
+                    "The physical breakdown of undersea internet cables",
+                    "The increasing number of internet service providers in a single market",
+                    "The division between IPv4 and IPv6 address spaces"
+                ],
+                ans: 0,
+                exp: "The splinternet describes the fragmentation of the global internet into national or regional networks with differing rules, censorship, and access. Countries like China (Great Firewall) and Russia (RuNet) exemplify this trend."
+            },
+            {
+                q: "A national cybersecurity strategy typically addresses all of the following EXCEPT:",
+                opts: [
+                    "Protection of critical infrastructure",
+                    "Detailed source code for all government security tools",
+                    "International cooperation on cyber norms",
+                    "Workforce development and cyber education"
+                ],
+                ans: 1,
+                exp: "National cybersecurity strategies address critical infrastructure protection, international cooperation, workforce development, incident response, R&D, and public-private partnerships. They do not publish source code for security tools."
+            },
+            {
+                q: "The multi-stakeholder model of internet governance involves:",
+                opts: [
+                    "Equal participation of governments, private sector, civil society, technical community, and academia in internet policy decisions",
+                    "Governance exclusively by national governments through the United Nations",
+                    "Control by the five largest technology companies",
+                    "A single global regulatory body with enforcement power over all internet activity"
+                ],
+                ans: 0,
+                exp: "The multi-stakeholder model ensures internet governance includes governments, the private sector, civil society, the technical community, and academia. This model is championed by organizations like ICANN and the Internet Governance Forum."
+            },
+            {
+                q: "Russia's 'sovereign internet' law (2019) enables the Russian government to:",
+                opts: [
+                    "Provide free internet access to all Russian citizens",
+                    "Block only websites that violate copyright law",
+                    "Route Russian internet traffic through government-controlled infrastructure and disconnect from the global internet if needed",
+                    "Require all Russian websites to use the .ru domain"
+                ],
+                ans: 2,
+                exp: "Russia's sovereign internet law requires ISPs to install deep packet inspection equipment, enables the government to route traffic through state-controlled exchange points, and provides the technical capability to disconnect Russia from the global internet."
+            },
+            {
+                q: "The US National Cybersecurity Strategy (2023) introduced the concept of:",
+                opts: [
+                    "Eliminating all cybersecurity regulations for the private sector",
+                    "Making cybersecurity an exclusively military responsibility",
+                    "Shifting cybersecurity responsibility to those best positioned to reduce risk, including technology providers",
+                    "Requiring all US companies to use government-developed security software"
+                ],
+                ans: 2,
+                exp: "The 2023 National Cybersecurity Strategy emphasizes shifting the burden of cybersecurity from end users to the entities best positioned to reduce risk -- primarily technology companies and service providers -- and using regulation to set minimum standards."
+            },
+            {
+                q: "PPD-21 (Presidential Policy Directive 21) established the framework for:",
+                opts: [
+                    "Classifying national security information",
+                    "Regulating cryptocurrency and digital financial assets",
+                    "Critical infrastructure security and resilience, designating sector-specific agencies for each CI sector",
+                    "Managing the federal government's IT procurement process"
+                ],
+                ans: 2,
+                exp: "PPD-21 (2013) established the national policy on critical infrastructure security and resilience, identified 16 CI sectors, and designated Sector Risk Management Agencies (SRMAs) responsible for coordinating protection in each sector."
+            },
+            {
+                q: "The primary challenge of applying international law to cyberspace is that:",
+                opts: [
+                    "No international laws exist that could possibly apply to technology",
+                    "All nations agree on identical cybersecurity rules",
+                    "Attribution of cyberattacks to specific nation-states is technically difficult, complicating the application of sovereignty and use-of-force principles",
+                    "Cyberattacks cause only financial damage and are therefore outside the scope of international law"
+                ],
+                ans: 2,
+                exp: "Attribution is the central challenge: identifying the specific state actor behind a cyberattack is technically difficult, which complicates applying international law concepts like sovereignty, non-intervention, and the use of force that depend on identifying responsible parties."
+            }
+        ];
+
+        var current = 0;
+        var score = 0;
+        var answered = false;
+        var TOTAL = questions.length;
+
+        function loadQuestion() {
+            var q = questions[current];
+            document.getElementById('questionNum').textContent = 'QUESTION ' + (current + 1);
+            document.getElementById('questionText').textContent = q.q;
+            document.getElementById('progressLabel').textContent = 'Question ' + (current + 1) + ' of ' + TOTAL;
+            document.getElementById('progressFill').style.width = ((current + 1) / TOTAL * 100) + '%';
+
+            var html = '';
+            var letters = ['A', 'B', 'C', 'D'];
+            for (var i = 0; i < q.opts.length; i++) {
+                html += '<div class="option" onclick="selectAnswer(' + i + ')">' +
+                    '<span class="option-letter">' + letters[i] + '</span>' +
+                    '<span>' + q.opts[i] + '</span></div>';
+            }
+            document.getElementById('optionsEl').innerHTML = html;
+            document.getElementById('feedback').className = 'feedback';
+            document.getElementById('feedback').textContent = '';
+            document.getElementById('nextBtn').disabled = true;
+            answered = false;
+        }
+
+        function selectAnswer(idx) {
+            if (answered) return;
+            answered = true;
+
+            var q = questions[current];
+            var opts = document.querySelectorAll('.option');
+
+            for (var i = 0; i < opts.length; i++) {
+                opts[i].classList.add('disabled');
+                if (i === q.ans) opts[i].classList.add('correct');
+                else if (i === idx) opts[i].classList.add('incorrect');
+            }
+
+            var fb = document.getElementById('feedback');
+            if (idx === q.ans) {
+                score++;
+                fb.className = 'feedback correct';
+                fb.textContent = 'Correct. ' + q.exp;
+            } else {
+                fb.className = 'feedback incorrect';
+                fb.textContent = 'Incorrect. ' + q.exp;
+            }
+
+            document.getElementById('scoreLabel').textContent = 'Score: ' + score;
+            document.getElementById('nextBtn').disabled = false;
+
+            if (current === TOTAL - 1) {
+                document.getElementById('nextBtn').textContent = 'See Results';
+            }
+        }
+
+        function nextQuestion() {
+            current++;
+            if (current >= TOTAL) {
+                showResults();
+                return;
+            }
+            loadQuestion();
+        }
+
+        function showResults() {
+            document.getElementById('questionCard').style.display = 'none';
+            document.querySelector('.progress-bar-wrap').style.display = 'none';
+            var resultsCard = document.getElementById('resultsCard');
+            resultsCard.style.display = 'block';
+
+            var pct = Math.round((score / TOTAL) * 100);
+            var scoreBig = document.getElementById('finalScore');
+            scoreBig.textContent = score + '/' + TOTAL + ' (' + pct + '%)';
+
+            if (pct >= 80) {
+                scoreBig.className = 'score-big';
+            } else if (pct >= 60) {
+                scoreBig.className = 'score-big mid';
+            } else {
+                scoreBig.className = 'score-big low';
+            }
+
+            var msg = '';
+            if (pct >= 90) msg = 'Outstanding. You have a strong grasp of digital sovereignty and international cybersecurity policy.';
+            else if (pct >= 70) msg = 'Solid. Review any missed questions on CI sectors, internet governance, and the Tallinn Manual.';
+            else if (pct >= 50) msg = 'You are getting there. Revisit the sovereignty concepts and national strategy frameworks.';
+            else msg = 'Keep studying. Focus on digital sovereignty, data localization, and how international law applies to cyberspace.';
+            document.getElementById('scoreMsg').textContent = msg;
+
+            if (pct >= 70 && typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.completeQuiz('divergent', 'csp-w4-sovereignty-quiz', score);
+            }
+        }
+
+        function restartQuiz() {
+            current = 0;
+            score = 0;
+            answered = false;
+            document.getElementById('scoreLabel').textContent = 'Score: 0';
+            document.getElementById('questionCard').style.display = '';
+            document.querySelector('.progress-bar-wrap').style.display = '';
+            document.getElementById('resultsCard').style.display = 'none';
+            document.getElementById('nextBtn').textContent = 'Next Question';
+            loadQuestion();
+        }
+
+        loadQuestion();
+    </script>
+</body>
+</html>

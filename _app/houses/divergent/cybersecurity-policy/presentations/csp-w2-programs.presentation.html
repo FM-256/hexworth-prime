@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Building a Cybersecurity Program | Cybersecurity Policy</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d0810 0%, #0a060d 50%, #100812 100%);
+            color: #ede0f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow-y: auto;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: linear-gradient(90deg, #ff00ff, #00ffff);
+            transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(13, 8, 16, 0.95);
+            border-top: 1px solid rgba(255, 0, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #9a82a0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(255, 0, 255, 0.12); color: #ff00ff; border-color: #ff00ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #5a4460; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: linear-gradient(135deg, #ff00ff, #ff44ff);
+            color: #0d0810; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: linear-gradient(135deg, #ff44ff, #ff88ff); transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #ff00ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #ede0f0; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ff00ff; }
+        .slide-title .cyan { color: #00ffff; }
+        .slide-subtitle { font-size: 0.95rem; color: #9a82a0; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(255, 0, 255, 0.06); border-left: 3px solid #ff00ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #f5b8f5; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-magenta { background: rgba(255, 0, 255, 0.08); border: 1px solid rgba(255, 0, 255, 0.3); color: #f5b8f5; }
+        .box-cyan    { background: rgba(0, 255, 255, 0.08); border: 1px solid rgba(0, 255, 255, 0.3); color: #b8f5f5; }
+        .box-red     { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold    { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-green   { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-label   { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #ede0f0; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ff00ff; }
+        .title-hero .big-title .cyan { color: #00ffff; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #5a4460;
+        }
+        .title-meta-row span { border-left: 2px solid rgba(255, 0, 255, 0.2); padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #ff00ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #ede0f0; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #9a82a0; line-height: 1.4; }
+        .card.c-magenta { border-left-color: #ff00ff; }
+        .card.c-cyan    { border-left-color: #00ffff; }
+        .card.c-red     { border-left-color: #ef4444; }
+        .card.c-gold    { border-left-color: #eab308; }
+        .card.c-green   { border-left-color: #22c55e; }
+        .card.c-purple  { border-left-color: #ff44ff; }
+        .card.c-blue    { border-left-color: #3b82f6; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #5a4460; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #ff00ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #ede0f0; }
+
+        /* SVG diagram containers */
+        .svg-container {
+            display: flex; justify-content: center; align-items: center;
+            margin: 10px 0; padding: 10px;
+        }
+        .svg-container svg { max-width: 100%; height: auto; }
+
+        /* Glossary table */
+        .glossary-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+        .glossary-table th {
+            text-align: left; padding: 6px 10px; font-size: 0.72rem;
+            text-transform: uppercase; letter-spacing: 0.08em;
+            color: #ff00ff; border-bottom: 1px solid rgba(255, 0, 255, 0.3);
+        }
+        .glossary-table td {
+            padding: 6px 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            vertical-align: top;
+        }
+        .glossary-table td:first-child { color: #00ffff; font-weight: 600; white-space: nowrap; }
+        .glossary-table td:last-child { color: #9a82a0; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid, .card-grid-4 { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Building a Cybersecurity Program | Cybersecurity Policy</h1>
+
+<div id="progress-bar" style="width:7.14%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 14 &nbsp;|&nbsp; CSP-W2-01 &nbsp;|&nbsp; Week 2</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Building a<br>
+                <span class="accent">Cybersecurity Program</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Strategy &nbsp;&bull;&nbsp; Governance &nbsp;&bull;&nbsp; Operations &nbsp;&bull;&nbsp; Maturity &nbsp;&bull;&nbsp; Metrics &nbsp;&bull;&nbsp; Continuous Improvement
+            </div>
+        </div>
+        <div class="scenario-strip">
+            A cybersecurity program is not a product you buy or a tool you install. It is an organizational capability -- a living system of people, processes, and technology governed by policy and driven by risk. This deck covers how programs are designed, measured, and matured from initial concept to continuous operation. Whether you are building from scratch or inheriting an existing program, these are the components that determine success or failure.
+        </div>
+        <div class="title-meta-row">
+            <span>14 Slides</span>
+            <span>CSP-W2-01</span>
+            <span>Week 2</span>
+            <span>CIS2208 -- Cybersecurity Policy</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- WHAT IS A CYBERSECURITY PROGRAM ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 14</div>
+        <div class="slide-title">What Is a <span class="accent">Cybersecurity Program</span>?</div>
+        <div class="slide-subtitle">Three interdependent layers that transform security from reactive firefighting into a strategic organizational function.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 520 220" width="500" role="img" aria-label="Three-layer cybersecurity program diagram showing Strategy at the top, Governance in the middle, and Operations at the bottom, with bidirectional arrows connecting each layer.">
+                <!-- Top layer: Strategy -->
+                <rect x="60" y="10" width="400" height="50" rx="8" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="2"/>
+                <text x="260" y="30" text-anchor="middle" fill="#ff00ff" font-size="12" font-weight="700">STRATEGY</text>
+                <text x="260" y="46" text-anchor="middle" fill="#9a82a0" font-size="9">Mission alignment, risk appetite, investment priorities, business objectives</text>
+                <!-- Middle layer: Governance -->
+                <rect x="60" y="80" width="400" height="50" rx="8" fill="rgba(0,255,255,0.1)" stroke="#00ffff" stroke-width="2"/>
+                <text x="260" y="100" text-anchor="middle" fill="#00ffff" font-size="12" font-weight="700">GOVERNANCE</text>
+                <text x="260" y="116" text-anchor="middle" fill="#9a82a0" font-size="9">Policies, standards, oversight, accountability, compliance frameworks</text>
+                <!-- Bottom layer: Operations -->
+                <rect x="60" y="150" width="400" height="50" rx="8" fill="rgba(255,68,255,0.1)" stroke="#ff44ff" stroke-width="2"/>
+                <text x="260" y="170" text-anchor="middle" fill="#ff44ff" font-size="12" font-weight="700">OPERATIONS</text>
+                <text x="260" y="186" text-anchor="middle" fill="#9a82a0" font-size="9">Detection, response, patching, monitoring, incident handling, day-to-day defense</text>
+                <!-- Bidirectional arrows -->
+                <line x1="240" y1="62" x2="240" y2="78" stroke="#5a4460" stroke-width="1.5" marker-end="url(#arrowDown)"/>
+                <line x1="280" y1="78" x2="280" y2="62" stroke="#5a4460" stroke-width="1.5" marker-end="url(#arrowDown)"/>
+                <line x1="240" y1="132" x2="240" y2="148" stroke="#5a4460" stroke-width="1.5" marker-end="url(#arrowDown)"/>
+                <line x1="280" y1="148" x2="280" y2="132" stroke="#5a4460" stroke-width="1.5" marker-end="url(#arrowDown)"/>
+                <!-- Side label -->
+                <text x="30" y="110" text-anchor="middle" fill="#5a4460" font-size="9" transform="rotate(-90,30,110)" letter-spacing="0.1em">FEEDBACK LOOP</text>
+                <line x1="45" y1="35" x2="45" y2="175" stroke="rgba(255,0,255,0.15)" stroke-width="1" stroke-dasharray="3 2"/>
+                <defs>
+                    <marker id="arrowDown" markerWidth="8" markerHeight="6" refX="4" refY="3" orient="auto">
+                        <path d="M0,0 L8,3 L0,6" fill="#5a4460"/>
+                    </marker>
+                </defs>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Strategy</div>
+                <div class="card-desc">Defines why the program exists and what it must protect. Aligns security investments with business objectives and risk appetite. Strategy is set by executive leadership and the CISO. Without strategy, security teams solve the wrong problems with the wrong priorities.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Governance</div>
+                <div class="card-desc">Translates strategy into enforceable rules. Policies, standards, and procedures create the framework that tells the organization what is required, what is acceptable, and what is prohibited. Governance ensures accountability through oversight and audit.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Operations</div>
+                <div class="card-desc">Executes the program day to day. SOC analysts, incident responders, vulnerability managers, and security engineers do the work that governance mandates and strategy funds. Operational data feeds back into strategy through metrics and lessons learned.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Key Insight</div>
+            Most organizations start with operations -- buying firewalls, deploying antivirus -- and never build governance or strategy. That creates a reactive posture where every incident is an emergency and spending has no direction. Mature programs build top-down: strategy drives governance, governance directs operations.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- PEOPLE PROCESSES TECHNOLOGY ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 14</div>
+        <div class="slide-title"><span class="accent">People</span>, <span class="cyan">Processes</span>, Technology</div>
+        <div class="slide-subtitle">The three pillars of any cybersecurity program. Technology alone cannot solve security problems -- it requires trained people following defined processes.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 420 300" width="380" role="img" aria-label="Three pillars diagram showing People, Processes, and Technology as columns supporting a Cybersecurity Program roof, all resting on a Risk Management foundation.">
+                <!-- Foundation -->
+                <rect x="20" y="250" width="380" height="36" rx="4" fill="rgba(255,0,255,0.06)" stroke="rgba(255,0,255,0.3)" stroke-width="1.5"/>
+                <text x="210" y="273" text-anchor="middle" fill="#ff00ff" font-size="11" font-weight="700" letter-spacing="0.1em">RISK MANAGEMENT FOUNDATION</text>
+                <!-- Pillars -->
+                <rect x="45" y="80" width="90" height="168" rx="4" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="90" y="110" text-anchor="middle" fill="#ff00ff" font-size="12" font-weight="700">PEOPLE</text>
+                <text x="90" y="130" text-anchor="middle" fill="#9a82a0" font-size="8">Hiring</text>
+                <text x="90" y="144" text-anchor="middle" fill="#9a82a0" font-size="8">Training</text>
+                <text x="90" y="158" text-anchor="middle" fill="#9a82a0" font-size="8">Awareness</text>
+                <text x="90" y="172" text-anchor="middle" fill="#9a82a0" font-size="8">Culture</text>
+                <text x="90" y="186" text-anchor="middle" fill="#9a82a0" font-size="8">Retention</text>
+
+                <rect x="165" y="80" width="90" height="168" rx="4" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="210" y="110" text-anchor="middle" fill="#00ffff" font-size="12" font-weight="700">PROCESSES</text>
+                <text x="210" y="130" text-anchor="middle" fill="#9a82a0" font-size="8">Policies</text>
+                <text x="210" y="144" text-anchor="middle" fill="#9a82a0" font-size="8">Procedures</text>
+                <text x="210" y="158" text-anchor="middle" fill="#9a82a0" font-size="8">Playbooks</text>
+                <text x="210" y="172" text-anchor="middle" fill="#9a82a0" font-size="8">Workflows</text>
+                <text x="210" y="186" text-anchor="middle" fill="#9a82a0" font-size="8">Audit cycles</text>
+
+                <rect x="285" y="80" width="90" height="168" rx="4" fill="rgba(255,68,255,0.08)" stroke="#ff44ff" stroke-width="1.5"/>
+                <text x="330" y="110" text-anchor="middle" fill="#ff44ff" font-size="12" font-weight="700">TECHNOLOGY</text>
+                <text x="330" y="130" text-anchor="middle" fill="#9a82a0" font-size="8">SIEM / SOAR</text>
+                <text x="330" y="144" text-anchor="middle" fill="#9a82a0" font-size="8">EDR / XDR</text>
+                <text x="330" y="158" text-anchor="middle" fill="#9a82a0" font-size="8">Firewalls</text>
+                <text x="330" y="172" text-anchor="middle" fill="#9a82a0" font-size="8">IAM / PAM</text>
+                <text x="330" y="186" text-anchor="middle" fill="#9a82a0" font-size="8">Scanners</text>
+
+                <!-- Roof -->
+                <polygon points="10,78 210,20 410,78" fill="rgba(255,0,255,0.04)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="210" y="60" text-anchor="middle" fill="#ede0f0" font-size="11" font-weight="700">CYBERSECURITY PROGRAM</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">People (60% of the equation)</div>
+                <div class="card-desc">The most expensive and most critical pillar. Includes security staff, executive sponsors, and every employee who clicks links or handles data. The global cybersecurity workforce gap exceeds 3.4 million. Retention is as important as hiring.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Processes (30% of the equation)</div>
+                <div class="card-desc">Documented, repeatable procedures that ensure consistency regardless of who is on shift. Without processes, security depends on individual heroics. Processes must be tested, reviewed, and updated. A playbook nobody follows is decoration.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Technology (10% of the equation)</div>
+                <div class="card-desc">Tools amplify people and automate processes -- they do not replace either. Buying a SIEM without staff to monitor it or runbooks to guide response is wasted budget. Technology is the enabler, not the solution.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Common Failure</div>
+            Organizations chronically over-invest in technology and under-invest in people and processes. A $500,000 SIEM generating 10,000 alerts per day with two junior analysts and no triage playbook produces alert fatigue, not security. The tool works; the program does not.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- MATURITY MODELS ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 14</div>
+        <div class="slide-title">Cybersecurity <span class="accent">Maturity Models</span></div>
+        <div class="slide-subtitle">Maturity models provide a structured path from ad-hoc security to optimized, continuously improving programs.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 520 240" width="500" role="img" aria-label="Maturity model ladder showing five levels from bottom to top: Level 1 Initial/Ad-hoc, Level 2 Managed, Level 3 Defined, Level 4 Quantitatively Managed, Level 5 Optimizing, with ascending step graphics.">
+                <!-- Steps -->
+                <rect x="20" y="190" width="90" height="40" rx="4" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="65" y="206" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">LEVEL 1</text>
+                <text x="65" y="220" text-anchor="middle" fill="#9a82a0" font-size="8">Initial</text>
+
+                <rect x="120" y="150" width="90" height="80" rx="4" fill="rgba(234,179,8,0.12)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="165" y="166" text-anchor="middle" fill="#eab308" font-size="9" font-weight="700">LEVEL 2</text>
+                <text x="165" y="180" text-anchor="middle" fill="#9a82a0" font-size="8">Managed</text>
+
+                <rect x="220" y="110" width="90" height="120" rx="4" fill="rgba(0,255,255,0.12)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="265" y="126" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">LEVEL 3</text>
+                <text x="265" y="140" text-anchor="middle" fill="#9a82a0" font-size="8">Defined</text>
+
+                <rect x="320" y="70" width="90" height="160" rx="4" fill="rgba(255,0,255,0.12)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="365" y="86" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">LEVEL 4</text>
+                <text x="365" y="100" text-anchor="middle" fill="#9a82a0" font-size="8">Quantitative</text>
+
+                <rect x="420" y="30" width="90" height="200" rx="4" fill="rgba(34,197,94,0.12)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="465" y="46" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="700">LEVEL 5</text>
+                <text x="465" y="60" text-anchor="middle" fill="#9a82a0" font-size="8">Optimizing</text>
+
+                <!-- Ascending arrow -->
+                <line x1="50" y1="185" x2="480" y2="22" stroke="rgba(255,0,255,0.2)" stroke-width="1" stroke-dasharray="5 3"/>
+                <text x="300" y="16" text-anchor="middle" fill="#5a4460" font-size="9" letter-spacing="0.1em">INCREASING MATURITY</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">CMM (Capability Maturity Model)</div>
+                <div class="card-desc">Originally from Carnegie Mellon for software engineering, adapted for cybersecurity. Five levels from ad-hoc to optimizing. Provides a universal language for measuring organizational capability. Many industry frameworks map their maturity scales to CMM levels.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">C2M2 (Cybersecurity Capability)</div>
+                <div class="card-desc">Department of Energy model for critical infrastructure sectors. Focuses on ten domains including risk management, asset management, and situational awareness. Uses MIL (Maturity Indicator Level) scores 0-3. Free, self-assessment-based, and sector-agnostic despite its origins.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">CMMC (Cybersecurity Maturity Model Cert.)</div>
+                <div class="card-desc">Department of Defense requirement for all defense contractors. Three levels (Foundational, Advanced, Expert) mapped to NIST SP 800-171 controls. Level 2+ requires third-party assessment. Non-compliance means losing government contracts -- it is a business survival requirement.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Why Maturity Models Matter</div>
+            Maturity models answer two questions: "Where are we now?" and "What does the next level look like?" Without a maturity model, organizations cannot objectively measure progress, benchmark against peers, or justify investment to leadership. They also prevent the common trap of jumping from Level 1 to Level 5 ambitions -- you cannot skip levels.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- POLICY HIERARCHY ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 14</div>
+        <div class="slide-title">Security Program Components: <span class="accent">The Policy Hierarchy</span></div>
+        <div class="slide-subtitle">Four layers of documentation, each serving a distinct purpose. Confusing them leads to unenforceable, ignored policy.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 440 280" width="420" role="img" aria-label="Policy hierarchy pyramid with four layers from top to bottom: Policies (mandatory, what), Standards (mandatory, how), Procedures (step-by-step, who/when), and Guidelines (recommended, optional).">
+                <!-- Pyramid layers -->
+                <polygon points="220,10 130,85 310,85" fill="rgba(255,0,255,0.12)" stroke="#ff00ff" stroke-width="2"/>
+                <text x="220" y="48" text-anchor="middle" fill="#ff00ff" font-size="11" font-weight="700">POLICIES</text>
+                <text x="220" y="65" text-anchor="middle" fill="#9a82a0" font-size="8">Mandatory / What</text>
+
+                <polygon points="130,88 80,138 360,138 310,88" fill="rgba(0,255,255,0.1)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="220" y="112" text-anchor="middle" fill="#00ffff" font-size="11" font-weight="700">STANDARDS</text>
+                <text x="220" y="128" text-anchor="middle" fill="#9a82a0" font-size="8">Mandatory / How</text>
+
+                <polygon points="80,141 40,191 400,191 360,141" fill="rgba(255,68,255,0.08)" stroke="#ff44ff" stroke-width="1.5"/>
+                <text x="220" y="165" text-anchor="middle" fill="#ff44ff" font-size="11" font-weight="700">PROCEDURES</text>
+                <text x="220" y="181" text-anchor="middle" fill="#9a82a0" font-size="8">Step-by-step / Who &amp; When</text>
+
+                <polygon points="40,194 10,244 430,244 400,194" fill="rgba(234,179,8,0.06)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="220" y="218" text-anchor="middle" fill="#eab308" font-size="11" font-weight="700">GUIDELINES</text>
+                <text x="220" y="234" text-anchor="middle" fill="#9a82a0" font-size="8">Recommended / Optional best practices</text>
+
+                <!-- Side labels -->
+                <text x="440" y="50" fill="#ff00ff" font-size="8" font-weight="600">Board-approved</text>
+                <text x="440" y="115" fill="#00ffff" font-size="8" font-weight="600">CISO-approved</text>
+                <text x="440" y="168" fill="#ff44ff" font-size="8" font-weight="600">Team-authored</text>
+                <text x="440" y="222" fill="#eab308" font-size="8" font-weight="600">Advisory</text>
+
+                <!-- Enforcement arrow -->
+                <text x="8" y="140" text-anchor="middle" fill="#5a4460" font-size="8" transform="rotate(-90,8,140)" letter-spacing="0.08em">ENFORCEMENT</text>
+                <line x1="18" y1="30" x2="18" y2="240" stroke="rgba(255,0,255,0.2)" stroke-width="1" marker-end="url(#arrowPH)"/>
+                <defs>
+                    <marker id="arrowPH" markerWidth="8" markerHeight="6" refX="4" refY="3" orient="auto">
+                        <path d="M0,0 L8,3 L0,6" fill="rgba(255,0,255,0.3)"/>
+                    </marker>
+                </defs>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Policies</div>
+                <div class="card-desc">High-level, mandatory statements approved by executive leadership or the board. State what the organization will and will not do. Example: "All sensitive data must be encrypted at rest and in transit." Policies are technology-agnostic and change infrequently.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Standards</div>
+                <div class="card-desc">Mandatory specifications that define how policies are implemented. Example: "Encryption must use AES-256 for data at rest and TLS 1.3 for data in transit." Standards are technology-specific and updated as technology evolves.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Procedures</div>
+                <div class="card-desc">Step-by-step instructions for carrying out standards. Answer who does what, when, and in what order. Example: "The database team configures AES-256 using the following steps..." Procedures are operational documents maintained by the teams that execute them.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Guidelines</div>
+                <div class="card-desc">Non-mandatory recommendations and best practices. Provide flexibility where rigid rules are inappropriate. Example: "When selecting a password manager, prefer tools with FIDO2 support." Guidelines suggest; they do not mandate.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">Common Mistake</div>
+            Writing a 60-page document and calling it a "policy" when it contains policies, standards, procedures, and guidelines mixed together. The result is unreadable, unenforceable, and impossible to maintain. Each layer must be a separate document with its own approval authority, review cycle, and audience.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- SECURITY OPERATIONS ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 14</div>
+        <div class="slide-title"><span class="accent">Security Operations</span>: SOC, SIEM, and Incident Response</div>
+        <div class="slide-subtitle">The operational engine of the cybersecurity program -- where detection, analysis, and response happen in real time.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 540 220" width="520" role="img" aria-label="SOC architecture diagram showing data sources on the left feeding into a SIEM in the center, which connects to SOC analysts and an incident response team on the right, with a SOAR automation layer underneath.">
+                <!-- Data Sources -->
+                <rect x="0" y="20" width="100" height="28" rx="4" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="50" y="38" text-anchor="middle" fill="#00ffff" font-size="8" font-weight="600">FIREWALLS</text>
+                <rect x="0" y="54" width="100" height="28" rx="4" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="50" y="72" text-anchor="middle" fill="#00ffff" font-size="8" font-weight="600">ENDPOINTS / EDR</text>
+                <rect x="0" y="88" width="100" height="28" rx="4" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="50" y="106" text-anchor="middle" fill="#00ffff" font-size="8" font-weight="600">CLOUD LOGS</text>
+                <rect x="0" y="122" width="100" height="28" rx="4" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="50" y="140" text-anchor="middle" fill="#00ffff" font-size="8" font-weight="600">IAM / AUTH</text>
+                <rect x="0" y="156" width="100" height="28" rx="4" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="50" y="174" text-anchor="middle" fill="#00ffff" font-size="8" font-weight="600">EMAIL GATEWAY</text>
+
+                <!-- Arrows to SIEM -->
+                <line x1="102" y1="34" x2="155" y2="90" stroke="#5a4460" stroke-width="1"/>
+                <line x1="102" y1="68" x2="155" y2="90" stroke="#5a4460" stroke-width="1"/>
+                <line x1="102" y1="102" x2="155" y2="100" stroke="#5a4460" stroke-width="1"/>
+                <line x1="102" y1="136" x2="155" y2="110" stroke="#5a4460" stroke-width="1"/>
+                <line x1="102" y1="170" x2="155" y2="110" stroke="#5a4460" stroke-width="1"/>
+
+                <!-- SIEM -->
+                <rect x="155" y="60" width="120" height="80" rx="8" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="2"/>
+                <text x="215" y="88" text-anchor="middle" fill="#ff00ff" font-size="13" font-weight="700">SIEM</text>
+                <text x="215" y="104" text-anchor="middle" fill="#9a82a0" font-size="8">Correlation</text>
+                <text x="215" y="116" text-anchor="middle" fill="#9a82a0" font-size="8">Detection rules</text>
+                <text x="215" y="128" text-anchor="middle" fill="#9a82a0" font-size="8">Alerting</text>
+
+                <!-- Arrows to SOC -->
+                <line x1="277" y1="85" x2="310" y2="50" stroke="#ff00ff" stroke-width="1.5" marker-end="url(#arrowSOC)"/>
+                <line x1="277" y1="115" x2="310" y2="130" stroke="#ff00ff" stroke-width="1.5" marker-end="url(#arrowSOC)"/>
+
+                <!-- SOC Analysts -->
+                <rect x="312" y="20" width="110" height="60" rx="8" fill="rgba(255,68,255,0.08)" stroke="#ff44ff" stroke-width="1.5"/>
+                <text x="367" y="42" text-anchor="middle" fill="#ff44ff" font-size="10" font-weight="700">SOC ANALYSTS</text>
+                <text x="367" y="56" text-anchor="middle" fill="#9a82a0" font-size="8">Tier 1: Triage</text>
+                <text x="367" y="68" text-anchor="middle" fill="#9a82a0" font-size="8">Tier 2: Investigation</text>
+
+                <!-- IR Team -->
+                <rect x="312" y="100" width="110" height="60" rx="8" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="367" y="122" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="700">IR TEAM</text>
+                <text x="367" y="136" text-anchor="middle" fill="#9a82a0" font-size="8">Containment</text>
+                <text x="367" y="148" text-anchor="middle" fill="#9a82a0" font-size="8">Eradication</text>
+
+                <!-- Escalation arrow -->
+                <line x1="424" y1="50" x2="450" y2="50" stroke="#ff44ff" stroke-width="1" marker-end="url(#arrowSOC)"/>
+                <line x1="450" y1="50" x2="450" y2="120" stroke="#ef4444" stroke-width="1" marker-end="url(#arrowSOC)"/>
+                <text x="470" y="90" fill="#5a4460" font-size="7" transform="rotate(90,470,90)">ESCALATE</text>
+
+                <!-- SOAR bar -->
+                <rect x="155" y="170" width="267" height="30" rx="6" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>
+                <text x="288" y="189" text-anchor="middle" fill="#22c55e" font-size="9" letter-spacing="0.1em">SOAR -- AUTOMATION &amp; ORCHESTRATION</text>
+                <!-- Connection down -->
+                <line x1="215" y1="142" x2="215" y2="168" stroke="rgba(34,197,94,0.2)" stroke-width="1" stroke-dasharray="3 2"/>
+                <line x1="367" y1="162" x2="367" y2="168" stroke="rgba(34,197,94,0.2)" stroke-width="1" stroke-dasharray="3 2"/>
+
+                <defs>
+                    <marker id="arrowSOC" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                        <path d="M0,0 L8,3 L0,6" fill="#ff00ff"/>
+                    </marker>
+                </defs>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">SOC (Security Operations Center)</div>
+                <div class="card-desc">The nerve center of security operations. SOC teams monitor, detect, and respond to threats 24/7. Tiered structure: Tier 1 triages alerts, Tier 2 investigates, Tier 3 hunts for advanced threats. Can be in-house, outsourced (MSSP), or hybrid.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">SIEM (Security Information &amp; Event Mgmt)</div>
+                <div class="card-desc">Aggregates logs from all sources, correlates events, and generates alerts based on detection rules. Modern SIEMs process millions of events per second. Without tuning, they generate overwhelming noise. With tuning, they are the single pane of glass for threat detection.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Incident Response Team</div>
+                <div class="card-desc">Activated when alerts become confirmed incidents. Follows a structured methodology: preparation, identification, containment, eradication, recovery, and lessons learned (NIST SP 800-61). The IR plan must be documented, tested via tabletop exercises, and updated after every major incident.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- VULNERABILITY MANAGEMENT ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 14</div>
+        <div class="slide-title"><span class="accent">Vulnerability Management</span> Program</div>
+        <div class="slide-subtitle">A continuous cycle of discovering, prioritizing, and eliminating weaknesses before attackers exploit them.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 460 200" width="440" role="img" aria-label="Vulnerability management lifecycle showing a circular flow: Discover, Prioritize, Remediate, Verify, and Report, with arrows connecting each stage in a continuous loop.">
+                <!-- Circular flow nodes -->
+                <circle cx="230" cy="100" r="75" fill="none" stroke="rgba(255,0,255,0.1)" stroke-width="1" stroke-dasharray="5 3"/>
+
+                <!-- Discover -->
+                <rect x="190" y="10" width="80" height="36" rx="6" fill="rgba(0,255,255,0.12)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="230" y="33" text-anchor="middle" fill="#00ffff" font-size="10" font-weight="700">DISCOVER</text>
+                <!-- Prioritize -->
+                <rect x="330" y="55" width="80" height="36" rx="6" fill="rgba(255,0,255,0.12)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="370" y="78" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700">PRIORITIZE</text>
+                <!-- Remediate -->
+                <rect x="310" y="140" width="80" height="36" rx="6" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="350" y="163" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="700">REMEDIATE</text>
+                <!-- Verify -->
+                <rect x="140" y="140" width="80" height="36" rx="6" fill="rgba(34,197,94,0.12)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="180" y="163" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="700">VERIFY</text>
+                <!-- Report -->
+                <rect x="50" y="55" width="80" height="36" rx="6" fill="rgba(234,179,8,0.12)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="90" y="78" text-anchor="middle" fill="#eab308" font-size="10" font-weight="700">REPORT</text>
+
+                <!-- Curved arrows (simplified as lines with markers) -->
+                <path d="M270,28 Q310,30 328,60" fill="none" stroke="#5a4460" stroke-width="1.5" marker-end="url(#arrowVM)"/>
+                <path d="M390,93 Q400,120 390,140" fill="none" stroke="#5a4460" stroke-width="1.5" marker-end="url(#arrowVM)"/>
+                <path d="M310,160 Q270,175 222,170" fill="none" stroke="#5a4460" stroke-width="1.5" marker-end="url(#arrowVM)"/>
+                <path d="M140,155 Q110,135 105,93" fill="none" stroke="#5a4460" stroke-width="1.5" marker-end="url(#arrowVM)"/>
+                <path d="M90,53 Q100,35 188,24" fill="none" stroke="#5a4460" stroke-width="1.5" marker-end="url(#arrowVM)"/>
+
+                <!-- Center text -->
+                <text x="230" y="97" text-anchor="middle" fill="#5a4460" font-size="9" letter-spacing="0.08em">CONTINUOUS</text>
+                <text x="230" y="110" text-anchor="middle" fill="#5a4460" font-size="9" letter-spacing="0.08em">CYCLE</text>
+
+                <defs>
+                    <marker id="arrowVM" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                        <path d="M0,0 L8,3 L0,6" fill="#5a4460"/>
+                    </marker>
+                </defs>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">Discover -- Scanning</div>
+                <div class="card-desc">Automated vulnerability scanners (Nessus, Qualys, Rapid7) identify known weaknesses across networks, hosts, and applications. Scans run on schedule -- weekly for critical assets, monthly for others. You cannot fix what you have not found.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Prioritize -- Risk-Based Ranking</div>
+                <div class="card-desc">Not all vulnerabilities are equal. CVSS scores provide severity, but context matters more. A critical vulnerability on an internet-facing server with sensitive data is a different risk than the same CVE on an isolated test machine. Prioritize by exploitability, asset value, and exposure.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Remediate -- Patch &amp; Mitigate</div>
+                <div class="card-desc">Apply patches, update configurations, or implement compensating controls. Remediation has SLAs: critical vulnerabilities within 48 hours, high within 7 days, medium within 30 days. When patching is not possible, document the risk acceptance with compensating controls.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Verify and Report</div>
+            After remediation, rescan to confirm the fix worked. Report metrics to leadership: total vulnerabilities, mean time to remediate, percentage of assets scanned, SLA compliance rate. A vulnerability management program without metrics is a hope-based strategy.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- THIRD-PARTY RISK ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 14</div>
+        <div class="slide-title"><span class="accent">Third-Party</span> Risk Management</div>
+        <div class="slide-subtitle">Your security is only as strong as your weakest vendor. Supply chain attacks and vendor breaches are among the fastest-growing threat vectors.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 520 200" width="500" role="img" aria-label="Third-party risk management flow diagram showing the lifecycle: Vendor Identification, Risk Assessment, Due Diligence, Contract/SLAs, Ongoing Monitoring, and Offboarding, connected by arrows in a linear flow.">
+                <!-- Flow steps -->
+                <rect x="0" y="60" width="78" height="60" rx="6" fill="rgba(0,255,255,0.1)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="39" y="82" text-anchor="middle" fill="#00ffff" font-size="8" font-weight="700">IDENTIFY</text>
+                <text x="39" y="95" text-anchor="middle" fill="#9a82a0" font-size="7">Vendor</text>
+                <text x="39" y="106" text-anchor="middle" fill="#9a82a0" font-size="7">inventory</text>
+
+                <rect x="92" y="60" width="78" height="60" rx="6" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="131" y="82" text-anchor="middle" fill="#ff00ff" font-size="8" font-weight="700">ASSESS</text>
+                <text x="131" y="95" text-anchor="middle" fill="#9a82a0" font-size="7">Risk tier</text>
+                <text x="131" y="106" text-anchor="middle" fill="#9a82a0" font-size="7">classification</text>
+
+                <rect x="184" y="60" width="78" height="60" rx="6" fill="rgba(255,68,255,0.1)" stroke="#ff44ff" stroke-width="1.5"/>
+                <text x="223" y="78" text-anchor="middle" fill="#ff44ff" font-size="8" font-weight="700">DUE</text>
+                <text x="223" y="90" text-anchor="middle" fill="#ff44ff" font-size="8" font-weight="700">DILIGENCE</text>
+                <text x="223" y="106" text-anchor="middle" fill="#9a82a0" font-size="7">SOC 2, pen test</text>
+
+                <rect x="276" y="60" width="78" height="60" rx="6" fill="rgba(234,179,8,0.1)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="315" y="82" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">CONTRACT</text>
+                <text x="315" y="95" text-anchor="middle" fill="#9a82a0" font-size="7">SLAs, breach</text>
+                <text x="315" y="106" text-anchor="middle" fill="#9a82a0" font-size="7">notification</text>
+
+                <rect x="368" y="60" width="78" height="60" rx="6" fill="rgba(34,197,94,0.1)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="407" y="82" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">MONITOR</text>
+                <text x="407" y="95" text-anchor="middle" fill="#9a82a0" font-size="7">Ongoing</text>
+                <text x="407" y="106" text-anchor="middle" fill="#9a82a0" font-size="7">assessment</text>
+
+                <rect x="460" y="60" width="58" height="60" rx="6" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="489" y="85" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">OFF-</text>
+                <text x="489" y="97" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">BOARD</text>
+
+                <!-- Arrows -->
+                <line x1="80" y1="90" x2="90" y2="90" stroke="#5a4460" stroke-width="1.5" marker-end="url(#arrowTP)"/>
+                <line x1="172" y1="90" x2="182" y2="90" stroke="#5a4460" stroke-width="1.5" marker-end="url(#arrowTP)"/>
+                <line x1="264" y1="90" x2="274" y2="90" stroke="#5a4460" stroke-width="1.5" marker-end="url(#arrowTP)"/>
+                <line x1="356" y1="90" x2="366" y2="90" stroke="#5a4460" stroke-width="1.5" marker-end="url(#arrowTP)"/>
+                <line x1="448" y1="90" x2="458" y2="90" stroke="#5a4460" stroke-width="1.5" marker-end="url(#arrowTP)"/>
+
+                <!-- Top label -->
+                <text x="260" y="30" text-anchor="middle" fill="#5a4460" font-size="9" letter-spacing="0.1em">THIRD-PARTY RISK MANAGEMENT LIFECYCLE</text>
+
+                <!-- Bottom: supply chain note -->
+                <rect x="60" y="145" width="400" height="35" rx="6" fill="rgba(239,68,68,0.05)" stroke="rgba(239,68,68,0.2)" stroke-width="1"/>
+                <text x="260" y="160" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">SUPPLY CHAIN DUE DILIGENCE</text>
+                <text x="260" y="173" text-anchor="middle" fill="#9a82a0" font-size="8">SolarWinds, Kaseya, Log4j -- your vendors' vulnerabilities are your vulnerabilities</text>
+
+                <defs>
+                    <marker id="arrowTP" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                        <path d="M0,0 L8,3 L0,6" fill="#5a4460"/>
+                    </marker>
+                </defs>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Vendor Assessment</div>
+                <div class="card-desc">Classify vendors by risk tier based on data access, system connectivity, and business criticality. Tier 1 vendors (access to sensitive data or critical systems) require SOC 2 Type II reports, penetration test results, and security questionnaires. Tier 3 vendors may only need basic due diligence.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Contractual Controls</div>
+                <div class="card-desc">SLAs must include breach notification timelines (72 hours is standard), right-to-audit clauses, data handling requirements, and termination provisions. If your vendor is breached, your contract determines whether you learn about it in 24 hours or 6 months.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Supply Chain Risk</div>
+                <div class="card-desc">SolarWinds (2020) compromised 18,000 organizations through a trusted software update. Kaseya (2021) reached 1,500 businesses through a managed service provider. Your security perimeter now extends to every vendor, every library, every SaaS tool your organization uses.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Continuous Monitoring</div>
+                <div class="card-desc">One-time assessment is insufficient. Use continuous monitoring platforms (BitSight, SecurityScorecard) to track vendor security posture over time. Require annual reassessment for Tier 1 vendors. Vendors who pass assessment today may fail it tomorrow.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- METRICS AND KPIs ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 14</div>
+        <div class="slide-title"><span class="accent">Metrics</span> and <span class="cyan">KPIs</span></div>
+        <div class="slide-subtitle">What gets measured gets managed. Without metrics, security is a black box that leadership cannot evaluate, fund, or improve.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 520 190" width="500" role="img" aria-label="KPI dashboard mockup showing five metric panels: MTTD at 4.2 hours, MTTR at 18.6 hours, Patch SLA compliance at 94 percent, Phishing click rate at 3.1 percent, and Open audit findings at 7.">
+                <!-- Dashboard frame -->
+                <rect x="0" y="0" width="520" height="190" rx="10" fill="rgba(255,255,255,0.02)" stroke="rgba(255,0,255,0.15)" stroke-width="1"/>
+                <text x="260" y="22" text-anchor="middle" fill="#5a4460" font-size="9" letter-spacing="0.12em">SECURITY PROGRAM KPI DASHBOARD</text>
+
+                <!-- Metric 1: MTTD -->
+                <rect x="15" y="35" width="92" height="70" rx="6" fill="rgba(0,255,255,0.08)" stroke="rgba(0,255,255,0.3)" stroke-width="1"/>
+                <text x="61" y="52" text-anchor="middle" fill="#00ffff" font-size="7" font-weight="700">MTTD</text>
+                <text x="61" y="76" text-anchor="middle" fill="#ede0f0" font-size="18" font-weight="800">4.2h</text>
+                <text x="61" y="94" text-anchor="middle" fill="#9a82a0" font-size="7">Mean Time to Detect</text>
+
+                <!-- Metric 2: MTTR -->
+                <rect x="117" y="35" width="92" height="70" rx="6" fill="rgba(255,0,255,0.08)" stroke="rgba(255,0,255,0.3)" stroke-width="1"/>
+                <text x="163" y="52" text-anchor="middle" fill="#ff00ff" font-size="7" font-weight="700">MTTR</text>
+                <text x="163" y="76" text-anchor="middle" fill="#ede0f0" font-size="18" font-weight="800">18.6h</text>
+                <text x="163" y="94" text-anchor="middle" fill="#9a82a0" font-size="7">Mean Time to Respond</text>
+
+                <!-- Metric 3: Patch SLA -->
+                <rect x="219" y="35" width="92" height="70" rx="6" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>
+                <text x="265" y="52" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="700">PATCH SLA</text>
+                <text x="265" y="76" text-anchor="middle" fill="#ede0f0" font-size="18" font-weight="800">94%</text>
+                <text x="265" y="94" text-anchor="middle" fill="#9a82a0" font-size="7">Compliance Rate</text>
+
+                <!-- Metric 4: Phishing -->
+                <rect x="321" y="35" width="92" height="70" rx="6" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.3)" stroke-width="1"/>
+                <text x="367" y="52" text-anchor="middle" fill="#eab308" font-size="7" font-weight="700">PHISHING</text>
+                <text x="367" y="76" text-anchor="middle" fill="#ede0f0" font-size="18" font-weight="800">3.1%</text>
+                <text x="367" y="94" text-anchor="middle" fill="#9a82a0" font-size="7">Click Rate</text>
+
+                <!-- Metric 5: Audit Findings -->
+                <rect x="423" y="35" width="82" height="70" rx="6" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>
+                <text x="464" y="52" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="700">AUDIT</text>
+                <text x="464" y="76" text-anchor="middle" fill="#ede0f0" font-size="18" font-weight="800">7</text>
+                <text x="464" y="94" text-anchor="middle" fill="#9a82a0" font-size="7">Open Findings</text>
+
+                <!-- Trend bar (simplified) -->
+                <rect x="15" y="120" width="490" height="55" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+                <text x="260" y="137" text-anchor="middle" fill="#5a4460" font-size="8" letter-spacing="0.08em">12-MONTH TREND</text>
+                <!-- Mini bar chart -->
+                <rect x="45" y="162" width="30" height="8" rx="2" fill="#ef4444" opacity="0.6"/>
+                <rect x="85" y="158" width="30" height="12" rx="2" fill="#eab308" opacity="0.6"/>
+                <rect x="125" y="155" width="30" height="15" rx="2" fill="#eab308" opacity="0.6"/>
+                <rect x="165" y="152" width="30" height="18" rx="2" fill="#00ffff" opacity="0.6"/>
+                <rect x="205" y="148" width="30" height="22" rx="2" fill="#00ffff" opacity="0.6"/>
+                <rect x="245" y="152" width="30" height="18" rx="2" fill="#00ffff" opacity="0.6"/>
+                <rect x="285" y="150" width="30" height="20" rx="2" fill="#22c55e" opacity="0.6"/>
+                <rect x="325" y="147" width="30" height="23" rx="2" fill="#22c55e" opacity="0.6"/>
+                <rect x="365" y="145" width="30" height="25" rx="2" fill="#22c55e" opacity="0.6"/>
+                <rect x="405" y="146" width="30" height="24" rx="2" fill="#22c55e" opacity="0.6"/>
+                <rect x="445" y="143" width="30" height="27" rx="2" fill="#ff00ff" opacity="0.6"/>
+                <text x="60" y="146" text-anchor="middle" fill="#5a4460" font-size="6">Jan</text>
+                <text x="260" y="146" text-anchor="middle" fill="#5a4460" font-size="6">Jun</text>
+                <text x="460" y="140" text-anchor="middle" fill="#5a4460" font-size="6">Dec</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">MTTD / MTTR</div>
+                <div class="card-desc">Mean Time to Detect measures how quickly threats are identified. Mean Time to Respond measures how quickly they are contained. Together they define your organization's speed of defense. Industry average MTTD for breaches: 204 days. Best-in-class: under 24 hours.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Patch Cadence &amp; Compliance</div>
+                <div class="card-desc">Percentage of systems patched within SLA windows. Track by severity: critical (48h), high (7d), medium (30d). A program that patches 95% of critical vulnerabilities within 48 hours has a fundamentally different risk posture than one at 60%.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Phishing &amp; Audit Findings</div>
+                <div class="card-desc">Phishing click rate measures human risk -- industry average is 10-15%, well-trained organizations achieve under 3%. Open audit findings track compliance gaps. Both are leading indicators: rising click rates predict future incidents; growing audit backlogs predict regulatory trouble.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">Metric Selection Principle</div>
+            Choose metrics that drive behavior, not just measure activity. "Number of alerts generated" is an activity metric -- it does not tell you anything useful. "Percentage of critical alerts resolved within 4 hours" drives urgency and accountability. Every metric should answer a question that matters to the business.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- BUDGET JUSTIFICATION ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 14</div>
+        <div class="slide-title"><span class="accent">Budget Justification</span>: Communicating Risk to the Board</div>
+        <div class="slide-subtitle">Security leaders must translate technical risk into business language. The board does not fund SIEM licenses -- they fund risk reduction.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 440 200" width="420" role="img" aria-label="Budget allocation pie chart showing typical cybersecurity program spending: 40 percent on personnel, 25 percent on technology, 15 percent on managed services, 10 percent on training, and 10 percent on compliance and audit.">
+                <!-- Pie chart (simplified wedges using circle segments) -->
+                <circle cx="140" cy="100" r="80" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+                <!-- Personnel: 40% = 144deg, starts at 0 -->
+                <path d="M140,20 A80,80 0 0,1 207,155 L140,100 Z" fill="rgba(255,0,255,0.2)" stroke="#ff00ff" stroke-width="1.5"/>
+                <!-- Technology: 25% = 90deg -->
+                <path d="M207,155 A80,80 0 0,1 95,168 L140,100 Z" fill="rgba(0,255,255,0.2)" stroke="#00ffff" stroke-width="1.5"/>
+                <!-- Managed Services: 15% = 54deg -->
+                <path d="M95,168 A80,80 0 0,1 62,104 L140,100 Z" fill="rgba(255,68,255,0.2)" stroke="#ff44ff" stroke-width="1.5"/>
+                <!-- Training: 10% = 36deg -->
+                <path d="M62,104 A80,80 0 0,1 72,55 L140,100 Z" fill="rgba(234,179,8,0.2)" stroke="#eab308" stroke-width="1.5"/>
+                <!-- Compliance: 10% = 36deg -->
+                <path d="M72,55 A80,80 0 0,1 140,20 L140,100 Z" fill="rgba(34,197,94,0.2)" stroke="#22c55e" stroke-width="1.5"/>
+
+                <!-- Legend -->
+                <rect x="260" y="30" width="12" height="12" rx="2" fill="rgba(255,0,255,0.4)"/>
+                <text x="280" y="40" fill="#ff00ff" font-size="10" font-weight="600">40% Personnel</text>
+                <rect x="260" y="52" width="12" height="12" rx="2" fill="rgba(0,255,255,0.4)"/>
+                <text x="280" y="62" fill="#00ffff" font-size="10" font-weight="600">25% Technology</text>
+                <rect x="260" y="74" width="12" height="12" rx="2" fill="rgba(255,68,255,0.4)"/>
+                <text x="280" y="84" fill="#ff44ff" font-size="10" font-weight="600">15% Managed Services</text>
+                <rect x="260" y="96" width="12" height="12" rx="2" fill="rgba(234,179,8,0.4)"/>
+                <text x="280" y="106" fill="#eab308" font-size="10" font-weight="600">10% Training</text>
+                <rect x="260" y="118" width="12" height="12" rx="2" fill="rgba(34,197,94,0.4)"/>
+                <text x="280" y="128" fill="#22c55e" font-size="10" font-weight="600">10% Compliance / Audit</text>
+
+                <!-- Benchmark -->
+                <text x="350" y="165" text-anchor="middle" fill="#5a4460" font-size="8">Industry average: 6-14% of IT budget</text>
+                <text x="350" y="178" text-anchor="middle" fill="#5a4460" font-size="8">Avg. breach cost: $4.45M (2023)</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Risk Quantification</div>
+                <div class="card-desc">Translate risk into dollars. Use annualized loss expectancy (ALE = ARO x SLE). Example: if ransomware has a 25% annual probability (ARO) and average cost of $2M (SLE), the ALE is $500K. Spending $200K on prevention with 80% risk reduction yields positive ROI.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Board Communication</div>
+                <div class="card-desc">Boards understand revenue, liability, and reputation -- not CVEs and CVSS scores. Frame security in terms they care about: "This investment reduces our probability of a reportable breach by 40%." "Compliance failure risks $50M in federal contract revenue."</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">ROI of Security</div>
+                <div class="card-desc">Compare cost of controls against cost of incidents. Include direct costs (remediation, legal, notification) and indirect costs (stock price impact, customer churn, regulatory fines). IBM's 2023 Cost of a Data Breach report: organizations with mature programs saved $1.76M per breach.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Budget Defense Strategy</div>
+                <div class="card-desc">Present three options: minimum viable (critical gaps only), recommended (balanced risk reduction), and aspirational (industry-leading posture). Let the board choose their risk appetite. Never present a single number without context -- context creates informed decisions.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- PROGRAM ASSESSMENT ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 14</div>
+        <div class="slide-title"><span class="accent">Program Assessment</span>: Gap Analysis and Continuous Improvement</div>
+        <div class="slide-subtitle">Assessment is not a one-time event. It is a recurring discipline that identifies where you are, where you need to be, and how to close the distance.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 480 160" width="460" role="img" aria-label="Continuous improvement cycle showing four stages: Assess current state, Identify gaps, Implement improvements, and Measure results, arranged in a circular flow with Plan-Do-Check-Act labels.">
+                <!-- Circular flow -->
+                <circle cx="240" cy="80" r="55" fill="none" stroke="rgba(255,0,255,0.1)" stroke-width="1" stroke-dasharray="4 3"/>
+
+                <!-- Assess -->
+                <rect x="200" y="5" width="80" height="36" rx="6" fill="rgba(0,255,255,0.12)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="240" y="20" text-anchor="middle" fill="#00ffff" font-size="8" font-weight="700">ASSESS</text>
+                <text x="240" y="33" text-anchor="middle" fill="#9a82a0" font-size="7">Current state</text>
+
+                <!-- Identify -->
+                <rect x="310" y="55" width="80" height="36" rx="6" fill="rgba(255,0,255,0.12)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="350" y="70" text-anchor="middle" fill="#ff00ff" font-size="8" font-weight="700">IDENTIFY</text>
+                <text x="350" y="83" text-anchor="middle" fill="#9a82a0" font-size="7">Gaps</text>
+
+                <!-- Implement -->
+                <rect x="200" y="115" width="80" height="36" rx="6" fill="rgba(234,179,8,0.12)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="240" y="130" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">IMPLEMENT</text>
+                <text x="240" y="143" text-anchor="middle" fill="#9a82a0" font-size="7">Improvements</text>
+
+                <!-- Measure -->
+                <rect x="90" y="55" width="80" height="36" rx="6" fill="rgba(34,197,94,0.12)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="130" y="70" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">MEASURE</text>
+                <text x="130" y="83" text-anchor="middle" fill="#9a82a0" font-size="7">Results</text>
+
+                <!-- Curved arrows -->
+                <path d="M280,28 Q305,35 310,58" fill="none" stroke="#5a4460" stroke-width="1.5" marker-end="url(#arrowCI)"/>
+                <path d="M365,93 Q360,115 282,130" fill="none" stroke="#5a4460" stroke-width="1.5" marker-end="url(#arrowCI)"/>
+                <path d="M200,138 Q175,135 162,93" fill="none" stroke="#5a4460" stroke-width="1.5" marker-end="url(#arrowCI)"/>
+                <path d="M120,53 Q125,35 198,20" fill="none" stroke="#5a4460" stroke-width="1.5" marker-end="url(#arrowCI)"/>
+
+                <!-- Center PDCA -->
+                <text x="240" y="76" text-anchor="middle" fill="#5a4460" font-size="8" letter-spacing="0.08em">PLAN-DO</text>
+                <text x="240" y="88" text-anchor="middle" fill="#5a4460" font-size="8" letter-spacing="0.08em">CHECK-ACT</text>
+
+                <!-- Side labels -->
+                <text x="10" y="80" fill="#9a82a0" font-size="8">NIST CSF</text>
+                <text x="10" y="92" fill="#9a82a0" font-size="8">ISO 27001</text>
+                <text x="10" y="104" fill="#9a82a0" font-size="8">CIS Controls</text>
+
+                <text x="435" y="80" fill="#9a82a0" font-size="8">Readiness</text>
+                <text x="435" y="92" fill="#9a82a0" font-size="8">reviews</text>
+                <text x="435" y="104" fill="#9a82a0" font-size="8">Tabletops</text>
+
+                <defs>
+                    <marker id="arrowCI" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                        <path d="M0,0 L8,3 L0,6" fill="#5a4460"/>
+                    </marker>
+                </defs>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">Gap Analysis</div>
+                <div class="card-desc">Map your current controls against a target framework (NIST CSF, ISO 27001, CIS Controls). For each control area, score your current implementation level against the required level. The delta is the gap. Gaps are prioritized by risk impact, not alphabetical order.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Readiness Reviews</div>
+                <div class="card-desc">Test your program before attackers do. Tabletop exercises simulate incidents with no-cost, discussion-based walkthroughs. Purple team exercises combine red and blue team activities. Penetration tests validate technical controls. Each method tests a different layer of readiness.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Continuous Improvement</div>
+                <div class="card-desc">After every incident, exercise, and audit, conduct a lessons-learned session. Document what worked, what failed, and what must change. Feed findings into the next assessment cycle. Programs that do not evolve become obsolete -- threat actors never stop adapting.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Assessment Cadence</div>
+            Full gap analysis annually. Tabletop exercises quarterly. Vulnerability assessments monthly. Penetration tests annually or after major changes. Audit findings reviewed monthly. The cadence creates rhythm -- and rhythm creates discipline.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- CASE STUDY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 14</div>
+        <div class="slide-title">Case Study: Building a Program <span class="accent">From Scratch</span></div>
+        <div class="slide-subtitle">Two organizations, two scales, one framework. The components are the same -- the scope and budget differ.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Small Business (50 employees, $50K budget)</div>
+                <div class="card-desc">
+                    <strong style="color:#ede0f0;">Year 1 Priorities:</strong><br>
+                    -- Risk assessment using CIS Controls v8 Implementation Group 1 (43 safeguards)<br>
+                    -- Written acceptable use policy, password policy, incident response plan<br>
+                    -- MFA on all accounts, endpoint protection, email filtering<br>
+                    -- Security awareness training (KnowBe4 or equivalent, ~$3/user/month)<br>
+                    -- Managed SIEM through MSSP ($2-4K/month)<br>
+                    -- Vulnerability scanning (Qualys free tier or OpenVAS)<br>
+                    -- One person designated as security lead (partial role)
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Enterprise (5,000 employees, $5M budget)</div>
+                <div class="card-desc">
+                    <strong style="color:#ede0f0;">Year 1 Priorities:</strong><br>
+                    -- Full NIST CSF gap analysis with third-party assessor<br>
+                    -- Policy suite: 15+ policies with standards and procedures<br>
+                    -- Dedicated SOC (6-8 analysts, 24/7 coverage)<br>
+                    -- Enterprise SIEM (Splunk/Sentinel) with SOAR automation<br>
+                    -- Formal vulnerability management program with SLAs<br>
+                    -- Third-party risk management program (50+ vendor assessments)<br>
+                    -- CISO reporting to CEO/board, dedicated security budget
+                </div>
+            </div>
+        </div>
+
+        <hr class="divider">
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">What They Share</div>
+                <div class="card-desc">Both need written policy, risk assessment, incident response capability, vulnerability management, access controls, and security awareness. The components are identical -- the implementation depth varies. A $50K program is not a lesser version; it is a right-sized version.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Common Failure: Small Biz</div>
+                <div class="card-desc">Assuming "we are too small to be targeted." 43% of cyberattacks target small businesses. Ransomware does not check your revenue before encrypting your files. The SMB failure mode is no program at all -- not a bad program.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Common Failure: Enterprise</div>
+                <div class="card-desc">Buying every tool on the Gartner Magic Quadrant without integration or staffing plans. Shelfware -- purchased but unused security tools -- wastes millions annually. The enterprise failure mode is program complexity without program coherence.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Key Principle</div>
+            Start with risk, not tools. Both organizations begin by asking: "What are our most valuable assets? What are the most likely threats? What controls reduce the most risk per dollar?" The answer drives the program, not the vendor pitch deck.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- KEY TAKEAWAYS ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 14</div>
+        <div class="slide-title">Key <span class="accent">Takeaways</span></div>
+        <div class="slide-subtitle">The essential principles for building and sustaining a cybersecurity program.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">01</span>
+                <span class="fact-text">A cybersecurity program is a strategic organizational capability built on three layers: strategy, governance, and operations. Starting from the bottom up creates reactive, unfocused security.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">02</span>
+                <span class="fact-text">People, processes, and technology are the three pillars -- in that order of importance. Technology amplifies human capability; it does not replace it.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">03</span>
+                <span class="fact-text">Maturity models (CMM, C2M2, CMMC) provide the roadmap from ad-hoc to optimized. You cannot skip levels. Know where you are before deciding where to go.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">04</span>
+                <span class="fact-text">The policy hierarchy -- policies, standards, procedures, guidelines -- must be maintained as separate documents with distinct approval authorities and audiences.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">05</span>
+                <span class="fact-text">Security operations (SOC, SIEM, IR) form the detection and response engine. Without tuning, staffing, and playbooks, tools generate noise, not security.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">06</span>
+                <span class="fact-text">Vulnerability management is a continuous cycle: discover, prioritize, remediate, verify, report. SLAs enforce accountability. Metrics prove effectiveness.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">07</span>
+                <span class="fact-text">Third-party risk management extends your security perimeter to every vendor and supplier. Contractual controls and continuous monitoring are non-negotiable.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">08</span>
+                <span class="fact-text">Metrics drive improvement: MTTD, MTTR, patch cadence, phishing click rate. What gets measured gets managed. What gets reported to the board gets funded.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">09</span>
+                <span class="fact-text">Budget justification requires translating technical risk into business language. Boards fund risk reduction, not technology purchases. Use ALE and ROI frameworks.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">10</span>
+                <span class="fact-text">Continuous improvement through gap analysis, readiness reviews, and lessons learned is what separates a living program from a document gathering dust.</span>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">Bottom Line</div>
+            A cybersecurity program is never finished. It is a living system that must evolve with the threat landscape, business needs, and regulatory environment. The organizations that survive are the ones that treat security as a continuous discipline, not a one-time project.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- MARK COMPLETE ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 14</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Presentation<br>
+                <span class="accent">Complete</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Building a Cybersecurity Program -- 14 slides
+            </div>
+        </div>
+
+        <div class="scenario-strip" style="text-align:center; font-style:normal;">
+            Strategy &nbsp;&bull;&nbsp; Governance &nbsp;&bull;&nbsp; People/Process/Tech &nbsp;&bull;&nbsp; Maturity Models &nbsp;&bull;&nbsp; Policy Hierarchy &nbsp;&bull;&nbsp; SOC/SIEM/IR &nbsp;&bull;&nbsp; Vulnerability Mgmt &nbsp;&bull;&nbsp; Third-Party Risk &nbsp;&bull;&nbsp; Metrics &nbsp;&bull;&nbsp; Budget &nbsp;&bull;&nbsp; Assessment
+        </div>
+
+        <div style="text-align:center; margin-top:10px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+
+        <div class="title-meta-row" style="margin-top:8px;">
+            <span>CIS2208</span>
+            <span>Cybersecurity Policy</span>
+            <span>Week 2</span>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Cybersecurity Policy</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 14</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 14;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        var completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('divergent', 'csp-w2-programs-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

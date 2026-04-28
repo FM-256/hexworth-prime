@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Week 1 Quiz: Core Concepts | The Domino Effect</title>
+    <style>
+        :root {
+            --bg: #0d0810;
+            --bg-card: #120b14;
+            --bg-option: #1a0f1e;
+            --primary: #ff00ff;
+            --cyan: #00ffff;
+            --primary-dim: rgba(255, 0, 255, 0.15);
+            --text: #ede0f0;
+            --text-muted: #9a82a0;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --border: rgba(255, 0, 255, 0.10);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, var(--bg) 0%, #0a060d 50%, #110828 100%);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .quiz-container { max-width: 800px; margin: 0 auto; padding: 2rem; }
+        .nav-links { display: flex; gap: 1.5rem; margin-bottom: 1.5rem; }
+        .back-link { color: var(--primary); text-decoration: none; font-size: 0.9rem; transition: all 0.3s; }
+        .back-link:hover { color: #ff88ff; transform: translateX(-5px); }
+
+        .quiz-header { text-align: center; margin-bottom: 2rem; padding: 2rem; background: var(--bg-card); border-radius: 14px; border: 1px solid var(--primary-dim); }
+        .quiz-header h1 { font-size: 1.6rem; color: var(--primary); margin-bottom: 0.5rem; }
+        .quiz-header .subtitle { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.75rem; }
+        .quiz-header .meta { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; font-size: 0.8rem; }
+        .quiz-header .meta span { background: var(--bg); padding: 4px 12px; border-radius: 6px; border: 1px solid var(--border); color: var(--text-muted); }
+
+        .progress-bar-wrap { background: var(--bg-card); border-radius: 10px; padding: 14px 18px; margin-bottom: 1.5rem; border: 1px solid var(--border); display: flex; align-items: center; gap: 14px; }
+        .progress-label { font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; }
+        .progress-track { flex: 1; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--cyan)); border-radius: 4px; transition: width 0.4s ease; width: 0%; }
+        .score-label { font-size: 0.85rem; color: var(--cyan); font-weight: 600; white-space: nowrap; }
+
+        .question-card { background: var(--bg-card); border-radius: 14px; padding: 2rem; border: 1px solid var(--border); margin-bottom: 1.5rem; }
+        .question-num { font-size: 0.8rem; color: var(--primary); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 0.75rem; }
+        .question-text { font-size: 1.15rem; font-weight: 600; margin-bottom: 1.5rem; line-height: 1.5; }
+
+        .options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 1rem; }
+        .option { display: flex; align-items: center; gap: 12px; padding: 14px 18px; background: var(--bg-option); border: 1px solid var(--border); border-radius: 10px; cursor: pointer; transition: all 0.2s; font-size: 0.95rem; }
+        .option:hover { border-color: rgba(255, 0, 255, 0.4); background: rgba(255, 0, 255, 0.05); }
+        .option.selected { border-color: var(--primary); background: rgba(255, 0, 255, 0.08); }
+        .option.correct { border-color: var(--success); background: rgba(34, 197, 94, 0.1); }
+        .option.incorrect { border-color: var(--danger); background: rgba(239, 68, 68, 0.08); }
+        .option.disabled { pointer-events: none; opacity: 0.7; }
+        .option.correct.disabled, .option.incorrect.disabled { opacity: 1; }
+        .option-letter { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: var(--bg); border: 1px solid var(--border); font-weight: 700; font-size: 0.85rem; color: var(--primary); flex-shrink: 0; }
+        .option.correct .option-letter { background: var(--success); color: #fff; border-color: var(--success); }
+        .option.incorrect .option-letter { background: var(--danger); color: #fff; border-color: var(--danger); }
+
+        .feedback { padding: 14px 18px; border-radius: 10px; margin-bottom: 1rem; font-size: 0.9rem; line-height: 1.6; display: none; }
+        .feedback.correct { display: block; background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #86efac; }
+        .feedback.incorrect { display: block; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fca5a5; }
+
+        .quiz-nav { display: flex; justify-content: flex-end; }
+        .next-btn { padding: 10px 24px; background: rgba(255, 0, 255, 0.15); border: 1px solid rgba(255, 0, 255, 0.4); color: var(--primary); border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .next-btn:hover { background: var(--primary); color: #fff; }
+        .next-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .next-btn:disabled:hover { background: rgba(255, 0, 255, 0.15); color: var(--primary); }
+
+        .results-card { display: none; text-align: center; background: var(--bg-card); border-radius: 14px; padding: 3rem 2rem; border: 1px solid var(--border); }
+        .results-card h2 { color: var(--primary); font-size: 1.4rem; margin-bottom: 1rem; }
+        .score-big { font-size: 3.5rem; font-weight: 700; color: var(--success); margin-bottom: 0.5rem; }
+        .score-big.low { color: var(--danger); }
+        .score-big.mid { color: #fbbf24; }
+        .score-msg { color: var(--text-muted); font-size: 1rem; margin-bottom: 2rem; }
+        .results-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        .results-btns a, .results-btns button { padding: 10px 24px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: all 0.2s; border: none; }
+        .btn-retry { background: rgba(255, 0, 255, 0.15); border: 1px solid rgba(255, 0, 255, 0.4) !important; color: var(--primary); }
+        .btn-retry:hover { background: var(--primary); color: #fff; }
+        .btn-hub { background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.4) !important; color: var(--success); }
+        .btn-hub:hover { background: var(--success); color: #fff; }
+
+        @media (max-width: 640px) {
+            .quiz-container { padding: 1rem; }
+            .question-card { padding: 1.25rem; }
+            .quiz-header h1 { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="quiz-container">
+        <div class="nav-links">
+            <a href="../index.html" class="back-link">&#8592; The Domino Effect Hub</a>
+        </div>
+
+        <div class="quiz-header">
+            <h1>Week 1 Quiz: Core Security Concepts</h1>
+            <p class="subtitle">CIA triad, AAA, threat modeling, defense in depth, and foundational frameworks</p>
+            <div class="meta">
+                <span>Week 1</span>
+                <span>15 Questions</span>
+                <span>70% to Pass</span>
+            </div>
+        </div>
+
+        <div class="progress-bar-wrap">
+            <span class="progress-label" id="progressLabel">Question 1 of 15</span>
+            <div class="progress-track">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <span class="score-label" id="scoreLabel">Score: 0</span>
+        </div>
+
+        <div class="question-card" id="questionCard">
+            <div class="question-num" id="questionNum">QUESTION 1</div>
+            <div class="question-text" id="questionText"></div>
+            <div class="options" id="optionsEl"></div>
+            <div class="feedback" id="feedback"></div>
+            <div class="quiz-nav">
+                <button class="next-btn" id="nextBtn" onclick="nextQuestion()" disabled>Next Question</button>
+            </div>
+        </div>
+
+        <div class="results-card" id="resultsCard">
+            <h2>Quiz Complete</h2>
+            <div class="score-big" id="finalScore"></div>
+            <p class="score-msg" id="scoreMsg"></p>
+            <div class="results-btns">
+                <button class="btn-retry" onclick="restartQuiz()">Try Again</button>
+                <a href="../index.html" class="btn-hub">Back to Course Hub</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* -- Quiz: Core Security Concepts --
+           CIA triad, AAA, threat/vulnerability/risk, attack surface,
+           defense in depth, least privilege, zero trust, kill chain, MITRE ATT&CK.
+           15 questions, 70% pass threshold. */
+        var questions = [
+            {
+                q: "Which element of the CIA triad is primarily concerned with ensuring that data has not been altered in an unauthorized manner?",
+                opts: [
+                    "Integrity",
+                    "Confidentiality",
+                    "Availability",
+                    "Authentication"
+                ],
+                ans: 0,
+                exp: "Integrity ensures that data remains accurate, complete, and unmodified by unauthorized parties. Hashing algorithms, digital signatures, and checksums are common controls used to verify and protect data integrity."
+            },
+            {
+                q: "A hospital's electronic health records system goes offline during a ransomware attack, preventing doctors from accessing patient data. Which element of the CIA triad is most directly compromised?",
+                opts: [
+                    "Confidentiality",
+                    "Integrity",
+                    "Availability",
+                    "Non-repudiation"
+                ],
+                ans: 2,
+                exp: "Availability ensures that authorized users can access systems and data when needed. Ransomware that encrypts or locks systems directly attacks availability, which can be life-threatening in healthcare environments."
+            },
+            {
+                q: "In the AAA framework, what does the second 'A' (Authorization) determine?",
+                opts: [
+                    "What resources and actions a verified user is permitted to access",
+                    "Whether a user's identity claim is genuine",
+                    "Whether a user's activities are being recorded for audit purposes",
+                    "Whether a user has accepted the organization's acceptable use policy"
+                ],
+                ans: 0,
+                exp: "Authorization determines what an authenticated user is allowed to do -- which files they can read, which systems they can access, and which actions they can perform. It follows authentication (proving identity) and precedes accounting (logging activity)."
+            },
+            {
+                q: "What is the correct relationship between threat, vulnerability, and risk?",
+                opts: [
+                    "A threat exploits a vulnerability, and risk is the likelihood and impact of that exploitation",
+                    "Risk equals threat plus vulnerability plus impact",
+                    "Vulnerability is a type of threat that exists within the organization",
+                    "Risk is eliminated when all threats are identified and documented"
+                ],
+                ans: 0,
+                exp: "Risk exists at the intersection of threats and vulnerabilities. A threat is any potential danger (attacker, natural disaster). A vulnerability is a weakness that could be exploited. Risk is the probability that a threat will exploit a vulnerability multiplied by the resulting impact."
+            },
+            {
+                q: "An organization's attack surface includes:",
+                opts: [
+                    "Only the external-facing web applications and APIs",
+                    "Only the vulnerabilities that have been identified in the most recent penetration test",
+                    "All points where an unauthorized user could attempt to enter or extract data from the environment",
+                    "The total number of malware signatures in the organization's antivirus database"
+                ],
+                ans: 2,
+                exp: "The attack surface encompasses every point where an attacker could interact with the system -- network interfaces, APIs, user accounts, physical ports, cloud services, third-party integrations, and even employees susceptible to social engineering. Reducing the attack surface is a core security objective."
+            },
+            {
+                q: "Defense in depth is best described as:",
+                opts: [
+                    "Installing the most advanced firewall available at the network perimeter",
+                    "Requiring all employees to use two-factor authentication",
+                    "Focusing all security budget on the single most likely attack vector",
+                    "Implementing multiple layers of security controls so that if one layer fails, others still protect the asset"
+                ],
+                ans: 3,
+                exp: "Defense in depth (also called layered security) deploys multiple overlapping controls -- firewalls, IDS/IPS, encryption, access controls, physical security, training -- so that no single point of failure compromises the entire environment. It is modeled on military defensive strategy."
+            },
+            {
+                q: "The principle of least privilege requires that:",
+                opts: [
+                    "Users are granted the minimum access necessary to perform their job functions and no more",
+                    "All users share a single administrative account to reduce credential management overhead",
+                    "Privileged access is only granted to employees who have passed a background check",
+                    "System administrators must use their privileged accounts for all daily tasks to maintain audit consistency"
+                ],
+                ans: 0,
+                exp: "Least privilege restricts each user, process, or system to only the permissions essential for its function. This limits the blast radius if an account is compromised and reduces the risk of accidental or intentional misuse of elevated permissions."
+            },
+            {
+                q: "Zero trust architecture operates on the principle of:",
+                opts: [
+                    "Trusting all traffic that originates from inside the corporate network perimeter",
+                    "Eliminating all firewalls in favor of endpoint detection and response",
+                    "Never implicitly trusting any user, device, or network -- verifying every access request continuously",
+                    "Requiring all employees to work remotely to eliminate physical security risks"
+                ],
+                ans: 2,
+                exp: "Zero trust assumes that no user, device, or network segment is inherently trustworthy. Every access request must be authenticated, authorized, and continuously validated regardless of location. Key tenets include micro-segmentation, least privilege, and continuous monitoring."
+            },
+            {
+                q: "In the Lockheed Martin Cyber Kill Chain, which phase involves the attacker gathering information about the target such as email addresses, technologies used, and organizational structure?",
+                opts: [
+                    "Weaponization",
+                    "Exploitation",
+                    "Delivery",
+                    "Reconnaissance"
+                ],
+                ans: 3,
+                exp: "Reconnaissance is the first phase of the kill chain, where attackers research and identify targets, collect email addresses, map network infrastructure, and gather OSINT. Defenders can disrupt this phase through information minimization and monitoring for scanning activity."
+            },
+            {
+                q: "MITRE ATT&CK is best described as:",
+                opts: [
+                    "A vulnerability scoring system that replaces CVSS",
+                    "An automated intrusion detection system developed by the U.S. government",
+                    "A certification framework for penetration testers",
+                    "A knowledge base of adversary tactics, techniques, and procedures based on real-world observations"
+                ],
+                ans: 3,
+                exp: "MITRE ATT&CK (Adversarial Tactics, Techniques, and Common Knowledge) is a globally accessible knowledge base that catalogs adversary behavior based on real-world observations. It organizes TTPs into a matrix of tactics (the 'why') and techniques (the 'how'), used for threat modeling, detection, and assessment."
+            },
+            {
+                q: "Which kill chain phase involves the attacker combining an exploit with a payload -- for example, embedding a malicious macro in a PDF document?",
+                opts: [
+                    "Reconnaissance",
+                    "Weaponization",
+                    "Installation",
+                    "Command and Control"
+                ],
+                ans: 1,
+                exp: "Weaponization is the phase where attackers create a deliverable payload by coupling an exploit with a backdoor or malicious code. Common examples include trojanized documents, malicious links, or weaponized USB devices. This phase typically occurs without any interaction with the target."
+            },
+            {
+                q: "A company allows employees to use personal devices for work email. This practice primarily increases risk by:",
+                opts: [
+                    "Reducing the need for a VPN",
+                    "Expanding the organization's attack surface with devices it does not fully control",
+                    "Eliminating the need for mobile device management software",
+                    "Improving availability by providing redundant access points"
+                ],
+                ans: 1,
+                exp: "BYOD (Bring Your Own Device) expands the attack surface because personal devices may lack corporate security controls, run outdated software, or be shared with family members. The organization has limited visibility and control over the security posture of devices it does not own."
+            },
+            {
+                q: "Non-repudiation in information security ensures that:",
+                opts: [
+                    "Encrypted data cannot be decrypted without the correct key",
+                    "A sender cannot deny having sent a message or performed a transaction",
+                    "Backup data is stored in a geographically separate location",
+                    "Network traffic is monitored for anomalous patterns"
+                ],
+                ans: 1,
+                exp: "Non-repudiation provides proof of the origin and integrity of data, ensuring that the sender cannot deny having sent it. Digital signatures and audit logs are the primary mechanisms. It is essential for legal proceedings, financial transactions, and regulatory compliance."
+            },
+            {
+                q: "Which of the following correctly describes the 'Actions on Objectives' phase of the Cyber Kill Chain?",
+                opts: [
+                    "The attacker delivers the weaponized payload to the target environment",
+                    "The attacker installs persistent backdoors on compromised systems",
+                    "The attacker achieves their original goal -- data exfiltration, destruction, or disruption",
+                    "The attacker scans the target network to identify open ports and services"
+                ],
+                ans: 2,
+                exp: "Actions on Objectives is the final phase of the kill chain, where the attacker accomplishes their mission -- whether that is stealing intellectual property, encrypting data for ransom, destroying systems, or establishing long-term persistent access. Detecting activity at this phase means earlier defenses have failed."
+            },
+            {
+                q: "The concept of 'separation of duties' is designed to prevent:",
+                opts: [
+                    "Network segmentation failures that allow lateral movement",
+                    "A single individual from having enough access to complete a critical process alone, reducing fraud and error risk",
+                    "Multiple administrators from accidentally modifying the same configuration simultaneously",
+                    "Attackers from using privilege escalation to gain root access"
+                ],
+                ans: 1,
+                exp: "Separation of duties (also called segregation of duties) divides critical tasks among multiple people so that no single person can complete a high-risk process alone. For example, the person who approves a purchase order should not be the same person who processes the payment."
+            }
+        ];
+
+                var current = 0;
+        var score = 0;
+        var answered = false;
+        var TOTAL = questions.length;
+
+        function loadQuestion() {
+            var q = questions[current];
+            document.getElementById('questionNum').textContent = 'QUESTION ' + (current + 1);
+            document.getElementById('questionText').textContent = q.q;
+            document.getElementById('progressLabel').textContent = 'Question ' + (current + 1) + ' of ' + TOTAL;
+            document.getElementById('progressFill').style.width = ((current + 1) / TOTAL * 100) + '%';
+
+            var html = '';
+            var letters = ['A', 'B', 'C', 'D'];
+            for (var i = 0; i < q.opts.length; i++) {
+                html += '<div class="option" onclick="selectAnswer(' + i + ')">' +
+                    '<span class="option-letter">' + letters[i] + '</span>' +
+                    '<span>' + q.opts[i] + '</span></div>';
+            }
+            document.getElementById('optionsEl').innerHTML = html;
+            document.getElementById('feedback').className = 'feedback';
+            document.getElementById('feedback').textContent = '';
+            document.getElementById('nextBtn').disabled = true;
+            answered = false;
+        }
+
+        function selectAnswer(idx) {
+            if (answered) return;
+            answered = true;
+
+            var q = questions[current];
+            var opts = document.querySelectorAll('.option');
+
+            for (var i = 0; i < opts.length; i++) {
+                opts[i].classList.add('disabled');
+                if (i === q.ans) opts[i].classList.add('correct');
+                else if (i === idx) opts[i].classList.add('incorrect');
+            }
+
+            var fb = document.getElementById('feedback');
+            if (idx === q.ans) {
+                score++;
+                fb.className = 'feedback correct';
+                fb.textContent = 'Correct. ' + q.exp;
+            } else {
+                fb.className = 'feedback incorrect';
+                fb.textContent = 'Incorrect. ' + q.exp;
+            }
+
+            document.getElementById('scoreLabel').textContent = 'Score: ' + score;
+            document.getElementById('nextBtn').disabled = false;
+
+            if (current === TOTAL - 1) {
+                document.getElementById('nextBtn').textContent = 'See Results';
+            }
+        }
+
+        function nextQuestion() {
+            current++;
+            if (current >= TOTAL) {
+                showResults();
+                return;
+            }
+            loadQuestion();
+        }
+
+        function showResults() {
+            document.getElementById('questionCard').style.display = 'none';
+            document.querySelector('.progress-bar-wrap').style.display = 'none';
+            var resultsCard = document.getElementById('resultsCard');
+            resultsCard.style.display = 'block';
+
+            var pct = Math.round((score / TOTAL) * 100);
+            var scoreBig = document.getElementById('finalScore');
+            scoreBig.textContent = score + '/' + TOTAL + ' (' + pct + '%)';
+
+            if (pct >= 80) scoreBig.className = 'score-big';
+            else if (pct >= 60) scoreBig.className = 'score-big mid';
+            else scoreBig.className = 'score-big low';
+
+            var msg = '';
+            if (pct >= 90) msg = 'Outstanding. You have a strong command of core security concepts and frameworks.';
+            else if (pct >= 70) msg = 'Solid. Review any concepts you missed -- these fundamentals underpin everything that follows.';
+            else if (pct >= 50) msg = 'Getting there. Revisit the CIA triad, AAA, and kill chain material before moving on.';
+            else msg = 'Keep studying. These core concepts are the foundation of every topic in this course.';
+            document.getElementById('scoreMsg').textContent = msg;
+
+            if (pct >= 70 && typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.completeQuiz('divergent', 'csp-w1-concepts-quiz', score);
+            }
+        }
+
+        function restartQuiz() {
+            current = 0;
+            score = 0;
+            answered = false;
+            document.getElementById('scoreLabel').textContent = 'Score: 0';
+            document.getElementById('questionCard').style.display = '';
+            document.querySelector('.progress-bar-wrap').style.display = '';
+            document.getElementById('resultsCard').style.display = 'none';
+            document.getElementById('nextBtn').textContent = 'Next Question';
+            loadQuestion();
+        }
+
+        loadQuestion();
+    </script>
+</body>
+</html>

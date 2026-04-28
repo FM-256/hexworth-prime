@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Regulation Mapper | Cybersecurity Policy</title>
+    <style>
+        :root {
+            --div-primary: #ff00ff;
+            --div-secondary: #cc00cc;
+            --div-accent: #ff44ff;
+            --div-cyan: #00ffff;
+            --div-glow: rgba(255, 0, 255, 0.25);
+            --bg-main: #0d0810;
+            --bg-deep: #0a060d;
+            --bg-card: #120b14;
+            --bg-card-hover: #1a0f1e;
+            --text-primary: #ede0f0;
+            --text-secondary: #9a82a0;
+            --text-muted: #5a4460;
+            --border-color: rgba(255, 0, 255, 0.10);
+            --border-hover: rgba(255, 0, 255, 0.32);
+            --success: #00ff9d;
+            --danger: #ef4444;
+            --warning: #fbbf24;
+        }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background: linear-gradient(160deg, var(--bg-main) 0%, var(--bg-deep) 100%);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            color: var(--text-primary); line-height: 1.6;
+        }
+        .lab-container { max-width: 960px; margin: 0 auto; padding: 2rem; }
+
+        .back-link {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            color: var(--div-primary); text-decoration: none; margin-bottom: 1rem;
+            font-size: 0.85rem; transition: all 0.3s;
+        }
+        .back-link:hover { color: var(--div-accent); transform: translateX(-4px); }
+
+        .lab-header {
+            text-align: center; margin-bottom: 2rem; padding: 2rem;
+            background: linear-gradient(135deg, var(--bg-card), var(--bg-deep));
+            border-radius: 16px; border: 1px solid var(--div-primary);
+            box-shadow: 0 0 30px var(--div-glow);
+        }
+        .lab-header h1 {
+            font-size: 2rem; margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--div-primary), var(--div-cyan));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .lab-header .subtitle { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem; }
+        .lab-meta { display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; }
+        .meta-item { color: var(--text-muted); font-size: 0.85rem; }
+
+        .instructions {
+            background: var(--bg-card); border-radius: 12px; padding: 1.5rem;
+            margin-bottom: 2rem; border: 1px solid var(--border-color);
+        }
+        .instructions h2 { color: var(--div-primary); font-size: 1.1rem; margin-bottom: 0.75rem; }
+        .instructions p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.5rem; }
+        .instructions .categories {
+            display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem;
+        }
+        .cat-tag {
+            font-size: 0.75rem; padding: 4px 12px;
+            background: rgba(255, 0, 255, 0.08); border: 1px solid rgba(255, 0, 255, 0.2);
+            border-radius: 4px; color: var(--div-accent);
+        }
+
+        .score-bar {
+            background: var(--bg-card); border-radius: 12px; padding: 1rem 1.5rem;
+            margin-bottom: 2rem; border: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .score-label { color: var(--text-secondary); font-size: 0.9rem; }
+        .score-value { color: var(--div-cyan); font-size: 1.2rem; font-weight: 700; }
+
+        .scenario-card {
+            background: var(--bg-card); border-radius: 12px; padding: 1.25rem 1.5rem;
+            margin-bottom: 1rem; border: 1px solid var(--border-color);
+            transition: all 0.3s;
+        }
+        .scenario-card:hover { border-color: var(--border-hover); }
+        .scenario-card.correct { border-color: var(--success); background: rgba(0, 255, 157, 0.04); }
+        .scenario-card.incorrect { border-color: var(--danger); background: rgba(239, 68, 68, 0.04); }
+
+        .scenario-number {
+            font-size: 0.7rem; color: var(--div-primary); font-weight: 700;
+            letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.5rem;
+        }
+        .scenario-desc { color: var(--text-primary); font-size: 0.9rem; margin-bottom: 1rem; line-height: 1.65; }
+
+        .select-row { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+        .select-row select {
+            padding: 8px 14px; background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(255, 0, 255, 0.2); border-radius: 8px;
+            color: var(--text-primary); font-size: 0.85rem; cursor: pointer;
+            min-width: 200px;
+        }
+        .select-row select:focus { outline: none; border-color: var(--div-primary); box-shadow: 0 0 10px var(--div-glow); }
+
+        .card-feedback {
+            font-size: 0.82rem; padding: 6px 12px; border-radius: 6px; margin-top: 0.75rem; display: none;
+        }
+        .card-feedback.show-correct {
+            display: block; background: rgba(0, 255, 157, 0.1);
+            border: 1px solid var(--success); color: var(--success);
+        }
+        .card-feedback.show-incorrect {
+            display: block; background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--danger); color: var(--danger);
+        }
+
+        .action-row {
+            display: flex; gap: 1rem; justify-content: center; margin: 2rem 0; flex-wrap: wrap;
+        }
+        .btn {
+            padding: 12px 32px; border: none; border-radius: 8px;
+            font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.3s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--div-primary), var(--div-secondary));
+            color: #0d0810;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--div-glow); }
+        .btn-complete {
+            background: linear-gradient(135deg, var(--div-primary), var(--div-secondary));
+            color: #0d0810; width: 100%; padding: 1rem; font-size: 1.05rem; display: none;
+        }
+        .btn-complete:hover { transform: translateY(-2px); box-shadow: 0 8px 28px var(--div-glow); }
+        .btn-complete.done { background: var(--success); cursor: default; transform: none; box-shadow: none; }
+        .btn-reset {
+            background: transparent; border: 1px solid rgba(255, 0, 255, 0.2);
+            color: var(--text-secondary);
+        }
+        .btn-reset:hover { border-color: var(--div-primary); color: var(--div-primary); }
+
+        @media (max-width: 768px) {
+            .lab-container { padding: 1rem; }
+            .lab-header h1 { font-size: 1.5rem; }
+            .select-row { flex-direction: column; align-items: stretch; }
+            .select-row select { min-width: unset; }
+        }
+    </style>
+</head>
+<body>
+    <div class="lab-container">
+        <a href="../index.html" class="back-link">&larr; Cybersecurity Policy Hub</a>
+
+        <header class="lab-header">
+            <h1>Regulation Mapper</h1>
+            <p class="subtitle">Map real-world breach and compliance scenarios to the primary applicable law or regulation</p>
+            <div class="lab-meta">
+                <span class="meta-item">Lab 10</span>
+                <span class="meta-item">20 minutes</span>
+                <span class="meta-item">12 Scenarios</span>
+            </div>
+        </header>
+
+        <div class="instructions">
+            <h2>Instructions</h2>
+            <p>Each card describes a data breach or compliance scenario. Identify the <strong>primary</strong> law or regulation that applies. Click <strong>Check Answers</strong> when you have mapped all 12 scenarios.</p>
+            <p>You need <strong>10/12 correct</strong> to unlock the Mark Complete button.</p>
+            <div class="categories">
+                <span class="cat-tag">HIPAA</span>
+                <span class="cat-tag">PCI DSS</span>
+                <span class="cat-tag">GDPR</span>
+                <span class="cat-tag">CFAA</span>
+                <span class="cat-tag">GLBA</span>
+                <span class="cat-tag">FERPA</span>
+                <span class="cat-tag">CCPA</span>
+                <span class="cat-tag">COPPA</span>
+            </div>
+        </div>
+
+        <div class="score-bar">
+            <span class="score-label">Score</span>
+            <span class="score-value" id="scoreDisplay">-- / 12</span>
+        </div>
+
+        <div id="scenarioContainer"></div>
+
+        <div class="action-row">
+            <button class="btn btn-primary" id="checkBtn" onclick="checkAnswers()">Check Answers</button>
+            <button class="btn btn-reset" onclick="resetLab()">Reset</button>
+        </div>
+
+        <button class="btn btn-complete" id="completeBtn" onclick="markComplete()">Mark Complete</button>
+    </div>
+
+    <script>
+        var SCENARIOS = [
+            {
+                id: 1,
+                desc: 'A regional hospital loses an unencrypted laptop containing 12,000 patient medical records including diagnoses, treatment plans, and Social Security numbers. The breach is discovered three weeks after the laptop went missing.',
+                answer: 'HIPAA',
+                detail: 'HIPAA (Health Insurance Portability and Accountability Act) governs protected health information (PHI). A hospital losing unencrypted patient medical records is a classic HIPAA breach requiring notification within 60 days.'
+            },
+            {
+                id: 2,
+                desc: 'An online retailer stores full credit card numbers, expiration dates, and CVV codes in a plaintext database. A SQL injection attack exposes 500,000 cardholder records to attackers.',
+                answer: 'PCI DSS',
+                detail: 'PCI DSS (Payment Card Industry Data Security Standard) prohibits storing CVV data and requires encryption of cardholder data. Storing full card details in plaintext violates multiple PCI DSS requirements.'
+            },
+            {
+                id: 3,
+                desc: 'A tech company headquartered in San Francisco transfers personal data of EU customers -- including names, email addresses, and browsing history -- to US servers without establishing an adequate transfer mechanism or obtaining user consent.',
+                answer: 'GDPR',
+                detail: 'GDPR (General Data Protection Regulation) restricts cross-border transfers of EU personal data. Transferring EU user data to the US without Standard Contractual Clauses or another legal basis violates GDPR Chapter V.'
+            },
+            {
+                id: 4,
+                desc: 'A disgruntled former employee uses credentials that were never revoked to access his previous employer\'s production database, exfiltrate proprietary source code, and delete backup files.',
+                answer: 'CFAA',
+                detail: 'CFAA (Computer Fraud and Abuse Act) criminalizes unauthorized access to computer systems. A former employee using old credentials to access, steal, and destroy data constitutes unauthorized access under the CFAA.'
+            },
+            {
+                id: 5,
+                desc: 'A mid-size bank fails to encrypt customer financial records at rest. An insider threat exposes account numbers, loan balances, and income verification documents for 8,000 customers.',
+                answer: 'GLBA',
+                detail: 'GLBA (Gramm-Leach-Bliley Act) requires financial institutions to protect the security and confidentiality of customer financial information through the Safeguards Rule.'
+            },
+            {
+                id: 6,
+                desc: 'A university\'s student information system is breached, exposing transcripts, grades, enrollment status, and financial aid records for 25,000 current and former students.',
+                answer: 'FERPA',
+                detail: 'FERPA (Family Educational Rights and Privacy Act) protects student education records. Transcripts, grades, and enrollment data at a university are education records governed by FERPA.'
+            },
+            {
+                id: 7,
+                desc: 'A social media app popular with children ages 8-12 collects geolocation data, photos, and contact lists without obtaining verifiable parental consent. The data is shared with third-party advertisers.',
+                answer: 'COPPA',
+                detail: 'COPPA (Children\'s Online Privacy Protection Act) requires verifiable parental consent before collecting personal information from children under 13. Sharing children\'s data with advertisers without consent is a direct violation.'
+            },
+            {
+                id: 8,
+                desc: 'A California-based data broker sells detailed consumer profiles -- including purchasing habits, location history, and inferred political affiliations -- without honoring opt-out requests from California residents.',
+                answer: 'CCPA',
+                detail: 'CCPA (California Consumer Privacy Act) gives California residents the right to opt out of the sale of their personal information. A data broker ignoring opt-out requests violates CCPA Section 1798.120.'
+            },
+            {
+                id: 9,
+                desc: 'A pharmacy chain\'s mobile app has a vulnerability that exposes prescription histories, medication lists, and physician notes for 3 million users. The app transmits this data to analytics servers without encryption.',
+                answer: 'HIPAA',
+                detail: 'HIPAA applies to prescription and medication data as protected health information (PHI). The pharmacy is a covered entity, and transmitting PHI without encryption violates the HIPAA Security Rule.'
+            },
+            {
+                id: 10,
+                desc: 'A point-of-sale vendor deploys terminals running outdated software with known vulnerabilities. Attackers install RAM-scraping malware and capture magnetic stripe data from 200,000 transactions across 50 restaurant locations.',
+                answer: 'PCI DSS',
+                detail: 'PCI DSS requires merchants and service providers to maintain secure systems and apply patches promptly (Requirement 6). RAM-scraping POS malware exploiting unpatched systems is a PCI DSS compliance failure.'
+            },
+            {
+                id: 11,
+                desc: 'A European citizen requests that a search engine delete all indexed pages containing their personal information. The search engine refuses, claiming the information is publicly available and therefore exempt from deletion requests.',
+                answer: 'GDPR',
+                detail: 'GDPR Article 17 establishes the "right to erasure" (right to be forgotten). Public availability does not automatically exempt data from erasure requests -- the controller must evaluate legitimate grounds for refusal.'
+            },
+            {
+                id: 12,
+                desc: 'A security researcher discovers a vulnerability in a government agency\'s public web portal. Without authorization, the researcher exploits the flaw to access internal databases and downloads classified documents to "prove" the severity of the bug.',
+                answer: 'CFAA',
+                detail: 'CFAA criminalizes accessing a computer without authorization or exceeding authorized access, regardless of intent. Even well-meaning unauthorized access to government systems violates the CFAA.'
+            }
+        ];
+
+        var REGULATIONS = ['HIPAA', 'PCI DSS', 'GDPR', 'CFAA', 'GLBA', 'FERPA', 'CCPA', 'COPPA'];
+        var submitted = false;
+
+        function buildCards() {
+            var container = document.getElementById('scenarioContainer');
+            container.innerHTML = '';
+            SCENARIOS.forEach(function(sc) {
+                var card = document.createElement('div');
+                card.className = 'scenario-card';
+                card.id = 'card-' + sc.id;
+
+                var opts = '<option value="">-- Select Regulation --</option>';
+                REGULATIONS.forEach(function(r) {
+                    opts += '<option value="' + r + '">' + r + '</option>';
+                });
+
+                card.innerHTML =
+                    '<div class="scenario-number">Scenario ' + sc.id + '</div>' +
+                    '<div class="scenario-desc">' + sc.desc + '</div>' +
+                    '<div class="select-row">' +
+                        '<select id="sel-' + sc.id + '">' + opts + '</select>' +
+                    '</div>' +
+                    '<div class="card-feedback" id="fb-' + sc.id + '"></div>';
+
+                container.appendChild(card);
+            });
+        }
+
+        function checkAnswers() {
+            if (submitted) return;
+            var score = 0;
+
+            SCENARIOS.forEach(function(sc) {
+                var sel = document.getElementById('sel-' + sc.id);
+                var fb = document.getElementById('fb-' + sc.id);
+                var card = document.getElementById('card-' + sc.id);
+                var chosen = sel.value;
+
+                card.classList.remove('correct', 'incorrect');
+                fb.className = 'card-feedback';
+
+                if (chosen === sc.answer) {
+                    score++;
+                    card.classList.add('correct');
+                    fb.className = 'card-feedback show-correct';
+                    fb.textContent = 'Correct -- ' + sc.detail;
+                } else {
+                    card.classList.add('incorrect');
+                    fb.className = 'card-feedback show-incorrect';
+                    fb.textContent = 'Incorrect. The correct answer is ' + sc.answer + '. ' + sc.detail;
+                }
+                sel.disabled = true;
+            });
+
+            submitted = true;
+            document.getElementById('scoreDisplay').textContent = score + ' / 12';
+            document.getElementById('checkBtn').disabled = true;
+            document.getElementById('checkBtn').style.opacity = '0.4';
+
+            if (score >= 10) {
+                document.getElementById('completeBtn').style.display = 'block';
+            }
+        }
+
+        function resetLab() {
+            submitted = false;
+            document.getElementById('scoreDisplay').textContent = '-- / 12';
+            document.getElementById('checkBtn').disabled = false;
+            document.getElementById('checkBtn').style.opacity = '1';
+            document.getElementById('completeBtn').style.display = 'none';
+            buildCards();
+        }
+
+        function markComplete() {
+            var btn = document.getElementById('completeBtn');
+            if (btn.classList.contains('done')) return;
+            btn.classList.add('done');
+            btn.textContent = 'Completed';
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('divergent', 'csp-w3-laws-lab', { returnUrl: '../index.html' });
+            }
+        }
+
+        buildCards();
+    </script>
+
+    <script src="../../../../components/TrailHunter.js"></script>
+</body>
+</html>

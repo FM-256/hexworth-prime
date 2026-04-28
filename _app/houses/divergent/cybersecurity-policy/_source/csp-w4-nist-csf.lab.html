@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSF Mapper | Cybersecurity Policy</title>
+    <style>
+        :root {
+            --div-primary: #ff00ff;
+            --div-secondary: #cc00cc;
+            --div-accent: #ff44ff;
+            --div-cyan: #00ffff;
+            --div-glow: rgba(255, 0, 255, 0.25);
+            --bg-main: #0d0810;
+            --bg-deep: #0a060d;
+            --bg-card: #120b14;
+            --bg-card-hover: #1a0f1e;
+            --text-primary: #ede0f0;
+            --text-secondary: #9a82a0;
+            --text-muted: #5a4460;
+            --border-color: rgba(255, 0, 255, 0.10);
+            --border-hover: rgba(255, 0, 255, 0.32);
+            --success: #00ff9d;
+            --danger: #ef4444;
+            --warning: #fbbf24;
+        }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background: linear-gradient(160deg, var(--bg-main) 0%, var(--bg-deep) 100%);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            color: var(--text-primary); line-height: 1.6;
+        }
+        .lab-container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+
+        .back-link {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            color: var(--div-primary); text-decoration: none; margin-bottom: 1rem;
+            font-size: 0.85rem; transition: all 0.3s;
+        }
+        .back-link:hover { color: var(--div-accent); transform: translateX(-4px); }
+
+        .lab-header {
+            text-align: center; margin-bottom: 2rem; padding: 2rem;
+            background: linear-gradient(135deg, var(--bg-card), var(--bg-deep));
+            border-radius: 16px; border: 1px solid var(--div-primary);
+            box-shadow: 0 0 30px var(--div-glow);
+        }
+        .lab-header h1 {
+            font-size: 2rem; margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--div-primary), var(--div-cyan));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .lab-header .subtitle { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem; }
+        .lab-meta { display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; }
+        .meta-item { color: var(--text-muted); font-size: 0.85rem; }
+
+        .instructions {
+            background: var(--bg-card); border-radius: 12px; padding: 1.5rem;
+            margin-bottom: 1.5rem; border: 1px solid var(--border-color);
+        }
+        .instructions h2 { color: var(--div-primary); font-size: 1.1rem; margin-bottom: 0.75rem; }
+        .instructions p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.5rem; }
+        .function-tags {
+            display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem;
+        }
+        .func-tag {
+            font-size: 0.75rem; padding: 4px 12px;
+            border-radius: 4px; font-weight: 600;
+        }
+        .func-tag.govern { background: rgba(255, 0, 255, 0.15); border: 1px solid rgba(255, 0, 255, 0.3); color: #ff66ff; }
+        .func-tag.identify { background: rgba(0, 150, 255, 0.12); border: 1px solid rgba(0, 150, 255, 0.3); color: #5cb8ff; }
+        .func-tag.protect { background: rgba(0, 200, 120, 0.12); border: 1px solid rgba(0, 200, 120, 0.3); color: #44dda0; }
+        .func-tag.detect { background: rgba(255, 200, 0, 0.12); border: 1px solid rgba(255, 200, 0, 0.3); color: #ffd044; }
+        .func-tag.respond { background: rgba(255, 100, 50, 0.12); border: 1px solid rgba(255, 100, 50, 0.3); color: #ff8866; }
+        .func-tag.recover { background: rgba(0, 255, 255, 0.12); border: 1px solid rgba(0, 255, 255, 0.3); color: #44ffff; }
+
+        .score-bar {
+            background: var(--bg-card); border-radius: 12px; padding: 1rem 1.5rem;
+            margin-bottom: 2rem; border: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .score-label { color: var(--text-secondary); font-size: 0.9rem; }
+        .score-value { color: var(--div-cyan); font-size: 1.2rem; font-weight: 700; }
+
+        /* Drop bins */
+        .bins-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .bin {
+            background: var(--bg-card); border-radius: 12px;
+            border: 2px dashed var(--border-color); padding: 1rem;
+            min-height: 120px; transition: all 0.3s;
+        }
+        .bin.drag-over { border-color: var(--div-cyan); background: rgba(0, 255, 255, 0.04); }
+        .bin-title {
+            font-size: 0.85rem; font-weight: 700; margin-bottom: 0.5rem;
+            padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color);
+        }
+        .bin-title.govern { color: #ff66ff; }
+        .bin-title.identify { color: #5cb8ff; }
+        .bin-title.protect { color: #44dda0; }
+        .bin-title.detect { color: #ffd044; }
+        .bin-title.respond { color: #ff8866; }
+        .bin-title.recover { color: #44ffff; }
+        .bin-cards { min-height: 40px; }
+
+        /* Draggable cards */
+        .card-pool {
+            margin-bottom: 2rem;
+        }
+        .card-pool-title {
+            color: var(--div-primary); font-size: 1rem; font-weight: 700;
+            margin-bottom: 1rem;
+        }
+        .pool-area {
+            display: flex; flex-wrap: wrap; gap: 0.75rem;
+            min-height: 60px; padding: 0.5rem;
+            border: 2px dashed var(--border-color); border-radius: 12px;
+        }
+        .pool-area.drag-over { border-color: var(--div-primary); }
+
+        .control-card {
+            padding: 0.6rem 1rem; background: var(--bg-card-hover);
+            border: 1px solid var(--border-color); border-radius: 8px;
+            font-size: 0.82rem; color: var(--text-primary);
+            cursor: grab; user-select: none; transition: all 0.2s;
+            max-width: 320px;
+        }
+        .control-card:hover { border-color: var(--border-hover); }
+        .control-card.dragging { opacity: 0.4; }
+        .control-card.result-correct { border-color: var(--success); background: rgba(0, 255, 157, 0.06); }
+        .control-card.result-incorrect { border-color: var(--danger); background: rgba(239, 68, 68, 0.06); }
+        .control-card .card-id {
+            font-size: 0.65rem; color: var(--text-muted); font-weight: 700;
+            letter-spacing: 0.08em; margin-bottom: 2px;
+        }
+
+        .action-row {
+            display: flex; gap: 1rem; justify-content: center; margin: 2rem 0; flex-wrap: wrap;
+        }
+        .btn {
+            padding: 12px 32px; border: none; border-radius: 8px;
+            font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.3s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--div-primary), var(--div-secondary));
+            color: #0d0810;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--div-glow); }
+        .btn-complete {
+            background: linear-gradient(135deg, var(--div-primary), var(--div-secondary));
+            color: #0d0810; width: 100%; padding: 1rem; font-size: 1.05rem; display: none;
+        }
+        .btn-complete:hover { transform: translateY(-2px); box-shadow: 0 8px 28px var(--div-glow); }
+        .btn-complete.done { background: var(--success); cursor: default; transform: none; box-shadow: none; }
+        .btn-reset {
+            background: transparent; border: 1px solid rgba(255, 0, 255, 0.2);
+            color: var(--text-secondary);
+        }
+        .btn-reset:hover { border-color: var(--div-primary); color: var(--div-primary); }
+
+        @media (max-width: 768px) {
+            .lab-container { padding: 1rem; }
+            .lab-header h1 { font-size: 1.5rem; }
+            .bins-grid { grid-template-columns: 1fr; }
+            .control-card { max-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="lab-container">
+        <a href="../index.html" class="back-link">&larr; Cybersecurity Policy Hub</a>
+
+        <header class="lab-header">
+            <h1>CSF Mapper</h1>
+            <p class="subtitle">Map security controls to the correct NIST Cybersecurity Framework 2.0 function</p>
+            <div class="lab-meta">
+                <span class="meta-item">Lab 14</span>
+                <span class="meta-item">20 minutes</span>
+                <span class="meta-item">12 Controls</span>
+            </div>
+        </header>
+
+        <div class="instructions">
+            <h2>Instructions</h2>
+            <p>Below are 12 security control descriptions. Drag each card into the correct NIST CSF 2.0 function bin. The six functions are:</p>
+            <p>You need <strong>10/12 correct</strong> to unlock Mark Complete.</p>
+            <div class="function-tags">
+                <span class="func-tag govern">Govern (GV)</span>
+                <span class="func-tag identify">Identify (ID)</span>
+                <span class="func-tag protect">Protect (PR)</span>
+                <span class="func-tag detect">Detect (DE)</span>
+                <span class="func-tag respond">Respond (RS)</span>
+                <span class="func-tag recover">Recover (RC)</span>
+            </div>
+        </div>
+
+        <div class="score-bar">
+            <span class="score-label">Score</span>
+            <span class="score-value" id="scoreDisplay">-- / 12</span>
+        </div>
+
+        <div class="card-pool">
+            <div class="card-pool-title">Control Cards -- Drag to Function Bins</div>
+            <div class="pool-area" id="cardPool"></div>
+        </div>
+
+        <div class="bins-grid" id="binsGrid"></div>
+
+        <div class="action-row">
+            <button class="btn btn-primary" id="checkBtn" onclick="checkAnswers()">Check Answers</button>
+            <button class="btn btn-reset" onclick="resetLab()">Reset</button>
+        </div>
+
+        <button class="btn btn-complete" id="completeBtn" onclick="markComplete()">Mark Complete</button>
+    </div>
+
+    <script>
+        var CONTROLS = [
+            { id: 'C01', desc: 'Deploy intrusion detection systems on the network perimeter to monitor for suspicious traffic patterns', answer: 'Detect' },
+            { id: 'C02', desc: 'Establish organizational risk tolerance levels and communicate them across all business units', answer: 'Govern' },
+            { id: 'C03', desc: 'Implement multi-factor authentication for all privileged accounts and remote access', answer: 'Protect' },
+            { id: 'C04', desc: 'Maintain a comprehensive inventory of all hardware assets, software licenses, and data classifications', answer: 'Identify' },
+            { id: 'C05', desc: 'Execute the incident response playbook to contain a confirmed breach and preserve forensic evidence', answer: 'Respond' },
+            { id: 'C06', desc: 'Restore critical systems from validated backups and verify data integrity after a ransomware event', answer: 'Recover' },
+            { id: 'C07', desc: 'Define cybersecurity roles, responsibilities, and reporting structures within the organization', answer: 'Govern' },
+            { id: 'C08', desc: 'Conduct a business impact analysis to determine which systems are most critical to operations', answer: 'Identify' },
+            { id: 'C09', desc: 'Encrypt all data at rest and in transit using FIPS 140-2 validated cryptographic modules', answer: 'Protect' },
+            { id: 'C10', desc: 'Aggregate and correlate security event logs from endpoints, firewalls, and servers using a SIEM platform', answer: 'Detect' },
+            { id: 'C11', desc: 'Notify affected parties and regulatory authorities within required timeframes after a confirmed data breach', answer: 'Respond' },
+            { id: 'C12', desc: 'Conduct post-incident lessons learned reviews and update recovery plans based on findings', answer: 'Recover' }
+        ];
+
+        var FUNCTIONS = ['Govern', 'Identify', 'Protect', 'Detect', 'Respond', 'Recover'];
+        var submitted = false;
+        var draggedCard = null;
+
+        function shuffle(arr) {
+            var a = arr.slice();
+            for (var i = a.length - 1; i > 0; i--) {
+                var j = Math.floor(Math.random() * (i + 1));
+                var t = a[i]; a[i] = a[j]; a[j] = t;
+            }
+            return a;
+        }
+
+        function buildLab() {
+            /* Build bins */
+            var binsGrid = document.getElementById('binsGrid');
+            binsGrid.innerHTML = '';
+            FUNCTIONS.forEach(function(fn) {
+                var bin = document.createElement('div');
+                bin.className = 'bin';
+                bin.id = 'bin-' + fn;
+                bin.innerHTML =
+                    '<div class="bin-title ' + fn.toLowerCase() + '">' + fn + '</div>' +
+                    '<div class="bin-cards" id="cards-' + fn + '"></div>';
+
+                bin.addEventListener('dragover', function(e) {
+                    if (submitted) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    bin.classList.add('drag-over');
+                });
+                bin.addEventListener('dragleave', function() {
+                    bin.classList.remove('drag-over');
+                });
+                bin.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    bin.classList.remove('drag-over');
+                    if (submitted || !draggedCard) return;
+                    var cardsArea = bin.querySelector('.bin-cards');
+                    cardsArea.appendChild(draggedCard);
+                    draggedCard = null;
+                });
+
+                binsGrid.appendChild(bin);
+            });
+
+            /* Build shuffled card pool */
+            var pool = document.getElementById('cardPool');
+            pool.innerHTML = '';
+            var shuffled = shuffle(CONTROLS);
+            shuffled.forEach(function(ctrl) {
+                var card = createCard(ctrl);
+                pool.appendChild(card);
+            });
+
+            /* Make pool a drop target too (to move cards back) */
+            pool.addEventListener('dragover', function(e) {
+                if (submitted) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                pool.classList.add('drag-over');
+            });
+            pool.addEventListener('dragleave', function() {
+                pool.classList.remove('drag-over');
+            });
+            pool.addEventListener('drop', function(e) {
+                e.preventDefault();
+                pool.classList.remove('drag-over');
+                if (submitted || !draggedCard) return;
+                pool.appendChild(draggedCard);
+                draggedCard = null;
+            });
+        }
+
+        function createCard(ctrl) {
+            var card = document.createElement('div');
+            card.className = 'control-card';
+            card.id = 'ctrl-' + ctrl.id;
+            card.setAttribute('draggable', 'true');
+            card.dataset.ctrlId = ctrl.id;
+            card.innerHTML =
+                '<div class="card-id">' + ctrl.id + '</div>' +
+                '<div>' + ctrl.desc + '</div>';
+
+            card.addEventListener('dragstart', function(e) {
+                if (submitted) { e.preventDefault(); return; }
+                draggedCard = card;
+                card.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+            });
+            card.addEventListener('dragend', function() {
+                card.classList.remove('dragging');
+            });
+
+            return card;
+        }
+
+        function getControlById(id) {
+            for (var i = 0; i < CONTROLS.length; i++) {
+                if (CONTROLS[i].id === id) return CONTROLS[i];
+            }
+            return null;
+        }
+
+        function checkAnswers() {
+            if (submitted) return;
+            var score = 0;
+
+            FUNCTIONS.forEach(function(fn) {
+                var cardsArea = document.getElementById('cards-' + fn);
+                var cards = cardsArea.querySelectorAll('.control-card');
+                cards.forEach(function(card) {
+                    var ctrl = getControlById(card.dataset.ctrlId);
+                    if (!ctrl) return;
+                    card.classList.remove('result-correct', 'result-incorrect');
+                    if (ctrl.answer === fn) {
+                        score++;
+                        card.classList.add('result-correct');
+                    } else {
+                        card.classList.add('result-incorrect');
+                    }
+                });
+            });
+
+            /* Check cards still in pool -- all incorrect */
+            var poolCards = document.getElementById('cardPool').querySelectorAll('.control-card');
+            poolCards.forEach(function(card) {
+                card.classList.add('result-incorrect');
+            });
+
+            submitted = true;
+            document.getElementById('scoreDisplay').textContent = score + ' / 12';
+            document.getElementById('checkBtn').disabled = true;
+            document.getElementById('checkBtn').style.opacity = '0.4';
+
+            /* Disable dragging */
+            document.querySelectorAll('.control-card').forEach(function(c) {
+                c.setAttribute('draggable', 'false');
+                c.style.cursor = 'default';
+            });
+
+            if (score >= 10) {
+                document.getElementById('completeBtn').style.display = 'block';
+            }
+        }
+
+        function resetLab() {
+            submitted = false;
+            draggedCard = null;
+            document.getElementById('scoreDisplay').textContent = '-- / 12';
+            document.getElementById('checkBtn').disabled = false;
+            document.getElementById('checkBtn').style.opacity = '1';
+            document.getElementById('completeBtn').style.display = 'none';
+            document.getElementById('completeBtn').classList.remove('done');
+            document.getElementById('completeBtn').textContent = 'Mark Complete';
+            buildLab();
+        }
+
+        function markComplete() {
+            var btn = document.getElementById('completeBtn');
+            if (btn.classList.contains('done')) return;
+            btn.classList.add('done');
+            btn.textContent = 'Completed';
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('divergent', 'csp-w4-nist-csf-lab', { returnUrl: '../index.html' });
+            }
+        }
+
+        buildLab();
+    </script>
+
+    <script src="../../../../components/TrailHunter.js"></script>
+</body>
+</html>

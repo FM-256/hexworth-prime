@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NIST SP 800-53 Controls | Cybersecurity Policy</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d0810 0%, #0a060d 50%, #100812 100%);
+            color: #ede0f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow-y: auto;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: linear-gradient(90deg, #ff00ff, #00ffff);
+            transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(13, 8, 16, 0.95);
+            border-top: 1px solid rgba(255, 0, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #9a82a0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(255, 0, 255, 0.12); color: #ff00ff; border-color: #ff00ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #5a4460; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: linear-gradient(135deg, #ff00ff, #ff44ff);
+            color: #0d0810; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: linear-gradient(135deg, #ff44ff, #ff88ff); transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #ff00ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #ede0f0; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ff00ff; }
+        .slide-title .cyan { color: #00ffff; }
+        .slide-subtitle { font-size: 0.95rem; color: #9a82a0; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(255, 0, 255, 0.06); border-left: 3px solid #ff00ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #f5b8f5; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-magenta { background: rgba(255, 0, 255, 0.08); border: 1px solid rgba(255, 0, 255, 0.3); color: #f5b8f5; }
+        .box-cyan    { background: rgba(0, 255, 255, 0.08); border: 1px solid rgba(0, 255, 255, 0.3); color: #b8f5f5; }
+        .box-red     { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold    { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-green   { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-label   { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #ede0f0; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ff00ff; }
+        .title-hero .big-title .cyan { color: #00ffff; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #5a4460;
+        }
+        .title-meta-row span { border-left: 2px solid rgba(255, 0, 255, 0.2); padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card-grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #ff00ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #ede0f0; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #9a82a0; line-height: 1.4; }
+        .card.c-magenta { border-left-color: #ff00ff; }
+        .card.c-cyan    { border-left-color: #00ffff; }
+        .card.c-red     { border-left-color: #ef4444; }
+        .card.c-gold    { border-left-color: #eab308; }
+        .card.c-green   { border-left-color: #22c55e; }
+        .card.c-purple  { border-left-color: #ff44ff; }
+        .card.c-blue    { border-left-color: #3b82f6; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #5a4460; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #ff00ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #ede0f0; }
+
+        /* SVG diagram containers */
+        .svg-container {
+            display: flex; justify-content: center; align-items: center;
+            margin: 10px 0; padding: 10px;
+        }
+        .svg-container svg { max-width: 100%; height: auto; }
+
+        /* Glossary table */
+        .glossary-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+        .glossary-table th {
+            text-align: left; padding: 6px 10px; font-size: 0.72rem;
+            text-transform: uppercase; letter-spacing: 0.08em;
+            color: #ff00ff; border-bottom: 1px solid rgba(255, 0, 255, 0.3);
+        }
+        .glossary-table td {
+            padding: 6px 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            vertical-align: top;
+        }
+        .glossary-table td:first-child { color: #00ffff; font-weight: 600; white-space: nowrap; }
+        .glossary-table td:last-child { color: #9a82a0; }
+
+        /* Timeline steps */
+        .timeline { display: flex; gap: 2px; margin: 10px 0; }
+        .tl-step {
+            flex: 1; padding: 10px 6px; text-align: center;
+            background: rgba(255, 0, 255, 0.06); border: 1px solid rgba(255, 0, 255, 0.15);
+            border-radius: 4px; transition: background 0.2s;
+        }
+        .tl-step:hover { background: rgba(255, 0, 255, 0.14); }
+        .tl-num { font-size: 0.68rem; font-weight: 700; color: #00ffff; letter-spacing: 0.08em; margin-bottom: 3px; }
+        .tl-name { font-size: 0.78rem; font-weight: 700; color: #ede0f0; margin-bottom: 3px; }
+        .tl-desc { font-size: 0.7rem; color: #9a82a0; line-height: 1.3; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid, .card-grid-4, .card-grid-5 { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .timeline { flex-wrap: wrap; } .tl-step { min-width: 45%; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">NIST SP 800-53 Controls | Cybersecurity Policy</h1>
+
+<div id="progress-bar" style="width:7.14%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 14 &nbsp;|&nbsp; CSP-W4-01 &nbsp;|&nbsp; Week 4</div>
+        <div class="title-hero">
+            <div class="big-title">
+                NIST SP <span class="accent">800-53</span><br>
+                <span class="cyan" style="font-size:0.65em;">Control Families, Baselines, Tailoring</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Rev 5 &bull; 20 Control Families &bull; FISMA/FedRAMP &bull; Baselines &bull; Tailoring &bull; Overlays &bull; Assessment &bull; Continuous Monitoring &bull; Framework Crosswalk
+            </div>
+        </div>
+        <div class="scenario-strip">
+            NIST SP 800-53 is the most comprehensive catalog of security and privacy controls published by the U.S. federal government. It is the backbone of FISMA compliance, the foundation of FedRAMP authorization, and a reference catalog used by private-sector organizations worldwide. Understanding 800-53 is not optional for anyone working in cybersecurity policy -- it is the control catalog that every other U.S. framework references. This deck covers its structure, its 20 control families, how baselines work, how tailoring customizes controls to mission needs, how 800-53A drives assessments, and how it maps to other major frameworks.
+        </div>
+        <div class="title-meta-row">
+            <span>14 Slides</span>
+            <span>CSP-W4-01</span>
+            <span>Week 4</span>
+            <span>CIS2208 -- Cybersecurity Policy</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- WHAT IS 800-53 ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 14</div>
+        <div class="slide-title">What Is <span class="accent">NIST SP 800-53</span>?</div>
+        <div class="slide-subtitle">Purpose, Revision 5, and the federal compliance ecosystem.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 600 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="NIST 800-53 in the federal compliance ecosystem showing FISMA, 800-53, FedRAMP, and agency authorization flow">
+                <!-- Background -->
+                <rect x="0" y="0" width="600" height="200" fill="none"/>
+
+                <!-- FISMA box -->
+                <rect x="20" y="30" width="120" height="60" rx="6" fill="rgba(255,0,255,0.12)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="80" y="55" text-anchor="middle" fill="#ff00ff" font-size="11" font-weight="700">FISMA</text>
+                <text x="80" y="70" text-anchor="middle" fill="#9a82a0" font-size="7">Federal law mandating</text>
+                <text x="80" y="80" text-anchor="middle" fill="#9a82a0" font-size="7">agency security programs</text>
+
+                <!-- Arrow FISMA -> 800-53 -->
+                <line x1="140" y1="60" x2="175" y2="60" stroke="#ff00ff" stroke-width="1.5" marker-end="url(#arrowMagenta)"/>
+                <text x="157" y="52" text-anchor="middle" fill="#5a4460" font-size="6">requires</text>
+
+                <!-- 800-53 box (center, larger) -->
+                <rect x="180" y="18" width="160" height="84" rx="6" fill="rgba(0,255,255,0.1)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="260" y="42" text-anchor="middle" fill="#00ffff" font-size="12" font-weight="700">SP 800-53 Rev 5</text>
+                <text x="260" y="58" text-anchor="middle" fill="#ede0f0" font-size="8">1,189 controls</text>
+                <text x="260" y="70" text-anchor="middle" fill="#ede0f0" font-size="8">20 families</text>
+                <text x="260" y="82" text-anchor="middle" fill="#9a82a0" font-size="7">Security + Privacy catalog</text>
+                <text x="260" y="94" text-anchor="middle" fill="#9a82a0" font-size="7">Technology-neutral</text>
+
+                <!-- Arrow 800-53 -> FedRAMP -->
+                <line x1="340" y1="60" x2="375" y2="60" stroke="#00ffff" stroke-width="1.5" marker-end="url(#arrowCyan)"/>
+                <text x="357" y="52" text-anchor="middle" fill="#5a4460" font-size="6">feeds</text>
+
+                <!-- FedRAMP box -->
+                <rect x="380" y="30" width="120" height="60" rx="6" fill="rgba(255,68,255,0.1)" stroke="#ff44ff" stroke-width="1"/>
+                <text x="440" y="55" text-anchor="middle" fill="#ff44ff" font-size="11" font-weight="700">FedRAMP</text>
+                <text x="440" y="70" text-anchor="middle" fill="#9a82a0" font-size="7">Cloud authorization</text>
+                <text x="440" y="80" text-anchor="middle" fill="#9a82a0" font-size="7">program for agencies</text>
+
+                <!-- Arrow 800-53 -> Agency ATO -->
+                <line x1="260" y1="102" x2="260" y2="130" stroke="#00ffff" stroke-width="1.5" marker-end="url(#arrowCyan)"/>
+
+                <!-- Agency ATO box -->
+                <rect x="170" y="135" width="180" height="50" rx="6" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+                <text x="260" y="155" text-anchor="middle" fill="#ede0f0" font-size="9" font-weight="600">Agency Authorization (ATO)</text>
+                <text x="260" y="170" text-anchor="middle" fill="#9a82a0" font-size="7">Select baseline -- Tailor -- Implement -- Assess -- Authorize</text>
+
+                <!-- Arrow FedRAMP -> Agency -->
+                <line x1="440" y1="90" x2="350" y2="148" stroke="#ff44ff" stroke-width="1" stroke-dasharray="4,3"/>
+
+                <!-- Arrow markers -->
+                <defs>
+                    <marker id="arrowMagenta" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                        <path d="M0,0 L8,3 L0,6" fill="none" stroke="#ff00ff" stroke-width="1"/>
+                    </marker>
+                    <marker id="arrowCyan" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                        <path d="M0,0 L8,3 L0,6" fill="none" stroke="#00ffff" stroke-width="1"/>
+                    </marker>
+                </defs>
+
+                <!-- Side note -->
+                <text x="520" y="155" text-anchor="middle" fill="#5a4460" font-size="6.5" font-style="italic">Rev 5 (Sept 2020):</text>
+                <text x="520" y="167" text-anchor="middle" fill="#5a4460" font-size="6.5" font-style="italic">added supply chain</text>
+                <text x="520" y="179" text-anchor="middle" fill="#5a4460" font-size="6.5" font-style="italic">+ privacy controls</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Purpose and Scope</div>
+                <div class="card-desc">SP 800-53 provides a catalog of security and privacy controls for federal information systems and organizations. It is mandated by FISMA for all federal agencies. Rev 5 (September 2020) consolidated privacy controls directly into the catalog, added the PT (PII Processing and Transparency) and SR (Supply Chain Risk Management) families, and made the controls technology-neutral -- applicable to any system type, not just traditional IT.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Key Relationships</div>
+                <div class="card-desc">FISMA is the law. FIPS 199 categorizes system impact. FIPS 200 sets minimum security requirements. SP 800-53 is the control catalog. SP 800-53A defines assessment procedures. SP 800-53B defines control baselines. SP 800-37 is the RMF that ties them together. FedRAMP adds cloud-specific requirements on top of 800-53 Moderate/High baselines. Every federal authorization decision traces back to this stack.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Rev 5 Changes That Matter</div>
+            Rev 5 removed the "federal" qualifier -- 800-53 is now explicitly designed for any organization. It added outcome-based language, integrated privacy controls (previously in 800-53 Appendix J), created the SR family for supply chain risk, and separated baselines into the companion document SP 800-53B. This makes 800-53 a universal reference catalog, not just a federal compliance checklist.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- CONTROL STRUCTURE ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 14</div>
+        <div class="slide-title">Control <span class="accent">Structure</span></div>
+        <div class="slide-subtitle">Family, control, enhancement, and parameter hierarchy.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Control structure hierarchy showing family to control to enhancement to parameters">
+                <!-- Level 1: Family -->
+                <rect x="200" y="5" width="200" height="38" rx="6" fill="rgba(255,0,255,0.15)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="300" y="21" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">CONTROL FAMILY</text>
+                <text x="300" y="35" text-anchor="middle" fill="#ede0f0" font-size="8">AC -- Access Control (25 controls)</text>
+
+                <!-- Connector -->
+                <line x1="300" y1="43" x2="300" y2="58" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+
+                <!-- Level 2: Control -->
+                <rect x="175" y="58" width="250" height="38" rx="6" fill="rgba(0,255,255,0.1)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="300" y="74" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">CONTROL</text>
+                <text x="300" y="88" text-anchor="middle" fill="#ede0f0" font-size="8">AC-2 Account Management</text>
+
+                <!-- Connector to enhancements -->
+                <line x1="250" y1="96" x2="170" y2="115" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+                <line x1="350" y1="96" x2="430" y2="115" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+
+                <!-- Level 3: Enhancements -->
+                <rect x="60" y="115" width="220" height="38" rx="5" fill="rgba(255,68,255,0.08)" stroke="#ff44ff" stroke-width="1"/>
+                <text x="170" y="131" text-anchor="middle" fill="#ff44ff" font-size="8" font-weight="700">CONTROL ENHANCEMENT</text>
+                <text x="170" y="145" text-anchor="middle" fill="#ede0f0" font-size="7.5">AC-2(1) Automated Account Management</text>
+
+                <rect x="320" y="115" width="220" height="38" rx="5" fill="rgba(255,68,255,0.08)" stroke="#ff44ff" stroke-width="1"/>
+                <text x="430" y="131" text-anchor="middle" fill="#ff44ff" font-size="8" font-weight="700">CONTROL ENHANCEMENT</text>
+                <text x="430" y="145" text-anchor="middle" fill="#ede0f0" font-size="7.5">AC-2(4) Automated Audit Actions</text>
+
+                <!-- Connector to parameters -->
+                <line x1="170" y1="153" x2="170" y2="170" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+
+                <!-- Level 4: Parameters -->
+                <rect x="60" y="170" width="220" height="40" rx="5" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1"/>
+                <text x="170" y="186" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">PARAMETERS</text>
+                <text x="170" y="200" text-anchor="middle" fill="#9a82a0" font-size="7">[Assignment: organization-defined time period]</text>
+
+                <!-- Side labels -->
+                <text x="25" y="26" fill="#5a4460" font-size="7" font-weight="700">L1</text>
+                <text x="25" y="80" fill="#5a4460" font-size="7" font-weight="700">L2</text>
+                <text x="25" y="137" fill="#5a4460" font-size="7" font-weight="700">L3</text>
+                <text x="25" y="192" fill="#5a4460" font-size="7" font-weight="700">L4</text>
+
+                <!-- Right-side annotations -->
+                <text x="565" y="26" text-anchor="middle" fill="#5a4460" font-size="6.5">20 families</text>
+                <text x="565" y="80" text-anchor="middle" fill="#5a4460" font-size="6.5">1,189 base controls</text>
+                <text x="565" y="137" text-anchor="middle" fill="#5a4460" font-size="6.5">Adds specificity</text>
+                <text x="565" y="192" text-anchor="middle" fill="#5a4460" font-size="6.5">Org fills in values</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Reading a Control Identifier</div>
+                <div class="card-desc">AC-2(1) breaks down as: AC = family (Access Control), 2 = control number (Account Management), (1) = enhancement number (Automated Account Management). Parameters appear in brackets as [Assignment: ...] or [Selection: ...] -- the organization must fill these in during implementation. A control without its parameters defined is not implemented.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Control Components</div>
+                <div class="card-desc">Each control contains: a unique identifier, a descriptive title, the control statement (what must be done), supplemental guidance (context and clarification), related controls (cross-references), and references to external documents. Enhancements add capability or specificity -- they are not optional add-ons but required elements when included in a baseline.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Parameters Are Policy Decisions</div>
+            When 800-53 says [Assignment: organization-defined frequency], the organization must decide: daily? weekly? quarterly? That decision is a policy choice documented in the system security plan. Different organizations filling the same parameter differently is expected -- a DoD system and a civilian agency have different risk profiles demanding different parameter values.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- 20 CONTROL FAMILIES ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 14</div>
+        <div class="slide-title">The <span class="accent">20</span> Control <span class="cyan">Families</span></div>
+        <div class="slide-subtitle">Complete family listing with abbreviations and focus areas.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 620 270" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Grid of all 20 NIST 800-53 control families organized by category">
+                <!-- Header -->
+                <text x="310" y="15" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700" letter-spacing="0.1em">20 CONTROL FAMILIES -- SP 800-53 REV 5</text>
+
+                <!-- Row 1 (families 1-5) -->
+                <rect x="5" y="25" width="118" height="42" rx="4" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="0.8"/>
+                <text x="64" y="42" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">AC</text>
+                <text x="64" y="57" text-anchor="middle" fill="#ede0f0" font-size="6.5">Access Control</text>
+
+                <rect x="128" y="25" width="118" height="42" rx="4" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="0.8"/>
+                <text x="187" y="42" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">AT</text>
+                <text x="187" y="57" text-anchor="middle" fill="#ede0f0" font-size="6.5">Awareness &amp; Training</text>
+
+                <rect x="251" y="25" width="118" height="42" rx="4" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="0.8"/>
+                <text x="310" y="42" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">AU</text>
+                <text x="310" y="57" text-anchor="middle" fill="#ede0f0" font-size="6.5">Audit &amp; Accountability</text>
+
+                <rect x="374" y="25" width="118" height="42" rx="4" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="0.8"/>
+                <text x="433" y="42" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">CA</text>
+                <text x="433" y="57" text-anchor="middle" fill="#ede0f0" font-size="6.5">Assessment &amp; Auth</text>
+
+                <rect x="497" y="25" width="118" height="42" rx="4" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="0.8"/>
+                <text x="556" y="42" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">CM</text>
+                <text x="556" y="57" text-anchor="middle" fill="#ede0f0" font-size="6.5">Config Management</text>
+
+                <!-- Row 2 (families 6-10) -->
+                <rect x="5" y="73" width="118" height="42" rx="4" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="0.8"/>
+                <text x="64" y="90" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">CP</text>
+                <text x="64" y="105" text-anchor="middle" fill="#ede0f0" font-size="6.5">Contingency Planning</text>
+
+                <rect x="128" y="73" width="118" height="42" rx="4" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="0.8"/>
+                <text x="187" y="90" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">IA</text>
+                <text x="187" y="105" text-anchor="middle" fill="#ede0f0" font-size="6.5">Identification &amp; Auth</text>
+
+                <rect x="251" y="73" width="118" height="42" rx="4" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="0.8"/>
+                <text x="310" y="90" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">IR</text>
+                <text x="310" y="105" text-anchor="middle" fill="#ede0f0" font-size="6.5">Incident Response</text>
+
+                <rect x="374" y="73" width="118" height="42" rx="4" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="0.8"/>
+                <text x="433" y="90" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">MA</text>
+                <text x="433" y="105" text-anchor="middle" fill="#ede0f0" font-size="6.5">Maintenance</text>
+
+                <rect x="497" y="73" width="118" height="42" rx="4" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="0.8"/>
+                <text x="556" y="90" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">MP</text>
+                <text x="556" y="105" text-anchor="middle" fill="#ede0f0" font-size="6.5">Media Protection</text>
+
+                <!-- Row 3 (families 11-15) -->
+                <rect x="5" y="121" width="118" height="42" rx="4" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="0.8"/>
+                <text x="64" y="138" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">PE</text>
+                <text x="64" y="153" text-anchor="middle" fill="#ede0f0" font-size="6.5">Physical &amp; Environ</text>
+
+                <rect x="128" y="121" width="118" height="42" rx="4" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="0.8"/>
+                <text x="187" y="138" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">PL</text>
+                <text x="187" y="153" text-anchor="middle" fill="#ede0f0" font-size="6.5">Planning</text>
+
+                <rect x="251" y="121" width="118" height="42" rx="4" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="0.8"/>
+                <text x="310" y="138" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">PM</text>
+                <text x="310" y="153" text-anchor="middle" fill="#ede0f0" font-size="6.5">Program Management</text>
+
+                <rect x="374" y="121" width="118" height="42" rx="4" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="0.8"/>
+                <text x="433" y="138" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">PS</text>
+                <text x="433" y="153" text-anchor="middle" fill="#ede0f0" font-size="6.5">Personnel Security</text>
+
+                <rect x="497" y="121" width="118" height="42" rx="4" fill="rgba(255,68,255,0.1)" stroke="#ff44ff" stroke-width="0.8"/>
+                <text x="556" y="138" text-anchor="middle" fill="#ff44ff" font-size="9" font-weight="700">PT</text>
+                <text x="556" y="153" text-anchor="middle" fill="#ede0f0" font-size="6.5">PII Processing</text>
+
+                <!-- Row 4 (families 16-20) -->
+                <rect x="5" y="169" width="118" height="42" rx="4" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="0.8"/>
+                <text x="64" y="186" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">RA</text>
+                <text x="64" y="201" text-anchor="middle" fill="#ede0f0" font-size="6.5">Risk Assessment</text>
+
+                <rect x="128" y="169" width="118" height="42" rx="4" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="0.8"/>
+                <text x="187" y="186" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">SA</text>
+                <text x="187" y="201" text-anchor="middle" fill="#ede0f0" font-size="6.5">System &amp; Services Acq</text>
+
+                <rect x="251" y="169" width="118" height="42" rx="4" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="0.8"/>
+                <text x="310" y="186" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">SC</text>
+                <text x="310" y="201" text-anchor="middle" fill="#ede0f0" font-size="6.5">Sys &amp; Comms Protect</text>
+
+                <rect x="374" y="169" width="118" height="42" rx="4" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="0.8"/>
+                <text x="433" y="186" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">SI</text>
+                <text x="433" y="201" text-anchor="middle" fill="#ede0f0" font-size="6.5">System &amp; Info Integrity</text>
+
+                <rect x="497" y="169" width="118" height="42" rx="4" fill="rgba(234,179,8,0.1)" stroke="#eab308" stroke-width="0.8"/>
+                <text x="556" y="186" text-anchor="middle" fill="#eab308" font-size="9" font-weight="700">SR</text>
+                <text x="556" y="201" text-anchor="middle" fill="#ede0f0" font-size="6.5">Supply Chain Risk</text>
+
+                <!-- Legend -->
+                <rect x="120" y="228" width="10" height="10" rx="2" fill="rgba(255,68,255,0.15)" stroke="#ff44ff" stroke-width="0.5"/>
+                <text x="135" y="237" fill="#ff44ff" font-size="6.5">New in Rev 5 (PT)</text>
+                <rect x="260" y="228" width="10" height="10" rx="2" fill="rgba(234,179,8,0.15)" stroke="#eab308" stroke-width="0.5"/>
+                <text x="275" y="237" fill="#eab308" font-size="6.5">New in Rev 5 (SR)</text>
+                <text x="430" y="237" fill="#5a4460" font-size="6.5">18 families carried from Rev 4 + 2 new = 20 total</text>
+            </svg>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Family Organization Logic</div>
+            Families are grouped by security function, not by technology. AC (Access Control) is the largest family with 25 controls. PM (Program Management) contains organization-level controls that are not system-specific. The two Rev 5 additions -- PT (PII Processing and Transparency) and SR (Supply Chain Risk Management) -- reflect the evolving threat landscape: privacy regulation and supply chain attacks demanded dedicated control families rather than scattered references across existing families.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- ACCESS CONTROL DEEP DIVE ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 14</div>
+        <div class="slide-title">Access Control (<span class="accent">AC</span>) <span class="cyan">Deep Dive</span></div>
+        <div class="slide-subtitle">25 controls governing who can access what, when, and how.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">AC-1 Policy & Procedures</div>
+                <div class="card-desc">Requires a documented access control policy and procedures to facilitate implementation. Every family starts with a -1 control -- it is the policy foundation that every other control in the family depends on.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">AC-2 Account Management</div>
+                <div class="card-desc">Defines, creates, enables, modifies, disables, and removes accounts. Includes 13 enhancements covering automation, role-based schemes, dynamic privilege management, and account monitoring. The most enhancement-heavy AC control.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">AC-3 Access Enforcement</div>
+                <div class="card-desc">Enforces approved authorizations for logical access. Maps to DAC, MAC, RBAC, and ABAC models. Enhancement (3) adds mandatory access control. Enhancement (8) adds revocation. This is where access control models from theory become implementation requirements.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">AC-4 Information Flow</div>
+                <div class="card-desc">Controls information flow between systems and within systems. Enhancements cover cross-domain solutions, content filtering, metadata validation, and data loss prevention. Critical for segmented networks and classified environments.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">AC-6 Least Privilege</div>
+                <div class="card-desc">Employs the principle of least privilege. 10 enhancements address: privileged accounts, network access to sensitive functions, auditing of privilege use, non-privileged access for non-security functions, and preventing privileged accounts from running non-security software.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">AC-17 Remote Access</div>
+                <div class="card-desc">Establishes usage restrictions and implementation guidance for remote access. Enhancements cover monitoring, encryption of remote sessions, managed access control points, and disconnecting remote connections after an organization-defined period of inactivity.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Why AC Is the Largest Family</div>
+            Access control is the first line of defense and the most granular enforcement point. It spans identity (AC-2), authorization (AC-3), network boundaries (AC-4), session management (AC-11, AC-12), mobile devices (AC-19), and external systems (AC-20). Other families depend on AC -- you cannot audit (AU) what you cannot control access to, and you cannot protect (SC) channels that have no access restrictions.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- AUDIT AND ACCOUNTABILITY ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 14</div>
+        <div class="slide-title">Audit &amp; Accountability (<span class="accent">AU</span>) <span class="cyan">Deep Dive</span></div>
+        <div class="slide-subtitle">Logging, retention, review, and non-repudiation.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 600 150" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Audit lifecycle showing event generation, collection, storage, review, and reporting">
+                <!-- Flow boxes -->
+                <rect x="10" y="40" width="100" height="55" rx="5" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="60" y="60" text-anchor="middle" fill="#ff00ff" font-size="8" font-weight="700">GENERATE</text>
+                <text x="60" y="73" text-anchor="middle" fill="#ede0f0" font-size="6.5">AU-2 Events</text>
+                <text x="60" y="84" text-anchor="middle" fill="#9a82a0" font-size="6">Define auditable events</text>
+
+                <line x1="110" y1="67" x2="130" y2="67" stroke="#ff00ff" stroke-width="1" marker-end="url(#arrowM2)"/>
+
+                <rect x="130" y="40" width="100" height="55" rx="5" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="180" y="60" text-anchor="middle" fill="#00ffff" font-size="8" font-weight="700">COLLECT</text>
+                <text x="180" y="73" text-anchor="middle" fill="#ede0f0" font-size="6.5">AU-3 Content</text>
+                <text x="180" y="84" text-anchor="middle" fill="#9a82a0" font-size="6">What, when, where, who</text>
+
+                <line x1="230" y1="67" x2="250" y2="67" stroke="#00ffff" stroke-width="1" marker-end="url(#arrowC2)"/>
+
+                <rect x="250" y="40" width="100" height="55" rx="5" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="300" y="60" text-anchor="middle" fill="#ff00ff" font-size="8" font-weight="700">STORE</text>
+                <text x="300" y="73" text-anchor="middle" fill="#ede0f0" font-size="6.5">AU-4 Storage</text>
+                <text x="300" y="84" text-anchor="middle" fill="#9a82a0" font-size="6">Capacity + AU-9 protect</text>
+
+                <line x1="350" y1="67" x2="370" y2="67" stroke="#ff00ff" stroke-width="1" marker-end="url(#arrowM2)"/>
+
+                <rect x="370" y="40" width="100" height="55" rx="5" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="420" y="60" text-anchor="middle" fill="#00ffff" font-size="8" font-weight="700">REVIEW</text>
+                <text x="420" y="73" text-anchor="middle" fill="#ede0f0" font-size="6.5">AU-6 Analysis</text>
+                <text x="420" y="84" text-anchor="middle" fill="#9a82a0" font-size="6">Correlate + investigate</text>
+
+                <line x1="470" y1="67" x2="490" y2="67" stroke="#00ffff" stroke-width="1" marker-end="url(#arrowC2)"/>
+
+                <rect x="490" y="40" width="100" height="55" rx="5" fill="rgba(234,179,8,0.1)" stroke="#eab308" stroke-width="1"/>
+                <text x="540" y="60" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">REPORT</text>
+                <text x="540" y="73" text-anchor="middle" fill="#ede0f0" font-size="6.5">AU-6(5,6)</text>
+                <text x="540" y="84" text-anchor="middle" fill="#9a82a0" font-size="6">Correlate across orgs</text>
+
+                <!-- Bottom: feedback loop -->
+                <path d="M540,95 L540,120 L60,120 L60,95" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="1" stroke-dasharray="4,3"/>
+                <text x="300" y="135" text-anchor="middle" fill="#5a4460" font-size="7">AU-5 Response to Failures -- alerts when audit process fails -- closes the loop</text>
+
+                <!-- Arrow markers -->
+                <defs>
+                    <marker id="arrowM2" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+                        <path d="M0,0 L7,2.5 L0,5" fill="none" stroke="#ff00ff" stroke-width="0.8"/>
+                    </marker>
+                    <marker id="arrowC2" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+                        <path d="M0,0 L7,2.5 L0,5" fill="none" stroke="#00ffff" stroke-width="0.8"/>
+                    </marker>
+                </defs>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Key AU Controls</div>
+                <div class="card-desc">AU-2 defines which events are auditable (logins, privilege escalation, object access). AU-3 specifies content (what, when, where, source, outcome, identity). AU-4 allocates storage capacity. AU-6 mandates review and analysis at an organization-defined frequency. AU-9 protects audit information from unauthorized modification or deletion -- this is the integrity control that makes logs legally defensible.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Retention and Non-Repudiation</div>
+                <div class="card-desc">AU-11 requires audit record retention consistent with records retention policy -- typically 1-7 years depending on regulatory requirements. AU-10 provides non-repudiation: linking actions to individuals with sufficient evidence to prevent denial. AU-12 ties it all together by requiring audit record generation capability across all system components. Without AU-12, the other AU controls are aspirational.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">When AU Fails</div>
+            AU-5 requires the system to alert appropriate personnel when audit storage reaches a defined threshold, and to take defined actions (overwrite oldest records, stop generating, shut down) when capacity is exhausted. A system that silently stops logging is a system that an attacker can operate within undetected. AU-5 is the difference between a blind spot and a detection gap.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- SC DEEP DIVE ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 14</div>
+        <div class="slide-title">System &amp; Communications Protection (<span class="accent">SC</span>)</div>
+        <div class="slide-subtitle">Encryption, boundary protection, and secure channels.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">SC-7 Boundary Protection</div>
+                <div class="card-desc">Monitors and controls communications at external and key internal boundaries. Enhancements address: deny by default (SC-7(5)), split tunneling prohibition (SC-7(7)), route traffic through managed interfaces (SC-7(8)), and restrict external connections (SC-7(29)). This is the firewall control.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">SC-8 Transmission Confidentiality</div>
+                <div class="card-desc">Protects the confidentiality and integrity of transmitted information. SC-8(1) requires cryptographic protection -- this is where TLS/IPsec mandates originate. SC-8(2) addresses pre/post-transmission handling. Without SC-8, data is protected at rest but exposed in transit.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">SC-12 Cryptographic Key Mgmt</div>
+                <div class="card-desc">Establishes and manages cryptographic keys. SC-12(1) requires NIST-compliant key management. SC-12(2) requires symmetric keys using FIPS-compliant management. SC-12(3) requires asymmetric keys using approved PKI or pre-positioned keying material. The foundation for all other crypto controls.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">SC-13 Cryptographic Protection</div>
+                <div class="card-desc">Requires FIPS-validated cryptography. This is where FIPS 140-2/140-3 validation matters -- not just using AES-256, but using a FIPS-validated implementation of AES-256. Federal systems must use validated modules. This control catches organizations using strong algorithms in unvalidated libraries.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">SC-28 Protection of Info at Rest</div>
+                <div class="card-desc">Protects the confidentiality and integrity of information at rest. SC-28(1) requires cryptographic protection. Applies to databases, file systems, backup media, and any persistent storage. Pairs with SC-8 for complete data protection lifecycle: at rest + in transit = defense in depth.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">SC-39 Process Isolation</div>
+                <div class="card-desc">Maintains separate execution domains for each executing process. This is memory isolation, containerization, and virtualization at the control level. Prevents one compromised process from accessing another's address space. Applied through hardware (MMU), OS (process isolation), or hypervisor (VM separation).</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">SC Family Pattern</div>
+            The SC family follows a consistent pattern: protect the boundary (SC-7), protect the channel (SC-8), protect the data (SC-28), and protect the crypto that protects everything else (SC-12, SC-13). SC is the technical enforcement backbone of 800-53 -- it is where policy requirements become protocol and algorithm choices.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- CONTROL BASELINES ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 14</div>
+        <div class="slide-title">Control <span class="accent">Baselines</span></div>
+        <div class="slide-subtitle">Low, Moderate, High -- mapping FIPS 199 impact to control selection.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 600 210" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Baseline selection flow from FIPS 199 categorization through baseline selection to control counts">
+                <!-- FIPS 199 box -->
+                <rect x="10" y="15" width="140" height="75" rx="6" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="80" y="35" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">FIPS 199</text>
+                <text x="80" y="50" text-anchor="middle" fill="#ede0f0" font-size="7">Categorize by impact:</text>
+                <text x="80" y="63" text-anchor="middle" fill="#9a82a0" font-size="7">Confidentiality</text>
+                <text x="80" y="74" text-anchor="middle" fill="#9a82a0" font-size="7">Integrity | Availability</text>
+                <text x="80" y="85" text-anchor="middle" fill="#5a4460" font-size="6">High-water mark = system cat</text>
+
+                <!-- Arrow to selection -->
+                <line x1="150" y1="52" x2="180" y2="52" stroke="#ff00ff" stroke-width="1.5" marker-end="url(#arrowM3)"/>
+
+                <!-- Selection box -->
+                <rect x="180" y="25" width="100" height="55" rx="6" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+                <text x="230" y="45" text-anchor="middle" fill="#ede0f0" font-size="8" font-weight="700">Select</text>
+                <text x="230" y="58" text-anchor="middle" fill="#ede0f0" font-size="8" font-weight="700">Baseline</text>
+                <text x="230" y="72" text-anchor="middle" fill="#5a4460" font-size="6.5">SP 800-53B</text>
+
+                <!-- Arrows to three baselines -->
+                <line x1="280" y1="38" x2="330" y2="25" stroke="#22c55e" stroke-width="1" marker-end="url(#arrowG)"/>
+                <line x1="280" y1="52" x2="330" y2="82" stroke="#eab308" stroke-width="1" marker-end="url(#arrowY)"/>
+                <line x1="280" y1="66" x2="330" y2="142" stroke="#ef4444" stroke-width="1" marker-end="url(#arrowR)"/>
+
+                <!-- LOW baseline -->
+                <rect x="330" y="8" width="255" height="48" rx="5" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1"/>
+                <text x="350" y="27" fill="#22c55e" font-size="10" font-weight="700">LOW</text>
+                <text x="410" y="27" fill="#ede0f0" font-size="7.5">~130 controls + enhancements</text>
+                <text x="350" y="42" fill="#9a82a0" font-size="6.5">Limited adverse effect. Basic hygiene: access control, audit logging,</text>
+                <text x="350" y="51" fill="#9a82a0" font-size="6.5">configuration management, awareness training, incident response basics.</text>
+
+                <!-- MODERATE baseline -->
+                <rect x="330" y="64" width="255" height="48" rx="5" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1"/>
+                <text x="350" y="83" fill="#eab308" font-size="10" font-weight="700">MODERATE</text>
+                <text x="430" y="83" fill="#ede0f0" font-size="7.5">~325 controls + enhancements</text>
+                <text x="350" y="98" fill="#9a82a0" font-size="6.5">Serious adverse effect. Adds: automated account management, MFA,</text>
+                <text x="350" y="107" fill="#9a82a0" font-size="6.5">flaw remediation, contingency testing, system monitoring, encryption.</text>
+
+                <!-- HIGH baseline -->
+                <rect x="330" y="120" width="255" height="48" rx="5" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1"/>
+                <text x="350" y="139" fill="#ef4444" font-size="10" font-weight="700">HIGH</text>
+                <text x="400" y="139" fill="#ede0f0" font-size="7.5">~421 controls + enhancements</text>
+                <text x="350" y="154" fill="#9a82a0" font-size="6.5">Severe/catastrophic effect. Adds: penetration testing, covert channel</text>
+                <text x="350" y="163" fill="#9a82a0" font-size="6.5">analysis, heterogeneous components, system partitioning, fail-secure.</text>
+
+                <!-- Bottom note -->
+                <text x="300" y="195" text-anchor="middle" fill="#5a4460" font-size="7" letter-spacing="0.05em">BASELINES ARE STARTING POINTS -- TAILORING ADJUSTS THEM TO MISSION NEEDS</text>
+
+                <!-- Arrow markers -->
+                <defs>
+                    <marker id="arrowM3" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+                        <path d="M0,0 L7,2.5 L0,5" fill="none" stroke="#ff00ff" stroke-width="0.8"/>
+                    </marker>
+                    <marker id="arrowG" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+                        <path d="M0,0 L7,2.5 L0,5" fill="none" stroke="#22c55e" stroke-width="0.8"/>
+                    </marker>
+                    <marker id="arrowY" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+                        <path d="M0,0 L7,2.5 L0,5" fill="none" stroke="#eab308" stroke-width="0.8"/>
+                    </marker>
+                    <marker id="arrowR" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+                        <path d="M0,0 L7,2.5 L0,5" fill="none" stroke="#ef4444" stroke-width="0.8"/>
+                    </marker>
+                </defs>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Low Impact Example</div>
+                <div class="card-desc">A public-facing informational website with no PII. Loss of confidentiality, integrity, or availability causes limited adverse effect. Low baseline applies ~130 controls: basic access management, audit events, security awareness training, incident response planning.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Moderate Impact Example</div>
+                <div class="card-desc">A federal HR system containing PII. Breach causes serious adverse effect (identity theft, financial harm). Moderate baseline applies ~325 controls: multi-factor authentication, automated monitoring, encrypted transmission, flaw remediation timelines, contingency plan testing.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">High Impact Example</div>
+                <div class="card-desc">A classified intelligence system or critical infrastructure control system. Compromise causes severe or catastrophic effect (loss of life, national security damage). High baseline applies ~421 controls: penetration testing, fault tolerance, trusted path, covert channel analysis.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">High-Water Mark Rule</div>
+            FIPS 199 evaluates confidentiality, integrity, and availability separately -- each gets Low, Moderate, or High. The system's overall categorization uses the highest individual rating. A system that is Low/Low/Moderate for C/I/A is categorized as Moderate overall. This high-water mark rule ensures the system is protected at the level of its most sensitive attribute.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- TAILORING ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 14</div>
+        <div class="slide-title"><span class="accent">Tailoring</span> the Baseline</div>
+        <div class="slide-subtitle">Scoping, compensating controls, and overlays.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 600 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Tailoring process showing baseline selection through scoping, parameter assignment, compensating controls, and overlay application">
+                <!-- Step boxes left to right -->
+                <rect x="5" y="20" width="105" height="65" rx="5" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="57" y="37" text-anchor="middle" fill="#ff00ff" font-size="8" font-weight="700">1. SELECT</text>
+                <text x="57" y="50" text-anchor="middle" fill="#ede0f0" font-size="7">Choose baseline</text>
+                <text x="57" y="61" text-anchor="middle" fill="#9a82a0" font-size="6.5">(Low / Mod / High)</text>
+                <text x="57" y="78" text-anchor="middle" fill="#5a4460" font-size="6">from SP 800-53B</text>
+
+                <line x1="110" y1="52" x2="125" y2="52" stroke="rgba(255,255,255,0.3)" stroke-width="1" marker-end="url(#arrowW)"/>
+
+                <rect x="125" y="20" width="105" height="65" rx="5" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="177" y="37" text-anchor="middle" fill="#00ffff" font-size="8" font-weight="700">2. SCOPE</text>
+                <text x="177" y="50" text-anchor="middle" fill="#ede0f0" font-size="7">Remove N/A controls</text>
+                <text x="177" y="61" text-anchor="middle" fill="#9a82a0" font-size="6.5">No wireless? Remove</text>
+                <text x="177" y="72" text-anchor="middle" fill="#9a82a0" font-size="6.5">AC-18, SC-40</text>
+
+                <line x1="230" y1="52" x2="245" y2="52" stroke="rgba(255,255,255,0.3)" stroke-width="1" marker-end="url(#arrowW)"/>
+
+                <rect x="245" y="20" width="105" height="65" rx="5" fill="rgba(255,68,255,0.08)" stroke="#ff44ff" stroke-width="1"/>
+                <text x="297" y="37" text-anchor="middle" fill="#ff44ff" font-size="8" font-weight="700">3. PARAMETERIZE</text>
+                <text x="297" y="50" text-anchor="middle" fill="#ede0f0" font-size="7">Fill in [Assignment]</text>
+                <text x="297" y="61" text-anchor="middle" fill="#9a82a0" font-size="6.5">and [Selection]</text>
+                <text x="297" y="72" text-anchor="middle" fill="#9a82a0" font-size="6.5">values</text>
+
+                <line x1="350" y1="52" x2="365" y2="52" stroke="rgba(255,255,255,0.3)" stroke-width="1" marker-end="url(#arrowW)"/>
+
+                <rect x="365" y="20" width="105" height="65" rx="5" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1"/>
+                <text x="417" y="37" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">4. COMPENSATE</text>
+                <text x="417" y="50" text-anchor="middle" fill="#ede0f0" font-size="7">Substitute controls</text>
+                <text x="417" y="61" text-anchor="middle" fill="#9a82a0" font-size="6.5">when original can't</text>
+                <text x="417" y="72" text-anchor="middle" fill="#9a82a0" font-size="6.5">be implemented</text>
+
+                <line x1="470" y1="52" x2="485" y2="52" stroke="rgba(255,255,255,0.3)" stroke-width="1" marker-end="url(#arrowW)"/>
+
+                <rect x="485" y="20" width="105" height="65" rx="5" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1"/>
+                <text x="537" y="37" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">5. OVERLAY</text>
+                <text x="537" y="50" text-anchor="middle" fill="#ede0f0" font-size="7">Apply community</text>
+                <text x="537" y="61" text-anchor="middle" fill="#9a82a0" font-size="6.5">overlays (DoD, IC,</text>
+                <text x="537" y="72" text-anchor="middle" fill="#9a82a0" font-size="6.5">Privacy, FedRAMP)</text>
+
+                <!-- Result arrow -->
+                <line x1="300" y1="90" x2="300" y2="110" stroke="#ff00ff" stroke-width="1.5" marker-end="url(#arrowM4)"/>
+
+                <!-- Result box -->
+                <rect x="150" y="115" width="300" height="45" rx="6" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="300" y="135" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700">TAILORED BASELINE</text>
+                <text x="300" y="150" text-anchor="middle" fill="#ede0f0" font-size="7.5">Organization-specific control set documented in the System Security Plan (SSP)</text>
+
+                <defs>
+                    <marker id="arrowW" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto">
+                        <path d="M0,0 L6,2.5 L0,5" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="0.8"/>
+                    </marker>
+                    <marker id="arrowM4" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+                        <path d="M0,0 L7,2.5 L0,5" fill="none" stroke="#ff00ff" stroke-width="0.8"/>
+                    </marker>
+                </defs>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Scoping Guidance</div>
+                <div class="card-desc">Scoping removes controls that do not apply to the system environment. A standalone system with no network connectivity can scope out AC-17 (Remote Access). A system with no removable media can scope out MP-7. Every scoping decision must be documented with rationale in the SSP -- you cannot silently drop controls. The authorizing official reviews and approves all scoping decisions.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Compensating Controls</div>
+                <div class="card-desc">When a required control cannot be implemented as stated, a compensating control provides equivalent protection through alternative means. Example: a legacy system that cannot enforce password complexity (IA-5) might compensate with network segmentation (SC-7) and enhanced monitoring (SI-4). The compensating control must address the same risk, be documented, and be approved by the authorizing official.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Overlays Add Community-Specific Requirements</div>
+            Overlays are pre-built tailoring packages for specific communities or use cases. The DoD overlay adds STIG-level requirements. The Intelligence Community overlay adds controls for classified processing. The Privacy overlay strengthens PT-family controls for PII-intensive systems. FedRAMP defines its own parameter values and additional requirements for cloud systems. Overlays can add controls, increase parameter stringency, or add implementation guidance -- but they do not remove baseline controls.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- 800-53A ASSESSMENT ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 14</div>
+        <div class="slide-title">SP 800-53A -- <span class="accent">Assessment</span> Procedures</div>
+        <div class="slide-subtitle">Examine, interview, and test -- the three assessment methods.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 600 165" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Three assessment methods: examine, interview, and test, converging to assessment findings">
+                <!-- Three method boxes -->
+                <rect x="20" y="15" width="160" height="80" rx="6" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="1.2"/>
+                <text x="100" y="35" text-anchor="middle" fill="#ff00ff" font-size="11" font-weight="700">EXAMINE</text>
+                <text x="100" y="50" text-anchor="middle" fill="#ede0f0" font-size="7.5">Review documents, records,</text>
+                <text x="100" y="62" text-anchor="middle" fill="#ede0f0" font-size="7.5">policies, procedures, logs</text>
+                <text x="100" y="78" text-anchor="middle" fill="#9a82a0" font-size="6.5">SSP, audit logs, config files,</text>
+                <text x="100" y="88" text-anchor="middle" fill="#9a82a0" font-size="6.5">network diagrams, SOPs</text>
+
+                <rect x="220" y="15" width="160" height="80" rx="6" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1.2"/>
+                <text x="300" y="35" text-anchor="middle" fill="#00ffff" font-size="11" font-weight="700">INTERVIEW</text>
+                <text x="300" y="50" text-anchor="middle" fill="#ede0f0" font-size="7.5">Question personnel to</text>
+                <text x="300" y="62" text-anchor="middle" fill="#ede0f0" font-size="7.5">verify understanding</text>
+                <text x="300" y="78" text-anchor="middle" fill="#9a82a0" font-size="6.5">Sys admins, ISSO, users,</text>
+                <text x="300" y="88" text-anchor="middle" fill="#9a82a0" font-size="6.5">developers, management</text>
+
+                <rect x="420" y="15" width="160" height="80" rx="6" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1.2"/>
+                <text x="500" y="35" text-anchor="middle" fill="#eab308" font-size="11" font-weight="700">TEST</text>
+                <text x="500" y="50" text-anchor="middle" fill="#ede0f0" font-size="7.5">Exercise mechanisms and</text>
+                <text x="500" y="62" text-anchor="middle" fill="#ede0f0" font-size="7.5">activities to verify operation</text>
+                <text x="500" y="78" text-anchor="middle" fill="#9a82a0" font-size="6.5">Vulnerability scans, pen tests,</text>
+                <text x="500" y="88" text-anchor="middle" fill="#9a82a0" font-size="6.5">functional testing, red teams</text>
+
+                <!-- Converging arrows -->
+                <line x1="100" y1="95" x2="250" y2="125" stroke="#ff00ff" stroke-width="1" marker-end="url(#arrowM5)"/>
+                <line x1="300" y1="95" x2="300" y2="125" stroke="#00ffff" stroke-width="1" marker-end="url(#arrowC5)"/>
+                <line x1="500" y1="95" x2="350" y2="125" stroke="#eab308" stroke-width="1" marker-end="url(#arrowY5)"/>
+
+                <!-- Findings box -->
+                <rect x="200" y="125" width="200" height="35" rx="6" fill="rgba(255,0,255,0.12)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="300" y="143" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">ASSESSMENT FINDINGS</text>
+                <text x="300" y="155" text-anchor="middle" fill="#ede0f0" font-size="7">Satisfied | Other Than Satisfied</text>
+
+                <defs>
+                    <marker id="arrowM5" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+                        <path d="M0,0 L7,2.5 L0,5" fill="none" stroke="#ff00ff" stroke-width="0.8"/>
+                    </marker>
+                    <marker id="arrowC5" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+                        <path d="M0,0 L7,2.5 L0,5" fill="none" stroke="#00ffff" stroke-width="0.8"/>
+                    </marker>
+                    <marker id="arrowY5" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+                        <path d="M0,0 L7,2.5 L0,5" fill="none" stroke="#eab308" stroke-width="0.8"/>
+                    </marker>
+                </defs>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Assessment Depth</div>
+                <div class="card-desc">Each method has depth levels: basic, focused, and comprehensive. Basic checks for presence. Focused checks for correctness. Comprehensive checks for completeness and resilience. Higher-impact systems require deeper assessment. A Low system might get basic examination; a High system gets comprehensive testing with red team exercises.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Assessment Breadth</div>
+                <div class="card-desc">Coverage ranges from representative sample to complete coverage. A moderate system might test a representative sample of 25% of access control rules. A high system might require testing 100% of boundary protection rules. The assessor determines appropriate breadth based on system categorization and risk.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Findings and Determination</div>
+                <div class="card-desc">Each control receives a finding of "Satisfied" or "Other Than Satisfied." There is no partial credit. Unsatisfied findings become entries in the Plan of Action and Milestones (POA&M) with remediation timelines. The authorizing official uses the complete set of findings to make the risk-based authorization decision.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Assessment Is Not Audit</div>
+            800-53A assessments determine whether controls are implemented correctly, operating as intended, and producing the desired outcome. This is broader than an audit, which typically checks compliance against a specific standard. An assessment evaluates effectiveness -- a control can be present but ineffective, which an audit might miss but an assessment should catch.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- CONTINUOUS MONITORING ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 14</div>
+        <div class="slide-title"><span class="accent">Continuous</span> Monitoring</div>
+        <div class="slide-subtitle">ISCM strategy, automation, and POA&M management.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 600 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Continuous monitoring cycle showing define, establish, implement, analyze, respond, and review phases">
+                <!-- Center label -->
+                <text x="300" y="100" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700">ISCM</text>
+                <text x="300" y="115" text-anchor="middle" fill="#5a4460" font-size="7">SP 800-137</text>
+
+                <!-- Circular arrangement of 6 phases -->
+                <!-- Phase 1: Define (top) -->
+                <rect x="240" y="5" width="120" height="40" rx="5" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="300" y="22" text-anchor="middle" fill="#ff00ff" font-size="8" font-weight="700">1. DEFINE</text>
+                <text x="300" y="35" text-anchor="middle" fill="#9a82a0" font-size="6.5">Strategy + metrics + frequencies</text>
+
+                <!-- Phase 2: Establish (top-right) -->
+                <rect x="420" y="30" width="120" height="40" rx="5" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="480" y="47" text-anchor="middle" fill="#00ffff" font-size="8" font-weight="700">2. ESTABLISH</text>
+                <text x="480" y="60" text-anchor="middle" fill="#9a82a0" font-size="6.5">Program + tools + automation</text>
+
+                <!-- Phase 3: Implement (bottom-right) -->
+                <rect x="440" y="110" width="120" height="40" rx="5" fill="rgba(255,68,255,0.08)" stroke="#ff44ff" stroke-width="1"/>
+                <text x="500" y="127" text-anchor="middle" fill="#ff44ff" font-size="8" font-weight="700">3. IMPLEMENT</text>
+                <text x="500" y="140" text-anchor="middle" fill="#9a82a0" font-size="6.5">Collect data + assess controls</text>
+
+                <!-- Phase 4: Analyze (bottom) -->
+                <rect x="240" y="155" width="120" height="40" rx="5" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1"/>
+                <text x="300" y="172" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">4. ANALYZE</text>
+                <text x="300" y="185" text-anchor="middle" fill="#9a82a0" font-size="6.5">Findings + risk determination</text>
+
+                <!-- Phase 5: Respond (bottom-left) -->
+                <rect x="40" y="110" width="120" height="40" rx="5" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1"/>
+                <text x="100" y="127" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">5. RESPOND</text>
+                <text x="100" y="140" text-anchor="middle" fill="#9a82a0" font-size="6.5">Remediate + POA&amp;M + mitigate</text>
+
+                <!-- Phase 6: Review (top-left) -->
+                <rect x="60" y="30" width="120" height="40" rx="5" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1"/>
+                <text x="120" y="47" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">6. REVIEW</text>
+                <text x="120" y="60" text-anchor="middle" fill="#9a82a0" font-size="6.5">Update strategy + adjust</text>
+
+                <!-- Connecting arrows (clockwise) -->
+                <path d="M360,25 Q400,20 420,40" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="0.8"/>
+                <path d="M530,70 Q550,90 550,110" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="0.8"/>
+                <path d="M500,150 Q460,170 360,175" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="0.8"/>
+                <path d="M240,175 Q200,170 160,145" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="0.8"/>
+                <path d="M60,110 Q50,90 60,70" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="0.8"/>
+                <path d="M170,35 Q200,20 240,20" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="0.8"/>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">ISCM Strategy Components</div>
+                <div class="card-desc">An Information Security Continuous Monitoring strategy (SP 800-137) defines: which controls to monitor, how frequently, what tools to use, how to analyze results, who reviews findings, and how responses are tracked. The strategy must cover all three tiers: organization, mission/business process, and information system. Automation is essential -- manual monitoring cannot scale to hundreds of controls across dozens of systems.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">POA&M Management</div>
+                <div class="card-desc">The Plan of Action and Milestones tracks every known weakness. Each entry includes: the weakness description, the affected control, the planned remediation, the responsible party, the estimated completion date, and the current status. POA&Ms are living documents reviewed by the authorizing official. A stale POA&M with overdue milestones signals governance failure -- the organization knows its weaknesses but is not fixing them.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Automation Enables Ongoing Authorization</div>
+            Traditional authorization was a point-in-time event every three years. Continuous monitoring enables ongoing authorization -- the AO receives real-time risk data and makes continuous risk acceptance decisions. Tools like SCAP (Security Content Automation Protocol), vulnerability scanners, SIEM platforms, and configuration compliance tools feed automated dashboards that replace the three-year reauthorization cycle with continuous risk visibility.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- FRAMEWORK CROSSWALK ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 14</div>
+        <div class="slide-title">800-53 vs <span class="accent">CIS Controls</span> vs <span class="cyan">ISO 27002</span></div>
+        <div class="slide-subtitle">Mapping and translation across major control frameworks.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 600 170" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Framework comparison showing NIST 800-53, CIS Controls v8, and ISO 27002:2022 with mapping relationships">
+                <!-- Three framework columns -->
+                <rect x="10" y="10" width="180" height="145" rx="6" fill="rgba(255,0,255,0.06)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="100" y="30" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700">NIST 800-53 Rev 5</text>
+                <text x="100" y="48" text-anchor="middle" fill="#ede0f0" font-size="7">1,189 controls</text>
+                <text x="100" y="60" text-anchor="middle" fill="#ede0f0" font-size="7">20 families</text>
+                <text x="100" y="75" text-anchor="middle" fill="#9a82a0" font-size="6.5">Prescriptive catalog</text>
+                <text x="100" y="87" text-anchor="middle" fill="#9a82a0" font-size="6.5">Federal mandate (FISMA)</text>
+                <text x="100" y="99" text-anchor="middle" fill="#9a82a0" font-size="6.5">Baselines by impact level</text>
+                <text x="100" y="114" text-anchor="middle" fill="#00ffff" font-size="7" font-weight="600">Audience: Federal agencies,</text>
+                <text x="100" y="126" text-anchor="middle" fill="#00ffff" font-size="7" font-weight="600">contractors, critical infra</text>
+                <text x="100" y="145" text-anchor="middle" fill="#5a4460" font-size="6.5">Most comprehensive</text>
+
+                <rect x="210" y="10" width="180" height="145" rx="6" fill="rgba(0,255,255,0.06)" stroke="#00ffff" stroke-width="1"/>
+                <text x="300" y="30" text-anchor="middle" fill="#00ffff" font-size="10" font-weight="700">CIS Controls v8</text>
+                <text x="300" y="48" text-anchor="middle" fill="#ede0f0" font-size="7">153 safeguards</text>
+                <text x="300" y="60" text-anchor="middle" fill="#ede0f0" font-size="7">18 control groups</text>
+                <text x="300" y="75" text-anchor="middle" fill="#9a82a0" font-size="6.5">Prioritized, actionable</text>
+                <text x="300" y="87" text-anchor="middle" fill="#9a82a0" font-size="6.5">Voluntary / best practice</text>
+                <text x="300" y="99" text-anchor="middle" fill="#9a82a0" font-size="6.5">IGs: IG1, IG2, IG3</text>
+                <text x="300" y="114" text-anchor="middle" fill="#ff00ff" font-size="7" font-weight="600">Audience: All orgs,</text>
+                <text x="300" y="126" text-anchor="middle" fill="#ff00ff" font-size="7" font-weight="600">especially SMBs</text>
+                <text x="300" y="145" text-anchor="middle" fill="#5a4460" font-size="6.5">Most practical / fastest start</text>
+
+                <rect x="410" y="10" width="180" height="145" rx="6" fill="rgba(234,179,8,0.06)" stroke="#eab308" stroke-width="1"/>
+                <text x="500" y="30" text-anchor="middle" fill="#eab308" font-size="10" font-weight="700">ISO 27002:2022</text>
+                <text x="500" y="48" text-anchor="middle" fill="#ede0f0" font-size="7">93 controls</text>
+                <text x="500" y="60" text-anchor="middle" fill="#ede0f0" font-size="7">4 themes</text>
+                <text x="500" y="75" text-anchor="middle" fill="#9a82a0" font-size="6.5">Implementation guidance</text>
+                <text x="500" y="87" text-anchor="middle" fill="#9a82a0" font-size="6.5">Voluntary / certifiable (27001)</text>
+                <text x="500" y="99" text-anchor="middle" fill="#9a82a0" font-size="6.5">Org/People/Physical/Tech</text>
+                <text x="500" y="114" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="600">Audience: Global orgs,</text>
+                <text x="500" y="126" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="600">B2B, compliance-driven</text>
+                <text x="500" y="145" text-anchor="middle" fill="#5a4460" font-size="6.5">Most internationally recognized</text>
+            </svg>
+        </div>
+
+        <table class="glossary-table">
+            <thead>
+                <tr>
+                    <th>Dimension</th>
+                    <th>NIST 800-53</th>
+                    <th>CIS Controls</th>
+                    <th>ISO 27002</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Scope</td>
+                    <td style="color:#9a82a0;">Comprehensive catalog -- every possible control</td>
+                    <td style="color:#9a82a0;">Prioritized subset -- highest-impact actions first</td>
+                    <td style="color:#9a82a0;">International standard -- implementation guidance</td>
+                </tr>
+                <tr>
+                    <td>Structure</td>
+                    <td style="color:#9a82a0;">Family > Control > Enhancement > Parameter</td>
+                    <td style="color:#9a82a0;">Control Group > Safeguard > IG level</td>
+                    <td style="color:#9a82a0;">Theme > Control > Purpose > Guidance</td>
+                </tr>
+                <tr>
+                    <td>Mapping</td>
+                    <td style="color:#9a82a0;">NIST provides official crosswalks to CIS + ISO</td>
+                    <td style="color:#9a82a0;">CIS maps each safeguard to 800-53 controls</td>
+                    <td style="color:#9a82a0;">Annex B maps to ISO 27001 + NIST CSF</td>
+                </tr>
+                <tr>
+                    <td>Best For</td>
+                    <td style="color:#9a82a0;">Federal compliance, deep control specification</td>
+                    <td style="color:#9a82a0;">Quick wins, practical implementation, SMBs</td>
+                    <td style="color:#9a82a0;">International compliance, certification, B2B trust</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="box box-magenta">
+            <div class="box-label">Crosswalk Strategy</div>
+            Organizations rarely use a single framework. The most effective approach: use CIS Controls IG1 for immediate risk reduction, map to 800-53 controls for federal compliance, and demonstrate ISO 27002 alignment for international customers. NIST provides the SP 800-53 to CIS Controls mapping. CIS provides reverse mappings. A single implemented control (e.g., multi-factor authentication) can simultaneously satisfy 800-53 IA-2, CIS Safeguard 6.3, and ISO 27002 Control 8.5 -- but only if the organization explicitly documents the crosswalk.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- KEY TAKEAWAYS ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 14</div>
+        <div class="slide-title">Key <span class="accent">Takeaways</span></div>
+        <div class="slide-subtitle">NIST SP 800-53 distilled into policy-actionable principles.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">SP 800-53 Rev 5 is the most comprehensive security and privacy control catalog available -- 1,189 controls across 20 families. It is mandated by FISMA for federal systems and used voluntarily by organizations worldwide as a reference catalog for control selection.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Controls follow a strict hierarchy: family, control, enhancement, parameter. Every control has a unique identifier (e.g., AC-2(1)). Parameters are where policy meets implementation -- the organization decides the specific values that reflect its risk posture.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">The 20 control families cover every dimension of security: access (AC), audit (AU), configuration (CM), incident response (IR), physical (PE), communications (SC), and more. Rev 5 added PT (privacy) and SR (supply chain) to address modern threats.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">FIPS 199 categorization drives baseline selection. Low (~130 controls), Moderate (~325), and High (~421) baselines from SP 800-53B provide starting points. The high-water mark rule ensures the system is protected at the level of its most sensitive attribute.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Tailoring transforms a generic baseline into an organization-specific control set through scoping, parameter assignment, compensating controls, and overlay application. Every tailoring decision must be documented and approved by the authorizing official.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">SP 800-53A defines three assessment methods -- examine, interview, test -- each with variable depth and breadth. Controls are either satisfied or not. Unsatisfied findings drive POA&M entries with remediation milestones.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">Continuous monitoring replaces the three-year reauthorization cycle with ongoing risk visibility. ISCM strategy, SCAP automation, and POA&M management enable authorizing officials to make continuous, data-driven risk acceptance decisions.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">800-53 does not exist in isolation. Crosswalks to CIS Controls and ISO 27002 allow a single control implementation to satisfy multiple frameworks simultaneously -- reducing compliance burden while increasing coverage.</span>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">What Comes Next</div>
+            800-53 is the catalog. The Risk Management Framework (SP 800-37) is the process that selects, implements, assesses, and monitors these controls throughout the system lifecycle. Understanding the controls is prerequisite to applying them -- and applying them correctly is what separates a compliant system from a secure one.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- MARK COMPLETE ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 14 &nbsp;|&nbsp; Complete</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Presentation<br>
+                <span class="accent">Complete</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                NIST SP 800-53 Controls -- 14 slides
+            </div>
+        </div>
+
+        <div class="scenario-strip" style="text-align:center; font-style:normal;">
+            Rev 5 &bull; 20 Control Families &bull; AC Deep Dive &bull; AU Deep Dive &bull; SC Deep Dive &bull; Baselines &bull; Tailoring &bull; Assessment &bull; Continuous Monitoring &bull; Framework Crosswalk
+        </div>
+
+        <div style="text-align:center; margin-top:10px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+
+        <div class="title-meta-row" style="margin-top:8px;">
+            <span>CIS2208</span>
+            <span>Cybersecurity Policy</span>
+            <span>Week 4</span>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Cybersecurity Policy</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 14</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 14;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        var completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('divergent', 'csp-w4-nist-800-53-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Risk Management Fundamentals | Cybersecurity Policy</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d0810 0%, #0a060d 50%, #100812 100%);
+            color: #ede0f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow-y: auto;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: linear-gradient(90deg, #ff00ff, #00ffff);
+            transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(13, 8, 16, 0.95);
+            border-top: 1px solid rgba(255, 0, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #9a82a0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(255, 0, 255, 0.12); color: #ff00ff; border-color: #ff00ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #5a4460; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: linear-gradient(135deg, #ff00ff, #ff44ff);
+            color: #0d0810; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: linear-gradient(135deg, #ff44ff, #ff88ff); transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #ff00ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #ede0f0; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ff00ff; }
+        .slide-title .cyan { color: #00ffff; }
+        .slide-subtitle { font-size: 0.95rem; color: #9a82a0; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(255, 0, 255, 0.06); border-left: 3px solid #ff00ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #f5b8f5; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-magenta { background: rgba(255, 0, 255, 0.08); border: 1px solid rgba(255, 0, 255, 0.3); color: #f5b8f5; }
+        .box-cyan    { background: rgba(0, 255, 255, 0.08); border: 1px solid rgba(0, 255, 255, 0.3); color: #b8f5f5; }
+        .box-red     { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold    { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-green   { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-label   { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #ede0f0; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ff00ff; }
+        .title-hero .big-title .cyan { color: #00ffff; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #5a4460;
+        }
+        .title-meta-row span { border-left: 2px solid rgba(255, 0, 255, 0.2); padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card-grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #ff00ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #ede0f0; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #9a82a0; line-height: 1.4; }
+        .card.c-magenta { border-left-color: #ff00ff; }
+        .card.c-cyan    { border-left-color: #00ffff; }
+        .card.c-red     { border-left-color: #ef4444; }
+        .card.c-gold    { border-left-color: #eab308; }
+        .card.c-green   { border-left-color: #22c55e; }
+        .card.c-purple  { border-left-color: #ff44ff; }
+        .card.c-blue    { border-left-color: #3b82f6; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #5a4460; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #ff00ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #ede0f0; }
+
+        /* SVG diagram containers */
+        .svg-container {
+            display: flex; justify-content: center; align-items: center;
+            margin: 10px 0; padding: 10px;
+        }
+        .svg-container svg { max-width: 100%; height: auto; }
+
+        /* Glossary table */
+        .glossary-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+        .glossary-table th {
+            text-align: left; padding: 6px 10px; font-size: 0.72rem;
+            text-transform: uppercase; letter-spacing: 0.08em;
+            color: #ff00ff; border-bottom: 1px solid rgba(255, 0, 255, 0.3);
+        }
+        .glossary-table td {
+            padding: 6px 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            vertical-align: top;
+        }
+        .glossary-table td:first-child { color: #00ffff; font-weight: 600; white-space: nowrap; }
+        .glossary-table td:last-child { color: #9a82a0; }
+
+        /* Timeline steps */
+        .timeline { display: flex; gap: 2px; margin: 10px 0; }
+        .tl-step {
+            flex: 1; padding: 10px 6px; text-align: center;
+            background: rgba(255, 0, 255, 0.06); border: 1px solid rgba(255, 0, 255, 0.15);
+            border-radius: 4px; transition: background 0.2s;
+        }
+        .tl-step:hover { background: rgba(255, 0, 255, 0.14); }
+        .tl-num { font-size: 0.68rem; font-weight: 700; color: #00ffff; letter-spacing: 0.08em; margin-bottom: 3px; }
+        .tl-name { font-size: 0.78rem; font-weight: 700; color: #ede0f0; margin-bottom: 3px; }
+        .tl-desc { font-size: 0.7rem; color: #9a82a0; line-height: 1.3; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid, .card-grid-4, .card-grid-5 { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .timeline { flex-wrap: wrap; } .tl-step { min-width: 45%; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Risk Management Fundamentals | Cybersecurity Policy</h1>
+
+<div id="progress-bar" style="width:7.14%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 14 &nbsp;|&nbsp; CSP-W4-01 &nbsp;|&nbsp; Week 4</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Risk Management <span class="accent">Fundamentals</span><br>
+                <span class="cyan" style="font-size:0.65em;">Qualitative vs Quantitative, Risk Treatment</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Risk Equation &bull; Lifecycle &bull; Qualitative &bull; Quantitative &bull; Treatment Options &bull; Risk Register &bull; Threat Modeling &bull; NIST 800-30 &bull; ISO 31000 &bull; Supply Chain &bull; Cyber Insurance
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Risk management is the discipline that connects cybersecurity to business strategy. Every control you deploy, every policy you write, every dollar you spend on security should trace back to a risk decision. This deck covers the full spectrum -- from the fundamental risk equation through qualitative and quantitative assessment methods, treatment frameworks, threat modeling, and the emerging domains of supply chain risk and cyber insurance. You will learn to speak the language of risk that boards and executives understand.
+        </div>
+        <div class="title-meta-row">
+            <span>14 Slides</span>
+            <span>CSP-W4-01</span>
+            <span>Week 4</span>
+            <span>CIS2208 -- Cybersecurity Policy</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- WHAT IS RISK ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 14</div>
+        <div class="slide-title">What Is <span class="accent">Risk</span>?</div>
+        <div class="slide-subtitle">Risk = Threat x Vulnerability x Impact -- the foundational equation that drives every security decision.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 480 260" width="460" role="img" aria-label="Risk equation triangle diagram. Three vertices labeled Threat, Vulnerability, and Impact form a triangle with Risk at the center. Arrows connect each vertex showing their multiplicative relationship.">
+                <!-- Triangle -->
+                <polygon points="240,30 60,220 420,220" fill="none" stroke="rgba(255,0,255,0.3)" stroke-width="2"/>
+                <!-- Center -->
+                <circle cx="240" cy="160" r="36" fill="rgba(255,0,255,0.12)" stroke="#ff00ff" stroke-width="2"/>
+                <text x="240" y="156" text-anchor="middle" fill="#ff00ff" font-size="13" font-weight="800">RISK</text>
+                <text x="240" y="170" text-anchor="middle" fill="#9a82a0" font-size="7">T x V x I</text>
+                <!-- Threat vertex (top) -->
+                <circle cx="240" cy="30" r="4" fill="#ff00ff"/>
+                <rect x="178" y="40" width="124" height="36" rx="6" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="240" y="55" text-anchor="middle" fill="#ede0f0" font-size="9" font-weight="700">THREAT</text>
+                <text x="240" y="68" text-anchor="middle" fill="#9a82a0" font-size="7">Agent + motivation + capability</text>
+                <!-- Vulnerability vertex (bottom-left) -->
+                <circle cx="60" cy="220" r="4" fill="#00ffff"/>
+                <rect x="6" y="224" width="140" height="36" rx="6" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="76" y="239" text-anchor="middle" fill="#ede0f0" font-size="9" font-weight="700">VULNERABILITY</text>
+                <text x="76" y="252" text-anchor="middle" fill="#9a82a0" font-size="7">Weakness + exploitability</text>
+                <!-- Impact vertex (bottom-right) -->
+                <circle cx="420" cy="220" r="4" fill="#ff44ff"/>
+                <rect x="348" y="224" width="140" height="36" rx="6" fill="rgba(255,68,255,0.08)" stroke="#ff44ff" stroke-width="1"/>
+                <text x="418" y="239" text-anchor="middle" fill="#ede0f0" font-size="9" font-weight="700">IMPACT</text>
+                <text x="418" y="252" text-anchor="middle" fill="#9a82a0" font-size="7">Financial + operational + reputational</text>
+                <!-- Connecting arrows -->
+                <line x1="200" y1="52" x2="100" y2="200" stroke="rgba(255,0,255,0.2)" stroke-width="1" stroke-dasharray="4,3"/>
+                <line x1="280" y1="52" x2="380" y2="200" stroke="rgba(255,68,255,0.2)" stroke-width="1" stroke-dasharray="4,3"/>
+                <line x1="110" y1="222" x2="370" y2="222" stroke="rgba(0,255,255,0.2)" stroke-width="1" stroke-dasharray="4,3"/>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Threat</div>
+                <div class="card-desc">Any potential cause of an unwanted incident. Threats have agents (nation-states, cybercriminals, insiders), motivations (financial gain, espionage, ideology), and capabilities (tools, funding, skill). A threat without a matching vulnerability is theoretical -- but it still informs your risk posture.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Vulnerability</div>
+                <div class="card-desc">A weakness in a system, process, or control that can be exploited by a threat. Vulnerabilities exist at every layer -- technical (unpatched software), procedural (no MFA policy), and human (untrained staff). CVSS scores quantify technical vulnerability severity on a 0-10 scale.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Impact</div>
+                <div class="card-desc">The consequence of a threat exploiting a vulnerability. Impact spans financial loss, operational disruption, reputational damage, legal liability, and regulatory penalties. Asset valuation determines potential impact -- you cannot measure impact without knowing what you are protecting and what it is worth.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Asset Valuation</div>
+            Before you can assess risk, you must know what you are protecting. Asset valuation assigns a monetary or criticality value to information assets, systems, and processes. Tangible assets (servers, databases) have replacement cost. Intangible assets (brand reputation, customer trust, intellectual property) require estimation models. The asset with the highest value attracts the most risk -- and the most investment in controls.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- RISK MANAGEMENT LIFECYCLE ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 14</div>
+        <div class="slide-title">Risk Management <span class="accent">Lifecycle</span></div>
+        <div class="slide-subtitle">Five continuous phases -- identify, assess, treat, monitor, communicate -- forming a cycle that never ends.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 440 300" width="420" role="img" aria-label="Risk management lifecycle circle. Five phases arranged clockwise in a circular flow: Identify, Assess, Treat, Monitor, and Communicate. Arrows connect each phase showing the continuous cycle. A central hub reads Continuous Cycle.">
+                <!-- Center hub -->
+                <circle cx="220" cy="145" r="38" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="2"/>
+                <text x="220" y="140" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">CONTINUOUS</text>
+                <text x="220" y="153" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">CYCLE</text>
+                <!-- Phase 1: Identify (top) -->
+                <rect x="163" y="10" width="114" height="50" rx="8" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="220" y="32" text-anchor="middle" fill="#ede0f0" font-size="10" font-weight="700">1. IDENTIFY</text>
+                <text x="220" y="47" text-anchor="middle" fill="#9a82a0" font-size="7">Assets, threats, vulns</text>
+                <!-- Phase 2: Assess (top-right) -->
+                <rect x="318" y="80" width="114" height="50" rx="8" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="375" y="102" text-anchor="middle" fill="#ede0f0" font-size="10" font-weight="700">2. ASSESS</text>
+                <text x="375" y="117" text-anchor="middle" fill="#9a82a0" font-size="7">Likelihood x impact</text>
+                <!-- Phase 3: Treat (bottom-right) -->
+                <rect x="296" y="195" width="114" height="50" rx="8" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="353" y="217" text-anchor="middle" fill="#ede0f0" font-size="10" font-weight="700">3. TREAT</text>
+                <text x="353" y="232" text-anchor="middle" fill="#9a82a0" font-size="7">Avoid, mitigate, transfer</text>
+                <!-- Phase 4: Monitor (bottom-left) -->
+                <rect x="30" y="195" width="114" height="50" rx="8" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="87" y="217" text-anchor="middle" fill="#ede0f0" font-size="10" font-weight="700">4. MONITOR</text>
+                <text x="87" y="232" text-anchor="middle" fill="#9a82a0" font-size="7">Track, measure, reassess</text>
+                <!-- Phase 5: Communicate (top-left) -->
+                <rect x="8" y="80" width="114" height="50" rx="8" fill="rgba(255,68,255,0.08)" stroke="#ff44ff" stroke-width="1.5"/>
+                <text x="65" y="102" text-anchor="middle" fill="#ede0f0" font-size="10" font-weight="700">5. COMMUNICATE</text>
+                <text x="65" y="117" text-anchor="middle" fill="#9a82a0" font-size="7">Report to stakeholders</text>
+                <!-- Connecting arrows (clockwise arc segments) -->
+                <path d="M 270 35 Q 340 30 345 80" fill="none" stroke="rgba(0,255,255,0.5)" stroke-width="1.5" marker-end="url(#arrowCyan)"/>
+                <path d="M 400 135 Q 410 180 380 195" fill="none" stroke="rgba(34,197,94,0.5)" stroke-width="1.5" marker-end="url(#arrowGreen)"/>
+                <path d="M 296 225 Q 220 270 144 225" fill="none" stroke="rgba(234,179,8,0.5)" stroke-width="1.5" marker-end="url(#arrowGold)"/>
+                <path d="M 55 195 Q 20 170 35 130" fill="none" stroke="rgba(255,68,255,0.5)" stroke-width="1.5" marker-end="url(#arrowPurple)"/>
+                <path d="M 90 80 Q 130 30 163 30" fill="none" stroke="rgba(255,0,255,0.5)" stroke-width="1.5" marker-end="url(#arrowMagenta)"/>
+                <!-- Arrow markers -->
+                <defs>
+                    <marker id="arrowCyan" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto"><polygon points="0,0 6,2 0,4" fill="#00ffff"/></marker>
+                    <marker id="arrowGreen" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto"><polygon points="0,0 6,2 0,4" fill="#22c55e"/></marker>
+                    <marker id="arrowGold" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto"><polygon points="0,0 6,2 0,4" fill="#eab308"/></marker>
+                    <marker id="arrowPurple" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto"><polygon points="0,0 6,2 0,4" fill="#ff44ff"/></marker>
+                    <marker id="arrowMagenta" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto"><polygon points="0,0 6,2 0,4" fill="#ff00ff"/></marker>
+                </defs>
+                <!-- Bottom label -->
+                <text x="220" y="290" text-anchor="middle" fill="#5a4460" font-size="7" letter-spacing="0.06em">RISK MANAGEMENT IS NEVER "DONE" -- IT IS A CONTINUOUS OPERATIONAL DISCIPLINE</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-5">
+            <div class="card c-magenta">
+                <div class="card-label">Identify</div>
+                <div class="card-desc">Catalog all assets, threats, and vulnerabilities. Build the inventory that risk assessment operates against. You cannot protect what you do not know exists.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Assess</div>
+                <div class="card-desc">Evaluate likelihood and impact for each identified risk. Apply qualitative or quantitative methods to produce risk ratings that enable prioritization.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Treat</div>
+                <div class="card-desc">Select and implement a risk treatment strategy for each risk: avoid, mitigate, transfer, or accept. Every treatment decision must be documented and justified.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Monitor</div>
+                <div class="card-desc">Continuously track risk indicators, control effectiveness, and environmental changes. Risk levels shift as threats evolve and new vulnerabilities emerge.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Communicate</div>
+                <div class="card-desc">Report risk posture to stakeholders at every level -- from technical teams to the board. Risk communication must be tailored to each audience.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Continuous, Not Linear</div>
+            The lifecycle is circular because the threat landscape never stops changing. A risk you accepted last quarter may require mitigation today because a new exploit was published, a regulation changed, or your asset value increased. Organizations that treat risk assessment as an annual checkbox exercise are perpetually behind the threat curve.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- QUALITATIVE RISK ASSESSMENT ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 14</div>
+        <div class="slide-title"><span class="accent">Qualitative</span> Risk Assessment</div>
+        <div class="slide-subtitle">Likelihood x impact matrix -- categorizing risks into low, medium, high, and critical using expert judgment.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 460 340" width="440" role="img" aria-label="Five-by-five likelihood-impact risk matrix. Rows represent likelihood from Rare to Almost Certain. Columns represent impact from Negligible to Catastrophic. Cells are color-coded: green for low risk, gold for medium, red for high, and magenta for critical.">
+                <!-- Title -->
+                <text x="230" y="18" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700" letter-spacing="0.06em">5x5 LIKELIHOOD / IMPACT MATRIX</text>
+                <!-- Y-axis label -->
+                <text x="12" y="180" text-anchor="middle" fill="#9a82a0" font-size="8" font-weight="600" transform="rotate(-90,12,180)">LIKELIHOOD</text>
+                <!-- X-axis label -->
+                <text x="270" y="335" text-anchor="middle" fill="#9a82a0" font-size="8" font-weight="600">IMPACT</text>
+                <!-- Column headers -->
+                <text x="120" y="40" text-anchor="middle" fill="#9a82a0" font-size="7.5" font-weight="600">Negligible</text>
+                <text x="195" y="40" text-anchor="middle" fill="#9a82a0" font-size="7.5" font-weight="600">Minor</text>
+                <text x="270" y="40" text-anchor="middle" fill="#9a82a0" font-size="7.5" font-weight="600">Moderate</text>
+                <text x="345" y="40" text-anchor="middle" fill="#9a82a0" font-size="7.5" font-weight="600">Major</text>
+                <text x="420" y="40" text-anchor="middle" fill="#9a82a0" font-size="7.5" font-weight="600">Catastrophic</text>
+                <!-- Row headers -->
+                <text x="68" y="72" text-anchor="end" fill="#9a82a0" font-size="7.5" font-weight="600">Almost Certain</text>
+                <text x="68" y="122" text-anchor="end" fill="#9a82a0" font-size="7.5" font-weight="600">Likely</text>
+                <text x="68" y="172" text-anchor="end" fill="#9a82a0" font-size="7.5" font-weight="600">Possible</text>
+                <text x="68" y="222" text-anchor="end" fill="#9a82a0" font-size="7.5" font-weight="600">Unlikely</text>
+                <text x="68" y="272" text-anchor="end" fill="#9a82a0" font-size="7.5" font-weight="600">Rare</text>
+                <!-- Row 5: Almost Certain -->
+                <rect x="80" y="50" width="70" height="40" rx="3" fill="rgba(234,179,8,0.15)" stroke="rgba(234,179,8,0.4)" stroke-width="0.8"/>
+                <text x="115" y="74" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">MED</text>
+                <rect x="155" y="50" width="70" height="40" rx="3" fill="rgba(239,68,68,0.15)" stroke="rgba(239,68,68,0.4)" stroke-width="0.8"/>
+                <text x="190" y="74" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">HIGH</text>
+                <rect x="230" y="50" width="70" height="40" rx="3" fill="rgba(239,68,68,0.15)" stroke="rgba(239,68,68,0.4)" stroke-width="0.8"/>
+                <text x="265" y="74" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">HIGH</text>
+                <rect x="305" y="50" width="70" height="40" rx="3" fill="rgba(255,0,255,0.18)" stroke="rgba(255,0,255,0.5)" stroke-width="0.8"/>
+                <text x="340" y="74" text-anchor="middle" fill="#ff00ff" font-size="8" font-weight="700">CRIT</text>
+                <rect x="380" y="50" width="70" height="40" rx="3" fill="rgba(255,0,255,0.18)" stroke="rgba(255,0,255,0.5)" stroke-width="0.8"/>
+                <text x="415" y="74" text-anchor="middle" fill="#ff00ff" font-size="8" font-weight="700">CRIT</text>
+                <!-- Row 4: Likely -->
+                <rect x="80" y="100" width="70" height="40" rx="3" fill="rgba(34,197,94,0.12)" stroke="rgba(34,197,94,0.4)" stroke-width="0.8"/>
+                <text x="115" y="124" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">LOW</text>
+                <rect x="155" y="100" width="70" height="40" rx="3" fill="rgba(234,179,8,0.15)" stroke="rgba(234,179,8,0.4)" stroke-width="0.8"/>
+                <text x="190" y="124" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">MED</text>
+                <rect x="230" y="100" width="70" height="40" rx="3" fill="rgba(239,68,68,0.15)" stroke="rgba(239,68,68,0.4)" stroke-width="0.8"/>
+                <text x="265" y="124" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">HIGH</text>
+                <rect x="305" y="100" width="70" height="40" rx="3" fill="rgba(239,68,68,0.15)" stroke="rgba(239,68,68,0.4)" stroke-width="0.8"/>
+                <text x="340" y="124" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">HIGH</text>
+                <rect x="380" y="100" width="70" height="40" rx="3" fill="rgba(255,0,255,0.18)" stroke="rgba(255,0,255,0.5)" stroke-width="0.8"/>
+                <text x="415" y="124" text-anchor="middle" fill="#ff00ff" font-size="8" font-weight="700">CRIT</text>
+                <!-- Row 3: Possible -->
+                <rect x="80" y="150" width="70" height="40" rx="3" fill="rgba(34,197,94,0.12)" stroke="rgba(34,197,94,0.4)" stroke-width="0.8"/>
+                <text x="115" y="174" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">LOW</text>
+                <rect x="155" y="150" width="70" height="40" rx="3" fill="rgba(234,179,8,0.15)" stroke="rgba(234,179,8,0.4)" stroke-width="0.8"/>
+                <text x="190" y="174" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">MED</text>
+                <rect x="230" y="150" width="70" height="40" rx="3" fill="rgba(234,179,8,0.15)" stroke="rgba(234,179,8,0.4)" stroke-width="0.8"/>
+                <text x="265" y="174" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">MED</text>
+                <rect x="305" y="150" width="70" height="40" rx="3" fill="rgba(239,68,68,0.15)" stroke="rgba(239,68,68,0.4)" stroke-width="0.8"/>
+                <text x="340" y="174" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">HIGH</text>
+                <rect x="380" y="150" width="70" height="40" rx="3" fill="rgba(239,68,68,0.15)" stroke="rgba(239,68,68,0.4)" stroke-width="0.8"/>
+                <text x="415" y="174" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">HIGH</text>
+                <!-- Row 2: Unlikely -->
+                <rect x="80" y="200" width="70" height="40" rx="3" fill="rgba(34,197,94,0.12)" stroke="rgba(34,197,94,0.4)" stroke-width="0.8"/>
+                <text x="115" y="224" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">LOW</text>
+                <rect x="155" y="200" width="70" height="40" rx="3" fill="rgba(34,197,94,0.12)" stroke="rgba(34,197,94,0.4)" stroke-width="0.8"/>
+                <text x="190" y="224" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">LOW</text>
+                <rect x="230" y="200" width="70" height="40" rx="3" fill="rgba(234,179,8,0.15)" stroke="rgba(234,179,8,0.4)" stroke-width="0.8"/>
+                <text x="265" y="224" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">MED</text>
+                <rect x="305" y="200" width="70" height="40" rx="3" fill="rgba(234,179,8,0.15)" stroke="rgba(234,179,8,0.4)" stroke-width="0.8"/>
+                <text x="340" y="224" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">MED</text>
+                <rect x="380" y="200" width="70" height="40" rx="3" fill="rgba(239,68,68,0.15)" stroke="rgba(239,68,68,0.4)" stroke-width="0.8"/>
+                <text x="415" y="224" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">HIGH</text>
+                <!-- Row 1: Rare -->
+                <rect x="80" y="250" width="70" height="40" rx="3" fill="rgba(34,197,94,0.12)" stroke="rgba(34,197,94,0.4)" stroke-width="0.8"/>
+                <text x="115" y="274" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">LOW</text>
+                <rect x="155" y="250" width="70" height="40" rx="3" fill="rgba(34,197,94,0.12)" stroke="rgba(34,197,94,0.4)" stroke-width="0.8"/>
+                <text x="190" y="274" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">LOW</text>
+                <rect x="230" y="250" width="70" height="40" rx="3" fill="rgba(34,197,94,0.12)" stroke="rgba(34,197,94,0.4)" stroke-width="0.8"/>
+                <text x="265" y="274" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">LOW</text>
+                <rect x="305" y="250" width="70" height="40" rx="3" fill="rgba(234,179,8,0.15)" stroke="rgba(234,179,8,0.4)" stroke-width="0.8"/>
+                <text x="340" y="274" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">MED</text>
+                <rect x="380" y="250" width="70" height="40" rx="3" fill="rgba(234,179,8,0.15)" stroke="rgba(234,179,8,0.4)" stroke-width="0.8"/>
+                <text x="415" y="274" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">MED</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">How It Works</div>
+                <div class="card-desc">Subject matter experts rate each risk on two dimensions: how likely is it to occur (1-5) and how severe is the impact if it does (1-5). The intersection on the matrix determines the risk rating. This is fast, accessible, and works without precise financial data -- but it is inherently subjective.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">When to Use It</div>
+                <div class="card-desc">Qualitative assessment is ideal for initial triage, organizations without mature data collection, and risks that are difficult to quantify financially (reputational damage, employee morale). Most organizations start qualitative and add quantitative analysis for their highest-rated risks.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Limitations</div>
+            Qualitative ratings are subjective -- two assessors may rate the same risk differently. There is no consistent dollar value attached, so comparing risk reduction against control cost is imprecise. Anchoring bias (defaulting to "medium") and recency bias (overweighting recent incidents) are common pitfalls. Calibration workshops and clear rating criteria reduce but do not eliminate subjectivity.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- QUANTITATIVE RISK ASSESSMENT ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 14</div>
+        <div class="slide-title"><span class="accent">Quantitative</span> Risk Assessment</div>
+        <div class="slide-subtitle">ALE = SLE x ARO -- assigning dollar values to risk for cost-benefit analysis and executive decision-making.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 520 220" width="500" role="img" aria-label="ALE calculation flow diagram. Asset Value feeds into Exposure Factor, which produces Single Loss Expectancy. SLE multiplied by Annual Rate of Occurrence equals Annualized Loss Expectancy. Final ALE value enables cost-benefit analysis for control selection.">
+                <!-- Asset Value -->
+                <rect x="10" y="30" width="100" height="44" rx="6" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="60" y="48" text-anchor="middle" fill="#ede0f0" font-size="8" font-weight="700">Asset Value</text>
+                <text x="60" y="62" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700">AV</text>
+                <!-- Multiply -->
+                <text x="125" y="57" text-anchor="middle" fill="#9a82a0" font-size="14">x</text>
+                <!-- Exposure Factor -->
+                <rect x="140" y="30" width="100" height="44" rx="6" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="190" y="48" text-anchor="middle" fill="#ede0f0" font-size="8" font-weight="700">Exposure Factor</text>
+                <text x="190" y="62" text-anchor="middle" fill="#00ffff" font-size="10" font-weight="700">EF (%)</text>
+                <!-- Equals -->
+                <text x="255" y="57" text-anchor="middle" fill="#9a82a0" font-size="14">=</text>
+                <!-- SLE -->
+                <rect x="270" y="30" width="100" height="44" rx="6" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="320" y="48" text-anchor="middle" fill="#ede0f0" font-size="8" font-weight="700">Single Loss</text>
+                <text x="320" y="62" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="700">SLE = AV x EF</text>
+                <!-- Arrow down to ALE calc -->
+                <line x1="320" y1="74" x2="320" y2="100" stroke="rgba(34,197,94,0.4)" stroke-width="1.5"/>
+                <!-- SLE (repeated in ALE row) -->
+                <rect x="150" y="105" width="100" height="44" rx="6" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="200" y="123" text-anchor="middle" fill="#ede0f0" font-size="8" font-weight="700">SLE</text>
+                <text x="200" y="137" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="700">$$$</text>
+                <!-- Multiply -->
+                <text x="265" y="132" text-anchor="middle" fill="#9a82a0" font-size="14">x</text>
+                <!-- ARO -->
+                <rect x="280" y="105" width="100" height="44" rx="6" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="330" y="123" text-anchor="middle" fill="#ede0f0" font-size="8" font-weight="700">Annual Rate</text>
+                <text x="330" y="137" text-anchor="middle" fill="#eab308" font-size="10" font-weight="700">ARO</text>
+                <!-- Equals -->
+                <text x="395" y="132" text-anchor="middle" fill="#9a82a0" font-size="14">=</text>
+                <!-- ALE -->
+                <rect x="410" y="100" width="100" height="54" rx="8" fill="rgba(255,0,255,0.12)" stroke="#ff00ff" stroke-width="2"/>
+                <text x="460" y="121" text-anchor="middle" fill="#ede0f0" font-size="9" font-weight="700">Annual Loss</text>
+                <text x="460" y="137" text-anchor="middle" fill="#ff00ff" font-size="13" font-weight="800">ALE</text>
+                <!-- Bottom: Cost-Benefit -->
+                <line x1="460" y1="154" x2="460" y2="178" stroke="rgba(255,0,255,0.4)" stroke-width="1.5"/>
+                <rect x="370" y="178" width="180" height="36" rx="6" fill="rgba(255,68,255,0.06)" stroke="#ff44ff" stroke-width="1"/>
+                <text x="460" y="194" text-anchor="middle" fill="#ede0f0" font-size="8" font-weight="600">Cost-Benefit Analysis</text>
+                <text x="460" y="207" text-anchor="middle" fill="#9a82a0" font-size="7">ALE(before) - ALE(after) - control cost</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">SLE -- Single Loss Expectancy</div>
+                <div class="card-desc">The dollar amount lost if a single incident occurs. SLE = Asset Value x Exposure Factor. If a $2M database suffers 40% damage from ransomware, SLE = $2,000,000 x 0.40 = $800,000 per incident.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">ARO -- Annual Rate of Occurrence</div>
+                <div class="card-desc">How many times per year the incident is expected to occur. Based on historical data, industry benchmarks, and threat intelligence. ARO of 0.5 means once every two years. ARO of 3 means three times per year.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">ALE -- Annualized Loss Expectancy</div>
+                <div class="card-desc">The expected annual financial loss. ALE = SLE x ARO. If SLE = $800,000 and ARO = 0.5, then ALE = $400,000/year. This is the maximum you should rationally spend on controls for this risk annually.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Cost-Benefit Analysis</div>
+            A control is justified when: (ALE before control) - (ALE after control) - (annual cost of control) > 0. If your current ALE is $400,000, and implementing MFA reduces it to $50,000, and MFA costs $30,000/year, the net benefit is $400,000 - $50,000 - $30,000 = $320,000. This gives leadership a concrete ROI for security investments -- the language boards understand.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- RISK TREATMENT OPTIONS ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 14</div>
+        <div class="slide-title">Risk <span class="accent">Treatment</span> Options</div>
+        <div class="slide-subtitle">Four strategies: avoid, mitigate, transfer, accept -- a decision framework for every identified risk.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 480 280" width="460" role="img" aria-label="Risk treatment decision tree. Starting from Identified Risk at the top, four branches lead to Avoid, Mitigate, Transfer, and Accept. Each branch shows the decision criteria and expected outcome.">
+                <!-- Root node -->
+                <rect x="175" y="10" width="130" height="40" rx="8" fill="rgba(255,0,255,0.12)" stroke="#ff00ff" stroke-width="2"/>
+                <text x="240" y="28" text-anchor="middle" fill="#ede0f0" font-size="10" font-weight="700">IDENTIFIED</text>
+                <text x="240" y="42" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">RISK</text>
+                <!-- Branch lines -->
+                <line x1="195" y1="50" x2="70" y2="90" stroke="rgba(239,68,68,0.5)" stroke-width="1.5"/>
+                <line x1="220" y1="50" x2="190" y2="90" stroke="rgba(0,255,255,0.5)" stroke-width="1.5"/>
+                <line x1="260" y1="50" x2="310" y2="90" stroke="rgba(234,179,8,0.5)" stroke-width="1.5"/>
+                <line x1="285" y1="50" x2="420" y2="90" stroke="rgba(34,197,94,0.5)" stroke-width="1.5"/>
+                <!-- AVOID -->
+                <rect x="10" y="90" width="120" height="44" rx="6" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="70" y="109" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="700">AVOID</text>
+                <text x="70" y="124" text-anchor="middle" fill="#9a82a0" font-size="7">Eliminate the activity</text>
+                <rect x="10" y="142" width="120" height="50" rx="4" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.15)" stroke-width="0.8"/>
+                <text x="70" y="157" text-anchor="middle" fill="#fee2e2" font-size="6.5">Stop doing the risky thing.</text>
+                <text x="70" y="169" text-anchor="middle" fill="#9a82a0" font-size="6">If storing PII is too risky,</text>
+                <text x="70" y="180" text-anchor="middle" fill="#9a82a0" font-size="6">stop collecting PII.</text>
+                <!-- MITIGATE -->
+                <rect x="140" y="90" width="120" height="44" rx="6" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="200" y="109" text-anchor="middle" fill="#00ffff" font-size="10" font-weight="700">MITIGATE</text>
+                <text x="200" y="124" text-anchor="middle" fill="#9a82a0" font-size="7">Reduce likelihood/impact</text>
+                <rect x="140" y="142" width="120" height="50" rx="4" fill="rgba(0,255,255,0.04)" stroke="rgba(0,255,255,0.15)" stroke-width="0.8"/>
+                <text x="200" y="157" text-anchor="middle" fill="#b8f5f5" font-size="6.5">Implement controls to lower</text>
+                <text x="200" y="169" text-anchor="middle" fill="#9a82a0" font-size="6">risk to acceptable levels.</text>
+                <text x="200" y="180" text-anchor="middle" fill="#9a82a0" font-size="6">Most common treatment.</text>
+                <!-- TRANSFER -->
+                <rect x="270" y="90" width="120" height="44" rx="6" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="330" y="109" text-anchor="middle" fill="#eab308" font-size="10" font-weight="700">TRANSFER</text>
+                <text x="330" y="124" text-anchor="middle" fill="#9a82a0" font-size="7">Shift to third party</text>
+                <rect x="270" y="142" width="120" height="50" rx="4" fill="rgba(234,179,8,0.04)" stroke="rgba(234,179,8,0.15)" stroke-width="0.8"/>
+                <text x="330" y="157" text-anchor="middle" fill="#fef9c3" font-size="6.5">Insurance, outsourcing,</text>
+                <text x="330" y="169" text-anchor="middle" fill="#9a82a0" font-size="6">contractual obligations.</text>
+                <text x="330" y="180" text-anchor="middle" fill="#9a82a0" font-size="6">Financial risk shifts, not all.</text>
+                <!-- ACCEPT -->
+                <rect x="400" y="90" width="70" height="44" rx="6" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="435" y="109" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="700">ACCEPT</text>
+                <text x="435" y="124" text-anchor="middle" fill="#9a82a0" font-size="7">Live with it</text>
+                <rect x="395" y="142" width="80" height="50" rx="4" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.15)" stroke-width="0.8"/>
+                <text x="435" y="157" text-anchor="middle" fill="#bbf7d0" font-size="6.5">Cost of treatment</text>
+                <text x="435" y="169" text-anchor="middle" fill="#9a82a0" font-size="6">exceeds the risk.</text>
+                <text x="435" y="180" text-anchor="middle" fill="#9a82a0" font-size="6">Must be documented.</text>
+                <!-- Residual risk arrow -->
+                <text x="240" y="220" text-anchor="middle" fill="#5a4460" font-size="7" letter-spacing="0.06em">ALL TREATMENTS PRODUCE RESIDUAL RISK -- THE RISK REMAINING AFTER TREATMENT</text>
+                <!-- Decision criteria -->
+                <rect x="60" y="240" width="360" height="30" rx="6" fill="rgba(255,0,255,0.05)" stroke="rgba(255,0,255,0.15)" stroke-width="0.8"/>
+                <text x="240" y="253" text-anchor="middle" fill="#f5b8f5" font-size="7.5" font-weight="600">Decision Criteria: Risk Appetite | Control Cost | Regulatory Requirements | Business Impact</text>
+                <text x="240" y="264" text-anchor="middle" fill="#9a82a0" font-size="6.5">If residual risk exceeds risk appetite after treatment, choose a different or additional strategy</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-4">
+            <div class="card c-red">
+                <div class="card-label">Avoid</div>
+                <div class="card-desc">Eliminate the risk by ceasing the activity that creates it. Effective but often impractical -- you cannot avoid all risk and still operate. Example: discontinuing a product line with unmanageable liability.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Mitigate</div>
+                <div class="card-desc">Implement controls to reduce likelihood or impact. Firewalls, encryption, training, patching -- most security spending is mitigation. The goal is reducing residual risk to an acceptable level, not eliminating it.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Transfer</div>
+                <div class="card-desc">Shift financial consequences to another party through insurance, contracts, or outsourcing. You transfer financial exposure -- but you cannot transfer accountability. A breach of outsourced data is still your breach.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Accept</div>
+                <div class="card-desc">Acknowledge the risk and proceed without further action. Valid when treatment cost exceeds potential loss. Must be a documented, deliberate decision by an authorized risk owner -- not neglect disguised as acceptance.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">Residual Risk</div>
+            No treatment eliminates risk entirely. The risk remaining after treatment is residual risk. If residual risk exceeds the organization's risk appetite, additional treatment is required. The risk owner must formally accept any residual risk -- this creates accountability and ensures leadership understands what exposure remains.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- RISK REGISTER ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 14</div>
+        <div class="slide-title">The <span class="accent">Risk Register</span></div>
+        <div class="slide-subtitle">The central document for risk tracking -- components, ownership, and reporting to leadership.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 540 200" width="520" role="img" aria-label="Risk register layout diagram showing six columns: Risk ID, Description, Likelihood, Impact, Rating, Owner, Treatment, Status, and Review Date. Two sample rows demonstrate entries for ransomware and insider threat risks.">
+                <!-- Table header -->
+                <rect x="10" y="10" width="520" height="28" rx="4" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="35" y="28" text-anchor="middle" fill="#ff00ff" font-size="7" font-weight="700">ID</text>
+                <text x="105" y="28" text-anchor="middle" fill="#ff00ff" font-size="7" font-weight="700">DESCRIPTION</text>
+                <text x="195" y="28" text-anchor="middle" fill="#ff00ff" font-size="7" font-weight="700">L</text>
+                <text x="225" y="28" text-anchor="middle" fill="#ff00ff" font-size="7" font-weight="700">I</text>
+                <text x="260" y="28" text-anchor="middle" fill="#ff00ff" font-size="7" font-weight="700">RATING</text>
+                <text x="320" y="28" text-anchor="middle" fill="#ff00ff" font-size="7" font-weight="700">OWNER</text>
+                <text x="395" y="28" text-anchor="middle" fill="#ff00ff" font-size="7" font-weight="700">TREATMENT</text>
+                <text x="465" y="28" text-anchor="middle" fill="#ff00ff" font-size="7" font-weight="700">STATUS</text>
+                <text x="515" y="28" text-anchor="middle" fill="#ff00ff" font-size="7" font-weight="700">REVIEW</text>
+                <!-- Row 1 -->
+                <rect x="10" y="42" width="520" height="28" rx="2" fill="rgba(255,255,255,0.02)"/>
+                <text x="35" y="60" text-anchor="middle" fill="#00ffff" font-size="7" font-weight="600">R-001</text>
+                <text x="105" y="60" text-anchor="middle" fill="#ede0f0" font-size="6.5">Ransomware on ERP</text>
+                <text x="195" y="60" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="700">4</text>
+                <text x="225" y="60" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="700">5</text>
+                <rect x="243" y="50" width="34" height="14" rx="3" fill="rgba(255,0,255,0.2)" stroke="#ff00ff" stroke-width="0.5"/>
+                <text x="260" y="61" text-anchor="middle" fill="#ff00ff" font-size="6.5" font-weight="700">CRIT</text>
+                <text x="320" y="60" text-anchor="middle" fill="#9a82a0" font-size="6.5">CISO</text>
+                <text x="395" y="60" text-anchor="middle" fill="#9a82a0" font-size="6.5">Mitigate (EDR+backup)</text>
+                <rect x="445" y="50" width="40" height="14" rx="3" fill="rgba(34,197,94,0.15)" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/>
+                <text x="465" y="61" text-anchor="middle" fill="#22c55e" font-size="6" font-weight="600">ACTIVE</text>
+                <text x="515" y="60" text-anchor="middle" fill="#5a4460" font-size="6.5">Q2 2026</text>
+                <!-- Row 2 -->
+                <rect x="10" y="74" width="520" height="28" rx="2" fill="rgba(255,255,255,0.01)"/>
+                <text x="35" y="92" text-anchor="middle" fill="#00ffff" font-size="7" font-weight="600">R-002</text>
+                <text x="105" y="92" text-anchor="middle" fill="#ede0f0" font-size="6.5">Insider data theft</text>
+                <text x="195" y="92" text-anchor="middle" fill="#eab308" font-size="7" font-weight="700">3</text>
+                <text x="225" y="92" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="700">4</text>
+                <rect x="243" y="82" width="34" height="14" rx="3" fill="rgba(239,68,68,0.2)" stroke="#ef4444" stroke-width="0.5"/>
+                <text x="260" y="93" text-anchor="middle" fill="#ef4444" font-size="6.5" font-weight="700">HIGH</text>
+                <text x="320" y="92" text-anchor="middle" fill="#9a82a0" font-size="6.5">VP Ops</text>
+                <text x="395" y="92" text-anchor="middle" fill="#9a82a0" font-size="6.5">Mitigate (DLP+UAM)</text>
+                <rect x="445" y="82" width="40" height="14" rx="3" fill="rgba(234,179,8,0.15)" stroke="rgba(234,179,8,0.3)" stroke-width="0.5"/>
+                <text x="465" y="93" text-anchor="middle" fill="#eab308" font-size="6" font-weight="600">IN PROG</text>
+                <text x="515" y="92" text-anchor="middle" fill="#5a4460" font-size="6.5">Q3 2026</text>
+                <!-- Bottom description area -->
+                <rect x="10" y="115" width="520" height="76" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="0.8"/>
+                <text x="30" y="133" fill="#ff00ff" font-size="7" font-weight="700" letter-spacing="0.06em">ESSENTIAL REGISTER FIELDS</text>
+                <text x="30" y="148" fill="#ede0f0" font-size="7">Risk ID -- Unique identifier for traceability across all documentation</text>
+                <text x="30" y="160" fill="#ede0f0" font-size="7">Risk Owner -- Named individual accountable for treatment decisions and residual risk acceptance</text>
+                <text x="30" y="172" fill="#ede0f0" font-size="7">Treatment Plan -- Specific controls, timelines, and success criteria for the chosen strategy</text>
+                <text x="30" y="184" fill="#ede0f0" font-size="7">Review Date -- Scheduled reassessment to ensure ratings remain current as conditions change</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Ownership</div>
+                <div class="card-desc">Every risk must have a named owner -- a specific person, not a department. The risk owner has authority to approve treatment plans, accept residual risk, and escalate when conditions change. Without clear ownership, risks fall through organizational cracks.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Tracking</div>
+                <div class="card-desc">The register is a living document, not a compliance artifact. Risk ratings must be updated when new threat intelligence emerges, controls are deployed, or business conditions change. Stale registers create a false sense of security that is worse than having no register at all.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Reporting</div>
+                <div class="card-desc">Leadership needs a summarized risk posture -- not raw register data. Heat maps, trend charts, and top-10 risk dashboards translate register content into board-level communication. The CISO should present the risk register summary quarterly at minimum.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Key Principle</div>
+            A risk register that nobody reads is a waste of effort. The register must be tied to decision-making: budget allocation, project prioritization, audit planning, and incident response. When a new vulnerability is announced, the first question should be "which risks in our register does this affect?" If nobody asks that question, the register is not integrated into operations.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- THREAT MODELING FOR RISK ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 14</div>
+        <div class="slide-title">Threat Modeling for <span class="accent">Risk</span></div>
+        <div class="slide-subtitle">STRIDE, PASTA, attack trees, and FAIR -- structured methods for identifying and analyzing threats systematically.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">STRIDE (Microsoft)</div>
+                <div class="card-desc">Six threat categories: Spoofing identity, Tampering with data, Repudiation, Information disclosure, Denial of service, Elevation of privilege. Applied during system design to identify threats by category for each component. Developer-friendly and widely adopted in software engineering.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">PASTA</div>
+                <div class="card-desc">Process for Attack Simulation and Threat Analysis -- a seven-stage, risk-centric methodology. Stages: define objectives, define technical scope, application decomposition, threat analysis, vulnerability analysis, attack enumeration, risk/impact analysis. Business-aligned and asset-focused.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Attack Trees</div>
+                <div class="card-desc">Hierarchical diagrams where the root node is the attacker's goal and leaf nodes are specific attack methods. Each path from root to leaf represents an attack scenario. Nodes can be annotated with cost, skill, and probability to prioritize defensive investments against the most likely paths.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">FAIR Model</div>
+                <div class="card-desc">Factor Analysis of Information Risk -- a quantitative model that decomposes risk into measurable factors. Loss Event Frequency (LEF) x Loss Magnitude (LM) = Risk. FAIR provides a taxonomy for precisely defining what "risk" means and how to measure it consistently across the organization.</div>
+            </div>
+        </div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 480 180" width="460" role="img" aria-label="FAIR model hierarchy diagram. Risk branches into Loss Event Frequency and Loss Magnitude. LEF further decomposes into Threat Event Frequency and Vulnerability. Loss Magnitude decomposes into Primary Loss and Secondary Loss.">
+                <!-- Root: Risk -->
+                <rect x="195" y="5" width="90" height="30" rx="6" fill="rgba(255,0,255,0.12)" stroke="#ff00ff" stroke-width="2"/>
+                <text x="240" y="24" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="800">RISK</text>
+                <!-- Branch lines -->
+                <line x1="220" y1="35" x2="130" y2="60" stroke="rgba(0,255,255,0.4)" stroke-width="1.5"/>
+                <line x1="260" y1="35" x2="350" y2="60" stroke="rgba(234,179,8,0.4)" stroke-width="1.5"/>
+                <!-- LEF -->
+                <rect x="60" y="60" width="140" height="30" rx="5" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="130" y="79" text-anchor="middle" fill="#00ffff" font-size="8" font-weight="700">Loss Event Frequency</text>
+                <!-- LM -->
+                <rect x="280" y="60" width="140" height="30" rx="5" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="350" y="79" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">Loss Magnitude</text>
+                <!-- LEF children -->
+                <line x1="100" y1="90" x2="60" y2="115" stroke="rgba(0,255,255,0.3)" stroke-width="1"/>
+                <line x1="160" y1="90" x2="200" y2="115" stroke="rgba(0,255,255,0.3)" stroke-width="1"/>
+                <rect x="5" y="115" width="110" height="26" rx="4" fill="rgba(0,255,255,0.05)" stroke="rgba(0,255,255,0.2)" stroke-width="0.8"/>
+                <text x="60" y="132" text-anchor="middle" fill="#b8f5f5" font-size="7" font-weight="600">Threat Event Freq.</text>
+                <rect x="145" y="115" width="110" height="26" rx="4" fill="rgba(0,255,255,0.05)" stroke="rgba(0,255,255,0.2)" stroke-width="0.8"/>
+                <text x="200" y="132" text-anchor="middle" fill="#b8f5f5" font-size="7" font-weight="600">Vulnerability</text>
+                <!-- LM children -->
+                <line x1="320" y1="90" x2="290" y2="115" stroke="rgba(234,179,8,0.3)" stroke-width="1"/>
+                <line x1="380" y1="90" x2="410" y2="115" stroke="rgba(234,179,8,0.3)" stroke-width="1"/>
+                <rect x="235" y="115" width="110" height="26" rx="4" fill="rgba(234,179,8,0.05)" stroke="rgba(234,179,8,0.2)" stroke-width="0.8"/>
+                <text x="290" y="132" text-anchor="middle" fill="#fef9c3" font-size="7" font-weight="600">Primary Loss</text>
+                <rect x="355" y="115" width="110" height="26" rx="4" fill="rgba(234,179,8,0.05)" stroke="rgba(234,179,8,0.2)" stroke-width="0.8"/>
+                <text x="410" y="132" text-anchor="middle" fill="#fef9c3" font-size="7" font-weight="600">Secondary Loss</text>
+                <!-- Bottom label -->
+                <text x="240" y="168" text-anchor="middle" fill="#5a4460" font-size="7" letter-spacing="0.06em">FAIR -- FACTOR ANALYSIS OF INFORMATION RISK (THE OPEN GROUP STANDARD)</text>
+            </svg>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">Choosing a Method</div>
+            STRIDE works best during software development when you need to identify threats in system architecture. PASTA is ideal for enterprise-wide risk analysis that must align with business objectives. Attack trees are effective for analyzing specific high-value targets. FAIR is the choice when leadership demands quantitative risk measurement and you need to justify security budgets with dollar figures. Most mature organizations use multiple methods for different contexts.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- NIST SP 800-30 ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 14</div>
+        <div class="slide-title"><span class="accent">NIST SP 800-30</span> -- Risk Assessment</div>
+        <div class="slide-subtitle">The U.S. federal standard for conducting risk assessments -- prepare, conduct, communicate, maintain.</div>
+
+        <div class="timeline">
+            <div class="tl-step">
+                <div class="tl-num">STEP 1</div>
+                <div class="tl-name">Prepare</div>
+                <div class="tl-desc">Define purpose, scope, assumptions, constraints. Identify risk model, assessment approach, and analysis approach. Establish the context before any analysis begins.</div>
+            </div>
+            <div class="tl-step">
+                <div class="tl-num">STEP 2</div>
+                <div class="tl-name">Conduct</div>
+                <div class="tl-desc">Identify threat sources and events. Identify vulnerabilities and predisposing conditions. Determine likelihood of occurrence and magnitude of impact. Calculate risk.</div>
+            </div>
+            <div class="tl-step">
+                <div class="tl-num">STEP 3</div>
+                <div class="tl-name">Communicate</div>
+                <div class="tl-desc">Share risk assessment results with decision-makers. Provide actionable information at the right level of detail. Support organizational risk management decisions.</div>
+            </div>
+            <div class="tl-step">
+                <div class="tl-num">STEP 4</div>
+                <div class="tl-name">Maintain</div>
+                <div class="tl-desc">Monitor risk factors on an ongoing basis. Update the risk assessment when significant changes occur. Track effectiveness of risk responses over time.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Threat Sources</div>
+                <div class="card-desc">NIST 800-30 categorizes threat sources into four types: adversarial (hackers, nation-states, insiders), accidental (employee errors, misconfiguration), structural (hardware failure, software bugs), and environmental (natural disasters, power outages). Each type requires different assessment and response approaches.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Three Tiers</div>
+                <div class="card-desc">Risk assessment operates at three tiers: Tier 1 (organization level -- strategic risk), Tier 2 (mission/business process level -- operational risk), and Tier 3 (information system level -- tactical risk). Each tier has different stakeholders, timeframes, and granularity requirements.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Integration with RMF</div>
+                <div class="card-desc">SP 800-30 integrates with the NIST Risk Management Framework (SP 800-37). The RMF provides the lifecycle: categorize, select, implement, assess, authorize, monitor. SP 800-30 provides the risk assessment methodology that feeds into RMF authorization decisions.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Federal Mandate</div>
+            FISMA requires all federal agencies and their contractors to conduct risk assessments following NIST guidelines. But the methodology is not limited to government -- many private-sector organizations adopt NIST 800-30 because it is rigorous, well-documented, and freely available. It provides a defensible, repeatable process that auditors and regulators recognize.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- ISO 31000 ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 14</div>
+        <div class="slide-title"><span class="accent">ISO 31000</span> -- Risk Management Principles</div>
+        <div class="slide-subtitle">The international standard for risk management -- eight principles, a framework, and a process applicable to any organization.</div>
+
+        <div class="card-grid-4">
+            <div class="card c-magenta">
+                <div class="card-label">Integrated</div>
+                <div class="card-desc">Risk management is part of all organizational activities, not a separate function. It must be embedded into governance, planning, management, reporting, and culture.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Structured</div>
+                <div class="card-desc">A systematic approach contributes to efficiency and consistent, comparable, reliable results. Ad hoc risk management produces ad hoc outcomes.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Customized</div>
+                <div class="card-desc">The framework and process are tailored to the organization's external and internal context and its risk profile. One size does not fit all.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Inclusive</div>
+                <div class="card-desc">Appropriate and timely involvement of stakeholders enables their knowledge, views, and perceptions to be considered. Risk management is not an ivory-tower activity.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Dynamic</div>
+                <div class="card-desc">Risks can emerge, change, or disappear as the external and internal context changes. Risk management must anticipate, detect, acknowledge, and respond to those changes.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Best Available Info</div>
+                <div class="card-desc">Risk management inputs are based on historical and current information and future expectations. Limitations and uncertainties must be explicitly acknowledged.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Human &amp; Cultural</div>
+                <div class="card-desc">Human behavior and culture significantly influence all aspects of risk management at each level and stage. Culture can either enable or undermine effective risk practices.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Continual Improvement</div>
+                <div class="card-desc">Risk management is continually improved through learning and experience. Organizations that treat risk maturity as a journey outperform those that see it as a destination.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">ISO 31000 vs NIST 800-30</div>
+            ISO 31000 is broader -- it applies to all types of risk (financial, operational, strategic, safety), not just information security. NIST 800-30 is deeper on cybersecurity-specific methodology. ISO 31000 provides the philosophical framework and principles; NIST 800-30 provides the technical process. Many organizations use both: ISO 31000 for enterprise risk governance and NIST 800-30 for cybersecurity risk assessments within that governance structure.
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">Certification Note</div>
+            ISO 31000 itself is a guidance standard -- organizations do not certify against it. However, ISO 27001 (which requires risk management) references ISO 31000 principles. Understanding ISO 31000 provides the foundation for implementing risk management within an ISO 27001 ISMS certification effort.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- THIRD-PARTY AND SUPPLY CHAIN RISK ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 14</div>
+        <div class="slide-title">Third-Party &amp; <span class="accent">Supply Chain</span> Risk</div>
+        <div class="slide-subtitle">Vendor risk scoring, concentration risk, nth-party exposure -- the attack surface you do not control.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Vendor Risk Scoring</div>
+                <div class="card-desc">Assess each vendor on data access, regulatory exposure, business criticality, and security posture. Scoring methods range from simple questionnaires (SIG, CAIQ) to continuous monitoring platforms (SecurityScorecard, BitSight). Tiering vendors by risk level determines the depth and frequency of assessment.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Concentration Risk</div>
+                <div class="card-desc">Over-reliance on a single vendor or technology creates systemic risk. If 80% of your infrastructure runs on one cloud provider, that provider's outage is your outage. Diversification reduces concentration risk but increases management complexity -- this is a strategic tradeoff, not a technical one.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Nth-Party Risk</div>
+                <div class="card-desc">Your vendor's vendors (4th parties, 5th parties) create risk you cannot directly observe or control. The SolarWinds attack demonstrated that a compromise deep in the supply chain can propagate to thousands of organizations. Supply chain risk is recursive -- and traditional vendor management only sees one level deep.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            In 2020, attackers compromised SolarWinds' Orion build system and distributed malicious updates to approximately 18,000 organizations including federal agencies and Fortune 500 companies. No organization was attacked directly -- the compromise traveled through the software supply chain. In 2021, the Kaseya VSA attack used a managed service provider platform to deploy ransomware to over 1,500 businesses simultaneously. Supply chain risk is not theoretical.
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Assessment Methods</div>
+                <div class="card-desc">Standardized questionnaires (SIG Lite, SIG Full, CAIQ), SOC 2 Type II reports, penetration test results, right-to-audit clauses, continuous monitoring scores, and on-site assessments. The depth of assessment should be proportional to the vendor's risk tier and data access level.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Contractual Controls</div>
+                <div class="card-desc">Right-to-audit clauses, breach notification requirements (72 hours or less), data handling and destruction obligations, insurance minimums, subcontractor approval requirements, and exit/transition plans. Contracts are your primary control mechanism for third-party risk -- technology alone is insufficient.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">SBOM -- Software Bill of Materials</div>
+            Executive Order 14028 (2021) requires software vendors selling to the federal government to provide SBOMs -- a complete inventory of all software components, libraries, and dependencies. SBOMs enable organizations to rapidly assess their exposure when a new vulnerability is disclosed in a common library (e.g., Log4j). Without an SBOM, you are guessing which of your applications are affected.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- CYBER INSURANCE ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 14</div>
+        <div class="slide-title"><span class="accent">Cyber</span> <span class="cyan">Insurance</span></div>
+        <div class="slide-subtitle">Coverage types, underwriting requirements, exclusions, and market trends -- risk transfer through insurance.</div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 520 200" width="500" role="img" aria-label="Cyber insurance coverage map showing two main categories: first-party coverage and third-party coverage. First-party includes incident response, business interruption, data recovery, and extortion. Third-party includes liability, regulatory fines, notification costs, and media liability.">
+                <!-- First-party section -->
+                <rect x="10" y="10" width="245" height="180" rx="8" fill="rgba(255,0,255,0.04)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="132" y="30" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700">FIRST-PARTY COVERAGE</text>
+                <text x="132" y="42" text-anchor="middle" fill="#9a82a0" font-size="7">Your own losses</text>
+                <rect x="22" y="54" width="105" height="48" rx="5" fill="rgba(255,0,255,0.06)" stroke="rgba(255,0,255,0.2)" stroke-width="0.8"/>
+                <text x="74" y="70" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="700">Incident Response</text>
+                <text x="74" y="82" text-anchor="middle" fill="#9a82a0" font-size="6.5">Forensics, legal, PR</text>
+                <text x="74" y="92" text-anchor="middle" fill="#9a82a0" font-size="6.5">crisis management</text>
+                <rect x="137" y="54" width="105" height="48" rx="5" fill="rgba(255,0,255,0.06)" stroke="rgba(255,0,255,0.2)" stroke-width="0.8"/>
+                <text x="189" y="70" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="700">Business Interruption</text>
+                <text x="189" y="82" text-anchor="middle" fill="#9a82a0" font-size="6.5">Lost revenue during</text>
+                <text x="189" y="92" text-anchor="middle" fill="#9a82a0" font-size="6.5">system downtime</text>
+                <rect x="22" y="110" width="105" height="48" rx="5" fill="rgba(255,0,255,0.06)" stroke="rgba(255,0,255,0.2)" stroke-width="0.8"/>
+                <text x="74" y="126" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="700">Data Recovery</text>
+                <text x="74" y="138" text-anchor="middle" fill="#9a82a0" font-size="6.5">Restoration of lost</text>
+                <text x="74" y="148" text-anchor="middle" fill="#9a82a0" font-size="6.5">or corrupted data</text>
+                <rect x="137" y="110" width="105" height="48" rx="5" fill="rgba(255,0,255,0.06)" stroke="rgba(255,0,255,0.2)" stroke-width="0.8"/>
+                <text x="189" y="126" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="700">Extortion</text>
+                <text x="189" y="138" text-anchor="middle" fill="#9a82a0" font-size="6.5">Ransomware payment</text>
+                <text x="189" y="148" text-anchor="middle" fill="#9a82a0" font-size="6.5">and negotiation</text>
+                <!-- Third-party section -->
+                <rect x="265" y="10" width="245" height="180" rx="8" fill="rgba(0,255,255,0.04)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="387" y="30" text-anchor="middle" fill="#00ffff" font-size="10" font-weight="700">THIRD-PARTY COVERAGE</text>
+                <text x="387" y="42" text-anchor="middle" fill="#9a82a0" font-size="7">Claims from others</text>
+                <rect x="277" y="54" width="105" height="48" rx="5" fill="rgba(0,255,255,0.06)" stroke="rgba(0,255,255,0.2)" stroke-width="0.8"/>
+                <text x="329" y="70" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="700">Liability</text>
+                <text x="329" y="82" text-anchor="middle" fill="#9a82a0" font-size="6.5">Lawsuits from affected</text>
+                <text x="329" y="92" text-anchor="middle" fill="#9a82a0" font-size="6.5">customers/partners</text>
+                <rect x="392" y="54" width="105" height="48" rx="5" fill="rgba(0,255,255,0.06)" stroke="rgba(0,255,255,0.2)" stroke-width="0.8"/>
+                <text x="444" y="70" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="700">Regulatory Fines</text>
+                <text x="444" y="82" text-anchor="middle" fill="#9a82a0" font-size="6.5">GDPR, HIPAA, PCI</text>
+                <text x="444" y="92" text-anchor="middle" fill="#9a82a0" font-size="6.5">penalty coverage</text>
+                <rect x="277" y="110" width="105" height="48" rx="5" fill="rgba(0,255,255,0.06)" stroke="rgba(0,255,255,0.2)" stroke-width="0.8"/>
+                <text x="329" y="126" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="700">Notification Costs</text>
+                <text x="329" y="138" text-anchor="middle" fill="#9a82a0" font-size="6.5">Breach notification</text>
+                <text x="329" y="148" text-anchor="middle" fill="#9a82a0" font-size="6.5">and credit monitoring</text>
+                <rect x="392" y="110" width="105" height="48" rx="5" fill="rgba(0,255,255,0.06)" stroke="rgba(0,255,255,0.2)" stroke-width="0.8"/>
+                <text x="444" y="126" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="700">Media Liability</text>
+                <text x="444" y="138" text-anchor="middle" fill="#9a82a0" font-size="6.5">Defamation, IP claims</text>
+                <text x="444" y="148" text-anchor="middle" fill="#9a82a0" font-size="6.5">from digital content</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Underwriting Requirements</div>
+                <div class="card-desc">Insurers now require MFA, EDR, encrypted backups, patch management, employee training, and incident response plans as prerequisites for coverage. Organizations with weak security controls face higher premiums, lower limits, or outright denial. Insurance is not a substitute for security -- it rewards it.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Common Exclusions</div>
+                <div class="card-desc">Acts of war (increasingly invoked for nation-state attacks), known but unpatched vulnerabilities, failure to maintain minimum security standards, prior acts, infrastructure outages at cloud providers (unless endorsed), and social engineering losses (often sublimited). Read the policy -- exclusions determine actual coverage.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Market Trends</div>
+                <div class="card-desc">Premiums rose 50-100% between 2020-2023 driven by ransomware claims. Insurers are tightening underwriting, reducing limits, and adding exclusions for systemic events. The market is maturing -- but coverage gaps still exist, especially for critical infrastructure and state-sponsored attacks.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Risk Transfer Reality Check</div>
+            Cyber insurance transfers financial risk -- not operational risk, not reputational risk, and not regulatory accountability. A $5M policy does not undo a breach. Customers still leave, regulators still investigate, and stock prices still drop. Insurance is one component of risk treatment, not a comprehensive strategy.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- KEY TAKEAWAYS ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 14</div>
+        <div class="slide-title">Key <span class="accent">Takeaways</span></div>
+        <div class="slide-subtitle">The essential concepts from risk management fundamentals -- what you must retain.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">01</span><span class="fact-text">Risk = Threat x Vulnerability x Impact. You cannot manage risk without understanding all three factors and valuing the assets you are protecting.</span></div>
+            <div class="fact-row"><span class="fact-num">02</span><span class="fact-text">Risk management is a continuous lifecycle -- identify, assess, treat, monitor, communicate -- not an annual compliance exercise.</span></div>
+            <div class="fact-row"><span class="fact-num">03</span><span class="fact-text">Qualitative assessment uses expert judgment and likelihood/impact matrices. Fast and accessible, but inherently subjective.</span></div>
+            <div class="fact-row"><span class="fact-num">04</span><span class="fact-text">Quantitative assessment (ALE = SLE x ARO) assigns dollar values. Enables cost-benefit analysis but requires reliable data.</span></div>
+            <div class="fact-row"><span class="fact-num">05</span><span class="fact-text">Four treatment options: avoid, mitigate, transfer, accept. All produce residual risk that must be formally accepted by a risk owner.</span></div>
+            <div class="fact-row"><span class="fact-num">06</span><span class="fact-text">The risk register is a living operational document -- not a compliance artifact. Every risk needs an owner, a treatment plan, and a review date.</span></div>
+            <div class="fact-row"><span class="fact-num">07</span><span class="fact-text">Threat modeling (STRIDE, PASTA, FAIR, attack trees) provides structured methods for identifying threats and quantifying risk.</span></div>
+            <div class="fact-row"><span class="fact-num">08</span><span class="fact-text">NIST 800-30 provides the federal risk assessment methodology. ISO 31000 provides the international risk management principles. Both are widely adopted beyond their original scope.</span></div>
+            <div class="fact-row"><span class="fact-num">09</span><span class="fact-text">Supply chain risk is recursive -- your vendor's vendor's compromise is your compromise. SBOMs and continuous monitoring are emerging defenses.</span></div>
+            <div class="fact-row"><span class="fact-num">10</span><span class="fact-text">Cyber insurance transfers financial risk only. It does not replace controls, restore reputation, or satisfy regulators. Underwriting now demands strong security posture.</span></div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">What Comes Next</div>
+            Risk management provides the analytical framework for every cybersecurity decision. In subsequent modules, you will apply these principles to specific domains: incident response planning, security architecture, and regulatory compliance. Every control selection, every budget request, every executive briefing you deliver will be grounded in risk analysis. The ability to translate technical findings into risk language is what separates cybersecurity practitioners from cybersecurity leaders.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- MARK COMPLETE ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 14 &nbsp;|&nbsp; Complete</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Presentation<br>
+                <span class="accent">Complete</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Risk Management Fundamentals -- 14 slides
+            </div>
+        </div>
+
+        <div class="scenario-strip" style="text-align:center; font-style:normal;">
+            Risk Equation &bull; Lifecycle &bull; Qualitative &bull; Quantitative &bull; Treatment Options &bull; Risk Register &bull; Threat Modeling &bull; NIST 800-30 &bull; ISO 31000 &bull; Supply Chain &bull; Cyber Insurance
+        </div>
+
+        <div style="text-align:center; margin-top:10px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+
+        <div class="title-meta-row" style="margin-top:8px;">
+            <span>CIS2208</span>
+            <span>Cybersecurity Policy</span>
+            <span>Week 4</span>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Cybersecurity Policy</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 14</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 14;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        var completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('divergent', 'csp-w4-risk-management-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

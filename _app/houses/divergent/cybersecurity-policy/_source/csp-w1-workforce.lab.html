@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberSeek Explorer | Cybersecurity Policy Lab</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d0810 0%, #0a060d 100%);
+            color: #ede0f0;
+            min-height: 100vh;
+            padding: 24px;
+            line-height: 1.6;
+        }
+
+        .container { max-width: 1060px; margin: 0 auto; }
+
+        .back-link {
+            color: #ff00ff; text-decoration: none; font-size: 0.95em;
+            display: inline-block; margin-bottom: 12px; transition: opacity 0.2s;
+        }
+        .back-link:hover { opacity: 0.7; }
+
+        h1 {
+            color: #ff00ff; font-size: 1.8em; margin-bottom: 4px;
+            text-shadow: 0 0 12px rgba(255, 0, 255, 0.3);
+        }
+        .subtitle { color: #9a82a0; font-size: 0.9em; margin-bottom: 20px; }
+
+        .panel {
+            background: rgba(13, 8, 16, 0.85);
+            border: 1px solid rgba(255, 0, 255, 0.25);
+            border-radius: 8px; padding: 20px; margin-bottom: 20px;
+        }
+        .panel h2 {
+            color: #00ffff; font-size: 1.15em; margin-bottom: 10px;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.15); padding-bottom: 6px;
+        }
+        .panel p { color: #9a82a0; font-size: 0.92em; }
+
+        /* Score bar */
+        .score-bar {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 20px; padding: 12px 16px;
+            background: rgba(13, 8, 16, 0.85);
+            border: 1px solid rgba(255, 0, 255, 0.25); border-radius: 8px;
+        }
+        .score-label { color: #ff00ff; font-weight: 600; font-size: 1.05em; }
+        .score-track {
+            flex: 1; height: 22px; background: #1a0f20;
+            border-radius: 4px; overflow: hidden;
+        }
+        .score-fill {
+            height: 100%; width: 0%;
+            background: linear-gradient(90deg, #ff00ff, #00ffff);
+            transition: width 0.5s ease; border-radius: 4px;
+        }
+        .score-text { color: #ede0f0; font-weight: 600; min-width: 56px; text-align: right; }
+
+        /* Layout: cards on left, bins on right */
+        .workspace {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 20px; margin-bottom: 24px;
+        }
+        @media (max-width: 768px) {
+            .workspace { grid-template-columns: 1fr; }
+        }
+
+        /* Card pool */
+        .card-pool-section h3,
+        .bin-section h3 {
+            color: #00ffff; font-size: 1em; margin-bottom: 10px;
+        }
+        .card-pool {
+            display: flex; flex-direction: column; gap: 8px;
+            padding: 14px; min-height: 120px;
+            background: rgba(13, 8, 16, 0.6);
+            border: 1px dashed rgba(255, 0, 255, 0.2); border-radius: 8px;
+        }
+
+        .job-card {
+            padding: 12px 14px; border-radius: 6px; cursor: grab;
+            background: #1a0f22; border: 1px solid rgba(255, 0, 255, 0.35);
+            color: #ede0f0; font-size: 0.88em; user-select: none;
+            transition: all 0.2s;
+        }
+        .job-card:hover { border-color: #ff00ff; box-shadow: 0 0 8px rgba(255, 0, 255, 0.3); }
+        .job-card.dragging { opacity: 0.4; }
+        .job-card .job-title { font-weight: 600; color: #ff00ff; margin-bottom: 2px; font-size: 0.95em; }
+        .job-card .job-desc { color: #9a82a0; font-size: 0.84em; line-height: 1.4; }
+        .job-card.correct {
+            background: rgba(0, 200, 80, 0.12); border-color: #00c850; cursor: default;
+        }
+        .job-card.correct .job-title { color: #a0ffc0; }
+        .job-card.incorrect {
+            background: rgba(200, 0, 40, 0.12); border-color: #c80028;
+        }
+        .job-card.incorrect .job-title { color: #ffa0a0; }
+
+        /* Category bins */
+        .bins { display: flex; flex-direction: column; gap: 10px; }
+        .category-bin {
+            padding: 10px 14px; min-height: 48px;
+            background: rgba(26, 15, 34, 0.5);
+            border: 1px solid rgba(0, 255, 255, 0.15); border-radius: 8px;
+            transition: all 0.2s;
+        }
+        .category-bin.drag-over {
+            border-color: #00ffff; background: rgba(0, 255, 255, 0.06);
+        }
+        .bin-label {
+            color: #00ffff; font-weight: 600; font-size: 0.9em; margin-bottom: 6px;
+        }
+        .bin-cards {
+            display: flex; flex-wrap: wrap; gap: 6px; min-height: 28px;
+        }
+        .bin-card-chip {
+            padding: 4px 10px; border-radius: 4px; font-size: 0.82em;
+            background: rgba(255, 0, 255, 0.1); border: 1px solid rgba(255, 0, 255, 0.25);
+            color: #ede0f0; cursor: pointer;
+        }
+        .bin-card-chip:hover { border-color: #ff00ff; }
+
+        /* Buttons */
+        .btn-row { display: flex; gap: 12px; flex-wrap: wrap; }
+        .btn {
+            padding: 12px 28px; border: none; border-radius: 6px;
+            font-family: inherit; font-weight: 600; font-size: 0.95em;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #ff00ff, #cc00cc);
+            color: #fff; box-shadow: 0 0 12px rgba(255, 0, 255, 0.3);
+        }
+        .btn-primary:hover { box-shadow: 0 0 20px rgba(255, 0, 255, 0.5); }
+        .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-secondary {
+            background: transparent; color: #00ffff;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+        }
+        .btn-secondary:hover { border-color: #00ffff; }
+        .btn-complete {
+            background: linear-gradient(135deg, #00c850, #00a040);
+            color: #fff; display: none;
+        }
+        .btn-complete:hover { box-shadow: 0 0 16px rgba(0, 200, 80, 0.4); }
+
+        /* Results */
+        .results-panel {
+            display: none; padding: 20px; margin-top: 20px;
+            background: rgba(13, 8, 16, 0.85);
+            border: 1px solid rgba(0, 255, 255, 0.25); border-radius: 8px;
+        }
+        .results-panel h2 { color: #00ffff; margin-bottom: 10px; }
+        .result-item {
+            padding: 8px 12px; margin-bottom: 6px; border-radius: 4px; font-size: 0.9em;
+        }
+        .result-item.pass { background: rgba(0, 200, 80, 0.1); color: #a0ffc0; }
+        .result-item.fail { background: rgba(200, 0, 40, 0.1); color: #ffa0a0; }
+
+        .footer-nav {
+            text-align: center; padding: 20px 0; margin-top: 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .footer-nav a { color: #5a4460; text-decoration: none; font-size: 0.85em; }
+        .footer-nav a:hover { color: #ff00ff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="../index.html" class="back-link">&larr; Back to Course</a>
+        <h1>CyberSeek Explorer</h1>
+        <p class="subtitle">CIS2208 -- Week 1: Cybersecurity Workforce &amp; NICE Framework</p>
+
+        <div class="panel">
+            <h2>Instructions</h2>
+            <p>Below are 10 cybersecurity job descriptions. Drag each job card from the pool on the left
+            and drop it into the correct NICE Framework work role category bin on the right. Click a
+            chip in a bin to return it to the pool. After placing all 10, click <strong>Check Answers</strong>.
+            Score at least 7/10 to mark complete.</p>
+        </div>
+
+        <div class="score-bar">
+            <span class="score-label">Score</span>
+            <div class="score-track"><div class="score-fill" id="scoreFill"></div></div>
+            <span class="score-text" id="scoreText">0 / 10</span>
+        </div>
+
+        <div class="workspace">
+            <div class="card-pool-section">
+                <h3>Job Cards</h3>
+                <div class="card-pool" id="cardPool"></div>
+            </div>
+            <div class="bin-section">
+                <h3>NICE Framework Categories</h3>
+                <div class="bins" id="bins"></div>
+            </div>
+        </div>
+
+        <div class="btn-row">
+            <button class="btn btn-primary" id="btnCheck" onclick="checkAnswers()">Check Answers</button>
+            <button class="btn btn-secondary" onclick="resetLab()">Reset</button>
+            <button class="btn btn-complete" id="btnComplete" onclick="completeLab()">Mark Complete</button>
+        </div>
+
+        <div class="results-panel" id="resultsPanel"></div>
+    </div>
+
+    <div class="footer-nav">
+        <a href="../index.html">Course Home</a>
+    </div>
+
+    <script>
+    (function() {
+        'use strict';
+
+        const CATEGORIES = [
+            'Securely Provision',
+            'Operate & Maintain',
+            'Oversee & Govern',
+            'Protect & Defend',
+            'Analyze',
+            'Collect & Operate',
+            'Investigate'
+        ];
+
+        const JOBS = [
+            {
+                id: 'soc-analyst',
+                title: 'SOC Analyst',
+                desc: 'Monitors SIEM dashboards, triages alerts, and escalates confirmed threats in a 24/7 security operations center.',
+                category: 'Protect & Defend'
+            },
+            {
+                id: 'pen-tester',
+                title: 'Penetration Tester',
+                desc: 'Simulates adversary attacks against networks and applications to identify exploitable vulnerabilities before real attackers do.',
+                category: 'Protect & Defend'
+            },
+            {
+                id: 'ciso',
+                title: 'Chief Information Security Officer (CISO)',
+                desc: 'Sets organizational security strategy, manages risk appetite, reports to the board, and oversees the entire security program.',
+                category: 'Oversee & Govern'
+            },
+            {
+                id: 'security-architect',
+                title: 'Security Architect',
+                desc: 'Designs secure network topologies, selects security controls, and creates reference architectures for enterprise systems.',
+                category: 'Securely Provision'
+            },
+            {
+                id: 'malware-analyst',
+                title: 'Malware Analyst',
+                desc: 'Reverse-engineers malicious binaries in sandboxed environments to understand capabilities, C2 infrastructure, and attribution indicators.',
+                category: 'Analyze'
+            },
+            {
+                id: 'forensics-examiner',
+                title: 'Digital Forensics Examiner',
+                desc: 'Acquires and analyzes digital evidence from disk images, memory dumps, and network captures to support incident response and legal proceedings.',
+                category: 'Investigate'
+            },
+            {
+                id: 'sys-admin',
+                title: 'Security Systems Administrator',
+                desc: 'Patches servers, manages endpoint protection platforms, maintains firewall rulesets, and ensures daily operational security hygiene.',
+                category: 'Operate & Maintain'
+            },
+            {
+                id: 'threat-intel',
+                title: 'Cyber Threat Intelligence Analyst',
+                desc: 'Collects, processes, and disseminates intelligence on threat actors, TTPs, and campaigns to inform defensive priorities.',
+                category: 'Collect & Operate'
+            },
+            {
+                id: 'compliance-officer',
+                title: 'Security Compliance Officer',
+                desc: 'Audits organizational controls against frameworks like NIST 800-53 and SOC 2, tracks remediation, and prepares for external assessments.',
+                category: 'Oversee & Govern'
+            },
+            {
+                id: 'devsecops',
+                title: 'DevSecOps Engineer',
+                desc: 'Embeds security into CI/CD pipelines through SAST/DAST scanning, container hardening, and infrastructure-as-code security policies.',
+                category: 'Securely Provision'
+            }
+        ];
+
+        /* State: binPlacements[categoryName] = [jobId, ...] */
+        let binPlacements = {};
+        let jobBinMap = {};   /* jobId -> categoryName */
+        let checked = false;
+
+        function init() {
+            checked = false;
+            binPlacements = {};
+            jobBinMap = {};
+            CATEGORIES.forEach(c => { binPlacements[c] = []; });
+            document.getElementById('btnCheck').disabled = false;
+            document.getElementById('btnComplete').style.display = 'none';
+            document.getElementById('resultsPanel').style.display = 'none';
+            document.getElementById('scoreFill').style.width = '0%';
+            document.getElementById('scoreText').textContent = '0 / 10';
+            buildCards();
+            buildBins();
+        }
+
+        function buildCards() {
+            const pool = document.getElementById('cardPool');
+            pool.innerHTML = '';
+            const shuffled = [...JOBS].sort(() => Math.random() - 0.5);
+            shuffled.forEach(job => {
+                const card = createJobCard(job);
+                pool.appendChild(card);
+            });
+        }
+
+        function createJobCard(job) {
+            const card = document.createElement('div');
+            card.className = 'job-card';
+            card.dataset.id = job.id;
+            card.draggable = true;
+            card.innerHTML = '<div class="job-title">' + job.title + '</div>' +
+                '<div class="job-desc">' + job.desc + '</div>';
+            card.addEventListener('dragstart', onDragStart);
+            card.addEventListener('dragend', onDragEnd);
+            return card;
+        }
+
+        function buildBins() {
+            const container = document.getElementById('bins');
+            container.innerHTML = '';
+            CATEGORIES.forEach(cat => {
+                const bin = document.createElement('div');
+                bin.className = 'category-bin';
+                bin.dataset.category = cat;
+                bin.innerHTML =
+                    '<div class="bin-label">' + cat + '</div>' +
+                    '<div class="bin-cards" data-category="' + cat + '"></div>';
+                bin.addEventListener('dragover', onDragOver);
+                bin.addEventListener('dragenter', onDragEnter);
+                bin.addEventListener('dragleave', onDragLeave);
+                bin.addEventListener('drop', onDrop);
+                container.appendChild(bin);
+            });
+        }
+
+        /* ── Drag & Drop ── */
+        let draggedId = null;
+
+        function onDragStart(e) {
+            draggedId = e.target.closest('.job-card').dataset.id;
+            e.target.closest('.job-card').classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function onDragEnd(e) {
+            const card = e.target.closest('.job-card');
+            if (card) card.classList.remove('dragging');
+            draggedId = null;
+            document.querySelectorAll('.category-bin').forEach(b => b.classList.remove('drag-over'));
+        }
+
+        function onDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+
+        function onDragEnter(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('drag-over');
+        }
+
+        function onDragLeave(e) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+
+        function onDrop(e) {
+            e.preventDefault();
+            const bin = e.currentTarget;
+            bin.classList.remove('drag-over');
+            if (checked || !draggedId) return;
+
+            const cat = bin.dataset.category;
+            const jobId = draggedId;
+
+            /* Remove from previous bin if any */
+            if (jobBinMap[jobId]) {
+                const oldCat = jobBinMap[jobId];
+                binPlacements[oldCat] = binPlacements[oldCat].filter(id => id !== jobId);
+                refreshBinChips(oldCat);
+            }
+
+            /* Place in new bin */
+            binPlacements[cat].push(jobId);
+            jobBinMap[jobId] = cat;
+            refreshBinChips(cat);
+
+            /* Hide from pool */
+            const poolCard = document.querySelector('#cardPool .job-card[data-id="' + jobId + '"]');
+            if (poolCard) poolCard.style.display = 'none';
+
+            draggedId = null;
+        }
+
+        function refreshBinChips(cat) {
+            const container = document.querySelector('.bin-cards[data-category="' + cat + '"]');
+            container.innerHTML = '';
+            binPlacements[cat].forEach(jobId => {
+                const job = JOBS.find(j => j.id === jobId);
+                const chip = document.createElement('span');
+                chip.className = 'bin-card-chip';
+                chip.textContent = job.title;
+                chip.dataset.id = jobId;
+                chip.title = 'Click to return to pool';
+                chip.addEventListener('click', function() {
+                    if (checked) return;
+                    returnToPool(jobId, cat);
+                });
+                container.appendChild(chip);
+            });
+        }
+
+        function returnToPool(jobId, cat) {
+            binPlacements[cat] = binPlacements[cat].filter(id => id !== jobId);
+            delete jobBinMap[jobId];
+            refreshBinChips(cat);
+            const poolCard = document.querySelector('#cardPool .job-card[data-id="' + jobId + '"]');
+            if (poolCard) poolCard.style.display = '';
+        }
+
+        /* ── Check Answers ── */
+        window.checkAnswers = function() {
+            const placed = Object.keys(jobBinMap).length;
+            if (placed < JOBS.length) {
+                alert('Please place all 10 job cards into category bins before checking.');
+                return;
+            }
+
+            checked = true;
+            let score = 0;
+            const results = [];
+
+            JOBS.forEach(job => {
+                const placedCat = jobBinMap[job.id];
+                const isCorrect = placedCat === job.category;
+                if (isCorrect) score++;
+                results.push({
+                    title: job.title,
+                    correct: isCorrect,
+                    placedIn: placedCat,
+                    correctCat: job.category
+                });
+            });
+
+            /* Color the pool cards */
+            document.querySelectorAll('#cardPool .job-card').forEach(card => {
+                const jobId = card.dataset.id;
+                const job = JOBS.find(j => j.id === jobId);
+                const isCorrect = jobBinMap[jobId] === job.category;
+                card.classList.add(isCorrect ? 'correct' : 'incorrect');
+                card.style.display = '';
+            });
+
+            /* Update score */
+            const pct = Math.round((score / JOBS.length) * 100);
+            document.getElementById('scoreFill').style.width = pct + '%';
+            document.getElementById('scoreText').textContent = score + ' / 10';
+            document.getElementById('btnCheck').disabled = true;
+
+            /* Show results */
+            const panel = document.getElementById('resultsPanel');
+            let html = '<h2>Results: ' + score + ' / 10</h2>';
+            results.forEach(r => {
+                const cls = r.correct ? 'pass' : 'fail';
+                const icon = r.correct ? '[CORRECT]' : '[INCORRECT]';
+                html += '<div class="result-item ' + cls + '">' +
+                    '<strong>' + icon + ' ' + r.title + ':</strong> ' +
+                    (r.correct
+                        ? 'Correctly placed in ' + r.correctCat
+                        : 'Placed in ' + r.placedIn + '. Correct category: ' + r.correctCat) +
+                    '</div>';
+            });
+            panel.innerHTML = html;
+            panel.style.display = 'block';
+
+            if (score >= 7) {
+                document.getElementById('btnComplete').style.display = 'inline-block';
+            }
+        };
+
+        window.resetLab = function() { init(); };
+
+        window.completeLab = function() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('divergent', 'csp-w1-workforce-lab', { returnUrl: '../index.html' });
+            }
+        };
+
+        init();
+    })();
+    </script>
+</body>
+</html>

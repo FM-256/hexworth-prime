@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compliance Gap Analysis | Cybersecurity Policy</title>
+    <style>
+        :root {
+            --div-primary: #ff00ff;
+            --div-secondary: #cc00cc;
+            --div-accent: #ff44ff;
+            --div-cyan: #00ffff;
+            --div-glow: rgba(255, 0, 255, 0.25);
+            --bg-main: #0d0810;
+            --bg-deep: #0a060d;
+            --bg-card: #120b14;
+            --bg-card-hover: #1a0f1e;
+            --text-primary: #ede0f0;
+            --text-secondary: #9a82a0;
+            --text-muted: #5a4460;
+            --border-color: rgba(255, 0, 255, 0.10);
+            --border-hover: rgba(255, 0, 255, 0.32);
+            --success: #00ff9d;
+            --danger: #ef4444;
+            --warning: #fbbf24;
+        }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background: linear-gradient(160deg, var(--bg-main) 0%, var(--bg-deep) 100%);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            color: var(--text-primary); line-height: 1.6;
+        }
+        .lab-container { max-width: 960px; margin: 0 auto; padding: 2rem; }
+
+        .back-link {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            color: var(--div-primary); text-decoration: none; margin-bottom: 1rem;
+            font-size: 0.85rem; transition: all 0.3s;
+        }
+        .back-link:hover { color: var(--div-accent); transform: translateX(-4px); }
+
+        .lab-header {
+            text-align: center; margin-bottom: 2rem; padding: 2rem;
+            background: linear-gradient(135deg, var(--bg-card), var(--bg-deep));
+            border-radius: 16px; border: 1px solid var(--div-primary);
+            box-shadow: 0 0 30px var(--div-glow);
+        }
+        .lab-header h1 {
+            font-size: 2rem; margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--div-primary), var(--div-cyan));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .lab-header .subtitle { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem; }
+        .lab-meta { display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; }
+        .meta-item { color: var(--text-muted); font-size: 0.85rem; }
+
+        .company-profile {
+            background: var(--bg-card); border-radius: 12px; padding: 1.5rem;
+            margin-bottom: 2rem; border: 1px solid var(--div-cyan);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.08);
+        }
+        .company-profile h2 { color: var(--div-cyan); font-size: 1.1rem; margin-bottom: 0.75rem; }
+        .company-profile p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.5rem; }
+        .company-profile ul {
+            list-style: none; padding: 0; margin-top: 0.75rem;
+            display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;
+        }
+        .company-profile li {
+            color: var(--text-secondary); font-size: 0.85rem;
+            padding: 4px 0; border-bottom: 1px solid rgba(255, 0, 255, 0.05);
+        }
+        .company-profile li strong { color: var(--div-accent); }
+
+        .instructions {
+            background: var(--bg-card); border-radius: 12px; padding: 1.5rem;
+            margin-bottom: 2rem; border: 1px solid var(--border-color);
+        }
+        .instructions h2 { color: var(--div-primary); font-size: 1.1rem; margin-bottom: 0.75rem; }
+        .instructions p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.5rem; }
+
+        .score-bar {
+            background: var(--bg-card); border-radius: 12px; padding: 1rem 1.5rem;
+            margin-bottom: 2rem; border: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .score-label { color: var(--text-secondary); font-size: 0.9rem; }
+        .score-value { color: var(--div-cyan); font-size: 1.2rem; font-weight: 700; }
+
+        .control-card {
+            background: var(--bg-card); border-radius: 12px; padding: 1.25rem 1.5rem;
+            margin-bottom: 1rem; border: 1px solid var(--border-color);
+            transition: all 0.3s;
+        }
+        .control-card:hover { border-color: var(--border-hover); }
+        .control-card.correct { border-color: var(--success); background: rgba(0, 255, 157, 0.04); }
+        .control-card.incorrect { border-color: var(--danger); background: rgba(239, 68, 68, 0.04); }
+        .control-card.partial { border-color: var(--warning); background: rgba(251, 191, 36, 0.04); }
+
+        .control-number {
+            font-size: 0.7rem; color: var(--div-primary); font-weight: 700;
+            letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.5rem;
+        }
+        .control-desc { color: var(--text-primary); font-size: 0.9rem; margin-bottom: 1rem; line-height: 1.65; }
+
+        .input-group {
+            display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+        }
+        .input-group label {
+            color: var(--text-muted); font-size: 0.8rem; min-width: 60px;
+        }
+        .input-group select {
+            padding: 8px 14px; background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(255, 0, 255, 0.2); border-radius: 8px;
+            color: var(--text-primary); font-size: 0.85rem; cursor: pointer;
+            min-width: 180px;
+        }
+        .input-group select:focus { outline: none; border-color: var(--div-primary); box-shadow: 0 0 10px var(--div-glow); }
+
+        .card-feedback {
+            font-size: 0.82rem; padding: 6px 12px; border-radius: 6px; margin-top: 0.75rem; display: none;
+        }
+        .card-feedback.show-correct {
+            display: block; background: rgba(0, 255, 157, 0.1);
+            border: 1px solid var(--success); color: var(--success);
+        }
+        .card-feedback.show-incorrect {
+            display: block; background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--danger); color: var(--danger);
+        }
+        .card-feedback.show-partial {
+            display: block; background: rgba(251, 191, 36, 0.1);
+            border: 1px solid var(--warning); color: var(--warning);
+        }
+
+        .action-row {
+            display: flex; gap: 1rem; justify-content: center; margin: 2rem 0; flex-wrap: wrap;
+        }
+        .btn {
+            padding: 12px 32px; border: none; border-radius: 8px;
+            font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.3s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--div-primary), var(--div-secondary));
+            color: #0d0810;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--div-glow); }
+        .btn-complete {
+            background: linear-gradient(135deg, var(--div-primary), var(--div-secondary));
+            color: #0d0810; width: 100%; padding: 1rem; font-size: 1.05rem; display: none;
+        }
+        .btn-complete:hover { transform: translateY(-2px); box-shadow: 0 8px 28px var(--div-glow); }
+        .btn-complete.done { background: var(--success); cursor: default; transform: none; box-shadow: none; }
+        .btn-reset {
+            background: transparent; border: 1px solid rgba(255, 0, 255, 0.2);
+            color: var(--text-secondary);
+        }
+        .btn-reset:hover { border-color: var(--div-primary); color: var(--div-primary); }
+
+        @media (max-width: 768px) {
+            .lab-container { padding: 1rem; }
+            .lab-header h1 { font-size: 1.5rem; }
+            .company-profile ul { grid-template-columns: 1fr; }
+            .input-group { flex-direction: column; align-items: stretch; }
+            .input-group select { min-width: unset; }
+        }
+    </style>
+</head>
+<body>
+    <div class="lab-container">
+        <a href="../index.html" class="back-link">&larr; Cybersecurity Policy Hub</a>
+
+        <header class="lab-header">
+            <h1>Compliance Gap Analysis</h1>
+            <p class="subtitle">Evaluate control statements against a company profile and map to framework requirements</p>
+            <div class="lab-meta">
+                <span class="meta-item">Lab 11</span>
+                <span class="meta-item">25 minutes</span>
+                <span class="meta-item">10 Controls</span>
+            </div>
+        </header>
+
+        <div class="company-profile">
+            <h2>Company Profile: NovaByte Retail</h2>
+            <p>NovaByte Retail is a mid-size e-commerce company that operates an online storefront and 12 physical locations. Review the profile details below -- you will use them to determine compliance status for each control.</p>
+            <ul>
+                <li><strong>Industry:</strong> Retail / E-commerce</li>
+                <li><strong>Payment processing:</strong> Accepts credit cards online and in-store</li>
+                <li><strong>Infrastructure:</strong> Hybrid cloud (AWS + on-premises data center)</li>
+                <li><strong>Employee count:</strong> 340 employees</li>
+                <li><strong>Encryption at rest:</strong> Enabled for cloud databases only</li>
+                <li><strong>Encryption in transit:</strong> TLS 1.2 on all public endpoints</li>
+                <li><strong>Access control:</strong> Role-based access, no MFA for internal users</li>
+                <li><strong>Logging:</strong> Cloud audit logs enabled; on-prem logs not centralized</li>
+                <li><strong>Pen testing:</strong> Last external test was 18 months ago</li>
+                <li><strong>Incident response:</strong> Documented IR plan, tested via tabletop 6 months ago</li>
+                <li><strong>Vendor management:</strong> No formal third-party risk assessment program</li>
+                <li><strong>Security training:</strong> Annual awareness training, no role-based training</li>
+            </ul>
+        </div>
+
+        <div class="instructions">
+            <h2>Instructions</h2>
+            <p>For each control statement below, make <strong>two decisions</strong> based on the company profile:</p>
+            <p>1. <strong>Verdict:</strong> Is NovaByte currently Compliant or Non-Compliant with this control?</p>
+            <p>2. <strong>Framework:</strong> Which framework requirement does this control map to?</p>
+            <p>You earn 1 point per correct verdict and 1 point per correct framework mapping (20 points max). You need <strong>16/20</strong> to unlock Mark Complete.</p>
+        </div>
+
+        <div class="score-bar">
+            <span class="score-label">Score</span>
+            <span class="score-value" id="scoreDisplay">-- / 20</span>
+        </div>
+
+        <div id="controlContainer"></div>
+
+        <div class="action-row">
+            <button class="btn btn-primary" id="checkBtn" onclick="checkAnswers()">Check Answers</button>
+            <button class="btn btn-reset" onclick="resetLab()">Reset</button>
+        </div>
+
+        <button class="btn btn-complete" id="completeBtn" onclick="markComplete()">Mark Complete</button>
+    </div>
+
+    <script>
+        var CONTROLS = [
+            {
+                id: 1,
+                desc: 'All cardholder data must be encrypted at rest using strong cryptography with associated key management processes.',
+                verdict: 'Non-Compliant',
+                framework: 'PCI DSS Req 3',
+                detail: 'NovaByte encrypts cloud databases but not on-premises storage. Since they process cards in physical stores, on-prem cardholder data is unencrypted -- violating PCI DSS Requirement 3 (Protect Stored Account Data).'
+            },
+            {
+                id: 2,
+                desc: 'The organization must implement multi-factor authentication for all users accessing the cardholder data environment.',
+                verdict: 'Non-Compliant',
+                framework: 'PCI DSS Req 8',
+                detail: 'The profile states no MFA for internal users. PCI DSS Requirement 8 (Identify Users and Authenticate Access) mandates MFA for all access to the CDE.'
+            },
+            {
+                id: 3,
+                desc: 'An incident response plan must be established, maintained, and tested at least annually to prepare for data breach scenarios.',
+                verdict: 'Compliant',
+                framework: 'PCI DSS Req 12',
+                detail: 'NovaByte has a documented IR plan tested via tabletop exercise 6 months ago. PCI DSS Requirement 12 (Support Information Security with Organizational Policies) requires an IR plan tested annually -- they meet this threshold.'
+            },
+            {
+                id: 4,
+                desc: 'Audit logs must be centrally collected and monitored for all systems that store, process, or transmit sensitive data.',
+                verdict: 'Non-Compliant',
+                framework: 'PCI DSS Req 10',
+                detail: 'On-premises logs are not centralized. PCI DSS Requirement 10 (Log and Monitor All Access to System Components and Cardholder Data) requires centralized log collection across all in-scope systems.'
+            },
+            {
+                id: 5,
+                desc: 'External penetration testing must be performed at least annually and after any significant infrastructure change.',
+                verdict: 'Non-Compliant',
+                framework: 'PCI DSS Req 11',
+                detail: 'Last pen test was 18 months ago -- exceeding the annual requirement. PCI DSS Requirement 11 (Test Security of Systems and Networks Regularly) mandates at least annual external testing.'
+            },
+            {
+                id: 6,
+                desc: 'The organization must encrypt all data in transit over public networks using strong cryptographic protocols.',
+                verdict: 'Compliant',
+                framework: 'PCI DSS Req 4',
+                detail: 'TLS 1.2 is enabled on all public endpoints. PCI DSS Requirement 4 (Protect Cardholder Data with Strong Cryptography During Transmission Over Open, Public Networks) is satisfied by TLS 1.2.'
+            },
+            {
+                id: 7,
+                desc: 'The organization must maintain a formal risk assessment process for evaluating third-party service providers who may impact data security.',
+                verdict: 'Non-Compliant',
+                framework: 'SOC 2 CC9.2',
+                detail: 'NovaByte has no formal third-party risk assessment program. SOC 2 Common Criteria 9.2 (Risk Mitigation Through Third-Party Management) requires documented vendor risk assessment processes.'
+            },
+            {
+                id: 8,
+                desc: 'Security awareness training must be provided to all personnel upon hire and at least annually, including role-specific training for personnel with security responsibilities.',
+                verdict: 'Non-Compliant',
+                framework: 'PCI DSS Req 12',
+                detail: 'NovaByte provides annual general training but lacks role-based training. PCI DSS Requirement 12.6 requires both general awareness and role-specific training for security personnel.'
+            },
+            {
+                id: 9,
+                desc: 'Access to systems and data must be restricted based on business need-to-know and granted according to the principle of least privilege.',
+                verdict: 'Compliant',
+                framework: 'PCI DSS Req 7',
+                detail: 'NovaByte uses role-based access control, which implements least privilege. PCI DSS Requirement 7 (Restrict Access to System Components and Cardholder Data by Business Need to Know) is satisfied.'
+            },
+            {
+                id: 10,
+                desc: 'The organization must implement controls to ensure the availability and resilience of critical processing systems, including documented recovery procedures.',
+                verdict: 'Compliant',
+                framework: 'SOC 2 A1.2',
+                detail: 'NovaByte has hybrid cloud infrastructure (providing resilience) and a tested IR plan that covers recovery. SOC 2 Availability Criteria A1.2 (Recovery from Disruptions) is addressed by their documented and tested procedures.'
+            }
+        ];
+
+        var VERDICTS = ['Compliant', 'Non-Compliant'];
+        var FRAMEWORKS = [
+            'PCI DSS Req 1', 'PCI DSS Req 2', 'PCI DSS Req 3', 'PCI DSS Req 4',
+            'PCI DSS Req 5', 'PCI DSS Req 6', 'PCI DSS Req 7', 'PCI DSS Req 8',
+            'PCI DSS Req 9', 'PCI DSS Req 10', 'PCI DSS Req 11', 'PCI DSS Req 12',
+            'SOC 2 CC6.1', 'SOC 2 CC6.3', 'SOC 2 CC7.2', 'SOC 2 CC9.2', 'SOC 2 A1.2'
+        ];
+        var submitted = false;
+
+        function buildCards() {
+            var container = document.getElementById('controlContainer');
+            container.innerHTML = '';
+            CONTROLS.forEach(function(ctrl) {
+                var card = document.createElement('div');
+                card.className = 'control-card';
+                card.id = 'card-' + ctrl.id;
+
+                var verdictOpts = '<option value="">-- Verdict --</option>';
+                VERDICTS.forEach(function(v) {
+                    verdictOpts += '<option value="' + v + '">' + v + '</option>';
+                });
+
+                var fwOpts = '<option value="">-- Framework Requirement --</option>';
+                FRAMEWORKS.forEach(function(f) {
+                    fwOpts += '<option value="' + f + '">' + f + '</option>';
+                });
+
+                card.innerHTML =
+                    '<div class="control-number">Control ' + ctrl.id + '</div>' +
+                    '<div class="control-desc">' + ctrl.desc + '</div>' +
+                    '<div class="input-group" style="margin-bottom: 0.75rem;">' +
+                        '<label>Verdict</label>' +
+                        '<select id="verdict-' + ctrl.id + '">' + verdictOpts + '</select>' +
+                    '</div>' +
+                    '<div class="input-group">' +
+                        '<label>Framework</label>' +
+                        '<select id="fw-' + ctrl.id + '">' + fwOpts + '</select>' +
+                    '</div>' +
+                    '<div class="card-feedback" id="fb-' + ctrl.id + '"></div>';
+
+                container.appendChild(card);
+            });
+        }
+
+        function checkAnswers() {
+            if (submitted) return;
+            var score = 0;
+
+            CONTROLS.forEach(function(ctrl) {
+                var verdictSel = document.getElementById('verdict-' + ctrl.id);
+                var fwSel = document.getElementById('fw-' + ctrl.id);
+                var fb = document.getElementById('fb-' + ctrl.id);
+                var card = document.getElementById('card-' + ctrl.id);
+
+                var verdictCorrect = verdictSel.value === ctrl.verdict;
+                var fwCorrect = fwSel.value === ctrl.framework;
+                var pts = (verdictCorrect ? 1 : 0) + (fwCorrect ? 1 : 0);
+                score += pts;
+
+                card.classList.remove('correct', 'incorrect', 'partial');
+                fb.className = 'card-feedback';
+
+                if (pts === 2) {
+                    card.classList.add('correct');
+                    fb.className = 'card-feedback show-correct';
+                    fb.textContent = 'Both correct (2/2) -- ' + ctrl.detail;
+                } else if (pts === 1) {
+                    card.classList.add('partial');
+                    fb.className = 'card-feedback show-partial';
+                    var wrong = !verdictCorrect
+                        ? 'Verdict should be ' + ctrl.verdict + '.'
+                        : 'Framework should be ' + ctrl.framework + '.';
+                    fb.textContent = 'Partial (1/2) -- ' + wrong + ' ' + ctrl.detail;
+                } else {
+                    card.classList.add('incorrect');
+                    fb.className = 'card-feedback show-incorrect';
+                    fb.textContent = 'Incorrect (0/2) -- Verdict: ' + ctrl.verdict + ', Framework: ' + ctrl.framework + '. ' + ctrl.detail;
+                }
+
+                verdictSel.disabled = true;
+                fwSel.disabled = true;
+            });
+
+            submitted = true;
+            document.getElementById('scoreDisplay').textContent = score + ' / 20';
+            document.getElementById('checkBtn').disabled = true;
+            document.getElementById('checkBtn').style.opacity = '0.4';
+
+            if (score >= 16) {
+                document.getElementById('completeBtn').style.display = 'block';
+            }
+        }
+
+        function resetLab() {
+            submitted = false;
+            document.getElementById('scoreDisplay').textContent = '-- / 20';
+            document.getElementById('checkBtn').disabled = false;
+            document.getElementById('checkBtn').style.opacity = '1';
+            document.getElementById('completeBtn').style.display = 'none';
+            buildCards();
+        }
+
+        function markComplete() {
+            var btn = document.getElementById('completeBtn');
+            if (btn.classList.contains('done')) return;
+            btn.classList.add('done');
+            btn.textContent = 'Completed';
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('divergent', 'csp-w3-compliance-lab', { returnUrl: '../index.html' });
+            }
+        }
+
+        buildCards();
+    </script>
+
+    <script src="../../../../components/TrailHunter.js"></script>
+</body>
+</html>

@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security by Design | Cybersecurity Policy</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d0810 0%, #0a060d 50%, #100812 100%);
+            color: #ede0f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #ff00ff; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(13, 8, 16, 0.95);
+            border-top: 1px solid rgba(255, 0, 255, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #9a82a0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(255, 0, 255, 0.12); color: #ff00ff; border-color: #ff00ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #5a4460; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #ff00ff; color: #0d0810; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #ff44ff; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #ff00ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #ede0f0; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ff00ff; }
+        .slide-title .cyan { color: #00ffff; }
+        .slide-subtitle { font-size: 0.95rem; color: #9a82a0; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(255, 0, 255, 0.06); border-left: 3px solid #ff00ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #f5b8f5; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-magenta { background: rgba(255, 0, 255, 0.08); border: 1px solid rgba(255, 0, 255, 0.3); color: #f5b8f5; }
+        .box-cyan    { background: rgba(0, 255, 255, 0.06); border: 1px solid rgba(0, 255, 255, 0.25); color: #b8f5f5; }
+        .box-green   { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-red     { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold    { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label   { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #ede0f0; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ff00ff; }
+        .title-hero .big-title .cyan { color: #00ffff; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #5a4460;
+        }
+        .title-meta-row span { border-left: 2px solid rgba(255, 255, 255, 0.08); padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #ff00ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #ede0f0; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #9a82a0; line-height: 1.4; }
+        .card.c-magenta { border-left-color: #ff00ff; }
+        .card.c-red     { border-left-color: #ef4444; }
+        .card.c-gold    { border-left-color: #eab308; }
+        .card.c-cyan    { border-left-color: #00ffff; }
+        .card.c-green   { border-left-color: #22c55e; }
+        .card.c-purple  { border-left-color: #a855f7; }
+        .card.c-blue    { border-left-color: #3b82f6; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #5a4460; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #ff00ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #ede0f0; }
+
+        .svg-container { display: flex; justify-content: center; align-items: center; }
+        .svg-container svg { max-width: 100%; height: auto; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } .card .card-desc { font-size: 0.78rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .card-grid-4 { grid-template-columns: repeat(2, 1fr); } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Security by Design | Cybersecurity Policy</h1>
+
+<div id="progress-bar" style="width:7.69%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 13 &nbsp;|&nbsp; CSP-W1 &nbsp;|&nbsp; Week 1</div>
+        <div class="title-hero">
+            <div class="big-title">
+                <span class="accent">Security</span> by <span class="cyan">Design</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Build It In &nbsp;--&nbsp; Don't Bolt It On
+            </div>
+        </div>
+        <div class="scenario-strip">
+            In 2017, Equifax disclosed a breach exposing 147 million records. The root cause was an unpatched Apache Struts vulnerability -- a known flaw with a patch available two months before the breach. The monitoring tools that should have caught the intrusion were offline because an SSL certificate had expired. Neither failure was exotic. Both were preventable by design. Security by Design is the discipline of making those failures structurally impossible rather than hoping someone remembers to prevent them.
+        </div>
+        <div class="title-meta-row">
+            <span>13 Slides</span>
+            <span>CIS2208</span>
+            <span>Week 1</span>
+            <span>Cybersecurity Policy</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- WHAT IS SECURITY BY DESIGN ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 13</div>
+        <div class="slide-title">What Is <span class="accent">Security by Design</span>?</div>
+        <div class="slide-subtitle">Security is an architectural property, not a feature you add later.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">The Principle</div>
+                <div class="card-desc">Security by Design means incorporating security requirements, threat analysis, and defensive controls into every phase of system development -- from the initial requirements gathering through architecture, implementation, testing, deployment, and maintenance. Security is not a phase; it is a continuous property of the system.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The Alternative (and Why It Fails)</div>
+                <div class="card-desc">The opposite approach -- "bolt-on security" -- treats security as an afterthought. Build first, scan later, patch when breached. This model consistently fails because retrofitting security into an insecure architecture is exponentially more expensive and less effective than building it in from the start. You cannot add structural integrity to a building after the foundation is poured.</div>
+            </div>
+        </div>
+
+        <!-- SVG: Build-in vs. Bolt-on comparison -->
+        <div class="svg-container">
+            <svg width="700" height="140" viewBox="0 0 700 140">
+                <!-- Build In -->
+                <rect x="20" y="20" width="300" height="100" rx="8" fill="rgba(0,255,255,0.08)" stroke="rgba(0,255,255,0.3)" stroke-width="1.5"/>
+                <text x="170" y="45" text-anchor="middle" fill="#00ffff" font-size="12" font-weight="700" letter-spacing="0.08em">SECURITY BY DESIGN</text>
+                <rect x="40" y="58" width="52" height="44" rx="4" fill="rgba(255,0,255,0.15)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="66" y="84" text-anchor="middle" fill="#ff44ff" font-size="9">REQ</text>
+                <rect x="102" y="58" width="52" height="44" rx="4" fill="rgba(255,0,255,0.15)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="128" y="84" text-anchor="middle" fill="#ff44ff" font-size="9">DESIGN</text>
+                <rect x="164" y="58" width="52" height="44" rx="4" fill="rgba(255,0,255,0.15)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="190" y="84" text-anchor="middle" fill="#ff44ff" font-size="9">CODE</text>
+                <rect x="226" y="58" width="52" height="44" rx="4" fill="rgba(255,0,255,0.15)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="252" y="84" text-anchor="middle" fill="#ff44ff" font-size="9">TEST</text>
+                <line x1="92" y1="80" x2="102" y2="80" stroke="#ff00ff" stroke-width="1.5"/>
+                <line x1="154" y1="80" x2="164" y2="80" stroke="#ff00ff" stroke-width="1.5"/>
+                <line x1="216" y1="80" x2="226" y2="80" stroke="#ff00ff" stroke-width="1.5"/>
+                <!-- Shield integrated -->
+                <path d="M288,65 L298,60 L308,65 L308,80 Q298,90 288,80 Z" fill="none" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="298" y="78" text-anchor="middle" fill="#00ffff" font-size="8" font-weight="700">OK</text>
+
+                <!-- Bolt On -->
+                <rect x="380" y="20" width="300" height="100" rx="8" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.25)" stroke-width="1.5"/>
+                <text x="530" y="45" text-anchor="middle" fill="#ef4444" font-size="12" font-weight="700" letter-spacing="0.08em">BOLT-ON SECURITY</text>
+                <rect x="400" y="58" width="52" height="44" rx="4" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+                <text x="426" y="84" text-anchor="middle" fill="#9a82a0" font-size="9">BUILD</text>
+                <rect x="462" y="58" width="52" height="44" rx="4" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+                <text x="488" y="84" text-anchor="middle" fill="#9a82a0" font-size="9">SHIP</text>
+                <rect x="524" y="58" width="52" height="44" rx="4" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+                <text x="550" y="84" text-anchor="middle" fill="#9a82a0" font-size="9">BREACH</text>
+                <rect x="586" y="58" width="52" height="44" rx="4" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="1"/>
+                <text x="612" y="84" text-anchor="middle" fill="#ef4444" font-size="9">PATCH</text>
+                <line x1="452" y1="80" x2="462" y2="80" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+                <line x1="514" y1="80" x2="524" y2="80" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+                <line x1="576" y1="80" x2="586" y2="80" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,3"/>
+            </svg>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Cost Multiplier</div>
+            IBM's Systems Sciences Institute found that fixing a defect in production costs 6x more than fixing it during design and 15x more than fixing it during requirements. For security defects, the multiplier is even higher because a security flaw in production may already be exploited before the patch arrives.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- SALTZER & SCHROEDER ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 13</div>
+        <div class="slide-title">Saltzer &amp; Schroeder's <span class="accent">8 Design Principles</span> <span class="cyan">(1975)</span></div>
+        <div class="slide-subtitle">Published in "The Protection of Information in Computer Systems." Still the foundation of secure systems design fifty years later.</div>
+
+        <div class="card-grid-4">
+            <div class="card c-magenta">
+                <div class="card-label">1. Economy of Mechanism</div>
+                <div class="card-desc">Keep it simple. Every line of code is attack surface. Complexity is the enemy of security -- simpler systems are easier to verify and harder to subvert.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">2. Fail-Safe Defaults</div>
+                <div class="card-desc">Default to deny. Access decisions should be based on permission, not exclusion. If a check fails or is missing, the result must be "access denied."</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">3. Complete Mediation</div>
+                <div class="card-desc">Check every access. Every request to every object must be verified against the access control policy. No bypasses, no cached permissions that outlive their validity.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">4. Open Design</div>
+                <div class="card-desc">Security should not depend on secrecy of the design. The mechanism should be secure even if everything except the keys is public knowledge (Kerckhoffs' principle).</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">5. Separation of Privilege</div>
+                <div class="card-desc">Require multiple conditions to grant access. No single key should unlock the vault. Two-person integrity, MFA, and dual-authorization are implementations of this principle.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">6. Least Privilege</div>
+                <div class="card-desc">Every subject operates with the minimum set of privileges needed. No more access than necessary, no longer than necessary. Revoke when the task is complete.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">7. Least Common Mechanism</div>
+                <div class="card-desc">Minimize shared resources between users. Shared mechanisms are covert channels and privilege escalation paths. Isolate where possible.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">8. Psychological Acceptability</div>
+                <div class="card-desc">Security mechanisms must be usable. If the secure path is harder than the insecure path, users will bypass it. Design security that humans will actually follow.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Why This Still Matters</div>
+            These principles predate the modern internet, cloud computing, and mobile devices. They remain valid because they describe properties of secure systems at a level of abstraction that transcends specific technologies. Every major breach in the last decade violated at least one of these eight principles.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- SSDLC ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 13</div>
+        <div class="slide-title">Secure Software Development <span class="accent">Lifecycle</span> (SSDLC)</div>
+        <div class="slide-subtitle">Security activities mapped to every phase of the development lifecycle -- not just testing.</div>
+
+        <!-- SVG: SSDLC lifecycle circle -->
+        <div class="svg-container">
+            <svg width="520" height="280" viewBox="0 0 520 280">
+                <!-- Central label -->
+                <text x="260" y="140" text-anchor="middle" fill="#ff00ff" font-size="11" font-weight="700">SSDLC</text>
+                <text x="260" y="155" text-anchor="middle" fill="#9a82a0" font-size="9">Security at</text>
+                <text x="260" y="167" text-anchor="middle" fill="#9a82a0" font-size="9">every phase</text>
+
+                <!-- Phase nodes around a circle -->
+                <!-- Requirements (top) -->
+                <rect x="210" y="10" width="100" height="36" rx="6" fill="rgba(255,0,255,0.12)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="260" y="33" text-anchor="middle" fill="#ff44ff" font-size="10" font-weight="600">Requirements</text>
+                <!-- Design (top-right) -->
+                <rect x="370" y="50" width="100" height="36" rx="6" fill="rgba(0,255,255,0.1)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="420" y="73" text-anchor="middle" fill="#00ffff" font-size="10" font-weight="600">Design</text>
+                <!-- Code (right) -->
+                <rect x="400" y="130" width="100" height="36" rx="6" fill="rgba(34,197,94,0.1)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="450" y="153" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="600">Code</text>
+                <!-- Test (bottom-right) -->
+                <rect x="370" y="205" width="100" height="36" rx="6" fill="rgba(234,179,8,0.1)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="420" y="228" text-anchor="middle" fill="#eab308" font-size="10" font-weight="600">Test</text>
+                <!-- Deploy (bottom-left) -->
+                <rect x="50" y="205" width="100" height="36" rx="6" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="1.5"/>
+                <text x="100" y="228" text-anchor="middle" fill="#a855f7" font-size="10" font-weight="600">Deploy</text>
+                <!-- Maintain (left) -->
+                <rect x="20" y="130" width="100" height="36" rx="6" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.5"/>
+                <text x="70" y="153" text-anchor="middle" fill="#3b82f6" font-size="10" font-weight="600">Maintain</text>
+
+                <!-- Connecting arrows (clockwise) -->
+                <line x1="310" y1="32" x2="370" y2="55" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+                <line x1="450" y1="86" x2="465" y2="130" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+                <line x1="455" y1="166" x2="445" y2="205" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+                <line x1="370" y1="230" x2="150" y2="230" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+                <line x1="65" y1="205" x2="55" y2="166" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+                <line x1="55" y1="130" x2="210" y2="38" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+
+                <!-- Security activity labels -->
+                <text x="260" y="62" text-anchor="middle" fill="#5a4460" font-size="8">Threat modeling</text>
+                <text x="363" y="105" text-anchor="end" fill="#5a4460" font-size="8">Security architecture</text>
+                <text x="500" y="112" text-anchor="end" fill="#5a4460" font-size="8">Secure coding</text>
+                <text x="500" y="195" text-anchor="end" fill="#5a4460" font-size="8">Pen testing / SAST / DAST</text>
+                <text x="260" y="262" text-anchor="middle" fill="#5a4460" font-size="8">Hardening / config review</text>
+                <text x="25" y="105" text-anchor="start" fill="#5a4460" font-size="8">Patch mgmt / monitoring</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Requirements</div>
+                <div class="card-desc">Define security requirements alongside functional requirements. Classify data sensitivity. Identify compliance obligations (HIPAA, PCI DSS, GDPR).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Design</div>
+                <div class="card-desc">Threat model the architecture. Apply Saltzer &amp; Schroeder. Define trust boundaries, authentication flows, and encryption requirements before writing any code.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Code / Test / Deploy / Maintain</div>
+                <div class="card-desc">SAST and peer review during coding. DAST and pen testing before release. Hardened deployment configurations. Continuous monitoring and patching in production.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- STRIDE THREAT MODELING ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 13</div>
+        <div class="slide-title">Threat Modeling: <span class="accent">STRIDE</span></div>
+        <div class="slide-subtitle">Microsoft's STRIDE framework systematically identifies threats by category. Used during the design phase to find vulnerabilities before they become code.</div>
+
+        <!-- SVG: STRIDE threat model hexagon -->
+        <div class="svg-container">
+            <svg width="600" height="200" viewBox="0 0 600 200">
+                <!-- Six threat boxes arranged horizontally -->
+                <rect x="10" y="20" width="85" height="70" rx="6" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="52" y="45" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700">S</text>
+                <text x="52" y="60" text-anchor="middle" fill="#f5b8f5" font-size="8">Spoofing</text>
+                <text x="52" y="80" text-anchor="middle" fill="#5a4460" font-size="7">Identity</text>
+
+                <rect x="108" y="20" width="85" height="70" rx="6" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="150" y="45" text-anchor="middle" fill="#00ffff" font-size="10" font-weight="700">T</text>
+                <text x="150" y="60" text-anchor="middle" fill="#b8f5f5" font-size="8">Tampering</text>
+                <text x="150" y="80" text-anchor="middle" fill="#5a4460" font-size="7">Integrity</text>
+
+                <rect x="206" y="20" width="85" height="70" rx="6" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="248" y="45" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="700">R</text>
+                <text x="248" y="60" text-anchor="middle" fill="#bbf7d0" font-size="8">Repudiation</text>
+                <text x="248" y="80" text-anchor="middle" fill="#5a4460" font-size="7">Accountability</text>
+
+                <rect x="304" y="20" width="85" height="70" rx="6" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="346" y="45" text-anchor="middle" fill="#eab308" font-size="10" font-weight="700">I</text>
+                <text x="346" y="60" text-anchor="middle" fill="#fef9c3" font-size="8">Info Disclosure</text>
+                <text x="346" y="80" text-anchor="middle" fill="#5a4460" font-size="7">Confidentiality</text>
+
+                <rect x="402" y="20" width="85" height="70" rx="6" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="444" y="45" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="700">D</text>
+                <text x="444" y="60" text-anchor="middle" fill="#fee2e2" font-size="8">Denial of Svc</text>
+                <text x="444" y="80" text-anchor="middle" fill="#5a4460" font-size="7">Availability</text>
+
+                <rect x="500" y="20" width="85" height="70" rx="6" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="1.5"/>
+                <text x="542" y="45" text-anchor="middle" fill="#a855f7" font-size="10" font-weight="700">E</text>
+                <text x="542" y="60" text-anchor="middle" fill="#e9d5ff" font-size="8">Elevation</text>
+                <text x="542" y="80" text-anchor="middle" fill="#5a4460" font-size="7">Authorization</text>
+
+                <!-- Mitigations row -->
+                <text x="52" y="120" text-anchor="middle" fill="#ff44ff" font-size="7" font-weight="600">Mitigation:</text>
+                <text x="52" y="135" text-anchor="middle" fill="#9a82a0" font-size="7">Authentication</text>
+                <text x="52" y="148" text-anchor="middle" fill="#9a82a0" font-size="7">MFA, certificates</text>
+
+                <text x="150" y="120" text-anchor="middle" fill="#00ffff" font-size="7" font-weight="600">Mitigation:</text>
+                <text x="150" y="135" text-anchor="middle" fill="#9a82a0" font-size="7">Integrity checks</text>
+                <text x="150" y="148" text-anchor="middle" fill="#9a82a0" font-size="7">HMAC, signing</text>
+
+                <text x="248" y="120" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="600">Mitigation:</text>
+                <text x="248" y="135" text-anchor="middle" fill="#9a82a0" font-size="7">Audit logging</text>
+                <text x="248" y="148" text-anchor="middle" fill="#9a82a0" font-size="7">Non-repudiation</text>
+
+                <text x="346" y="120" text-anchor="middle" fill="#eab308" font-size="7" font-weight="600">Mitigation:</text>
+                <text x="346" y="135" text-anchor="middle" fill="#9a82a0" font-size="7">Encryption</text>
+                <text x="346" y="148" text-anchor="middle" fill="#9a82a0" font-size="7">Access controls</text>
+
+                <text x="444" y="120" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">Mitigation:</text>
+                <text x="444" y="135" text-anchor="middle" fill="#9a82a0" font-size="7">Rate limiting</text>
+                <text x="444" y="148" text-anchor="middle" fill="#9a82a0" font-size="7">Redundancy</text>
+
+                <text x="542" y="120" text-anchor="middle" fill="#a855f7" font-size="7" font-weight="600">Mitigation:</text>
+                <text x="542" y="135" text-anchor="middle" fill="#9a82a0" font-size="7">Least privilege</text>
+                <text x="542" y="148" text-anchor="middle" fill="#9a82a0" font-size="7">Input validation</text>
+            </svg>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">How It Works</div>
+            Draw a data flow diagram of the system. Identify trust boundaries where data crosses between components with different privilege levels. At each boundary, systematically ask: can an attacker Spoof identity? Tamper with data? Repudiate actions? Disclose information? Deny service? Elevate privilege? Document each threat and assign a mitigation.
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">When to Apply</div>
+            Threat modeling happens during design -- before code is written. It is revisited when the architecture changes, when new features are added, or when new threat intelligence emerges. A threat model is a living document, not a one-time deliverable.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- PRIVACY BY DESIGN ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 13</div>
+        <div class="slide-title">Privacy by <span class="accent">Design</span></div>
+        <div class="slide-subtitle">Ann Cavoukian's 7 foundational principles (1990s). Now embedded in GDPR Article 25 as a legal requirement.</div>
+
+        <!-- SVG: Privacy by Design 7 principles -->
+        <div class="svg-container">
+            <svg width="680" height="130" viewBox="0 0 680 130">
+                <!-- 7 principle pillars -->
+                <rect x="10" y="15" width="82" height="95" rx="5" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="51" y="38" text-anchor="middle" fill="#ff00ff" font-size="9" font-weight="700">1</text>
+                <text x="51" y="55" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="600">Proactive</text>
+                <text x="51" y="67" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="600">not Reactive</text>
+                <text x="51" y="85" text-anchor="middle" fill="#9a82a0" font-size="6.5">Prevent, don't</text>
+                <text x="51" y="96" text-anchor="middle" fill="#9a82a0" font-size="6.5">remediate</text>
+
+                <rect x="102" y="15" width="82" height="95" rx="5" fill="rgba(0,255,255,0.06)" stroke="#00ffff" stroke-width="1"/>
+                <text x="143" y="38" text-anchor="middle" fill="#00ffff" font-size="9" font-weight="700">2</text>
+                <text x="143" y="55" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="600">Privacy as</text>
+                <text x="143" y="67" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="600">the Default</text>
+                <text x="143" y="85" text-anchor="middle" fill="#9a82a0" font-size="6.5">No action needed</text>
+                <text x="143" y="96" text-anchor="middle" fill="#9a82a0" font-size="6.5">to protect data</text>
+
+                <rect x="194" y="15" width="82" height="95" rx="5" fill="rgba(34,197,94,0.06)" stroke="#22c55e" stroke-width="1"/>
+                <text x="235" y="38" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="700">3</text>
+                <text x="235" y="55" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="600">Embedded</text>
+                <text x="235" y="67" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="600">into Design</text>
+                <text x="235" y="85" text-anchor="middle" fill="#9a82a0" font-size="6.5">Core function,</text>
+                <text x="235" y="96" text-anchor="middle" fill="#9a82a0" font-size="6.5">not add-on</text>
+
+                <rect x="286" y="15" width="82" height="95" rx="5" fill="rgba(234,179,8,0.06)" stroke="#eab308" stroke-width="1"/>
+                <text x="327" y="38" text-anchor="middle" fill="#eab308" font-size="9" font-weight="700">4</text>
+                <text x="327" y="55" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="600">Full</text>
+                <text x="327" y="67" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="600">Functionality</text>
+                <text x="327" y="85" text-anchor="middle" fill="#9a82a0" font-size="6.5">Positive-sum,</text>
+                <text x="327" y="96" text-anchor="middle" fill="#9a82a0" font-size="6.5">not zero-sum</text>
+
+                <rect x="378" y="15" width="82" height="95" rx="5" fill="rgba(168,85,247,0.06)" stroke="#a855f7" stroke-width="1"/>
+                <text x="419" y="38" text-anchor="middle" fill="#a855f7" font-size="9" font-weight="700">5</text>
+                <text x="419" y="55" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="600">End-to-End</text>
+                <text x="419" y="67" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="600">Lifecycle</text>
+                <text x="419" y="85" text-anchor="middle" fill="#9a82a0" font-size="6.5">Cradle to grave</text>
+                <text x="419" y="96" text-anchor="middle" fill="#9a82a0" font-size="6.5">data protection</text>
+
+                <rect x="470" y="15" width="82" height="95" rx="5" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1"/>
+                <text x="511" y="38" text-anchor="middle" fill="#3b82f6" font-size="9" font-weight="700">6</text>
+                <text x="511" y="55" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="600">Visibility &amp;</text>
+                <text x="511" y="67" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="600">Transparency</text>
+                <text x="511" y="85" text-anchor="middle" fill="#9a82a0" font-size="6.5">Open to audit</text>
+                <text x="511" y="96" text-anchor="middle" fill="#9a82a0" font-size="6.5">and verification</text>
+
+                <rect x="562" y="15" width="105" height="95" rx="5" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1"/>
+                <text x="614" y="38" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">7</text>
+                <text x="614" y="55" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="600">Respect for</text>
+                <text x="614" y="67" text-anchor="middle" fill="#ede0f0" font-size="7.5" font-weight="600">User Privacy</text>
+                <text x="614" y="85" text-anchor="middle" fill="#9a82a0" font-size="6.5">User-centric</text>
+                <text x="614" y="96" text-anchor="middle" fill="#9a82a0" font-size="6.5">design defaults</text>
+            </svg>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">GDPR Article 25 -- Data Protection by Design and by Default</div>
+            "The controller shall implement appropriate technical and organisational measures... which are designed to implement data-protection principles, such as data minimisation, in an effective manner." Privacy by Design went from best practice to legal obligation in 2018. Non-compliance penalties: up to 4% of annual global revenue.
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Parallel to Security by Design</div>
+            The overlap is deliberate. Privacy and security share the same architectural foundations: minimize data collection, encrypt at rest and in transit, enforce access controls, audit access, and design for the assumption that breaches will occur. Privacy without security is impossible; security without privacy is incomplete.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- SECURE ARCHITECTURE PATTERNS ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 13</div>
+        <div class="slide-title">Secure Architecture <span class="accent">Patterns</span></div>
+        <div class="slide-subtitle">Three foundational patterns for network and system architecture: DMZ, microsegmentation, and zero trust.</div>
+
+        <!-- SVG: Architecture patterns -->
+        <div class="svg-container">
+            <svg width="700" height="180" viewBox="0 0 700 180">
+                <!-- DMZ pattern -->
+                <text x="110" y="15" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="700">DMZ</text>
+                <rect x="10" y="25" width="50" height="40" rx="4" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1"/>
+                <text x="35" y="50" text-anchor="middle" fill="#ef4444" font-size="8">Internet</text>
+                <line x1="60" y1="45" x2="75" y2="45" stroke="#5a4460" stroke-width="1"/>
+                <rect x="75" y="22" width="6" height="46" rx="2" fill="#ff00ff"/>
+                <line x1="81" y1="45" x2="95" y2="45" stroke="#5a4460" stroke-width="1"/>
+                <rect x="95" y="25" width="70" height="40" rx="4" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1"/>
+                <text x="130" y="43" text-anchor="middle" fill="#eab308" font-size="7">DMZ</text>
+                <text x="130" y="55" text-anchor="middle" fill="#9a82a0" font-size="6">Web / Proxy</text>
+                <line x1="165" y1="45" x2="180" y2="45" stroke="#5a4460" stroke-width="1"/>
+                <rect x="180" y="22" width="6" height="46" rx="2" fill="#ff00ff"/>
+                <line x1="186" y1="45" x2="200" y2="45" stroke="#5a4460" stroke-width="1"/>
+                <rect x="200" y="25" width="55" height="40" rx="4" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1"/>
+                <text x="228" y="43" text-anchor="middle" fill="#22c55e" font-size="7">Internal</text>
+                <text x="228" y="55" text-anchor="middle" fill="#9a82a0" font-size="6">Network</text>
+
+                <!-- Microsegmentation pattern -->
+                <text x="400" y="15" text-anchor="middle" fill="#00ffff" font-size="10" font-weight="700">Microsegmentation</text>
+                <rect x="310" y="25" width="180" height="120" rx="6" fill="rgba(0,255,255,0.04)" stroke="rgba(0,255,255,0.15)" stroke-width="1"/>
+                <rect x="320" y="35" width="50" height="30" rx="3" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="1"/>
+                <text x="345" y="54" text-anchor="middle" fill="#ff44ff" font-size="7">Web</text>
+                <rect x="380" y="35" width="50" height="30" rx="3" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="405" y="54" text-anchor="middle" fill="#00ffff" font-size="7">API</text>
+                <rect x="440" y="35" width="40" height="30" rx="3" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1"/>
+                <text x="460" y="54" text-anchor="middle" fill="#22c55e" font-size="7">DB</text>
+                <rect x="320" y="75" width="50" height="30" rx="3" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1"/>
+                <text x="345" y="94" text-anchor="middle" fill="#eab308" font-size="7">Auth</text>
+                <rect x="380" y="75" width="50" height="30" rx="3" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="1"/>
+                <text x="405" y="94" text-anchor="middle" fill="#a855f7" font-size="7">Cache</text>
+                <rect x="440" y="75" width="40" height="30" rx="3" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1"/>
+                <text x="460" y="94" text-anchor="middle" fill="#3b82f6" font-size="7">Log</text>
+                <text x="400" y="135" text-anchor="middle" fill="#9a82a0" font-size="7">Each segment isolated -- lateral movement blocked</text>
+
+                <!-- Zero Trust pattern -->
+                <text x="600" y="15" text-anchor="middle" fill="#ff44ff" font-size="10" font-weight="700">Zero Trust</text>
+                <circle cx="600" cy="85" r="50" fill="none" stroke="rgba(255,0,255,0.2)" stroke-width="1" stroke-dasharray="4,3"/>
+                <text x="600" y="65" text-anchor="middle" fill="#ff00ff" font-size="8" font-weight="600">Never Trust</text>
+                <text x="600" y="78" text-anchor="middle" fill="#ff00ff" font-size="8" font-weight="600">Always Verify</text>
+                <!-- Verify checkpoints -->
+                <circle cx="560" cy="100" r="8" fill="rgba(0,255,255,0.15)" stroke="#00ffff" stroke-width="1"/>
+                <text x="560" y="103" text-anchor="middle" fill="#00ffff" font-size="6">ID</text>
+                <circle cx="600" cy="110" r="8" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1"/>
+                <text x="600" y="113" text-anchor="middle" fill="#22c55e" font-size="6">MFA</text>
+                <circle cx="640" cy="100" r="8" fill="rgba(234,179,8,0.15)" stroke="#eab308" stroke-width="1"/>
+                <text x="640" y="103" text-anchor="middle" fill="#eab308" font-size="6">CTX</text>
+                <text x="600" y="155" text-anchor="middle" fill="#9a82a0" font-size="7">Verify identity + device + context</text>
+                <text x="600" y="167" text-anchor="middle" fill="#9a82a0" font-size="7">for every request</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">DMZ (Demilitarized Zone)</div>
+                <div class="card-desc">A buffer network between untrusted (internet) and trusted (internal) zones. Public-facing services sit in the DMZ; internal resources are never directly exposed. Two firewalls enforce ingress and egress rules independently.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Microsegmentation</div>
+                <div class="card-desc">Divide the network into fine-grained segments with individual access policies. If an attacker compromises one workload, they cannot move laterally to others. Each segment enforces least privilege at the network layer.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Zero Trust Architecture</div>
+                <div class="card-desc">Eliminate implicit trust based on network location. Every request -- internal or external -- must be authenticated, authorized, and continuously validated. "Never trust, always verify" replaces the castle-and-moat model.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- DEVSECOPS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 13</div>
+        <div class="slide-title"><span class="cyan">Dev</span><span class="accent">Sec</span>Ops: Shifting Security <span class="accent">Left</span></div>
+        <div class="slide-subtitle">Integrate security into the CI/CD pipeline rather than gating it at the end. Every commit is a security event.</div>
+
+        <!-- SVG: DevSecOps pipeline -->
+        <div class="svg-container">
+            <svg width="700" height="130" viewBox="0 0 700 130">
+                <!-- Pipeline stages -->
+                <rect x="10" y="30" width="90" height="50" rx="6" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="55" y="52" text-anchor="middle" fill="#00ffff" font-size="10" font-weight="600">Plan</text>
+                <text x="55" y="68" text-anchor="middle" fill="#9a82a0" font-size="7">Security reqs</text>
+
+                <polygon points="110,55 120,45 120,65" fill="#5a4460"/>
+
+                <rect x="125" y="30" width="90" height="50" rx="6" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1.5"/>
+                <text x="170" y="52" text-anchor="middle" fill="#00ffff" font-size="10" font-weight="600">Code</text>
+                <text x="170" y="68" text-anchor="middle" fill="#9a82a0" font-size="7">IDE plugins</text>
+
+                <polygon points="225,55 235,45 235,65" fill="#5a4460"/>
+
+                <rect x="240" y="30" width="90" height="50" rx="6" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="285" y="52" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="600">Build</text>
+                <text x="285" y="68" text-anchor="middle" fill="#9a82a0" font-size="7">SAST / SCA</text>
+
+                <polygon points="340,55 350,45 350,65" fill="#5a4460"/>
+
+                <rect x="355" y="30" width="90" height="50" rx="6" fill="rgba(255,0,255,0.1)" stroke="#ff00ff" stroke-width="1.5"/>
+                <text x="400" y="52" text-anchor="middle" fill="#ff00ff" font-size="10" font-weight="600">Test</text>
+                <text x="400" y="68" text-anchor="middle" fill="#9a82a0" font-size="7">DAST / Pen test</text>
+
+                <polygon points="455,55 465,45 465,65" fill="#5a4460"/>
+
+                <rect x="470" y="30" width="90" height="50" rx="6" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="515" y="52" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="600">Deploy</text>
+                <text x="515" y="68" text-anchor="middle" fill="#9a82a0" font-size="7">IaC scanning</text>
+
+                <polygon points="570,55 580,45 580,65" fill="#5a4460"/>
+
+                <rect x="585" y="30" width="100" height="50" rx="6" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="635" y="52" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="600">Monitor</text>
+                <text x="635" y="68" text-anchor="middle" fill="#9a82a0" font-size="7">SIEM / Runtime</text>
+
+                <!-- Shift Left arrow -->
+                <line x1="600" y1="105" x2="60" y2="105" stroke="#ff00ff" stroke-width="2" marker-end="url(#arrowLeft)"/>
+                <defs><marker id="arrowLeft" markerWidth="8" markerHeight="6" refX="0" refY="3" orient="auto"><polygon points="8,0 0,3 8,6" fill="#ff00ff"/></marker></defs>
+                <text x="330" y="125" text-anchor="middle" fill="#ff44ff" font-size="9" font-weight="700" letter-spacing="0.1em">SHIFT LEFT: Find issues earlier, fix them cheaper</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Automated Security Gates</div>
+                <div class="card-desc">SAST (Static Application Security Testing) runs on every pull request. SCA (Software Composition Analysis) flags vulnerable dependencies before merge. DAST (Dynamic Application Security Testing) runs against staging environments. Failures block the pipeline -- security is not optional.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Culture Shift</div>
+                <div class="card-desc">DevSecOps is not a tool -- it is an organizational commitment. Developers own security in their code. Security teams provide guardrails, training, and automated tooling rather than acting as a final gate. Shared responsibility replaces siloed handoffs.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Key Tools</div>
+            SAST: SonarQube, Checkmarx, Semgrep. SCA: Snyk, Dependabot, OWASP Dependency-Check. DAST: OWASP ZAP, Burp Suite. IaC: Checkov, tfsec, KICS. Container: Trivy, Grype. Secrets: GitLeaks, TruffleHog. The tooling exists -- the gap is usually organizational adoption, not technology availability.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- SUPPLY CHAIN SECURITY ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 13</div>
+        <div class="slide-title">Supply Chain <span class="accent">Security</span></div>
+        <div class="slide-subtitle">Your software is only as secure as its weakest dependency. Modern applications inherit thousands of transitive trust relationships.</div>
+
+        <!-- SVG: Supply chain attack surface -->
+        <div class="svg-container">
+            <svg width="660" height="160" viewBox="0 0 660 160">
+                <!-- Your app in center -->
+                <rect x="270" y="55" width="120" height="50" rx="8" fill="rgba(255,0,255,0.12)" stroke="#ff00ff" stroke-width="2"/>
+                <text x="330" y="78" text-anchor="middle" fill="#ff00ff" font-size="11" font-weight="700">Your App</text>
+                <text x="330" y="95" text-anchor="middle" fill="#9a82a0" font-size="8">Direct code</text>
+
+                <!-- Dependencies on left -->
+                <rect x="30" y="10" width="130" height="35" rx="5" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1"/>
+                <text x="95" y="32" text-anchor="middle" fill="#ef4444" font-size="8">Open Source Libraries</text>
+                <line x1="160" y1="28" x2="270" y2="65" stroke="rgba(239,68,68,0.3)" stroke-width="1" stroke-dasharray="4,3"/>
+
+                <rect x="30" y="55" width="130" height="35" rx="5" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1"/>
+                <text x="95" y="77" text-anchor="middle" fill="#eab308" font-size="8">Build Tools / CI</text>
+                <line x1="160" y1="72" x2="270" y2="75" stroke="rgba(234,179,8,0.3)" stroke-width="1" stroke-dasharray="4,3"/>
+
+                <rect x="30" y="100" width="130" height="35" rx="5" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="1"/>
+                <text x="95" y="122" text-anchor="middle" fill="#a855f7" font-size="8">Container Base Images</text>
+                <line x1="160" y1="118" x2="270" y2="90" stroke="rgba(168,85,247,0.3)" stroke-width="1" stroke-dasharray="4,3"/>
+
+                <!-- Downstream on right -->
+                <rect x="490" y="10" width="140" height="35" rx="5" fill="rgba(0,255,255,0.08)" stroke="#00ffff" stroke-width="1"/>
+                <text x="560" y="32" text-anchor="middle" fill="#00ffff" font-size="8">Package Registries</text>
+                <line x1="490" y1="28" x2="390" y2="65" stroke="rgba(0,255,255,0.2)" stroke-width="1" stroke-dasharray="4,3"/>
+
+                <rect x="490" y="55" width="140" height="35" rx="5" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1"/>
+                <text x="560" y="77" text-anchor="middle" fill="#22c55e" font-size="8">Cloud Infrastructure</text>
+                <line x1="490" y1="72" x2="390" y2="78" stroke="rgba(34,197,94,0.2)" stroke-width="1" stroke-dasharray="4,3"/>
+
+                <rect x="490" y="100" width="140" height="35" rx="5" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1"/>
+                <text x="560" y="122" text-anchor="middle" fill="#3b82f6" font-size="8">Third-Party APIs</text>
+                <line x1="490" y1="118" x2="390" y2="90" stroke="rgba(59,130,246,0.2)" stroke-width="1" stroke-dasharray="4,3"/>
+
+                <!-- Attack surface label -->
+                <text x="330" y="150" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="600">Every connection = potential attack vector</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">SBOM</div>
+                <div class="card-desc">Software Bill of Materials -- a complete inventory of every component in your software. US Executive Order 14028 (2021) requires SBOMs for government software. Formats: SPDX, CycloneDX. You cannot secure what you cannot enumerate.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Dependency Scanning</div>
+                <div class="card-desc">Automated tools check every dependency against known vulnerability databases (NVD, OSV). Run on every build. Alert on new CVEs in existing dependencies. Pin versions and verify checksums. Trust but verify -- then remove the trust.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Notable Attacks</div>
+                <div class="card-desc">SolarWinds (2020): compromised build system injected backdoor into 18,000 organizations. Log4Shell (2021): single library vulnerability affected millions of applications. Codecov (2021): compromised CI tool exfiltrated secrets from thousands of repos. The supply chain is the new perimeter.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- EQUIFAX CASE STUDY ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 13</div>
+        <div class="slide-title">Case Study: <span class="accent">Equifax Breach</span> <span class="cyan">(2017)</span></div>
+        <div class="slide-subtitle">147 million records exposed. $700M+ in settlements. A case study in what Security by Design would have prevented.</div>
+
+        <!-- SVG: Defense layers that failed -->
+        <div class="svg-container">
+            <svg width="600" height="140" viewBox="0 0 600 140">
+                <!-- Defense layers - each one broken -->
+                <rect x="20" y="20" width="105" height="100" rx="6" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="72" y="42" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">PATCH MGMT</text>
+                <text x="72" y="60" text-anchor="middle" fill="#fee2e2" font-size="7">Apache Struts CVE</text>
+                <text x="72" y="73" text-anchor="middle" fill="#fee2e2" font-size="7">known 2 months</text>
+                <text x="72" y="90" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">FAILED</text>
+                <line x1="30" y1="96" x2="115" y2="96" stroke="#ef4444" stroke-width="1"/>
+
+                <rect x="140" y="20" width="105" height="100" rx="6" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="192" y="42" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">MONITORING</text>
+                <text x="192" y="60" text-anchor="middle" fill="#fee2e2" font-size="7">SSL cert expired</text>
+                <text x="192" y="73" text-anchor="middle" fill="#fee2e2" font-size="7">IDS offline 19mo</text>
+                <text x="192" y="90" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">FAILED</text>
+                <line x1="150" y1="96" x2="235" y2="96" stroke="#ef4444" stroke-width="1"/>
+
+                <rect x="260" y="20" width="105" height="100" rx="6" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="312" y="42" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">SEGMENTATION</text>
+                <text x="312" y="60" text-anchor="middle" fill="#fee2e2" font-size="7">Flat network</text>
+                <text x="312" y="73" text-anchor="middle" fill="#fee2e2" font-size="7">Lateral movement</text>
+                <text x="312" y="90" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">FAILED</text>
+                <line x1="270" y1="96" x2="355" y2="96" stroke="#ef4444" stroke-width="1"/>
+
+                <rect x="380" y="20" width="105" height="100" rx="6" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="432" y="42" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">ENCRYPTION</text>
+                <text x="432" y="60" text-anchor="middle" fill="#fee2e2" font-size="7">Data at rest</text>
+                <text x="432" y="73" text-anchor="middle" fill="#fee2e2" font-size="7">not encrypted</text>
+                <text x="432" y="90" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">FAILED</text>
+                <line x1="390" y1="96" x2="475" y2="96" stroke="#ef4444" stroke-width="1"/>
+
+                <!-- What SbD would have done -->
+                <rect x="500" y="20" width="85" height="100" rx="6" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="542" y="42" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">SbD WOULD</text>
+                <text x="542" y="55" text-anchor="middle" fill="#bbf7d0" font-size="6.5">Auto-patch</text>
+                <text x="542" y="66" text-anchor="middle" fill="#bbf7d0" font-size="6.5">Cert rotation</text>
+                <text x="542" y="77" text-anchor="middle" fill="#bbf7d0" font-size="6.5">Microseg</text>
+                <text x="542" y="88" text-anchor="middle" fill="#bbf7d0" font-size="6.5">Encrypt all</text>
+                <text x="542" y="104" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="700">PREVENT</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">What Went Wrong</div>
+                <div class="card-desc">Apache Struts vulnerability (CVE-2017-5638) had a patch available March 7. Equifax was breached May 13 -- two months of exposure. Their network monitoring was down because an SSL certificate expired and nobody renewed it. Attackers moved laterally across an unsegmented network. 147 million records were stored unencrypted. Every failure was a design failure, not a technology failure.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">What Security by Design Prevents</div>
+                <div class="card-desc">Automated patch management with SLA enforcement. Certificate lifecycle automation (never let a cert expire silently). Network microsegmentation (lateral movement blocked even if perimeter fails). Encryption at rest as a default (stolen data is useless without keys). Defense in depth means any single failure does not cause a catastrophic breach.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">The Outcome</div>
+            $700 million FTC settlement. CEO, CIO, and CISO resigned. Congressional testimony. Years of litigation. Reputational damage that persists to this day. The total cost of implementing every Security by Design control that would have prevented this breach would have been a fraction of one percent of the settlement alone.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- NIST SSDF ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 13</div>
+        <div class="slide-title">NIST <span class="accent">Secure Software Development Framework</span> (SSDF)</div>
+        <div class="slide-subtitle">NIST SP 800-218. The US government's authoritative framework for secure software development practices. Required for federal software procurement since EO 14028.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">PO -- Prepare the Organization</div>
+                <div class="card-desc">Define security requirements for the development environment. Implement roles and responsibilities. Establish secure development policies. Train staff. Ensure tooling supports secure practices. Security starts with organizational commitment, not technical controls.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">PS -- Protect the Software</div>
+                <div class="card-desc">Protect all components of the software from tampering and unauthorized access. Secure the code repositories, build systems, and distribution channels. Archive and protect each release. If an attacker can modify your build pipeline, they own your users.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">PW -- Produce Well-Secured Software</div>
+                <div class="card-desc">Design software to meet security requirements and mitigate identified risks. Review and test code for vulnerabilities and compliance. Configure default settings to be secure. Use human review and automated tools together -- neither is sufficient alone.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">RV -- Respond to Vulnerabilities</div>
+                <div class="card-desc">Identify residual vulnerabilities on an ongoing basis. Assess, prioritize, and remediate discovered vulnerabilities. Analyze each vulnerability for root cause to prevent recurrence. Continuous vulnerability management, not one-time scanning.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">Executive Order 14028 -- Improving the Nation's Cybersecurity (May 2021)</div>
+            Requires all software sold to the federal government to comply with the SSDF. Mandates SBOMs, attestation of secure development practices, and vulnerability disclosure programs. This is not guidance -- it is procurement policy. Software vendors who ignore the SSDF lose access to the largest single buyer of software in the world.
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Relationship to Other Frameworks</div>
+            The SSDF maps to and harmonizes with: ISO 27034 (application security), OWASP SAMM (Software Assurance Maturity Model), BSA Framework for Secure Software, and BSIMM (Building Security In Maturity Model). It is deliberately framework-agnostic -- implement the practices using whatever framework fits your organization.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- KEY TAKEAWAYS ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 13 &nbsp;|&nbsp; Summary</div>
+        <div class="slide-title">Key <span class="accent">Takeaways</span></div>
+        <div class="slide-subtitle">Security by Design is an engineering discipline, an organizational commitment, and increasingly a legal requirement.</div>
+
+        <div class="section-label">8 Principles to Carry Forward</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Security by Design means building security into every phase of development -- requirements, design, code, test, deploy, maintain. It is not a phase; it is a property of the system.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Saltzer and Schroeder's 8 principles (1975) remain the foundation: economy of mechanism, fail-safe defaults, complete mediation, open design, separation of privilege, least privilege, least common mechanism, psychological acceptability.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">STRIDE threat modeling (Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege) is applied during design -- before code is written.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Privacy by Design (Cavoukian) is now legally mandated by GDPR Article 25. Privacy and security share the same architectural foundations.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Secure architecture patterns -- DMZ, microsegmentation, zero trust -- replace implicit trust with verified access at every boundary.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">DevSecOps shifts security left: automated SAST, SCA, DAST, and IaC scanning in every CI/CD pipeline. Security gates block deployment -- they are not optional advisory scans.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">Supply chain security requires SBOMs, dependency scanning, and verification of every component. SolarWinds and Log4Shell proved that transitive trust is a systemic risk.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">The cost of fixing security defects in production is orders of magnitude higher than fixing them in design. The Equifax breach cost over $700M -- the preventive controls would have cost a fraction of that.</span>
+            </div>
+        </div>
+
+        <div class="box box-magenta" style="margin-top:4px;">
+            <div class="box-label">The Bottom Line</div>
+            Security by Design is not optional and it is not theoretical. It is how professionals build systems that protect the people who depend on them. Every system you build, every architecture you design, every dependency you accept is a security decision. Make it deliberately.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- MARK COMPLETE ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 13 &nbsp;|&nbsp; Complete</div>
+        <div class="slide-title">Module <span class="accent">Complete</span></div>
+        <div class="slide-subtitle">You have completed the Security by Design presentation. Mark this module complete to record your progress.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Covered</div>
+                <div class="card-desc">Security by Design philosophy. Saltzer &amp; Schroeder's 8 principles. SSDLC phases. STRIDE threat modeling. Privacy by Design (Cavoukian). Secure architecture patterns. DevSecOps pipeline. Supply chain security. Equifax case study. NIST SSDF.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Next Steps</div>
+                <div class="card-desc">Apply STRIDE to a system you use daily. Identify which Saltzer &amp; Schroeder principles it violates. Consider what a Security by Design redesign would look like. These are not abstract frameworks -- they are tools for your daily practice.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Key Frameworks</div>
+                <div class="card-desc">Saltzer &amp; Schroeder (1975). STRIDE (Microsoft). Privacy by Design (Cavoukian). NIST SSDF (SP 800-218). EO 14028. OWASP SAMM. Zero Trust Architecture (NIST SP 800-207).</div>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:10px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Cybersecurity Policy</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 13</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 13;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('divergent', 'csp-w1-security-by-design-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

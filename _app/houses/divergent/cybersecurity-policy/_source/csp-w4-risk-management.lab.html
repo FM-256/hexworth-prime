@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Risk Calculator | Cybersecurity Policy</title>
+    <style>
+        :root {
+            --div-primary: #ff00ff;
+            --div-secondary: #cc00cc;
+            --div-accent: #ff44ff;
+            --div-cyan: #00ffff;
+            --div-glow: rgba(255, 0, 255, 0.25);
+            --bg-main: #0d0810;
+            --bg-deep: #0a060d;
+            --bg-card: #120b14;
+            --bg-card-hover: #1a0f1e;
+            --text-primary: #ede0f0;
+            --text-secondary: #9a82a0;
+            --text-muted: #5a4460;
+            --border-color: rgba(255, 0, 255, 0.10);
+            --border-hover: rgba(255, 0, 255, 0.32);
+            --success: #00ff9d;
+            --danger: #ef4444;
+            --warning: #fbbf24;
+        }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background: linear-gradient(160deg, var(--bg-main) 0%, var(--bg-deep) 100%);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            color: var(--text-primary); line-height: 1.6;
+        }
+        .lab-container { max-width: 1000px; margin: 0 auto; padding: 2rem; }
+
+        .back-link {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            color: var(--div-primary); text-decoration: none; margin-bottom: 1rem;
+            font-size: 0.85rem; transition: all 0.3s;
+        }
+        .back-link:hover { color: var(--div-accent); transform: translateX(-4px); }
+
+        .lab-header {
+            text-align: center; margin-bottom: 2rem; padding: 2rem;
+            background: linear-gradient(135deg, var(--bg-card), var(--bg-deep));
+            border-radius: 16px; border: 1px solid var(--div-primary);
+            box-shadow: 0 0 30px var(--div-glow);
+        }
+        .lab-header h1 {
+            font-size: 2rem; margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--div-primary), var(--div-cyan));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .lab-header .subtitle { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem; }
+        .lab-meta { display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; }
+        .meta-item { color: var(--text-muted); font-size: 0.85rem; }
+
+        .instructions {
+            background: var(--bg-card); border-radius: 12px; padding: 1.5rem;
+            margin-bottom: 1.5rem; border: 1px solid var(--border-color);
+        }
+        .instructions h2 { color: var(--div-primary); font-size: 1.1rem; margin-bottom: 0.75rem; }
+        .instructions p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.5rem; }
+        .formula-box {
+            display: flex; gap: 2rem; flex-wrap: wrap; margin-top: 0.75rem;
+        }
+        .formula {
+            font-size: 0.82rem; padding: 6px 14px;
+            background: rgba(0, 255, 255, 0.06); border: 1px solid rgba(0, 255, 255, 0.18);
+            border-radius: 6px; color: var(--div-cyan); font-family: monospace;
+        }
+
+        .score-bar {
+            background: var(--bg-card); border-radius: 12px; padding: 1rem 1.5rem;
+            margin-bottom: 2rem; border: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .score-label { color: var(--text-secondary); font-size: 0.9rem; }
+        .score-value { color: var(--div-cyan); font-size: 1.2rem; font-weight: 700; }
+
+        .risk-card {
+            background: var(--bg-card); border-radius: 12px; padding: 1.25rem 1.5rem;
+            margin-bottom: 1rem; border: 1px solid var(--border-color);
+            transition: all 0.3s;
+        }
+        .risk-card:hover { border-color: var(--border-hover); }
+        .risk-card.correct { border-color: var(--success); background: rgba(0, 255, 157, 0.04); }
+        .risk-card.incorrect { border-color: var(--danger); background: rgba(239, 68, 68, 0.04); }
+
+        .risk-number {
+            font-size: 0.7rem; color: var(--div-primary); font-weight: 700;
+            letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.5rem;
+        }
+        .risk-scenario { color: var(--text-primary); font-size: 0.9rem; margin-bottom: 0.75rem; line-height: 1.65; }
+
+        .given-values {
+            display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 0.75rem;
+        }
+        .given-item {
+            font-size: 0.82rem; color: var(--text-muted);
+        }
+        .given-item span {
+            color: var(--div-cyan); font-weight: 600;
+        }
+
+        .calc-row {
+            display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.5rem;
+        }
+        .calc-label { font-size: 0.85rem; color: var(--text-secondary); min-width: 40px; }
+        .calc-row input {
+            width: 160px; padding: 8px 12px; background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(255, 0, 255, 0.2); border-radius: 8px;
+            color: var(--text-primary); font-size: 0.85rem;
+        }
+        .calc-row input:focus { outline: none; border-color: var(--div-primary); box-shadow: 0 0 10px var(--div-glow); }
+        .calc-unit { font-size: 0.75rem; color: var(--text-muted); }
+
+        .card-feedback {
+            font-size: 0.82rem; padding: 6px 12px; border-radius: 6px; margin-top: 0.75rem; display: none;
+        }
+        .card-feedback.show-correct {
+            display: block; background: rgba(0, 255, 157, 0.1);
+            border: 1px solid var(--success); color: var(--success);
+        }
+        .card-feedback.show-incorrect {
+            display: block; background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--danger); color: var(--danger);
+        }
+
+        /* Ranking section */
+        .ranking-section {
+            background: var(--bg-card); border-radius: 12px; padding: 1.5rem;
+            margin: 2rem 0; border: 1px solid var(--border-color);
+        }
+        .ranking-section h2 { color: var(--div-primary); font-size: 1.1rem; margin-bottom: 0.5rem; }
+        .ranking-section p { color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem; }
+        .rank-row {
+            display: flex; gap: 0.75rem; align-items: center; margin-bottom: 0.5rem;
+        }
+        .rank-pos {
+            width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+            background: rgba(255, 0, 255, 0.1); border-radius: 6px;
+            font-size: 0.8rem; font-weight: 700; color: var(--div-primary);
+        }
+        .rank-row select {
+            flex: 1; max-width: 400px; padding: 8px 12px; background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(255, 0, 255, 0.2); border-radius: 8px;
+            color: var(--text-primary); font-size: 0.85rem; cursor: pointer;
+        }
+        .rank-row select:focus { outline: none; border-color: var(--div-primary); box-shadow: 0 0 10px var(--div-glow); }
+        .rank-feedback {
+            font-size: 0.82rem; padding: 6px 12px; border-radius: 6px; margin-top: 0.5rem; display: none;
+        }
+        .rank-feedback.show-correct {
+            display: block; background: rgba(0, 255, 157, 0.1);
+            border: 1px solid var(--success); color: var(--success);
+        }
+        .rank-feedback.show-incorrect {
+            display: block; background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--danger); color: var(--danger);
+        }
+
+        .action-row {
+            display: flex; gap: 1rem; justify-content: center; margin: 2rem 0; flex-wrap: wrap;
+        }
+        .btn {
+            padding: 12px 32px; border: none; border-radius: 8px;
+            font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.3s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--div-primary), var(--div-secondary));
+            color: #0d0810;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--div-glow); }
+        .btn-complete {
+            background: linear-gradient(135deg, var(--div-primary), var(--div-secondary));
+            color: #0d0810; width: 100%; padding: 1rem; font-size: 1.05rem; display: none;
+        }
+        .btn-complete:hover { transform: translateY(-2px); box-shadow: 0 8px 28px var(--div-glow); }
+        .btn-complete.done { background: var(--success); cursor: default; transform: none; box-shadow: none; }
+        .btn-reset {
+            background: transparent; border: 1px solid rgba(255, 0, 255, 0.2);
+            color: var(--text-secondary);
+        }
+        .btn-reset:hover { border-color: var(--div-primary); color: var(--div-primary); }
+
+        @media (max-width: 768px) {
+            .lab-container { padding: 1rem; }
+            .lab-header h1 { font-size: 1.5rem; }
+            .calc-row { flex-direction: column; align-items: stretch; }
+            .calc-row input { width: 100%; }
+            .given-values { flex-direction: column; gap: 0.25rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="lab-container">
+        <a href="../index.html" class="back-link">&larr; Cybersecurity Policy Hub</a>
+
+        <header class="lab-header">
+            <h1>Risk Calculator</h1>
+            <p class="subtitle">Calculate SLE and ALE for real-world risk scenarios and rank them by annual impact</p>
+            <div class="lab-meta">
+                <span class="meta-item">Lab 13</span>
+                <span class="meta-item">25 minutes</span>
+                <span class="meta-item">6 Scenarios</span>
+            </div>
+        </header>
+
+        <div class="instructions">
+            <h2>Instructions</h2>
+            <p>Each card presents a risk scenario with three given values: <strong>Asset Value (AV)</strong>, <strong>Exposure Factor (EF)</strong>, and <strong>Annual Rate of Occurrence (ARO)</strong>.</p>
+            <p>Calculate the <strong>Single Loss Expectancy (SLE)</strong> and <strong>Annualized Loss Expectancy (ALE)</strong> for each scenario. Then rank all 6 scenarios from highest ALE to lowest.</p>
+            <p>You need <strong>5/6 correct calculations</strong> to unlock Mark Complete. Correct ranking earns a bonus point.</p>
+            <div class="formula-box">
+                <span class="formula">SLE = AV x EF</span>
+                <span class="formula">ALE = SLE x ARO</span>
+            </div>
+        </div>
+
+        <div class="score-bar">
+            <span class="score-label">Score</span>
+            <span class="score-value" id="scoreDisplay">-- / 6</span>
+        </div>
+
+        <div id="riskContainer"></div>
+
+        <div class="ranking-section">
+            <h2>Rank by ALE -- Highest to Lowest</h2>
+            <p>After calculating all ALE values, rank the 6 scenarios from highest annual risk to lowest.</p>
+            <div id="rankContainer"></div>
+            <div class="rank-feedback" id="rankFeedback"></div>
+        </div>
+
+        <div class="action-row">
+            <button class="btn btn-primary" id="checkBtn" onclick="checkAnswers()">Check Answers</button>
+            <button class="btn btn-reset" onclick="resetLab()">Reset</button>
+        </div>
+
+        <button class="btn btn-complete" id="completeBtn" onclick="markComplete()">Mark Complete</button>
+    </div>
+
+    <script>
+        var SCENARIOS = [
+            {
+                id: 1,
+                name: 'Data Center Fire',
+                desc: 'A regional data center housing critical servers is at risk of fire due to aging electrical infrastructure. The facility contains production databases and application servers.',
+                av: 2000000, ef: 0.60, aro: 0.1,
+                sle: 1200000, ale: 120000
+            },
+            {
+                id: 2,
+                name: 'Ransomware Attack',
+                desc: 'The organization faces ransomware threats targeting endpoint systems and shared file servers. Historical data shows multiple attempts per year with partial encryption success.',
+                av: 500000, ef: 0.80, aro: 3.0,
+                sle: 400000, ale: 1200000
+            },
+            {
+                id: 3,
+                name: 'Laptop Theft',
+                desc: 'Employees travel frequently with company laptops containing customer PII and proprietary source code. Lost and stolen devices are a recurring issue.',
+                av: 50000, ef: 1.00, aro: 6.0,
+                sle: 50000, ale: 300000
+            },
+            {
+                id: 4,
+                name: 'DDoS on E-Commerce',
+                desc: 'The company\'s e-commerce platform generates $8M annually. DDoS attacks cause outages averaging 4 hours each, disrupting revenue and customer trust.',
+                av: 800000, ef: 0.25, aro: 4.0,
+                sle: 200000, ale: 800000
+            },
+            {
+                id: 5,
+                name: 'Insider Data Exfiltration',
+                desc: 'A disgruntled employee with elevated privileges could exfiltrate trade secrets and customer databases. The intellectual property at stake represents years of R&D investment.',
+                av: 5000000, ef: 0.30, aro: 0.2,
+                sle: 1500000, ale: 300000
+            },
+            {
+                id: 6,
+                name: 'Power Grid Failure',
+                desc: 'The main office lacks a redundant power feed. Extended outages halt all operations including customer support, billing, and development teams.',
+                av: 1000000, ef: 0.40, aro: 0.5,
+                sle: 400000, ale: 200000
+            }
+        ];
+
+        /* Correct ranking by ALE descending: 2(1.2M), 4(800K), 3(300K), 5(300K), 6(200K), 1(120K) */
+        var CORRECT_RANK = [2, 4, 3, 5, 6, 1];
+        /* Scenarios 3 and 5 are tied at 300K -- accept either order */
+        var CORRECT_RANK_ALT = [2, 4, 5, 3, 6, 1];
+
+        var submitted = false;
+
+        function formatCurrency(val) {
+            return '$' + val.toLocaleString('en-US');
+        }
+
+        function buildCards() {
+            var container = document.getElementById('riskContainer');
+            container.innerHTML = '';
+
+            SCENARIOS.forEach(function(sc) {
+                var card = document.createElement('div');
+                card.className = 'risk-card';
+                card.id = 'card-' + sc.id;
+
+                card.innerHTML =
+                    '<div class="risk-number">Scenario ' + sc.id + ' -- ' + sc.name + '</div>' +
+                    '<div class="risk-scenario">' + sc.desc + '</div>' +
+                    '<div class="given-values">' +
+                        '<div class="given-item">Asset Value (AV): <span>' + formatCurrency(sc.av) + '</span></div>' +
+                        '<div class="given-item">Exposure Factor (EF): <span>' + (sc.ef * 100) + '%</span></div>' +
+                        '<div class="given-item">ARO: <span>' + sc.aro + ' / year</span></div>' +
+                    '</div>' +
+                    '<div class="calc-row">' +
+                        '<span class="calc-label">SLE</span>' +
+                        '<input type="text" id="sle-' + sc.id + '" placeholder="Enter SLE value">' +
+                        '<span class="calc-unit">dollars</span>' +
+                    '</div>' +
+                    '<div class="calc-row">' +
+                        '<span class="calc-label">ALE</span>' +
+                        '<input type="text" id="ale-' + sc.id + '" placeholder="Enter ALE value">' +
+                        '<span class="calc-unit">dollars/year</span>' +
+                    '</div>' +
+                    '<div class="card-feedback" id="fb-' + sc.id + '"></div>';
+
+                container.appendChild(card);
+            });
+
+            buildRanking();
+        }
+
+        function buildRanking() {
+            var container = document.getElementById('rankContainer');
+            container.innerHTML = '';
+
+            var opts = '<option value="">-- Select Scenario --</option>';
+            SCENARIOS.forEach(function(sc) {
+                opts += '<option value="' + sc.id + '">Scenario ' + sc.id + ' -- ' + sc.name + '</option>';
+            });
+
+            for (var i = 0; i < 6; i++) {
+                var row = document.createElement('div');
+                row.className = 'rank-row';
+                row.innerHTML =
+                    '<span class="rank-pos">' + (i + 1) + '</span>' +
+                    '<select id="rank-' + i + '">' + opts + '</select>';
+                container.appendChild(row);
+            }
+        }
+
+        function parseNumber(str) {
+            if (!str) return NaN;
+            var cleaned = str.replace(/[$,\s]/g, '');
+            return parseFloat(cleaned);
+        }
+
+        function checkAnswers() {
+            if (submitted) return;
+            var calcScore = 0;
+
+            SCENARIOS.forEach(function(sc) {
+                var sleInput = document.getElementById('sle-' + sc.id);
+                var aleInput = document.getElementById('ale-' + sc.id);
+                var fb = document.getElementById('fb-' + sc.id);
+                var card = document.getElementById('card-' + sc.id);
+
+                var userSLE = parseNumber(sleInput.value);
+                var userALE = parseNumber(aleInput.value);
+
+                card.classList.remove('correct', 'incorrect');
+                fb.className = 'card-feedback';
+
+                /* Allow 1% tolerance for rounding */
+                var sleTolerance = sc.sle * 0.01;
+                var aleTolerance = sc.ale * 0.01;
+
+                var sleCorrect = !isNaN(userSLE) && Math.abs(userSLE - sc.sle) <= sleTolerance;
+                var aleCorrect = !isNaN(userALE) && Math.abs(userALE - sc.ale) <= aleTolerance;
+
+                if (sleCorrect && aleCorrect) {
+                    calcScore++;
+                    card.classList.add('correct');
+                    fb.className = 'card-feedback show-correct';
+                    fb.textContent = 'Correct -- SLE: ' + formatCurrency(sc.sle) + ' | ALE: ' + formatCurrency(sc.ale);
+                } else {
+                    card.classList.add('incorrect');
+                    fb.className = 'card-feedback show-incorrect';
+                    var detail = '';
+                    if (!sleCorrect) detail += 'SLE should be ' + formatCurrency(sc.sle) + '. ';
+                    if (!aleCorrect) detail += 'ALE should be ' + formatCurrency(sc.ale) + '.';
+                    fb.textContent = 'Incorrect. ' + detail;
+                }
+
+                sleInput.disabled = true;
+                aleInput.disabled = true;
+            });
+
+            /* Check ranking */
+            var userRank = [];
+            var rankValid = true;
+            for (var i = 0; i < 6; i++) {
+                var val = document.getElementById('rank-' + i).value;
+                if (!val) { rankValid = false; break; }
+                userRank.push(parseInt(val, 10));
+                document.getElementById('rank-' + i).disabled = true;
+            }
+
+            var rankCorrect = false;
+            var rankFb = document.getElementById('rankFeedback');
+            if (rankValid) {
+                var matchesPrimary = true;
+                var matchesAlt = true;
+                for (var j = 0; j < 6; j++) {
+                    if (userRank[j] !== CORRECT_RANK[j]) matchesPrimary = false;
+                    if (userRank[j] !== CORRECT_RANK_ALT[j]) matchesAlt = false;
+                }
+                rankCorrect = matchesPrimary || matchesAlt;
+            }
+
+            if (rankCorrect) {
+                rankFb.className = 'rank-feedback show-correct';
+                rankFb.textContent = 'Ranking correct -- you identified the highest-risk scenarios accurately.';
+            } else {
+                rankFb.className = 'rank-feedback show-incorrect';
+                var correctOrder = CORRECT_RANK.map(function(id) {
+                    var sc = SCENARIOS[id - 1];
+                    return 'Scenario ' + id + ' (' + formatCurrency(sc.ale) + ')';
+                }).join(' > ');
+                rankFb.textContent = 'Ranking incorrect. Correct order: ' + correctOrder;
+            }
+
+            submitted = true;
+            var totalDisplay = calcScore + ' / 6' + (rankCorrect ? ' + Ranking Bonus' : '');
+            document.getElementById('scoreDisplay').textContent = totalDisplay;
+            document.getElementById('checkBtn').disabled = true;
+            document.getElementById('checkBtn').style.opacity = '0.4';
+
+            if (calcScore >= 5) {
+                document.getElementById('completeBtn').style.display = 'block';
+            }
+        }
+
+        function resetLab() {
+            submitted = false;
+            document.getElementById('scoreDisplay').textContent = '-- / 6';
+            document.getElementById('checkBtn').disabled = false;
+            document.getElementById('checkBtn').style.opacity = '1';
+            document.getElementById('completeBtn').style.display = 'none';
+            document.getElementById('completeBtn').classList.remove('done');
+            document.getElementById('completeBtn').textContent = 'Mark Complete';
+            document.getElementById('rankFeedback').className = 'rank-feedback';
+            document.getElementById('rankFeedback').textContent = '';
+            buildCards();
+        }
+
+        function markComplete() {
+            var btn = document.getElementById('completeBtn');
+            if (btn.classList.contains('done')) return;
+            btn.classList.add('done');
+            btn.textContent = 'Completed';
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('divergent', 'csp-w4-risk-management-lab', { returnUrl: '../index.html' });
+            }
+        }
+
+        buildCards();
+    </script>
+
+    <script src="../../../../components/TrailHunter.js"></script>
+</body>
+</html>
