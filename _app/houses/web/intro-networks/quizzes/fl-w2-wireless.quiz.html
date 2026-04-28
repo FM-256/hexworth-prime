@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz: Wireless Networking | First Link</title>
+    <style>
+        :root { --bg:#0a0e1a;--bg-card:#0f1625;--bg-option:#141d2e;--primary:#60a5fa;--primary-dim:rgba(96,165,250,0.15);--accent:#3b82f6;--text:#e2e8f0;--text-muted:#8892a8;--success:#22c55e;--danger:#ef4444;--border:rgba(255,255,255,0.08); }
+        * { margin:0;padding:0;box-sizing:border-box; }
+        body { font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(135deg,var(--bg) 0%,#0c1220 50%,#0e1828 100%);color:var(--text);min-height:100vh;line-height:1.6; }
+        .quiz-container { max-width:800px;margin:0 auto;padding:2rem; }
+        .nav-links { display:flex;gap:1.5rem;margin-bottom:1.5rem; }
+        .back-link { color:var(--primary);text-decoration:none;font-size:0.9rem;transition:all 0.3s; }
+        .back-link:hover { color:#93c5fd;transform:translateX(-5px);display:inline-block; }
+        .quiz-header { text-align:center;margin-bottom:2rem;padding:2rem;background:var(--bg-card);border-radius:14px;border:1px solid var(--primary-dim); }
+        .quiz-header h1 { font-size:1.6rem;color:var(--primary);margin-bottom:0.5rem; }
+        .quiz-header .subtitle { color:var(--text-muted);font-size:0.9rem;margin-bottom:0.75rem; }
+        .quiz-header .meta { display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;font-size:0.8rem; }
+        .quiz-header .meta span { background:var(--bg);padding:4px 12px;border-radius:6px;border:1px solid var(--border);color:var(--text-muted); }
+        .progress-bar-wrap { background:var(--bg-card);border-radius:10px;padding:14px 18px;margin-bottom:1.5rem;border:1px solid var(--border);display:flex;align-items:center;gap:14px; }
+        .progress-label { font-size:0.85rem;color:var(--text-muted);white-space:nowrap; }
+        .progress-track { flex:1;height:8px;background:var(--bg);border-radius:4px;overflow:hidden; }
+        .progress-fill { height:100%;background:linear-gradient(90deg,var(--primary),var(--accent));border-radius:4px;transition:width 0.4s ease;width:0%; }
+        .score-label { font-size:0.85rem;color:var(--primary);font-weight:600;white-space:nowrap; }
+        .question-card { background:var(--bg-card);border-radius:14px;padding:2rem;border:1px solid var(--border);margin-bottom:1.5rem; }
+        .question-num { font-size:0.8rem;color:var(--primary);font-weight:600;letter-spacing:0.5px;margin-bottom:0.75rem; }
+        .question-text { font-size:1.15rem;font-weight:600;margin-bottom:1.5rem;line-height:1.5; }
+        .options { display:flex;flex-direction:column;gap:10px;margin-bottom:1rem; }
+        .option { display:flex;align-items:center;gap:12px;padding:14px 18px;background:var(--bg-option);border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:all 0.2s;font-size:0.95rem; }
+        .option:hover { border-color:rgba(96,165,250,0.4);background:rgba(96,165,250,0.05); }
+        .option.correct { border-color:var(--success);background:rgba(34,197,94,0.1); }
+        .option.incorrect { border-color:var(--danger);background:rgba(239,68,68,0.08); }
+        .option.disabled { pointer-events:none;opacity:0.7; }
+        .option.correct.disabled { opacity:1; }
+        .option.incorrect.disabled { opacity:1; }
+        .option-letter { width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:6px;background:var(--bg);border:1px solid var(--border);font-weight:700;font-size:0.85rem;color:var(--primary);flex-shrink:0; }
+        .option.correct .option-letter { background:var(--success);color:#fff;border-color:var(--success); }
+        .option.incorrect .option-letter { background:var(--danger);color:#fff;border-color:var(--danger); }
+        .feedback { padding:14px 18px;border-radius:10px;margin-bottom:1rem;font-size:0.9rem;line-height:1.6;display:none; }
+        .feedback.correct { display:block;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.3);color:#86efac; }
+        .feedback.incorrect { display:block;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);color:#fca5a5; }
+        .quiz-nav { display:flex;justify-content:flex-end; }
+        .next-btn { padding:10px 24px;background:rgba(96,165,250,0.15);border:1px solid rgba(96,165,250,0.4);color:var(--primary);border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer;transition:all 0.2s; }
+        .next-btn:hover { background:var(--primary);color:#fff; }
+        .next-btn:disabled { opacity:0.3;cursor:not-allowed; }
+        .next-btn:disabled:hover { background:rgba(96,165,250,0.15);color:var(--primary); }
+        .results-card { display:none;text-align:center;background:var(--bg-card);border-radius:14px;padding:3rem 2rem;border:1px solid var(--border); }
+        .results-card h2 { color:var(--primary);font-size:1.4rem;margin-bottom:1rem; }
+        .score-big { font-size:3.5rem;font-weight:700;color:var(--success);margin-bottom:0.5rem; }
+        .score-big.low { color:var(--danger); }
+        .score-big.mid { color:#fbbf24; }
+        .score-msg { color:var(--text-muted);font-size:1rem;margin-bottom:2rem; }
+        .results-btns { display:flex;gap:12px;justify-content:center;flex-wrap:wrap; }
+        .results-btns a,.results-btns button { padding:10px 24px;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer;text-decoration:none;transition:all 0.2s;border:none; }
+        .btn-retry { background:rgba(96,165,250,0.15);border:1px solid rgba(96,165,250,0.4) !important;color:var(--primary); }
+        .btn-retry:hover { background:var(--primary);color:#fff; }
+        .btn-hub { background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.4) !important;color:var(--success); }
+        .btn-hub:hover { background:var(--success);color:#fff; }
+        @media (max-width:640px) { .quiz-container{padding:1rem;} .question-card{padding:1.25rem;} .quiz-header h1{font-size:1.3rem;} }
+    </style>
+</head>
+<body>
+    <div class="quiz-container">
+        <div class="nav-links"><a href="../index.html" class="back-link">&#8592; First Link Hub</a></div>
+        <div class="quiz-header">
+            <h1>Quiz: Wireless Networking</h1>
+            <p class="subtitle">802.11 standards, frequencies, wireless security, Bluetooth</p>
+            <div class="meta"><span>Week 2</span><span>15 Questions</span><span>Pass: 70%</span><span>CTS1090C</span></div>
+        </div>
+        <div class="progress-bar-wrap">
+            <span class="progress-label" id="progressLabel">Question 1 of 15</span>
+            <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+            <span class="score-label" id="scoreLabel">Score: 0</span>
+        </div>
+        <div class="question-card" id="questionCard">
+            <div class="question-num" id="questionNum">QUESTION 1</div>
+            <div class="question-text" id="questionText"></div>
+            <div class="options" id="optionsEl"></div>
+            <div class="feedback" id="feedback"></div>
+            <div class="quiz-nav"><button class="next-btn" id="nextBtn" onclick="nextQuestion()" disabled>Next Question</button></div>
+        </div>
+        <div class="results-card" id="resultsCard">
+            <h2>Quiz Complete</h2>
+            <div class="score-big" id="finalScore"></div>
+            <p class="score-msg" id="scoreMsg"></p>
+            <div class="results-btns">
+                <button class="btn-retry" onclick="restartQuiz()">Try Again</button>
+                <a href="../index.html" class="btn-hub">Back to First Link Hub</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* -- Wireless Networking (15 questions) -- */
+        /* Distribution: A=4 B=3 C=4 D=4 */
+        var questions = [
+            {
+                q: "802.11ac (Wi-Fi 5) operates exclusively on which frequency band?",
+                opts: ["5 GHz only", "2.4 GHz only", "Both 2.4 GHz and 5 GHz", "6 GHz only"],
+                ans: 0,
+                exp: "802.11ac (Wi-Fi 5) operates only on the 5 GHz band, offering faster speeds and less interference than 2.4 GHz but with shorter range."
+            },
+            {
+                q: "Which wireless security protocol uses AES-CCMP encryption and is the minimum recommended standard?",
+                opts: ["WEP", "WPA2", "WPA (TKIP)", "Open authentication"],
+                ans: 1,
+                exp: "WPA2 uses AES-CCMP for encryption and is the minimum security standard recommended for wireless networks. WEP and WPA-TKIP are both deprecated and insecure."
+            },
+            {
+                q: "The 2.4 GHz band has how many non-overlapping channels in North America?",
+                opts: ["11", "6", "3", "14"],
+                ans: 2,
+                exp: "The 2.4 GHz band has only 3 non-overlapping channels: 1, 6, and 11. While there are 11 usable channels total, adjacent channels overlap and cause interference."
+            },
+            {
+                q: "WPA3 replaces the Pre-Shared Key (PSK) exchange with:",
+                opts: ["Simultaneous Authentication of Equals (SAE)", "Temporal Key Integrity Protocol (TKIP)", "Wired Equivalent Privacy (WEP)", "Open System Authentication"],
+                ans: 0,
+                exp: "WPA3-Personal uses SAE (Dragonfly handshake), which provides forward secrecy and protection against offline dictionary attacks, unlike WPA2-PSK's 4-way handshake."
+            },
+            {
+                q: "802.11ax (Wi-Fi 6) introduces which technology to serve multiple clients simultaneously?",
+                opts: ["CSMA/CA", "OFDM", "OFDMA (Orthogonal Frequency Division Multiple Access)", "Frequency Hopping Spread Spectrum"],
+                ans: 2,
+                exp: "Wi-Fi 6 uses OFDMA to divide channels into smaller resource units, allowing the AP to serve multiple clients in parallel within a single transmission, reducing latency in dense environments."
+            },
+            {
+                q: "An evil twin attack involves an attacker:",
+                opts: ["Jamming all wireless frequencies in range", "Cracking the WPA2 password offline", "Exploiting a Bluetooth vulnerability", "Creating a rogue AP with the same SSID as a legitimate network to intercept traffic"],
+                ans: 3,
+                exp: "An evil twin impersonates a trusted AP. Clients connect to it unknowingly, and the attacker can intercept, modify, or capture all traffic passing through the rogue access point."
+            },
+            {
+                q: "Bluetooth operates in which frequency range?",
+                opts: ["900 MHz", "2.4 GHz ISM band", "5 GHz", "6 GHz"],
+                ans: 1,
+                exp: "Bluetooth uses the 2.4 GHz ISM (Industrial, Scientific, Medical) band and employs frequency hopping spread spectrum to minimize interference with Wi-Fi."
+            },
+            {
+                q: "Disabling SSID broadcast on a wireless AP:",
+                opts: ["Provides strong security by making the network invisible", "Prevents all unauthorized connections", "Only hides the network name from casual scans; determined attackers can still discover it", "Encrypts the network name"],
+                ans: 2,
+                exp: "Hiding the SSID is security through obscurity. The SSID is still transmitted in probe requests/responses and association frames, and tools like Wireshark or airodump-ng reveal it easily."
+            },
+            {
+                q: "WPA2-Enterprise uses which authentication framework with a RADIUS server?",
+                opts: ["802.1X/EAP", "PSK", "WPS", "Open System"],
+                ans: 0,
+                exp: "WPA2-Enterprise uses 802.1X port-based authentication with EAP methods (PEAP, EAP-TLS, etc.) and a RADIUS server to provide unique per-user credentials and session keys."
+            },
+            {
+                q: "Which 802.11 standard was the first to support both 2.4 GHz and 5 GHz bands with speeds up to 600 Mbps?",
+                opts: ["802.11a", "802.11g", "802.11n (Wi-Fi 4)", "802.11b"],
+                ans: 2,
+                exp: "802.11n (Wi-Fi 4) was the first dual-band standard, supporting both 2.4 GHz and 5 GHz with MIMO technology and speeds up to 600 Mbps using 4 spatial streams."
+            },
+            {
+                q: "A wireless site survey is performed to:",
+                opts: ["Update firmware on all access points", "Determine optimal AP placement, channel assignments, and identify sources of interference", "Reset all wireless passwords", "Install new cabling"],
+                ans: 1,
+                exp: "A site survey maps signal coverage, identifies dead zones and interference sources, and guides optimal placement and channel configuration for access points."
+            },
+            {
+                q: "Bluetooth's Class 2 devices have an approximate maximum range of:",
+                opts: ["1 meter", "10 meters", "100 meters", "1 kilometer"],
+                ans: 1,
+                exp: "Bluetooth Class 2 (the most common class in consumer devices) has a range of approximately 10 meters. Class 1 reaches about 100 meters, and Class 3 about 1 meter."
+            },
+            {
+                q: "WPS (Wi-Fi Protected Setup) is a security risk because:",
+                opts: ["It uses WEP encryption", "It transmits the password in cleartext", "Its 8-digit PIN can be brute-forced in roughly 11,000 attempts due to split validation", "It disables the firewall during setup"],
+                ans: 2,
+                exp: "WPS validates the PIN in two halves (4 digits + 3 digits + checksum), reducing the brute-force space from 100 million to about 11,000 attempts. It should be disabled."
+            },
+            {
+                q: "Channel bonding in 802.11ac combines adjacent channels to create:",
+                opts: ["Wider channels (40, 80, or 160 MHz) for higher throughput", "Stronger encryption", "Better backward compatibility", "Additional non-overlapping channels"],
+                ans: 0,
+                exp: "Channel bonding merges adjacent 20 MHz channels into wider channels (up to 160 MHz in 802.11ac), proportionally increasing maximum throughput."
+            },
+            {
+                q: "A captive portal on a wireless network:",
+                opts: ["Encrypts all traffic with WPA3", "Blocks all DNS queries", "Automatically assigns static IPs", "Redirects users to a login or terms-of-service page before granting internet access"],
+                ans: 3,
+                exp: "Captive portals intercept HTTP requests and redirect to a web page requiring authentication or acceptance of terms before allowing full network access. Common in hotels and cafes."
+            }
+        ];
+
+        var current = 0, score = 0, answered = false, TOTAL = questions.length;
+        function loadQuestion() {
+            var q = questions[current];
+            document.getElementById('questionNum').textContent = 'QUESTION ' + (current + 1);
+            document.getElementById('progressLabel').textContent = 'Question ' + (current + 1) + ' of ' + TOTAL;
+            document.getElementById('progressFill').style.width = ((current + 1) / TOTAL * 100) + '%';
+            document.getElementById('questionText').innerHTML = q.q;
+            var html = '', letters = ['A','B','C','D'];
+            for (var i = 0; i < q.opts.length; i++) { html += '<div class="option" onclick="selectAnswer(' + i + ')"><span class="option-letter">' + letters[i] + '</span><span>' + q.opts[i] + '</span></div>'; }
+            document.getElementById('optionsEl').innerHTML = html;
+            document.getElementById('feedback').className = 'feedback';
+            document.getElementById('feedback').textContent = '';
+            document.getElementById('nextBtn').disabled = true;
+            answered = false;
+        }
+        function selectAnswer(idx) {
+            if (answered) return; answered = true;
+            var q = questions[current], opts = document.querySelectorAll('.option');
+            for (var i = 0; i < opts.length; i++) { opts[i].classList.add('disabled'); if (i === q.ans) opts[i].classList.add('correct'); else if (i === idx) opts[i].classList.add('incorrect'); }
+            var fb = document.getElementById('feedback');
+            if (idx === q.ans) { score++; fb.className = 'feedback correct'; fb.textContent = 'Correct! ' + q.exp; }
+            else { fb.className = 'feedback incorrect'; fb.textContent = 'Incorrect. ' + q.exp; }
+            document.getElementById('scoreLabel').textContent = 'Score: ' + score;
+            document.getElementById('nextBtn').disabled = false;
+            if (current === TOTAL - 1) document.getElementById('nextBtn').textContent = 'See Results';
+        }
+        function nextQuestion() { current++; if (current >= TOTAL) { showResults(); return; } loadQuestion(); }
+        function showResults() {
+            document.getElementById('questionCard').style.display = 'none';
+            document.querySelector('.progress-bar-wrap').style.display = 'none';
+            var rc = document.getElementById('resultsCard'); rc.style.display = 'block';
+            var pct = Math.round((score / TOTAL) * 100), sb = document.getElementById('finalScore');
+            sb.textContent = score + '/' + TOTAL + ' (' + pct + '%)';
+            if (pct >= 80) sb.className = 'score-big'; else if (pct >= 70) sb.className = 'score-big mid'; else sb.className = 'score-big low';
+            var msg = '';
+            if (pct >= 90) msg = 'Excellent! You have a strong understanding of wireless networking standards and security.';
+            else if (pct >= 70) msg = 'Good work -- you passed. Review any missed questions before moving on.';
+            else if (pct >= 50) msg = 'Close, but not quite. Revisit the Week 2 Wireless slides and try again.';
+            else msg = 'Keep at it. Return to the Week 2 materials and retake this quiz.';
+            document.getElementById('scoreMsg').textContent = msg;
+            if (pct >= 70 && typeof ModuleProgress !== 'undefined') { ModuleProgress.completeQuiz('web', 'fl-w2-wireless-quiz', score); }
+        }
+        function restartQuiz() {
+            current = 0; score = 0; answered = false;
+            document.getElementById('scoreLabel').textContent = 'Score: 0';
+            document.getElementById('questionCard').style.display = '';
+            document.querySelector('.progress-bar-wrap').style.display = '';
+            document.getElementById('resultsCard').style.display = 'none';
+            document.getElementById('nextBtn').textContent = 'Next Question';
+            loadQuestion();
+        }
+        loadQuestion();
+    </script>
+</body>
+</html>

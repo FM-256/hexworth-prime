@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- FirebaseAuth provides callFunction() for server-side quiz grading (QC-21) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>First Link Final Exam - Hexworth Prime</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --bg2: #0f172a;
+    --card: #1e293b;
+    --ink: #e0e0e0;
+    --muted: #94a3b8;
+    --accent: #60a5fa;
+    --accent2: #3b82f6;
+    --accent-glow: rgba(96, 165, 250, 0.3);
+    --ok: #2ed573;
+    --warn: #ffc107;
+    --bad: #ff4757;
+    --border: rgba(255, 255, 255, 0.1);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #0a0a0f 0%, #0c1220 50%, #0e1828 100%);
+    color: var(--ink);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  .page-header {
+    padding: 15px 30px;
+    background: rgba(0, 0, 0, 0.4);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .page-header a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.2s;
+  }
+
+  .page-header a:hover { color: var(--accent); }
+
+  .brand {
+    font-weight: 600;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 30px 20px;
+  }
+
+  .exam-header { text-align: center; margin-bottom: 30px; }
+
+  h1 {
+    font-size: clamp(1.6rem, 3vw, 2rem);
+    margin-bottom: 12px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .header-meta {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+
+  .tag {
+    font-size: 0.75rem;
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: rgba(96, 165, 250, 0.15);
+    color: var(--accent);
+    border: 1px solid rgba(96, 165, 250, 0.3);
+  }
+
+  .exam-info {
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 30px;
+  }
+
+  .exam-info h2 { color: var(--accent); font-size: 1.2rem; margin-bottom: 10px; }
+  .exam-info ul { list-style: none; color: var(--muted); }
+  .exam-info li { padding: 4px 0; }
+  .exam-info li::before { content: "-> "; color: var(--accent); }
+
+  .timer-bar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10, 10, 15, 0.95);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .timer {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--accent);
+    font-family: monospace;
+  }
+
+  .timer.warning { color: var(--warn); }
+  .timer.danger { color: var(--bad); animation: pulse 1s infinite; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .progress-text { color: var(--muted); font-size: 0.9rem; }
+
+  .question {
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .question-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 14px;
+  }
+
+  .question p {
+    font-weight: 600;
+    color: #fff;
+    font-size: 1.05rem;
+    flex: 1;
+  }
+
+  .q-num {
+    background: rgba(96, 165, 250, 0.2);
+    color: var(--accent);
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-right: 12px;
+  }
+
+  .question label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    margin: 8px 0;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid transparent;
+  }
+
+  .question label:hover {
+    background: rgba(96, 165, 250, 0.1);
+    border-color: rgba(96, 165, 250, 0.3);
+  }
+
+  .question input[type="radio"] {
+    accent-color: var(--accent);
+    width: 18px;
+    height: 18px;
+  }
+
+  .question label.correct {
+    background: rgba(46, 213, 115, 0.15) !important;
+    border-color: var(--ok) !important;
+  }
+
+  .question label.wrong {
+    background: rgba(255, 71, 87, 0.15) !important;
+    border-color: var(--bad) !important;
+  }
+
+  .btn-submit {
+    display: block;
+    width: 100%;
+    max-width: 400px;
+    margin: 30px auto;
+    padding: 16px 40px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 10px;
+    color: #0a0a0f;
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 20px var(--accent-glow);
+  }
+
+  .btn-submit:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px var(--accent-glow);
+  }
+
+  .btn-submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  #result {
+    background: rgba(30, 41, 59, 0.95);
+    border: 2px solid var(--border);
+    border-radius: 16px;
+    padding: 40px;
+    margin-top: 30px;
+    text-align: center;
+    display: none;
+  }
+
+  #result.visible { display: block; }
+  #result h2 { font-size: 1.8rem; margin-bottom: 12px; color: var(--ink); }
+
+  .score-circle {
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    border: 6px solid;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 20px auto;
+    background: rgba(0, 0, 0, 0.3);
+  }
+
+  .score-circle.pass { border-color: var(--ok); box-shadow: 0 0 40px rgba(46, 213, 115, 0.4); }
+  .score-circle.fail { border-color: var(--bad); box-shadow: 0 0 40px rgba(255, 71, 87, 0.4); }
+
+  .score-percent { font-size: 2.5rem; font-weight: 700; }
+  .score-fraction { font-size: 1rem; color: var(--muted); }
+
+  .result-msg {
+    font-size: 1.2rem;
+    margin-top: 20px;
+    padding: 16px;
+    border-radius: 10px;
+  }
+
+  .result-msg.pass { background: rgba(46, 213, 115, 0.15); color: var(--ok); border: 1px solid var(--ok); }
+  .result-msg.fail { background: rgba(255, 71, 87, 0.15); color: var(--bad); border: 1px solid var(--bad); }
+
+  .unlock-badge {
+    margin-top: 20px;
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(96, 165, 250, 0.2), rgba(59, 130, 246, 0.2));
+    border: 2px solid var(--accent);
+    border-radius: 12px;
+  }
+
+  .unlock-badge h3 { color: var(--accent); margin-bottom: 10px; }
+
+  .btn-continue {
+    display: inline-block;
+    margin-top: 15px;
+    padding: 12px 30px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 8px;
+    color: #0a0a0f;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  footer {
+    text-align: center;
+    padding: 30px;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <a href="../index.html">&#8592; Back to First Link Hub</a>
+  <span class="brand">
+    <img src="/assets/images/icons/icon-web.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+    Hexworth Prime
+  </span>
+</header>
+
+<div class="timer-bar">
+  <span class="progress-text">Question <span id="answered">0</span>/40 answered</span>
+  <span class="timer" id="timer">75:00</span>
+</div>
+
+<div class="container">
+  <div class="exam-header">
+    <h1>
+      <img src="/assets/images/icons/icon-web.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+      First Link Final Exam
+    </h1>
+    <div class="header-meta">
+      <span class="tag">CTS1090C</span>
+      <span class="tag">40 Questions</span>
+      <span class="tag">70% to Pass</span>
+      <span class="tag">75 Minutes</span>
+      <span class="tag">Weeks 1-4</span>
+    </div>
+  </div>
+
+  <div class="exam-info">
+    <h2>Exam Information</h2>
+    <ul>
+      <li>Comprehensive exam covering all course content: Weeks 1-4</li>
+      <li>Ports & Protocols, Network Hardware, SOHO Networking, Wireless, Network Services, IP Addressing, WAN Connections, and Troubleshooting Tools</li>
+      <li>You need 70% (28/40) to pass</li>
+      <li>Passing awards the <strong>First Link Guardian</strong> badge</li>
+      <li>Time limit: 75 minutes (timer starts when page loads)</li>
+      <li>Review your answers before submitting - you only get one attempt!</li>
+    </ul>
+  </div>
+
+  <form id="examForm">
+    <div id="questions"></div>
+    <button type="button" class="btn-submit" id="submitBtn" onclick="submitExam()">Submit Final Exam</button>
+  </form>
+
+  <div id="result"></div>
+</div>
+
+<footer>
+  Part of <a href="../index.html">Hexworth Prime</a> | First Link - Introduction to Networks
+</footer>
+
+<script>
+// Answers validated server-side via gradeQuiz() Cloud Function (QC-21)
+// Answer key stored in Firestore quiz_keys/fl-final
+const QUIZ_ID = 'fl-final';
+
+const examData = [
+  // W1 Ports & Protocols (5 questions)
+  {q: "HTTP operates on port 80 and HTTPS operates on port:", a: ["443", "8080", "21", "8443"]},
+  {q: "The TCP three-way handshake establishes a reliable connection using the sequence:", a: ["SYN, SYN-ACK, ACK", "FIN, ACK, RST", "ACK, SYN, FIN", "SYN, FIN, ACK"]},
+  {q: "Which transport protocol provides best-effort, connectionless delivery?", a: ["TCP", "UDP", "ICMP", "TLS"]},
+  {q: "SMTP sends email on port 25. Which protocol retrieves email on port 143?", a: ["POP3", "IMAP", "SNMP", "LDAP"]},
+  {q: "RDP (Remote Desktop Protocol) uses which default port?", a: ["Port 22", "Port 443", "Port 3389", "Port 445"]},
+
+  // W1 Network Hardware (5 questions)
+  {q: "A switch builds a MAC address table to forward frames only to the correct:", a: ["Subnet", "Destination port", "VLAN", "DNS server"]},
+  {q: "A router operates at Layer 3 of the OSI model and makes forwarding decisions based on:", a: ["MAC addresses", "IP addresses", "Port numbers", "Signal strength"]},
+  {q: "IEEE 802.3at (PoE+) delivers up to approximately:", a: ["15.4 watts per port", "30 watts per port", "60 watts per port", "90 watts per port"]},
+  {q: "A managed switch provides features that an unmanaged switch lacks, including:", a: ["Basic frame forwarding", "VLANs, port mirroring, QoS, and SNMP management", "Ethernet connectivity", "LED status indicators"]},
+  {q: "A UTM appliance consolidates which functions into a single device?", a: ["Only switching and routing", "Firewall, IDS/IPS, antivirus, content filtering, and VPN", "Only DNS and DHCP", "Only wireless and wired access"]},
+
+  // W2 SOHO Networking (5 questions)
+  {q: "A crossover cable uses T568A on one end and T568B on the other to:", a: ["Extend cable length beyond 100 meters", "Connect two similar devices directly without a switch", "Provide PoE power delivery", "Encrypt the data on the cable"]},
+  {q: "DHCP assigns IP configuration through a four-step process known as:", a: ["TCP handshake", "DORA (Discover, Offer, Request, Acknowledge)", "DNS resolution", "ARP broadcast"]},
+  {q: "A device with an IP address of 169.254.x.x most likely indicates:", a: ["A valid static IP", "A DHCP server is functioning correctly", "The device could not reach a DHCP server (APIPA)", "An ISP-assigned public IP"]},
+  {q: "Cat6a cabling supports 10 Gbps at distances up to:", a: ["55 meters", "100 meters", "200 meters", "300 meters"]},
+  {q: "Fiber optic cables are immune to EMI because they transmit:", a: ["Radio frequency signals", "Light pulses rather than electrical signals", "Compressed digital data", "Analog waveforms"]},
+
+  // W2 Wireless (5 questions)
+  {q: "WPA2-Enterprise authenticates users through a RADIUS server using which framework?", a: ["802.1X/EAP", "WPS PIN", "PSK passphrase", "MAC filtering"]},
+  {q: "802.11ax (Wi-Fi 6) uses OFDMA technology to:", a: ["Increase encryption strength", "Serve multiple clients simultaneously within a single transmission", "Extend range to 1 kilometer", "Replace the need for access points"]},
+  {q: "Hiding the SSID provides minimal security because:", a: ["It encrypts the network name", "The SSID is still visible in probe requests and can be discovered with tools like Wireshark", "It blocks all unauthorized connections", "It disables WPS automatically"]},
+  {q: "Bluetooth Class 2 devices have an approximate range of:", a: ["1 meter", "10 meters", "100 meters", "1 kilometer"]},
+  {q: "A wireless site survey determines:", a: ["The cost of internet service", "Optimal AP placement, channel assignments, and sources of interference", "Which devices need firmware updates", "How many VLANs to create"]},
+
+  // W3 Network Services (5 questions)
+  {q: "A DNS MX record specifies:", a: ["The mail server responsible for receiving email for a domain", "The IPv4 address of a host", "A CNAME alias", "The authoritative name server"]},
+  {q: "NTP synchronizes network device clocks. Accurate time is critical for:", a: ["Increasing bandwidth", "Log correlation, authentication protocols, and forensic investigation", "Assigning DHCP leases", "Preventing physical intrusion"]},
+  {q: "A reverse proxy sits in front of web servers to provide:", a: ["Client-side caching only", "Load balancing, SSL termination, and protection for origin servers", "Direct database access", "Wireless connectivity"]},
+  {q: "SNMPv1/v2c community strings are a security risk because they:", a: ["Use AES-256 encryption", "Change automatically every hour", "Are transmitted in plaintext across the network", "Require multi-factor authentication"]},
+  {q: "Syslog centralizes log collection from network devices using:", a: ["TCP port 443", "UDP port 514", "TCP port 22", "UDP port 161"]},
+
+  // W3 IP Addressing (5 questions)
+  {q: "An IPv4 address is 32 bits long. An IPv6 address is:", a: ["64 bits", "128 bits", "256 bits", "48 bits"]},
+  {q: "The subnet 192.168.1.0/24 provides how many usable host addresses?", a: ["256", "255", "254", "252"]},
+  {q: "ARP resolves a known IP address to a:", a: ["MAC address", "Hostname", "Port number", "VLAN ID"]},
+  {q: "The loopback address 127.0.0.1 is used to:", a: ["Test the local TCP/IP stack without sending traffic on the network", "Reach the default gateway", "Broadcast to all hosts on the subnet", "Connect to the DHCP server"]},
+  {q: "IPv6 link-local addresses begin with:", a: ["2001::", "ff02::", "fe80::", "::1"]},
+
+  // W4 WAN Connections (5 questions)
+  {q: "A WAN (Wide Area Network) connects LANs across:", a: ["Large geographic distances such as cities or countries", "A single floor of a building", "One server room", "A single VLAN"]},
+  {q: "Satellite internet's primary disadvantage is:", a: ["Low bandwidth", "Limited geographic availability", "High latency due to signal travel distance to orbit", "Excessive power requirements"]},
+  {q: "A site-to-site VPN creates an encrypted tunnel between:", a: ["Two individual users", "Two entire network gateways connecting branch offices", "A client and a web server", "Two wireless access points"]},
+  {q: "SD-WAN uses software to intelligently route traffic across:", a: ["Only MPLS circuits", "Multiple connection types (broadband, LTE, MPLS) based on real-time performance", "Only satellite links", "Only fiber optic connections"]},
+  {q: "A full mesh topology provides maximum redundancy because:", a: ["It uses a single central hub", "Every node connects directly to every other node", "It requires the fewest cables", "It uses a ring backbone"]},
+
+  // W4 Troubleshooting Tools (5 questions)
+  {q: "The ping command sends which type of packet to test connectivity?", a: ["ICMP Echo Request", "TCP SYN", "UDP datagram", "ARP broadcast"]},
+  {q: "Traceroute identifies the path to a destination by incrementing the:", a: ["Packet size", "TTL (Time to Live) value and recording routers that respond with TTL Exceeded", "Source port number", "DSCP value"]},
+  {q: "If ping to an IP works but ping to a hostname fails, the issue is likely:", a: ["A physical cable problem", "A routing table error", "A DNS resolution failure", "A firewall blocking all traffic"]},
+  {q: "Wireshark is a protocol analyzer that:", a: ["Only monitors wireless networks", "Captures and inspects network traffic at the packet level for troubleshooting and analysis", "Only works with SNMP data", "Replaces the need for ping and traceroute"]},
+  {q: "The nmap -O flag is used for:", a: ["Output formatting", "OS detection by fingerprinting the target's TCP/IP stack behavior", "Opening a port scan", "Optimizing scan speed"]},
+];
+
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+const questionsContainer = document.getElementById("questions");
+const shuffledData = shuffle([...examData]);
+
+shuffledData.forEach((item, i) => {
+  const div = document.createElement("div");
+  div.classList.add("question");
+  div.setAttribute("data-q", i);
+
+  let html = `
+    <div class="question-header">
+      <span class="q-num">Q${i + 1}</span>
+      <p>${item.q}</p>
+    </div>
+  `;
+
+  const answerIndices = [0, 1, 2, 3];
+  shuffle(answerIndices);
+
+  answerIndices.forEach((origIdx) => {
+    html += `<label><input type="radio" name="q${i}" value="${origIdx}"> ${item.a[origIdx]}</label>`;
+  });
+
+  div.innerHTML = html;
+  questionsContainer.appendChild(div);
+});
+
+window.shuffledData = shuffledData;
+
+// Timer: 75 minutes
+let timeLeft = 75 * 60;
+const timerEl = document.getElementById("timer");
+
+const timerInterval = setInterval(() => {
+  timeLeft--;
+  const mins = Math.floor(timeLeft / 60);
+  const secs = timeLeft % 60;
+  timerEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+  if (timeLeft <= 600) timerEl.classList.add('warning');
+  if (timeLeft <= 120) { timerEl.classList.remove('warning'); timerEl.classList.add('danger'); }
+
+  if (timeLeft <= 0) {
+    clearInterval(timerInterval);
+    submitExam();
+  }
+}, 1000);
+
+document.querySelectorAll('input[type="radio"]').forEach(input => {
+  input.addEventListener('change', () => {
+    const answeredCount = document.querySelectorAll('input[type="radio"]:checked').length;
+    document.getElementById('answered').textContent = answeredCount;
+  });
+});
+
+// Submit exam -- server-side graded (QC-21)
+async function submitExam() {
+  clearInterval(timerInterval);
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('submitBtn').textContent = 'Grading...';
+
+  const total = shuffledData.length;
+
+  const answerMap = {};
+  shuffledData.forEach((item, i) => {
+    const selected = document.querySelector(`input[name="q${i}"]:checked`);
+    if (selected) {
+      const origIdx = examData.indexOf(item);
+      answerMap[String(origIdx)] = parseInt(selected.value);
+    }
+  });
+
+  let score = 0, percent = 0, passed = false;
+
+  try {
+    if (typeof FirebaseAuth !== 'undefined') {
+      await FirebaseAuth.waitForAuth();
+      const response = await FirebaseAuth.callFunction('gradeQuiz', {
+        quizId: QUIZ_ID, answers: answerMap
+      });
+      score = response.data.score;
+      percent = response.data.percentage;
+      passed = response.data.passed;
+
+      shuffledData.forEach((item, i) => {
+        const origIdx = examData.indexOf(item);
+        const result = response.data.results[origIdx];
+        const selected = document.querySelector(`input[name="q${i}"]:checked`);
+        if (selected && result) {
+          selected.parentElement.classList.add(result.correct ? 'correct' : 'wrong');
+        }
+      });
+    }
+  } catch (e) {
+    console.warn('Server grading failed:', e.message);
+  }
+
+  if (passed) {
+    localStorage.setItem('hexworth_web_fl_final_passed', 'true');
+    localStorage.setItem('hexworth_web_fl_final_score', percent);
+    localStorage.setItem('hexworth_web_fl_final_date', new Date().toISOString());
+  }
+
+  if (passed && typeof ModuleProgress !== 'undefined') {
+    ModuleProgress.completeQuiz('web', 'fl-final', score);
+  }
+
+  const resultDiv = document.getElementById("result");
+  resultDiv.innerHTML = `
+    <h2>${passed
+      ? '<img src="/assets/images/icons/icon-check.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Final Exam Passed!'
+      : '<img src="/assets/images/icons/icon-alert.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Keep Studying'
+    }</h2>
+    <div class="score-circle ${passed ? 'pass' : 'fail'}">
+      <span class="score-percent">${percent}%</span>
+      <span class="score-fraction">${score}/${total}</span>
+    </div>
+    <div class="result-msg ${passed ? 'pass' : 'fail'}">
+      ${passed
+        ? 'Excellent work. You have passed the First Link Final Exam and earned the First Link Guardian badge. Course complete.'
+        : `You need 70% (28/40) to pass. Review all four weeks of material and try again. You scored ${score}/40.`}
+    </div>
+    ${passed ? `
+      <div class="unlock-badge">
+        <h3><img src="/assets/images/icons/icon-web.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> First Link Guardian Badge Earned!</h3>
+        <p>You have demonstrated mastery across all Introduction to Networks topics. CTS1090C complete.</p>
+        <a href="../index.html" class="btn-continue">Return to First Link Hub &rarr;</a>
+      </div>
+    ` : `
+      <div style="margin-top: 20px;">
+        <a href="../quizzes/fl-w3-services.quiz.html" class="btn-continue" style="margin-right: 10px;">Review W3</a>
+        <a href="../quizzes/fl-w4-tools.quiz.html" class="btn-continue">Review W4</a>
+      </div>
+    `}
+  `;
+  resultDiv.classList.add('visible');
+
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+}
+</script>
+</body>
+</html>

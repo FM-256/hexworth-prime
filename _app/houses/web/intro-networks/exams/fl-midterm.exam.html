@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- FirebaseAuth provides callFunction() for server-side quiz grading (QC-21) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>First Link Midterm Exam - Hexworth Prime</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --bg2: #0f172a;
+    --card: #1e293b;
+    --ink: #e0e0e0;
+    --muted: #94a3b8;
+    --accent: #60a5fa;
+    --accent2: #3b82f6;
+    --accent-glow: rgba(96, 165, 250, 0.3);
+    --ok: #2ed573;
+    --warn: #ffc107;
+    --bad: #ff4757;
+    --border: rgba(255, 255, 255, 0.1);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #0a0a0f 0%, #0c1220 50%, #0e1828 100%);
+    color: var(--ink);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  .page-header {
+    padding: 15px 30px;
+    background: rgba(0, 0, 0, 0.4);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .page-header a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.2s;
+  }
+
+  .page-header a:hover { color: var(--accent); }
+
+  .brand {
+    font-weight: 600;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 30px 20px;
+  }
+
+  .exam-header { text-align: center; margin-bottom: 30px; }
+
+  h1 {
+    font-size: clamp(1.6rem, 3vw, 2rem);
+    margin-bottom: 12px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .header-meta {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+
+  .tag {
+    font-size: 0.75rem;
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: rgba(96, 165, 250, 0.15);
+    color: var(--accent);
+    border: 1px solid rgba(96, 165, 250, 0.3);
+  }
+
+  .exam-info {
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 30px;
+  }
+
+  .exam-info h2 { color: var(--accent); font-size: 1.2rem; margin-bottom: 10px; }
+  .exam-info ul { list-style: none; color: var(--muted); }
+  .exam-info li { padding: 4px 0; }
+  .exam-info li::before { content: "-> "; color: var(--accent); }
+
+  .timer-bar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10, 10, 15, 0.95);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .timer {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--accent);
+    font-family: monospace;
+  }
+
+  .timer.warning { color: var(--warn); }
+  .timer.danger { color: var(--bad); animation: pulse 1s infinite; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .progress-text { color: var(--muted); font-size: 0.9rem; }
+
+  .question {
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .question-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 14px;
+  }
+
+  .question p {
+    font-weight: 600;
+    color: #fff;
+    font-size: 1.05rem;
+    flex: 1;
+  }
+
+  .q-num {
+    background: rgba(96, 165, 250, 0.2);
+    color: var(--accent);
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-right: 12px;
+  }
+
+  .question label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    margin: 8px 0;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid transparent;
+  }
+
+  .question label:hover {
+    background: rgba(96, 165, 250, 0.1);
+    border-color: rgba(96, 165, 250, 0.3);
+  }
+
+  .question input[type="radio"] {
+    accent-color: var(--accent);
+    width: 18px;
+    height: 18px;
+  }
+
+  .question label.correct {
+    background: rgba(46, 213, 115, 0.15) !important;
+    border-color: var(--ok) !important;
+  }
+
+  .question label.wrong {
+    background: rgba(255, 71, 87, 0.15) !important;
+    border-color: var(--bad) !important;
+  }
+
+  .btn-submit {
+    display: block;
+    width: 100%;
+    max-width: 400px;
+    margin: 30px auto;
+    padding: 16px 40px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 10px;
+    color: #0a0a0f;
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 20px var(--accent-glow);
+  }
+
+  .btn-submit:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px var(--accent-glow);
+  }
+
+  .btn-submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  #result {
+    background: rgba(30, 41, 59, 0.95);
+    border: 2px solid var(--border);
+    border-radius: 16px;
+    padding: 40px;
+    margin-top: 30px;
+    text-align: center;
+    display: none;
+  }
+
+  #result.visible { display: block; }
+  #result h2 { font-size: 1.8rem; margin-bottom: 12px; color: var(--ink); }
+
+  .score-circle {
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    border: 6px solid;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 20px auto;
+    background: rgba(0, 0, 0, 0.3);
+  }
+
+  .score-circle.pass { border-color: var(--ok); box-shadow: 0 0 40px rgba(46, 213, 115, 0.4); }
+  .score-circle.fail { border-color: var(--bad); box-shadow: 0 0 40px rgba(255, 71, 87, 0.4); }
+
+  .score-percent { font-size: 2.5rem; font-weight: 700; }
+  .score-fraction { font-size: 1rem; color: var(--muted); }
+
+  .result-msg {
+    font-size: 1.2rem;
+    margin-top: 20px;
+    padding: 16px;
+    border-radius: 10px;
+  }
+
+  .result-msg.pass { background: rgba(46, 213, 115, 0.15); color: var(--ok); border: 1px solid var(--ok); }
+  .result-msg.fail { background: rgba(255, 71, 87, 0.15); color: var(--bad); border: 1px solid var(--bad); }
+
+  .unlock-badge {
+    margin-top: 20px;
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(96, 165, 250, 0.2), rgba(59, 130, 246, 0.2));
+    border: 2px solid var(--accent);
+    border-radius: 12px;
+  }
+
+  .unlock-badge h3 { color: var(--accent); margin-bottom: 10px; }
+
+  .btn-continue {
+    display: inline-block;
+    margin-top: 15px;
+    padding: 12px 30px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 8px;
+    color: #0a0a0f;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  footer {
+    text-align: center;
+    padding: 30px;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <a href="../index.html">&#8592; Back to First Link Hub</a>
+  <span class="brand">
+    <img src="/assets/images/icons/icon-web.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+    Hexworth Prime
+  </span>
+</header>
+
+<div class="timer-bar">
+  <span class="progress-text">Question <span id="answered">0</span>/25 answered</span>
+  <span class="timer" id="timer">45:00</span>
+</div>
+
+<div class="container">
+  <div class="exam-header">
+    <h1>
+      <img src="/assets/images/icons/icon-web.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+      First Link Midterm Exam
+    </h1>
+    <div class="header-meta">
+      <span class="tag">CTS1090C</span>
+      <span class="tag">25 Questions</span>
+      <span class="tag">70% to Pass</span>
+      <span class="tag">45 Minutes</span>
+      <span class="tag">Weeks 1-2</span>
+    </div>
+  </div>
+
+  <div class="exam-info">
+    <h2>Exam Information</h2>
+    <ul>
+      <li>Covers Weeks 1-2: Ports & Protocols, Network Hardware, SOHO Networking, and Wireless</li>
+      <li>You need 70% (18/25) to pass</li>
+      <li>Passing awards the <strong>First Link Sentinel</strong> badge</li>
+      <li>Time limit: 45 minutes (timer starts when page loads)</li>
+      <li>Review your answers before submitting - you only get one attempt!</li>
+    </ul>
+  </div>
+
+  <form id="examForm">
+    <div id="questions"></div>
+    <button type="button" class="btn-submit" id="submitBtn" onclick="submitExam()">Submit Midterm</button>
+  </form>
+
+  <div id="result"></div>
+</div>
+
+<footer>
+  Part of <a href="../index.html">Hexworth Prime</a> | First Link - Introduction to Networks
+</footer>
+
+<script>
+// Answers validated server-side via gradeQuiz() Cloud Function (QC-21)
+// Answer key stored in Firestore quiz_keys/fl-midterm
+const QUIZ_ID = 'fl-midterm';
+
+const examData = [
+  // W1 Ports & Protocols (7 questions)
+  {q: "Which well-known port does HTTPS use to provide encrypted web traffic?", a: ["Port 80", "Port 443", "Port 8080", "Port 21"]},
+  {q: "The TCP three-way handshake consists of which sequence?", a: ["SYN, SYN-ACK, ACK", "ACK, SYN, FIN", "FIN, ACK, RST", "SYN, ACK, FIN"]},
+  {q: "UDP is considered connectionless because it:", a: ["Uses a three-way handshake before data transfer", "Does not establish a session or guarantee delivery of packets", "Encrypts all traffic by default", "Only works on port 53"]},
+  {q: "SSH provides encrypted remote access and operates on which port?", a: ["Port 23", "Port 22", "Port 443", "Port 3389"]},
+  {q: "Which protocol uses port 53 for name resolution?", a: ["DHCP", "SMTP", "DNS", "SNMP"]},
+  {q: "FTP uses port 21 for control commands and port 20 for:", a: ["Active-mode data transfer", "Passive-mode control", "Encryption key exchange", "Authentication"]},
+  {q: "Ports in the range 49152-65535 are classified as:", a: ["Well-known ports", "Registered ports", "Reserved ports", "Dynamic (ephemeral) ports"]},
+
+  // W1 Network Hardware (6 questions)
+  {q: "A switch forwards frames based on which type of address?", a: ["IP address", "MAC address", "Port number", "Hostname"]},
+  {q: "A hub differs from a switch because a hub:", a: ["Forwards frames only to the correct port", "Broadcasts all frames to every port except the source", "Routes packets between subnets", "Supports VLANs"]},
+  {q: "PoE (Power over Ethernet) allows a switch to deliver:", a: ["Higher network speeds on existing cables", "Electrical power and data over a single Ethernet cable", "Wireless connectivity to wired devices", "Encrypted management traffic"]},
+  {q: "A firewall's primary function is to:", a: ["Amplify network signals", "Assign IP addresses", "Inspect traffic and enforce security rules to allow or block connections", "Convert fiber to copper"]},
+  {q: "A Layer 3 switch can perform both switching and:", a: ["Wireless access point functions", "Routing between VLANs using IP addresses", "Print server functions", "DNS resolution"]},
+  {q: "An IDS differs from an IPS because an IDS:", a: ["Blocks malicious traffic inline", "Only monitors and alerts without blocking", "Replaces the firewall", "Encrypts traffic"]},
+
+  // W2 SOHO Networking (6 questions)
+  {q: "The maximum length for a single Cat5e/Cat6 Ethernet run is:", a: ["100 meters (328 feet)", "50 meters (164 feet)", "200 meters (656 feet)", "500 meters (1640 feet)"]},
+  {q: "T568B places which color pair on pins 1 and 2?", a: ["Green pair", "Orange pair", "Blue pair", "Brown pair"]},
+  {q: "A device with a 169.254.x.x address indicates:", a: ["A successful DHCP lease", "A static IP assignment", "APIPA self-assignment because DHCP is unreachable", "A public IP from the ISP"]},
+  {q: "NAT (Network Address Translation) allows multiple internal devices to:", a: ["Share a single public IP address for internet access", "Use the same private IP simultaneously", "Bypass all firewall rules", "Connect to different ISPs at once"]},
+  {q: "Port forwarding on a SOHO router creates a rule that:", a: ["Blocks all external traffic", "Maps an incoming public port to an internal IP and port", "Disables NAT entirely", "Assigns DHCP reservations"]},
+  {q: "A DHCP reservation assigns the same IP address to a device based on its:", a: ["Hostname", "Operating system", "Cable port", "MAC address"]},
+
+  // W2 Wireless (6 questions)
+  {q: "WPA2 uses which encryption algorithm?", a: ["RC4", "DES", "AES-CCMP", "Blowfish"]},
+  {q: "802.11ac (Wi-Fi 5) operates exclusively on the:", a: ["2.4 GHz band", "5 GHz band", "6 GHz band", "900 MHz band"]},
+  {q: "The 2.4 GHz band has how many non-overlapping channels in North America?", a: ["11", "6", "3", "14"]},
+  {q: "WPA3-Personal replaces PSK with:", a: ["TKIP", "Simultaneous Authentication of Equals (SAE)", "WEP key scheduling", "Open authentication"]},
+  {q: "An evil twin attack involves:", a: ["Cracking WPA2 offline", "Creating a rogue AP with the same SSID to intercept client traffic", "Jamming all frequencies", "Exploiting Bluetooth"]},
+  {q: "WPS PIN-based authentication is vulnerable because the PIN is:", a: ["Only 4 digits long", "Validated in two halves, reducing brute-force attempts to about 11,000", "Transmitted in cleartext over the air", "Stored on the client device in plaintext"]},
+];
+
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+const questionsContainer = document.getElementById("questions");
+const shuffledData = shuffle([...examData]);
+
+shuffledData.forEach((item, i) => {
+  const div = document.createElement("div");
+  div.classList.add("question");
+  div.setAttribute("data-q", i);
+
+  let html = `
+    <div class="question-header">
+      <span class="q-num">Q${i + 1}</span>
+      <p>${item.q}</p>
+    </div>
+  `;
+
+  const answerIndices = [0, 1, 2, 3];
+  shuffle(answerIndices);
+
+  answerIndices.forEach((origIdx) => {
+    html += `<label><input type="radio" name="q${i}" value="${origIdx}"> ${item.a[origIdx]}</label>`;
+  });
+
+  div.innerHTML = html;
+  questionsContainer.appendChild(div);
+});
+
+window.shuffledData = shuffledData;
+
+// Timer: 45 minutes
+let timeLeft = 45 * 60;
+const timerEl = document.getElementById("timer");
+
+const timerInterval = setInterval(() => {
+  timeLeft--;
+  const mins = Math.floor(timeLeft / 60);
+  const secs = timeLeft % 60;
+  timerEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+  if (timeLeft <= 300) timerEl.classList.add('warning');
+  if (timeLeft <= 60) { timerEl.classList.remove('warning'); timerEl.classList.add('danger'); }
+
+  if (timeLeft <= 0) {
+    clearInterval(timerInterval);
+    submitExam();
+  }
+}, 1000);
+
+document.querySelectorAll('input[type="radio"]').forEach(input => {
+  input.addEventListener('change', () => {
+    const answeredCount = document.querySelectorAll('input[type="radio"]:checked').length;
+    document.getElementById('answered').textContent = answeredCount;
+  });
+});
+
+// Submit exam -- server-side graded (QC-21)
+async function submitExam() {
+  clearInterval(timerInterval);
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('submitBtn').textContent = 'Grading...';
+
+  const total = shuffledData.length;
+
+  const answerMap = {};
+  shuffledData.forEach((item, i) => {
+    const selected = document.querySelector(`input[name="q${i}"]:checked`);
+    if (selected) {
+      const origIdx = examData.indexOf(item);
+      answerMap[String(origIdx)] = parseInt(selected.value);
+    }
+  });
+
+  let score = 0, percent = 0, passed = false;
+
+  try {
+    if (typeof FirebaseAuth !== 'undefined') {
+      await FirebaseAuth.waitForAuth();
+      const response = await FirebaseAuth.callFunction('gradeQuiz', {
+        quizId: QUIZ_ID, answers: answerMap
+      });
+      score = response.data.score;
+      percent = response.data.percentage;
+      passed = response.data.passed;
+
+      shuffledData.forEach((item, i) => {
+        const origIdx = examData.indexOf(item);
+        const result = response.data.results[origIdx];
+        const selected = document.querySelector(`input[name="q${i}"]:checked`);
+        if (selected && result) {
+          selected.parentElement.classList.add(result.correct ? 'correct' : 'wrong');
+        }
+      });
+    }
+  } catch (e) {
+    console.warn('Server grading failed:', e.message);
+  }
+
+  if (passed) {
+    localStorage.setItem('hexworth_web_fl_midterm_passed', 'true');
+    localStorage.setItem('hexworth_web_fl_midterm_score', percent);
+    localStorage.setItem('hexworth_web_fl_midterm_date', new Date().toISOString());
+  }
+
+  if (passed && typeof ModuleProgress !== 'undefined') {
+    ModuleProgress.completeQuiz('web', 'fl-midterm', score);
+  }
+
+  const resultDiv = document.getElementById("result");
+  resultDiv.innerHTML = `
+    <h2>${passed
+      ? '<img src="/assets/images/icons/icon-check.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Midterm Passed!'
+      : '<img src="/assets/images/icons/icon-alert.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Keep Studying'
+    }</h2>
+    <div class="score-circle ${passed ? 'pass' : 'fail'}">
+      <span class="score-percent">${percent}%</span>
+      <span class="score-fraction">${score}/${total}</span>
+    </div>
+    <div class="result-msg ${passed ? 'pass' : 'fail'}">
+      ${passed
+        ? 'You passed the First Link Midterm Exam! You have earned the First Link Sentinel badge.'
+        : `You need 70% (18/25) to pass. Review Weeks 1-2 materials and try again. You scored ${score}/25.`}
+    </div>
+    ${passed ? `
+      <div class="unlock-badge">
+        <h3><img src="/assets/images/icons/icon-web.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> First Link Sentinel Badge Earned!</h3>
+        <p>You have demonstrated mastery of Ports & Protocols, Network Hardware, SOHO Networking, and Wireless. Continue to Weeks 3-4.</p>
+        <a href="../index.html" class="btn-continue">Continue to Week 3 &rarr;</a>
+      </div>
+    ` : `
+      <div style="margin-top: 20px;">
+        <a href="../quizzes/fl-w1-ports.quiz.html" class="btn-continue" style="margin-right: 10px;">Review W1 Ports</a>
+        <a href="../quizzes/fl-w2-wireless.quiz.html" class="btn-continue">Review W2 Wireless</a>
+      </div>
+    `}
+  `;
+  resultDiv.classList.add('visible');
+
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+}
+</script>
+</body>
+</html>
