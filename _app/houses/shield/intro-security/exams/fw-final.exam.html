@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- FirebaseAuth provides callFunction() for server-side quiz grading (QC-21) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>First Watch Final Exam - Hexworth Prime</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --bg2: #0f172a;
+    --card: #1e293b;
+    --ink: #e0e0e0;
+    --muted: #94a3b8;
+    --accent: #f87171;
+    --accent2: #f97316;
+    --accent-glow: rgba(248, 113, 113, 0.3);
+    --ok: #2ed573;
+    --warn: #ffc107;
+    --bad: #ff4757;
+    --border: rgba(255, 255, 255, 0.1);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #2d1b3d 100%);
+    color: var(--ink);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  .page-header {
+    padding: 15px 30px;
+    background: rgba(0, 0, 0, 0.4);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .page-header a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.2s;
+  }
+
+  .page-header a:hover { color: var(--accent); }
+
+  .brand {
+    font-weight: 600;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 30px 20px;
+  }
+
+  .exam-header { text-align: center; margin-bottom: 30px; }
+
+  h1 {
+    font-size: clamp(1.6rem, 3vw, 2rem);
+    margin-bottom: 12px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .header-meta {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+
+  .tag {
+    font-size: 0.75rem;
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: rgba(248, 113, 113, 0.15);
+    color: var(--accent);
+    border: 1px solid rgba(248, 113, 113, 0.3);
+  }
+
+  .exam-info {
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 30px;
+  }
+
+  .exam-info h2 { color: var(--accent); font-size: 1.2rem; margin-bottom: 10px; }
+  .exam-info ul { list-style: none; color: var(--muted); }
+  .exam-info li { padding: 4px 0; }
+  .exam-info li::before { content: "-> "; color: var(--accent); }
+
+  .timer-bar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10, 10, 15, 0.95);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .timer {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--accent);
+    font-family: monospace;
+  }
+
+  .timer.warning { color: var(--warn); }
+  .timer.danger { color: var(--bad); animation: pulse 1s infinite; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .progress-text { color: var(--muted); font-size: 0.9rem; }
+
+  .question {
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .question-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 14px;
+  }
+
+  .question p {
+    font-weight: 600;
+    color: #fff;
+    font-size: 1.05rem;
+    flex: 1;
+  }
+
+  .q-num {
+    background: rgba(248, 113, 113, 0.2);
+    color: var(--accent);
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-right: 12px;
+  }
+
+  .question label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    margin: 8px 0;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid transparent;
+  }
+
+  .question label:hover {
+    background: rgba(248, 113, 113, 0.1);
+    border-color: rgba(248, 113, 113, 0.3);
+  }
+
+  .question input[type="radio"] {
+    accent-color: var(--accent);
+    width: 18px;
+    height: 18px;
+  }
+
+  .question label.correct {
+    background: rgba(46, 213, 115, 0.15) !important;
+    border-color: var(--ok) !important;
+  }
+
+  .question label.wrong {
+    background: rgba(255, 71, 87, 0.15) !important;
+    border-color: var(--bad) !important;
+  }
+
+  .btn-submit {
+    display: block;
+    width: 100%;
+    max-width: 400px;
+    margin: 30px auto;
+    padding: 16px 40px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 10px;
+    color: #0a0a0f;
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 20px var(--accent-glow);
+  }
+
+  .btn-submit:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px var(--accent-glow);
+  }
+
+  .btn-submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  #result {
+    background: rgba(30, 41, 59, 0.95);
+    border: 2px solid var(--border);
+    border-radius: 16px;
+    padding: 40px;
+    margin-top: 30px;
+    text-align: center;
+    display: none;
+  }
+
+  #result.visible { display: block; }
+
+  #result h2 { font-size: 1.8rem; margin-bottom: 12px; color: var(--ink); }
+
+  .score-circle {
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    border: 6px solid;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 20px auto;
+    background: rgba(0, 0, 0, 0.3);
+  }
+
+  .score-circle.pass { border-color: var(--ok); box-shadow: 0 0 40px rgba(46, 213, 115, 0.4); }
+  .score-circle.fail { border-color: var(--bad); box-shadow: 0 0 40px rgba(255, 71, 87, 0.4); }
+
+  .score-percent { font-size: 2.5rem; font-weight: 700; }
+  .score-fraction { font-size: 1rem; color: var(--muted); }
+
+  .result-msg {
+    font-size: 1.2rem;
+    margin-top: 20px;
+    padding: 16px;
+    border-radius: 10px;
+  }
+
+  .result-msg.pass { background: rgba(46, 213, 115, 0.15); color: var(--ok); border: 1px solid var(--ok); }
+  .result-msg.fail { background: rgba(255, 71, 87, 0.15); color: var(--bad); border: 1px solid var(--bad); }
+
+  .unlock-badge {
+    margin-top: 20px;
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(248, 113, 113, 0.2), rgba(249, 115, 22, 0.2));
+    border: 2px solid var(--accent);
+    border-radius: 12px;
+  }
+
+  .unlock-badge h3 { color: var(--accent); margin-bottom: 10px; }
+
+  .btn-continue {
+    display: inline-block;
+    margin-top: 15px;
+    padding: 12px 30px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 8px;
+    color: #0a0a0f;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  footer {
+    text-align: center;
+    padding: 30px;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <a href="../index.html">&#8592; Back to First Watch Hub</a>
+  <span class="brand">
+    <img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+    Hexworth Prime
+  </span>
+</header>
+
+<div class="timer-bar">
+  <span class="progress-text">Question <span id="answered">0</span>/40 answered</span>
+  <span class="timer" id="timer">75:00</span>
+</div>
+
+<div class="container">
+  <div class="exam-header">
+    <h1>
+      <img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+      First Watch Final Exam
+    </h1>
+    <div class="header-meta">
+      <span class="tag">CTS1120C</span>
+      <span class="tag">40 Questions</span>
+      <span class="tag">70% to Pass</span>
+      <span class="tag">75 Minutes</span>
+      <span class="tag">Weeks 1-4</span>
+    </div>
+  </div>
+
+  <div class="exam-info">
+    <h2>Exam Information</h2>
+    <ul>
+      <li>Comprehensive exam covering all course content: Weeks 1-4</li>
+      <li>Physical Security, Logical Security, Wireless, Malware, Social Engineering, OS Security, Workstation Hardening, Mobile, Data Destruction, and SOHO Security</li>
+      <li>You need 70% (28/40) to pass</li>
+      <li>Passing awards the <strong>First Watch Guardian</strong> badge</li>
+      <li>Time limit: 75 minutes (timer starts when page loads)</li>
+      <li>Review your answers before submitting - you only get one attempt!</li>
+    </ul>
+  </div>
+
+  <form id="examForm">
+    <div id="questions"></div>
+    <button type="button" class="btn-submit" id="submitBtn" onclick="submitExam()">Submit Final Exam</button>
+  </form>
+
+  <div id="result"></div>
+</div>
+
+<footer>
+  Part of <a href="../index.html">Hexworth Prime</a> | First Watch - Introduction to Security
+</footer>
+
+<script>
+// Answers validated server-side via gradeQuiz() Cloud Function (QC-21)
+// Answer key stored in Firestore quiz_keys/fw-final
+const QUIZ_ID = 'fw-final';
+
+const examData = [
+  // W1 Physical Security (4 questions)
+  {q: "An access control vestibule (mantrap) prevents unauthorized building entry by:", a: ["Using a single reinforced steel door with a deadbolt", "Requiring two interlocking doors where the first must close before the second opens", "Posting a security guard at a revolving door", "Requiring visitors to sign a log book"]},
+  {q: "Which environmental control uses clean agent suppression (FM-200 or Novec 1230) to protect server rooms?", a: ["Wet-pipe sprinkler system", "Fire suppression that removes heat without water damage to electronics", "Dry chemical fire extinguisher", "Foam-based suppression"]},
+  {q: "Bollards installed around a building entrance are designed to:", a: ["Prevent electromagnetic interference", "Block vehicle access and protect against ramming attacks", "Monitor pedestrian foot traffic", "Control humidity levels near the entrance"]},
+  {q: "A proximity card used for building access operates using:", a: ["Bluetooth Low Energy", "Radio Frequency Identification (RFID)", "Infrared transmission", "Ultrasonic signals"]},
+
+  // W1 Logical Security (4 questions)
+  {q: "Which CIA Triad property is MOST directly attacked when ransomware encrypts an organization's files?", a: ["Confidentiality", "Integrity", "Availability", "Authentication"]},
+  {q: "Role-Based Access Control (RBAC) assigns permissions based on:", a: ["Individual user requests", "The user's job function or organizational role", "The user's seniority level", "The time of day the user logs in"]},
+  {q: "A VPN protects data in transit by:", a: ["Hiding the user's MAC address", "Creating an encrypted tunnel between two endpoints across an untrusted network", "Blocking all inbound traffic", "Compressing data to prevent interception"]},
+  {q: "Encryption at rest protects data that is:", a: ["Being transmitted across a network", "Stored on a hard drive, SSD, or other storage media", "Currently being processed in RAM", "Displayed on a monitor"]},
+
+  // W2 Wireless Security (4 questions)
+  {q: "WPA2-Enterprise differs from WPA2-Personal because it uses:", a: ["A longer pre-shared key", "802.1X authentication with a RADIUS server providing unique per-user session keys", "A different frequency band", "WPA3-compatible hardware"]},
+  {q: "A deauthentication attack exploits the fact that 802.11 management frames are:", a: ["Encrypted with WPA2-AES", "Not authenticated or encrypted in WPA2, allowing forged deauth frames", "Only sent on the 5 GHz band", "Protected by certificate-based authentication"]},
+  {q: "RADIUS provides centralized:", a: ["Wireless encryption between client and AP", "Authentication, Authorization, and Accounting (AAA) services", "Channel management to avoid interference", "Rogue AP detection and removal"]},
+  {q: "EAP-TLS is considered the most secure EAP method because it:", a: ["Uses the longest password possible", "Requires mutual certificate-based authentication between client and server", "Is the fastest EAP method", "Does not require a RADIUS server"]},
+
+  // W2 Malware (4 questions)
+  {q: "A Trojan horse differs from a worm because a Trojan:", a: ["Self-replicates across networks without user action", "Disguises itself as legitimate software and does not self-replicate", "Only targets Linux systems", "Always encrypts files for ransom"]},
+  {q: "Polymorphic malware evades signature-based detection by:", a: ["Only executing on specific dates", "Changing its code signature with each replication while maintaining core functionality", "Hiding exclusively in the system BIOS", "Using legitimate system tools exclusively"]},
+  {q: "A Remote Access Trojan (RAT) gives an attacker:", a: ["Only the ability to view the victim's screen", "Full remote control of the victim's system including file access, webcam, keylogging, and command execution", "Only access to saved browser passwords", "Only the ability to use the system for DDoS"]},
+  {q: "Cryptomining malware primarily impacts an organization through:", a: ["Data exfiltration and credential theft", "Unauthorized use of computing resources, degraded performance, and increased power costs", "Encryption of all network file shares", "Complete loss of network connectivity"]},
+
+  // W3 Social Engineering (4 questions)
+  {q: "Spear phishing differs from regular phishing because it:", a: ["Uses phone calls instead of email", "Targets specific individuals with personalized, researched content", "Requires physical access to the victim's computer", "Only targets financial institutions"]},
+  {q: "Business Email Compromise (BEC) typically involves:", a: ["Hacking the email server to read all messages", "Impersonating an executive's email to request fraudulent wire transfers or sensitive data", "Sending mass spam to an organization's customers", "Encrypting the email archive for ransom"]},
+  {q: "An attacker leaves infected USB drives in a company parking lot hoping employees will plug them in. This is:", a: ["Phishing", "Baiting", "Pretexting", "Shoulder surfing"]},
+  {q: "A watering hole attack compromises:", a: ["USB drives distributed to the target", "A website frequently visited by the target group, injecting malicious code", "The target's email account directly", "Physical mail sent to the target organization"]},
+
+  // W3 OS Security (4 questions)
+  {q: "User Account Control (UAC) protects Windows systems by:", a: ["Encrypting user files on the desktop", "Prompting for consent before allowing changes that could affect system security", "Managing password complexity requirements", "Monitoring network traffic for anomalies"]},
+  {q: "BitLocker stores its encryption key in the TPM and requires the recovery key when:", a: ["The user types the wrong password once", "The TPM detects a boot integrity change such as a BIOS update or hardware modification", "The system runs out of disk space", "The user connects to a new Wi-Fi network"]},
+  {q: "Windows Event ID 4625 in the Security Log indicates:", a: ["A successful user logon", "A failed logon attempt", "A system shutdown event", "A successful file access"]},
+  {q: "AppLocker controls which applications users can run based on:", a: ["The application's color scheme and interface", "Publisher digital signature, file path, or file hash rules", "The application's file size only", "Whether the application was downloaded from the internet"]},
+
+  // W3 Workstation Hardening (4 questions)
+  {q: "The primary goal of system hardening is to:", a: ["Install the latest OS version", "Reduce the attack surface by removing unnecessary software, services, and features", "Add more hardware resources", "Enable all available features"]},
+  {q: "Application whitelisting operates on a:", a: ["Default-allow model that blocks known-bad applications", "Default-deny model that only allows pre-approved applications to execute", "Trust-all model that logs but does not block", "Blacklist model that is updated weekly"]},
+  {q: "Disabling autorun and autoplay on Windows prevents:", a: ["Users from playing audio CDs", "Malware from automatically executing when removable media is inserted", "Software installation from downloaded files", "Automatic Windows updates"]},
+  {q: "Endpoint Detection and Response (EDR) differs from traditional antivirus by providing:", a: ["Only signature-based detection", "Continuous monitoring, behavioral analysis, threat hunting, and automated response capabilities", "Only scheduled file scans", "Only network-level protection"]},
+
+  // W4 Mobile Security (4 questions)
+  {q: "Jailbreaking an iOS device is a security risk because:", a: ["It improves battery life", "It removes built-in security controls and allows installation of unvetted apps", "It enables stronger encryption", "It is required for MDM enrollment"]},
+  {q: "Mobile containerization provides security by:", a: ["Creating a physical case around the device", "Creating a separate encrypted workspace that isolates corporate data from personal data", "Duplicating all data to a cloud backup", "Restricting the device to phone calls only"]},
+  {q: "BYOD policies must balance:", a: ["Device cost with employee salary", "Employee privacy on personal devices with the organization's need to protect corporate data", "Screen size with app compatibility", "Battery life with processing power"]},
+  {q: "An IMSI catcher (Stingray) attacks mobile devices by:", a: ["Sending phishing text messages", "Impersonating a legitimate cell tower to intercept calls, texts, and data", "Exploiting Bluetooth vulnerabilities", "Installing malware through the app store"]},
+
+  // W4 Data Destruction (4 questions)
+  {q: "Degaussing is effective for destroying data on HDDs but NOT on SSDs because:", a: ["SSDs are too small for the equipment", "SSDs store data as electrical charges in flash memory, not magnetic patterns", "SSDs have built-in degaussing protection", "Degaussing only works on devices larger than 3.5 inches"]},
+  {q: "NIST SP 800-88 defines three sanitization levels. The correct order from least to most secure is:", a: ["Purge, Clear, Destroy", "Clear, Purge, Destroy", "Destroy, Purge, Clear", "Clear, Destroy, Purge"]},
+  {q: "Cryptographic erase sanitizes a self-encrypting drive by:", a: ["Physically destroying the encryption chip", "Deleting the media encryption key, making all data permanently unreadable", "Overwriting the entire drive with encrypted random data", "Reformatting with an encrypted file system"]},
+  {q: "Simply deleting files and formatting a drive does NOT destroy data because:", a: ["The OS prevents deletion", "Deletion only removes file system pointers while the actual data remains recoverable with forensic tools", "Formatting encrypts the data", "Deletion moves data to a hidden partition"]},
+
+  // W4 SOHO Security (4 questions)
+  {q: "The first step in hardening a SOHO router is:", a: ["Enabling WPS for easy setup", "Changing the default administrator username and password", "Disabling the built-in firewall", "Enabling remote management"]},
+  {q: "UPnP (Universal Plug and Play) is a security risk because it:", a: ["Slows network speed significantly", "Allows applications to automatically open firewall ports without user approval", "Prevents devices from connecting", "Only supports outdated protocols"]},
+  {q: "IoT devices should be isolated on a separate network because:", a: ["They use too much bandwidth", "Many have weak security and a compromised IoT device could attack other network resources", "They are incompatible with standard Wi-Fi", "They cannot connect to guest networks"]},
+  {q: "DNS over HTTPS (DoH) improves security by:", a: ["Making websites load faster", "Encrypting DNS queries to prevent eavesdropping and manipulation of domain lookups", "Replacing the need for a VPN", "Blocking advertisements automatically"]},
+];
+
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+const questionsContainer = document.getElementById("questions");
+const shuffledData = shuffle([...examData]);
+
+shuffledData.forEach((item, i) => {
+  const div = document.createElement("div");
+  div.classList.add("question");
+  div.setAttribute("data-q", i);
+
+  let html = `
+    <div class="question-header">
+      <span class="q-num">Q${i + 1}</span>
+      <p>${item.q}</p>
+    </div>
+  `;
+
+  // Shuffle answer options but track original index for server grading
+  const answerIndices = [0, 1, 2, 3];
+  shuffle(answerIndices);
+
+  answerIndices.forEach((origIdx) => {
+    html += `<label><input type="radio" name="q${i}" value="${origIdx}"> ${item.a[origIdx]}</label>`;
+  });
+
+  div.innerHTML = html;
+  questionsContainer.appendChild(div);
+});
+
+window.shuffledData = shuffledData;
+
+// Timer: 75 minutes
+let timeLeft = 75 * 60;
+const timerEl = document.getElementById("timer");
+
+const timerInterval = setInterval(() => {
+  timeLeft--;
+  const mins = Math.floor(timeLeft / 60);
+  const secs = timeLeft % 60;
+  timerEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+  if (timeLeft <= 600) timerEl.classList.add('warning');
+  if (timeLeft <= 120) { timerEl.classList.remove('warning'); timerEl.classList.add('danger'); }
+
+  if (timeLeft <= 0) {
+    clearInterval(timerInterval);
+    submitExam();
+  }
+}, 1000);
+
+// Track answered count
+document.querySelectorAll('input[type="radio"]').forEach(input => {
+  input.addEventListener('change', () => {
+    const answeredCount = document.querySelectorAll('input[type="radio"]:checked').length;
+    document.getElementById('answered').textContent = answeredCount;
+  });
+});
+
+// Submit exam -- server-side graded (QC-21)
+async function submitExam() {
+  clearInterval(timerInterval);
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('submitBtn').textContent = 'Grading...';
+
+  const total = shuffledData.length;
+
+  // Map shuffled positions back to original examData indices for server grading
+  const answerMap = {};
+  shuffledData.forEach((item, i) => {
+    const selected = document.querySelector(`input[name="q${i}"]:checked`);
+    if (selected) {
+      const origIdx = examData.indexOf(item);
+      answerMap[String(origIdx)] = parseInt(selected.value);
+    }
+  });
+
+  let score = 0, percent = 0, passed = false;
+
+  try {
+    if (typeof FirebaseAuth !== 'undefined') {
+      await FirebaseAuth.waitForAuth();
+      const response = await FirebaseAuth.callFunction('gradeQuiz', {
+        quizId: QUIZ_ID, answers: answerMap
+      });
+      score = response.data.score;
+      percent = response.data.percentage;
+      passed = response.data.passed;
+
+      // Mark user selections correct/incorrect based on server results
+      shuffledData.forEach((item, i) => {
+        const origIdx = examData.indexOf(item);
+        const result = response.data.results[origIdx];
+        const selected = document.querySelector(`input[name="q${i}"]:checked`);
+        if (selected && result) {
+          selected.parentElement.classList.add(result.correct ? 'correct' : 'wrong');
+        }
+      });
+    }
+  } catch (e) {
+    console.warn('Server grading failed:', e.message);
+  }
+
+  // Persist result to localStorage
+  if (passed) {
+    localStorage.setItem('hexworth_shield_fw_final_passed', 'true');
+    localStorage.setItem('hexworth_shield_fw_final_score', percent);
+    localStorage.setItem('hexworth_shield_fw_final_date', new Date().toISOString());
+  }
+
+  // Trigger ModuleProgress on pass
+  if (passed && typeof ModuleProgress !== 'undefined') {
+    ModuleProgress.completeQuiz('shield', 'fw-final', score);
+  }
+
+  const resultDiv = document.getElementById("result");
+  resultDiv.innerHTML = `
+    <h2>${passed
+      ? '<img src="/assets/images/icons/icon-check.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Final Exam Passed!'
+      : '<img src="/assets/images/icons/icon-alert.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Keep Studying'
+    }</h2>
+    <div class="score-circle ${passed ? 'pass' : 'fail'}">
+      <span class="score-percent">${percent}%</span>
+      <span class="score-fraction">${score}/${total}</span>
+    </div>
+    <div class="result-msg ${passed ? 'pass' : 'fail'}">
+      ${passed
+        ? 'Excellent work. You have passed the First Watch Final Exam and earned the First Watch Guardian badge. Course complete.'
+        : `You need 70% (28/40) to pass. Review all four weeks of material and try again. You scored ${score}/40.`}
+    </div>
+    ${passed ? `
+      <div class="unlock-badge">
+        <h3><img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> First Watch Guardian Badge Earned!</h3>
+        <p>You have demonstrated mastery across all Introduction to Security topics. CTS1120C complete.</p>
+        <a href="../index.html" class="btn-continue">Return to First Watch Hub &rarr;</a>
+      </div>
+    ` : `
+      <div style="margin-top: 20px;">
+        <a href="../quizzes/fw-w3-social.quiz.html" class="btn-continue" style="margin-right: 10px;">Review W3</a>
+        <a href="../quizzes/fw-w4-mobile.quiz.html" class="btn-continue">Review W4</a>
+      </div>
+    `}
+  `;
+  resultDiv.classList.add('visible');
+
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+}
+</script>
+</body>
+</html>
