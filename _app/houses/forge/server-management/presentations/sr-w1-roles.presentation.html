@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Roles &amp; Features | The Server Room | The Forge</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%); color: #e2e8f0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: absolute; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: absolute; top: 0; left: 0; height: 3px; background: #fbbf24; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(9,9,16,0.95); border-top: 1px solid rgba(255,255,255,0.07); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.07); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(251,191,36,0.15); color: #fbbf24; border-color: #fbbf24; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s; }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #fbbf24; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #fbbf24; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip { background: rgba(251,191,36,0.08); border-left: 3px solid #fbbf24; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #fde68a; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-gold { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.3); color: #fef3c7; }
+        .box-green { background: rgba(58,181,119,0.08); border: 1px solid rgba(58,181,119,0.35); color: #d1fae5; }
+        .box-red { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); color: #fee2e2; }
+        .box-cyan { background: rgba(6,182,212,0.08); border: 1px solid rgba(6,182,212,0.3); color: #cffafe; }
+        .box-purple { background: rgba(168,85,247,0.08); border: 1px solid rgba(168,85,247,0.3); color: #e9d5ff; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #fbbf24; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #fbbf24; }
+        .card:hover { background: rgba(255,255,255,0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-red { border-left-color: #ef4444; } .card.c-gold { border-left-color: #fbbf24; }
+        .card.c-cyan { border-left-color: #06b6d4; } .card.c-purple { border-left-color: #a855f7; } .card.c-orange { border-left-color: #f97316; } .card.c-blue { border-left-color: #3b82f6; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #fbbf24; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #f59e0b; background: rgba(245,158,11,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num { background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.4); color: #fbbf24; font-weight: 700; font-size: 0.78rem; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px; }
+        .step-text { color: #cbd5e1; line-height: 1.4; } .step-text strong { color: #f1f5f9; }
+        @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes boxGrow { from { opacity:0; transform:scale(0.7); } to { opacity:1; transform:scale(1); } }
+        @keyframes entityPop { from { opacity:0; transform:scale(0.6) translateY(6px); } to { opacity:1; transform:scale(1) translateY(0); } }
+        @keyframes pulse { 0%,100% { opacity:0.4; } 50% { opacity:1; } }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .card-grid-4 { grid-template-columns: 1fr 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Server Roles and Features -- The Server Room -- The Forge</h1>
+<div id="progress-bar" style="width:7.7%"></div>
+
+<!-- SLIDE 1 -- TITLE -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 13 | CTS1328C The Server Room | Server Roles</div>
+        <div class="title-hero">
+            <svg width="500" height="110" viewBox="0 0 500 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="200" y="10" width="100" height="90" rx="10" fill="rgba(251,191,36,0.08)" stroke="#fbbf24" stroke-width="1.5" style="animation:boxGrow 0.4s ease forwards 0.05s;opacity:0;"/>
+                <text x="250" y="55" text-anchor="middle" font-size="9" fill="#fbbf24" font-weight="700" font-family="Segoe UI,sans-serif">SERVER</text>
+                <rect x="40" y="20" width="70" height="30" rx="5" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1" style="animation:entityPop 0.3s ease forwards 0.2s;opacity:0;"/>
+                <text x="75" y="39" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">AD DS</text>
+                <rect x="40" y="58" width="70" height="30" rx="5" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1" style="animation:entityPop 0.3s ease forwards 0.25s;opacity:0;"/>
+                <text x="75" y="77" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">DNS</text>
+                <rect x="390" y="20" width="70" height="30" rx="5" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="1" style="animation:entityPop 0.3s ease forwards 0.3s;opacity:0;"/>
+                <text x="425" y="39" text-anchor="middle" font-size="7" fill="#d8b4fe" font-family="Segoe UI,sans-serif">DHCP</text>
+                <rect x="390" y="58" width="70" height="30" rx="5" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1" style="animation:entityPop 0.3s ease forwards 0.35s;opacity:0;"/>
+                <text x="425" y="77" text-anchor="middle" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif">IIS</text>
+                <line x1="110" y1="35" x2="200" y2="50" stroke="rgba(59,130,246,0.3)" stroke-width="1" stroke-dasharray="4,3"/>
+                <line x1="110" y1="73" x2="200" y2="55" stroke="rgba(58,181,119,0.3)" stroke-width="1" stroke-dasharray="4,3"/>
+                <line x1="300" y1="50" x2="390" y2="35" stroke="rgba(168,85,247,0.3)" stroke-width="1" stroke-dasharray="4,3"/>
+                <line x1="300" y1="55" x2="390" y2="73" stroke="rgba(6,182,212,0.3)" stroke-width="1" stroke-dasharray="4,3"/>
+            </svg>
+            <div class="big-title">Server <span class="accent">Roles</span> &amp; Features</div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">AD DS -- DNS -- DHCP -- File Server -- IIS -- Print Server -- PowerShell Management</div>
+        </div>
+        <div class="scenario-strip">A bare Windows Server does nothing until you install roles. Roles define what the server does (domain controller, DNS server, web server). Features add supporting capabilities (.NET, Windows Backup, Telnet). This deck covers the core roles every server admin must know.</div>
+        <div class="title-meta-row">
+            <span>13 Slides</span><span>CTS1328C The Server Room</span><span>Week 1</span><span>The Forge</span>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 2 -- ROLES vs FEATURES -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 13</div>
+        <div class="slide-title">Roles vs <span class="accent">Features</span></div>
+        <div class="slide-subtitle">Roles define the server's primary function. Features add supporting capabilities.</div>
+        <div class="card-grid-2">
+            <div class="card c-gold"><div class="card-label">Server Roles</div><div class="card-desc">Primary services the server provides to the network: AD DS, DNS, DHCP, File Server, Web Server (IIS), Print Server, Hyper-V, Remote Desktop Services. A server typically runs 1-3 roles.</div></div>
+            <div class="card c-blue"><div class="card-label">Features</div><div class="card-desc">Supporting tools and services: .NET Framework, Windows Backup, Telnet Client, SNMP, BitLocker, Failover Clustering, Windows Subsystem for Linux. Features support roles or add standalone capabilities.</div></div>
+        </div>
+        <div class="diagram-center">
+            <svg width="460" height="80" viewBox="0 0 460 80" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="30" y="10" width="180" height="55" rx="8" fill="rgba(251,191,36,0.06)" stroke="#fbbf24" stroke-width="1.2" style="animation:fadeUp 0.3s ease forwards 0.1s;opacity:0;"/>
+                <text x="120" y="30" text-anchor="middle" font-size="10" fill="#fbbf24" font-weight="700" font-family="Segoe UI,sans-serif">Roles</text>
+                <text x="120" y="48" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">What the server DOES</text>
+                <rect x="250" y="10" width="180" height="55" rx="8" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1.2" style="animation:fadeUp 0.3s ease forwards 0.2s;opacity:0;"/>
+                <text x="340" y="30" text-anchor="middle" font-size="10" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Features</text>
+                <text x="340" y="48" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">What the server HAS</text>
+            </svg>
+        </div>
+        <div class="box box-gold"><strong>Role dependencies:</strong> Some roles require specific features. When you install AD DS, the wizard automatically adds required features like Group Policy Management and DNS. PowerShell: <code>Install-WindowsFeature -Name AD-Domain-Services -IncludeManagementTools</code></div>
+    </div>
+</section>
+
+<!-- SLIDE 3 -- AD DS -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 13</div>
+        <div class="slide-title">Active Directory <span class="accent">Domain Services</span></div>
+        <div class="slide-subtitle">The identity backbone -- centralized authentication, authorization, and policy management.</div>
+        <div class="card-grid">
+            <div class="card c-gold"><div class="card-label">What AD DS Does</div><div class="card-desc">Stores user accounts, computer objects, groups, and OUs in a hierarchical database. Authenticates logons via Kerberos. Enforces Group Policy (GPOs) for security and configuration.</div></div>
+            <div class="card c-blue"><div class="card-label">Domain Controllers (DCs)</div><div class="card-desc">Servers running AD DS. Multi-master replication -- changes on any DC replicate to all others. Minimum: 2 DCs per domain for redundancy. FSMO roles distribute special operations.</div></div>
+            <div class="card c-green"><div class="card-label">Key Components</div><div class="card-desc"><strong>Forest:</strong> Top-level container. <strong>Domain:</strong> Security boundary. <strong>OU:</strong> Organizational unit for GPO targeting. <strong>Sites:</strong> Physical topology for replication optimization.</div></div>
+        </div>
+        <div class="diagram-center">
+            <svg width="400" height="80" viewBox="0 0 400 80" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="140" y="5" width="120" height="25" rx="5" fill="rgba(251,191,36,0.1)" stroke="#fbbf24" stroke-width="1" style="animation:boxGrow 0.3s ease forwards 0.1s;opacity:0;"/>
+                <text x="200" y="22" text-anchor="middle" font-size="9" fill="#fbbf24" font-weight="700" font-family="Segoe UI,sans-serif">Forest</text>
+                <rect x="100" y="38" width="90" height="22" rx="4" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1" style="animation:fadeUp 0.3s ease forwards 0.2s;opacity:0;"/>
+                <text x="145" y="53" text-anchor="middle" font-size="8" fill="#93c5fd" font-family="Segoe UI,sans-serif">Domain A</text>
+                <rect x="210" y="38" width="90" height="22" rx="4" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1" style="animation:fadeUp 0.3s ease forwards 0.25s;opacity:0;"/>
+                <text x="255" y="53" text-anchor="middle" font-size="8" fill="#86efac" font-family="Segoe UI,sans-serif">Domain B</text>
+                <line x1="170" y1="30" x2="145" y2="38" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+                <line x1="230" y1="30" x2="255" y2="38" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+                <rect x="60" y="66" width="70" height="14" rx="3" fill="rgba(168,85,247,0.06)" stroke="#a855f7" stroke-width="0.8"/>
+                <text x="95" y="76" text-anchor="middle" font-size="6" fill="#d8b4fe" font-family="Segoe UI,sans-serif">OU: Sales</text>
+                <rect x="140" y="66" width="70" height="14" rx="3" fill="rgba(168,85,247,0.06)" stroke="#a855f7" stroke-width="0.8"/>
+                <text x="175" y="76" text-anchor="middle" font-size="6" fill="#d8b4fe" font-family="Segoe UI,sans-serif">OU: IT</text>
+            </svg>
+        </div>
+        <div class="box box-green"><strong>PowerShell:</strong> <code>Install-ADDSForest -DomainName "corp.local"</code> promotes the first DC. <code>Install-ADDSDomainController</code> adds additional DCs. Always have at least 2 DCs.</div>
+    </div>
+</section>
+
+<!-- SLIDE 4 -- DNS -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 13</div>
+        <div class="slide-title"><span class="accent">DNS</span> Server Role</div>
+        <div class="slide-subtitle">Name resolution -- translating hostnames to IP addresses. Required for Active Directory.</div>
+        <div class="card-grid">
+            <div class="card c-blue"><div class="card-label">Forward Lookup Zones</div><div class="card-desc">Hostname to IP: SRV-DC01.corp.local resolves to 10.0.0.10. A records (IPv4) and AAAA records (IPv6). CNAME records create aliases (mail.corp.local pointing to SRV-EXCH01).</div></div>
+            <div class="card c-purple"><div class="card-label">Reverse Lookup Zones</div><div class="card-desc">IP to hostname: 10.0.0.10 resolves to SRV-DC01.corp.local. PTR records. Required for some services (email SPF, security auditing). Create for each subnet.</div></div>
+            <div class="card c-gold"><div class="card-label">AD-Integrated DNS</div><div class="card-desc">DNS zones stored in Active Directory (not flat files). Secure dynamic updates. Multi-master replication with AD. Automatic cleanup (scavenging) of stale records. Best practice for AD environments.</div></div>
+        </div>
+        <div class="box box-cyan"><strong>Why DNS + AD:</strong> Active Directory clients use DNS SRV records to locate domain controllers. Without DNS, no client can find a DC to authenticate. DNS is always installed alongside AD DS -- they are inseparable in practice.</div>
+    </div>
+</section>
+
+<!-- SLIDE 5 -- DHCP -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 13</div>
+        <div class="slide-title"><span class="accent">DHCP</span> Server Role</div>
+        <div class="slide-subtitle">Automatic IP address assignment -- eliminate manual IP configuration for clients.</div>
+        <div class="card-grid-2">
+            <div class="card c-green"><div class="card-label">DHCP Scopes</div><div class="card-desc">Define an IP range (e.g., 10.0.0.100 - 10.0.0.200), subnet mask, default gateway, DNS servers, and lease duration. Exclusion ranges reserve IPs for static devices (printers, servers).</div></div>
+            <div class="card c-gold"><div class="card-label">DHCP Reservations</div><div class="card-desc">Bind a specific IP to a device's MAC address. The device always gets the same IP from DHCP. Best for printers, network devices, and servers that need predictable IPs without manual config.</div></div>
+        </div>
+        <div class="diagram-center">
+            <svg width="460" height="80" viewBox="0 0 460 80" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="20" y="20" width="80" height="40" rx="6" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1" style="animation:fadeUp 0.3s ease forwards 0.1s;opacity:0;"/>
+                <text x="60" y="38" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">DISCOVER</text>
+                <line x1="100" y1="40" x2="140" y2="40" stroke="rgba(255,255,255,0.15)" stroke-width="1" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="10;0" dur="1s" repeatCount="indefinite"/></line>
+                <rect x="140" y="20" width="80" height="40" rx="6" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1" style="animation:fadeUp 0.3s ease forwards 0.2s;opacity:0;"/>
+                <text x="180" y="38" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">OFFER</text>
+                <line x1="220" y1="40" x2="260" y2="40" stroke="rgba(255,255,255,0.15)" stroke-width="1" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="10;0" dur="1s" repeatCount="indefinite"/></line>
+                <rect x="260" y="20" width="80" height="40" rx="6" fill="rgba(251,191,36,0.08)" stroke="#fbbf24" stroke-width="1" style="animation:fadeUp 0.3s ease forwards 0.3s;opacity:0;"/>
+                <text x="300" y="38" text-anchor="middle" font-size="7" fill="#fde68a" font-family="Segoe UI,sans-serif">REQUEST</text>
+                <line x1="340" y1="40" x2="380" y2="40" stroke="rgba(255,255,255,0.15)" stroke-width="1" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="10;0" dur="1s" repeatCount="indefinite"/></line>
+                <rect x="380" y="20" width="60" height="40" rx="6" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="1" style="animation:fadeUp 0.3s ease forwards 0.4s;opacity:0;"/>
+                <text x="410" y="38" text-anchor="middle" font-size="7" fill="#d8b4fe" font-family="Segoe UI,sans-serif">ACK</text>
+            </svg>
+        </div>
+        <div class="box box-gold"><strong>DORA process:</strong> Discover (client broadcasts), Offer (server proposes IP), Request (client accepts), Acknowledge (server confirms lease). DHCP must be <strong>authorized in AD</strong> before it will serve addresses -- prevents rogue DHCP servers.</div>
+    </div>
+</section>
+
+<!-- SLIDE 6 -- FILE SERVER -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 13</div>
+        <div class="slide-title">File Server &amp; <span class="accent">Storage</span> Roles</div>
+        <div class="slide-subtitle">Centralized file storage, sharing, and access control.</div>
+        <div class="card-grid">
+            <div class="card c-gold"><div class="card-label">SMB File Shares</div><div class="card-desc">Server Message Block protocol. Create shared folders accessible via UNC paths (\\SRV-FILE01\Sales). SMB 3.x supports encryption, multichannel, and failover. PowerShell: <code>New-SmbShare</code></div></div>
+            <div class="card c-blue"><div class="card-label">NTFS Permissions</div><div class="card-desc">File-level access control. Inherited from parent folders. Combine with share permissions (most restrictive wins). Best practice: Share = Everyone Full Control, control access via NTFS only.</div></div>
+            <div class="card c-green"><div class="card-label">DFS &amp; FSRM</div><div class="card-desc"><strong>DFS Namespaces:</strong> Single UNC path across multiple servers (\\corp.local\shares). <strong>DFS Replication:</strong> Sync folders between servers. <strong>FSRM:</strong> Quotas, file screening, storage reports.</div></div>
+        </div>
+        <div class="box box-purple"><strong>Access-Based Enumeration (ABE):</strong> Users only see files/folders they have permission to access. Enable per-share to prevent users from seeing folder names they cannot open -- critical for compliance.</div>
+    </div>
+</section>
+
+<!-- SLIDE 7 -- IIS -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 13</div>
+        <div class="slide-title">Web Server <span class="accent">(IIS)</span></div>
+        <div class="slide-subtitle">Internet Information Services -- hosting websites, web apps, and APIs on Windows Server.</div>
+        <div class="card-grid">
+            <div class="card c-cyan"><div class="card-label">Sites &amp; Bindings</div><div class="card-desc">Each site has bindings: IP address, port, host header. Multiple sites on one server use different host headers or ports. Default site listens on port 80 (HTTP) and 443 (HTTPS).</div></div>
+            <div class="card c-gold"><div class="card-label">Application Pools</div><div class="card-desc">Worker processes (w3wp.exe) that run site code. Each app pool runs under its own identity. Isolates sites -- one crash does not affect others. Configure recycling schedule for stability.</div></div>
+            <div class="card c-green"><div class="card-label">SSL/TLS Certificates</div><div class="card-desc">Bind SSL certificates to HTTPS bindings. Use internal CA for intranet or public CA (Let's Encrypt, DigiCert) for internet-facing. TLS 1.2+ required -- disable older protocols.</div></div>
+        </div>
+        <div class="box box-gold"><strong>PowerShell:</strong> <code>Install-WindowsFeature -Name Web-Server -IncludeManagementTools</code> installs IIS. <code>New-WebSite -Name "Intranet" -PhysicalPath "C:\inetpub\intranet" -HostHeader "intranet.corp.local"</code></div>
+    </div>
+</section>
+
+<!-- SLIDE 8 -- PRINT SERVER -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 13</div>
+        <div class="slide-title">Print <span class="accent">Server</span> Role</div>
+        <div class="slide-subtitle">Centralized printer management -- deploy printers via Group Policy, monitor queues, manage drivers.</div>
+        <div class="card-grid-2">
+            <div class="card c-gold"><div class="card-label">Print Management Console</div><div class="card-desc">Single pane of glass for all printers. Add/remove printers, manage queues, deploy via GPO, install drivers. Filter views by status (error, warning, ready). Monitor print volume per printer.</div></div>
+            <div class="card c-blue"><div class="card-label">GPO Printer Deployment</div><div class="card-desc">Deploy printers to users or computers via Group Policy. User-based: printers follow the user. Computer-based: printers are tied to the workstation. Use Print Management to generate the GPO link.</div></div>
+        </div>
+        <div class="box box-red"><strong>Driver isolation:</strong> Run printer drivers in isolated processes (not shared with the spooler). If a bad driver crashes, it does not take down the entire print service. Enable via Print Management properties.</div>
+    </div>
+</section>
+
+<!-- SLIDE 9 -- FEATURES -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 13</div>
+        <div class="slide-title">Key <span class="accent">Features</span></div>
+        <div class="slide-subtitle">Features you will install alongside roles -- supporting tools and services.</div>
+        <div class="card-grid-4">
+            <div class="card c-green"><div class="card-label">.NET Framework</div><div class="card-desc">Required by many applications and roles. 3.5 (legacy apps) and 4.x (modern) both available. Install both for compatibility.</div></div>
+            <div class="card c-blue"><div class="card-label">Windows Backup</div><div class="card-desc">Built-in backup solution. System State, bare metal, volume-level. Schedule via <code>wbadmin</code> or GUI. Covered in Week 3.</div></div>
+            <div class="card c-gold"><div class="card-label">Telnet Client</div><div class="card-desc">Not installed by default. Used for testing TCP port connectivity (telnet server 25). Quick test: is the port open? Replaced by <code>Test-NetConnection</code>.</div></div>
+            <div class="card c-purple"><div class="card-label">Failover Clustering</div><div class="card-desc">Enables HA for Hyper-V, file servers, SQL Server. Requires shared storage. Covered in detail in Week 3.</div></div>
+        </div>
+        <div class="box box-gold"><strong>PowerShell:</strong> <code>Get-WindowsFeature | Where-Object InstallState -eq Installed</code> lists all currently installed roles and features. <code>Install-WindowsFeature -Name Telnet-Client</code> adds a feature.</div>
+    </div>
+</section>
+
+<!-- SLIDE 10 -- POWERSHELL ROLE MANAGEMENT -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 13</div>
+        <div class="slide-title">PowerShell <span class="accent">Role Management</span></div>
+        <div class="slide-subtitle">Every role and feature can be installed, configured, and removed via PowerShell.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><code>Get-WindowsFeature</code> -- list all roles/features with install status</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><code>Install-WindowsFeature -Name DNS -IncludeManagementTools</code> -- install DNS with admin tools</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><code>Uninstall-WindowsFeature -Name Print-Server -Remove</code> -- remove role AND binaries from disk</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><code>Install-WindowsFeature -Name DHCP -ComputerName SRV-DHCP01</code> -- install remotely</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><code>Add-DhcpServerv4Scope -Name "LAN" -StartRange 10.0.0.100 -EndRange 10.0.0.200 -SubnetMask 255.255.255.0</code></span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><code>Add-DnsServerPrimaryZone -Name "corp.local" -ReplicationScope Domain</code> -- create AD-integrated zone</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text"><code>New-ADUser -Name "Jane Doe" -SamAccountName jdoe -Enabled $true -AccountPassword (ConvertTo-SecureString "P@ss" -AsPlainText -Force)</code></span></div>
+        </div>
+        <div class="box box-green"><strong>Script it:</strong> PowerShell scripts make role deployment repeatable and auditable. Save your server build scripts in version control. Use Desired State Configuration (DSC) for automated compliance enforcement.</div>
+    </div>
+</section>
+
+<!-- SLIDE 11 -- ROLE DEPENDENCIES -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 13</div>
+        <div class="slide-title">Role <span class="accent">Dependencies</span></div>
+        <div class="slide-subtitle">Some roles require other roles or features to function. The wizard handles this automatically.</div>
+        <div class="diagram-center">
+            <svg width="500" height="110" viewBox="0 0 500 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="180" y="5" width="140" height="30" rx="6" fill="rgba(251,191,36,0.1)" stroke="#fbbf24" stroke-width="1.2" style="animation:boxGrow 0.3s ease forwards 0.1s;opacity:0;"/>
+                <text x="250" y="25" text-anchor="middle" font-size="9" fill="#fbbf24" font-weight="700" font-family="Segoe UI,sans-serif">AD DS</text>
+                <line x1="210" y1="35" x2="120" y2="55" stroke="rgba(59,130,246,0.3)" stroke-width="1"/>
+                <line x1="290" y1="35" x2="380" y2="55" stroke="rgba(58,181,119,0.3)" stroke-width="1"/>
+                <rect x="60" y="50" width="120" height="25" rx="5" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1" style="animation:fadeUp 0.3s ease forwards 0.2s;opacity:0;"/>
+                <text x="120" y="67" text-anchor="middle" font-size="8" fill="#93c5fd" font-family="Segoe UI,sans-serif">DNS (required)</text>
+                <rect x="320" y="50" width="120" height="25" rx="5" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="1" style="animation:fadeUp 0.3s ease forwards 0.25s;opacity:0;"/>
+                <text x="380" y="67" text-anchor="middle" font-size="8" fill="#86efac" font-family="Segoe UI,sans-serif">GPMC (auto-added)</text>
+                <rect x="140" y="85" width="220" height="20" rx="4" fill="rgba(168,85,247,0.06)" stroke="#a855f7" stroke-width="0.8" style="animation:fadeUp 0.3s ease forwards 0.3s;opacity:0;"/>
+                <text x="250" y="99" text-anchor="middle" font-size="7" fill="#d8b4fe" font-family="Segoe UI,sans-serif">.NET 3.5 + Windows PowerShell ISE</text>
+            </svg>
+        </div>
+        <div class="card-grid">
+            <div class="card c-gold"><div class="card-label">AD DS Requires DNS</div><div class="card-desc">Active Directory stores SRV records in DNS for DC location. If DNS is not installed, the AD DS wizard will install it automatically. Best practice: co-locate DNS on every DC.</div></div>
+            <div class="card c-blue"><div class="card-label">Failover Clustering + Hyper-V</div><div class="card-desc">Clustered Hyper-V requires the Failover Clustering feature, shared storage (iSCSI/FC/S2D), and the Hyper-V role on all nodes. The cluster validates prerequisites before creation.</div></div>
+            <div class="card c-purple"><div class="card-label">NPS + AD DS</div><div class="card-desc">Network Policy Server (RADIUS) requires AD DS for user authentication. NPS evaluates connection requests against AD group membership and policies.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 12 -- ROLE PLACEMENT -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 13</div>
+        <div class="slide-title">Role <span class="accent">Placement</span> Best Practices</div>
+        <div class="slide-subtitle">Which roles go on the same server? Which must be separated?</div>
+        <div class="card-grid-2">
+            <div class="card c-green"><div class="card-label">Safe to Combine</div><div class="card-desc">
+                <strong>DC + DNS + DHCP:</strong> Common in small environments.<br>
+                <strong>File Server + Print Server:</strong> Low resource overlap.<br>
+                <strong>Web Server (IIS) + .NET:</strong> Natural pairing for web apps.
+            </div></div>
+            <div class="card c-red"><div class="card-label">Keep Separate</div><div class="card-desc">
+                <strong>DC + Exchange/SQL:</strong> Too resource-intensive. Security risk.<br>
+                <strong>Hyper-V host + other roles:</strong> Host should run VMs only.<br>
+                <strong>Edge roles (WAP/VPN) + DC:</strong> Never expose a DC to the internet.
+            </div></div>
+        </div>
+        <div class="box box-gold"><strong>Virtualization changes everything:</strong> In modern environments, each role runs in its own VM. The physical host runs only Hyper-V. This provides isolation, snapshots, and the ability to move workloads between hosts.</div>
+    </div>
+</section>
+
+<!-- SLIDE 13 -- SUMMARY -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 13</div>
+        <div class="slide-title">Week 1B <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Server Roles and Features -- key takeaways.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Roles vs Features:</strong> Roles = primary function (AD DS, DNS). Features = supporting tools (.NET, Backup, Clustering).</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>AD DS:</strong> Identity backbone. Domain controllers, forests, domains, OUs. Kerberos authentication. Always 2+ DCs.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>DNS:</strong> Name resolution. Required for AD. AD-integrated zones are best practice. SRV records locate DCs.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>DHCP:</strong> Automatic IP assignment. DORA process. Must be authorized in AD. Scopes, reservations, exclusions.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>File Server:</strong> SMB shares, NTFS permissions, DFS namespaces, FSRM quotas. Access-Based Enumeration for security.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>IIS:</strong> Web hosting. Sites, bindings, app pools, SSL/TLS. Application isolation via worker processes.</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text"><strong>PowerShell:</strong> Install-WindowsFeature, Get-WindowsFeature. Every role is scriptable and remotely deployable.</span></div>
+        </div>
+        <div class="box box-gold"><strong>Next up:</strong> Week 2 -- Storage Management (disks, file systems, Storage Spaces) and Virtualization (Hyper-V).</div>
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; The Server Room</button></a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide-1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 13</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide+1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 13;
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        document.getElementById('slide-' + currentSlide).classList.remove('active');
+        currentSlide = n;
+        document.getElementById('slide-' + currentSlide).classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        var cb = document.getElementById('complete-btn');
+        if (cb) cb.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+    goToSlide(1);
+</script>
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('forge', 'sr-w1-roles-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>
