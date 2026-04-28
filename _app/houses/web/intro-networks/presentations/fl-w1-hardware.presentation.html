@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Common Networking Hardware | First Link CTS1090C</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* SLIDE SYSTEM */
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+
+        /* PROGRESS BAR */
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #3b82f6; transition: width 0.4s ease; z-index: 200; }
+
+        /* NAV BAR */
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(9,9,16,0.95); border-top: 1px solid rgba(255,255,255,0.07); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.07); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(59,130,246,0.15); color: #60a5fa; border-color: #3b82f6; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3b82f6; color: #fff; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s; }
+        #complete-btn:hover { background: #60a5fa; transform: translateY(-1px); }
+
+        /* SLIDE TEXT */
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title span.accent-blue { color: #60a5fa; }
+        .slide-title span.accent-cyan { color: #06b6d4; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .blue { color: #60a5fa; }
+        .title-hero .big-title .cyan { color: #06b6d4; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .scenario-strip { background: rgba(59,130,246,0.08); border-left: 3px solid #3b82f6; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #93c5fd; font-style: italic; }
+
+        /* BOXES */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-blue { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.3); color: #bfdbfe; }
+        .box-cyan { background: rgba(6,182,212,0.08); border: 1px solid rgba(6,182,212,0.3); color: #cffafe; }
+        .box-green { background: rgba(58,181,119,0.08); border: 1px solid rgba(58,181,119,0.35); color: #d1fae5; }
+        .box-red { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); color: #fee2e2; }
+        .box-gold { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* DEVICE GRID */
+        .device-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .device-card { background: rgba(255,255,255,0.03); border-radius: 9px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+        .device-card .dc-name { font-size: 0.82rem; font-weight: 700; color: #60a5fa; text-transform: uppercase; letter-spacing: 0.06em; }
+        .device-card .dc-layer { font-size: 0.68rem; font-weight: 600; color: #475569; }
+        .device-card .dc-desc { font-size: 0.8rem; color: #94a3b8; line-height: 1.4; }
+        .dc-l1 { border-left: 3px solid #fbbf24; }
+        .dc-l2 { border-left: 3px solid #a78bfa; }
+        .dc-l3 { border-left: 3px solid #60a5fa; }
+        .dc-multi { border-left: 3px solid #22c55e; }
+
+        /* TWO-COL */
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .col-card { background: rgba(255,255,255,0.03); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+        .col-card.col-managed { border: 1px solid rgba(59,130,246,0.3); }
+        .col-card.col-unmanaged { border: 1px solid rgba(100,116,139,0.3); }
+        .col-card-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; }
+        .col-managed .col-card-label { color: #60a5fa; }
+        .col-unmanaged .col-card-label { color: #94a3b8; }
+        .col-card-note { font-size: 0.82rem; color: #94a3b8; line-height: 1.45; }
+
+        /* COMPARISON LIST */
+        .compare-list { display: flex; flex-direction: column; gap: 6px; }
+        .compare-item { display: flex; gap: 12px; align-items: baseline; font-size: 0.83rem; padding: 6px 12px; border-radius: 6px; background: rgba(255,255,255,0.02); }
+        .compare-item .ci-label { font-weight: 600; color: #60a5fa; min-width: 130px; flex-shrink: 0; }
+        .compare-item .ci-text { color: #94a3b8; }
+
+        /* SUMMARY */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #60a5fa; background: rgba(59,130,246,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+
+        /* RESPONSIVE */
+        @media (max-height: 700px) {
+            .slide-inner { gap: 9px; }
+            .slide-title { font-size: 1.4rem; }
+            .title-hero .big-title { font-size: 1.9rem; }
+            .box { padding: 9px 12px; }
+            .device-grid { gap: 6px; }
+            .device-card { padding: 8px 10px; }
+        }
+        @media (max-width: 768px) {
+            .two-col { grid-template-columns: 1fr; }
+            .device-grid { grid-template-columns: 1fr 1fr; }
+            .slide-title { font-size: 1.3rem; }
+        }
+        @media (max-width: 480px) {
+            .device-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Common Networking Hardware &mdash; First Link CTS1090C</h1>
+
+<div id="progress-bar" style="width:8%"></div>
+
+<!-- SLIDE 1 — TITLE -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 13 &nbsp;|&nbsp; CTS1090C &nbsp;|&nbsp; Week 1</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Common <span class="blue">Networking</span><br>
+                <span class="cyan">Hardware</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Every device in the rack has a job. Learn what each one does and where it fits.
+            </div>
+        </div>
+        <div class="scenario-strip">
+            You walk into a server room for the first time. There are blinking lights everywhere &mdash;
+            racks of metal boxes connected by a web of cables. What is each device, and what role does it play?
+        </div>
+        <div class="title-meta-row">
+            <span>13 Slides</span>
+            <span>Week 1</span>
+            <span>Physical / Data Link / Network</span>
+            <span>Concepts + Identification</span>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 2 — HUB -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 13</div>
+        <div class="slide-title">The <span class="accent-blue">Hub</span> &mdash; Layer 1</div>
+        <div class="slide-subtitle">The simplest (and dumbest) networking device. It repeats everything it receives to every port.</div>
+
+        <svg viewBox="0 0 700 160" style="width:100%;max-width:700px;margin:0 auto;display:block;">
+            <!-- Hub -->
+            <rect x="260" y="50" width="180" height="60" rx="8" fill="rgba(251,191,36,0.08)" stroke="#fbbf24" stroke-width="1.5"/>
+            <text x="350" y="78" fill="#fde68a" font-size="12" font-weight="700" text-anchor="middle" font-family="Segoe UI">HUB</text>
+            <text x="350" y="96" fill="#64748b" font-size="8" text-anchor="middle" font-family="Segoe UI">Layer 1 &mdash; Repeats to ALL ports</text>
+            <!-- PCs -->
+            <rect x="20" y="15" width="90" height="35" rx="6" fill="rgba(255,255,255,0.03)" stroke="#475569" stroke-width="1"/>
+            <text x="65" y="37" fill="#94a3b8" font-size="9" text-anchor="middle" font-family="Segoe UI">PC-A</text>
+            <line x1="110" y1="35" x2="260" y2="65" stroke="#fbbf24" stroke-width="1" stroke-dasharray="4,3"/>
+            <rect x="20" y="110" width="90" height="35" rx="6" fill="rgba(255,255,255,0.03)" stroke="#475569" stroke-width="1"/>
+            <text x="65" y="132" fill="#94a3b8" font-size="9" text-anchor="middle" font-family="Segoe UI">PC-B</text>
+            <line x1="110" y1="127" x2="260" y2="95" stroke="#fbbf24" stroke-width="1" stroke-dasharray="4,3"/>
+            <rect x="590" y="15" width="90" height="35" rx="6" fill="rgba(255,255,255,0.03)" stroke="#475569" stroke-width="1"/>
+            <text x="635" y="37" fill="#94a3b8" font-size="9" text-anchor="middle" font-family="Segoe UI">PC-C</text>
+            <line x1="590" y1="35" x2="440" y2="65" stroke="#fbbf24" stroke-width="1" stroke-dasharray="4,3"/>
+            <rect x="590" y="110" width="90" height="35" rx="6" fill="rgba(255,255,255,0.03)" stroke="#475569" stroke-width="1"/>
+            <text x="635" y="132" fill="#94a3b8" font-size="9" text-anchor="middle" font-family="Segoe UI">PC-D</text>
+            <line x1="590" y1="127" x2="440" y2="95" stroke="#fbbf24" stroke-width="1" stroke-dasharray="4,3"/>
+        </svg>
+
+        <div class="box box-red" style="font-size:0.83rem;">
+            <div class="box-label">Why Hubs Are Obsolete</div>
+            Hubs create a single <strong>collision domain</strong> &mdash; if two devices send at the same time, the signals collide and both must retransmit. They also send every frame to every port, wasting bandwidth and creating security risks. Switches replaced hubs in virtually all modern networks.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 3 — SWITCH -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 13</div>
+        <div class="slide-title">The <span class="accent-blue">Switch</span> &mdash; Layer 2</div>
+        <div class="slide-subtitle">The backbone of every LAN. A switch learns MAC addresses and forwards frames only to the correct port.</div>
+
+        <svg viewBox="0 0 700 160" style="width:100%;max-width:700px;margin:0 auto;display:block;">
+            <rect x="260" y="50" width="180" height="60" rx="8" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.5"/>
+            <text x="350" y="72" fill="#c4b5fd" font-size="12" font-weight="700" text-anchor="middle" font-family="Segoe UI">SWITCH</text>
+            <text x="350" y="88" fill="#64748b" font-size="8" text-anchor="middle" font-family="Segoe UI">Layer 2 &mdash; MAC Address Table</text>
+            <text x="350" y="102" fill="#64748b" font-size="7" text-anchor="middle" font-family="Segoe UI">Port 1: AA:BB / Port 2: CC:DD / Port 3: EE:FF</text>
+            <!-- Only the intended recipient gets the frame -->
+            <rect x="20" y="55" width="90" height="35" rx="6" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1"/>
+            <text x="65" y="72" fill="#60a5fa" font-size="9" font-weight="600" text-anchor="middle" font-family="Segoe UI">PC-A (src)</text>
+            <line x1="110" y1="72" x2="258" y2="72" stroke="#3b82f6" stroke-width="1.5"/>
+            <polygon points="255,68 265,72 255,76" fill="#3b82f6"/>
+            <rect x="590" y="55" width="90" height="35" rx="6" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1"/>
+            <text x="635" y="72" fill="#4ade80" font-size="9" font-weight="600" text-anchor="middle" font-family="Segoe UI">PC-C (dst)</text>
+            <line x1="442" y1="72" x2="588" y2="72" stroke="#22c55e" stroke-width="1.5"/>
+            <polygon points="585,68 595,72 585,76" fill="#22c55e"/>
+            <!-- Other PCs don't receive -->
+            <rect x="590" y="120" width="90" height="30" rx="6" fill="rgba(255,255,255,0.02)" stroke="#334155" stroke-width="1" stroke-dasharray="4,3"/>
+            <text x="635" y="140" fill="#475569" font-size="8" text-anchor="middle" font-family="Segoe UI">PC-D (not sent)</text>
+        </svg>
+
+        <div class="two-col">
+            <div class="col-card col-managed">
+                <div class="col-card-label">Managed Switch</div>
+                <div class="col-card-note">
+                    Configurable via CLI or web interface. Supports VLANs, port mirroring, QoS, SNMP monitoring, PoE management.
+                    Used in enterprise networks. More expensive.
+                </div>
+            </div>
+            <div class="col-card col-unmanaged">
+                <div class="col-card-label">Unmanaged Switch</div>
+                <div class="col-card-note">
+                    Plug and play. No configuration options. Learns MACs and forwards frames automatically.
+                    Perfect for small offices and home networks. Cheap and simple.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 4 — ROUTER -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 13</div>
+        <div class="slide-title">The <span class="accent-blue">Router</span> &mdash; Layer 3</div>
+        <div class="slide-subtitle">Routers connect different networks and make forwarding decisions based on IP addresses.</div>
+
+        <svg viewBox="0 0 700 150" style="width:100%;max-width:700px;margin:0 auto;display:block;">
+            <!-- LAN A -->
+            <rect x="10" y="40" width="180" height="70" rx="8" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1"/>
+            <text x="100" y="62" fill="#60a5fa" font-size="10" font-weight="700" text-anchor="middle" font-family="Segoe UI">LAN A</text>
+            <text x="100" y="80" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="Courier New">192.168.1.0/24</text>
+            <text x="100" y="96" fill="#64748b" font-size="8" text-anchor="middle" font-family="Segoe UI">Desktops, printers</text>
+            <!-- Router -->
+            <rect x="260" y="30" width="180" height="90" rx="10" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="2"/>
+            <text x="350" y="58" fill="#60a5fa" font-size="13" font-weight="700" text-anchor="middle" font-family="Segoe UI">ROUTER</text>
+            <text x="350" y="78" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="Segoe UI">Layer 3 &mdash; IP Routing Table</text>
+            <text x="350" y="95" fill="#64748b" font-size="7" text-anchor="middle" font-family="Courier New">.1.1 &larr; eth0 | eth1 &rarr; .2.1</text>
+            <text x="350" y="110" fill="#64748b" font-size="7" text-anchor="middle" font-family="Courier New">wan0 &rarr; ISP Gateway</text>
+            <!-- LAN B -->
+            <rect x="510" y="40" width="180" height="70" rx="8" fill="rgba(6,182,212,0.06)" stroke="#06b6d4" stroke-width="1"/>
+            <text x="600" y="62" fill="#06b6d4" font-size="10" font-weight="700" text-anchor="middle" font-family="Segoe UI">LAN B</text>
+            <text x="600" y="80" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="Courier New">192.168.2.0/24</text>
+            <text x="600" y="96" fill="#64748b" font-size="8" text-anchor="middle" font-family="Segoe UI">Servers, storage</text>
+            <!-- Arrows -->
+            <line x1="192" y1="75" x2="258" y2="75" stroke="#3b82f6" stroke-width="1.5"/>
+            <polygon points="255,71 265,75 255,79" fill="#3b82f6"/>
+            <line x1="442" y1="75" x2="508" y2="75" stroke="#06b6d4" stroke-width="1.5"/>
+            <polygon points="505,71 515,75 505,79" fill="#06b6d4"/>
+        </svg>
+
+        <div class="box box-blue" style="font-size:0.83rem;">
+            <div class="box-label">Key Functions</div>
+            <strong>Inter-network routing:</strong> Connects LANs to each other and to the internet.
+            <strong>NAT:</strong> Translates private IPs to a public IP for internet access.
+            <strong>Firewall (basic):</strong> Most consumer routers include a stateful firewall.
+            <strong>DHCP server:</strong> Assigns IPs to devices on the local network.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 5 — WIRELESS ACCESS POINT -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 13</div>
+        <div class="slide-title"><span class="accent-blue">Wireless Access Point</span> (AP)</div>
+        <div class="slide-subtitle">Bridges the wireless and wired worlds. Clients connect via Wi-Fi; the AP connects to the switch via Ethernet.</div>
+
+        <svg viewBox="0 0 700 140" style="width:100%;max-width:700px;margin:0 auto;display:block;">
+            <!-- AP -->
+            <rect x="270" y="30" width="160" height="60" rx="10" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.5"/>
+            <text x="350" y="55" fill="#60a5fa" font-size="11" font-weight="700" text-anchor="middle" font-family="Segoe UI">ACCESS POINT</text>
+            <text x="350" y="75" fill="#64748b" font-size="8" text-anchor="middle" font-family="Segoe UI">SSID: Office-WiFi</text>
+            <!-- Radio waves -->
+            <path d="M 310 25 Q 350 5 390 25" fill="none" stroke="rgba(96,165,250,0.4)" stroke-width="1.5"/>
+            <path d="M 295 15 Q 350 -10 405 15" fill="none" stroke="rgba(96,165,250,0.25)" stroke-width="1.5"/>
+            <!-- Wireless clients -->
+            <rect x="50" y="105" width="80" height="30" rx="5" fill="rgba(255,255,255,0.03)" stroke="#475569" stroke-width="1"/>
+            <text x="90" y="124" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="Segoe UI">Laptop</text>
+            <line x1="130" y1="115" x2="270" y2="70" stroke="rgba(96,165,250,0.3)" stroke-width="1" stroke-dasharray="4,3"/>
+            <rect x="180" y="105" width="80" height="30" rx="5" fill="rgba(255,255,255,0.03)" stroke="#475569" stroke-width="1"/>
+            <text x="220" y="124" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="Segoe UI">Phone</text>
+            <line x1="260" y1="115" x2="300" y2="90" stroke="rgba(96,165,250,0.3)" stroke-width="1" stroke-dasharray="4,3"/>
+            <!-- Wired connection to switch -->
+            <rect x="530" y="40" width="130" height="40" rx="6" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1"/>
+            <text x="595" y="65" fill="#c4b5fd" font-size="9" font-weight="600" text-anchor="middle" font-family="Segoe UI">SWITCH (Wired)</text>
+            <line x1="432" y1="60" x2="528" y2="60" stroke="#a78bfa" stroke-width="1.5"/>
+            <polygon points="525,56 535,60 525,64" fill="#a78bfa"/>
+            <text x="480" y="54" fill="#64748b" font-size="7" text-anchor="middle" font-family="Segoe UI">Ethernet</text>
+        </svg>
+
+        <div class="box box-blue" style="font-size:0.83rem;">
+            An AP is <strong>not a router</strong>. A standalone AP only bridges wireless clients to the wired network. Consumer "wireless routers" combine an AP, switch, router, and DHCP server in one box &mdash; but enterprise environments use separate, dedicated APs connected to managed switches (often powered by PoE).
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 6 — FIREWALL -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 13</div>
+        <div class="slide-title">The <span class="accent-blue">Firewall</span></div>
+        <div class="slide-subtitle">The gatekeeper. Inspects traffic and enforces rules about what gets in and out.</div>
+
+        <svg viewBox="0 0 700 130" style="width:100%;max-width:700px;margin:0 auto;display:block;">
+            <rect x="10" y="35" width="140" height="55" rx="8" fill="rgba(100,116,139,0.06)" stroke="#64748b" stroke-width="1"/>
+            <text x="80" y="60" fill="#94a3b8" font-size="10" font-weight="700" text-anchor="middle" font-family="Segoe UI">INTERNET</text>
+            <text x="80" y="78" fill="#64748b" font-size="8" text-anchor="middle" font-family="Segoe UI">Untrusted zone</text>
+            <rect x="230" y="15" width="240" height="100" rx="10" fill="rgba(239,68,68,0.06)" stroke="#f87171" stroke-width="2"/>
+            <text x="350" y="38" fill="#f87171" font-size="12" font-weight="700" text-anchor="middle" font-family="Segoe UI">FIREWALL</text>
+            <text x="350" y="58" fill="#4ade80" font-size="8" text-anchor="middle" font-family="Courier New">ALLOW TCP 443 inbound</text>
+            <text x="350" y="72" fill="#4ade80" font-size="8" text-anchor="middle" font-family="Courier New">ALLOW TCP 22 from admin-IP</text>
+            <text x="350" y="86" fill="#f87171" font-size="8" text-anchor="middle" font-family="Courier New">DENY TCP 23 (Telnet)</text>
+            <text x="350" y="100" fill="#f87171" font-size="8" text-anchor="middle" font-family="Courier New">DENY ALL other inbound</text>
+            <rect x="550" y="35" width="140" height="55" rx="8" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1"/>
+            <text x="620" y="60" fill="#60a5fa" font-size="10" font-weight="700" text-anchor="middle" font-family="Segoe UI">INTERNAL</text>
+            <text x="620" y="78" fill="#64748b" font-size="8" text-anchor="middle" font-family="Segoe UI">Trusted zone</text>
+            <line x1="152" y1="62" x2="228" y2="62" stroke="#64748b" stroke-width="1.5"/>
+            <polygon points="225,58 235,62 225,66" fill="#64748b"/>
+            <line x1="472" y1="62" x2="548" y2="62" stroke="#3b82f6" stroke-width="1.5"/>
+            <polygon points="545,58 555,62 545,66" fill="#3b82f6"/>
+        </svg>
+
+        <div class="compare-list">
+            <div class="compare-item"><span class="ci-label">Hardware Firewall</span><span class="ci-text">Dedicated appliance (Cisco ASA, Palo Alto, Fortinet). Sits inline at the network perimeter. Inspects all traffic entering/leaving.</span></div>
+            <div class="compare-item"><span class="ci-label">Software Firewall</span><span class="ci-text">Runs on the host OS (Windows Defender Firewall, iptables). Protects individual machines. Often used alongside a hardware firewall.</span></div>
+            <div class="compare-item"><span class="ci-label">NGFW</span><span class="ci-text">Next-Generation Firewall. Deep packet inspection, application awareness, IPS, and threat intelligence in one appliance.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 7 — MODEM -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 13</div>
+        <div class="slide-title">The <span class="accent-cyan">Modem</span></div>
+        <div class="slide-subtitle">Modulator/demodulator. Converts digital signals from your network to the signal type your ISP uses.</div>
+
+        <svg viewBox="0 0 700 100" style="width:100%;max-width:700px;margin:0 auto;display:block;">
+            <rect x="10" y="25" width="180" height="50" rx="8" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1"/>
+            <text x="100" y="48" fill="#60a5fa" font-size="10" font-weight="700" text-anchor="middle" font-family="Segoe UI">YOUR NETWORK</text>
+            <text x="100" y="65" fill="#64748b" font-size="8" text-anchor="middle" font-family="Segoe UI">Digital (Ethernet)</text>
+            <rect x="260" y="15" width="180" height="70" rx="10" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.5"/>
+            <text x="350" y="40" fill="#06b6d4" font-size="11" font-weight="700" text-anchor="middle" font-family="Segoe UI">MODEM</text>
+            <text x="350" y="58" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="Segoe UI">Digital &harr; Analog/RF/Light</text>
+            <text x="350" y="74" fill="#64748b" font-size="7" text-anchor="middle" font-family="Segoe UI">Cable / DSL / Fiber ONT</text>
+            <rect x="510" y="25" width="180" height="50" rx="8" fill="rgba(100,116,139,0.06)" stroke="#64748b" stroke-width="1"/>
+            <text x="600" y="48" fill="#94a3b8" font-size="10" font-weight="700" text-anchor="middle" font-family="Segoe UI">ISP NETWORK</text>
+            <text x="600" y="65" fill="#64748b" font-size="8" text-anchor="middle" font-family="Segoe UI">Coax / Phone / Fiber</text>
+            <line x1="192" y1="50" x2="258" y2="50" stroke="#3b82f6" stroke-width="1.5"/>
+            <polygon points="255,46 265,50 255,54" fill="#3b82f6"/>
+            <line x1="442" y1="50" x2="508" y2="50" stroke="#64748b" stroke-width="1.5"/>
+            <polygon points="505,46 515,50 505,54" fill="#64748b"/>
+        </svg>
+
+        <div class="box box-cyan" style="font-size:0.83rem;">
+            <strong>Cable modem:</strong> DOCSIS standard, uses coaxial cable. <strong>DSL modem:</strong> Uses phone lines (twisted pair). <strong>Fiber ONT:</strong> Optical Network Terminal, converts fiber optic light signals to Ethernet. Many ISPs now provide a <strong>gateway</strong> &mdash; a modem + router + AP in one device.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 8 — PATCH PANEL & MEDIA CONVERTER -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 13</div>
+        <div class="slide-title"><span class="accent-blue">Patch Panel</span> &amp; <span class="accent-cyan">Media Converter</span></div>
+        <div class="slide-subtitle">Infrastructure components that organize and adapt your physical connections.</div>
+
+        <div class="two-col">
+            <div class="col-card col-managed">
+                <div class="col-card-label">Patch Panel</div>
+                <div class="col-card-note">
+                    A passive panel with rows of RJ-45 ports. Permanent cables from wall jacks terminate at the back; short patch cables connect the front to the switch. Provides organization, labeling, and easy moves/adds/changes without re-running cables. No electronics &mdash; purely physical.
+                </div>
+            </div>
+            <div class="col-card col-unmanaged">
+                <div class="col-card-label">Media Converter</div>
+                <div class="col-card-note">
+                    Converts one cable type to another &mdash; most commonly fiber optic to copper Ethernet (or vice versa). Used when a long fiber run from an ISP or building backbone needs to connect to a copper switch. Small, powered device.
+                </div>
+            </div>
+        </div>
+
+        <svg viewBox="0 0 700 80" style="width:100%;max-width:700px;margin:0 auto;display:block;">
+            <!-- Patch panel diagram -->
+            <text x="20" y="20" fill="#60a5fa" font-size="9" font-weight="700" font-family="Segoe UI">PATCH PANEL FLOW</text>
+            <rect x="20" y="30" width="120" height="35" rx="5" fill="rgba(255,255,255,0.03)" stroke="#475569" stroke-width="1"/>
+            <text x="80" y="52" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="Segoe UI">Wall Jack (Office)</text>
+            <text x="155" y="50" fill="#475569" font-size="10">&rarr;</text>
+            <rect x="170" y="30" width="140" height="35" rx="5" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1"/>
+            <text x="240" y="52" fill="#60a5fa" font-size="8" font-weight="600" text-anchor="middle" font-family="Segoe UI">Patch Panel (back)</text>
+            <text x="325" y="50" fill="#475569" font-size="10">&rarr;</text>
+            <rect x="340" y="30" width="120" height="35" rx="5" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1"/>
+            <text x="400" y="52" fill="#60a5fa" font-size="8" font-weight="600" text-anchor="middle" font-family="Segoe UI">Patch Cable (front)</text>
+            <text x="475" y="50" fill="#475569" font-size="10">&rarr;</text>
+            <rect x="490" y="30" width="120" height="35" rx="5" fill="rgba(167,139,250,0.06)" stroke="#a78bfa" stroke-width="1"/>
+            <text x="550" y="52" fill="#c4b5fd" font-size="8" font-weight="600" text-anchor="middle" font-family="Segoe UI">Switch Port</text>
+        </svg>
+    </div>
+</section>
+
+<!-- SLIDE 9 — PoE -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 13</div>
+        <div class="slide-title"><span class="accent-blue">Power over Ethernet</span> (PoE)</div>
+        <div class="slide-subtitle">One cable for data AND power. No separate power adapter needed.</div>
+
+        <svg viewBox="0 0 700 100" style="width:100%;max-width:700px;margin:0 auto;display:block;">
+            <rect x="30" y="25" width="160" height="50" rx="8" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.5"/>
+            <text x="110" y="48" fill="#60a5fa" font-size="10" font-weight="700" text-anchor="middle" font-family="Segoe UI">PoE SWITCH</text>
+            <text x="110" y="64" fill="#64748b" font-size="8" text-anchor="middle" font-family="Segoe UI">Provides power + data</text>
+            <!-- Ethernet cable -->
+            <line x1="192" y1="50" x2="360" y2="50" stroke="#3b82f6" stroke-width="2"/>
+            <text x="276" y="42" fill="#60a5fa" font-size="7" font-weight="700" text-anchor="middle" font-family="Segoe UI">ETHERNET (data + power)</text>
+            <!-- Devices -->
+            <rect x="370" y="10" width="140" height="32" rx="5" fill="rgba(255,255,255,0.03)" stroke="#475569" stroke-width="1"/>
+            <text x="440" y="30" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="Segoe UI">IP Camera</text>
+            <rect x="370" y="48" width="140" height="32" rx="5" fill="rgba(255,255,255,0.03)" stroke="#475569" stroke-width="1"/>
+            <text x="440" y="68" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="Segoe UI">VoIP Phone</text>
+            <rect x="540" y="28" width="140" height="32" rx="5" fill="rgba(255,255,255,0.03)" stroke="#475569" stroke-width="1"/>
+            <text x="610" y="48" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="Segoe UI">Wireless AP</text>
+        </svg>
+
+        <div class="compare-list">
+            <div class="compare-item"><span class="ci-label">802.3af (PoE)</span><span class="ci-text">15.4W per port. Enough for VoIP phones, basic APs, simple cameras.</span></div>
+            <div class="compare-item"><span class="ci-label">802.3at (PoE+)</span><span class="ci-text">25.5W per port. Supports PTZ cameras, high-power APs, thin clients.</span></div>
+            <div class="compare-item"><span class="ci-label">802.3bt (PoE++)</span><span class="ci-text">Up to 90W per port. Laptops, digital signage, LED lighting.</span></div>
+        </div>
+
+        <div class="box box-green" style="font-size:0.83rem;">
+            <strong>Why PoE matters:</strong> Install an AP on a ceiling without running a separate power cable. Deploy security cameras anywhere with just one Ethernet drop. Fewer cables, simpler infrastructure, centralized power management.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 10 — NIC -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 13</div>
+        <div class="slide-title"><span class="accent-blue">NIC</span> &mdash; Network Interface Card</div>
+        <div class="slide-subtitle">The hardware that connects a device to the network. Every networked device has at least one.</div>
+
+        <svg viewBox="0 0 700 100" style="width:100%;max-width:700px;margin:0 auto;display:block;">
+            <rect x="40" y="20" width="200" height="60" rx="8" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1.2"/>
+            <text x="140" y="42" fill="#60a5fa" font-size="10" font-weight="700" text-anchor="middle" font-family="Segoe UI">COMPUTER / SERVER</text>
+            <rect x="60" y="50" width="70" height="24" rx="4" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="1"/>
+            <text x="95" y="66" fill="#c4b5fd" font-size="7" font-weight="700" text-anchor="middle" font-family="Segoe UI">NIC</text>
+            <rect x="150" y="50" width="70" height="24" rx="4" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1"/>
+            <text x="185" y="66" fill="#67e8f9" font-size="7" font-weight="700" text-anchor="middle" font-family="Segoe UI">Wi-Fi NIC</text>
+            <text x="350" y="55" fill="#475569" font-size="9" text-anchor="middle" font-family="Segoe UI">Each NIC has a unique MAC address (e.g., AA:BB:CC:DD:EE:FF)</text>
+            <text x="350" y="72" fill="#475569" font-size="9" text-anchor="middle" font-family="Segoe UI">Burned into hardware by the manufacturer (Layer 2 address)</text>
+        </svg>
+
+        <div class="box box-blue" style="font-size:0.83rem;">
+            <div class="box-label">Types of NICs</div>
+            <strong>Wired (Ethernet):</strong> RJ-45 port, built into most motherboards. Speeds: 100 Mbps, 1 Gbps, 10 Gbps.
+            <strong>Wireless:</strong> Built-in Wi-Fi adapter in laptops/phones, or add-on PCIe/USB for desktops.
+            <strong>Fiber:</strong> SFP/SFP+ modules on servers and high-end equipment for 10/25/100 Gbps connections.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 11 — BRIDGES, REPEATERS, LOAD BALANCERS -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 13</div>
+        <div class="slide-title">More Devices: <span class="accent-blue">Bridges</span>, Repeaters, <span class="accent-cyan">Load Balancers</span></div>
+        <div class="slide-subtitle">Supporting cast members that solve specific networking problems.</div>
+
+        <div class="device-grid">
+            <div class="device-card dc-l2">
+                <div class="dc-name">Bridge</div>
+                <div class="dc-layer">Layer 2</div>
+                <div class="dc-desc">Connects two network segments at Layer 2. Learns MAC addresses on each side and only forwards frames that need to cross. Essentially a 2-port switch. Rarely deployed as standalone hardware today.</div>
+            </div>
+            <div class="device-card dc-l1">
+                <div class="dc-name">Repeater</div>
+                <div class="dc-layer">Layer 1</div>
+                <div class="dc-desc">Regenerates a weakened signal to extend cable distance. Works at the electrical/physical level. Ethernet cables max out at 100m &mdash; a repeater resets that limit. Wi-Fi extenders are wireless repeaters.</div>
+            </div>
+            <div class="device-card dc-multi">
+                <div class="dc-name">Load Balancer</div>
+                <div class="dc-layer">Layer 4-7</div>
+                <div class="dc-desc">Distributes incoming traffic across multiple servers so no single server is overwhelmed. Methods: round-robin, least connections, IP hash. Essential for high-availability web applications.</div>
+            </div>
+        </div>
+
+        <svg viewBox="0 0 700 70" style="width:100%;max-width:700px;margin:0 auto;display:block;">
+            <!-- Load balancer diagram -->
+            <rect x="20" y="15" width="120" height="40" rx="6" fill="rgba(100,116,139,0.06)" stroke="#64748b" stroke-width="1"/>
+            <text x="80" y="40" fill="#94a3b8" font-size="9" text-anchor="middle" font-family="Segoe UI">Users</text>
+            <line x1="142" y1="35" x2="250" y2="35" stroke="#64748b" stroke-width="1.5"/>
+            <polygon points="247,31 257,35 247,39" fill="#64748b"/>
+            <rect x="260" y="10" width="160" height="50" rx="8" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1.5"/>
+            <text x="340" y="40" fill="#4ade80" font-size="10" font-weight="700" text-anchor="middle" font-family="Segoe UI">LOAD BALANCER</text>
+            <line x1="422" y1="25" x2="510" y2="15" stroke="#22c55e" stroke-width="1"/>
+            <line x1="422" y1="35" x2="510" y2="35" stroke="#22c55e" stroke-width="1"/>
+            <line x1="422" y1="45" x2="510" y2="55" stroke="#22c55e" stroke-width="1"/>
+            <text x="560" y="18" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="Segoe UI">Server 1</text>
+            <text x="560" y="38" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="Segoe UI">Server 2</text>
+            <text x="560" y="58" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="Segoe UI">Server 3</text>
+        </svg>
+    </div>
+</section>
+
+<!-- SLIDE 12 — DEVICE COMPARISON CHART -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 13</div>
+        <div class="slide-title"><span class="accent-blue">Device Comparison</span> at a Glance</div>
+        <div class="slide-subtitle">Which device works at which layer, and what does it use to make decisions?</div>
+
+        <div class="device-grid">
+            <div class="device-card dc-l1">
+                <div class="dc-name">Hub / Repeater</div>
+                <div class="dc-layer">Layer 1 &mdash; Physical</div>
+                <div class="dc-desc">Operates on electrical signals. No intelligence. Broadcasts everything.</div>
+            </div>
+            <div class="device-card dc-l2">
+                <div class="dc-name">Switch / Bridge</div>
+                <div class="dc-layer">Layer 2 &mdash; Data Link</div>
+                <div class="dc-desc">Uses MAC addresses. Forwards frames to specific ports. Creates separate collision domains.</div>
+            </div>
+            <div class="device-card dc-l3">
+                <div class="dc-name">Router</div>
+                <div class="dc-layer">Layer 3 &mdash; Network</div>
+                <div class="dc-desc">Uses IP addresses. Routes packets between different networks. Maintains a routing table.</div>
+            </div>
+            <div class="device-card dc-multi">
+                <div class="dc-name">Firewall (NGFW)</div>
+                <div class="dc-layer">Layers 3-7</div>
+                <div class="dc-desc">Inspects packets, sessions, and application data. Enforces security policy. Blocks threats.</div>
+            </div>
+            <div class="device-card dc-multi">
+                <div class="dc-name">Access Point</div>
+                <div class="dc-layer">Layers 1-2</div>
+                <div class="dc-desc">Bridges wireless clients to the wired network. Operates at the physical (radio) and data link layers.</div>
+            </div>
+            <div class="device-card dc-multi">
+                <div class="dc-name">Load Balancer</div>
+                <div class="dc-layer">Layers 4-7</div>
+                <div class="dc-desc">Distributes traffic by port (L4) or URL/header (L7). Ensures high availability.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 13 — SUMMARY -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 13 &nbsp;|&nbsp; CTS1090C &nbsp;|&nbsp; Week 1</div>
+        <div class="slide-title">Networking Hardware: Solved</div>
+
+        <span class="section-label">Key Takeaways</span>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text"><strong>Hubs</strong> (L1) repeat to all ports. <strong>Switches</strong> (L2) forward to specific ports using MAC addresses. Switches replaced hubs.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text"><strong>Routers</strong> (L3) connect different networks using IP addresses. They provide NAT, DHCP, and basic firewall functions.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text"><strong>Firewalls</strong> enforce security rules. Hardware firewalls sit at the perimeter; NGFWs inspect at Layers 3-7.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text"><strong>Access Points</strong> bridge wireless to wired. They are not routers &mdash; enterprise APs are dedicated devices powered by PoE.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text"><strong>PoE</strong> sends power over Ethernet: 802.3af (15W), 802.3at (25W), 802.3bt (90W). Used for APs, cameras, phones.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text"><strong>Patch panels</strong> organize cable runs. <strong>Media converters</strong> bridge fiber to copper. <strong>Load balancers</strong> distribute traffic across servers.</span>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Back in that server room: the rack holds switches (L2) at the core, a router (L3) connecting to the ISP, a firewall (L3-7) at the perimeter, a patch panel organizing every cable run, and PoE-powered APs on the ceiling. Every device has a purpose. Now you can name them all.
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- NAVIGATION BAR -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; First Link Hub</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 13</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 13;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = ((currentSlide / TOTAL_SLIDES) * 100) + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        var cb = document.getElementById('complete-btn');
+        if (cb) cb.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('web', 'fl-w1-hardware-pres', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

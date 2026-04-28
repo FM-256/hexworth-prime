@@ -1,0 +1,1382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- ── Security / Auth: must be first; blocks unauthorized users immediately ── -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <script src="../../../components/FirebaseAuth.js"></script>
+    <script src="../../../components/TenantRouter.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>First Link // CTS1090C &mdash; Introduction to Networks</title>
+
+    <style>
+        /* ── CSS Custom Properties — Web house palette (blue) ── */
+        :root {
+            --web-primary:    #60a5fa;
+            --web-secondary:  #3b82f6;
+            --web-accent:     #93c5fd;
+            --web-dark:       #1e40af;
+            --web-darker:     #172554;
+            --bg-main:        #090910;
+            --bg-deep:        #0d1120;
+            --bg-card:        #111827;
+            --bg-card-hover:  #1a2535;
+            --text-primary:   #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted:     #64748b;
+            --border-color:   rgba(96, 165, 250, 0.15);
+            --border-hover:   rgba(96, 165, 250, 0.40);
+            --success:        #22c55e;
+            --shadow-md:      0 4px 6px -1px rgba(0, 0, 0, 0.35);
+            --shadow-lg:      0 10px 15px -3px rgba(0, 0, 0, 0.45);
+            --shadow-glow:    0 0 24px rgba(96, 165, 250, 0.12);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(160deg, var(--bg-main) 0%, var(--bg-deep) 100%);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* ── Visually hidden — accessibility/SEO anchor ── */
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        /* ── Top navigation bar ── */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 10px 0;
+        }
+
+        .course-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        /* ── Dashboard return button ── */
+        .dashboard-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            padding: 7px 16px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background: rgba(96, 165, 250, 0.05);
+            transition: all 0.2s ease;
+        }
+
+        .dashboard-btn:hover {
+            color: var(--web-accent);
+            border-color: var(--border-hover);
+            background: rgba(96, 165, 250, 0.10);
+        }
+
+        .dashboard-btn::before {
+            content: '\2190';
+            font-size: 0.9rem;
+        }
+
+        /* ── Hero header ── */
+        .header {
+            text-align: center;
+            margin-bottom: 28px;
+            padding: 40px 20px 32px;
+            background: linear-gradient(135deg, var(--web-darker) 0%, #1e3a5f 50%, var(--web-darker) 100%);
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg), var(--shadow-glow);
+            border: 1px solid var(--border-color);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: repeating-linear-gradient(
+                -45deg,
+                transparent,
+                transparent 20px,
+                rgba(96, 165, 250, 0.025) 20px,
+                rgba(96, 165, 250, 0.025) 40px
+            );
+            pointer-events: none;
+        }
+
+        .course-badge {
+            display: inline-block;
+            background: rgba(96, 165, 250, 0.20);
+            border: 1px solid rgba(96, 165, 250, 0.40);
+            color: var(--web-accent);
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            padding: 4px 16px;
+            border-radius: 20px;
+            margin-bottom: 12px;
+            position: relative;
+        }
+
+        .header h2 {
+            font-size: 2.1rem;
+            color: #fff;
+            margin-bottom: 6px;
+            position: relative;
+        }
+
+        .header .subtitle {
+            font-size: 1.05rem;
+            color: var(--web-accent);
+            opacity: 0.9;
+            position: relative;
+        }
+
+        /* ── Course stat chips ── */
+        .course-stats {
+            display: flex;
+            justify-content: center;
+            gap: 18px;
+            margin-top: 24px;
+            flex-wrap: wrap;
+            position: relative;
+        }
+
+        .course-stat {
+            background: rgba(96, 165, 250, 0.12);
+            border: 1px solid rgba(96, 165, 250, 0.25);
+            padding: 10px 22px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .course-stat .value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .course-stat .label {
+            font-size: 0.72rem;
+            color: var(--web-accent);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* ── Overall progress bar ── */
+        .progress-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 18px 20px;
+            margin-bottom: 28px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .progress-section h3 {
+            color: var(--web-primary);
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .progress-bar-container {
+            background: rgba(96, 165, 250, 0.10);
+            border-radius: 10px;
+            height: 16px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--web-dark), var(--web-primary), var(--web-accent));
+            width: 0%;
+            transition: width 0.6s ease;
+            border-radius: 10px;
+        }
+
+        .progress-text {
+            text-align: right;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+
+        /* ── Section heading label ── */
+        .section-heading {
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            padding-left: 4px;
+        }
+
+        /* ── Week Cards (collapsible) ── */
+        .week-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            margin-bottom: 12px;
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+            transition: border-color 0.2s ease;
+        }
+
+        .week-card:hover {
+            border-color: var(--border-hover);
+        }
+
+        .week-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 22px;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s ease;
+        }
+
+        .week-header:hover {
+            background: rgba(96, 165, 250, 0.04);
+        }
+
+        .week-header-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .week-num {
+            background: linear-gradient(135deg, var(--web-dark), var(--web-primary));
+            color: #fff;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+
+        .week-title-group .week-title {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--web-accent);
+            line-height: 1.25;
+        }
+
+        .week-title-group .week-sub {
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            margin-top: 1px;
+        }
+
+        .week-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 4px;
+            flex-wrap: wrap;
+        }
+
+        .obj-tag {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--web-primary);
+            background: rgba(96, 165, 250, 0.10);
+            border: 1px solid rgba(96, 165, 250, 0.20);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        .item-count-tag {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            background: rgba(34, 197, 94, 0.08);
+            border: 1px solid rgba(34, 197, 94, 0.18);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        .week-toggle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            transition: transform 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .week-card.open .week-toggle {
+            transform: rotate(180deg);
+        }
+
+        .week-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .week-card.open .week-body {
+            max-height: 3600px;
+        }
+
+        .week-inner {
+            padding: 4px 22px 22px;
+            border-top: 1px solid rgba(96, 165, 250, 0.08);
+        }
+
+        /* ── Per-week progress bar ── */
+        .week-progress {
+            margin: 14px 0 6px;
+        }
+
+        .week-progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+        }
+
+        .week-progress-bar-container {
+            background: rgba(96, 165, 250, 0.08);
+            border-radius: 6px;
+            height: 6px;
+            overflow: hidden;
+        }
+
+        .week-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--web-dark), var(--web-primary));
+            width: 0%;
+            transition: width 0.5s ease;
+            border-radius: 6px;
+        }
+
+        /* ── Subsection labels ── */
+        .subsection {
+            margin-top: 18px;
+        }
+
+        .subsection-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid rgba(100, 116, 139, 0.15);
+        }
+
+        .subsection-label::before {
+            content: '';
+            display: inline-block;
+            width: 3px;
+            height: 12px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        .subsection-label.label-presentation::before { background: #60a5fa; }
+        .subsection-label.label-lab::before          { background: #22c55e; }
+        .subsection-label.label-quiz::before         { background: #fbbf24; }
+        .subsection-label.label-exam::before         { background: #f87171; }
+
+        /* ── Content link cards ── */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 6px;
+        }
+
+        .content-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 14px;
+            background: rgba(96, 165, 250, 0.03);
+            border: 1px solid rgba(96, 165, 250, 0.08);
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+        }
+
+        .content-card:hover {
+            background: rgba(96, 165, 250, 0.08);
+            border-color: rgba(96, 165, 250, 0.25);
+            transform: translateX(3px);
+        }
+
+        .content-card.is-complete {
+            border-color: rgba(34, 197, 94, 0.35);
+            background: rgba(34, 197, 94, 0.05);
+        }
+
+        .card-type-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .dot-present { background: #60a5fa; }
+        .dot-lab     { background: #22c55e; }
+        .dot-quiz    { background: #fbbf24; }
+        .dot-exam    { background: #f87171; }
+
+        .card-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .card-info .card-title {
+            font-size: 0.88rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .card-info .card-sub {
+            font-size: 0.73rem;
+            color: var(--text-muted);
+        }
+
+        .card-check {
+            width: 18px;
+            height: 18px;
+            opacity: 0;
+            flex-shrink: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .content-card.is-complete .card-check {
+            opacity: 1;
+        }
+
+        .content-badge {
+            font-size: 0.58rem;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            padding: 3px 8px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+
+        .badge-presentation {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.30);
+        }
+
+        .badge-lab {
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.30);
+        }
+
+        .badge-quiz {
+            background: rgba(250, 204, 21, 0.15);
+            color: #fbbf24;
+            border: 1px solid rgba(250, 204, 21, 0.30);
+        }
+
+        .badge-exam {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.30);
+        }
+
+        /* ── Footer ── */
+        .page-footer {
+            text-align: center;
+            padding: 28px 0 10px;
+            color: var(--text-muted);
+            font-size: 0.78rem;
+        }
+
+        /* ── Locked week (class mode) ── */
+        .week-card.locked {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .week-card.locked .week-header {
+            pointer-events: auto;
+            cursor: default;
+        }
+
+        .week-card.locked::after {
+            content: '';
+            position: absolute;
+            top: 18px;
+            right: 22px;
+            width: 20px;
+            height: 20px;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Crect x='3' y='11' width='18' height='11' rx='2'/%3E%3Cpath d='M7 11V7a5 5 0 0 1 10 0v4'/%3E%3C/svg%3E") center/contain no-repeat;
+        }
+
+        .lock-msg {
+            font-size: 0.78rem;
+            color: #64748b;
+            padding: 8px 22px;
+            font-style: italic;
+        }
+
+        /* ── Mobile responsive ── */
+        @media (max-width: 768px) {
+            body { padding: 12px; }
+            .header { padding: 28px 16px 24px; }
+            .header h2 { font-size: 1.6rem; }
+            .header .subtitle { font-size: 0.95rem; }
+            .course-stats { gap: 10px; }
+            .course-stat { padding: 8px 14px; }
+            .course-stat .value { font-size: 1.1rem; }
+            .week-header { padding: 14px 16px; }
+            .week-inner { padding: 4px 16px 18px; }
+        }
+
+        @media (max-width: 480px) {
+            .header h2 { font-size: 1.35rem; }
+            .course-stat { padding: 6px 10px; }
+            .course-stat .value { font-size: 1rem; }
+            .course-stat .label { font-size: 0.62rem; }
+            .week-num { width: 34px; height: 34px; font-size: 0.85rem; }
+            .week-title-group .week-title { font-size: 0.95rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1 class="visually-hidden">First Link // CTS1090C &mdash; Introduction to Networks</h1>
+
+    <div class="container">
+
+        <!-- ── Top Bar ── -->
+        <div class="top-bar">
+            <span class="course-label">First Link &mdash; CTS1090C</span>
+            <a href="../../../dashboard.html" class="dashboard-btn" id="dashboardBtn">Dashboard</a>
+        </div>
+
+        <!-- ── Hero Header ── -->
+        <div class="header">
+            <span class="course-badge">CTS1090C</span>
+            <h2>First Link // Introduction to Networks</h2>
+            <p class="subtitle">Build your networking foundation &mdash; 4-Week Course</p>
+
+            <div class="course-stats">
+                <div class="course-stat">
+                    <div class="value">4</div>
+                    <div class="label">Weeks</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">8</div>
+                    <div class="label">Presentations</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">8</div>
+                    <div class="label">Labs</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">8</div>
+                    <div class="label">Quizzes</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Overall Course Progress ── -->
+        <div class="progress-section">
+            <h3>Course Progress</h3>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <div class="progress-text" id="progressText">Loading...</div>
+        </div>
+
+        <!-- ── Weekly Learning Path ── -->
+        <div class="section-heading">Learning Path</div>
+
+        <!-- ════════════════════════════════════════════
+             WEEK 1: TCP/UDP Ports & Protocols + Networking Hardware
+        ════════════════════════════════════════════ -->
+        <div class="week-card" id="wk1">
+            <div class="week-header" onclick="toggleWeek('wk1')">
+                <div class="week-header-left">
+                    <div class="week-num">1</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Ports, Protocols &amp; Hardware</div>
+                        <div class="week-sub">TCP/UDP fundamentals and common networking devices</div>
+                        <div class="week-meta">
+                            <span class="item-count-tag">2 presentations &bull; 2 labs &bull; 2 quizzes</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Week 1 Progress</span>
+                            <span id="wk1-progress-text">0 / 6</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="wk1-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Presentations -->
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentations</div>
+                        <div class="content-grid">
+                            <a href="presentations/fl-w1-ports.presentation.html"
+                               class="content-card"
+                               data-module="fl-w1-ports-pres">
+                                <span class="card-type-dot dot-present"></span>
+                                <div class="card-info">
+                                    <div class="card-title">TCP/UDP Ports, Protocols &amp; Purposes</div>
+                                    <div class="card-sub">Well-known ports, 3-way handshake, TCP vs UDP, port ranges</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/fl-w1-hardware.presentation.html"
+                               class="content-card"
+                               data-module="fl-w1-hardware-pres">
+                                <span class="card-type-dot dot-present"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Common Networking Hardware</div>
+                                    <div class="card-sub">Switches, routers, APs, firewalls, patch panels, PoE, NICs</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Labs -->
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Hands-On Labs</div>
+                        <div class="content-grid">
+                            <a href="labs/fl-w1-ports.lab.html"
+                               class="content-card"
+                               data-module="fl-w1-ports-lab">
+                                <span class="card-type-dot dot-lab"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Port Identification Lab</div>
+                                    <div class="card-sub">Match ports to protocols, trace connections</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-lab">Lab</span>
+                            </a>
+
+                            <a href="labs/fl-w1-hardware.lab.html"
+                               class="content-card"
+                               data-module="fl-w1-hardware-lab">
+                                <span class="card-type-dot dot-lab"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Hardware Identification Lab</div>
+                                    <div class="card-sub">Identify devices, roles, and placement in a network</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-lab">Lab</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Quizzes -->
+                    <div class="subsection">
+                        <div class="subsection-label label-quiz">Quizzes</div>
+                        <div class="content-grid">
+                            <a href="quizzes/fl-w1-ports.quiz.html"
+                               class="content-card"
+                               data-module="fl-w1-ports-quiz">
+                                <span class="card-type-dot dot-quiz"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Ports &amp; Protocols Quiz</div>
+                                    <div class="card-sub">Check-on-learning &mdash; TCP/UDP, port numbers, handshake</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                            <a href="quizzes/fl-w1-hardware.quiz.html"
+                               class="content-card"
+                               data-module="fl-w1-hardware-quiz">
+                                <span class="card-type-dot dot-quiz"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Networking Hardware Quiz</div>
+                                    <div class="card-sub">Check-on-learning &mdash; devices, functions, use cases</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- ════════════════════════════════════════════
+             WEEK 2: SOHO Setup + Wireless Protocols
+        ════════════════════════════════════════════ -->
+        <div class="week-card" id="wk2">
+            <div class="week-header" onclick="toggleWeek('wk2')">
+                <div class="week-header-left">
+                    <div class="week-num">2</div>
+                    <div class="week-title-group">
+                        <div class="week-title">SOHO Networks &amp; Wireless</div>
+                        <div class="week-sub">Wired/wireless setup, 802.11 standards, security protocols</div>
+                        <div class="week-meta">
+                            <span class="item-count-tag">2 presentations &bull; 2 labs &bull; 2 quizzes &bull; midterm</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Week 2 Progress</span>
+                            <span id="wk2-progress-text">0 / 7</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="wk2-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Presentations -->
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentations</div>
+                        <div class="content-grid">
+                            <a href="presentations/fl-w2-soho.presentation.html"
+                               class="content-card"
+                               data-module="fl-w2-soho-pres">
+                                <span class="card-type-dot dot-present"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Wired/Wireless SOHO Network Setup</div>
+                                    <div class="card-sub">Ethernet cabling, T568A/B, IP addressing, DHCP, NAT</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/fl-w2-wireless.presentation.html"
+                               class="content-card"
+                               data-module="fl-w2-wireless-pres">
+                                <span class="card-type-dot dot-present"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Wireless Networking Protocols</div>
+                                    <div class="card-sub">802.11 standards, frequencies, MIMO, Bluetooth, cellular</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Labs -->
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Hands-On Labs</div>
+                        <div class="content-grid">
+                            <a href="labs/fl-w2-soho.lab.html"
+                               class="content-card"
+                               data-module="fl-w2-soho-lab">
+                                <span class="card-type-dot dot-lab"></span>
+                                <div class="card-info">
+                                    <div class="card-title">SOHO Network Setup Lab</div>
+                                    <div class="card-sub">Configure a small office network end-to-end</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-lab">Lab</span>
+                            </a>
+
+                            <a href="labs/fl-w2-wireless.lab.html"
+                               class="content-card"
+                               data-module="fl-w2-wireless-lab">
+                                <span class="card-type-dot dot-lab"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Wireless Configuration Lab</div>
+                                    <div class="card-sub">AP setup, SSID, WPA2/WPA3, channel selection</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-lab">Lab</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Quizzes -->
+                    <div class="subsection">
+                        <div class="subsection-label label-quiz">Quizzes</div>
+                        <div class="content-grid">
+                            <a href="quizzes/fl-w2-soho.quiz.html"
+                               class="content-card"
+                               data-module="fl-w2-soho-quiz">
+                                <span class="card-type-dot dot-quiz"></span>
+                                <div class="card-info">
+                                    <div class="card-title">SOHO Setup Quiz</div>
+                                    <div class="card-sub">Check-on-learning &mdash; cabling, addressing, NAT</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                            <a href="quizzes/fl-w2-wireless.quiz.html"
+                               class="content-card"
+                               data-module="fl-w2-wireless-quiz">
+                                <span class="card-type-dot dot-quiz"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Wireless Protocols Quiz</div>
+                                    <div class="card-sub">Check-on-learning &mdash; 802.11, security, frequencies</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Midterm -->
+                    <div class="subsection">
+                        <div class="subsection-label label-exam">Midterm Exam</div>
+                        <div class="content-grid">
+                            <a href="exams/fl-midterm.exam.html"
+                               class="content-card"
+                               data-module="fl-midterm">
+                                <span class="card-type-dot dot-exam"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Midterm Exam</div>
+                                    <div class="card-sub">Covers Weeks 1&ndash;2 &mdash; Ports, hardware, SOHO, wireless</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-exam">Exam</span>
+                            </a>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- ════════════════════════════════════════════
+             WEEK 3: Network Services + Configuration Concepts
+        ════════════════════════════════════════════ -->
+        <div class="week-card" id="wk3">
+            <div class="week-header" onclick="toggleWeek('wk3')">
+                <div class="week-header-left">
+                    <div class="week-num">3</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Network Services &amp; Configuration</div>
+                        <div class="week-sub">DNS, DHCP, NTP, Syslog, and core network configuration</div>
+                        <div class="week-meta">
+                            <span class="item-count-tag">2 presentations &bull; 2 labs &bull; 2 quizzes</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Week 3 Progress</span>
+                            <span id="wk3-progress-text">0 / 6</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="wk3-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Presentations -->
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentations</div>
+                        <div class="content-grid">
+                            <a href="presentations/fl-w3-services.presentation.html"
+                               class="content-card"
+                               data-module="fl-w3-services-pres">
+                                <span class="card-type-dot dot-present"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Network Services</div>
+                                    <div class="card-sub">DNS, DHCP, NTP, SNMP, Syslog, LDAP</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/fl-w3-config.presentation.html"
+                               class="content-card"
+                               data-module="fl-w3-config-pres">
+                                <span class="card-type-dot dot-present"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Network Configuration Concepts</div>
+                                    <div class="card-sub">IP schemes, subnetting intro, VLANs, static vs dynamic</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Labs -->
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Hands-On Labs</div>
+                        <div class="content-grid">
+                            <a href="labs/fl-w3-services.lab.html"
+                               class="content-card"
+                               data-module="fl-w3-services-lab">
+                                <span class="card-type-dot dot-lab"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Network Services Lab</div>
+                                    <div class="card-sub">Configure DNS, DHCP, and verify with diagnostic tools</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-lab">Lab</span>
+                            </a>
+
+                            <a href="labs/fl-w3-config.lab.html"
+                               class="content-card"
+                               data-module="fl-w3-config-lab">
+                                <span class="card-type-dot dot-lab"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Network Configuration Lab</div>
+                                    <div class="card-sub">Static IPs, subnet planning, basic VLAN assignment</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-lab">Lab</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Quizzes -->
+                    <div class="subsection">
+                        <div class="subsection-label label-quiz">Quizzes</div>
+                        <div class="content-grid">
+                            <a href="quizzes/fl-w3-services.quiz.html"
+                               class="content-card"
+                               data-module="fl-w3-services-quiz">
+                                <span class="card-type-dot dot-quiz"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Network Services Quiz</div>
+                                    <div class="card-sub">Check-on-learning &mdash; DNS, DHCP, NTP, SNMP</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                            <a href="quizzes/fl-w3-config.quiz.html"
+                               class="content-card"
+                               data-module="fl-w3-config-quiz">
+                                <span class="card-type-dot dot-quiz"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Network Configuration Quiz</div>
+                                    <div class="card-sub">Check-on-learning &mdash; IP schemes, VLANs, static vs dynamic</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- ════════════════════════════════════════════
+             WEEK 4: Internet Connection Types + Networking Tools
+        ════════════════════════════════════════════ -->
+        <div class="week-card" id="wk4">
+            <div class="week-header" onclick="toggleWeek('wk4')">
+                <div class="week-header-left">
+                    <div class="week-num">4</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Internet Connections &amp; Networking Tools</div>
+                        <div class="week-sub">Connection types, ISP services, and essential CLI tools</div>
+                        <div class="week-meta">
+                            <span class="item-count-tag">2 presentations &bull; 2 labs &bull; 2 quizzes &bull; final</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Week 4 Progress</span>
+                            <span id="wk4-progress-text">0 / 7</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="wk4-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Presentations -->
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentations</div>
+                        <div class="content-grid">
+                            <a href="presentations/fl-w4-connections.presentation.html"
+                               class="content-card"
+                               data-module="fl-w4-connections-pres">
+                                <span class="card-type-dot dot-present"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Internet Connection Types</div>
+                                    <div class="card-sub">Cable, DSL, fiber, satellite, cellular, leased lines</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/fl-w4-tools.presentation.html"
+                               class="content-card"
+                               data-module="fl-w4-tools-pres">
+                                <span class="card-type-dot dot-present"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Networking Tools</div>
+                                    <div class="card-sub">ping, tracert, ipconfig, nslookup, netstat, pathping</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Labs -->
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Hands-On Labs</div>
+                        <div class="content-grid">
+                            <a href="labs/fl-w4-connections.lab.html"
+                               class="content-card"
+                               data-module="fl-w4-connections-lab">
+                                <span class="card-type-dot dot-lab"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Connection Types Lab</div>
+                                    <div class="card-sub">Compare technologies, calculate bandwidth, map scenarios</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-lab">Lab</span>
+                            </a>
+
+                            <a href="labs/fl-w4-tools.lab.html"
+                               class="content-card"
+                               data-module="fl-w4-tools-lab">
+                                <span class="card-type-dot dot-lab"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Networking Tools Lab</div>
+                                    <div class="card-sub">Hands-on with ping, tracert, ipconfig, nslookup, netstat</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-lab">Lab</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Quizzes -->
+                    <div class="subsection">
+                        <div class="subsection-label label-quiz">Quizzes</div>
+                        <div class="content-grid">
+                            <a href="quizzes/fl-w4-connections.quiz.html"
+                               class="content-card"
+                               data-module="fl-w4-connections-quiz">
+                                <span class="card-type-dot dot-quiz"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Internet Connections Quiz</div>
+                                    <div class="card-sub">Check-on-learning &mdash; connection types, ISP, bandwidth</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                            <a href="quizzes/fl-w4-tools.quiz.html"
+                               class="content-card"
+                               data-module="fl-w4-tools-quiz">
+                                <span class="card-type-dot dot-quiz"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Networking Tools Quiz</div>
+                                    <div class="card-sub">Check-on-learning &mdash; CLI diagnostics, output interpretation</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Final Exam -->
+                    <div class="subsection">
+                        <div class="subsection-label label-exam">Final Exam</div>
+                        <div class="content-grid">
+                            <a href="exams/fl-final.exam.html"
+                               class="content-card"
+                               data-module="fl-final">
+                                <span class="card-type-dot dot-exam"></span>
+                                <div class="card-info">
+                                    <div class="card-title">Final Exam</div>
+                                    <div class="card-sub">Comprehensive &mdash; Covers all 4 weeks</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-exam">Exam</span>
+                            </a>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Footer ── -->
+        <div class="page-footer">
+            <p>First Link // CTS1090C &mdash; House of Web</p>
+        </div>
+
+    </div><!-- /container -->
+
+    <script>
+        // ── Tenant-aware Dashboard button ──
+        (function() {
+            var btn = document.getElementById('dashboardBtn');
+            if (btn && typeof TenantRouter !== 'undefined' && TenantRouter.isActive()) {
+                btn.href = TenantRouter.getUrl('dashboard');
+            }
+        })();
+
+        // ── Toggle a week card open or closed ──
+        function toggleWeek(id) {
+            var card = document.getElementById(id);
+            if (card) card.classList.toggle('open');
+        }
+
+        // ── Auto-open week from URL hash (e.g. #wk2) ──
+        (function() {
+            var hash = window.location.hash;
+            if (hash && hash.match(/^#wk\d+$/)) {
+                var id = hash.substring(1);
+                var card = document.getElementById(id);
+                if (card && !card.classList.contains('locked')) {
+                    card.classList.add('open');
+                    setTimeout(function() { card.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 300);
+                }
+            }
+        })();
+
+        // ── Progress Tracking via ModuleProgress ──
+        document.addEventListener('DOMContentLoaded', function () {
+            if (!window.ModuleProgress) {
+                document.getElementById('progressText').textContent = 'Progress unavailable';
+                return;
+            }
+
+            // All module IDs grouped by week
+            var weeks = {
+                wk1: [
+                    'fl-w1-ports-pres',
+                    'fl-w1-hardware-pres',
+                    'fl-w1-ports-lab',
+                    'fl-w1-hardware-lab',
+                    'fl-w1-ports-quiz',
+                    'fl-w1-hardware-quiz'
+                ],
+                wk2: [
+                    'fl-w2-soho-pres',
+                    'fl-w2-wireless-pres',
+                    'fl-w2-soho-lab',
+                    'fl-w2-wireless-lab',
+                    'fl-w2-soho-quiz',
+                    'fl-w2-wireless-quiz',
+                    'fl-midterm'
+                ],
+                wk3: [
+                    'fl-w3-services-pres',
+                    'fl-w3-config-pres',
+                    'fl-w3-services-lab',
+                    'fl-w3-config-lab',
+                    'fl-w3-services-quiz',
+                    'fl-w3-config-quiz'
+                ],
+                wk4: [
+                    'fl-w4-connections-pres',
+                    'fl-w4-tools-pres',
+                    'fl-w4-connections-lab',
+                    'fl-w4-tools-lab',
+                    'fl-w4-connections-quiz',
+                    'fl-w4-tools-quiz',
+                    'fl-final'
+                ]
+            };
+
+            var totalItems     = 0;
+            var totalCompleted = 0;
+
+            Object.keys(weeks).forEach(function (weekId) {
+                var ids       = weeks[weekId];
+                var completed = 0;
+
+                ids.forEach(function (moduleId) {
+                    if (ModuleProgress.isCompleted('web', moduleId)) {
+                        completed++;
+
+                        var el = document.querySelector('[data-module="' + moduleId + '"]');
+                        if (el) {
+                            el.classList.add('is-complete');
+                        }
+                    }
+                });
+
+                var weekPct  = ids.length > 0 ? Math.round((completed / ids.length) * 100) : 0;
+                var weekBar  = document.getElementById(weekId + '-progress-bar');
+                var weekText = document.getElementById(weekId + '-progress-text');
+                if (weekBar)  { weekBar.style.width = weekPct + '%'; }
+                if (weekText) { weekText.textContent = completed + ' / ' + ids.length; }
+
+                totalItems     += ids.length;
+                totalCompleted += completed;
+            });
+
+            var overallPct  = totalItems > 0 ? Math.round((totalCompleted / totalItems) * 100) : 0;
+            var overallBar  = document.getElementById('progressBar');
+            var overallText = document.getElementById('progressText');
+            if (overallBar)  { overallBar.style.width = overallPct + '%'; }
+            if (overallText) {
+                overallText.textContent =
+                    totalCompleted + ' of ' + totalItems + ' items completed (' + overallPct + '%)';
+            }
+
+            // ── Class Mode: Sequential Week Locking ──
+            var classId = sessionStorage.getItem('hexworth_class') ||
+                          localStorage.getItem('hexworth_class_id');
+            if (classId) {
+                applyWeekLocking();
+            }
+        });
+
+        function applyWeekLocking() {
+            // Skip for admins
+            if (localStorage.getItem('hexworth_firebase_admin') === 'true') return;
+            try {
+                var tr = sessionStorage.getItem('hexworth_tenant') || localStorage.getItem('hexworth_tenant');
+                var cu = localStorage.getItem('hexworth_firebase_user');
+                if (tr && cu) {
+                    var uid = JSON.parse(cu).uid;
+                    var au = JSON.parse(tr).adminUids;
+                    if (uid && Array.isArray(au) && au.indexOf(uid) !== -1) return;
+                }
+            } catch(e) {}
+
+            // Quiz gates — last quiz of each week unlocks the next
+            var weekGates = [
+                'fl-w1-hardware-quiz',  // completing this unlocks Week 2
+                'fl-w2-wireless-quiz',  // completing this unlocks Week 3
+                'fl-w3-config-quiz'     // completing this unlocks Week 4
+            ];
+
+            var unlockedWeeks = 1;
+            for (var i = 0; i < weekGates.length; i++) {
+                if (window.ModuleProgress && ModuleProgress.isCompleted('web', weekGates[i])) {
+                    unlockedWeeks = i + 2;
+                } else {
+                    break;
+                }
+            }
+
+            for (var w = 1; w <= 4; w++) {
+                var card = document.getElementById('wk' + w);
+                if (!card) continue;
+
+                if (w > unlockedWeeks) {
+                    card.classList.add('locked');
+                    card.classList.remove('open');
+
+                    var header = card.querySelector('.week-header');
+                    if (header && !header.querySelector('.lock-msg')) {
+                        var msg = document.createElement('div');
+                        msg.className = 'lock-msg';
+                        msg.textContent = 'Complete Week ' + (w - 1) + ' quiz to unlock';
+                        header.appendChild(msg);
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- House of Web Bot (Aminos AI) -->
+    <script src="https://platform.aminos.ai/w/chat_plugin.js" data-bot-id="7983"></script>
+
+    <div style="text-align:center;padding:20px 0;margin-top:30px;border-top:1px solid rgba(255,255,255,0.08);">
+        <a href="../index.html" style="color:#888;text-decoration:none;font-size:0.85rem;">Course Home</a>
+    </div>
+</body>
+</html>
