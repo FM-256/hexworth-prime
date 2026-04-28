@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Introduction to Python | Snake Pit</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #4ade80; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(74, 222, 128, 0.15); color: #4ade80; border-color: #4ade80;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #22c55e; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4ade80; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #4ade80; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #4ade80; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(74, 222, 128, 0.08); border-left: 3px solid #4ade80;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bbf7d0; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(74, 222, 128, 0.08); border: 1px solid rgba(74, 222, 128, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #4ade80; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #4ade80;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #22c55e; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #c9a83a; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #4ade80; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #4ade80;
+            background: rgba(74, 222, 128, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #4ade80; }
+        .code-block .fn { color: #06b6d4; }
+        .code-block .st { color: #22c55e; }
+        .code-block .cm { color: #475569; }
+        .code-block .nb { color: #f472b6; }
+        .code-block .er { color: #ef4444; }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #4ade80;
+            background: rgba(74, 222, 128, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* SVG diagram container */
+        .svg-container { display: flex; justify-content: center; padding: 8px 0; }
+        .svg-container svg { max-width: 100%; height: auto; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Introduction to Python</h1>
+
+<div id="progress-bar" style="width:7.14%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 14 | COP2891 | Week 1</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Snake Pit: Week 1<br>
+                <span class="accent">Introduction to Python</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                History &bull; Interpreter &bull; REPL &bull; IDE Setup &bull; First Program
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Python is the most popular programming language on the planet. It powers web apps, data science, AI, automation, and cybersecurity tooling. By the end of this presentation you will have written and run your first Python program.
+        </div>
+        <div class="title-meta-row">
+            <span>14 Slides</span>
+            <span>COP2891</span>
+            <span>Week 1, Ch 1</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- HISTORY ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 14</div>
+        <div class="slide-title">The <span class="accent">Origin Story</span></div>
+        <div class="slide-subtitle">Where Python came from and why it matters.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Created by Guido van Rossum</div>
+                <div class="card-desc">First released in 1991. Named after Monty Python's Flying Circus, not the snake. Designed to be readable, simple, and fun to write.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Interpreted Language</div>
+                <div class="card-desc">Python code is executed line by line by an interpreter, not compiled to machine code. This means faster development cycles but slightly slower execution than C or Java.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">General Purpose</div>
+                <div class="card-desc">Web development (Django, Flask), data science (NumPy, Pandas), AI/ML (TensorFlow, PyTorch), automation, scripting, security tools. Python does it all.</div>
+            </div>
+        </div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 700 120" xmlns="http://www.w3.org/2000/svg">
+                <rect x="10" y="30" width="120" height="60" rx="8" fill="rgba(74,222,128,0.15)" stroke="#4ade80" stroke-width="1.5"/>
+                <text x="70" y="55" text-anchor="middle" fill="#4ade80" font-size="11" font-weight="700">1991</text>
+                <text x="70" y="72" text-anchor="middle" fill="#94a3b8" font-size="9">Python 0.9</text>
+                <line x1="130" y1="60" x2="170" y2="60" stroke="#475569" stroke-width="1.5"/>
+                <rect x="170" y="30" width="120" height="60" rx="8" fill="rgba(6,182,212,0.15)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="230" y="55" text-anchor="middle" fill="#06b6d4" font-size="11" font-weight="700">2000</text>
+                <text x="230" y="72" text-anchor="middle" fill="#94a3b8" font-size="9">Python 2.0</text>
+                <line x1="290" y1="60" x2="330" y2="60" stroke="#475569" stroke-width="1.5"/>
+                <rect x="330" y="30" width="120" height="60" rx="8" fill="rgba(201,168,58,0.15)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="390" y="55" text-anchor="middle" fill="#c9a83a" font-size="11" font-weight="700">2008</text>
+                <text x="390" y="72" text-anchor="middle" fill="#94a3b8" font-size="9">Python 3.0</text>
+                <line x1="450" y1="60" x2="490" y2="60" stroke="#475569" stroke-width="1.5"/>
+                <rect x="490" y="30" width="140" height="60" rx="8" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="560" y="55" text-anchor="middle" fill="#22c55e" font-size="11" font-weight="700">2024+</text>
+                <text x="560" y="72" text-anchor="middle" fill="#94a3b8" font-size="9">Python 3.12+</text>
+            </svg>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- COMPILED VS INTERPRETED ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 14</div>
+        <div class="slide-title">Compiled vs. <span class="accent">Interpreted</span></div>
+        <div class="slide-subtitle">Understanding how your code actually runs.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Compiled (C, Java, Go)</div>
+                <div class="card-desc">Source code is translated to machine code BEFORE execution. Faster runtime but requires a compile step. Errors caught at compile time.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Interpreted (Python, JS, Ruby)</div>
+                <div class="card-desc">Source code is read and executed line by line at runtime. No compile step needed. Errors appear when that line is reached during execution.</div>
+            </div>
+        </div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 700 160" xmlns="http://www.w3.org/2000/svg">
+                <text x="350" y="15" text-anchor="middle" fill="#475569" font-size="10" font-weight="700" letter-spacing="1">COMPILED vs INTERPRETED</text>
+                <!-- Compiled flow -->
+                <rect x="20" y="35" width="100" height="40" rx="6" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="1"/>
+                <text x="70" y="60" text-anchor="middle" fill="#fca5a5" font-size="10">Source Code</text>
+                <line x1="120" y1="55" x2="160" y2="55" stroke="#ef4444" stroke-width="1.5" marker-end="url(#arr-red)"/>
+                <rect x="160" y="35" width="100" height="40" rx="6" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="1"/>
+                <text x="210" y="60" text-anchor="middle" fill="#fca5a5" font-size="10">Compiler</text>
+                <line x1="260" y1="55" x2="300" y2="55" stroke="#ef4444" stroke-width="1.5"/>
+                <rect x="300" y="35" width="110" height="40" rx="6" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="1"/>
+                <text x="355" y="60" text-anchor="middle" fill="#fca5a5" font-size="10">Machine Code</text>
+                <line x1="410" y1="55" x2="450" y2="55" stroke="#ef4444" stroke-width="1.5"/>
+                <rect x="450" y="35" width="100" height="40" rx="6" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="500" y="60" text-anchor="middle" fill="#fca5a5" font-size="10" font-weight="700">Execute</text>
+                <!-- Interpreted flow -->
+                <rect x="20" y="100" width="100" height="40" rx="6" fill="rgba(74,222,128,0.12)" stroke="#4ade80" stroke-width="1"/>
+                <text x="70" y="125" text-anchor="middle" fill="#bbf7d0" font-size="10">Source Code</text>
+                <line x1="120" y1="120" x2="220" y2="120" stroke="#4ade80" stroke-width="1.5"/>
+                <rect x="220" y="100" width="120" height="40" rx="6" fill="rgba(74,222,128,0.12)" stroke="#4ade80" stroke-width="1"/>
+                <text x="280" y="125" text-anchor="middle" fill="#bbf7d0" font-size="10">Interpreter</text>
+                <line x1="340" y1="120" x2="450" y2="120" stroke="#4ade80" stroke-width="1.5"/>
+                <rect x="450" y="100" width="100" height="40" rx="6" fill="rgba(74,222,128,0.15)" stroke="#4ade80" stroke-width="1.5"/>
+                <text x="500" y="125" text-anchor="middle" fill="#bbf7d0" font-size="10" font-weight="700">Execute</text>
+            </svg>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- INSTALLING PYTHON ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 14</div>
+        <div class="slide-title">Installing <span class="accent">Python</span></div>
+        <div class="slide-subtitle">Get Python on your system in three steps.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Step 1: Download</div>
+                <div class="card-desc">Visit python.org and download the latest Python 3 installer for your OS. Always use Python 3 (3.12+ recommended). Python 2 is end of life.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Step 2: Add to PATH</div>
+                <div class="card-desc">On Windows, check "Add Python to PATH" during installation. This lets you run <span class="ic">python</span> from any terminal. On macOS/Linux, Python 3 is usually preinstalled.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Step 3: Verify</div>
+                <div class="card-desc">Open a terminal and type <span class="ic">python --version</span>. You should see <span class="ic">Python 3.12.x</span>. If it shows Python 2, try <span class="ic">python3 --version</span> instead.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Verify your installation</span>
+$ python --version
+Python 3.12.3
+
+<span class="cm"># Or on some systems:</span>
+$ python3 --version
+Python 3.12.3</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- THE REPL ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 14</div>
+        <div class="slide-title">The Python <span class="accent">REPL</span></div>
+        <div class="slide-subtitle">Read-Eval-Print Loop -- your interactive Python playground.</div>
+
+        <div class="scenario-strip">
+            The REPL lets you type Python code and see results instantly. It is the fastest way to experiment with new concepts. Think of it as a calculator on steroids.
+        </div>
+
+        <div class="code-block"><span class="cm"># Start the REPL by typing 'python' in your terminal</span>
+$ python
+Python 3.12.3 (main, Apr 9 2024, 08:09:14)
+&gt;&gt;&gt; <span class="nb">2</span> + <span class="nb">2</span>
+<span class="nb">4</span>
+&gt;&gt;&gt; <span class="st">"Hello"</span> + <span class="st">" World"</span>
+<span class="st">'Hello World'</span>
+&gt;&gt;&gt; <span class="fn">type</span>(<span class="nb">42</span>)
+&lt;class 'int'&gt;
+&gt;&gt;&gt; <span class="fn">exit</span>()   <span class="cm"># or Ctrl+D to quit</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">When to Use the REPL</div>
+                <div class="card-desc">Quick experiments, testing expressions, checking how a function works, exploring data types. Not for writing programs -- use a script file for that.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The &gt;&gt;&gt; Prompt</div>
+                <div class="card-desc">The triple arrow is Python's prompt. It means "I'm ready for input." Lines without &gt;&gt;&gt; are output. This convention appears in every Python textbook.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- IDE SETUP ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 14</div>
+        <div class="slide-title">VS Code: Your <span class="accent">Python IDE</span></div>
+        <div class="slide-subtitle">Professional-grade editor, free and cross-platform.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Install VS Code</div>
+                <div class="card-desc">Download from code.visualstudio.com. Free for Windows, macOS, Linux. The most popular editor for Python development worldwide.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Python Extension</div>
+                <div class="card-desc">Open Extensions (Ctrl+Shift+X), search "Python" by Microsoft, click Install. This adds syntax highlighting, IntelliSense, linting, and debugging.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Integrated Terminal</div>
+                <div class="card-desc">Press Ctrl+` (backtick) to open the built-in terminal. Run your scripts directly: <span class="ic">python main.py</span>. No more switching between windows.</div>
+            </div>
+        </div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 700 130" xmlns="http://www.w3.org/2000/svg">
+                <rect x="20" y="10" width="660" height="110" rx="10" fill="rgba(74,222,128,0.04)" stroke="#4ade80" stroke-width="1"/>
+                <text x="350" y="30" text-anchor="middle" fill="#4ade80" font-size="10" font-weight="700" letter-spacing="1">VS CODE LAYOUT</text>
+                <!-- Sidebar -->
+                <rect x="30" y="40" width="80" height="70" rx="4" fill="rgba(74,222,128,0.1)" stroke="#4ade80" stroke-width="0.5"/>
+                <text x="70" y="60" text-anchor="middle" fill="#94a3b8" font-size="8">Explorer</text>
+                <text x="70" y="75" text-anchor="middle" fill="#475569" font-size="7">main.py</text>
+                <text x="70" y="87" text-anchor="middle" fill="#475569" font-size="7">utils.py</text>
+                <text x="70" y="99" text-anchor="middle" fill="#475569" font-size="7">data.csv</text>
+                <!-- Editor -->
+                <rect x="120" y="40" width="350" height="70" rx="4" fill="rgba(0,0,0,0.3)" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
+                <text x="295" y="58" text-anchor="middle" fill="#e2e8f0" font-size="9" font-family="monospace">print("Hello, Snake Pit!")</text>
+                <text x="295" y="75" text-anchor="middle" fill="#475569" font-size="9" font-family="monospace">name = input("Your name: ")</text>
+                <text x="295" y="92" text-anchor="middle" fill="#4ade80" font-size="9" font-family="monospace">print(f"Welcome, {name}")</text>
+                <!-- Terminal -->
+                <rect x="480" y="40" width="190" height="70" rx="4" fill="rgba(0,0,0,0.4)" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
+                <text x="575" y="58" text-anchor="middle" fill="#06b6d4" font-size="8">TERMINAL</text>
+                <text x="575" y="75" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="monospace">$ python main.py</text>
+                <text x="575" y="92" text-anchor="middle" fill="#4ade80" font-size="8" font-family="monospace">Hello, Snake Pit!</text>
+            </svg>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- YOUR FIRST PROGRAM ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 14</div>
+        <div class="slide-title">Your First <span class="accent">Python Program</span></div>
+        <div class="slide-subtitle">From empty file to running output in under a minute.</div>
+
+        <div class="code-block"><span class="cm"># hello.py -- your very first Python script</span>
+<span class="fn">print</span>(<span class="st">"Hello, World!"</span>)
+<span class="fn">print</span>(<span class="st">"Welcome to the Snake Pit."</span>)
+<span class="fn">print</span>(<span class="st">"Python version: 3.12"</span>)</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1.</span><span class="fact-text">Create a new file called <code>hello.py</code> in VS Code</span></div>
+            <div class="fact-row"><span class="fact-num">2.</span><span class="fact-text">Type the three <code>print()</code> statements shown above</span></div>
+            <div class="fact-row"><span class="fact-num">3.</span><span class="fact-text">Open the terminal with Ctrl+` and run: <code>python hello.py</code></span></div>
+            <div class="fact-row"><span class="fact-num">4.</span><span class="fact-text">You should see three lines of output. That is a working program.</span></div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Key Insight</div>
+            A Python file is just a text file with a <code>.py</code> extension. The interpreter reads it top to bottom, executing each line in order. No main() function required, no class boilerplate -- just code.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- PRINT FUNCTION ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 14</div>
+        <div class="slide-title">The <span class="accent">print()</span> Function</div>
+        <div class="slide-subtitle">Your primary tool for displaying output.</div>
+
+        <div class="code-block"><span class="cm"># Basic printing</span>
+<span class="fn">print</span>(<span class="st">"Hello"</span>)                  <span class="cm"># Hello</span>
+<span class="fn">print</span>(<span class="st">"Age:"</span>, <span class="nb">25</span>)              <span class="cm"># Age: 25</span>
+<span class="fn">print</span>(<span class="st">"A"</span>, <span class="st">"B"</span>, <span class="st">"C"</span>)           <span class="cm"># A B C (space separated)</span>
+<span class="fn">print</span>(<span class="st">"A"</span>, <span class="st">"B"</span>, sep=<span class="st">"-"</span>)      <span class="cm"># A-B (custom separator)</span>
+<span class="fn">print</span>(<span class="st">"Line 1"</span>, end=<span class="st">""</span>)       <span class="cm"># Line 1 (no newline)</span>
+<span class="fn">print</span>()                          <span class="cm"># (blank line)</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Multiple Arguments</div>
+                <div class="card-desc"><span class="ic">print()</span> accepts multiple arguments separated by commas. By default it joins them with spaces. Use <span class="ic">sep=</span> to change the separator.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The end Parameter</div>
+                <div class="card-desc">By default, <span class="ic">print()</span> adds a newline at the end. Use <span class="ic">end=""</span> to suppress it. Use <span class="ic">end=" "</span> to end with a space instead.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- INPUT FUNCTION ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 14</div>
+        <div class="slide-title">The <span class="accent">input()</span> Function</div>
+        <div class="slide-subtitle">Getting data from the user at runtime.</div>
+
+        <div class="code-block"><span class="cm"># input() always returns a STRING</span>
+name = <span class="fn">input</span>(<span class="st">"Enter your name: "</span>)
+<span class="fn">print</span>(<span class="st">"Hello,"</span>, name)
+
+<span class="cm"># To get a number, you must convert the type</span>
+age_str = <span class="fn">input</span>(<span class="st">"Enter your age: "</span>)   <span class="cm"># returns "25" (a string)</span>
+age = <span class="fn">int</span>(age_str)                      <span class="cm"># converts to 25 (an integer)</span>
+
+<span class="cm"># Or combine in one line:</span>
+age = <span class="fn">int</span>(<span class="fn">input</span>(<span class="st">"Enter your age: "</span>))  <span class="cm"># common pattern</span></div>
+
+        <div class="box box-red">
+            <div class="box-label">Common Mistake</div>
+            <code>input()</code> ALWAYS returns a string, even if the user types a number. If you need to do math with it, you must convert it using <code>int()</code> or <code>float()</code>. Forgetting this causes TypeError.
+        </div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 600 80" xmlns="http://www.w3.org/2000/svg">
+                <rect x="10" y="10" width="130" height="50" rx="6" fill="rgba(6,182,212,0.12)" stroke="#06b6d4" stroke-width="1"/>
+                <text x="75" y="30" text-anchor="middle" fill="#06b6d4" font-size="9" font-weight="700">User Types: 25</text>
+                <text x="75" y="45" text-anchor="middle" fill="#94a3b8" font-size="8">keyboard input</text>
+                <line x1="140" y1="35" x2="190" y2="35" stroke="#475569" stroke-width="1.5"/>
+                <text x="165" y="28" text-anchor="middle" fill="#475569" font-size="7">input()</text>
+                <rect x="190" y="10" width="130" height="50" rx="6" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="1"/>
+                <text x="255" y="30" text-anchor="middle" fill="#fca5a5" font-size="9" font-weight="700">"25" (string)</text>
+                <text x="255" y="45" text-anchor="middle" fill="#94a3b8" font-size="8">still text!</text>
+                <line x1="320" y1="35" x2="370" y2="35" stroke="#475569" stroke-width="1.5"/>
+                <text x="345" y="28" text-anchor="middle" fill="#475569" font-size="7">int()</text>
+                <rect x="370" y="10" width="130" height="50" rx="6" fill="rgba(74,222,128,0.12)" stroke="#4ade80" stroke-width="1"/>
+                <text x="435" y="30" text-anchor="middle" fill="#4ade80" font-size="9" font-weight="700">25 (integer)</text>
+                <text x="435" y="45" text-anchor="middle" fill="#94a3b8" font-size="8">now a number</text>
+            </svg>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- COMMENTS ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 14</div>
+        <div class="slide-title">Comments &amp; <span class="accent">Code Readability</span></div>
+        <div class="slide-subtitle">Writing code that humans can understand.</div>
+
+        <div class="code-block"><span class="cm"># This is a single-line comment -- the interpreter ignores it</span>
+
+name = <span class="st">"Alice"</span>   <span class="cm"># Inline comment: explains this specific line</span>
+
+<span class="cm"># Multi-line explanation:</span>
+<span class="cm"># This block calculates the user's birth year</span>
+<span class="cm"># based on their current age and the current year.</span>
+age = <span class="nb">25</span>
+birth_year = <span class="nb">2026</span> - age
+
+<span class="st">"""
+This is a docstring (triple-quoted string).
+Used to document functions and classes.
+Not technically a comment, but often used as one.
+"""</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Good Comments</div>
+                <div class="card-desc">Explain WHY, not WHAT. <span class="ic"># Convert to Celsius for API requirement</span> is useful. <span class="ic"># Subtract 32</span> is not -- the code already says that.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Bad Comments</div>
+                <div class="card-desc"><span class="ic"># Set x to 5</span> followed by <span class="ic">x = 5</span> adds nothing. Over-commenting obvious code is noise. Under-commenting complex code is worse.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- PYTHON SCRIPTS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 14</div>
+        <div class="slide-title">Scripts vs. <span class="accent">REPL</span></div>
+        <div class="slide-subtitle">When to use each and how they differ.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">REPL (Interactive Mode)</div>
+                <div class="card-desc">Type code, see results immediately. Great for quick experiments and testing. Nothing is saved. Every expression result is automatically printed. Start with <span class="ic">python</span> in terminal.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Script (File Mode)</div>
+                <div class="card-desc">Write code in a .py file, run it all at once. Code is saved and reusable. Must use <span class="ic">print()</span> to see output. Run with <span class="ic">python filename.py</span> in terminal.</div>
+            </div>
+        </div>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 600 100" xmlns="http://www.w3.org/2000/svg">
+                <rect x="10" y="10" width="250" height="80" rx="8" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1"/>
+                <text x="135" y="30" text-anchor="middle" fill="#06b6d4" font-size="10" font-weight="700">REPL</text>
+                <text x="135" y="48" text-anchor="middle" fill="#94a3b8" font-size="8">&gt;&gt;&gt; 2 + 2</text>
+                <text x="135" y="62" text-anchor="middle" fill="#4ade80" font-size="8">4</text>
+                <text x="135" y="78" text-anchor="middle" fill="#475569" font-size="8">Instant feedback, not saved</text>
+                <rect x="310" y="10" width="250" height="80" rx="8" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1"/>
+                <text x="435" y="30" text-anchor="middle" fill="#c9a83a" font-size="10" font-weight="700">Script File</text>
+                <text x="435" y="48" text-anchor="middle" fill="#94a3b8" font-size="8">print(2 + 2)  # in main.py</text>
+                <text x="435" y="62" text-anchor="middle" fill="#4ade80" font-size="8">$ python main.py  -> 4</text>
+                <text x="435" y="78" text-anchor="middle" fill="#475569" font-size="8">Saved, reusable, shareable</text>
+            </svg>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- ERRORS ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 14</div>
+        <div class="slide-title">Errors Are <span class="accent">Normal</span></div>
+        <div class="slide-subtitle">Every programmer makes errors. The key is reading the error message.</div>
+
+        <div class="code-block"><span class="cm"># SyntaxError: missing closing quote</span>
+<span class="fn">print</span>(<span class="st">"Hello World</span>)
+<span class="er">  File "hello.py", line 1
+    print("Hello World)
+          ^
+SyntaxError: unterminated string literal</span>
+
+<span class="cm"># NameError: variable not defined</span>
+<span class="fn">print</span>(mesage)
+<span class="er">NameError: name 'mesage' is not defined</span>
+
+<span class="cm"># TypeError: wrong operation for the type</span>
+<span class="fn">print</span>(<span class="st">"age: "</span> + <span class="nb">25</span>)
+<span class="er">TypeError: can only concatenate str (not "int") to str</span></div>
+
+        <div class="box box-gold">
+            <div class="box-label">How to Read Error Messages</div>
+            Python tells you the file name, line number, and error type. Read from the BOTTOM up: the last line is the actual error. The arrow (^) shows where Python got confused. Fix that spot first.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- PYTHON ZEN ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 14</div>
+        <div class="slide-title">The Zen of <span class="accent">Python</span></div>
+        <div class="slide-subtitle">The philosophy embedded in the language itself.</div>
+
+        <div class="code-block"><span class="cm"># Type this in the Python REPL</span>
+&gt;&gt;&gt; <span class="kw">import</span> this
+
+The Zen of Python, by Tim Peters
+
+Beautiful is better than ugly.
+Explicit is better than implicit.
+Simple is better than complex.
+Readability counts.
+Errors should never pass silently.
+There should be one obvious way to do it.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Readability Counts</div>
+                <div class="card-desc">Python is designed to look like pseudocode. Use descriptive variable names, consistent indentation, and clear structure. Your code should read like English.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Simple > Complex</div>
+                <div class="card-desc">If there is a simpler way to do something, do it that way. Clever one-liners that nobody can read are worse than clear three-liners that everyone understands.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Explicit > Implicit</div>
+                <div class="card-desc">Say what you mean. Python prefers being clear about what a piece of code does, even if that means more typing. Avoid hidden magic.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- RECAP ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 14 | Summary</div>
+        <div class="slide-title">Chapter 1 <span class="accent">Recap</span></div>
+        <div class="slide-subtitle">What you should know after this presentation.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1.</span><span class="fact-text">Python is an interpreted, general-purpose language created by Guido van Rossum in 1991</span></div>
+            <div class="fact-row"><span class="fact-num">2.</span><span class="fact-text">The REPL (<code>python</code>) lets you experiment interactively; scripts (<code>.py</code> files) save your code</span></div>
+            <div class="fact-row"><span class="fact-num">3.</span><span class="fact-text"><code>print()</code> displays output; <code>input()</code> reads user input (always returns a string)</span></div>
+            <div class="fact-row"><span class="fact-num">4.</span><span class="fact-text">Comments use <code>#</code> for single-line and triple quotes for docstrings</span></div>
+            <div class="fact-row"><span class="fact-num">5.</span><span class="fact-text">VS Code + Python extension = professional development environment</span></div>
+            <div class="fact-row"><span class="fact-num">6.</span><span class="fact-text">Errors are normal -- read them bottom-up to find the problem</span></div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Next Up</div>
+            Data Types and Expressions -- variables, integers, floats, strings, booleans, operators, and type conversion. The building blocks for every program you will ever write.
+        </div>
+    </div>
+</section>
+
+<!-- Navigation Bar -->
+<nav id="nav-bar">
+    <a href="../index.html" class="nav-btn back-btn">Snake Pit Hub</a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Prev</button>
+    <span id="slide-counter">Slide 1 of 14</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+    <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 14;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        var completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('code', 'sp-w1-intro-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>
