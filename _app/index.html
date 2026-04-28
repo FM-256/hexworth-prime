@@ -1059,18 +1059,37 @@
         });
 
         /* ── Returning User Check ── */
-        function checkReturningUser() {
+        async function checkReturningUser() {
             const house = localStorage.getItem('hexworth_house');
-            if (house) {
-                const theme = localStorage.getItem('hexworth_theme') || 'magic';
-                if (theme === 'matrix') {
-                    PageTransition.navigateTo('terminal.html', 'matrix');
-                } else {
-                    PageTransition.navigateTo('dashboard.html', 'magic');
+            if (!house) return false;
+
+            // Top up localStorage from Firestore before redirect so progress recorded
+            // on a different origin (custom domain vs *.web.app) shows up. The deep-merge
+            // in _restoreSyncBlob enforces completion monotonicity — it can only add
+            // completions, never regress local state. Hard-capped so a slow network
+            // can't block the redirect indefinitely.
+            try {
+                if (typeof FirebaseAuth !== 'undefined' && typeof FirestoreManager !== 'undefined') {
+                    await Promise.race([FirebaseAuth.init(), new Promise(r => setTimeout(r, 1000))]);
+                    const user = typeof FirebaseAuth.waitForAuth === 'function'
+                        ? await Promise.race([FirebaseAuth.waitForAuth(), new Promise(r => setTimeout(() => r(null), 1000))])
+                        : (FirebaseAuth.getUser ? FirebaseAuth.getUser() : null);
+                    if (user && user.uid) {
+                        await Promise.race([
+                            FirestoreManager.restoreFromCloud(user.uid),
+                            new Promise(r => setTimeout(r, 2000))
+                        ]);
+                    }
                 }
-                return true;
+            } catch (e) { /* best-effort; never block redirect on a topup error */ }
+
+            const theme = localStorage.getItem('hexworth_theme') || 'magic';
+            if (theme === 'matrix') {
+                PageTransition.navigateTo('terminal.html', 'matrix');
+            } else {
+                PageTransition.navigateTo('dashboard.html', 'magic');
             }
-            return false;
+            return true;
         }
 
         /* ── Auth: Google Sign-In ── */
@@ -1100,31 +1119,18 @@
 
                 await FirestoreManager.init();
 
-                if (hasLocalData) {
-                    statusEl.textContent = 'Syncing your progress...';
-                    await new Promise(r => setTimeout(r, 1500));
-                    statusEl.textContent = 'Welcome back! Redirecting...';
-                    await new Promise(r => setTimeout(r, 500));
-
-                    if (existingHouse) {
-                        const theme = existingTheme || 'magic';
-                        PageTransition.navigateTo(theme === 'matrix' ? 'terminal.html' : 'dashboard.html', theme);
-                    } else {
-                        if (!existingTheme) localStorage.setItem('hexworth_theme', 'magic');
-                        PageTransition.navigateTo('sorting.html', 'magic');
-                    }
-                    return;
-                }
-
                 statusEl.textContent = 'Restoring your data...';
                 const result = await FirestoreManager.restoreFromCloud(user.uid);
-                if (result.restored && result.hasHouse) {
+                const finalHouse = (result.restored && result.hasHouse) ? true : !!existingHouse;
+                const finalTheme = result.theme || existingTheme || 'magic';
+
+                if (finalHouse) {
                     statusEl.textContent = 'Welcome back! Redirecting...';
-                    await new Promise(r => setTimeout(r, 1000));
-                    PageTransition.navigateTo(result.theme === 'matrix' ? 'terminal.html' : 'dashboard.html', result.theme || 'magic');
-                } else if (result.restored && !result.hasHouse) {
+                    await new Promise(r => setTimeout(r, 800));
+                    PageTransition.navigateTo(finalTheme === 'matrix' ? 'terminal.html' : 'dashboard.html', finalTheme);
+                } else if (result.restored) {
                     statusEl.textContent = 'Account found. Let\'s get you sorted!';
-                    await new Promise(r => setTimeout(r, 1500));
+                    await new Promise(r => setTimeout(r, 1200));
                     if (!localStorage.getItem('hexworth_theme')) localStorage.setItem('hexworth_theme', 'magic');
                     PageTransition.navigateTo('sorting.html', 'magic');
                 } else {
@@ -1203,31 +1209,18 @@
 
                 await FirestoreManager.init();
 
-                if (hasLocalData) {
-                    statusEl.textContent = 'Syncing your progress...';
-                    await new Promise(r => setTimeout(r, 1500));
-                    statusEl.textContent = 'Welcome back! Redirecting...';
-                    await new Promise(r => setTimeout(r, 500));
-
-                    if (existingHouse) {
-                        const theme = existingTheme || 'magic';
-                        PageTransition.navigateTo(theme === 'matrix' ? 'terminal.html' : 'dashboard.html', theme);
-                    } else {
-                        if (!existingTheme) localStorage.setItem('hexworth_theme', 'magic');
-                        PageTransition.navigateTo('sorting.html', 'magic');
-                    }
-                    return;
-                }
-
                 statusEl.textContent = 'Restoring your data...';
                 const result = await FirestoreManager.restoreFromCloud(user.uid);
-                if (result.restored && result.hasHouse) {
+                const finalHouse = (result.restored && result.hasHouse) ? true : !!existingHouse;
+                const finalTheme = result.theme || existingTheme || 'magic';
+
+                if (finalHouse) {
                     statusEl.textContent = 'Welcome back! Redirecting...';
-                    await new Promise(r => setTimeout(r, 1000));
-                    PageTransition.navigateTo(result.theme === 'matrix' ? 'terminal.html' : 'dashboard.html', result.theme || 'magic');
-                } else if (result.restored && !result.hasHouse) {
+                    await new Promise(r => setTimeout(r, 800));
+                    PageTransition.navigateTo(finalTheme === 'matrix' ? 'terminal.html' : 'dashboard.html', finalTheme);
+                } else if (result.restored) {
                     statusEl.textContent = 'Account found. Let\'s get you sorted!';
-                    await new Promise(r => setTimeout(r, 1500));
+                    await new Promise(r => setTimeout(r, 1200));
                     if (!localStorage.getItem('hexworth_theme')) localStorage.setItem('hexworth_theme', 'magic');
                     PageTransition.navigateTo('sorting.html', 'magic');
                 } else {
@@ -1286,7 +1279,7 @@
         }
 
         /* ── Init ── */
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
             initDigitalLife();
             loadVersionBadge();
 
@@ -1296,7 +1289,7 @@
             }
 
             /* Auto-redirect returning users */
-            if (!checkReturningUser()) {
+            if (!(await checkReturningUser())) {
                 runDecodeEffect();
             }
 
